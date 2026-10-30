@@ -19,6 +19,7 @@
     "antigravity",
     "warp",
     "cline",
+    "qoder",
     "vscode-insiders"
   ],
   "launchDefaults": {
@@ -45,6 +46,9 @@
     "cline": [
       "--auto-approve",
       "true"
+    ],
+    "qoder": [
+      "--dangerously-skip-permissions"
     ]
   },
   "autonomyProfiles": {
@@ -243,6 +247,30 @@
         }
       },
       {
+        "hostId": "qoder",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "qoder",
+        "native": {
+          "permissionMode": "bypass_permissions",
+          "tools": "default",
+          "acpFlags": [
+            "--acp"
+          ],
+          "administrativeCommandsExcluded": [
+            "login",
+            "mcp",
+            "plugins",
+            "skills",
+            "hooks",
+            "agents",
+            "update",
+            "status",
+            "feedback",
+            "rollback"
+          ]
+        }
+      },
+      {
         "hostId": "vscode-insiders",
         "defaultProfile": "repo-autonomous",
         "native": {
@@ -340,6 +368,10 @@
     "warp": {
       "authMode": "account",
       "loginCommand": "warp login"
+    },
+    "qoder": {
+      "authMode": "account",
+      "loginCommand": "qodercli login"
     }
   },
   "dispatchPolicy": {
@@ -528,6 +560,12 @@
       "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 11 s, returned ok.",
       "verifiedOn": "2026-10-14",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
+    },
+    "qoder": {
+      "enabled": false,
+      "reason": "qodercli status reports Account: Not logged in. Native headless help verified on Qoder CLI 1.1.81.",
+      "ownerAction": "Run qodercli login in your own terminal; confirm included allowance or authorize a task credit budget, then one smoke before enabling.",
+      "verifiedOn": "2026-10-30"
     }
   },
   "hostSurfaces": {
@@ -748,6 +786,29 @@
         "verification": "Official Antigravity IDE browser docs: isolated Chrome profile, screenshots, action videos. The CLI host (antigravity) is a different surface and is not asserted here."
       },
       {
+        "hostId": "qoder",
+        "surfaceId": "qoder-ide",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": true,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "docs.qoder.com/user-guide/chat/browser-agent: Browser Agent is built into Qoder IDE Agent Mode (/browser). Built-in browser is 'a lightweight browser panel built into the IDE -- no additional setup required' and takes screenshots as visual feedback.",
+          "computer.gui": "docs.qoder.com/user-guide/chat/computer-use-agent: Computer Use is a Qoder IDE capability on macOS 14+ and Windows 10+. It takes screenshots and drives mouse and keyboard. For web apps the same page says prefer Browser Agent first."
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "Browser Agent can switch to local Chrome for complex or extension-backed pages. That attach was not probed, so authenticated stays null.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Official Qoder IDE docs: built-in Browser Agent pane with screenshots, and Computer Use on Windows 10+. The optional local-Chrome path is not treated as authenticated without a connection probe. This is the IDE surface; the CLI is not separately asserted.",
+        "dispatchNote": "This IDE row is not the qodercli print surface. CLI dispatch uses the separately recorded qoder-cli surface."
+      },
+      {
         "hostId": "factory",
         "surfaceId": "factory",
         "capabilities": {
@@ -869,6 +930,20 @@
           "mobile.ios.simulated": null
         },
         "verifiedOn": "2026-10-14",
+        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately.",
+        "capabilityNotEstablished": {}
+      },
+      {
+        "hostId": "qoder",
+        "surfaceId": "qoder-cli",
+        "capabilities": {
+          "browser.isolated": null,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "verifiedOn": "2026-10-30",
         "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately.",
         "capabilityNotEstablished": {}
       },

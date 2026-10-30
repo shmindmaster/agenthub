@@ -29,3 +29,7 @@ Get-Command qodercli -ErrorAction SilentlyContinue
 The disposition is limited to those checked command and package locations; it
 does not claim a whole-machine search. No uninstall command was run because no
 in-scope install was found at those locations.
+
+## 2026-10-30 Update — Qoder un-retired
+
+Owner direction on 2026-10-30 restored Qoder (`qoder`) to the active AgentHub fleet after verifying Qoder CLI 1.1.81 at `~/.qoder/bin/qodercli/qodercli.exe` (shimmed at `~/bin/qodercli.cmd`) and Qoder Desktop IDE 1.24.2 at `%LOCALAPPDATA%\Programs\Qoder\Qoder.exe`. Qwen Code and Hermes remain retired.

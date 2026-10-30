@@ -15,14 +15,17 @@ function Fail([string]$Message) { $script:errors.Add($Message) }
 function Read-Json([string]$Path) { Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json }
 try {
     # Extract complete AST statements rather than duplicate the production guard.
+    # Parse the exact string that is sliced below: PowerShell 5.1 reads a
+    # BOM-less UTF-8 file as ANSI, so a ParseFile AST has different offsets
+    # than ReadAllText() whenever the file holds a multi-byte character.
+    $source = [IO.File]::ReadAllText((Join-Path $root 'scripts/Validate-AgentHub.ps1'))
     $tokens = $null; $parseErrors = $null
-    $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'scripts/Validate-AgentHub.ps1'), [ref]$tokens, [ref]$parseErrors)
+    $ast = [Management.Automation.Language.Parser]::ParseInput($source, [ref]$tokens, [ref]$parseErrors)
     if ($parseErrors.Count) { throw 'Validator has parse errors' }
     $statements = @($ast.EndBlock.Statements)
     $first = @($statements | Where-Object { $_.Extent.Text -match '^\$retiredMcpIds\s*=' })
     $last = @($statements | Where-Object { $_.Extent.Text -match '^foreach\s*\(\$packageTree in \$mcpPackageRoots\)' })
     if ($first.Count -ne 1 -or $last.Count -ne 1) { throw 'Cannot locate complete production retirement validation block' }
-    $source = [IO.File]::ReadAllText((Join-Path $root 'scripts/Validate-AgentHub.ps1'))
     $guard = [scriptblock]::Create($source.Substring($first[0].Extent.StartOffset, $last[0].Extent.EndOffset - $first[0].Extent.StartOffset))
     $mcps = @{retiredMcpIds=@('chrome-devtools','chrome-devtools-isolated');retiredMcpPackages=@('chrome-devtools-mcp');migrationAliases=@{};mcpServers=@()}
     $public = Join-Path $pluginRoot 'fixture'

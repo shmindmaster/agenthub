@@ -75,7 +75,7 @@ $owners = @(if ($registry) { $registry.capabilities | Where-Object { 'sarosh-com
 $capability = if ($owners.Count -eq 1) { $owners[0] } else { $null }
 $expectedHosts = @(
     'amp', 'antigravity', 'claude', 'cline', 'codex', 'copilot', 'cursor',
-    'devin', 'factory', 'gemini', 'grok', 'opencode',
+    'devin', 'factory', 'gemini', 'grok', 'opencode', 'qoder',
     'warp', 'windsurf'
 )
 $actualHosts = if ($capability) { @($capability.hostMappings | ForEach-Object { [string]$_.hostId } | Sort-Object -Unique) } else { @() }

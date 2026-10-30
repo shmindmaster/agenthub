@@ -303,6 +303,15 @@ function Get-DispatchTable {
                 @{ Args = $args; Stdin = $null; PromptFile = $File }
             }
         }
+        'qoder' = @{
+            Mode = 'argument'
+            Build = {
+                param($PromptText, $Work, $File)
+                # qodercli --help 2026-10-30: -p prints and exits, -w sets the cwd,
+                # -o sets the output format. Flags mirror the ~/bin/qodercli.cmd shim.
+                @{ Args = @('-p', '--dangerously-skip-permissions', '--tools', 'default', '-w', $Work, '-o', 'text', $PromptText); Stdin = $null; PromptFile = $null }
+            }
+        }
         'warp' = @{
             Mode = 'argument'
             Build = {

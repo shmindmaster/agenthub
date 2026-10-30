@@ -11,7 +11,6 @@ Experience Engineering; video production and release decisions remain with
 
 After resolving a provider lane, load the matching catalog:
 
-- `use-playwright-mcp` — snapshot/screenshot/console/network evidence in an exploratory loop
 - `use-playwright-cli` — named-session screenshots, traces, and **session video**
 - `use-playwright-test` — fixture-backed evidence inside a regression suite when appropriate
 - `desktop-evidence` — native Windows window or whole-desktop stills and recordings
@@ -41,10 +40,9 @@ personal Chrome state, unrelated tabs, credentials, or customer data.
    `hostSurfaces.surfaces`. If it records the required capability as `true`, capture
    with its own first-party browser and start nothing.
    <!-- resolution-step: surface-provided -->
-3. Use `playwright` -- the declared fallback, `providesCapabilities` in
-   `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
-   `null`, or when the evidence needed is MCP-side console/network/snapshot capture.
-   Load `use-playwright-mcp`.
+3. No browser MCP is registered: `playwright` was retired fleet-wide on 2026-10-29.
+   When the surface records `false` or `null`, or when console/network capture is
+   needed, load `use-playwright-cli`; start no MCP server.
    <!-- resolution-step: local-fallback -->
 4. Session video and Playwright traces MUST use Playwright CLI
    (`video-start` / `video-stop`, `tracing-start` / `tracing-stop`). Load

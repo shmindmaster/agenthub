@@ -292,6 +292,12 @@
       "bucket": "noNative",
       "clonedToFleetRoot": false,
       "note": "GitHub profile repository."
+    },
+    {
+      "productId": "docwise",
+      "repository": "shmindmaster/docwise",
+      "bucket": "noNative",
+      "note": "Local document index with a FastAPI web UI on loopback, a CLI and a stdio MCP server; no native mobile surface. Classified from repository evidence 2026-10-30."
     }
   ],
   "identifierConvention": {

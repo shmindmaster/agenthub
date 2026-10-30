@@ -14,7 +14,6 @@ browser-evidence             ──┘
         └── desktop-evidence when the target is not a browser
 
 use-playwright-cli   ← provider catalog (coding-agent capture, **video**, traces)
-use-playwright-mcp   ← provider catalog (exploratory persistent MCP; no fleet video)
 use-playwright-test  ← provider catalog (regression suites)
 desktop-evidence     ← provider catalog (Windows desktop/window via Capture-Screen.ps1)
 ```
@@ -47,7 +46,6 @@ Evidence root for stills, traces, and recordings (browser and desktop):
 | **`browser-debugging`** | router | Console/network/trace debugging (`browser.isolated`) |
 | **`browser-evidence`** | router | Screenshots, traces, artifacts (`browser.isolated`); bounces desktop targets to `desktop-evidence` |
 | **`use-playwright-cli`** | provider | CLI command catalog + session video/traces |
-| **`use-playwright-mcp`** | provider | MCP `browser_*` tool catalog + profile semantics |
 | **`use-playwright-test`** | provider | Promoting captures into `@playwright/test` |
 | **`desktop-evidence`** | provider | Windows desktop/window capture helper |
 

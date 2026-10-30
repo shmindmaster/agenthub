@@ -11,7 +11,7 @@
 | Asset | Role |
 |---|---|
 | **Routers** `interactive-browser-testing`, `browser-debugging`, `browser-evidence` | Capability + lane selection |
-| **Catalog** `use-playwright-mcp` | Microsoft Playwright MCP `browser_*` tools (no fleet video) |
+| ~~**Catalog** `use-playwright-mcp`~~ | Retired 2026-10-29 with the Playwright MCP server; no browser MCP is registered |
 | **Catalog** `use-playwright-cli` | Playwright CLI for coding agents, including session video and traces |
 | **Catalog** `use-playwright-test` | Playwright Test regressions |
 | **Catalog** `desktop-evidence` | Windows desktop/window capture via `packages/browser-toolkit/scripts/Capture-Screen.ps1` |

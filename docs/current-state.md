@@ -316,8 +316,8 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   XCUITest 12.18.1 and appium-mcp 1.97.1, and records the x86_64 guest's
   Xcode 26.6 ceiling. Implemented and tested in source; the guest doctor run
   against the new pins and fleet deployment are still pending.
-- **Retired coding hosts (2026-10-21):** Owner direction retired Qoder, Qwen
-  Code, and Hermes from the managed fleet. See
+- **Retired coding hosts (2026-10-21, updated 2026-10-30):** Owner direction retired Qwen
+  Code and Hermes from the managed fleet; Qoder was un-retired on 2026-10-30. See
   [retired-hosts](./fleet/retired-hosts-2026-10-21.md) and the pending
   [account-login checklist](./fleet/account-logins-2026-10-21.md).
 - **Host readiness:** `registry/fleet-profile.json` is the source of truth for

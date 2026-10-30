@@ -316,6 +316,10 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
+        },
+        {
           "hostId": "amp",
           "deploymentStatus": "managed-loose-skills"
         },
@@ -387,6 +391,10 @@
         },
         {
           "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -500,6 +508,10 @@
         {
           "hostId": "cline",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
@@ -540,6 +552,10 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
           "hostId": "amp",
           "deploymentStatus": "managed-loose-skills"
         },
@@ -576,7 +592,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Converted 2026-08-24 from a republished Firecrawl plugin to a fleet overlay. Official scrape/crawl/cli/build/research skills and the plugin live at https://github.com/firecrawl/skills; the fleet remote MCP remains registry/mcps.json#firecrawl. This package keeps only governed ingestion constraints. Do not restore firecrawl-scrape, firecrawl-crawl, or firecrawl-cli here — those names collide with upstream."
+      "notes": "Converted 2026-08-24 from a republished Firecrawl plugin to a fleet overlay. Official scrape/crawl/cli/build/research skills and the plugin live at https://github.com/firecrawl/skills; the fleet remote MCP remains registry/mcps.json#firecrawl. This package keeps only governed ingestion constraints. Do not restore firecrawl-scrape, firecrawl-crawl, or firecrawl-cli here \u2014 those names collide with upstream."
     },
     {
       "id": "coderabbit",
@@ -612,6 +628,10 @@
         },
         {
           "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -664,12 +684,12 @@
         "desktop-evidence",
         "interactive-browser-testing",
         "use-playwright-cli",
-        "use-playwright-mcp",
         "use-playwright-test"
       ],
       "retiredSkillNames": [
         "browser-audit",
-        "use-chrome-devtools-mcp"
+        "use-chrome-devtools-mcp",
+        "use-playwright-mcp"
       ],
       "retiredSkills": [
         {
@@ -678,10 +698,10 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "B56B585B5C20518498091C1DDC7A03A05308CE608E354BDBA506040061726188",
+      "contentHash": "AFC0DE1EA4CEC5A1F62DC9F6754D2375AF584C009254294303BAE688028A091C",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
-      "browserProviderPolicy": "Chrome DevTools MCP is retired by owner direction 2026-10-24, including the isolated alias. Codex, Cursor and Claude use their native browser surface; other hosts use Playwright MCP, CLI or Test. Never register the retired provider or recreate its skill.",
+      "browserProviderPolicy": "Playwright MCP and Chrome DevTools MCP are retired by owner direction 2026-10-29, including the isolated alias; no browser MCP is registered in registry/mcps.json. Every host uses its own first-party browser surface. Playwright CLI and Playwright Test remain the repeatable non-MCP lanes (use-playwright-cli, use-playwright-test). Never register @playwright/mcp or chrome-devtools-mcp, and never recreate the retired use-playwright-mcp catalog.",
       "hostMappings": [
         {
           "hostId": "amp",
@@ -703,6 +723,14 @@
         {
           "hostId": "cline",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-08-26. native-local-plugin left ~/.qoder/skills with no browser-toolkit skills and no plugin directory on disk, so desktop-evidence was unreachable. Skills-only mapping; Qoder has no verified plugin copy to refresh."
         },
         {
           "hostId": "codex",
@@ -779,7 +807,7 @@
       "managedSkillNames": [
         "use-windows-mcp"
       ],
-      "contentHash": "02799FE8F0252A19A087035116DE69B576974CA94A4B44DDB01D28CF507B97C9",
+      "contentHash": "80DB38CF8CF6AC67A34F2152B53ECAE1B0906F2544689539B5F408F44200BE6D",
       "hashBasis": "packages/windows-desktop",
       "status": "active-canonical",
       "hostMappings": [
@@ -833,6 +861,10 @@
           "hostId": "cline",
           "deploymentStatus": "managed-loose-skills",
           "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
         },
         {
           "hostId": "copilot",
@@ -927,7 +959,7 @@
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Loose skills always. MCP via the AgentHub repowise plugin only — never persist C:/Repos/.cursor/mcp.json. Measured 2026-09-17: the workspace-open fallback spawned multiple `repowise mcp` process trees at session start."
+          "deploymentStatusNote": "Loose skills always. MCP via the AgentHub repowise plugin only \u2014 never persist C:/Repos/.cursor/mcp.json. Measured 2026-09-17: the workspace-open fallback spawned multiple `repowise mcp` process trees at session start."
         },
         {
           "hostId": "vscode-insiders",
@@ -939,6 +971,10 @@
         },
         {
           "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -989,7 +1025,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "238DBEC1859A7CE722706E7C54607528BD12B2621F580E45663D4A6A21C2486D",
+      "contentHash": "BE9DB8315E4C4B2B74DBBA67021A1AB9650D27B7B3806B349E7433CF0021F7AD",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -1032,6 +1068,14 @@
         },
         {
           "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills",
@@ -1135,7 +1179,12 @@
       "contentHash": "73B3BE22393597AE75343C14799C7ED199AA195B91429F8211331614ED4966C1",
       "hashBasis": "packages/learning-studio",
       "status": "active-canonical",
-      "hostMappings": [],
+      "hostMappings": [
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
       "notes": "Opt-in catalog capability; omitted from default coding context. Source and marketplace package retained. Owner context cleanup 2026-10-23.",
       "dependencies": {
         "requires": [],
@@ -1162,7 +1211,7 @@
         "media-studio-compose",
         "media-studio-qa"
       ],
-      "contentHash": "CCC1A7358E733F52BDF8F877396019F29F158F004303E4330E06B124B86F1B6A",
+      "contentHash": "A5E064A830822159AC3D41F00224D179ABB07745318207A4A3A8F85545582E6B",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1216,6 +1265,10 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
           "hostId": "antigravity",
           "deploymentStatus": "managed-loose-skills"
         },
@@ -1240,7 +1293,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 2.0.42 (2026-10-29 Azure AI Services is the default provider for TTS, STT, images and avatar clips; media-studio-generate/references/azure-ai-services.md holds the capability table, eastus2 prices from the Retail Prices API, voice cast and cheapest-first routing; ElevenLabs, Deepgram and Gemini are fallbacks; no Sarosh clone in films; prior 2.0.28 (2026-10-28 fail-closed encoded input reports and exact square delivery frame; prior 2.0.27 (2026-10-27 receipt-bound Azure HD and standard-voice speech on one $1 ledger; Deepgram additional batches keep the original ledger, legacy inventory receipts and inherited ambiguity; a hero count other than exactly one scores like a missing hero; prior 2.0.26 (2026-10-27 owner direction: speaker identity is advisory only; never fail, block or re-voice on speaker similarity; Generate/ReGate-OwnerVoice verdict is integrity + ASR only, voice score is opt-in -AdvisoryIdentity and recorded for information, the content ledger no longer requires an identity acceptance gate; prior 2.0.20 (2026-10-25 native receipt-relative capture clip resolution; hash-bound missing/tampered capture evidence fails despite a matching job-root decoy; 27 focused sync CPU tests); prior 2.0.19 (2026-10-24 receipt- and clip-hash-bound pointer-arrival and existing-state observation semantics; strict transition and maximum-hold gates retained; 55 CPU tests); prior 2.0.18 response evidence quarantine and strict parsing; prior 2.0.17 (2026-10-24 governed Deepgram Sienna exact-cache TTS with shared conservative microdollar reservations and explicitly authorized bounded recovery epochs; offline tests only, no provider verification); prior 2.0.9 (2026-10-23 shared content ledger: Ledger.reject lets a worker release its own submission when the provider refuses it before generating, used by the ElevenLabs adapter for HTTP 429); 2.0.8 (2026-10-22 pre-render picture gates: validate-picture-inputs refuses a non-aligner clock, fact-lock number drift, off-word or out-of-order spotlight anchors, mp3 or PASS-less takes and an undisclosed role voice; render-program is the single Remotion entry and deletes a picture whose duration misses the voice; lock-facts, write-captions with a hash-bound rate-bound report, merge-designed-cuts; build-cue-sheet prefers voice/align and refuses Whisper on forced-aligner jobs; owner voice renders each scene on its allowlisted voiceStyle reference); 2.0.7 (2026-10-22 timing uses accepted-take/script-bound forced-alignment onsets by default; Whisper timing requires the explicit --whisper-timing compatibility flag; aligner script words tokenized like sync-lib); 2.0.6 (2026-10-22 one flat folder per product directly under F:/My Drive/Videos, no subfolders); 2.0.5 (2026-10-21 isolated immutable-candidate QA, forced-alignment word clock, transcript-only Whisper, local vision with explicit paid fallback, optional clean caption layer); 2.0.4 (2026-10-21 kit lockfile takes hono 4.13.13, a transitive patch release via the MCP SDK); 2.0.3 (2026-10-21 owner-voice take reuse is keyed on a content fingerprint, not the segment id: OwnerVoice-TakeReuse.ps1 is shared by Generate-OwnerVoice.ps1 and ReGate-OwnerVoice.ps1 and deployed to _shared/tools; listen rejections persist in REJECTED.json and re-gate no longer skips a rejected segment); 2.0.2 (2026-10-21 Sync-MediaStudioKit mirrors kit/marketing in place with robocopy /MIR and refuses while an mvg job runs from the target unless -Force); 2.0.1 (2026-10-21 review fixes on PRs 41-42: taps count as interactions, --ratio takes record at viewport x DSF, validate-narration checks the locked timeline and storyboard disclosure, viewer-release requires canonical gate thresholds, marketing qa names media-studio-qa). 2.0.0 (2026-10-21 consolidation P1-P8: one producer skill with writer/storyboard/visuals/direction/series/campaigns references plus capture, generate, compose, qa; story-series-studio and technical-storytelling retired into it; descript a compose reference; story-experience review inside qa). 1.8.0 (2026-10-20 video standard, owner direction: validate-narration no-fluff check, capture pre-flight in record-job, validate-pointer-path, validate-frame-integrity, validate-picture-integrity and per-ratio capture, validate-marketing-readiness feed test, build-contact-sheet, freeze gate accepts declared holds; validate-viewer-release requires their reports; the deploy list must add the seven new gate scripts). 1.7.6 (2026-10-20: delivery review roots repointed to F:/My Drive/Videos/<Product>; Sync-MediaStudioKit.ps1 deploys Inspect-MediaVisualQuality.ps1, scaffold-video-workspace.mjs and product-experience-engineering's demo-stack.mjs to _shared/tools and reports unmanaged files left there). 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 2.0.42 (2026-10-29 Azure AI Services is the default provider for TTS, STT, images and avatar clips; media-studio-generate/references/azure-ai-services.md holds the capability table, eastus2 prices from the Retail Prices API, voice cast and cheapest-first routing; ElevenLabs, Deepgram and Gemini are fallbacks; no Sarosh clone in films; prior 2.0.28 (2026-10-28 fail-closed encoded input reports and exact square delivery frame; prior 2.0.27 (2026-10-27 receipt-bound Azure HD and standard-voice speech on one $1 ledger; Deepgram additional batches keep the original ledger, legacy inventory receipts and inherited ambiguity; a hero count other than exactly one scores like a missing hero; prior 2.0.26 (2026-10-27 owner direction: speaker identity is advisory only; never fail, block or re-voice on speaker similarity; Generate/ReGate-OwnerVoice verdict is integrity + ASR only, voice score is opt-in -AdvisoryIdentity and recorded for information, the content ledger no longer requires an identity acceptance gate; prior 2.0.20 (2026-10-25 native receipt-relative capture clip resolution; hash-bound missing/tampered capture evidence fails despite a matching job-root decoy; 27 focused sync CPU tests); prior 2.0.19 (2026-10-24 receipt- and clip-hash-bound pointer-arrival and existing-state observation semantics; strict transition and maximum-hold gates retained; 55 CPU tests); prior 2.0.18 response evidence quarantine and strict parsing; prior 2.0.17 (2026-10-24 governed Deepgram Sienna exact-cache TTS with shared conservative microdollar reservations and explicitly authorized bounded recovery epochs; offline tests only, no provider verification); prior 2.0.9 (2026-10-23 shared content ledger: Ledger.reject lets a worker release its own submission when the provider refuses it before generating, used by the ElevenLabs adapter for HTTP 429); 2.0.8 (2026-10-22 pre-render picture gates: validate-picture-inputs refuses a non-aligner clock, fact-lock number drift, off-word or out-of-order spotlight anchors, mp3 or PASS-less takes and an undisclosed role voice; render-program is the single Remotion entry and deletes a picture whose duration misses the voice; lock-facts, write-captions with a hash-bound rate-bound report, merge-designed-cuts; build-cue-sheet prefers voice/align and refuses Whisper on forced-aligner jobs; owner voice renders each scene on its allowlisted voiceStyle reference); 2.0.7 (2026-10-22 timing uses accepted-take/script-bound forced-alignment onsets by default; Whisper timing requires the explicit --whisper-timing compatibility flag; aligner script words tokenized like sync-lib); 2.0.6 (2026-10-22 one flat folder per product directly under F:/My Drive/Videos, no subfolders); 2.0.5 (2026-10-21 isolated immutable-candidate QA, forced-alignment word clock, transcript-only Whisper, local vision with explicit paid fallback, optional clean caption layer); 2.0.4 (2026-10-21 kit lockfile takes hono 4.13.13, a transitive patch release via the MCP SDK); 2.0.3 (2026-10-21 owner-voice take reuse is keyed on a content fingerprint, not the segment id: OwnerVoice-TakeReuse.ps1 is shared by Generate-OwnerVoice.ps1 and ReGate-OwnerVoice.ps1 and deployed to _shared/tools; listen rejections persist in REJECTED.json and re-gate no longer skips a rejected segment); 2.0.2 (2026-10-21 Sync-MediaStudioKit mirrors kit/marketing in place with robocopy /MIR and refuses while an mvg job runs from the target unless -Force); 2.0.1 (2026-10-21 review fixes on PRs 41-42: taps count as interactions, --ratio takes record at viewport x DSF, validate-narration checks the locked timeline and storyboard disclosure, viewer-release requires canonical gate thresholds, marketing qa names media-studio-qa). 2.0.0 (2026-10-21 consolidation P1-P8: one producer skill with writer/storyboard/visuals/direction/series/campaigns references plus capture, generate, compose, qa; story-series-studio and technical-storytelling retired into it; descript a compose reference; story-experience review inside qa). 1.8.0 (2026-10-20 video standard, owner direction: validate-narration no-fluff check, capture pre-flight in record-job, validate-pointer-path, validate-frame-integrity, validate-picture-integrity and per-ratio capture, validate-marketing-readiness feed test, build-contact-sheet, freeze gate accepts declared holds; validate-viewer-release requires their reports; the deploy list must add the seven new gate scripts). 1.7.6 (2026-10-20: delivery review roots repointed to F:/My Drive/Videos/<Product>; Sync-MediaStudioKit.ps1 deploys Inspect-MediaVisualQuality.ps1, scaffold-video-workspace.mjs and product-experience-engineering's demo-stack.mjs to _shared/tools and reports unmanaged files left there). 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask \u2014 product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, \u2026) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer \u2192 storyboard \u2192 visuals \u2192 director \u2192 generate \u2192 compose \u2192 craft critic (score \u2265 85) \u2192 QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [],
         "recommends": [
@@ -1276,7 +1329,7 @@
       "managedSkillNames": [
         "slack"
       ],
-      "contentHash": "74058FA02689F5705A9B2D20960D3E154FF7626F5B818EB3E8A9F3E8EF83E06C",
+      "contentHash": "0CC6F9DBEB2AF5EC4F2CE7E5224F945537EA4AC3D0223769A690478EF3006340",
       "hashBasis": "packages/slack",
       "status": "active-canonical",
       "notes": "AgentHub owns Slack read/write. This is not the 2026-08-05 claude.ai Slack connector and not Slack's hosted MCP. Official slackapi/slack-skills-plugin is optional UX. MCP is plugin-gated until the gateway is production-proven.",
@@ -1318,6 +1371,10 @@
         },
         {
           "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1379,7 +1436,7 @@
       "managedSkillNames": [
         "use-open-connector"
       ],
-      "contentHash": "683376C48C6DB87CF66BE40FD3A825E3AC7D29E632E84DD94A0B1F393523CA68",
+      "contentHash": "C2D87F80FA2F955FAEC64C560550CECC0DC13917C312AA50EC543E7A0D9EC59D",
       "hashBasis": "packages/open-connector",
       "status": "active-canonical",
       "hostMappings": [
@@ -1419,7 +1476,7 @@
       "managedSkillNames": [
         "use-coding-agent"
       ],
-      "contentHash": "D4639FD9AB8AB6AC22C09DF8B2EBA06FA70B9620F8CFA0607BAECA5AE58D972E",
+      "contentHash": "070AADE404B3E0308ECA659732D5EEC09A912F1C82B7238FDFAFA8B791BF81D6",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1457,6 +1514,10 @@
         },
         {
           "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1552,6 +1613,10 @@
         },
         {
           "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {

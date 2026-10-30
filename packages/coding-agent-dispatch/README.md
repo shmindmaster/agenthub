@@ -9,8 +9,8 @@ the installed CLIs on 2026-10-21. A host without that evidence is refused,
 including every GUI.
 
 Verified local command contracts: Claude, Codex, Cursor Agent, Gemini, Grok,
-OpenCode, Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin and
-Warp/Oz. `cursor` routes to Cursor Agent; its account-mode smoke returned
+OpenCode, Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin, Qoder
+and Warp/Oz. `cursor` routes to Cursor Agent; its account-mode smoke returned
 `ok` on 2026-10-22. Amp's account-mode smoke returned `ok` with MCP servers
 disabled for dispatch. Gemini remains blocked on interactive Google OAuth;
 its registered wrapper defaults to `--approval-mode yolo` and `--skip-trust`,

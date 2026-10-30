@@ -9,8 +9,8 @@ description: Use when a native Windows window or the whole desktop needs a scree
 <!-- provider-channel: cli -->
 
 **Do not start here.** Enter through `browser-evidence` when the target is not a
-browser. Sibling catalogs (`use-playwright-mcp`, `use-playwright-cli`,
-`use-playwright-test`) capture web pages. Polished delivery video is
+browser. Sibling catalogs (`use-playwright-cli`, `use-playwright-test`)
+capture web pages. Polished delivery video is
 `media-studio`.
 
 This lane is **not** an MCP server. It does not appear in `registry/mcps.json`.

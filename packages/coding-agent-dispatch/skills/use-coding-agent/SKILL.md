@@ -66,7 +66,7 @@ Refused rows stay refused. Help verification establishes a command contract;
 authentication, allowance and smoke evidence establish readiness separately.
 
 The 0.2.8 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
-Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin and local Warp/Oz.
+Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin, Qoder and local Warp/Oz.
 `registry/fleet-profile.json` -> `dispatchPolicy`
 can disable each contract with a reason and owner action. The current verified
 model and provider selections are recorded in `registry/fleet-profile.json` ->
@@ -81,6 +81,7 @@ Account-mode readiness recorded in this repair:
 | Amp | Execute mode with dispatch-only MCP servers disabled returned the requested response on 2026-10-22; `amp usage` reported Amp Free. |
 | OpenCode | Native 2.1.4 Console account OAuth and exact-response inference through the Go-only endpoint passed on 2026-10-23; no API-key override. |
 | Gemini | Dispatcher uses `--approval-mode yolo`; the registered shim skips its yolo default for that explicit invocation and supplies `--skip-trust`. Complete Google OAuth interactively with `gemini` before another smoke. |
+| Qoder | Owner runs `qodercli login`; confirm allowance and run one smoke before enabling. |
 | Warp | No supported account-status command or local-only execution mode was verified; keep disabled unless both are established. |
 | Other gated CLIs | Confirm included allowance for the configured provider/model or obtain an explicit task credit budget, then one smoke before enabling. |
 

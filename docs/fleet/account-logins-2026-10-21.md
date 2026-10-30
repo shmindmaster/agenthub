@@ -59,6 +59,7 @@ exited 1 without a response. Its dispatcher child had `GOOGLE_API_KEY` and
 14. **Warp CLI** — run `warp login` only after a supported account-status and
     local execution path are established. The current Oz CLI help did not
     expose an auth-status command.
+15. **Qoder CLI** — run `qodercli login` in your own terminal (`qodercli status` on 2026-10-30 reported `Account: Not logged in`). Confirm included allowance or authorize a task credit budget, then run one smoke before enabling.
 
 The registry records each supported CLI's `authMode` and login command in
 `registry/fleet-profile.json` -> `hostSettings`. Account login does not by

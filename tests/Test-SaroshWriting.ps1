@@ -62,7 +62,7 @@ $routingOk = $skill -match '(?is)Use `sarosh-communication` for the (?:concise|d
 Report 'long-form writing routes cleanly to communication and audio layers' $routingOk 'expected all three skill ids in their correct roles'
 
 $owners = @($registry.capabilities | Where-Object { 'sarosh-writing' -in @($_.managedSkillNames) })
-$expectedHosts = @('amp','antigravity','claude','cline','codex','copilot','cursor','devin','factory','gemini','grok','opencode','warp','windsurf') | Sort-Object
+$expectedHosts = @('amp','antigravity','claude','cline','codex','copilot','cursor','devin','factory','gemini','grok','opencode','qoder','warp','windsurf') | Sort-Object
 $actualHosts = if ($owners.Count -eq 1) { @($owners[0].hostMappings | ForEach-Object { [string]$_.hostId } | Sort-Object -Unique) } else { @() }
 $registryOk = $owners.Count -eq 1 -and $owners[0].id -eq 'sarosh-writing' -and
     $owners[0].owner -eq 'personal-writing' -and

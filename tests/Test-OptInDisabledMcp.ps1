@@ -67,8 +67,8 @@ if ($overlay.Root) {
 } else {
     Write-Host "SKIP: linkedin plugin manifest checks -- $($overlay.Reason)"
 }
-$slackPluginMcp = Get-Content (Join-Path $repoRoot 'packages\slack\.mcp.json') -Raw -Encoding UTF8
-Report 'slack plugin declares mcp id slack' ($slackPluginMcp -match '"slack"') 'packages/slack/.mcp.json'
+$slackPluginMcp = Get-Content (Join-Path $repoRoot 'packages\slack\.mcp.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+Report 'slack plugin declares no MCP servers; the registry is the single source' (@($slackPluginMcp.mcpServers.PSObject.Properties).Count -eq 0) 'packages/slack/.mcp.json still declares a server'
 $catalog = Get-Content (Join-Path $repoRoot '.agents\plugins\marketplace.json') -Raw -Encoding UTF8
 Report 'public agenthub marketplace does not leak private linkedin' ($catalog -notmatch '"linkedin"') 'private plugin listed in .agents/plugins/marketplace.json'
 Report 'agenthub marketplace catalogs slack' ($catalog -match '"slack"') 'missing from .agents/plugins/marketplace.json'
@@ -84,7 +84,7 @@ $oc = Join-Path $HOME '.config\opencode\opencode.json'
 if (Test-Path $oc) {
     $oj = Get-Content $oc -Raw -Encoding UTF8 | ConvertFrom-Json
     Report 'OpenCode has no retired Chrome DevTools entry' ($null -eq $oj.mcp.'chrome-devtools') 'retired entry remains'
-    foreach ($id in @('playwright', 'linkedin')) {
+    foreach ($id in @('linkedin')) {
         $node = $oj.mcp.$id
         if ($null -eq $node) {
             Report "OpenCode config lists '$id'" $false 'absent — run Sync-AgentHub -Apply after registry change'
@@ -92,6 +92,9 @@ if (Test-Path $oc) {
         }
         Report "OpenCode '$id' is disabled" ($node.enabled -eq $false) "enabled=$($node.enabled)"
     }
+    # 2026-10-29: playwright is retired fleet-wide, so a host config that still
+    # lists it is drift, not a missing opt-in entry.
+    Report "OpenCode config does not list retired 'playwright'" ($null -eq $oj.mcp.playwright) 'retired server still present in the OpenCode config'
 } else {
     Report 'OpenCode config exists to check opt-in MCP' $false "missing $oc"
 }

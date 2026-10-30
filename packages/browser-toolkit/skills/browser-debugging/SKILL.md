@@ -7,7 +7,6 @@ description: Use when an authorized browser workflow has runtime errors, failed 
 
 After resolving a provider lane, load the matching catalog:
 
-- `use-playwright-mcp` — live console/network/snapshot correlation (usual debug lane)
 - `use-playwright-cli` — compact reproduction scripts, traces, and session video while coding
 - `use-playwright-test` — preserve a regression once the failure is understood
 
@@ -38,10 +37,10 @@ signals.
    own first-party browser for observation, reproduction, and accessibility work.
    Nothing extra is started.
    <!-- resolution-step: surface-provided -->
-2. Use `playwright` -- the declared fallback, `providesCapabilities` in
-   `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
-   `null`, or when the step needs MCP-depth console/network/snapshot correlation the
-   surface cannot reach. Load `use-playwright-mcp`.
+2. No browser MCP is registered: `playwright` was retired fleet-wide on 2026-10-29.
+   When the surface records `false` or `null`, or when the step needs console/network
+   correlation the surface cannot reach, use the CLI lane and load
+   `use-playwright-cli`; start no MCP server.
    <!-- resolution-step: local-fallback -->
 3. Use Playwright CLI when a compact repeatable reproduction or trace capture is more
    useful than a live MCP reasoning loop. Load `use-playwright-cli`.

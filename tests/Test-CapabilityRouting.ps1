@@ -419,6 +419,14 @@ function Test-EachSkillNamesAFallbackThatCoversIt {
         return @{ Passed = $false; Detail = "the skills declare zero capabilities between them ($($declarations.Count) SKILL.md file(s) read), so every fallback would trivially cover everything asked of it; see behavior 1." }
     }
     $serverIds = @($mcps.mcpServers | ForEach-Object { [string]$_.id } | Where-Object { $_ })
+    # Declared non-MCP lanes: provider catalogs that are not registry servers
+    # (`<!-- provider-channel: cli|test -->`). After the 2026-10-29 retirement
+    # the fleet runs no browser MCP, so the browser skills route to the CLI lane.
+    $laneSkills = @(
+        foreach ($s in (Get-AllSkillDeclarations)) {
+            if ($s.Kind -eq 'provider-reference' -and $s.Text -match '<!--\s*provider-channel:\s*(cli|test)\s*-->') { $s.Skill }
+        }
+    )
     if ($serverIds.Count -eq 0) {
         return @{ Passed = $false; Detail = 'registry/mcps.json declares no MCP servers, so no skill could name a registered fallback.' }
     }
@@ -430,7 +438,9 @@ function Test-EachSkillNamesAFallbackThatCoversIt {
         }
         $namedServers = @($serverIds | Where-Object { $declaration.ResolutionSection -match ('`' + [regex]::Escape($_) + '`') })
         if ($namedServers.Count -eq 0) {
-            $bad.Add("$($declaration.Skill) names no registered MCP server as its fallback provider in its '## $resolutionSectionHeadingPrefix ...' section")
+            $namedLanes = @($laneSkills | Where-Object { $declaration.ResolutionSection -match ('`' + [regex]::Escape($_) + '`') })
+            if ($namedLanes.Count -gt 0) { continue }
+            $bad.Add("$($declaration.Skill) names no registered MCP server and no declared non-MCP lane as its fallback provider in its '## $resolutionSectionHeadingPrefix ...' section")
             continue
         }
         $covered = @(

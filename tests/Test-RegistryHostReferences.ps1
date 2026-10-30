@@ -274,7 +274,7 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add("$($entry.Name) has no loginCommand")
         }
     }
-    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'gemini', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf')
+    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'gemini', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'qoder', 'warp', 'windsurf')
     foreach ($id in $dispatchHosts) {
         if ($profile.hostSettings.PSObject.Properties.Name -notcontains $id) {
             $violations.Add("$id has no hostSettings authentication record")
@@ -355,7 +355,7 @@ function Test-LiveHostAuthenticationMetadata {
     }
     $retiredMatches = foreach ($file in Get-ChildItem -LiteralPath (Join-Path $repoRoot 'registry') -Filter '*.json' -File) {
         $contents = [IO.File]::ReadAllText($file.FullName)
-        if ([regex]::IsMatch($contents, '"(?:qoder|qwen-code|hermes)"', [Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
+        if ([regex]::IsMatch($contents, '"(?:qwen-code|hermes)"', [Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
             $file.Name
         }
     }

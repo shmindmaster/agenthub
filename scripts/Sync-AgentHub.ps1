@@ -1877,9 +1877,82 @@ function Sync-HostMcp-Cline {
     return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
+function ConvertTo-QoderMcpEntry {
+    param([hashtable]$CanonicalEntry)
 
+    $entry = @{}
+    if ($CanonicalEntry.type -eq 'http') {
+        # Qoder's documented CLI/IDE schema uses http/sse/ws transport values
+        # and does not accept the registry's host-neutral auth marker.
+        $entry.type = 'http'
+        $entry.url = $CanonicalEntry.url
+        if ($CanonicalEntry.ContainsKey('headers')) {
+            $headers = @{}
+            foreach ($header in (ConvertTo-Hashtable $CanonicalEntry.headers).GetEnumerator()) {
+                # Qoder expands ${NAME} from the process environment. The
+                # host-neutral ${env:NAME} spelling is otherwise sent
+                # literally and the remote rejects the request.
+                $headers[$header.Key] = [regex]::Replace(
+                    [string]$header.Value,
+                    '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}',
+                    { param($match) '$' + '{' + $match.Groups[1].Value + '}' }
+                )
+            }
+            $entry.headers = $headers
+        }
+    } elseif ($CanonicalEntry.type -eq 'stdio') {
+        $entry.command = $CanonicalEntry.command
+        $entry.args = @($CanonicalEntry.args)
+        if ($CanonicalEntry.ContainsKey('env')) { $entry.env = ConvertTo-Hashtable $CanonicalEntry.env }
+    }
+    return $entry
+}
 
+function Sync-HostMcp-Qoder {
+    param(
+        [pscustomobject]$Agent,
+        [hashtable]$McpEntries,
+        [string[]]$SuppressedKeys = @(),
+        [switch]$WhatIf,
+        [switch]$Prune
+    )
 
+    $qoderEntries = @{}
+    foreach ($key in $McpEntries.Keys) {
+        $qoderEntries[$key] = ConvertTo-QoderMcpEntry (ConvertTo-Hashtable $McpEntries[$key])
+    }
+    $result = Sync-HostMcp-JsonFile -Path $Agent.nativePaths.mcp -McpEntries $qoderEntries -JsonProperty 'mcpServers' -SuppressedKeys $SuppressedKeys -WhatIf:$WhatIf -Prune:$Prune
+    if (-not $WhatIf -and (Test-Path -LiteralPath $Agent.nativePaths.mcp -PathType Leaf)) {
+        $json = ConvertTo-Hashtable (Get-Content -LiteralPath $Agent.nativePaths.mcp -Raw -Encoding UTF8 | ConvertFrom-Json)
+        $changed = $false
+        foreach ($key in $qoderEntries.Keys) {
+            $targetKey = Resolve-McpAliasKey $key
+            if (-not $json.mcpServers.ContainsKey($targetKey)) { continue }
+            $server = ConvertTo-Hashtable $json.mcpServers[$targetKey]
+            if ($server.ContainsKey('auth')) {
+                $server.Remove('auth')
+                $changed = $true
+            }
+            if ($qoderEntries[$key].ContainsKey('headers')) {
+                $targetHeaders = ConvertTo-Hashtable $qoderEntries[$key].headers
+                $currentHeaders = if ($server.ContainsKey('headers')) {
+                    ConvertTo-Hashtable $server.headers
+                } else { @{} }
+                if ((Get-StableJsonString $currentHeaders) -ne (Get-StableJsonString $targetHeaders)) {
+                    $server.headers = $targetHeaders
+                    $changed = $true
+                }
+            }
+            $json.mcpServers[$targetKey] = $server
+        }
+        if ($changed) {
+            Write-Utf8NoBom -Path $Agent.nativePaths.mcp -Content (Get-StableJsonString $json)
+            $script:state.managedFiles[$Agent.nativePaths.mcp] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $Agent.nativePaths.mcp) }
+            $result.status = 'updated'
+        }
+    }
+    return $result
+}
 
 # OpenCode expands {env:NAME}, not the shared ${env:NAME} notation, and it does
 # so anywhere in opencode.json -- remote `headers` and local `environment`
@@ -2337,6 +2410,10 @@ foreach ($agent in $agentsToSync) {
             $r = Sync-HostMcp-Cline -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
+        'qoder' {
+            $r = Sync-HostMcp-Qoder -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
+            $hostDrift.mcp += $r
+        }
     }
 
 
@@ -2362,7 +2439,8 @@ if ($Validate -or $Apply -or $Audit) {
         '{userHome}/.copilot/mcp-config.json',
         '{userHome}/.codeium/windsurf/mcp_config.json',
         '{userHome}/.warp/.mcp.json',
-        '{userHome}/.cline/data/settings/cline_mcp_settings.json'
+        '{userHome}/.cline/data/settings/cline_mcp_settings.json',
+        '{userHome}/.qoder/settings.json'
     ) | ForEach-Object { Expand-AgentHubPathTemplate -Value $_ -Context $pathBinding }
     foreach ($f in $configFiles) {
         # Test-JsonParse returns a bool (used elsewhere via its side effect on

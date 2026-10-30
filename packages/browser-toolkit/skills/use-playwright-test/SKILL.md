@@ -17,8 +17,7 @@ lane after a routing skill chose it. Enter through:
 - `browser-debugging`
 - `browser-evidence`
 
-Sibling catalogs: `use-playwright-cli` (token-efficient capture),
-`use-playwright-mcp` (exploratory MCP).
+Sibling catalog: `use-playwright-cli` (token-efficient capture).
 
 This lane is **not** an MCP server and does not appear in `registry/mcps.json`.
 It is `@playwright/test` in the **target repository** (or a scratch project),
@@ -62,7 +61,6 @@ npx playwright show-report
 | Lane | Role |
 |---|---|
 | CLI (`use-playwright-cli`) | Discover and capture quickly while coding |
-| MCP (`use-playwright-mcp`) | Exploratory persistent reasoning |
 | Test (this file) | Lock the bug/behavior into CI |
 
 Routing skills should add repository Playwright tests only after discovering a

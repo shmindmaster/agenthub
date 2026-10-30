@@ -211,8 +211,8 @@ if ($slack) {
 # variable for compatibility) with no guaranteed cwd, so it must anchor the
 # bundled script the documented way rather than rely on a relative path.
 $pluginManifest = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\slack\.mcp.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$pluginArg = [string](@($pluginManifest.mcpServers.slack.args)[0])
-Report 'slack plugin .mcp.json anchors the bridge on ${CLAUDE_PLUGIN_ROOT}' ($pluginArg -eq '${CLAUDE_PLUGIN_ROOT}/mcp/slack-mcp.mjs') "args[0]=$pluginArg"
+$pluginServers = @($pluginManifest.mcpServers.PSObject.Properties).Count
+Report 'slack plugin declares no MCP servers; the registry is the single source' ($pluginServers -eq 0) "packages/slack/.mcp.json declares $pluginServers server(s)"
 
 Write-Host ''
 if ($failures.Count -gt 0) {

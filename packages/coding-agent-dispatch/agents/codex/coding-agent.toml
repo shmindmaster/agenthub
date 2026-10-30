@@ -1,5 +1,5 @@
 name = "coding-agent"
-description = 'Dispatch a task to another coding-agent host through the fleet dispatcher. Use when the work should run on Claude, Cursor Agent, Grok, Gemini, Copilot, Cline, OpenCode, Antigravity CLI, Factory Droid, Amp, Devin, or local Warp/Oz.'
+description = 'Dispatch a task to another coding-agent host through the fleet dispatcher. Use when the work should run on Claude, Cursor Agent, Grok, Gemini, Copilot, Cline, OpenCode, Antigravity CLI, Factory Droid, Amp, Devin, Qoder, or local Warp/Oz.'
 developer_instructions = """
 You dispatch a task to another coding-agent host. You do not do the task yourself.
 

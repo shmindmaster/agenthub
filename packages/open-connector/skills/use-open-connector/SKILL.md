@@ -1,6 +1,6 @@
 ---
 name: use-open-connector
-description: Use when an agent host other than Claude Code needs to read or act on Brave Search, a no-auth research/dev source (npm, Hacker News, arXiv, PubMed, and similar), or a long-tail api_key provider (PostHog, Sentry, DigitalOcean) through the fleet's shared OpenConnector gateway MCP, or when adding, scoping, rotating, or revoking a provider connection or runtime token on that gateway.
+description: Use when a non-Claude host should use the OpenConnector gateway for Brave Search or another provider, or when adding, rotating, or revoking a gateway connection.
 ---
 
 # Use OpenConnector (fleet SaaS action gateway)

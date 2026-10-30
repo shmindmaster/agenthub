@@ -1,12 +1,17 @@
 #Requires -Version 5.1
 <#
-Behavior tests for fleet browser MCP servers.
+Behavior tests for the fleet browser lane after the 2026-10-29 retirement.
 
-2026-09-07: playwright is no longer persisted in host configs. Live inventory
-showed session-start fan-out (six Playwright leaves plus npx/mise wrappers)
-with no lazy path. Playwright (--extension) remains on-demand-local for
-hosts without a native browser surface. Chrome DevTools MCP is retired.
-Playwright must not appear in persistedOnDemandLocalMcpIds or use --headless.
+Owner direction 2026-10-29: Playwright MCP and Chrome DevTools MCP are retired,
+including the isolated alias. No browser MCP is registered in registry/mcps.json;
+every host uses its own first-party browser. Playwright CLI and Playwright Test
+remain the repeatable non-MCP lanes. The use-playwright-mcp catalog documented
+tools for a server the fleet no longer runs, so it is retired with the server.
+
+This suite asserts the retirement is complete and stays complete: no server,
+package, alias, plugin manifest or skill may bring a browser MCP back, and the
+browser capability itself must still be declared so the lane is not silently
+dropped.
 
 Run: pwsh -NoProfile -File tests/Test-BrowserServer.ps1
 #>
@@ -16,6 +21,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $mcpPath  = Join-Path $repoRoot 'registry\mcps.json'
+$capPath  = Join-Path $repoRoot 'registry\capabilities.json'
 $pkgRoot  = Join-Path $repoRoot 'packages\browser-toolkit'
 
 $failures = [Collections.Generic.List[string]]::new()
@@ -26,82 +32,59 @@ function Report {
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $failures.Add($Name) }
 }
 
-$mcp = Get-Content -LiteralPath $mcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$mcp  = Get-Content -LiteralPath $mcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$caps = Get-Content -LiteralPath $capPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $conn = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\native-connectors.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$browser = @($mcp.mcpServers | Where-Object { ($_.args -join ' ') -match 'playwright/mcp|chrome-devtools-mcp' })
-$ids = @($browser | ForEach-Object { $_.id })
 
-Report 'playwright is registered and chrome-devtools is not' `
-    (($ids -contains 'playwright') -and ($ids -notcontains 'chrome-devtools') -and $browser.Count -eq 1) `
-    "Found $($browser.Count): $($ids -join ', ')."
+# --- The retirement itself. ---
+$retiredIds = @($mcp.retiredMcpIds | ForEach-Object { [string]$_ })
+Report 'playwright is a retired MCP id' ($retiredIds -contains 'playwright') "retiredMcpIds: $($retiredIds -join ', ')"
+Report 'mcp-playwright is a retired MCP id' ($retiredIds -contains 'mcp-playwright') "retiredMcpIds: $($retiredIds -join ', ')"
+$retiredPkgs = @($mcp.retiredMcpPackages | ForEach-Object { [string]$_ })
+Report '@playwright/mcp is a retired package' ($retiredPkgs -contains '@playwright/mcp') "retiredMcpPackages: $($retiredPkgs -join ', ')"
+
+# --- Nothing may register a browser MCP server again. ---
+$browser = @($mcp.mcpServers | Where-Object {
+    ([string]$_.id) -in @('playwright', 'mcp-playwright', 'chrome-devtools', 'chrome-devtools-isolated') -or
+    ((@($_.command) + @($_.args)) -join ' ') -match 'playwright/mcp|chrome-devtools-mcp'
+})
+Report 'no browser MCP server is registered' ($browser.Count -eq 0) "Found $($browser.Count): $(@($browser | ForEach-Object { $_.id }) -join ', ')"
 
 $persisted = @($conn.lifecyclePolicy.persistedOnDemandLocalMcpIds)
 Report 'no browser MCP is persisted in host config' `
     (('playwright' -notin $persisted) -and ('chrome-devtools' -notin $persisted)) `
     "persistedOnDemandLocalMcpIds still names a browser server: $($persisted -join ', ')."
 
-foreach ($b in $browser) {
-    $argLine = ($b.args -join ' ')
-    Report "'$($b.id)' is on-demand-local" ([string]$b.activationMode -eq 'on-demand-local') `
-        "activationMode is '$($b.activationMode)'; a persisted stdio browser is session-start fan-out."
-    Report "'$($b.id)' runs headed" ($argLine -notmatch '--headless') `
-        'Headless removes the owner-visible window.'
-    Report "'$($b.id)' pins an explicit version" ($argLine -match '@\d') `
-        'An unpinned @latest changes tool surface without a recorded pin.'
-
-    $nativeHosts = @('cursor','antigravity','vscode-insiders','cline','claude','codex','windsurf','factory')
-    $overlap = @($b.hosts | Where-Object { $_ -in $nativeHosts })
-    Report "'$($b.id)' eligibility list excludes native-browser hosts" ($overlap.Count -eq 0) `
-        "overlaps $($overlap.Count) native-browser host(s): $($overlap -join ', ')."
-}
-
-$pw = @($browser | Where-Object { $_.id -eq 'playwright' })[0]
-if ($pw) {
-    $pwArgs = ($pw.args -join ' ')
-    Report 'playwright attaches via --extension' ($pwArgs -match '--extension') `
-        "args are '$pwArgs'; isolated --browser chromium is the session-start lane that was withdrawn."
-}
-
-$pluginMcp = Join-Path $pkgRoot '.mcp.json'
-$pluginText = Get-Content -LiteralPath $pluginMcp -Raw -Encoding UTF8
-Report 'browser-toolkit plugin declares playwright' ($pluginText -match '"playwright"') 'missing playwright in packages/browser-toolkit/.mcp.json'
-Report 'browser-toolkit plugin does not declare chrome-devtools' ($pluginText -notmatch 'chrome-devtools') 'packages/browser-toolkit/.mcp.json still launches chrome-devtools'
-Report 'plugin playwright uses --extension' ($pluginText -match '--extension') 'plugin .mcp.json still launches isolated Chromium'
-Report 'plugin does not launch chrome-devtools-mcp' ($pluginText -notmatch 'chrome-devtools-mcp') 'plugin .mcp.json still contains the npx launcher'
-
 $aliases = @{}
 if ($mcp.migrationAliases) { foreach ($p in $mcp.migrationAliases.PSObject.Properties) { $aliases[$p.Name] = [string]$p.Value } }
-Report 'retired chrome-devtools is not aliased to playwright' `
-    (-not $aliases.ContainsKey('chrome-devtools')) `
-    "migrationAliases still maps chrome-devtools to '$($aliases['chrome-devtools'])'."
-Report "retired id 'chrome-devtools-isolated' is not aliased to a launcher" `
-    (-not $aliases.ContainsKey('chrome-devtools-isolated')) `
-    "migrationAliases maps it to '$($aliases['chrome-devtools-isolated'])'."
+foreach ($key in @('chrome-devtools', 'chrome-devtools-isolated', 'mcp-playwright')) {
+    Report "migrationAliases does not map '$key'" (-not $aliases.ContainsKey($key)) "migrationAliases maps '$key' to '$($aliases[$key])'."
+}
 
-# Provider catalog must teach the live Microsoft Playwright MCP vocabulary.
-# The 2026-08-19 server swap renamed the skill to use-playwright-mcp while the
-# body still documented Chrome DevTools MCP tools; routing tests do not catch
-# that because provider-reference catalogs are exempt from post-resolution tool
-# name bans. Pin the live names here.
-$mcpSkill = Join-Path $pkgRoot 'skills\use-playwright-mcp\SKILL.md'
-$mcpText = Get-Content -LiteralPath $mcpSkill -Raw -Encoding UTF8
-foreach ($tool in @('browser_navigate', 'browser_snapshot', 'browser_click', 'browser_fill_form', 'browser_tabs', 'browser_console_messages', 'browser_network_requests', 'browser_take_screenshot')) {
-    Report ("use-playwright-mcp documents live Playwright MCP tool '{0}'" -f $tool) `
-        ($mcpText -match [regex]::Escape($tool)) `
-        ("Microsoft @playwright/mcp exposes {0}; the catalog must not keep teaching Chrome DevTools MCP names for this server." -f $tool)
+# --- Plugins carry no MCP declarations; the registry is the single source. ---
+$pluginMcp = Join-Path $pkgRoot '.mcp.json'
+$pluginManifest = Get-Content -LiteralPath $pluginMcp -Raw -Encoding UTF8 | ConvertFrom-Json
+$pluginServerCount = @($pluginManifest.mcpServers.PSObject.Properties).Count
+Report 'browser-toolkit plugin declares no MCP servers' ($pluginServerCount -eq 0) "packages/browser-toolkit/.mcp.json declares $pluginServerCount server(s)"
+$pluginText = Get-Content -LiteralPath $pluginMcp -Raw -Encoding UTF8
+Report 'plugin manifest references no browser MCP package' ($pluginText -notmatch 'playwright/mcp|chrome-devtools-mcp') 'plugin still references a retired browser package'
+
+# --- The lane must still exist as a declared capability. ---
+$cap = @($caps.capabilities | Where-Object { $_.id -eq 'browser-toolkit' })[0]
+Report 'browser-toolkit capability package still exists' ($null -ne $cap) 'capabilities.json lost the browser-toolkit package'
+if ($cap) {
+    $provides = @($cap.provides)
+    Report 'browser.isolated is still declared' ($provides -contains 'browser.isolated') "provides: $($provides -join ', ')"
+    Report 'browser.authenticated is still declared' ($provides -contains 'browser.authenticated') "provides: $($provides -join ', ')"
+    Report 'browserProviderPolicy names the 2026-10-29 retirement' ([string]$cap.browserProviderPolicy -match '2026-10-29' -and [string]$cap.browserProviderPolicy -match 'no browser MCP') 'policy must state the retirement and that no browser MCP is registered'
 }
-$staleTools = @('list_pages', 'take_snapshot', 'fill_form', 'list_console_messages', 'lighthouse_audit')
-$staleHits = @()
-foreach ($tool in $staleTools) {
-    # Mentions are allowed only on retirement/migration lines (same carve-out idea).
-    $toolPattern = '`' + [regex]::Escape($tool) + '`'
-    $lines = @(Get-Content -LiteralPath $mcpSkill -Encoding UTF8 |
-        Where-Object { $_ -match $toolPattern -and $_ -notmatch 'retired|not expose|Do \*\*not\*\*|Do not use|Chrome DevTools MCP' })
-    if ($lines.Count -gt 0) { $staleHits += $tool }
-}
-Report 'use-playwright-mcp does not teach retired Chrome DevTools MCP tool names as live' `
-    ($staleHits.Count -eq 0) `
-    "still presents as live: $($staleHits -join ', ')"
+
+# --- The retired catalog is gone and the surviving lanes are intact. ---
+$retiredSkills = @($cap.retiredSkillNames)
+Report 'use-playwright-mcp is recorded as retired' ($retiredSkills -contains 'use-playwright-mcp') "retiredSkillNames: $($retiredSkills -join ', ')"
+Report 'use-playwright-mcp catalog is removed' (-not (Test-Path -LiteralPath (Join-Path $pkgRoot 'skills\use-playwright-mcp'))) 'skills/use-playwright-mcp still exists'
+$managed = @($cap.managedSkillNames)
+Report 'use-playwright-mcp is not a managed skill' ($managed -notcontains 'use-playwright-mcp') 'managedSkillNames still lists the retired catalog'
 
 $cliSkill = Join-Path $pkgRoot 'skills\use-playwright-cli\SKILL.md'
 $testSkill = Join-Path $pkgRoot 'skills\use-playwright-test\SKILL.md'
@@ -112,13 +95,21 @@ Report 'use-playwright-cli provider catalog exists' (Test-Path -LiteralPath $cli
 Report 'use-playwright-test provider catalog exists' (Test-Path -LiteralPath $testSkill) 'missing skills/use-playwright-test/SKILL.md'
 Report 'desktop-evidence provider catalog exists' (Test-Path -LiteralPath $desktopSkill) 'missing skills/desktop-evidence/SKILL.md'
 Report 'Capture-Screen.ps1 helper exists' (Test-Path -LiteralPath $captureHelper) 'missing scripts/Capture-Screen.ps1'
+
+foreach ($routing in @('browser-debugging', 'browser-evidence', 'interactive-browser-testing')) {
+    $text = Get-Content -LiteralPath (Join-Path $pkgRoot "skills\$routing\SKILL.md") -Raw -Encoding UTF8
+    Report "$routing routes to the CLI lane, not a browser MCP" `
+        ($text -match '`use-playwright-cli`' -and $text -notmatch '`use-playwright-mcp`') `
+        'routing skill still names the retired MCP catalog or does not name the CLI fallback'
+}
+
 $evidenceText = Get-Content -LiteralPath $evidenceSkill -Raw -Encoding UTF8
 Report 'browser-evidence routes desktop targets to desktop-evidence' `
     ($evidenceText -match '`desktop-evidence`') `
     'browser-evidence must name desktop-evidence so a desktop capture request does not stay on a browser lane'
 Report 'browser-evidence requires Playwright CLI for session video' `
     ($evidenceText -match 'Session video' -and $evidenceText -match 'use-playwright-cli') `
-    'session video must be the CLI lane; fleet Playwright MCP does not pass --caps=devtools'
+    'session video must be the CLI lane'
 
 Write-Host ''
 if ($failures.Count -gt 0) {

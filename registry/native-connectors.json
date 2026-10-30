@@ -613,6 +613,23 @@
       }
     },
     {
+      "hostId": "qoder",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
       "hostId": "devin",
       "providerHeld": false,
       "exposures": {

@@ -18,8 +18,7 @@ lane after a routing skill chose it. Enter through:
 - `browser-debugging`
 - `browser-evidence`
 
-Sibling catalogs: `use-playwright-mcp` (exploratory MCP), `use-playwright-test`
-(regression). Native Windows windows and the whole desktop are `desktop-evidence`,
+Sibling catalog: `use-playwright-test` (regression). Native Windows windows and the whole desktop are `desktop-evidence`,
 not this lane.
 
 This lane is **not** an MCP server. It does not appear in `registry/mcps.json`.
@@ -50,8 +49,9 @@ Prefer **Playwright CLI + skills** when:
 - token efficiency matters more than keeping a full MCP tool schema + verbose
   accessibility trees in context
 
-Prefer **`use-playwright-mcp`** for persistent exploratory / autonomous loops.
-Prefer **`use-playwright-test`** once a regression belongs in the repo test suite.
+Prefer a named CLI session for persistent exploratory work, and **`use-playwright-test`**
+once a regression belongs in the repo test suite. No browser MCP is registered
+(Playwright MCP retired 2026-10-29).
 
 Microsoft documents this split explicitly: CLI + Skills for coding agents; MCP
 for specialized agentic loops that need continuous browser context.

@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 [CmdletBinding()]
 param([string]$RepositoryRoot)
 
@@ -176,7 +176,7 @@ if ((@($claudeMarketplace.plugins.name | Sort-Object) -join '|') -ne ($catalogNa
 }
 foreach ($hostId in @(
   'claude','codex','cursor','factory','vscode-insiders','copilot',
-  'antigravity','devin','grok','opencode','amp','cline','gemini',
+  'antigravity','qoder','devin','grok','opencode','amp','cline','gemini',
   'warp','windsurf'
 )) {
   if ($hostId -notin @($pluginFormats.hosts.id)) { Fail "plugin format registry is missing host: $hostId" }

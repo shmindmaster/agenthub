@@ -8,8 +8,12 @@
       "version": "2.1.304",
       "executable": "{userHome}/.local/bin/claude.exe",
       "platformPaths": {
-        "darwin": { "executable": "{userHome}/.local/bin/claude" },
-        "linux": { "executable": "{userHome}/.local/bin/claude" },
+        "darwin": {
+          "executable": "{userHome}/.local/bin/claude"
+        },
+        "linux": {
+          "executable": "{userHome}/.local/bin/claude"
+        },
         "note": "Verified 2026-10-24 against https://code.claude.com/docs/en/troubleshoot-install: the native installer places claude at ~/.local/bin/claude on macOS/Linux and %USERPROFILE%\\.local\\bin\\claude.exe on Windows. Config (~/.claude, ~/.claude.json) is in the home directory on every OS."
       },
       "nativePaths": {
@@ -157,7 +161,7 @@
     {
       "id": "gemini",
       "name": "Gemini CLI",
-      "version": "0.65.0",
+      "version": "0.66.0",
       "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `gemini.cmd --version` printed 0.65.0. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported 0.64.0. `npm view @google/gemini-cli version` returned the same version, so no upgrade was performed.",
       "executable": "{userHome}/bin/gemini.cmd",
       "nativePaths": {
@@ -187,7 +191,7 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.103",
+      "version": "1.0.105",
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
@@ -253,7 +257,7 @@
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "2.26.0",
+      "version": "2.28.2",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed 2.24.0.",
@@ -433,7 +437,7 @@
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.27.14",
+      "version": "3.27.22",
       "executable": "{userHome}/bin/cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
@@ -472,11 +476,15 @@
       "platformPaths": {
         "darwin": {
           "executable": "{userHome}/.local/bin/cursor-agent",
-          "nativePaths": { "vendorExecutable": "{userHome}/.local/bin/cursor-agent" }
+          "nativePaths": {
+            "vendorExecutable": "{userHome}/.local/bin/cursor-agent"
+          }
         },
         "linux": {
           "executable": "{userHome}/.local/bin/cursor-agent",
-          "nativePaths": { "vendorExecutable": "{userHome}/.local/bin/cursor-agent" }
+          "nativePaths": {
+            "vendorExecutable": "{userHome}/.local/bin/cursor-agent"
+          }
         },
         "note": "Verified 2026-10-24 against https://cursor.com/docs/cli/installation and the install script it runs (https://cursor.com/install): on macOS and Linux the CLI unpacks into ~/.local/share/cursor-agent/versions/<build> and links ~/.local/bin/agent and ~/.local/bin/cursor-agent. ~/.cursor/cli-config.json is the same on every OS."
       },
@@ -503,6 +511,52 @@
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration.",
       "versionObserved": "2026-10-22: full release suite verified cursor-agent.cmd --version returns 2026.10.19-6bbf2c4. No upgrade performed.",
       "headlessDispatchNote": "2026-10-14: native headless contract verified; prior smoke failed authentication. Owner action: run agent login in the owner terminal; dispatcher alias cursor-agent login is equivalent. Do not authenticate automatically."
+    },
+    {
+      "id": "qoder",
+      "name": "Qoder CLI / Desktop / JetBrains / QoderWork",
+      "version": "1.1.81",
+      "versionProbe": "cli",
+      "versionObserved": "Observed 2026-10-30 by tests/Test-AgentVersionAccuracy.ps1: `qodercli.exe --version` printed 1.1.81; Qoder Desktop IDE at %LOCALAPPDATA%\\Programs\\Qoder\\Qoder.exe reports FileVersion 1.24.2.",
+      "versionNote": "Restored 2026-10-30 per owner direction. Installed native Qoder CLI at ~/.qoder/bin/qodercli/qodercli.exe (shimmed at ~/bin/qodercli.cmd) reports 1.1.81; Qoder Desktop IDE at %LOCALAPPDATA%/Programs/Qoder/Qoder.exe reports 1.24.2.",
+      "executable": "{userHome}/.qoder/bin/qodercli/qodercli.exe",
+      "executableNote": "Restored 2026-10-30: native Qoder CLI binary is installed at %USERPROFILE%\\.qoder\\bin\\qodercli\\qodercli.exe (v1.1.81), with user shim %USERPROFILE%\\bin\\qodercli.cmd forwarding to it and Qoder Desktop IDE installed at %LOCALAPPDATA%\\Programs\\Qoder\\Qoder.exe (v1.24.2).",
+      "nativePaths": {
+        "configHome": "{userHome}/.qoder",
+        "settings": "{userHome}/.qoder/settings.json",
+        "mcp": "{userHome}/.qoder/settings.json",
+        "skillsDir": "{userHome}/.qoder/skills",
+        "sharedSkillsDir": "{userHome}/.agents/skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Qoder documents ~/.qoder/skills, not ~/.agents/skills. AgentHub deploys once to the master library; ~/.qoder/skills is a directory junction to that library.",
+        "agentsDir": "{userHome}/.qoder/agents",
+        "pluginsDir": "{userHome}/.qoder/plugins",
+        "canvasDir": "{userHome}/.qoder/canvas",
+        "instructions": "{userHome}/.qoder/AGENTS.md",
+        "instructionHeader": "# Qoder Global Instructions",
+        "instructionFormat": "markdown",
+        "verification": "documented-feature-inferred-windows-path",
+        "instructionsNote": "Added 2026-08-04 from docs.qoder.com/cli/using-cli, Memory section (subject confirmed: memory and context files, not MCP or plugins). Qoder CLI documents a three-tier hierarchy whose user level is ~/.qoder/AGENTS.md, explicitly applying to all projects. The Windows form is inferred from this host's existing configHome, which already resolves ~/.qoder to that directory and demonstrably exists. Distinct from .qoder/rules, which is project-scoped only. HTML-comment survival is not vendor-documented; the agenthub:managed marker is standard Markdown and inert in prompt context.",
+        "agentsDirNote": "Verified 2026-08-11 against docs.qoder.com/en/cli/subagent: subagent configuration is saved to the user-level path ~/.qoder/agents/<agentName>.md, and project-level subagents take precedence over user-level ones when names collide. Path correct. Created when the first user-level subagent is generated, so an empty or absent agents directory is the documented default state. Re-verified 2026-10-30 with Qoder CLI 1.1.81 installed at ~/.qoder/bin/qodercli/qodercli.exe.",
+        "pluginsDirNote": "Observed 2026-10-30 on disk at ~/.qoder/plugins with installed_plugins_v2.json and cache/qoder-marketplace/Presentations/0.1.4 alongside cache/qoderapp-bundler. Managed local plugins remain unadopted unless explicitly installed through Qoder.",
+        "canvasDirNote": "Probably WRONG, checked 2026-08-11 -- recorded as a correction rather than as a gap, because the two are different findings and only one of them is someone's next task. docs.qoder.com places Canvas under Desktop > Extensions, making it a Desktop application feature rather than a CLI one, and describes /canvas as producing a .canvas.tsx file rendered in a Canvas preview: a project artifact, not user-level state. No Qoder page names a ~/.qoder/canvas directory, and none of the pages that do enumerate ~/.qoder contents (using-cli, plugins, subagent) list it. So unlike pluginsDir this is not merely unverified -- the documented design points away from a user-level canvas directory existing at all. Kept rather than deleted, because deleting a declared path on the mistaken basis that a directory absent from disk must be wrong is the exact error gemini.agentsDirNote exists to record."
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins",
+        "hooks",
+        "connectors",
+        "computer-use",
+        "acp",
+        "canvas",
+        "qoderwork",
+        "headless"
+      ],
+      "status": "active",
+      "notes": "Qoder CLI 1.1.81 at ~/.qoder/bin/qodercli/qodercli.exe (shimmed at ~/bin/qodercli.cmd) and Qoder Desktop IDE 1.24.2 at %LOCALAPPDATA%/Programs/Qoder/Qoder.exe. Restored to active fleet 2026-10-30 per owner direction. Full autonomy flags remain controlled by dispatch policy; authentication, included allowance and useful worker smoke are separate readiness checks.",
+      "headlessDispatchNote": "qodercli 1.1.81 -p --dangerously-skip-permissions --tools default -w <dir> -o text <prompt> is headless. qodercli status currently reports Account: Not logged in; follow fleet readiness gates before live execution."
     },
     {
       "id": "amp",
@@ -540,7 +594,7 @@
     {
       "id": "devin",
       "name": "Devin Desktop / CLI",
-      "version": "3000.11.205",
+      "version": "3000.11.228",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
       "platformPaths": {
         "darwin": {

@@ -8,7 +8,6 @@ description: Use when a coding agent should visually inspect and interact with a
 After resolving a provider lane, load the matching catalog:
 
 - `use-playwright-cli` — repeatable capture / coding-agent work (preferred default for coding agents), including session video and traces
-- `use-playwright-mcp` — exploratory persistent browser reasoning
 - `use-playwright-test` — regression once a bug/behavior is worth preserving
 
 If the target is a native Windows window or the whole desktop, load
@@ -31,10 +30,10 @@ entirely."
    own first-party browser and start nothing. This is the ordinary case for a host
    that ships a browser.
    <!-- resolution-step: surface-provided -->
-2. Use `playwright` -- the declared fallback, `providesCapabilities` in
-   `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
-   `null`, or when the run needs an exploratory persistent MCP loop (snapshots,
-   console/network correlation) that the surface cannot reach. Load `use-playwright-mcp`.
+2. No browser MCP is registered: `playwright` was retired fleet-wide on 2026-10-29.
+   When the surface records `false` or `null`, or the run needs an exploratory loop
+   (snapshots, console/network correlation), use the CLI lane and load
+   `use-playwright-cli`; start no MCP server.
    <!-- resolution-step: local-fallback -->
 3. Prefer Playwright CLI for token-efficient coding-agent capture, named sessions,
    screenshots, traces, video, or locator generation when a persistent MCP loop is
@@ -73,11 +72,10 @@ covers the task.
 | Need | Lane | Catalog |
 |---|---|---|
 | Repeatable capture / coding-agent work | Playwright CLI | `use-playwright-cli` |
-| Exploratory / persistent browser reasoning | Playwright MCP | `use-playwright-mcp` |
 | Regression / reproducible automated test | Playwright Test | `use-playwright-test` |
 
 Microsoft's own guidance matches this table: CLI + Skills for coding agents
-(token-efficient); MCP for specialized persistent exploratory loops.
+(token-efficient). No MCP browser lane is registered in this fleet.
 
 
 ## Agent-directed loop

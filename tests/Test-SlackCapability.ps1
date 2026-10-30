@@ -74,7 +74,7 @@ $claudePlugin = Get-Content -LiteralPath (Join-Path $pkg '.claude-plugin\plugin.
 # projections below prove they follow the root.
 Report 'root plugin is named slack with a semver version' ($rootPlugin.name -eq 'slack' -and [string]$rootPlugin.version -match '^\d+\.\d+\.\d+$') "root plugin.json name=$($rootPlugin.name) version=$($rootPlugin.version)"
 Report 'claude plugin version matches root' ($claudePlugin.version -eq $rootPlugin.version -and $claudePlugin.name -eq 'slack') 'host projection diverged'
-foreach ($projection in @('.codex-plugin', '.cursor-plugin')) {
+foreach ($projection in @('.codex-plugin', '.cursor-plugin', '.qoder-plugin')) {
     $manifest = Get-Content -LiteralPath (Join-Path $pkg "$projection\plugin.json") -Raw -Encoding UTF8 | ConvertFrom-Json
     Report "$projection version matches root" ($manifest.version -eq $rootPlugin.version) "$projection=$($manifest.version) root=$($rootPlugin.version)"
 }
@@ -82,9 +82,18 @@ Report 'claude plugin declares skills and mcpServers paths' (
     $claudePlugin.skills -eq './skills/' -and $claudePlugin.mcpServers -eq './.mcp.json'
 ) 'plugin components missing'
 
-$mcpPlugin = Read-Utf8 (Join-Path $pkg '.mcp.json')
-Report 'plugin MCP id is slack' ($mcpPlugin -match '"slack"') '.mcp.json'
-Report 'plugin MCP uses Claude env dialect' ($mcpPlugin -match '\$\{SLACK_USER_TOKEN\}' -and $mcpPlugin -notmatch '\$\{env:') 'expected ${SLACK_USER_TOKEN}'
+$mcpPlugin = Get-Content -LiteralPath (Join-Path $pkg '.mcp.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$pluginServers = @($mcpPlugin.mcpServers.PSObject.Properties).Count
+Report 'plugin .mcp.json declares no MCP servers' ($pluginServers -eq 0) "declares $pluginServers server(s); the registry is the single source"
+$registry = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\mcps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$slackReg = @($registry.mcpServers | Where-Object { $_.id -eq 'slack' })[0]
+Report 'registry has a slack MCP entry' ($null -ne $slackReg) 'missing from registry/mcps.json'
+if ($slackReg) {
+    $regArg = [string](@($slackReg.args)[0])
+    Report 'registry slack args anchor the bridge on {registryRoot}' ($regArg -eq '{registryRoot}/packages/slack/mcp/slack-mcp.mjs') "args[0]=$regArg"
+    Report 'registry slack entry carries the env-placeholder dialect' ([string]$slackReg.env.SLACK_USER_TOKEN -eq '${env:SLACK_USER_TOKEN}') "SLACK_USER_TOKEN=$([string]$slackReg.env.SLACK_USER_TOKEN)"
+    Report 'registry slack bridge path resolves to a file in this checkout' (Test-Path -LiteralPath $regArg.Replace('{registryRoot}', $repoRoot)) "resolved=$($regArg.Replace('{registryRoot}', $repoRoot))"
+}
 
 $fixture = Read-Utf8 (Join-Path $pkg 'fixtures\workspace.json')
 Report 'fixture workspace is synthetic' (

@@ -2,18 +2,20 @@
   "schemaVersion": 6,
   "generatedAt": "2026-09-13",
   "migrationAliases": {
-    "repowise": "repowise-workspace",
-    "mcp-playwright": "playwright"
+    "repowise": "repowise-workspace"
   },
   "migrationAliasesNote": "Maps a key a host config actually carries to the canonical server id. Prune keeps only what the canonical set names after Resolve-McpAliasKey, so an unaliased drifted key is deleted rather than reconciled. Recorded 2026-08-19: .claude/settings.json carried repowise-workspace under the key 'repowise', and migrationAliases was empty, so a prune run would have removed the only working repowise registration on the machine. Verified the canonical args are safe to converge on: 'repowise mcp' defaults to stdio, so the deployed '--transport stdio' is redundant and dropping it changes nothing. 2026-10-23: chrome-devtools-mcp was removed. Do not register it again, and do not map chrome-devtools to playwright. 2026-10-23: Devin retained mcp-playwright as an unmanaged duplicate npm launcher. Reconcile it to the canonical on-demand playwright lifecycle rather than starting an extra default server.",
   "retiredMcpIds": [
     "chrome-devtools",
-    "chrome-devtools-isolated"
+    "chrome-devtools-isolated",
+    "playwright",
+    "mcp-playwright"
   ],
   "retiredMcpPackages": [
-    "chrome-devtools-mcp"
+    "chrome-devtools-mcp",
+    "@playwright/mcp"
   ],
-  "retiredMcpIdsNote": "Owner-authorized retirement 2026-10-24. Never register these server IDs or the chrome-devtools-mcp package through aliases, host configuration, or plugin manifests. Codex, Cursor and Claude use their native browser surface; other hosts use Playwright. Retired IDs are cleanup targets, never aliases to playwright.",
+  "retiredMcpIdsNote": "Owner-authorized retirement 2026-10-29. Never register chrome-devtools-mcp or @playwright/mcp, and never alias mcp-playwright back to a server. These IDs are cleanup targets. Hosts use their own browser.",
   "activationPolicy": {
     "recordedOn": "2026-08-04",
     "preferenceOrder": [
@@ -42,6 +44,7 @@
       "gemini",
       "grok",
       "opencode",
+      "qoder",
       "vscode-insiders",
       "warp"
     ],
@@ -201,53 +204,6 @@
       }
     },
     {
-      "id": "playwright",
-      "name": "Playwright MCP (extension attach to personal Chrome)",
-      "scope": "on-demand-desktop",
-      "transport": "stdio",
-      "activationMode": "on-demand-local",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@playwright/mcp@0.0.79",
-        "--extension"
-      ],
-      "env": {},
-      "hosts": [
-        "amp",
-        "copilot",
-        "devin",
-        "gemini",
-        "grok",
-        "opencode",
-        "warp"
-      ],
-      "credentialPolicy": "personal-chrome-via-playwright-extension",
-      "providesCapabilities": [
-        "browser.isolated",
-        "browser.authenticated"
-      ],
-      "providesCapabilitiesNote": "Plugin-gated attach to the owner personal Chrome/Edge via the official Playwright Extension (--extension). Not persisted in host MCP config (2026-09-07). Isolated Chromium-for-Testing launch (--browser chromium) is withdrawn as the fleet default because it cannot reuse logged-in sessions and was spawning a process per host session. browser.isolated for repeatable QA is the Playwright CLI / Test lane. browser.authenticated is the extension attach to the already-signed-in profile.",
-      "protocol": {
-        "revision": "2025-11-25",
-        "verifiedOn": "2026-08-19",
-        "verification": "stdio initialize against @playwright/mcp@0.0.79 returned protocolVersion 2025-11-25 and serverInfo Playwright 1.63.0-alpha-2026-08-05. A browser_navigate call then loaded https://example.com and returned its title, and a visible headed window was confirmed by process inspection while the session was live."
-      },
-      "localProcessPolicy": {
-        "instancing": "one-process-per-host-session",
-        "declaredByHostCount": 0,
-        "note": "Pinned @playwright/mcp@0.0.79 --extension. Not written into host configs. Starts only when browser-toolkit plugin is enabled. Requires Playwright Extension mmlmfjhmonkocbjadbfplnigmagldckm in Chrome/Edge.",
-        "versionPinVerifiedOn": "2026-08-19",
-        "launchNote": "Plugin .mcp.json uses the same npx args. Resolve-WindowsHiddenStdioEntry still rewrites npx to the global cli.js when a host actually starts the plugin MCP."
-      },
-      "owner": {
-        "type": "capability",
-        "id": "browser-toolkit"
-      },
-      "hostScopeNote": "hosts[] is eligibility for the plugin MCP, not deployment. 2026-09-07: withdrawn from persistedOnDemandLocalMcpIds after live inventory showed session-start fan-out. Native-browser hosts keep using their pane. Enable browser-toolkit when a host with no pane needs headed Chrome.",
-      "startupEnabled": false
-    },
-    {
       "id": "linkedin",
       "name": "LinkedIn MCP (mcp-server-linkedin, plugin-gated)",
       "scope": "on-demand-desktop",
@@ -385,6 +341,7 @@
         "cline",
         "cursor",
         "cursor-agent",
+        "qoder",
         "devin",
         "factory",
         "vscode-insiders"
@@ -433,6 +390,7 @@
         "grok",
         "factory",
         "cline",
+        "qoder",
         "opencode",
         "vscode-insiders"
       ],
