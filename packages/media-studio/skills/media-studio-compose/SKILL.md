@@ -21,13 +21,13 @@ Use official Remotion skills; do not vendor their rules here. Forced alignment o
 
 Canonical: `packages/media-studio/kit`. Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`.
 
-Use the runtime kit only when its manifest matches 2.0.38. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.38 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
+Use the runtime kit only when its manifest matches 2.0.38. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.41 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
 
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
 $kitManifest = Join-Path $kit 'package.json'
-if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.38') {
-    throw 'Media Studio 2.0.38 runtime kit is missing or stale. Sync from a verified 2.0.38 package source before rendering.'
+if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.41') {
+    throw 'Media Studio 2.0.41 runtime kit is missing or stale. Sync from a verified 2.0.41 package source before rendering.'
 }
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
 ```
@@ -36,8 +36,8 @@ To repair, set `MEDIA_STUDIO_PACKAGE_ROOT` to the verified package; check its `p
 
 ```powershell
 $package = $env:MEDIA_STUDIO_PACKAGE_ROOT
-if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.38') {
-    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.38 package.'
+if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.41') {
+    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.41 package.'
 }
 pwsh -NoProfile -File (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1')
 ```
@@ -46,7 +46,18 @@ Viewer-facing `briefing`, `training`, `explainer`, `series-episode`, `webcast`, 
 
 Load official Remotion skills (`remotion-markup`, `remotion-render`) when editing the kit. FFmpeg mux when picture is already stills/clips, then finish with helper. Recast/Motif only if those plates exist.
 
-**Render in the cloud by default** (owner direction 2026-10-26: cloud for voice and rendering, local only for screen capture and mouse movement). `<kit>\cloud\cloud-render.mjs` runs the same FFmpeg, Remotion and Recast commands in the owner's own Azure tenant (Container Apps job, scale to zero, about $0.0072 per job-minute) and downloads the result into the job folder:
+**Render placement is capacity-based (owner direction 2026-10-29).** Pick the lane from measured load, report the lane and cost per job, and split the queue across every lane that has room when speed matters. Screen capture and mouse movement stay local.
+
+| Lane | Use when | How |
+|---|---|---|
+| Local RTX 5060 Ti (NVENC) | CPU < 70% and free RAM > 8 GB; at most 2 concurrent encodes | CUDA decode plus NVENC: `ffmpeg -hwaccel cuda -hwaccel_output_format cuda -i in.mp4 -c:v h264_nvenc -preset p4 -cq 26 out.mp4` (also `hevc_nvenc`, `av1_nvenc`). Verified 2026-10-29: a 10.5 s 1080p clip in 1.9 s. CPU-bound steps (x264, loudnorm analysis, Python) do not run locally when the PC is taxed |
+| Azure Container Apps job `caj-media-render` (MahumTech credit) | PC taxed, or work that can run in parallel | `kit\cloud\cloud-render.mjs` (below). Verified 2026-10-29: an ffmpeg transcode of the 10.5 s avatar clip took 62 s wall time (about 60 s of it job start), 54 billed seconds, **$0.0065** |
+| Daytona | PC taxed and the job needs fan-out beyond one Azure job, with the orchestrator's OK. Caps $150/day and $500 total; label `owner` and `purpose`, TTL 120 min, delete when done, never touch Codex sandboxes | The dispatcher |
+| DigitalOcean droplet, AWS Lambda/Batch (`--profile abacare` only) | Only per the orchestrator's compute placement rule | per job, destroyed after |
+
+**Local AI is off.** Never start local models, TTS/STT servers or embedders. FFmpeg, Remotion and Recast are ordinary tools and may run locally.
+
+The Azure lane: `<kit>\cloud\cloud-render.mjs` runs the same FFmpeg, Remotion and Recast commands in the owner's own Azure tenant (Container Apps job, scale to zero, about $0.0072 per job-minute at 4 vCPU / 8 GiB; the subscription has 10 regional vCPU and no serverless GPU in eastus2) and downloads the result into the job folder:
 
 ```powershell
 $cr = Join-Path $kit 'cloud\cloud-render.mjs'
@@ -55,7 +66,7 @@ node $cr remotion --comp Briefing --props <job>\scenes.json --public-dir <job>\p
 node $cr recast --raw <job>\capture\take-01 --out <job>\capture\take-01\recast.webm
 ```
 
-Read `<kit>\cloud\README.md` for path-rewriting limits and fonts. Render locally only when the cloud path fails or a deadline cannot absorb the ~1 minute job start; say so in the job notes.
+Read `<kit>\cloud\README.md` for path-rewriting limits and fonts. Prefer the local NVENC lane when the PC is not taxed and the deadline cannot absorb the ~1 minute job start; say which lane ran in the job notes.
 
 ## 2. Delivery loudness (required)
 
@@ -65,8 +76,8 @@ Do not invent an FFmpeg graph. The helper is the provider:
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $toolsManifest = Join-Path $tools 'plugin.json'
 $Finish = Join-Path $tools 'Finish-Media.ps1'
-if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.38' -or -not (Test-Path -LiteralPath $Finish)) {
-    throw 'Media Studio 2.0.38 finishing helper is missing or stale in the deployed shared tools.'
+if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.41' -or -not (Test-Path -LiteralPath $Finish)) {
+    throw 'Media Studio 2.0.41 finishing helper is missing or stale in the deployed shared tools.'
 }
 pwsh -NoProfile -File $Finish -Action finish -Program <job>\candidate.mp4 -Output <job>\candidate-finished.mp4
 pwsh -NoProfile -File $Finish -Action finish -Speech <job>\voice.wav -Music <job>\bed.wav -Video <job>\picture.mp4 -Output <job>\candidate-finished.mp4

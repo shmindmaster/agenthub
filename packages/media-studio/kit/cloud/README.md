@@ -1,6 +1,8 @@
 # cloud-render: shared cloud rendering for media-studio films
 
 Owner direction (2026-10-26): voice and rendering run in the cloud; screen capture and mouse movement stay local.
+Update 2026-10-29: placement is now capacity-based (see `media-studio-compose`): local NVENC when the PC is not taxed, this Azure job when it is or when work can run in parallel, Daytona only with the orchestrator's OK. Verified 2026-10-29: an ffmpeg transcode through this lane took 62 s wall time and $0.0065.
+
 `cloud-render.mjs` is the one render path every film session calls: it uploads the inputs from this machine,
 renders in Azure, and downloads the result into your job folder.
 

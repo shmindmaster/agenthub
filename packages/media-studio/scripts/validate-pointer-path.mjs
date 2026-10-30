@@ -63,7 +63,7 @@ const TURN_COS = num('--turn-cos', -0.5);
 const MIN_VECTOR_PX = 24;        // shorter displacements are jitter, not a direction
 const SCROLL_RETURN_PX = 60;     // the running scroll must pass this before a return counts
 const SCROLL_RETURN_FRACTION = 0.2;
-const NAMED = new Set(['click', 'type', 'point', 'tap']);   // tap: a finger on a touch context, no approach moves
+const NAMED = new Set(['click', 'type', 'point', 'tap', 'select']);   // select: native selection after pointer lead, not a click
 
 const outPath = resolve(root, flag('--out', 'qa/pointer-path.json'));
 const readJson = (rel) => { const p = join(root, rel); return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8').replace(/^﻿/, '')) : null; };

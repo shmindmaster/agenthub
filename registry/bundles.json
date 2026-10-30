@@ -10,9 +10,7 @@
         "media-studio",
         "browser-toolkit"
       ],
-      "recommends": [
-        "local-ai"
-      ],
+      "recommends": [],
       "thirdParty": {
         "recommends": [
           "superpowers",
@@ -51,11 +49,10 @@
     },
     {
       "id": "local-media-production",
-      "title": "Local media production",
-      "summary": "Writer/storyboard/director crew for briefings, training, explainers, talking-heads, animation, and audio on Local-AI, with Remotion archetype composition for viewer-facing films and Recast pointer finishing for screencasts.",
+      "title": "Media production",
+      "summary": "Writer/storyboard/director crew for briefings, training, explainers, talking-heads, animation, and audio with remote providers, with Remotion archetype composition for viewer-facing films and Recast pointer finishing for screencasts.",
       "requires": [
-        "media-studio",
-        "local-ai"
+        "media-studio"
       ],
       "recommends": [
         "browser-toolkit"
@@ -71,7 +68,7 @@
         "media-studio is the public pack and covers product screencasts plus briefings, training, explainers, talking-heads, animation, and audio. Playwright WebM + Recast live in packages/media-studio.",
         "Remotion is required at runtime for viewer-facing briefing, training, explainer, and series-episode jobs unless intent is draft or the user asked for a basic/proxy cut. Do not vendor Remotion rules; install official remotion-dev/skills.",
         "creative-writing-skills is recommended for viewer-facing narrative (explainers, branded films, series), not for Descript finishing.",
-        "Owner voice is Local-AI qwen-clone --voice sarosh only."
+        "No Sarosh voice clones in films (owner direction 2026-10-29): cast expressive, varied voices from remote providers."
       ]
     },
     {
