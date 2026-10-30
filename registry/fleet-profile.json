@@ -289,7 +289,7 @@
   "hostSettings": {
     "cline": {
       "provider": "openai-compatible",
-      "model": "qwen3.8-max",
+      "model": "qwen3.8-max-0902",
       "authMode": "apiKey",
       "loginCommand": "cline auth",
       "availableProviders": {
@@ -526,6 +526,14 @@
       "enabled": true,
       "reason": "2026-10-26 (CLI 3.0.71): one-word and small-coding-task probes. openai-compatible qwen3.8-max (Alibaba Model Studio) answered, cost 0, then at 23:07Z returned 'The free quota has been exhausted' after ~400k tokens: the endpoint runs a free-tier quota in free-tier-only mode and fails closed. Free models on provider cline passed a write-and-test task at totalCost 0: nvidia/nemotron-3-ultra-550b-a55b:free, poolside/laguna-s-2.1:free, cohere/north-mini-code:free; thinkingmachines/inkling:free returned 429 (daily cap). cline-pass returned 'weekly Clinepass limit reached, resets in 2d 1h' at 2026-10-26 22:45Z; its suggested fallback (--provider cline with a paid model) is usage-billed and must not be used. Unattended runs need AGENTHUB_PEER_GUARD=1 and CLINE_SESSION_BACKEND_MODE=local so ~/.cline/plugins/peer-guard.js runs in-process; in hub mode the guard never sees the variable (verified: push went through).",
       "allowedModels": [
+        "openai-compatible:qwen3.8-max-0902",
+        "openai-compatible:qwen3.8-2.4t-a95b",
+        "openai-compatible:qwen3.8-flash",
+        "openai-compatible:qwen3.8-27b",
+        "openai-compatible:deepseek-v4-pro-0813",
+        "openai-compatible:deepseek-v4.1-flash-1017",
+        "openai-compatible:glm-5.3",
+        "openai-compatible:kimi-k3",
         "openai-compatible:qwen3.8-max",
         "cline:nvidia/nemotron-3-ultra-550b-a55b:free",
         "cline:poolside/laguna-s-2.1:free",
@@ -562,9 +570,9 @@
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     },
     "qoder": {
-      "enabled": false,
-      "reason": "qodercli status reports Account: Not logged in. Native headless help verified on Qoder CLI 1.1.81.",
-      "ownerAction": "Run qodercli login in your own terminal; confirm included allowance or authorize a task credit budget, then one smoke before enabling.",
+      "enabled": true,
+      "reason": "qodercli status reports Sarosh Hussain (sarosh.hussain@gmail.com, browser login) and standalone response smoke returned ok on Qoder CLI 1.1.81.",
+      "ownerAction": null,
       "verifiedOn": "2026-10-30"
     }
   },

@@ -246,7 +246,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # owner re-admitted OpenCode, then Cline, as execution peers (fleet-profile ownerDirection),
     # and the same day admitted Warp for local runs only, then Factory Droid (allowlisted
     # models, medium autonomy, runtime permission rules), then Devin for local runs only.
-    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin')
+    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin', 'qoder')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -329,7 +329,7 @@ function Test-LiveHostAuthenticationMetadata {
     }
     if ($profile.hostSettings.cline.authMode -ne 'apiKey' -or
         $profile.hostSettings.cline.provider -ne 'openai-compatible' -or
-        $profile.hostSettings.cline.model -ne 'qwen3.8-max') {
+        $profile.hostSettings.cline.model -ne 'qwen3.8-max-0902') {
         $violations.Add('Cline must retain the owner-authorized Alibaba Coding Plan provider settings')
     }
     # Every model on provider 'cline' except ':free' ids bills usage credit, and

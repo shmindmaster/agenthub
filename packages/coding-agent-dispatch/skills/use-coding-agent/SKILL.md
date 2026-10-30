@@ -81,7 +81,7 @@ Account-mode readiness recorded in this repair:
 | Amp | Execute mode with dispatch-only MCP servers disabled returned the requested response on 2026-10-22; `amp usage` reported Amp Free. |
 | OpenCode | Native 2.1.4 Console account OAuth and exact-response inference through the Go-only endpoint passed on 2026-10-23; no API-key override. |
 | Gemini | Dispatcher uses `--approval-mode yolo`; the registered shim skips its yolo default for that explicit invocation and supplies `--skip-trust`. Complete Google OAuth interactively with `gemini` before another smoke. |
-| Qoder | Owner runs `qodercli login`; confirm allowance and run one smoke before enabling. |
+| Qoder | Browser login (`qodercli status`: `sarosh.hussain@gmail.com`) and standalone-response smoke passed on 2026-10-30 (`qodercli 1.1.81`). |
 | Warp | No supported account-status command or local-only execution mode was verified; keep disabled unless both are established. |
 | Other gated CLIs | Confirm included allowance for the configured provider/model or obtain an explicit task credit budget, then one smoke before enabling. |
 
