@@ -31,7 +31,7 @@ Priorities, in order:
 
   `docs/` is permitted. It carries the curated fleet-standard taxonomy since 2026-08-08.
 - No script registers a scheduled task, Run key, or auto-start service. Every launched subprocess is windowless (owner direction 2026-10-13; `global-agent-policy.md` → Engineering behavior). Local services start when the capability that needs them is used. Updates run manually.
-- Runtime output goes under `%LOCALAPPDATA%\AgentHub`. Local AI runtimes, models, caches, and media live only under `D:\Local-AI`.
+- Runtime output goes under `%LOCALAPPDATA%\AgentHub`. Local AI is off; media production lives under `D:\Media-Studio` (env `MEDIA_STUDIO_ROOT`).
 - Refresh the RepoWise index only via `packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1`. No post-commit hook, no bare `repowise update`.
 - Never claim a check passed unless it ran.
 
