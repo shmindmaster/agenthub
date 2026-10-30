@@ -25,7 +25,7 @@ export const TIMING = Object.freeze({
 
 const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const describe = (locator) => { try { return String(locator).replace(/s+/g, ' ').slice(0, 120); } catch { return null; } };
+const describe = (locator) => { try { return String(locator).replace(/\s+/g, ' ').slice(0, 120); } catch { return null; } };
 
 export class BeatTracker {
   constructor(t0) { this.t0 = t0; this.marks = []; }
@@ -51,6 +51,7 @@ export class EventLog {
       taps: count('tap'),
       uploads: count('upload'),
       fills: count('fill'),
+      selections: count('select'),
       keystrokes: this.events.filter((e) => e.type === 'type').reduce((n, e) => n + (e.chars || 0), 0),
       scrolls: count('wheel'),
       navigations: count('goto'),
@@ -139,7 +140,7 @@ export async function startRecording(id, opts = {}) {
   const page = await context.newPage();
   const beats = new BeatTracker(t0);
   const log = new EventLog(t0);
-  const h = bindHelpers(page, log, beats, { ...opts, hasTouch: opts.hasTouch ?? device?.hasTouch ?? false });
+  const h = bindHelpers(page, log, beats, { ...opts, rawDir, hasTouch: opts.hasTouch ?? device?.hasTouch ?? false });
   return { id, browser, context, page, rawDir, beats, log, h, t0, viewport };
 }
 
@@ -340,6 +341,62 @@ export function bindHelpers(page, log, beats, opts = {}) {
     return event;
   }
 
+  /** Native single-select operation; trace and before/after images preserve what actually happened. */
+  async function selectOption(locator, value, o = {}) {
+    const tStart = log.now();
+    let stage = 'validation';
+    let event;
+    let beforeImage = null, afterImage = null;
+    const label = typeof o.label === 'string' && o.label.trim() ? o.label : null;
+    const target = typeof o.target === 'string' ? o.target : describe(locator);
+    try {
+      if (!label) throw new Error('selectOption requires a nonempty action label');
+      if (typeof target !== 'string' || !target.trim()) throw new Error('selectOption requires a locator target');
+      if (typeof value !== 'string') throw new Error('selectOption requires a string value');
+      const timeout = o.timeout ?? 15000;
+      if (!Number.isFinite(timeout) || timeout <= 0) throw new Error('selectOption timeout must be positive');
+      if (!opts.rawDir) throw new Error('selectOption requires a recording rawDir for image receipts');
+      if (!locator || typeof locator.count !== 'function' || typeof locator.selectOption !== 'function' || typeof locator.inputValue !== 'function') throw new Error('selectOption requires a select locator');
+      if (await locator.count() !== 1) throw new Error('selectOption locator must resolve to exactly one select');
+      if (!await locator.isVisible() || !await locator.isEnabled()) throw new Error('selectOption requires a visible enabled select');
+      const inspect = (el, requested) => ({ single: el.tagName === 'SELECT' && !el.multiple,
+        matches: Array.from(el.options || []).filter(x => x.value === requested).map(x => ({ label: x.label, disabled: x.disabled || (x.parentElement?.tagName === 'OPTGROUP' && x.parentElement.disabled) })) });
+      const control = await locator.evaluate(inspect, value);
+      if (!control.single) throw new Error('selectOption requires a single select');
+      if (control.matches.length !== 1 || control.matches[0].disabled) throw new Error('selectOption requires exactly one enabled matching option');
+      if (typeof control.matches[0].label !== 'string' || !control.matches[0].label.trim()) throw new Error('selectOption requires a readable option label');
+      const beforeValue = await locator.inputValue();
+      stage = 'approach';
+      const { x, y, box } = await approach(locator, o);
+      const sequence = log.events.length;
+      const image = async (suffix) => {
+        const name = `select-${sequence}-${suffix}.png`;
+        const buffer = await page.screenshot({ path: path.join(opts.rawDir, name) });
+        return { path: name, sha256: createHash('sha256').update(buffer).digest('hex') };
+      };
+      stage = 'before-image'; beforeImage = await image('before');
+      stage = 'native-selection';
+      const actionStart = log.now();
+      const selected = await locator.selectOption(value, { timeout });
+      stage = 'readback';
+      const actual = await locator.inputValue();
+      const selectedLabels = await locator.evaluate(el => Array.from(el.selectedOptions).map(x => x.label));
+      if (selected.length !== 1 || selected[0] !== value || actual !== value || selectedLabels.length !== 1 || selectedLabels[0] !== control.matches[0].label) throw new Error('selectOption readback mismatch');
+      const tEnd = log.now();
+      stage = 'after-image'; afterImage = await image('after');
+      event = log.push('select', { label, target, method: 'locator.selectOption', value: actual, beforeValue,
+        optionLabel: selectedLabels[0], tStart: actionStart, tEnd, beforeImage, afterImage,
+        x: x * k, y: y * k, targetBox: { x: box.x * k, y: box.y * k, w: box.width * k, h: box.height * k } });
+      beats.mark(label);
+    } catch (error) {
+      // Provider errors can contain DOM values. Record only the safe stage, never raw exception text.
+      log.push('select-failed', { label, target, method: 'locator.selectOption', stage, tStart, tEnd: log.now(), beforeImage, afterImage });
+      throw new Error(`selectOption failed at ${stage}`);
+    }
+    await wait(o.hold ?? TIMING.clickHoldMs);
+    return event;
+  }
+
   /** Pointer lead without a click, for a read beat. */
   async function pointAt(locator, o = {}) {
     const r = await approach(locator, o);
@@ -410,5 +467,5 @@ export function bindHelpers(page, log, beats, opts = {}) {
   /** Result hold (≥500 ms; longer when the viewer must read). */
   const hold = (ms = 1500) => wait(ms);
 
-  return { approach, click, tap, typeText, uploadFile, fillValue, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
+  return { approach, click, tap, typeText, uploadFile, fillValue, selectOption, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
 }
