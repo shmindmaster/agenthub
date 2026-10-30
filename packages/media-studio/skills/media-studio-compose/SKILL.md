@@ -15,19 +15,19 @@ Load `../media-studio/references/engagement.md`, `scene-archetypes.md`, `deliver
 
 Never scaffold or edit a Remotion app, composition, package manifest, dependency, asset directory, or render helper in a product repository. Edit the shared runtime kit or external job workspace only. If an official Remotion skill defaults to the current repo, point it at the external workspace first.
 
-Use official Remotion skills; do not vendor their rules here. Forced alignment of each accepted take writes `voice/asr/<id>.json` before building the cue sheet.
+Use official Remotion skills; do not vendor their rules here. Alignment of each accepted take writes `voice/align/<id>.json` before building the cue sheet: the hosted `<kit>\cloud\cloud-ai.mjs align` report clocks the picture only where `job.json` sets `clockPolicy.allowAsrAnchored: true`; historical forced-alignment receipts of accepted films stay valid read-only evidence (`media-studio-qa`).
 
 ## 1. Kit
 
 Canonical: `packages/media-studio/kit`. Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`.
 
-Use the runtime kit only when its manifest matches 2.0.38. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.38 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
+Use the runtime kit only when its manifest matches 2.0.41. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.41 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
 
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
 $kitManifest = Join-Path $kit 'package.json'
-if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.38') {
-    throw 'Media Studio 2.0.38 runtime kit is missing or stale. Sync from a verified 2.0.38 package source before rendering.'
+if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.41') {
+    throw 'Media Studio 2.0.41 runtime kit is missing or stale. Sync from a verified 2.0.41 package source before rendering.'
 }
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
 ```
@@ -36,17 +36,28 @@ To repair, set `MEDIA_STUDIO_PACKAGE_ROOT` to the verified package; check its `p
 
 ```powershell
 $package = $env:MEDIA_STUDIO_PACKAGE_ROOT
-if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.38') {
-    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.38 package.'
+if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.41') {
+    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.41 package.'
 }
 pwsh -NoProfile -File (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1')
 ```
 
 Viewer-facing `briefing`, `training`, `explainer`, `series-episode`, `webcast`, `webinar`, `keynote`, `documentary`, `teaser` **require Remotion** unless `intent: draft` or user asked for proxy. Do not silently emit static slides.
 
-Load official Remotion skills (`remotion-markup`, `remotion-render`) when editing the kit. FFmpeg mux when picture is already stills/clips, then finish with helper. Recast/Motif only if those plates exist.
+Load official Remotion skills (`remotion-markup`, `remotion-render`) when editing the kit. FFmpeg mux when picture is already stills/clips, then finish with helper. Recast, or an accepted motion or avatar plate, only if those plates exist.
 
-**Render in the cloud by default** (owner direction 2026-10-26: cloud for voice and rendering, local only for screen capture and mouse movement). `<kit>\cloud\cloud-render.mjs` runs the same FFmpeg, Remotion and Recast commands in the owner's own Azure tenant (Container Apps job, scale to zero, about $0.0072 per job-minute) and downloads the result into the job folder:
+**Render placement is capacity-based (owner direction 2026-10-29).** Pick the lane from measured load, report the lane and cost per job, and split the queue across every lane that has room when speed matters. Screen capture and mouse movement stay local.
+
+| Lane | Use when | How |
+|---|---|---|
+| Local RTX 5060 Ti (NVENC) | CPU < 70% and free RAM > 8 GB; at most 2 concurrent encodes | CUDA decode plus NVENC: `ffmpeg -hwaccel cuda -hwaccel_output_format cuda -i in.mp4 -c:v h264_nvenc -preset p4 -cq 26 out.mp4` (also `hevc_nvenc`, `av1_nvenc`). Verified 2026-10-29: a 10.5 s 1080p clip in 1.9 s. CPU-bound steps (x264, loudnorm analysis, Python) do not run locally when the PC is taxed |
+| Azure Container Apps job `caj-media-render` (MahumTech credit) | PC taxed, or work that can run in parallel | `kit\cloud\cloud-render.mjs` (below). Verified 2026-10-29: an ffmpeg transcode of the 10.5 s avatar clip took 62 s wall time (about 60 s of it job start), 54 billed seconds, **$0.0065** |
+| Daytona | PC taxed and the job needs fan-out beyond one Azure job, with the orchestrator's OK. Caps $150/day and $500 total; label `owner` and `purpose`, TTL 120 min, delete when done, never touch Codex sandboxes | The dispatcher |
+| DigitalOcean droplet, AWS Lambda/Batch (`--profile abacare` only) | Only per the orchestrator's compute placement rule | per job, destroyed after |
+
+**Local AI is off.** Never start local models, TTS/STT servers or embedders. FFmpeg, Remotion and Recast are ordinary tools and may run locally.
+
+The Azure lane: `<kit>\cloud\cloud-render.mjs` runs the same FFmpeg, Remotion and Recast commands in the owner's own Azure tenant (Container Apps job, scale to zero, about $0.0072 per job-minute at 4 vCPU / 8 GiB; the subscription has 10 regional vCPU and no serverless GPU in eastus2) and downloads the result into the job folder:
 
 ```powershell
 $cr = Join-Path $kit 'cloud\cloud-render.mjs'
@@ -55,7 +66,7 @@ node $cr remotion --comp Briefing --props <job>\scenes.json --public-dir <job>\p
 node $cr recast --raw <job>\capture\take-01 --out <job>\capture\take-01\recast.webm
 ```
 
-Read `<kit>\cloud\README.md` for path-rewriting limits and fonts. Render locally only when the cloud path fails or a deadline cannot absorb the ~1 minute job start; say so in the job notes.
+Read `<kit>\cloud\README.md` for path-rewriting limits and fonts. Prefer the local NVENC lane when the PC is not taxed and the deadline cannot absorb the ~1 minute job start; say which lane ran in the job notes.
 
 ## 2. Delivery loudness (required)
 
@@ -65,8 +76,8 @@ Do not invent an FFmpeg graph. The helper is the provider:
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $toolsManifest = Join-Path $tools 'plugin.json'
 $Finish = Join-Path $tools 'Finish-Media.ps1'
-if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.38' -or -not (Test-Path -LiteralPath $Finish)) {
-    throw 'Media Studio 2.0.38 finishing helper is missing or stale in the deployed shared tools.'
+if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.41' -or -not (Test-Path -LiteralPath $Finish)) {
+    throw 'Media Studio 2.0.41 finishing helper is missing or stale in the deployed shared tools.'
 }
 pwsh -NoProfile -File $Finish -Action finish -Program <job>\candidate.mp4 -Output <job>\candidate-finished.mp4
 pwsh -NoProfile -File $Finish -Action finish -Speech <job>\voice.wav -Music <job>\bed.wav -Video <job>\picture.mp4 -Output <job>\candidate-finished.mp4
@@ -83,7 +94,7 @@ Do not run DeepFilterNet, Resemble Enhance, or Descript Studio Sound on owner vo
 | Archetype kit, lower-thirds, programmatic UI, briefing boards | Remotion | Official `remotion-dev/skills` |
 | Captured product trace needing cursor, click ripple, punch-in | Recast then `compose-screencast.mjs` | PNG stills/auto-cards on `screen` beats fail |
 | Concat, mux, loudness, caption burn-in, format normalize | FFmpeg via `Finish-Media.ps1` | Two-pass linear loudnorm; AAC-LC 48 kHz stereo, Fast Start |
-| Motif clip + voice | FFmpeg mux | Do not re-generate motion to fit duration; trim or hold |
+| Accepted motion or avatar clip + voice | FFmpeg mux | Do not re-generate motion to fit duration; trim or hold |
 
 ### Screencast compositor and annotation layer
 
@@ -101,7 +112,7 @@ Overlay is markup (dim, box, outline, arrow, label, note, flow diagram) directed
 
 ### Voice-first timing and cue sheet
 
-Narration is locked and rendered first; picture is built to it. Order: force-align takes → `node <tools>/build-cue-sheet.mjs <jobRoot>` (plan) → `compose-screencast.mjs <jobRoot> <base>` → `build-cue-sheet.mjs <jobRoot>` again (mapped via `output/<base>-compose-map.json`) → encode/mux → `validate-sync.mjs` (QA). Whisper is a transcript check, not the timing clock.
+Narration is locked and rendered first; picture is built to it. Order: align takes (`voice/align/<id>.json`, above) → `node <tools>/build-cue-sheet.mjs <jobRoot>` (plan) → `compose-screencast.mjs <jobRoot> <base>` → `build-cue-sheet.mjs <jobRoot>` again (mapped via `output/<base>-compose-map.json`) → encode/mux → `validate-sync.mjs` (QA). Whisper is a transcript check, not the timing clock.
 
 With `plan/cue-sheet.json`, compose cuts to each line's first content word (screen up 0.3 s before it, never before previous line ends) and aligns each clip's first narrated action with its spoken word: too-early action holds first frame (max 1.5 s), late trims head. If take too short or action far from word, compose stops — recapture, do not squeeze voice. Stale cue sheet also stops. `--no-voice-first` is drafts only; sync gate still needs cue sheet. Rebuild cue sheet after every compose changing picture. Static scenes keep moving cursor/highlight on named element; emphasis is one punch-in, ring, or callout per beat on the word.
 
@@ -113,7 +124,7 @@ Official Remotion skills installed globally under `~/.agents/skills`, symlinked 
 
 - New id + checksum each render; never overwrite.
 - Captions from final spoken wording.
-- Owner-voice programs need local `ai.ps1 listen` on the exact encoded file before done. No identity score is required (advisory only; never fail, block or re-voice on speaker similarity).
+- Narrated programs need the hosted ASR check of the exact encoded file against the authored script before done (`media-studio-qa`); the retired listen gate is reported as not performed. No identity score is required (advisory only; never fail, block or re-voice on speaker similarity).
 - Output stays in job workspace. Accepted masters may copy to owner's Videos tree; never into git.
 - Delivered names: `NN - Title.mp4`, no product prefix. Series carries `README.md` index. Each product has one flat folder directly under `F:\My Drive\Videos`; never deliver into subfolders.
 - Superseded master: delete old master and every reproducible intermediate. No `_retired`, `_old`, or archive folders.
@@ -123,13 +134,13 @@ Official Remotion skills installed globally under `~/.agents/skills`, symlinked 
 
 - [ ] Kit synced from `packages/media-studio/kit`
 - [ ] Scenes carry `archetype`; consecutive repeats only if intentional
-- [ ] Voice-first: cue sheet built from forced alignment, compose ran against it, cue sheet rebuilt after last compose
+- [ ] Voice-first: cue sheet built from an accepted word clock, compose ran against it, cue sheet rebuilt after last compose
 - [ ] Bed ducked from stems
 - [ ] Profile frame matches `deliveryProfile`
 
 ## 6. Descript finishing
 
-Optional after truth and craft locked. Rules in `references/descript.md`. Descript export is a new candidate; prior approval does not transfer. Do not apply Studio Sound to owner-voice (Sarosh); use `Finish-Media.ps1` for local two-pass loudness.
+Optional after truth and craft locked. Rules in `references/descript.md`. Descript export is a new candidate; prior approval does not transfer. Do not apply Studio Sound to owner-voice (Sarosh); use `Finish-Media.ps1` for two-pass loudness.
 
 ## 7. Marketing ads
 

@@ -66,7 +66,7 @@ export type BriefingSpeaker =
 
 export type StakeholderId = "ryan" | "vivian" | "aiden" | "joel";
 
-/** Display labels for stakeholder question cards (qwen-role cast). */
+/** Display labels for stakeholder question cards (the stakeholder voice cast). */
 export const STAKEHOLDER_LABELS: Record<
   StakeholderId,
   { name: string; role: string }
@@ -110,7 +110,7 @@ export type BriefingScene = {
   visual?: Visual;
   /**
    * Who is talking. Omit or `sarosh` = host narration (answer / diagram slide).
-   * `ryan` | `vivian` | `aiden` = labeled stakeholder question card (qwen-role).
+   * `ryan` | `vivian` | `aiden` = labeled stakeholder question card (stakeholder voice cast).
    * `joel` = legacy interviewer card (same visual family as Ryan).
    */
   speaker?: BriefingSpeaker;

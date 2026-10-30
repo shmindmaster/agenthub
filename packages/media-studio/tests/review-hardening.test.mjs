@@ -1,16 +1,15 @@
 // Synthetic review regressions. No model, provider, render, encode or delivery.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { candidatePaths } from '../kit/marketing/lib/candidate.mjs';
-import { runSyncGates } from '../kit/marketing/lib/local-gates.mjs';
-import { localCommandOutput } from '../kit/marketing/lib/providers/local.mjs';
+import { runSyncGates } from '../kit/marketing/lib/gate-runners.mjs';
 import { qaStage } from '../kit/marketing/lib/stages/qa.mjs';
+import { voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
 import { deliverStage } from '../kit/marketing/lib/stages/deliver.mjs';
 import { requiredGates } from '../kit/marketing/lib/gates.mjs';
 import { fileSha } from '../kit/marketing/lib/util.mjs';
@@ -44,42 +43,63 @@ test('transcript comparison fails closed before a cue-sheet early return', async
     const timeline = join(ws, 'story', 'narration-timeline.json');
     write(timeline, { segments: [{ text: 'Four trials.' }] });
     if (kind === 'locked-unreadable') writeFileSync(timeline, 'not-json');
-    let calls = 0;
+    let calls = 0, transcripts = 0;
     const result = await runSyncGates({ ws, candidate: join(ws, 'fake.mp4'),
       moduleRoot, composeMapRel: 'unused', voiceLines: [],
-      runCommand: async () => {
-        if (calls++ === 0) {
-          const asr = join(ws, 'qa', 'encoded-asr.json');
-          if (kind === 'malformed') writeFileSync(asr, 'not-json');
-          else if (kind !== 'missing') write(asr, { text: kind === 'different' ? 'Five trials.' : '4 trials.' });
-          return { code: 0 };
-        }
-        return { code: 1, stderr: 'synthetic cue failure' };
+      transcribe: async ({ jsonOut }) => {
+        transcripts++;
+        if (kind === 'malformed') writeFileSync(jsonOut, 'not-json');
+        else if (kind !== 'missing') write(jsonOut, { text: kind === 'different' ? 'Five trials.' : '4 trials.' });
       },
+      runCommand: async () => { calls++; return { code: 1, stderr: 'synthetic cue failure' }; },
     });
-    assert.equal(calls, 2);
+    assert.equal(transcripts, 1);
+    assert.equal(calls, 1, 'only the cue sheet runs as a command; nothing shells out to a local runtime');
     assert.equal(result.sync.status, 'fail');
     assert.equal(result.transcript.status, kind === 'matching' ? 'pass' : 'fail');
     if (['missing', 'malformed', 'locked-unreadable'].includes(kind)) assert.match(result.transcript.detail, /unreadable/);
   }
 });
 
-test('capability JSON uses stdout only while failed commands retain stderr diagnostics', async () => {
-  const spawnImpl = (exe, args, options) => {
-    assert.equal(options.windowsHide, true);
-    const child = new EventEmitter();
-    child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
-    queueMicrotask(() => {
-      child.stdout.emit('data', '{"id":"provider.local"}');
-      child.stderr.emit('data', 'synthetic warning');
-      child.emit('close', args.at(-1).includes('failure') ? 1 : 0);
-    });
-    return child;
-  };
-  const clean = await localCommandOutput('capability', {}, { stdoutOnly: true, spawnImpl });
-  assert.equal(JSON.parse(clean).id, 'provider.local');
-  assert.match(await localCommandOutput('capability', {}, { spawnImpl }), /synthetic warning/);
-  await assert.rejects(localCommandOutput('failure', {}, { stdoutOnly: true, spawnImpl }), /synthetic warning/);
+test('Local AI is off: default aligner and transcript refuse with the hosted route, and a stale transcript never passes', async () => {
+  const ws = join(root, 'local-ai-off');
+  mkdirSync(join(ws, 'qa'), { recursive: true });
+  mkdirSync(join(ws, 'story'));
+  write(join(ws, 'story', 'narration-timeline.json'), { segments: [{ id: 'one', text: 'Four trials.', startSeconds: 0 }] });
+  write(join(ws, 'job.json'), {});
+  writeFileSync(join(ws, 'story', 'locked-script.txt'), 'Four trials.');
+  const take = join(ws, 'take.wav');
+  writeFileSync(take, 'synthetic take');
+  // A transcript left by an earlier run must not be compared as if it belonged to this candidate.
+  write(join(ws, 'qa', 'encoded-asr.json'), { text: '4 trials.' });
+  const commands = [];
+  const result = await runSyncGates({ ws, candidate: join(ws, 'fake.mp4'), moduleRoot, composeMapRel: 'unused',
+    voiceLines: [{ file: take, startSec: 0 }],
+    runCommand: async (exe, args) => { commands.push([exe, ...args].join(' ')); return { code: 1, stderr: 'synthetic cue failure' }; } });
+  assert.equal(result.wordSync.status, 'fail');
+  assert.match(result.wordSync.detail, /^forced alignment: local aligner: Local AI is off; use the hosted route \(kit\/cloud\/cloud-ai\.mjs align, Azure TTS\/STT\)/);
+  assert.equal(result.transcript.status, 'fail');
+  assert.match(result.transcript.detail, /encoded transcript: Local AI is off/);
+  assert.equal(existsSync(join(ws, 'qa', 'encoded-asr.json')), false);
+  assert.equal(result.listen, undefined, 'mvg has no listen runner');
+  assert.ok(commands.every((c) => !/powershell|ai\.ps1/i.test(c)), commands.join('\n'));
+  // transcribe: null skips the gate so the caller can report it pending.
+  const skipped = await runSyncGates({ ws, candidate: join(ws, 'fake.mp4'), moduleRoot, composeMapRel: 'unused',
+    voiceLines: [], transcribe: null, runCommand: async () => ({ code: 1, stderr: 'stop' }) });
+  assert.equal(skipped.transcript, undefined);
+});
+
+test('Local AI is off: a local voice provider refuses before rendering instead of starting Qwen', async () => {
+  const job = join(root, 'local-voice');
+  const ctx = { jobDir: job, flags: {}, providers: {}, log() {},
+    spec: { id: 'v', ratios: ['9x16'], beats: [{ id: 'b1', kind: 'card', narration: 'Open the queue.' }], voice: { provider: 'local', voiceId: 'role' } },
+    ledger: { check() {}, charge() {}, summary: () => ({}) } };
+  await assert.rejects(voiceStage(ctx), /local voice: Local AI is off; use the hosted route/);
+  let rendered = 0;
+  ctx.providers.localVoice = async ({ out }) => { rendered++; writeFileSync(out, 'synthetic wav'); };
+  const result = await voiceStage(ctx);
+  assert.equal(rendered, 1, 'the injected seam still works');
+  assert.equal(result.main.lines.length, 1);
 });
 
 test('QA publishes pending gates for an unencoded prepared candidate without a hash receipt or compose metadata', async () => {

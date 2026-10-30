@@ -58,7 +58,7 @@ export function renderCaptions(ctx, captions) {
 export function requireTimingClock(timeline, flags = {}) {
   if (timeline.wordClock === 'forced-aligner') return;
   if (flags.whisperTiming && (!timeline.wordClock || timeline.wordClock === 'whisper')) return;
-  throw new Error('compose requires forced-aligner timing; rerun timing with ai.ps1 align, or use --whisper-timing explicitly for a job without an aligner');
+  throw new Error('compose requires forced-aligner timing; rerun timing with an injected forced aligner (Local AI is off; the hosted route is kit/cloud/cloud-ai.mjs align), or use --whisper-timing explicitly for a job without an aligner');
 }
 
 export function timingReceiptFor(ctx, timeline, beatId) {

@@ -57,7 +57,9 @@ Jobs declaring `syncClock: "forced-aligner"` or `syncClock: "asr-anchored"`, or 
 `clockPolicy.allowAsrAnchored: true`, require `qa/word-sync.json`, bound to the exact candidate SHA/bytes,
 cue sheet, locked script and alignment evidence. The ASR selector requires that explicit opt-in; unsupported
 selectors fail closed. The report names the actual method: ASR-anchored timing is never relabeled forced alignment.
-`ai.ps1 align` supplies a take/script-bound forced word clock on its 80 ms grid. The opted-in identity-PCM route
+The retired Local-AI forced aligner supplied a take/script-bound forced word clock on its 80 ms grid; Local AI is off
+(owner direction 2026-10-29), so no new forced-alignment report can be produced and existing ones stay read-only
+evidence for accepted films. New films use the hosted ASR-anchored report under the explicit opt-in. The opted-in identity-PCM route
 instead re-verifies the retained ASR response and complete normalized candidate/source PCM identity. It preserves
 the source grid and unknown acoustic accuracy; a zero measured cue offset does not establish exact acoustic onsets.
 Whisper only checks transcript text. Missing or invalid alignment cannot fall back to Whisper onset times.
@@ -65,8 +67,8 @@ Before Remotion, `scripts/validate-picture-inputs.mjs` refuses a missing props f
 The canonical 40 ms offset/drift limits are unchanged; the raw grid limits measurement accuracy. This patch is not
 the proposed 2.1 rendered-pixel/action-evidence audit, and its receipt-based picture checks retain their stated limits.
 
-Local vision reuses only an enabled existing vision-capable Local-AI route, without starting services or downloading
-weights. An unavailable or retired route blocks the vision gate. Paid OpenAI requires explicit provider selection
+Local AI is off (owner direction 2026-10-29): there is no local vision route, so the local default blocks the vision
+gate. Paid OpenAI requires explicit provider selection
 and normal budget accounting. No missing review, unavailable service or proposed capability counts as a pass.
 
 After every recut, write `qa/viewer-release-evidence.json` and run:

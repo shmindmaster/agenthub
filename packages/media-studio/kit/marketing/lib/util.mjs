@@ -30,6 +30,11 @@ export const round = (n, d = 3) => Math.round(n * 10 ** d) / 10 ** d;
 export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 export const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
+/** Local AI is off (owner direction 2026-10-29): no code path starts a local model, TTS or ASR runtime. */
+export const LOCAL_AI_OFF = 'Local AI is off; use the hosted route (kit/cloud/cloud-ai.mjs align, Azure TTS/STT)';
+/** Default for an injectable local-provider seam: refuses with the hosted route instead of starting anything. */
+export const localAiOff = (what) => async () => { throw new Error(`${what}: ${LOCAL_AI_OFF}`); };
+
 /** Mask a secret to its last four characters for any log line. */
 export const mask = (secret) => (secret ? `…${String(secret).slice(-4)}` : '(unset)');
 

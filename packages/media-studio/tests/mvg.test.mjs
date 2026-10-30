@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { symlinkSync } from 'node:fs';
+import { readdirSync, symlinkSync } from 'node:fs';
 import { validate } from '../kit/marketing/lib/schema.mjs';
 import { bannedHits, DEFAULT_BANNED, estimateCutSeconds, lintSpec, normalizeCuts } from '../kit/marketing/lib/lint.mjs';
 import { canonical, hashOf, readJson } from '../kit/marketing/lib/util.mjs';
@@ -32,7 +32,6 @@ import { cueTime, placeCaptions, validateProps } from '../kit/marketing/lib/stag
 import { parseArgs, selectedStages } from '../kit/marketing/mvg.mjs';
 import { alignBeat, chooseResult, expandKeywords, findWord, shiftAsr, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
 import { buildGateWorkspace } from '../kit/marketing/lib/gates.mjs';
-import { listenCommand, listenFindings } from '../kit/marketing/lib/local-gates.mjs';
 import { CTA_FOOT_FONT, CTA_PILL_FONT } from '../kit/marketing/lib/layout.mjs';
 import { pictureIntegrity } from '../kit/marketing/lib/integrity.mjs';
 import { MAX_SCALE, snapToContent, WIDE_REGION } from '../kit/marketing/lib/crop.mjs';
@@ -657,13 +656,13 @@ test('sfx cue timing resolves start, end, at and receipt action labels', () => {
 });
 
 test('mvg CLI argument parsing', () => {
-  const a = parseArgs(['spec.json', '--stage', 'voice', '--dry-run', '--whisper-timing', '--local-gates', '--workspace', 'D:/w']);
+  const a = parseArgs(['spec.json', '--stage', 'voice', '--dry-run', '--whisper-timing', '--workspace', 'D:/w']);
   assert.equal(a.specPath, 'spec.json');
   assert.equal(a.flags.stage, 'voice');
   assert.equal(a.flags.dryRun, true);
   assert.equal(a.flags.whisperTiming, true);
-  assert.equal(a.flags.localGates, true);
   assert.equal(a.flags.workspace, 'D:/w');
+  assert.throws(() => parseArgs(['spec.json', '--stage', 'qa', '--local-gates']), /--local-gates was removed: Local AI is off; use the hosted route/);
   assert.throws(() => selectedStages({ stage: 'timing', hostedOnly: true }), /requires the explicit --whisper-timing/);
   assert.deepEqual(selectedStages({ stage: 'timing', hostedOnly: true, whisperTiming: true }), ['lint', 'voice', 'timing']);
 });
@@ -788,13 +787,6 @@ test('vision 5: the synthetic-data disclosure is an end-card line, never a chip 
   assert.match(tsx, /EMPHASIS_COLOR = "#ffd166"/);
 });
 
-test('listen 4: the listen command passes the pronunciation manifest and the timeline the gate requires', () => {
-  const cmd = listenCommand({ candidate: 'C:/ws/output/x.mp4', ws: 'C:/ws', sha: 'abc', sourceRevision: 'rev', risk: 'C:/ws/qa/pronunciation-risk.json', listenOut: 'C:/ws/qa/listen-encoded.json' });
-  for (const flag of ['listen', '--transcript', '--pronunciation-manifest', '--timeline', '--candidate-id abc', '--source-revision rev', '--output']) assert.ok(cmd.includes(flag), flag);
-  assert.match(cmd, /pronunciation-risk\.json/);
-  assert.match(cmd, /listen-timeline\.json/);
-});
-
 test('item 6: a window already magnified by a Recast punch-in gets a wider crop so the magnification stays under the cap', () => {
   const band = { w: 1080, h: 900 };
   const base = bandRegion({ srcW: 1600, srcH: 1000, band, zoom: 2.4 }).scale;
@@ -911,13 +903,17 @@ test('vision r2-4: arbitration is honoured only for this candidate hash, a named
   assert.ok(!/writeJson\([^)]*vision-arbitration/.test(src) && !/writeFileSync\([^)]*vision-arbitration/.test(src));
 });
 
-test('listen r2-5: releaseEligible is the pass signal and any finding, a WARNING included, is named in the gate detail', () => {
-  const report = { status: 'FAIL', releaseEligible: false, findings: [{ severity: 'WARNING', checkId: 'delivery-and-pacing', startSeconds: 0.33, description: "A slight hesitation before 'Twelve units left.'" }] };
-  assert.match(listenFindings(report), /WARNING delivery-and-pacing at 0.33s: A slight hesitation/);
-  assert.equal(listenFindings({ findings: [] }), 'no findings (check the report)');
-  const src = readFileSync(join(mod, 'lib', 'local-gates.mjs'), 'utf8');
-  assert.match(src, /releaseEligible === true/);
-  assert.ok(!/severity === 'WARNING'/.test(src), 'a WARNING is never downgraded');
+test('Local AI is off: no marketing kit module starts a local runtime or names the retired D:\\Local-AI path', () => {
+  const files = [];
+  const walk = (dir) => { for (const e of readdirSync(dir, { withFileTypes: true })) { const p = join(dir, e.name); if (e.isDirectory()) walk(p); else if (/\.mjs$/.test(e.name)) files.push(p); } };
+  walk(mod);
+  assert.ok(files.length > 10);
+  for (const f of files) {
+    const src = readFileSync(f, 'utf8');
+    assert.doesNotMatch(src, /ai\.ps1|D:\\{1,2}Local-AI|MVG_LOCAL_AI|qwen-role|flags\.localGates/, f);
+  }
+  assert.equal(existsSync(join(mod, 'lib', 'providers', 'local.mjs')), false);
+  assert.equal(existsSync(join(mod, 'lib', 'local-gates.mjs')), false);
 });
 
 test('reviews.json counts only for the candidate hash it names', () => {

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Vision QA on an encoded ad. Samples frames for existing local vision, or explicit ledger-governed OpenAI, with a
+// Vision QA on an encoded ad. Samples frames for an injected local vision reviewer (Local AI is off: the default refuses
+// before decoding), or explicit ledger-governed OpenAI, with a
 // rubric, parses a strict JSON verdict and fails on any high-severity finding. It supplements, never replaces, the
 // encoded-file gates and a full human watch: vision models miss small text, so every finding is evidence to check.
 //
@@ -11,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { validate } from './lib/schema.mjs';
 import { estimateVisionUsd, visionUsdFromUsage } from './lib/prices.mjs';
-import { fileSha, readJson, round } from './lib/util.mjs';
+import { LOCAL_AI_OFF, fileSha, readJson, round } from './lib/util.mjs';
 
 export const CATEGORIES = ['typo', 'unreadable-text', 'banned-claim', 'prospect-name', 'missing-label', 'caption-overlap', 'people-or-children', 'fabricated-ui', 'other'];
 export const SEVERITIES = ['high', 'medium', 'low'];
@@ -156,12 +157,14 @@ export function extractFramesFfmpeg(candidate, times, dir, { maxWidth = 1080 } =
  * @param {object} o.spec ad spec; o.brand brand file; o.ratio
  * @param {object} [o.ledger] CostLedger (budget-checked before the call, charged after)
  * @param {Function} [o.vision] injected (args) => { text, usage } for tests; default OpenAI Responses
+ * @param {Function} [o.localVision] injected local reviewer (args) => { text | frameTexts, model }; no default (Local AI is off)
  * @param {Function} [o.frames] injected (candidate, times, dir) => frames; default ffmpeg
  */
 export async function runVisionQa(o) {
   const provider = o.provider || o.brand?.vision?.provider || 'local';
   if (!['local', 'openai'].includes(provider)) throw new Error('vision provider must be local or explicit paid openai');
   if (provider === 'openai' && (typeof o.ledger?.check !== 'function' || typeof o.ledger?.charge !== 'function')) throw new Error('paid OpenAI vision requires a governed cost ledger; use mvg --stage qa');
+  if (provider === 'local' && typeof o.localVision !== 'function') throw new Error(`local vision: ${LOCAL_AI_OFF}; or pass --vision-provider openai (paid, ledger-governed)`);
   let model = provider === 'openai' ? (o.brand?.vision?.model || 'gpt-5.6-sol') : null;
   const every = o.spec?.qa?.visionEverySeconds || 1.5;
   const candidateSha = existsSync(o.candidate) ? fileSha(o.candidate) : null;
@@ -171,7 +174,7 @@ export async function runVisionQa(o) {
   const estimate = provider === 'openai' ? estimateVisionUsd(model, frames.length) : 0;
   if (provider === 'openai') o.ledger.check('openai', estimate, 'vision QA');
   const vision = provider === 'local'
-    ? (o.localVision || (async (args) => (await import('./lib/providers/local.mjs')).localVisionJson(args)))
+    ? o.localVision
     : (o.vision || (async (args) => (await import('./lib/providers/openai.mjs')).visionJson(args)));
   const res = await vision({
     model, detail: o.brand?.vision?.detail || 'high', schema: VERDICT_SCHEMA, schemaName: 'ad_vision_verdict',
@@ -199,7 +202,7 @@ export async function runVisionQa(o) {
   };
 }
 
-// The deployed kit is reached through a link (%LOCALAPPDATA%\AgentHub\media-studio -> D:\Local-AI), so compare real paths.
+// The deployed kit is reached through a link (%LOCALAPPDATA%\AgentHub\media-studio -> MEDIA_STUDIO_ROOT, default D:\Media-Studio), so compare real paths.
 function isMain() {
   try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
 }

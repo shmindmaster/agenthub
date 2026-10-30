@@ -1,6 +1,6 @@
 {
   "name": "media-studio",
-  "description": "Local creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Uses Local-AI. Product-demo-studio is the internal engine, not a second plugin.",
+  "description": "Creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Azure AI Services for voice, transcription and images. Product-demo-studio is the internal engine, not a second plugin.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -12,7 +12,6 @@
     "briefing",
     "training",
     "remotion",
-    "local-ai",
     "screenplay",
     "director"
   ],

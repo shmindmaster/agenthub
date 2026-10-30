@@ -4,11 +4,11 @@
   "nativeFrame": { "width": 1600, "height": 1000, "fps": 30 },
   "consecutiveRepeat": "forbidden-unless-intentional",
   "cast": {
-    "host": { "speaker": "sarosh", "voice": "qwen-clone", "shareHint": "0.70-0.80" },
+    "host": { "speaker": "sarosh", "voice": "azure-tts-cast", "shareHint": "0.70-0.80" },
     "stakeholders": [
-      { "speaker": "ryan", "voice": "qwen-role", "role": "Engineering skeptic", "card": "question" },
-      { "speaker": "vivian", "voice": "qwen-role", "role": "Product · CSM", "card": "question" },
-      { "speaker": "aiden", "voice": "qwen-role", "role": "Ops · Audience", "card": "question" }
+      { "speaker": "ryan", "voice": "azure-tts-cast", "role": "Engineering skeptic", "card": "question" },
+      { "speaker": "vivian", "voice": "azure-tts-cast", "role": "Product · CSM", "card": "question" },
+      { "speaker": "aiden", "voice": "azure-tts-cast", "role": "Ops · Audience", "card": "question" }
     ]
   },
   "archetypes": [
