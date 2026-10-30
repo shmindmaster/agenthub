@@ -1,9 +1,26 @@
 ---
 name: media-studio-generate
-description: Use when a video or audio job needs provider-routed generation — owner or role voice, images, motif clips, lipsync, portrait, music beds, stings, or transcription — through ElevenLabs or the Local-AI control plane.
+description: Use when a video or audio job needs provider-routed generation — narration and character voices, images, avatar presenter clips, motif clips, lipsync, portrait, music beds, stings, or transcription — through the MahumTech Azure AI Services default, with ElevenLabs, Deepgram and the Local-AI control plane as fallbacks.
 ---
 
 # Media studio generate
+
+## Provider routing — Azure is the default (owner direction 2026-10-29)
+
+Load `references/azure-ai-services.md` before planning any generation. The MahumTech Azure resource `aoai-mrender-4e123a95` (eastus2) is the default provider; within Azure take the cheapest option that passes QA, and escalate only items that fail review.
+
+| Need | Default | Fallback, only when Azure cannot do it or a gate failed |
+|---|---|---|
+| Narration and character voices | Azure Speech TTS: **standard neural is the default narration voice**; Neural HD and MAI-Voice for cinematic principals and characters (MAI is a preview: fall back to HD if an interjection drops). Run an ASR check on every line. Cast from the voice cast in the reference | Deepgram governed adapter first; ElevenLabs last |
+| Transcription and ASR gates | Azure batch transcription for backlogs (private blob + SAS) and fast transcription for one file. Real-time and streaming STT stay on Deepgram (Azure is $1 / hr vs $0.46 / hr) | Deepgram Nova-3 |
+| Images | Azure `gpt-image-2.5-flare` at low or medium quality is the default per image (about $0.006 / $0.013); capacity 2 requests/min | Gemini Batch only for volume until the Azure image quota rises; OpenAI |
+| Avatar presenter clips | Azure TTS avatar, batch API, prebuilt avatars | none; use Remotion/Recast composition instead |
+| Video generation | Sora 2 works but its inference ends 2026-11-02: do not plan around it | Remotion/Recast composition |
+| Chat, QA, embeddings, OCR | Embeddings `text-embedding-3-small` and Document Intelligence on Azure. For chat and QA, Anthropic Haiku 5.5 is cheaper than `gpt-5-mini`; keep `gpt-5-mini` as the credit-funded fallback; Flex only on `gpt-6-luna` once its price is confirmed | Anthropic for bulk LLM work |
+
+Rules that apply to every Azure call: never use `AZURE_OPENAI_*` or the Pendoah endpoints; credentials stay in environment variables; hash inputs and reuse accepted takes; quote the price basis in the report; stay inside the credit budget alerts ($400 / $600 / $680). Films and cinematic work cast a distinct, expressive voice per scene and character; **no Sarosh voice clone in films** (owner direction 2026-10-29). Custom avatars, personal voice and professional voice are Limited Access; do not apply without an owner decision (steps are in the reference).
+
+The existing governed adapters (`scripts/governed_azure_speech.py`, `scripts/deepgram_cli.py`, `packages/elevenlabs`) remain the ledgered paths for jobs that already use them. **Local AI is off (owner direction 2026-10-29):** never start local models or TTS/STT servers. The sections below that describe local Qwen voices, the Sarosh clone and `ai.ps1` routes are legacy and disabled; the fallbacks for narration are the ElevenLabs and Deepgram governed adapters. Artifact roots are configurable through `MEDIA_STUDIO_ROOT` (today `D:\Local-AI\data\artifacts\media-studio`, moving to `D:\Media-Studio`); never hard-code the drive path.
 
 Choose by cost, latency, quality, privacy. Reuse accepted assets first. Load `elevenlabs` (its `SKILL.md` and `references/cost-controls.md`) and `../media-studio/references/content-controls.md` before paid planning. Paid ElevenLabs TTS requires its shared governed CLI; unsupported paid modalities remain disabled. Native connectors and SDK examples must not bypass the ledger. Otherwise use adequate authorized local generation. Load `local-ai-stack`; resolve `$LocalAiControl`. Hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
 
