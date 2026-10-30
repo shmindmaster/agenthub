@@ -1,9 +1,26 @@
 ---
 name: media-studio-generate
-description: Use when a video or audio job needs provider-routed generation — owner or role voice, images, motif clips, lipsync, portrait, music beds, stings, or transcription — through ElevenLabs or the Local-AI control plane.
+description: Use when a video or audio job needs provider-routed generation — narration and character voices, images, avatar presenter clips, motif clips, lipsync, portrait, music beds, stings, or transcription — through the MahumTech Azure AI Services default, with ElevenLabs, Deepgram and the Local-AI control plane as fallbacks.
 ---
 
 # Media studio generate
+
+## Provider routing — Azure is the default (owner direction 2026-10-29)
+
+Load `references/azure-ai-services.md` before planning any generation. The MahumTech Azure resource `aoai-mrender-4e123a95` (eastus2) is the default provider; within Azure take the cheapest option that passes QA, and escalate only items that fail review.
+
+| Need | Default | Fallback, only when Azure cannot do it or a gate failed |
+|---|---|---|
+| Narration and character voices | Azure Speech TTS: standard neural, Neural HD for cinematic and principal roles, MAI-Voice where per-line emotion decides the scene. Cast from the voice cast in the reference | ElevenLabs governed adapter; Deepgram governed adapter |
+| Transcription and ASR gates | Azure batch transcription (backlogs), fast transcription (one file), short-audio STT (≤60 s clips) | Deepgram pre-recorded; Local-AI `ai.ps1 transcribe` |
+| Images | Azure `gpt-image-2.5` deployments, low or medium quality first, capacity 2 | Gemini batch (balance is low), OpenAI |
+| Avatar presenter clips | Azure TTS avatar, batch API, prebuilt avatars | none; use Remotion/Recast composition instead |
+| Video generation | Sora 2 is retired (listed retirement 2026-10-15): do not plan around it | Local-AI Comfy, Remotion/Recast |
+| Chat, QA, embeddings, OCR | Azure `gpt-5-mini` (nano where it passes), `text-embedding-3-small`, Document Intelligence | Anthropic for bulk LLM work |
+
+Rules that apply to every Azure call: never use `AZURE_OPENAI_*` or the Pendoah endpoints; credentials stay in environment variables; hash inputs and reuse accepted takes; quote the price basis in the report; stay inside the credit budget alerts ($400 / $600 / $680). Films and cinematic work cast a distinct, expressive voice per scene and character; **no Sarosh voice clone in films** (owner direction 2026-10-29). Custom avatars, personal voice and professional voice are Limited Access; do not apply without an owner decision (steps are in the reference).
+
+The existing governed adapters (`scripts/governed_azure_speech.py`, `scripts/deepgram_cli.py`, `packages/elevenlabs`) remain the ledgered paths for jobs that already use them. The sections below that describe local Qwen voices, the Sarosh clone and ElevenLabs keep their gates but are now the fallback route for narration, not the starting point.
 
 Choose by cost, latency, quality, privacy. Reuse accepted assets first. Load `elevenlabs` (its `SKILL.md` and `references/cost-controls.md`) and `../media-studio/references/content-controls.md` before paid planning. Paid ElevenLabs TTS requires its shared governed CLI; unsupported paid modalities remain disabled. Native connectors and SDK examples must not bypass the ledger. Otherwise use adequate authorized local generation. Load `local-ai-stack`; resolve `$LocalAiControl`. Hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
 

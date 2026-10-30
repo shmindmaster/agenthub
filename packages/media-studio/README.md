@@ -49,7 +49,7 @@ This package is the parent studio. Product Demo Studio remains the product-scree
 | Art director | `skills/media-studio/references/visuals.md` | Visual bible, B-roll, continuity |
 | Director | `skills/media-studio/references/direction.md` | Visual choice, performance, sound, pointer/highlight, archetype mapping, series technical beats |
 | Series | `skills/media-studio/references/series.md` | Truth tags, continuity, episode assembly (schemas in `schemas/series/`) |
-| Generate | skill `media-studio-generate` | Local-AI voice, image, motif, lipsync, portrait, music, STT |
+| Generate | skill `media-studio-generate` | Azure AI Services default (TTS, STT, images, avatar clips; `references/azure-ai-services.md`); ElevenLabs, Deepgram and Local-AI voice, image, motif, lipsync, portrait, music, STT as fallbacks |
 | Capture | skill `media-studio-capture` | Playwright WebM + Recast |
 | Compose | skill `media-studio-compose` | Remotion archetypes, Recast, `Finish-Media.ps1`, Descript finishing |
 | QA and craft critic | skill `media-studio-qa` | Identity, listen, engagement, visual-quality inspect; the 0–100 story-experience review (fail below 85) |

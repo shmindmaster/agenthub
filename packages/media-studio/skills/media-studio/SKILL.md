@@ -9,7 +9,7 @@ description: "Use when the user wants any video, audio, animation, briefing, tra
 
 **Default: rapid.** Infer the rest, run the crew, return a candidate. Rapid means infer-and-run, **not skip craft**. A short prompt is not permission to skip curation, gap-closure, story, scenes, or QA.
 
-**Reuse before regenerate.** Recut > recapture > rewrite. On a miss, rerun only `reviseSceneIds` / the failing take. Keep receipt-bound clips that still prove the claim. Do not regen TTS, bed, or whole encode for an unchanged scene — remux. Select by cost, latency, quality and privacy: use adequate local tools or authorized provider APIs; reserve ElevenLabs for justified value. Load `elevenlabs` (its `SKILL.md` routes paid planning; `references/cost-controls.md` holds cost controls). Start Local-AI only for a selected local route (`voice` for ASR or local TTS; Comfy only if a plate needs it). One GPU job at a time.
+**Reuse before regenerate.** Recut > recapture > rewrite. On a miss, rerun only `reviseSceneIds` / the failing take. Keep receipt-bound clips that still prove the claim. Do not regen TTS, bed, or whole encode for an unchanged scene — remux. Select by cost, latency, quality and privacy: **Azure first (owner direction 2026-10-29):** the MahumTech Azure AI Services resource is the default provider for TTS, STT, images and avatar clips, and within Azure the cheapest option that passes QA wins; read `../media-studio-generate/references/azure-ai-services.md`. ElevenLabs, Deepgram and Gemini are fallbacks for a failed gate or a capability Azure lacks. Otherwise use adequate local tools or authorized provider APIs; reserve ElevenLabs for justified value. Load `elevenlabs` (its `SKILL.md` routes paid planning; `references/cost-controls.md` holds cost controls). Start Local-AI only for a selected local route (`voice` for ASR or local TTS; Comfy only if a plate needs it). One GPU job at a time.
 
 Load `sarosh-audio-voice` for owner speech. Hosted sources retain the ASR, pronunciation, artifact and exact encoded release gates. **Speaker identity is advisory only (owner direction 2026-10-27): identity is advisory only; never fail, block or re-voice on speaker similarity.** The gates that still fail a take are real defects: clipping/level, silence, truncation, wrong words (ASR WER vs script), pace and loudness. Read `references/content-controls.md`: paid REST TTS requires the shared ledger; other paid content routes remain disabled pending metered adapters. Real product UI remains captured evidence.
 
@@ -18,7 +18,7 @@ Load `sarosh-audio-voice` for owner speech. Hosted sources retain the ASR, pronu
 - **Voice first, word-level sync.** Lock narration, align accepted takes and exact encode with `ai.ps1 align`, preserve raw 80 ms-grid reports bound to take and script hashes. Whisper is a separate transcript check, never the clock. Each scene lasts as long as its narration span. Screen visible by first content word. Action lands within ±300 ms of spoken verb. Result holds ≥ 1.5 s. A/V drift ≤ 40 ms.
 - **Live presenter feel.** Cursor moves purposefully to real controls; real UI responds; one emphasis per beat. Static/dashboard/diagram beats get guided cursor, highlight or progressive trace. Never a freeze; no motion for its own sake.
 - **Cue sheet and sync gate.** `plan/cue-sheet.json` maps narration → screen → cursor/action → result → camera → transition. `qa/sync.json` bound to exact encoded candidate. Watch and listen to the whole file. Never claim sync or visual quality verified from render alone; report limitations.
-- **Local-first voice for every asset**, hero cuts and dialogue included. ElevenLabs only per-line fallback after failed story review or audio gate.
+- **Azure-cast voice for every asset** (owner direction 2026-10-29), hero cuts and dialogue included: a distinct, expressive voice per scene and character from the Azure voice cast, cinematic storytelling for films, and **no Sarosh voice clone in films**. Local Qwen voices and ElevenLabs are per-line fallbacks after a failed story review or audio gate.
 
 ## 1. Intake
 
@@ -30,7 +30,7 @@ A usable ask: what it's about, plus any source. Resolve provider yourself. Do no
 | --- | --- |
 | Kind / form | Kind table + `program-forms.md`; running product = `product-screencast` (`product-picture.md`) |
 | Audience | `private` if said private/internal/for me; else infer from source |
-| Voice | `sarosh` |
+| Voice | Azure cast voice per role (`media-studio-generate/references/azure-ai-services.md` §4); `sarosh` only where the owner names it for non-film work |
 | Intent | `viewer-facing` (craft ≥ 85) unless scratch/proxy |
 | Workspace | `%LOCALAPPDATA%\AgentHub\media-studio\<slug>` |
 | Delivery | Named path, else `registry/product-video-delivery.json` `reviewRoot` |
