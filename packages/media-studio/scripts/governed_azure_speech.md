@@ -25,3 +25,19 @@ original unknown rows stay fenced and charged against the same ceiling. This
 does not enable automatic retry, a new budget, or resetting historical usage.
 
 Offline tests: `python -m unittest test_governed_azure_speech test_governed_deepgram`.
+
+An explicitly authorized bounded standard-neural job uses the separate
+`azure-speech-bounded-standard-job` grant, exact cache keys, and a ceiling no
+greater than 150,000 microdollars. It cannot mutate or reset an existing job.
+This does not enlarge the older $1 grant or its supplemental authority.
+Supported standard voices/styles are Jenny/friendly, Guy/friendly, and
+Aria/narration-professional. Structured delivery accepts only exact-content
+paragraph strings, escaped before wrapping in safe paragraph/sentence,
+bookmark, break, and prosody markup. Rate is bounded to -10..0 percent and
+interparagraph pauses to 250..700 milliseconds. No caller-supplied XML is used.
+
+SDK bookmark events are retained beside the word events. A production consumer
+must check complete lexical coverage, monotonically bounded offsets and all
+expected paragraph bookmarks before using the actual audio clock. Caption
+timing remains bound to the exact WAV hash; ASR timestamps are not forced
+alignment. A valid clock does not establish warmth, pacing or listening QA.

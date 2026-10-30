@@ -61,6 +61,30 @@ class AzureTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): self.ledger()
         self.assertFalse((self.base / "AgentHub").exists())
 
+    def test_bounded_standard_exact_grant_and_immutable_ceiling(self):
+        self.plan = az.quote("One. Two.", workspace="synthetic-job", revision="v1", dictionary_revision="v1",
+                             voice="en-US-AriaNeural", style="narration-professional", paragraphs=["One.", "Two."])
+        self.policy.update(kind="azure-speech-bounded-standard-job", owner_authorization="Authorize Azure, $0.15 total",
+                           maximum_usd_micros=125_000, price_policy=az.STANDARD_PRICE_POLICY,
+                           allowed_cache_keys=[self.plan["cache_key"]])
+        self.save()
+        ledger = self.ledger()
+        with ledger.connect() as con:
+            self.assertEqual(con.execute("SELECT ceiling FROM budgets WHERE bucket=?", (az.BUCKET,)).fetchone()[0], 125_000)
+        self.policy["maximum_usd_micros"] = 150_001
+        self.save()
+        with self.assertRaises(RuntimeError): self.ledger()
+
+    def test_structured_text_cannot_inject_markup_or_change_content(self):
+        kw = dict(workspace="s", revision="v1", dictionary_revision="v1", voice="en-US-GuyNeural", style="friendly")
+        plan = az.quote("One <audio>. Two.", paragraphs=["One <audio>.", "Two."], **kw)
+        self.assertIn("&lt;audio&gt;", plan["request"]["ssml"])
+        self.assertIn('bookmark mark="paragraph-2"', plan["request"]["ssml"])
+        for extra in ({"paragraphs": ["Changed"]}, {"paragraphs": ["One <audio>.", "Two."], "pause_ms": 701},
+                      {"paragraphs": ["One <audio>.", "Two."], "rate_percent": -11}):
+            with self.assertRaises(ValueError): az.quote("One <audio>. Two.", **kw, **extra)
+        with self.assertRaises(ValueError): az.quote("One.", style="excited", **{k:v for k,v in kw.items() if k != "style"})
+
     def test_manifest_immutable_and_missing_salt_fenced(self):
         ledger = self.ledger()
         self.policy["authorized_at_utc"] = "2026-10-27T02:01:00Z"

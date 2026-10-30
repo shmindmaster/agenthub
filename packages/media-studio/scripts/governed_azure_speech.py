@@ -27,28 +27,45 @@ VALID_THROUGH = datetime.date(2026, 11, 24)
 MAX_BYTES = 64 * 1024 * 1024
 VOICES = {"en-US-Ava:DragonHDLatestNeural", "en-US-Andrew:DragonHDLatestNeural"}
 STANDARD_VOICE = "en-US-JennyNeural"
+STANDARD_STYLES = {STANDARD_VOICE: {"friendly"}, "en-US-AriaNeural": {"narration-professional"},
+                   "en-US-GuyNeural": {"friendly"}}
 STANDARD_PRICE_POLICY = "azure-eastus2-standard-neural-20261027-15-microusd-per-utf8-byte"
 APPROVAL = "Authorize Azure, $1 total"
 
 
-def quote(text, *, workspace, revision, dictionary_revision, voice="en-US-Ava:DragonHDLatestNeural", style=None):
+def quote(text, *, workspace, revision, dictionary_revision, voice="en-US-Ava:DragonHDLatestNeural", style=None,
+          paragraphs=None, rate_percent=-5, pause_ms=400):
     if (not isinstance(text, str) or not text.strip() or len(text) > 6000
             or any(ord(c) < 32 and c not in "\n\r\t" for c in text)
             or not all(isinstance(v, str) and v.strip() for v in (workspace, revision, dictionary_revision))
-            or voice not in VOICES | {STANDARD_VOICE}
-            or (voice == STANDARD_VOICE and style != "friendly")
+            or voice not in VOICES | set(STANDARD_STYLES)
+            or (voice in STANDARD_STYLES and style not in STANDARD_STYLES[voice])
             or (voice in VOICES and style is not None)):
         raise ValueError("Explicit workspace/revisions, allowlisted GA voice and 1-6000 text characters required")
     if datetime.datetime.now(datetime.timezone.utc).date() > VALID_THROUGH:
         raise RuntimeError("Price policy expired")
     ssml = ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">'
             '<voice name="' + voice + '">' + escape(text) + '</voice></speak>')
-    standard = voice == STANDARD_VOICE
+    standard = voice in STANDARD_STYLES
     if standard:
+        content = escape(text)
+        if paragraphs is not None:
+            if (not isinstance(paragraphs, list) or not 1 <= len(paragraphs) <= 32
+                    or any(not isinstance(p, str) or not p.strip() for p in paragraphs)
+                    or " ".join(" ".join(paragraphs).split()) != " ".join(text.split())
+                    or type(rate_percent) is not int or not -10 <= rate_percent <= 0
+                    or type(pause_ms) is not int or not 250 <= pause_ms <= 700):
+                raise ValueError("Exact text paragraphs and bounded delivery controls required")
+            content = (f'<break time="{pause_ms}ms"/>').join(
+                f'<bookmark mark="paragraph-{i + 1}"/><p><s>{escape(p)}</s></p>'
+                for i, p in enumerate(paragraphs))
+            content = f'<prosody rate="{rate_percent:+d}%">{content}</prosody>'
         ssml = ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
                 'xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">'
-                '<voice name="en-US-JennyNeural"><mstts:express-as style="friendly">'
-                + escape(text) + '</mstts:express-as></voice></speak>')
+                '<voice name="' + voice + '"><mstts:express-as style="' + style + '">'
+                + content + '</mstts:express-as></voice></speak>')
+    elif paragraphs is not None:
+        raise ValueError("Structured delivery requires standard neural voices")
     request = {"provider": "azure-speech", "region": "eastus2", "voice": voice,
                "endpoint": "https://eastus2.tts.speech.microsoft.com/cognitiveservices/v1",
                "format": "riff-48khz-16bit-mono-pcm", "ssml": ssml,
@@ -63,19 +80,22 @@ def quote(text, *, workspace, revision, dictionary_revision, voice="en-US-Ava:Dr
 def authorized_ledger(manifest, workspace, planned):
     """An immutable explicit $1 NEW Azure job, separate from lost accounting."""
     runtime = shared.runtime_module()
-    if planned.get("request", {}).get("price_policy", PRICE_POLICY) != PRICE_POLICY:
-        raise RuntimeError("Standard speech requires supplemental same-ledger authority")
     path = Path(manifest).absolute()
     if any(runtime.linked_path(p) for p in (path, *path.parents)):
         raise RuntimeError("Authorization must be on an unlinked private local path")
     raw = path.read_bytes()
     policy = json.loads(raw)
     allowed = policy.get("allowed_cache_keys")
-    if (policy.get("kind") != "azure-speech-new-provider-job"
-            or policy.get("owner_authorization") != APPROVAL
-            or policy.get("maximum_usd_micros") != 1_000_000
+    bounded = policy.get("kind") == "azure-speech-bounded-standard-job"
+    ceiling = policy.get("maximum_usd_micros") if bounded else 1_000_000
+    expected_price = STANDARD_PRICE_POLICY if bounded else PRICE_POLICY
+    if ((bounded and (type(ceiling) is not int or not 0 < ceiling <= 150_000))
+            or policy.get("kind") not in {"azure-speech-new-provider-job", "azure-speech-bounded-standard-job"}
+            or policy.get("owner_authorization") != ("Authorize Azure, $0.15 total" if bounded else APPROVAL)
+            or policy.get("maximum_usd_micros") != ceiling
             or policy.get("workspace") != workspace
-            or policy.get("price_policy") != PRICE_POLICY
+            or policy.get("price_policy") != expected_price
+            or planned.get("request", {}).get("price_policy", PRICE_POLICY) != expected_price
             or policy.get("historical_accounting") != "UNKNOWN_NOT_RESTORED"
             or not isinstance(allowed, list) or not 1 <= len(allowed) <= 128
             or len(set(allowed)) != len(allowed)
@@ -107,7 +127,7 @@ def authorized_ledger(manifest, workspace, planned):
         ledger = runtime.Ledger(root)
         with ledger.connect() as con:
             row = con.execute("SELECT ceiling FROM budgets WHERE bucket=?", (BUCKET,)).fetchone()
-        if not row or row[0] != 1_000_000:
+        if not row or row[0] != ceiling:
             raise RuntimeError("Existing budget changed; no reset allowed")
     else:
         root.mkdir(parents=True, exist_ok=False)
@@ -115,7 +135,7 @@ def authorized_ledger(manifest, workspace, planned):
         shared._durable_evidence(lock, raw)
         ledger = runtime.Ledger(root)
         ledger.namespace("azure-job:" + hashlib.sha256(raw).hexdigest(), workspace)
-        ledger.configure(BUCKET, 1_000_000)
+        ledger.configure(BUCKET, ceiling)
     ledger.azure_authorization_hash = hashlib.sha256(raw).hexdigest()
     return ledger
 
@@ -148,7 +168,7 @@ def sdk_transport(request, credential, received, sdk=None):
     config.set_speech_synthesis_output_format(sdk.SpeechSynthesisOutputFormat.Riff48Khz16BitMonoPcm)
     config.set_property(sdk.PropertyId.SpeechServiceResponse_RequestWordBoundary, "true")
     synth = sdk.SpeechSynthesizer(speech_config=config, audio_config=None)
-    boundaries, callback_errors = [], []
+    boundaries, bookmarks, callback_errors = [], [], []
     def boundary(event):
         try:
             boundaries.append({"result_id": event.result_id, "audio_offset_ticks": int(event.audio_offset),
@@ -159,6 +179,14 @@ def sdk_transport(request, credential, received, sdk=None):
         except Exception:
             callback_errors.append("invalid_boundary")
     synth.synthesis_word_boundary.connect(boundary)
+    def bookmark(event):
+        try:
+            bookmarks.append({"audio_offset_ticks": int(event.audio_offset),
+                              "start_seconds": event.audio_offset / 10_000_000, "text": event.text})
+        except Exception:
+            callback_errors.append("invalid_bookmark")
+    if hasattr(synth, "bookmark_reached"):
+        synth.bookmark_reached.connect(bookmark)
     completed = queue.Queue(maxsize=1)
     def run():
         try:
@@ -181,6 +209,7 @@ def sdk_transport(request, credential, received, sdk=None):
     if callback_errors or any(b["result_id"] != result.result_id for b in boundaries):
         raise RuntimeError("SDK boundary/result identity mismatch")
     headers["_word_boundaries"] = boundaries
+    headers["_bookmarks"] = bookmarks
     return headers, result.audio_data
 
 
@@ -222,6 +251,9 @@ def _generate(ledger, planned, workspace, credential, send=transport):
             if "_word_boundaries" in headers:
                 shared._durable_evidence(directory / "word-boundaries.json",
                     json.dumps({"request_id": receipt, "events": headers["_word_boundaries"]}).encode())
+            if "_bookmarks" in headers:
+                shared._durable_evidence(directory / "bookmarks.json",
+                    json.dumps({"request_id": receipt, "events": headers["_bookmarks"]}).encode())
             if len(raw) > MAX_BYTES:
                 raise RuntimeError("Response too large")
             length = headers.get("content-length")
@@ -244,11 +276,13 @@ def _generate(ledger, planned, workspace, credential, send=transport):
         duration = audio.getnframes() / audio.getframerate()
     boundary_file = shared._evidence_directory(ledger, namespace, planned["cache_key"]) / "word-boundaries.json"
     clock = json.loads(boundary_file.read_bytes())["events"] if boundary_file.exists() else None
+    bookmark_file = boundary_file.with_name("bookmarks.json")
+    bookmarks = json.loads(bookmark_file.read_bytes())["events"] if bookmark_file.exists() else None
     return raw, {"provider": "azure-speech", "voice": planned["request"]["voice"],
                  "identity": "rehearsal-narrator-not-owner-voice", "cache_key": planned["cache_key"],
                  "namespace": namespace, "request_id": row["receipt"], "reused": reused,
                  "output_sha256": hashlib.sha256(raw).hexdigest(), "text_sha256": planned["text_sha256"],
-                 "duration_seconds": duration, "sample_rate": 48000, "word_boundaries": clock,
+                 "duration_seconds": duration, "sample_rate": 48000, "word_boundaries": clock, "bookmarks": bookmarks,
                  "alignment_status": "AZURE_SDK_EVENTS" if clock else "NOT_PERFORMED", "acceptance_state": row["state"],
                  "maximum_reserved_usd_micros": row["maximum"], "actual_usd_micros": None,
                  "price_policy": planned["request"]["price_policy"], "authorization_sha256": ledger.azure_authorization_hash,
@@ -256,8 +290,10 @@ def _generate(ledger, planned, workspace, credential, send=transport):
 
 
 def generate(text, *, authorization_manifest, workspace, revision, dictionary_revision,
-             voice="en-US-Ava:DragonHDLatestNeural", use_sdk=False):
-    planned = quote(text, workspace=workspace, revision=revision, dictionary_revision=dictionary_revision, voice=voice)
+             voice="en-US-Ava:DragonHDLatestNeural", use_sdk=False, style=None, paragraphs=None,
+             rate_percent=-5, pause_ms=400):
+    planned = quote(text, workspace=workspace, revision=revision, dictionary_revision=dictionary_revision, voice=voice,
+                    style=style, paragraphs=paragraphs, rate_percent=rate_percent, pause_ms=pause_ms)
     credential = os.environ.get("AZURE_SPEECH_KEY")
     if not credential:
         raise RuntimeError("AZURE_SPEECH_KEY unset")
