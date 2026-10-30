@@ -177,9 +177,10 @@ for case in cases:
 }
 
 $enrich = Get-Content -LiteralPath (Join-Path $pkg 'skills\portfolio-enrichment\SKILL.md') -Raw -Encoding UTF8
-Report 'portfolio-enrichment uses Qdrant knowledge alias' (
-    $enrich -match '-Index knowledge' -and $enrich -match 'client-facing' -and $enrich -notmatch 'knowledge_v\d'
-) 'skill must query alias knowledge with client-facing, never a versioned collection name'
+Report 'portfolio-enrichment routes document search to docwise with exact-search fallback' (
+    $enrich -match 'docwise' -and $enrich -match 'RepoWise' -and $enrich -match 'exact' -and
+    $enrich -match 'client-safe' -and $enrich -notmatch 'knowledge_v\d'
+) 'skill must name docwise (with exact-search fallback), RepoWise and client-safe handling'
 Report 'portfolio-enrichment refuses legal, Duckie Qdrant, and local chat draft' (
     $enrich -match 'legal' -and $enrich -match ':6333' -and
     $enrich -match 'llama\.cpp' -and $enrich -match 'You are the writer'
@@ -192,19 +193,44 @@ Report 'portfolio-enrichment rewrites the actual asset' (
 $search = Get-Content -LiteralPath (Join-Path $pkg 'scripts\Search-Knowledge.ps1') -Raw -Encoding UTF8
 Report 'Search-Knowledge exposes -Semantic' ($search -match '(?m)\[switch\]\$Semantic') `
     'semantic search flag missing from Search-Knowledge.ps1'
-Report 'Search-Knowledge semantic path is Local-AI Qdrant' (
-    $search -match 'query\.ps1' -and $search -match 'local-ai-qdrant' -and $search -notmatch 'rag-index'
-) 'semantic search must call Local-AI query.ps1, not a second index'
+Report 'Search-Knowledge semantic path calls docwise, not Local-AI' (
+    $search -match 'Get-Command docwise' -and $search -match 'engine=docwise' -and
+    $search -match 'docwise is not installed yet' -and $search -notmatch 'rag-index'
+) 'semantic search must call the docwise CLI when installed and throw a clear message otherwise'
 
 $skill = Get-Content -LiteralPath (Join-Path $pkg 'skills\use-knowledge-access\SKILL.md') -Raw -Encoding UTF8
-Report 'use-knowledge-access routes semantic to Local-AI Qdrant' (
-    $skill -match '-Semantic' -and $skill -match 'Local-AI Qdrant' -and $skill -notmatch 'D:\\rag-index'
-) 'skill still points at D:\rag-index or dropped -Semantic'
+Report 'use-knowledge-access routes semantic to docwise with exact-search/RepoWise fallback' (
+    $skill -match '-Semantic' -and $skill -match 'docwise --help' -and $skill -match 'exact rga search' -and
+    $skill -match 'RepoWise' -and $skill -notmatch 'D:\\rag-index'
+) 'skill must route -Semantic to docwise and fall back to exact rga search and RepoWise'
 
 $plan = Get-Content -LiteralPath (Join-Path $pkg 'references\knowledge-access-plan.md') -Raw -Encoding UTF8
-Report 'plan phase 4 is Local-AI Qdrant not a second store' (
-    $plan -match 'Local-AI Qdrant' -and $plan -match 'Do not stand up a second vector engine'
-) 'knowledge-access-plan.md must reuse Local-AI Qdrant and refuse a second store'
+Report 'plan phase 4 is docwise, no local vector engine' (
+    $plan -match 'docwise' -and $plan -match 'Local AI is off' -and $plan -match 'do not stand up'
+) 'knowledge-access-plan.md must name docwise and refuse a local model or vector engine'
+
+$localAiScanned = @(
+    'skills\use-knowledge-access\SKILL.md',
+    'skills\opportunity-engine\SKILL.md',
+    'skills\portfolio-enrichment\SKILL.md',
+    'commands\portfolio-enrichment.md',
+    'references\knowledge-access-plan.md',
+    'references\opportunity-response-engine.md',
+    'scripts\Search-Knowledge.ps1',
+    'scripts\Get-EvidenceAugmentation.ps1',
+    'scripts\New-KnowledgeIndex.ps1'
+)
+foreach ($rel in $localAiScanned) {
+    $text = Get-Content -LiteralPath (Join-Path $pkg $rel) -Raw -Encoding UTF8
+    Report "no Local-AI dependency in $rel" (
+        $text -notmatch 'D:\\Local-AI' -and $text -notmatch 'query\.ps1' -and
+        $text -notmatch 'LOCAL_AI_ROOT' -and $text -notmatch 'LocalAiRoot' -and $text -notmatch 'ai\.ps1'
+    ) 'Local AI is off: no D:\Local-AI, query.ps1, ai.ps1 or LocalAiRoot reference may remain'
+}
+$evidence = Get-Content -LiteralPath (Join-Path $pkg 'scripts\Get-EvidenceAugmentation.ps1') -Raw -Encoding UTF8
+Report 'Get-EvidenceAugmentation reports docwise unavailable instead of failing' (
+    $evidence -match 'docwise-unavailable' -and $evidence -match '(?m)^exit 0\s*$'
+) 'the evidence layer must degrade to "docwise unavailable" without failing the run'
 Report 'plan and skill include 01 and 10' (
     $skill -match '01_Business_and_Entities' -and $skill -match '10_Certifications_Prep' -and
     $plan -match '01_Business_and_Entities' -and $plan -match '10_Certifications_Prep' -and
