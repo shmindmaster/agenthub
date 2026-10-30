@@ -97,27 +97,29 @@ Report 'registry has one owner and all 15 non-retired managed host mappings' `
     "owners=$($owners.Count), hosts=$($actualHosts.Count), expected managed-loose-skills on all 15 non-retired hosts"
 
 # 3. Global policy cross-references the skill from Owner voice.
+# Owner direction 2026-10-29 retired local AI and Sarosh voice clones; the
+# policy now routes owner speech to sarosh-audio-voice and forbids clones and
+# unapproved replacement voices.
 $policyOk = $policy -and
-    $policy -match '(?m)^## Owner voice\s*$' -and
-    $policy -match '(?is)load and apply\s+`sarosh-audio-voice`' -and
-    $policy -match '(?is)generated speech in Sarosh''s voice.*`sarosh-audio-voice`' -and
-    $policy -match '(?is)Local-AI voice id `sarosh` under `local-ai-stack`'
-Report 'global policy routes owner voice through sarosh-audio-voice and Local-AI' `
+    $policy -match '(?is)load sarosh-audio-voice for owner speech' -and
+    $policy -match '(?is)no Sarosh voice clones in films' -and
+    $policy -match '(?is)No generic replacement voice or billing changes without authority'
+Report 'global policy routes owner speech through sarosh-audio-voice and forbids clones' `
     $policyOk `
-    'expected Owner voice and the three-layer Sarosh policy to route audio through sarosh-audio-voice and local-ai-stack'
+    'expected the policy to route owner speech to sarosh-audio-voice, forbid cloned voices in films and require authority for a replacement voice or billing change'
 
 # 4. Owner authorized only the existing clone, with cost-aware local routing.
+# 2026-10-29: no clones anywhere, local AI retired, remote Azure speech first.
 $routingOk = $skill -and
-    $skill -match '(?is)existing hosted Sarosh clone' -and
-    $skill -match '(?is)Local-AI voice id `sarosh`' -and
-    $skill -match '(?is)Use adequate\s+local speech' -and
-    $skill -match '(?is)credits and per-model clone readiness' -and
-    $skill -match '(?is)Never substitute a generic voice' -and
-    $skill -match '(?is)Do not upload new private\s+recordings or corpus' -and
-    $skill -match '(?is)change billing or enable overages without separate authority'
-Report 'skill limits hosted authority to the existing clone with cost and privacy gates' `
+    $skill -match '(?is)no Sarosh voice clones anywhere' -and
+    $skill -match '(?is)Local AI is off' -and
+    $skill -match '(?is)MahumTech Azure AI Speech first' -and
+    $skill -match '(?is)most expressive, varied remote voice' -and
+    $skill -match '(?is)not used for new work' -and
+    $skill -match '(?is)Do not change billing or enable overages without his say'
+Report 'skill states the no-clone, remote-only routing and billing authority' `
     $routingOk `
-    'expected existing-clone authorization, adequate local speech, readiness, identity, no new private uploads and no billing changes'
+    'expected the 2026-10-29 no-clone rule, local AI off, Azure-first routing, expressive voice selection and the billing-authority rule'
 
 # 5. Owner direction 2026-10-27: speaker identity is ADVISORY ONLY. The skill must say so, keep the
 #    informational command form, and must not carry any language that makes identity a gate or a re-voice trigger.
@@ -151,11 +153,11 @@ Report 'owner-voice media guidance states identity is advisory and does not dema
 $otherRulesOk = $skill -and
     $skill -match '(?is)Do not correct pronunciation by respelling' -and
     $skill -match '(?is)dictionary layer applied at\s+render time' -and
-    $skill -match '(?is)not training data for an\s+external\s+service' -and
-    $skill -match '(?is)benchmark \*text\*'
-Report 'skill states the pronunciation-dictionary and no-training-data/benchmark-approval rules' `
+    $skill -match '(?is)nothing about Sarosh''s voice recordings is locked or private' -and
+    $skill -match '(?is)benchmark'
+Report 'skill states the pronunciation-dictionary rule and the recording-use authority' `
     $otherRulesOk `
-    'expected the pronunciation dictionary-layer rule and the training-data/benchmark-approval rule'
+    'expected the pronunciation dictionary-layer rule and the 2026-10-28 recording-use authority'
 
 # 7. Scope separation from sarosh-communication and from the media pipeline
 #    is explicit.
