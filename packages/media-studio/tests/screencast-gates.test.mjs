@@ -517,3 +517,21 @@ test('plan gate: native fill requires matching summary, real bounds, observed re
     const bad = structuredClone(receipt); change(bad); r = check(bad); assert.notEqual(r.code, 0, r.out);
   }
 });
+
+test('plan gate: native select requires paired image identities, native readbacks and matching summary', { skip: !ffmpegAvailable }, () => {
+  const root = join(scratch, 'native-select'); writeJob(root, { screenSeconds: 2, cardSeconds: 0 });
+  const clip = join(root, 'capture', 'clips', 'S02.webm'); movingClip(clip, 2);
+  const selection = { type: 'select', tStart: 0.4, tEnd: 0.5, t: 0.5, label: 'Change reviewer', target: 'persona select', method: 'locator.selectOption', value: 'reviewer', beforeValue: 'learner', optionLabel: 'Content reviewer', x: 70, y: 55, targetBox: { x: 20, y: 40, w: 100, h: 30 }, beforeImage: { path: 'select-3-before.png', sha256: 'a'.repeat(64) }, afterImage: { path: 'select-3-after.png', sha256: 'b'.repeat(64) } };
+  const receipt = goodReceipt('clips/S02.webm', sha(clip), { actions: [selection], events: { pointerMoves: 2, selections: 1, expectationsObserved: 1 } });
+  const path = join(root, 'capture', 'receipt.json');
+  const check = (r) => { writeFileSync(path, JSON.stringify(r)); return run(validator, [root]); };
+  let r = check(receipt); assert.equal(r.code, 0, r.out);
+  for (const change of [r => delete r.clips.S02.actions, r => r.clips.S02.events.selections = 2,
+    r => r.clips.S02.actions[0].method = 'synthetic-change', r => r.clips.S02.actions[0].type = 'select-failed',
+    r => delete r.clips.S02.actions[0].beforeValue, r => delete r.clips.S02.actions[0].optionLabel,
+    r => r.clips.S02.actions[0].x = 1000, r => delete r.clips.S02.actions[0].afterImage,
+    r => r.clips.S02.actions[0].beforeImage.sha256 = 'bad', r => r.clips.S02.actions[0].afterImage.path = 'select-4-after.png',
+    r => r.clips.S02.events.expectationsObserved = 0, r => r.clips.S02.events.pointerMoves = 0, r => r.clips.S02.sha256 = 'b'.repeat(64)]) {
+    const bad = structuredClone(receipt); change(bad); r = check(bad); assert.notEqual(r.code, 0, r.out);
+  }
+});

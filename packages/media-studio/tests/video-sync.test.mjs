@@ -418,6 +418,9 @@ test('receipt-proved pointer arrival and existing-state observation do not promi
   const filling = structuredClone(capture);
   filling.clips.C.actions.push({ type: 'fill', t: 3.005, tStart: 3, tEnd: 3.005 });
   assert.equal(L.receiptSemantics(b, b.result, filling, true), null, 'native fill during the wait can change an already-visible state');
+  const selecting = structuredClone(capture);
+  selecting.clips.C.actions.push({ type: 'select', t: 3.005, tStart: 3, tEnd: 3.005 });
+  assert.equal(L.receiptSemantics(b, b.result, selecting, true), null, 'native selection during the wait can change an already-visible state');
   assert.deepEqual(L.expectedChangePoints([b], [], capture), []);
   assert.equal(L.declaredHold(b, capture).from, 0, 'a receipt-proved read beat holds throughout, including pointer travel');
   assert.equal(L.classifyFreeze({ start: 1.9, end: 8, duration: 6.1 }, { beats: [b], receipt: capture }).verdict, 'declared-hold');
@@ -573,5 +576,32 @@ test('cue sheet maps a native fill on the recording clock and preserves its read
   assert.deepEqual(action.targetBox, nativeFill().targetBox);
   receipt.clips.S02.actions[0].method = 'synthetic-change'; write(path, receipt);
   const rejected = run(cueBuilder, [root]); assert.notEqual(rejected.code, 0); assert.match(rejected.out, /invalid fill receipt/);
+  assert.equal(readCue(root).beats[1].actions.length, 0);
+});
+
+const nativeSelect = () => ({ type: 'select', tStart: 2.1, tEnd: 2.14, t: 2.15, label: 'Approve', target: 'persona select', method: 'locator.selectOption', value: 'reviewer', beforeValue: 'learner', optionLabel: 'Content reviewer', x: 50, y: 40, targetBox: { x: 10, y: 20, w: 80, h: 40 }, beforeImage: { path: 'select-3-before.png', sha256: 'a'.repeat(64) }, afterImage: { path: 'select-3-after.png', sha256: 'b'.repeat(64) } });
+test('native select admission rejects invented methods, missing readbacks, geometry and image identities', () => {
+  assert.deepEqual(L.selectEventProblems(nativeSelect()), []);
+  for (const change of [e => delete e.method, e => e.type = 'select-failed', e => e.tStart = -1, e => e.tEnd = Infinity,
+    e => e.tEnd = 1, e => e.t = 0, e => e.label = '', e => e.target = '', e => delete e.value, e => delete e.beforeValue,
+    e => e.optionLabel = '', e => delete e.targetBox, e => e.targetBox.w = 0, e => e.x = 500, e => e.y = NaN,
+    e => delete e.beforeImage, e => e.beforeImage.path = 4, e => e.afterImage.path = {}, e => e.afterImage.path = '../after.png', e => e.afterImage.path = 'select-4-after.png',
+    e => e.beforeImage.sha256 = 'bad', e => e.chars = 4]) {
+    const event = nativeSelect(); change(event); assert.ok(L.selectEventProblems(event).length, JSON.stringify(event));
+  }
+});
+test('cue sheet maps native selection and preserves evidence without inventing a click', () => {
+  const root = cueJob('cue-select', { mapped: true, headTrim: 0.1 });
+  const path = join(root, 'capture', 'receipt.json');
+  const receipt = JSON.parse(readFileSync(path, 'utf8'));
+  receipt.clips.S02.actions = [nativeSelect()]; write(path, receipt);
+  const result = run(cueBuilder, [root]); assert.equal(result.code, 0, result.out);
+  const action = readCue(root).beats[1].actions[0];
+  assert.equal(action.kind, 'select'); assert.equal(action.method, 'locator.selectOption');
+  assert.equal(action.receipt_event_index, 0); assert.equal(action.clip_time, 2); assert.equal(action.action_time, 5.5);
+  for (const field of ['value', 'beforeValue', 'optionLabel', 'targetBox', 'beforeImage', 'afterImage']) assert.deepEqual(action[field], nativeSelect()[field]);
+  assert.deepEqual(action.cursor, { x: 50, y: 40 });
+  receipt.clips.S02.actions[0].method = 'synthetic-change'; write(path, receipt);
+  const rejected = run(cueBuilder, [root]); assert.notEqual(rejected.code, 0); assert.match(rejected.out, /invalid select receipt/);
   assert.equal(readCue(root).beats[1].actions.length, 0);
 });

@@ -190,8 +190,8 @@ const beats = segs.map((seg, i) => {
 
   // actions
   const events = (clipRec?.actions || []).filter((e) => {
-    if (!['upload', 'fill'].includes(e.type)) return ['click', 'tap', 'type', 'point'].includes(e.type);
-    const problems = e.type === 'upload' ? L.uploadEventProblems(e) : L.fillEventProblems(e);
+    if (!['upload', 'fill', 'select'].includes(e.type)) return ['click', 'tap', 'type', 'point'].includes(e.type);
+    const problems = e.type === 'upload' ? L.uploadEventProblems(e) : e.type === 'fill' ? L.fillEventProblems(e) : L.selectEventProblems(e);
     if (problems.length) errors.push(`${seg.id}: invalid ${e.type} receipt event: ${problems.join('; ')}`);
     return problems.length === 0;
   });
@@ -208,6 +208,7 @@ const beats = segs.map((seg, i) => {
       receipt_event_index: clipRec.actions.indexOf(x.e),
       ...(x.e.type === 'upload' ? { method: x.e.method, file: { ...x.e.file } } : {}),
       ...(x.e.type === 'fill' ? { method: x.e.method, inputType: x.e.inputType, value: x.e.value, targetBox: { ...x.e.targetBox } } : {}),
+      ...(x.e.type === 'select' ? { method: x.e.method, value: x.e.value, beforeValue: x.e.beforeValue, optionLabel: x.e.optionLabel, targetBox: { ...x.e.targetBox }, beforeImage: { ...x.e.beforeImage }, afterImage: { ...x.e.afterImage } } : {}),
       clip_time: L.round(x.clipTime), cursor: Number.isFinite(x.e.x) ? { x: x.e.x, y: x.e.y } : null,
       action_time: mapped ? x.program : null,
       action_time_natural: g.mappable && !g.hasPiecewise ? round(g.start + (L.clipToSlot({ ...g.edit, headHold: 0 }, x.clipTime) ?? NaN)) : null,
@@ -217,7 +218,7 @@ const beats = segs.map((seg, i) => {
   if (planned) {
     for (const spec of planned) {
       const x = owned.find((o) => String(o.e.label || '').toLowerCase() === String(spec.label || '').toLowerCase()) || owned.find((o) => String(o.e.target || '').toLowerCase().includes(String(spec.label || '').toLowerCase()));
-      if (x) take(x, spec); else warnings.push(`${seg.id}: cue-plan action "${spec.label}" has no matching captured click/tap/type/point/upload/fill event`);
+      if (x) take(x, spec); else warnings.push(`${seg.id}: cue-plan action "${spec.label}" has no matching captured click/tap/type/point/upload/fill/select event`);
     }
   } else for (const x of owned) take(x, null);
 
