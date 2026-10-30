@@ -1,6 +1,6 @@
 {
   "product": "abacare",
-  "note": "Product lexicon for `ai.ps1 voice pronunciation-risk --lexicon`. Intended spoken forms and IPA are for the listener and adjudicator; the canonical narration is never respelled. Entries marked verified were confirmed by the 2026-09-02 abacare-core listening run recorded in D:\\Local-AI\\data\\artifacts\\media\\voice-corpus\\pronunciations.json; candidates must be judged by ai.ps1 listen on every render.",
+  "note": "Product lexicon for the media-studio-generate respelling pre-pass (SSML sub/phoneme in the synthesis input) and the hosted ASR check. Intended spoken forms and IPA are for the synthesis input and the reviewer; the canonical narration is never respelled. Entries marked verified were confirmed by the 2026-09-02 abacare-core listening run (historical evidence from the retired local voice corpus); candidates must be confirmed by the hosted ASR check on every render.",
   "entries": [
     { "term": "ABACare", "kind": "product-name-initialism", "intendedSpokenForm": "A-B-A Care", "intendedIpa": "ˌeɪ biː eɪ ˈkɛr", "status": "verified" },
     { "term": "Ready to Bill", "kind": "domain-term", "intendedSpokenForm": "ready to bill (one phrase, the queue name)", "intendedIpa": "ˈrɛdi tuː bɪl", "status": "verified" },

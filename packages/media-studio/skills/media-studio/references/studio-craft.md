@@ -32,13 +32,13 @@ Three layers. Voice is the anchor.
 | Bed | ducked, felt not heard | `Finish-Media.ps1 -Speech -Music`. Never wall-to-wall under a hero. |
 | Sting / silence | sparse | Sting on a cut or reveal. `silenceOnReveal` is true quiet. |
 
-`sfxCue` is not a new engine: sting via ACE-Step, click via Recast on `screen`, silence otherwise.
+`sfxCue` is not a new engine: sting from an accepted asset, click via Recast on `screen`, silence otherwise.
 
 Spoken-word delivery stays two-pass linear **I=-16 LUFS, TP=-1.5 dBTP** (`Finish-Media.ps1`). Do not one-pass loudnorm. Do not Studio-Sound owner voice.
 
 ## Voice
 
-1. Conversational, not announcer. Owner voice uses the style-bank register on **each beat** (`direction.register`). Change register on the payoff.
+1. Conversational, not announcer. Each cast voice uses its supported style as the register on **each beat** (`direction.register`). Change register on the payoff.
 2. Pauses are architecture. Documentary and trust films run slower than a briefing; let the picture sit. Do not pad TTS — hold in the edit.
 3. Do not narrate visible chrome. Name the result after it appears.
 4. One thought per sentence. Do not respell for pronunciation.

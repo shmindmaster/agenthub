@@ -37,7 +37,7 @@ Timestamps are targets, not a grid. A 5-minute film compresses every beat; it do
 
 ## 2b. Cast (multi-voice Q&A)
 
-Host is Sarosh (~70–80% of lines, `qwen-clone` style bank). Stakeholder questions use Remotion labeled question cards + `qwen-role`:
+The host narrator carries ~70–80% of lines in one Azure cast voice (no Sarosh voice clone in films). Stakeholder questions use Remotion labeled question cards, each speaker cast to a distinct Azure voice (`media-studio-generate`):
 
 | Speaker | Role on card | Typical beat |
 | --- | --- | --- |

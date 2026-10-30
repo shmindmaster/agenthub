@@ -43,7 +43,7 @@ node cloud-ai.mjs qa     --images <contact-sheet.jpg> [...] --prompt <context> -
   picture, cue-sheet, word-sync and release gates refuse it unless the job opts in with
   `job.json` `"clockPolicy": { "allowAsrAnchored": true }`. Even then the sync gate re-checks at least 90% exact
   onsets and no precisionLimited run over 6. Without the opt-in, treat it as a cross-check. A report below those limits is written to `<out>.failed.json`, never to `--out`, and the command exits 1.
-  * Measured 2026-10-26 against Local-AI forced alignment: exact-word onsets agreed to a median of 0–80 ms, p90 80 ms.
+  * Measured 2026-10-26 against the forced aligner retired with Local AI (historical comparison): exact-word onsets agreed to a median of 0–80 ms, p90 80 ms.
   * Coverage: 214/232 exact on an 89 s narration, and 100% on two lab takes.
   * Word-sync: offset 0 ms and drift 0 ms.
 * **review / qa**: Anthropic (latest Opus) only by default. There is no automatic fallback to a different paid

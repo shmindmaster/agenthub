@@ -1,6 +1,6 @@
 {
   "name": "media-studio",
-  "description": "Local creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Uses Local-AI. Product-demo-studio is the internal engine, not a second plugin.",
+  "description": "Creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Azure AI Services for voice, transcription and images. Product-demo-studio is the internal engine, not a second plugin.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -12,7 +12,6 @@
     "briefing",
     "training",
     "remotion",
-    "local-ai",
     "screenplay",
     "director"
   ],
@@ -20,8 +19,8 @@
   "commands": "./commands/",
   "interface": {
     "displayName": "Media Studio",
-    "shortDescription": "Local video, audio, and animation from a concept, including live-product screencasts.",
-    "longDescription": "Single public video/audio studio. Writes a screenplay, directs the picture, generates owner or role voice through Local-AI, captures live product with Playwright when needed, and composes with Remotion, Recast, or FFmpeg. Live-product screencasts invoke the internal screencast engine; everything else stays here.",
+    "shortDescription": "Video, audio, and animation from a concept, including live-product screencasts.",
+    "longDescription": "Single public video/audio studio. Writes a screenplay, directs the picture, casts narration and character voices through Azure AI Services (Deepgram and ElevenLabs as governed fallbacks), captures live product with Playwright when needed, and composes with Remotion, Recast, or FFmpeg. Live-product screencasts invoke the internal screencast engine; everything else stays here.",
     "developerName": "Sarosh Hussain",
     "category": "Productivity",
     "capabilities": [
@@ -29,10 +28,10 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Turn this outline into a local briefing video with owner voice.",
+      "Turn this outline into a briefing video with a cast narrator.",
       "Produce a short training clip from these bullets.",
-      "Capture this product workflow as a screencast, then narrate it locally."
+      "Capture this product workflow as a screencast, then narrate it."
     ]
   },
-  "version": "2.0.43"
+  "version": "2.0.44"
 }

@@ -454,7 +454,8 @@ export async function align(opts) {
   const report = {
     schema: ALIGN_SCHEMA,
     // Honest label: hosted ASR word times anchored to the script, not forced alignment. Gates accept it only where
-    // job.json opts in (clockPolicy.allowAsrAnchored); see `agreement` for how it compared with Local-AI alignment.
+    // job.json opts in (clockPolicy.allowAsrAnchored); `agreement` records how it compared with the retired Local-AI
+    // forced aligner (a historical measurement; Local AI is off and nothing here starts it).
     method: 'asr-anchored-alignment',
     agreement: {
       measuredAgainst: 'Local-AI forced alignment (Qwen3-ForcedAligner), 3 owner takes, 2026-10-26',

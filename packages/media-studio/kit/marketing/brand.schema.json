@@ -84,7 +84,7 @@
       "properties": { "provider": { "enum": ["local", "openai"] }, "model": { "type": "string" }, "fallbackModel": { "type": "string" }, "detail": { "enum": ["low", "high", "auto"] } }
     },
     "images": { "type": "object", "properties": { "model": { "type": "string" }, "quality": { "enum": ["low", "medium", "high"] } } },
-    "timing": { "type": "object", "properties": { "provider": { "enum": ["openai-whisper", "local-whisper"] } } },
+    "timing": { "type": "object", "properties": { "provider": { "enum": ["openai-whisper", "local-whisper"], "description": "local-whisper is retired (Local AI is off) and refuses; it stays in the enum so existing brand files validate." } } },
     "urls": { "type": "object", "properties": { "demo": { "type": "string" } } },
     "deliver": {
       "type": "object", "required": ["dir"],

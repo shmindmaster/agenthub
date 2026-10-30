@@ -113,3 +113,32 @@ test('timing stage uses fixture forced-alignment onsets for the timeline and cap
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('Local AI is off: without an injected aligner or local Whisper, timing refuses and names the hosted route', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'mvg-local-ai-off-'));
+  try {
+    const jobDir = join(root, 'jobs', 'fixture');
+    const audioRel = 'voice/lines/accepted.wav';
+    const audio = join(jobDir, audioRel);
+    mkdirSync(dirname(audio), { recursive: true });
+    writeFileSync(audio, 'accepted narration take');
+    writeJson(join(jobDir, 'voice', 'main.lines.json'), {
+      cut: 'main',
+      lines: [{ beatId: 'B1', text: fixture.script, file: audioRel, key: 'b'.repeat(64), sha256: fileSha(audio) }],
+    });
+    const ctx = {
+      spec: { id: 'fixture', title: 'Fixture', targetSeconds: 5, ratios: ['16x9'], beats: [{ id: 'B1', kind: 'card', narration: fixture.script, onScreenText: 'Fixture' }] },
+      brand: { captionStyle: {}, timing: { provider: 'local-whisper' } },
+      jobDir,
+      flags: { quiet: true },
+      providers: { probeDuration: async () => fixture.durationSeconds, speechOnset: async () => 0 },
+      ledger: { check() {}, charge() {}, summary: () => ({ elevenlabsCredits: 0, openaiUsd: 0 }) },
+      runId: 'fixture', specSha: 'spec', brandSha: 'brand', log() {},
+    };
+    await assert.rejects(() => timingStage(ctx), /forced alignment: Local AI is off; use the hosted route \(kit\/cloud\/cloud-ai\.mjs align, Azure TTS\/STT\)/);
+    ctx.flags.whisperTiming = true;
+    await assert.rejects(() => timingStage(ctx), /local whisper timing: Local AI is off/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

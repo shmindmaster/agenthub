@@ -44,7 +44,7 @@ Technical stories mark up aggressively, on top of Recast: box the element that m
 
 ## 3. Performance and sound
 
-Owner voice: name the style-bank register (`explaining`, `firm`, `serious`, …). Do not write free-text "sound excited" for that speaker.
+Every voice: name the register as a style the cast voice supports (`StyleList`, e.g. `narration-professional`, `determined`, `hopeful`; `media-studio-generate`). Do not write free-text "sound excited".
 
 Honor storyboard `sound` (`musicCue`, `sfxCue`, `silenceOnReveal`, `transitionAudio`). Viewer-facing default is `bed` with `silence` on the hero hold. Marketing cuts: the bed carries the pace, cuts land on its grid, at least one designed cue (riser, hit, sting), end card from the brand kit with one CTA inside the last eight seconds (`marketing-readiness.md`).
 

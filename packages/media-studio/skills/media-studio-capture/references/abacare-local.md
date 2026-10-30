@@ -1,6 +1,6 @@
 # ABACare capture notes
 
-The product repository at `C:\Repos\shmindmaster\abacare` is read-only input. Keep capture work and all generated files in the external AgentHub Media Studio job workspace. Use synthetic Demo Clinic data only; never capture real patient data. The ABACare pronunciation lexicon is `abacare-lexicon.json` beside this guide; pass it to `Generate-OwnerVoice.ps1` as `-PronunciationLexicon` when that separately authorized workflow is used.
+The product repository at `C:\Repos\shmindmaster\abacare` is read-only input. Keep capture work and all generated files in the external AgentHub Media Studio job workspace. Use synthetic Demo Clinic data only; never capture real patient data. The ABACare pronunciation lexicon is `abacare-lexicon.json` beside this guide; use it for the respelling pre-pass in the synthesis input and the ASR check described in `media-studio-generate`. The canonical narration is never respelled.
 
 ## 1. Choose and verify the capture target
 

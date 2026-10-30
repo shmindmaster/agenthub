@@ -4,7 +4,7 @@
 // mvg never writes the reviewer's marketing-readiness file: it only copies a file that names this exact candidate.
 import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { gateScript } from './local-gates.mjs';
+import { gateScript } from './gate-runners.mjs';
 import { run } from './mix.mjs';
 import { readJson } from './util.mjs';
 
@@ -54,7 +54,7 @@ export function chainGateResult(name, { code, report, stderr = '' }) {
   if (!ok) return { status: 'fail', detail: errors || stderr || `exit ${code}, no report` };
   if (name === 'integrity') return { status: 'pass', detail: `${report.clips?.length ?? 0} product clips, ratio ${report.ratio?.deliverable || '?'}${report.warnings?.length ? `, ${report.warnings.length} warnings` : ''}`, report: 'qa/picture-integrity.json' };
   if (name === 'frameIntegrity') return { status: 'pass', detail: `${report.sampled ?? 0} frames sampled, no tiled frame or undeclared luma jump${report.warnings?.length ? `, ${report.warnings.length} warnings` : ''}`, report: 'qa/frame-integrity.json' };
-  if (name === 'pointer') return { status: 'pass', detail: `${report.windows?.length ?? 0} windows (${report.mode})${report.mode === 'clip' ? ', whole clips: run --local-gates for the beat windows' : ''}`, report: 'qa/pointer-path.json' };
+  if (name === 'pointer') return { status: 'pass', detail: `${report.windows?.length ?? 0} windows (${report.mode})${report.mode === 'clip' ? ', whole clips: beat windows need the mapped cue sheet from the sync gate' : ''}`, report: 'qa/pointer-path.json' };
   return { status: 'pass', detail: `${Object.keys(report.checks || {}).filter((k) => !k.endsWith('.note') && report.checks[k] === 'pass').length} checks at or above the marketing floor`, report: 'qa/marketing-readiness-check.json' };
 }
 
@@ -89,7 +89,7 @@ export function declaredCutsSheet(composeMap) {
 
 /**
  * gates.frameIntegrity: validate-frame-integrity.mjs on the exact candidate (tiled frames, undeclared luma jumps). Its declared
- * cuts come from the mapped cue sheet when --local-gates built one, else from mvg's own compose map (the cuts the edit really
+ * cuts come from the mapped cue sheet when the sync gate built one, else from mvg's own compose map (the cuts the edit really
  * plans, so a hard cut from a light title to dark UI is declared, while a flash anywhere else still fails). The report is
  * written to <ws>/qa/frame-integrity.json, where validate-viewer-release.mjs reads it.
  */

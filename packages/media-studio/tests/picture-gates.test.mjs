@@ -66,7 +66,7 @@ test('Whisper cannot drive the picture clock', () => {
   const refused = clockAccepted({ method: 'faster-whisper' });
   assert.equal(refused.ok, false);
   assert.match(refused.reason, /Whisper is a transcript check/);
-  assert.match(clockAccepted({}).reason, /picture clock is ai.ps1 align/);
+  assert.match(clockAccepted({}).reason, /picture clock is kit\/cloud\/cloud-ai\.mjs align/);
 });
 
 test('clockAccepted rejects reports marked not ok', () => {
@@ -145,23 +145,6 @@ test('a packed phrase stays one rate-bound cue instead of an orphan line', () =>
   assert.equal(packed.rateBound, true);
   assert.ok(rateBound.includes(packed.index));
   assert.equal(cues.some((cue) => cue.text === 'four percent.'), false);
-});
-
-test('a scene voiceStyle is the batch style, and an unlisted style throws', () => {
-  const reuse = join(pkg, 'scripts', 'OwnerVoice-TakeReuse.ps1').replace(/'/g, "''");
-  const command = `
-$ErrorActionPreference = 'Stop'
-. '${reuse}'
-$picked = Resolve-RequestedStyle ([pscustomobject]@{ voiceStyle = '08_quiet'; style = '02_explaining' }) '02_explaining' @('02_explaining','08_quiet')
-if ($picked -ne '08_quiet') { throw "picked $picked" }
-$threw = $false
-try { Resolve-RequestedStyle ([pscustomobject]@{ style = '11_stage' }) '02_explaining' @('02_explaining','08_quiet') } catch { if ($_.Exception.Message -match 'not allowlisted') { $threw = $true } else { throw } }
-if (-not $threw) { throw 'unlisted style was accepted' }
-Write-Output 'STYLE_OK'
-`;
-  const result = spawnSync('pwsh', ['-NoProfile', '-Command', command], { encoding: 'utf8', windowsHide: true });
-  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
-  assert.match(result.stdout, /STYLE_OK/);
 });
 
 test('picture inputs fail on a missing props file, a Whisper clock, a changed percent, and the five bad anchors', () => {

@@ -1,6 +1,8 @@
 // Stage 3: timing. The forced aligner clocks each accepted narration take against its authored script, then builds the
 // voice-first timeline (scene length = narration span), caption chunks and an SRT. Whisper timing is an explicit
 // compatibility fallback for jobs without an aligner. With edit.beatGrid every boundary is held to the next music beat.
+// Local AI is off: the aligner and local Whisper are injected (ctx.providers.alignWords / localWhisper); the defaults refuse
+// and name the hosted route. Receipts already on disk are reused, so existing jobs still rebuild their timelines.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { recordStage } from '../context.mjs';
@@ -13,7 +15,7 @@ import { estimateWhisperUsd } from '../prices.mjs';
 import { FPS, alignScriptToAsr, buildTimeline, parseAsrWords, snapToBeatGrid } from '../timing.mjs';
 import { forcedWordOnsets, textWords } from '../../../screencast/sync-lib.mjs';
 import { run } from '../mix.mjs';
-import { fileSha, readJson, round, writeJson } from '../util.mjs';
+import { fileSha, localAiOff, readJson, round, writeJson } from '../util.mjs';
 
 /** Seconds of leading silence before speech (ffmpeg silencedetect at -42 dB), less a 30 ms guard; 0 when speech starts at once. */
 export async function speechOnset(file) {
@@ -35,6 +37,7 @@ export function timingWordSource(flags = {}, brand = {}) {
   if (flags.whisperTiming) {
     return { clock: 'whisper', provider: flags.hostedOnly ? 'openai-whisper' : brand.timing?.provider || 'openai-whisper' };
   }
+  // 'local-aligner' is the historical receipt label: it keys existing timing caches and timing/<cut>/asr file names.
   return { clock: 'forced-aligner', provider: 'local-aligner' };
 }
 
@@ -42,7 +45,7 @@ async function whisperWordsFor(ctx, { audio, asrPath, duration, provider }) {
   if (existsSync(asrPath)) return { payload: readJson(asrPath), cached: true };
   mkdirSync(join(asrPath, '..'), { recursive: true });
   if (provider === 'local-whisper') {
-    const local = ctx.providers.localWhisper || (await import('../providers/local.mjs')).whisperWords;
+    const local = ctx.providers.localWhisper || localAiOff('local whisper timing');
     await local({ file: audio, jsonOut: asrPath, txtOut: asrPath.replace(/\.json$/, '.txt') });
     // Whisper without VAD pins a line's first word at 0 s whatever silence precedes it; move it to the measured speech
     // onset (the film pipeline's fix_asr_onset), so cue words match what the encoded-file ASR hears.
@@ -73,7 +76,7 @@ async function alignedWordsFor(ctx, { audio, asrPath, script, acceptedTakeSha256
   if (!acceptedTakeSha256 || takeSha256 !== acceptedTakeSha256) throw new Error(`accepted narration take changed before timing: ${audio}`);
   const cached = existsSync(asrPath);
   if (!cached) {
-    const align = ctx.providers.alignWords || (await import('../providers/local.mjs')).alignWords;
+    const align = ctx.providers.alignWords || localAiOff('forced alignment');
     await align({ file: audio, script: scriptPath, output: asrPath });
   }
   const report = readJson(asrPath);

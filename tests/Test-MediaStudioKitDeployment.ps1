@@ -8,11 +8,22 @@ $scratch = Join-Path ([IO.Path]::GetTempPath()) ('media-kit-test-' + [guid]::New
 $runtimeKit = Join-Path $scratch 'briefing-kit'
 $shared = Join-Path $scratch '_shared\tools'
 $checks = 0
+$retiredOwnerVoice = @('Generate-OwnerVoice.ps1','ReGate-OwnerVoice.ps1','OwnerVoice-TakeReuse.ps1')
 try {
+    # A stale copy of a retired local-AI owner-voice helper left by an earlier sync is removed, not reported unmanaged.
+    New-Item -ItemType Directory -Force -Path $shared | Out-Null
+    foreach ($name in $retiredOwnerVoice) { Set-Content -LiteralPath (Join-Path $shared $name) -Value '# stale' -Encoding ascii }
     # Capture warnings and host output: a deployed helper missing from the managed list is reported as unmanaged.
     $firstSync = (& (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -RuntimeKit $runtimeKit 3>&1 6>&1 | Out-String)
-    if ($firstSync -match 'unmanaged entries[^
-]*OwnerVoice-TakeReuse\.ps1') { throw "OwnerVoice-TakeReuse.ps1 is deployed but reported unmanaged: $firstSync" }
+    if ($firstSync -match 'unmanaged entries') { throw "A deployed entry is reported unmanaged: $firstSync" }
+    $checks++
+    foreach ($name in $retiredOwnerVoice) {
+        if (Test-Path -LiteralPath (Join-Path (Join-Path $package 'scripts') $name)) { throw "Retired local-AI helper is back in the package: $name" }
+        if (Test-Path -LiteralPath (Join-Path $shared $name)) { throw "Retired local-AI helper is still deployed: $name" }
+        $checks++
+    }
+    $syncSource = Get-Content -LiteralPath (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -Raw -Encoding utf8
+    if ($syncSource -match 'Local-AI') { throw 'Sync-MediaStudioKit.ps1 still references the retired Local-AI runtime' }
     $checks++
     foreach ($name in @('validate-word-sync.mjs','validate-storyboard.mjs','validate-capture-manifest.mjs','backfill-capture-receipt.mjs','validate-demo-scenario.mjs','validate-product-picture.mjs','validate-encoded-picture.mjs','validate-sync.mjs','build-cue-sheet.mjs','validate-viewer-release.mjs','validate-narration.mjs','validate-capture-preflight.mjs','validate-pointer-path.mjs','validate-frame-integrity.mjs','validate-picture-integrity.mjs','validate-marketing-readiness.mjs','speech-only-readiness.mjs','build-contact-sheet.mjs')) {
         $source = Join-Path (Join-Path $package 'scripts') $name
@@ -35,7 +46,7 @@ try {
         if ((Get-FileHash -LiteralPath $helperSource).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) { throw "Stale campaign helper: $destination" }
         $checks++
     }
-    foreach ($name in @('Finish-Media.ps1','Finish-BriefingStems.ps1','Generate-OwnerVoice.ps1','ReGate-OwnerVoice.ps1','OwnerVoice-TakeReuse.ps1','Test-SpeechIntegrity.ps1')) {
+    foreach ($name in @('Finish-Media.ps1','Finish-BriefingStems.ps1','Test-SpeechIntegrity.ps1')) {
         $source = Join-Path (Join-Path $package 'scripts') $name
         $destination = Join-Path $shared $name
         if (-not (Test-Path -LiteralPath $destination)) { throw "Missing shared media helper: $destination" }
@@ -70,9 +81,13 @@ try {
     }
     $checks++
     $generateGuide = Get-Content -LiteralPath (Join-Path $package 'skills\media-studio-generate\SKILL.md') -Raw -Encoding utf8
-    if ($generateGuide -match 'C:\\Repos\\shmindmaster\\agenthub' -or $generateGuide -notmatch 'Generate-OwnerVoice.ps1' -or $generateGuide -notmatch 'Test-SpeechIntegrity.ps1' -or $generateGuide -notmatch [regex]::Escape("'$packageVersion'")) {
-        throw 'Generate guide does not describe deployed owner-voice helpers'
-    }
+    if ($generateGuide -match 'C:\\Repos\\shmindmaster\\agenthub') { throw 'Generate guide hardcodes a checkout path' }
+    $checks++
+    $retiredPattern = ($retiredOwnerVoice | ForEach-Object { [regex]::Escape($_) }) -join '|'
+    if ($generateGuide -match $retiredPattern) { throw 'Generate guide still cites a retired local-AI owner-voice helper' }
+    $checks++
+    $toolsManifest = Get-Content -LiteralPath (Join-Path $shared 'plugin.json') -Raw -Encoding utf8 | ConvertFrom-Json
+    if ($toolsManifest.version -ne $packageVersion) { throw "Deployed tools manifest version $($toolsManifest.version) does not match package $packageVersion" }
     $checks++
     if ((Get-FileHash -LiteralPath (Join-Path $package 'RELEASE-EVIDENCE.md')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $shared 'RELEASE-EVIDENCE.md')).Hash) { throw 'Release evidence contract not deployed' }
     $checks++

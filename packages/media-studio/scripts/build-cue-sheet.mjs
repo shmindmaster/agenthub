@@ -8,7 +8,7 @@
 //
 // Inputs (all under <jobRoot>; the product repository is never read):
 //   story/narration-timeline.json  required  { durationSeconds, segments:[{ id, scene, text, startSeconds, durationSeconds }] }
-//   voice/align/<segmentId>.json  picture clock. ai.ps1 align, method forced-alignment. Take-relative words, offset by startSeconds.
+//   voice/align/<segmentId>.json  picture clock. kit/cloud/cloud-ai.mjs align, method forced-alignment. Take-relative words, offset by startSeconds.
 //                                  When job.json syncClock is forced-aligner, a missing align report is an error.
 //                                  Whisper (voice/asr or narration-words) is a transcript check and cannot time that picture.
 //   voice/asr/<segmentId>.json     legacy screencast word timestamps, seconds into that line's audio (offset by startSeconds).
@@ -110,7 +110,7 @@ const beatsWords = segs.map((seg, i) => {
         if (parsed.words.length) return { ...parsed, source: `voice/asr/${seg.id}.json` };
       }
     }
-    errors.push(`${seg.id}: word times must come from ai.ps1 align (voice/align/${seg.id}.json, method forced-alignment). Whisper is a transcript check and cannot time the picture.`);
+    errors.push(`${seg.id}: word times must come from kit/cloud/cloud-ai.mjs align (voice/align/${seg.id}.json, method forced-alignment). Whisper is a transcript check and cannot time the picture.`);
     return { words: [], precision: 'refused', source: 'missing aligner report' };
   }
   const next = segs[i + 1];
@@ -269,7 +269,7 @@ if (flatScripts.length) {
   for (const miss of designed.misses) errors.push(miss);
 }
 const degraded = beats.filter((b) => b.narration.precision !== 'word').map((b) => ({ beat: b.beat, precision: b.narration.precision }));
-if (degraded.length) warnings.push(`degraded timing precision on ${degraded.length} beat(s): ${degraded.map((d) => `${d.beat}=${d.precision}`).join(', ')}; the sync gate fails these. Run ai.ps1 align and write voice/align/<id>.json. Whisper cannot time the picture.`);
+if (degraded.length) warnings.push(`degraded timing precision on ${degraded.length} beat(s): ${degraded.map((d) => `${d.beat}=${d.precision}`).join(', ')}; the sync gate fails these. Run kit/cloud/cloud-ai.mjs align and write voice/align/<id>.json. Whisper cannot time the picture.`);
 const composeEdl = mapped ? composeMap.groups.map((g) => ({ segments: g.segments, clip: g.clipId, startSeconds: g.startSeconds, needSeconds: g.needSeconds, fit: g.fit, edit: g.actualCaptureWindow?.piecewise_time_map ? null : g.edit || null, actualCaptureWindow: g.actualCaptureWindow || null })) : null;
 let edl = composeEdl;
 if (designed) {

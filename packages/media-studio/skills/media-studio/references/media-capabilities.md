@@ -1,0 +1,30 @@
+# Media capabilities — one page for any agent, cold
+
+Owner direction 2026-10-29: **MahumTech Azure first, cheapest option that passes QA, local AI off, no Sarosh voice clone in films.** Resource `aoai-mrender-4e123a95` (eastus2, AIServices S0, MCPP credit with alerts at $400 / $600 / $680). Never `AZURE_OPENAI_PNDH_*` or `aif-pndh-*` (Pendoah). Env vars hold the secrets: print a name and whether it is set, never a value. Full table, limits and sources: `../../media-studio-generate/references/azure-ai-services.md`. Media root: `MEDIA_STUDIO_ROOT` (default `D:\Media-Studio`).
+
+| Task | Use | Voice / model | Price basis (verified 2026-10-29) | Call |
+|---|---|---|---|---|
+| Narration, utility, explainer | Azure TTS standard neural | `en-US-AriaNeural` (`narration-professional`), `en-US-AdamMultilingualNeural` | $15 / 1M chars | `POST https://eastus2.tts.speech.microsoft.com/cognitiveservices/v1`, SSML body, headers `Ocp-Apim-Subscription-Key` (`AZURE_SPEECH_KEY`), `Content-Type: application/ssml+xml`, `X-Microsoft-OutputFormat: riff-48khz-16bit-mono-pcm`, `User-Agent` |
+| Cinematic narrator, mentor, warm, deep | Azure TTS HD | `en-US-Steffan`, `en-US-Davis`, `en-GB-Ryan`, `en-US-Andrew`, `en-GB-Ollie`, `en-US-Serena`, `en-GB-Sonia`, `en-US-Vance`, `en-US-Tyler` as `<name>:DragonHDLatestNeural` | $22 / 1M chars | same endpoint; no `prosody`, `emphasis` or `express-as` on non-Omni HD |
+| Hero, villain, kid, emotion per line | Azure TTS MAI-Voice 2.1 (preview) | `en-US-Ethan` (determined, whispering), `en-US-Olivia` (hopeful), `en-GB-Harry` (narrator, angry), `en-US-Grant` (audiobook), `en-US-Harper` (excited), `en-US-Sage` (educational), `en-GB-Emily` as `<name>:MAI-Voice-2.1` | no published meter; budget at $22 | same endpoint with `<mstts:express-as style="determined">`. If an opening word or interjection drops, re-render that line on HD |
+| Child voice | Standard neural | `en-US-AnaNeural` | $15 | same endpoint |
+| Any voice, any line | **ASR check on every line**, plus respell brand terms before synthesis | Azure STT short audio | $1.00 / hr (checks only) | `POST https://eastus2.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1?language=en-US&format=simple`, `Content-Type: audio/wav; codecs=audio/pcm; samplerate=48000` |
+| Transcription, backlog | Azure batch transcription | n/a | $0.18 / hr | `POST https://eastus2.api.cognitive.microsoft.com/speechtotext/transcriptions:submit?api-version=2024-11-15`, `contentUrls` must be a **private blob URL with a read SAS** (public URLs fail `InvalidUri`); poll `self`; ~66 s per job |
+| Transcription, one file now | Azure fast transcription | n/a | $0.36 / hr | `POST …/speechtotext/transcriptions:transcribe?api-version=2025-10-15`, multipart `audio` + `definition` |
+| Transcription, real-time or streaming | **Deepgram Nova-3** (Azure is pricier) | n/a | $0.46 / hr | `DEEPGRAM_API_KEY` |
+| Fallback TTS | Deepgram governed adapter (`scripts/deepgram_cli.py`), then ElevenLabs (`packages/elevenlabs`) | per `content-controls.md` | Flux $45, ElevenLabs $40–80 / 1M chars | quote first; ledgered |
+| Still images | `gpt-image-2.5-flare` (also `-sunburst`), low or medium quality | n/a | about $0.006 low, $0.013 medium per 1024x1024 image | `POST {AZURE_AI_SERVICES_ENDPOINT}openai/v1/images/generations`, header `api-key: AZURE_AI_SERVICES_KEY`, body `{model, prompt, size, quality, n}`, result `data[0].b64_json`; 13–15 s each, **2 requests/min per deployment** |
+| Image volume | Gemini Batch until the Azure quota rises | n/a | $0.0195 batch (balance is low) | `GEMINI_API_KEY` |
+| Presenter clip | Azure TTS avatar, prebuilt, batch | `harry`/`business`, `lisa`, `lori`, `max`, `meg`; voice any HD or standard | $1.00 / min, $1.35 with an HD voice | `PUT https://eastus2.api.cognitive.microsoft.com/avatar/batchsyntheses/{id}?api-version=2024-08-01`, body `inputKind`, SSML `inputs`, `avatarConfig {talkingAvatarCharacter, talkingAvatarStyle, videoFormat mp4, videoCodec h264, subtitleType none, backgroundColor}`; 10 s clip in 25 s; 2 requests/min |
+| OCR | Document Intelligence Read | `prebuilt-read` | $1.50 / 1K pages | `POST {AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT}documentintelligence/documentModels/prebuilt-read:analyze?api-version=2024-11-30` |
+| Embeddings | `text-embedding-3-small` | n/a | $0.022 / 1M tokens | `…/openai/v1/embeddings` |
+| LLM text | Anthropic Haiku 5.5 (batch for bulk) | n/a | $0.10 / $0.50 per 1M tokens | Azure `gpt-5-mini` ($0.25 / $2) is the fallback; Flex only on `gpt-6-luna` after its price is confirmed |
+| Video generation | none | Sora 2 works until its inference ends **2026-11-02** | $0.10 / s | do not plan around it; use avatar, Remotion, Recast |
+| Render, encode | local NVENC when CPU < 70% and RAM > 8 GB (max 2), else Azure Container Apps job, else Daytona with the orchestrator's OK | n/a | ACA about $0.0072 / job-minute | `skills/media-studio-compose/SKILL.md`, `kit\cloud\cloud-render.mjs` |
+
+## Rules that always apply
+1. Never pay twice: hash the exact input (voice, style, SSML, format), reuse accepted takes, remux instead of re-synthesizing.
+2. Cheapest tier that passes the ear and the ASR check; escalate only failed items. State the price basis in every report.
+3. Films: cinematic storytelling, a distinct expressive voice per scene and character, no Sarosh clone. Captions never auto-load: sidecar `.srt` only, `subtitleType: none` on avatars.
+4. Custom avatar, personal voice and professional voice need Microsoft Limited Access approval (https://aka.ms/customneural). Do not apply without an owner decision.
+5. **Image quota request (not filed):** portal form https://aka.ms/oai/stuquotarequest. Subscription `4e123a95-c99f-4816-81ba-8adc55583cfe`, resource `aoai-mrender-4e123a95`, region eastus2, models `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst`, Global Standard, 30 requests/min each, use case batch generation of cinematic still frames for product films. The Azure Quota API is not registered on the subscription, so a form submission by the owner is the only route.

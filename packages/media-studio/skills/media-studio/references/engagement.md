@@ -1,6 +1,6 @@
 # Viewer engagement
 
-Load this for every **viewer-facing** media-studio job. `intent: draft` still writes for the ear (hook, one idea, pauses) but skips GPU plates (music, Motif, lipsync). Product-screencast picture rules live in `product-picture.md`.
+Load this for every **viewer-facing** media-studio job. `intent: draft` still writes for the ear (hook, one idea, pauses) but skips generated plates (music, avatar, motion). Product-screencast picture rules live in `product-picture.md`.
 
 This file is the home for diagnose / tools / kind defaults / ownership. Dramatic structure lives in `story-craft.md`. Studio picture/sound/voice in `studio-craft.md`. Formats in `program-forms.md`. Archetype ids live in `scene-archetypes.md`. Scoring lives in `story-review-rubric.md`. Skills name the action they own; they do not restate those catalogs.
 
@@ -31,12 +31,12 @@ Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 
 | Technique | Use when | Provider | Refuse |
 | --- | --- | --- | --- |
-| Music bed | Viewer-facing briefing, training, explainer, talking-head, series-episode, audio-only | `ai.ps1 music` then `Finish-Media.ps1 -Speech -Music` (sidechain duck, felt not heard) | Bed under a product-screencast hero (PDS owns that mix). One-pass loudnorm. Studio Sound on owner voice. |
+| Music bed | Viewer-facing briefing, training, explainer, talking-head, series-episode, audio-only | Accepted, licensed bed asset (cloud music disabled pending a metered adapter; no local generator) then `Finish-Media.ps1 -Speech -Music` (sidechain duck, felt not heard) | Bed under a product-screencast hero (PDS owns that mix). One-pass loudnorm. Studio Sound on owner voice. |
 | Silence | Payoff, title card, CTA | `musicCue: silence` plus `pauseBeforeSeconds` / `holdAfterSeconds` | Filling every gap with music |
-| Register / tone | Owner voice | Sarosh style-bank register (`explaining`, `firm`, `serious`, …) | Free-text "sound excited". Cloud TTS for Sarosh. |
+| Register / tone | Narrator and characters | Azure voice style per beat (`<mstts:express-as>` from the voice's `StyleList`, or HD inline cues; `media-studio-generate`) | Free-text "sound excited". Styles outside the voice's catalog. A Sarosh voice clone in a film. |
 | Zoom | Live product (`screen`) | Recast punch-in, one per beat | Ken Burns on slides. Fake cursor on type. |
 | Text callout | Naming, not explaining | `onScreen` ≤4 words, color emphasis, hold `wordCount / 2.5 + 0.5s` | Callouts that repeat the narration |
-| B-roll | Problem, outcome, or context — not product UI | Visual Bank / `ai.ps1 image` / Motif from an enrolled still | Synthesized product UI, metrics, testimonials |
+| B-roll | Problem, outcome, or context — not product UI | Accepted plates / Azure `gpt-image-2.5-flare` stills / Remotion motion over an accepted still | Synthesized product UI, metrics, testimonials |
 | Motion graphics | Slide/explainer build, one kinetic number | Remotion `useCurrentFrame()` / `interpolate()` | CSS/Tailwind animation classes. A new Remotion app. |
 | Cut / rhythm | Idea change, old-way → new-way | New scene; speed-ramp waits 4–8× | Cutting before the result is readable. Hiding a product defect. |
 | Click / whoosh | Product action, major scene join | Recast click ripple; optional sting (`musicCue: sting`) | SFX that covers missing product feedback |
@@ -93,7 +93,7 @@ Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 
 ## Generate / compose / craft critic / QA own
 
-- Generate: consume storyboard + visual bible + direction. TTS with per-beat register. Viewer-facing `musicCue: bed|sting` → `ai.ps1 music`; `silence` generates nothing. Bible B-roll via `ai.ps1 image`. Directed Motif/lipsync/portrait only. Owner voice passes integrity and ASR before compose (identity is advisory only).
+- Generate: consume storyboard + visual bible + direction. TTS with per-beat register. Viewer-facing `musicCue: bed|sting` → accepted bed or sting asset; `silence` generates nothing. Bible B-roll via Azure `gpt-image-2.5-flare`. Directed avatar clips only; image-to-video, lipsync and portrait have no active route. Every voice passes integrity and ASR before compose (identity is advisory only).
 - Compose: honor pause/hold; duck the bed; Remotion **archetypes** rather than one slide grammar; Recast for `screen`. Two-pass linear loudnorm only. Viewer-facing briefing/training/explainer/series-episode/webcast/webinar/keynote/documentary/teaser **requires Remotion** unless `intent: draft`.
 - Craft critic: the story-experience review (`media-studio-qa`) on the encoded file. Score < 85 fails; revise `reviseSceneIds` and rerun.
 - QA: listen, captions, engagement diagnose, plus `Inspect-MediaVisualQuality.ps1`. Remit to the owner above. Non-screencast kinds do not claim PDS arbitration.

@@ -29,7 +29,7 @@ routes to it, no workflow body is fetched from it, and no run is logged there.
 | Spoken-content finishing (transcript edits, filler removal, share links) | Descript, optional | `media-studio-compose/references/descript.md` |
 | Static multi-format social cards, thumbnails, brand-kit layouts | Canva connector (never film frames) | registry `native-connectors.json` → `canva` |
 | PDF one-pagers, font kits, social resize of **delivered** masters, Firefly stills under the abstract-imagery rule | Adobe connector | registry `native-connectors.json` → `adobe` |
-| Speech, SFX, music beds on the governed ledger | `elevenlabs` skill (CLI), Local-AI first | `elevenlabs`, `local-ai-stack` |
+| Speech, SFX, music beds on the governed ledger | Azure Speech first (`media-studio-generate`), then the Deepgram and `elevenlabs` governed adapters; SFX and music from accepted assets or the governed ElevenLabs adapter where a cap is approved | `media-studio-generate`, `elevenlabs` |
 | Release gates on every asset | `media-studio-qa` | `media-studio-qa` |
 
 Pick the lane by the asset, not by the tool that happens to be open. A lane the registry records as `false`
