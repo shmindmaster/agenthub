@@ -11,9 +11,9 @@ Load `references/azure-ai-services.md` before planning any generation. The Mahum
 
 | Need | Default | Fallback, only when Azure cannot do it or a gate failed |
 |---|---|---|
-| Narration and character voices | Azure Speech TTS: standard neural, Neural HD for cinematic and principal roles, MAI-Voice where per-line emotion decides the scene. Cast from the voice cast in the reference | ElevenLabs governed adapter; Deepgram governed adapter |
+| Narration and character voices | Azure Speech TTS: **standard neural is the default narration voice**; Neural HD and MAI-Voice for cinematic principals and characters (MAI is a preview: fall back to HD if an interjection drops). Run an ASR check on every line. Cast from the voice cast in the reference | Deepgram governed adapter first; ElevenLabs last |
 | Transcription and ASR gates | Azure batch transcription for backlogs (private blob + SAS) and fast transcription for one file. Real-time and streaming STT stay on Deepgram (Azure is $1 / hr vs $0.46 / hr) | Deepgram Nova-3 |
-| Images | Azure `gpt-image-2.5` deployments, low or medium quality first, capacity 2 | Gemini batch (balance is low), OpenAI |
+| Images | Azure `gpt-image-2.5-flare` at low or medium quality is the default per image (about $0.006 / $0.013); capacity 2 requests/min | Gemini Batch only for volume until the Azure image quota rises; OpenAI |
 | Avatar presenter clips | Azure TTS avatar, batch API, prebuilt avatars | none; use Remotion/Recast composition instead |
 | Video generation | Sora 2 works but its inference ends 2026-11-02: do not plan around it | Remotion/Recast composition |
 | Chat, QA, embeddings, OCR | Embeddings `text-embedding-3-small` and Document Intelligence on Azure. For chat and QA, Anthropic Haiku 5.5 is cheaper than `gpt-5-mini`; keep `gpt-5-mini` as the credit-funded fallback; Flex only on `gpt-6-luna` once its price is confirmed | Anthropic for bulk LLM work |
