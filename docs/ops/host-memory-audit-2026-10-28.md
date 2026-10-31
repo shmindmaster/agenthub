@@ -248,7 +248,7 @@ Auto-start entries, checked against the owner's policy:
 |---|---|---|---|
 | Claude desktop app | Desktop Commander (local desktop MCP; toggles file lists `local:desktop-commander:*` and `local:deskcmd:*`). Source config not found in `claude_desktop_config.json` (no `mcpServers`), `Roaming\Claude` (marker only) or a Claude Extensions folder. 13 local tool groups listed in `mcp-user-tool-toggles.json` (azure, Kubernetes, playwright, shadcn, ElevenLabs…), enabled state not recorded in that file | ~35 claude.ai connectors | Remove Desktop Commander or make it on-demand |
 | Claude Code | 1: `repowise-workspace` (bridge) | context7, exa, firecrawl (user), notion (plugin); supabase and descript plugins on but server denied | None. Claude Code is already lean |
-| Codex desktop / CLI | `aws-mcp` (global `[mcp_servers]`), `node_repl` (global), plugin stdio: `codex_app`, `cua_repl` (computer-use), `data` (data-analytics), `repowise-workspace` | context7, exa, firecrawl, railway, n8n (Pendoah tenant), open-connector (loopback 3400), ~15 remote plugin servers | `aws-mcp` out of the global config; data-analytics and computer-use off unless used |
+| Codex desktop / CLI | `aws-mcp` (global `[mcp_servers]`), `node_repl` (global), plugin stdio: `codex_app`, `cua_repl` (computer-use), `data` (data-analytics), `repowise-workspace` | context7, exa, firecrawl, railway, n8n (Pendoah tenant), ~15 remote plugin servers | `aws-mcp` out of the global config; data-analytics and computer-use off unless used |
 | Copilot CLI | 0 | 7 remote | None |
 | VS Code Insiders | 0 | 7 remote | None |
 | Cursor | `windows-mcp` (default-on) | 8, incl. n8n Pendoah tenant | `windows-mcp` to on-demand |

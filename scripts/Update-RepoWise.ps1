@@ -11,16 +11,27 @@
     job runs this script, because a Task Scheduler powershell.exe action opens
     a console window and takes keyboard focus.
 
-    Audit (default) never writes. Apply upgrades (or installs if missing).
+    Audit (default) never writes. Apply upgrades (or installs if missing),
+    then repairs known Bash-only RepoWise hooks. RepairHooks runs only that
+    repair, without version or installation probes.
     RemoveSchedule deletes the retired AgentHub-Update-RepoWise task if an
     older checkout registered it.
 
 .PARAMETER Audit
-    Report installed vs PyPI. Exit 1 if missing or behind. Default if neither
-    -Audit nor -Apply is passed.
+    Report installed vs PyPI. Exit 1 if missing or behind. Default when no
+    action is passed.
 
 .PARAMETER Apply
-    Install or upgrade to the PyPI latest via `uv tool`.
+    Install or upgrade to the PyPI latest via `uv tool`, then repair hooks.
+
+.PARAMETER RepairHooks
+    Normalize known generated Bash hook commands to the native augment executable.
+
+.PARAMETER ClaudeSettingsPath
+    Test override. Defaults to ~/.claude/settings.json.
+
+.PARAMETER AugmentExe
+    Test override. Live repair resolves and pins the native repowise-augment.exe path.
 
 .PARAMETER RemoveSchedule
     Delete the retired current-user scheduled task AgentHub-Update-RepoWise if
@@ -45,6 +56,9 @@
 param(
     [switch]$Audit,
     [switch]$Apply,
+    [switch]$RepairHooks,
+    [string]$ClaudeSettingsPath,
+    [string]$AugmentExe,
     [switch]$RemoveSchedule,
     [switch]$RegisterSchedule,
     [string]$InstalledVersion,
@@ -61,7 +75,85 @@ if ([string]::IsNullOrWhiteSpace($StateFile)) {
     $StateFile = Join-Path $env:LOCALAPPDATA 'AgentHub\repowise-cli.json'
 }
 
-if (-not $Audit -and -not $Apply -and -not $RemoveSchedule -and -not $RegisterSchedule) { $Audit = $true }
+if (-not $Audit -and -not $Apply -and -not $RepairHooks -and -not $RemoveSchedule -and -not $RegisterSchedule) { $Audit = $true }
+
+function Repair-RepoWiseHooks {
+    $settingsPath = $ClaudeSettingsPath
+    if ([string]::IsNullOrWhiteSpace($settingsPath)) {
+        $settingsPath = Join-Path $env:USERPROFILE '.claude\settings.json'
+    }
+    if (-not (Test-Path -LiteralPath $settingsPath)) {
+        Write-Host 'PASS: Claude settings are absent; no hooks to repair.'
+        return
+    }
+
+    $reader = [IO.StreamReader]::new($settingsPath, [Text.UTF8Encoding]::new($false, $true), $true)
+    try {
+        $rawSettings = $reader.ReadToEnd()
+        $encoding = $reader.CurrentEncoding
+    } finally {
+        $reader.Dispose()
+    }
+    try { $null = ConvertFrom-Json -InputObject $rawSettings } catch {
+        throw 'Claude settings are not valid JSON; hooks were not changed.'
+    }
+
+    $knownCommands = @(
+        'input=$(cat); case "$input" in *"git commit"*) if command -v repowise-augment >/dev/null 2>&1; then printf "%s" "$input" | repowise-augment; fi;; esac',
+        'if command -v repowise-augment >/dev/null 2>&1; then exec repowise-augment; fi'
+    )
+    $tokens = [regex]::Matches($rawSettings, '"(?:[^"\\]|\\.)*"|[{}\[\]:,]|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null')
+    $values = [Collections.Generic.List[object]]::new()
+    $findCommands = {
+        param([ref]$position, [object[]]$parts)
+        $token = $tokens[$position.Value]
+        $position.Value++
+        if ($token.Value -eq '{') {
+            while ($tokens[$position.Value].Value -ne '}') {
+                $key = ConvertFrom-Json -InputObject $tokens[$position.Value].Value
+                $position.Value += 2
+                & $findCommands $position ($parts + $key)
+                if ($tokens[$position.Value].Value -eq ',') { $position.Value++ }
+            }
+            $position.Value++
+        } elseif ($token.Value -eq '[') {
+            $itemIndex = 0
+            while ($tokens[$position.Value].Value -ne ']') {
+                & $findCommands $position ($parts + $itemIndex)
+                $itemIndex++
+                if ($tokens[$position.Value].Value -eq ',') { $position.Value++ }
+            }
+            $position.Value++
+        } elseif ($parts.Count -eq 6 -and $parts[0] -ceq 'hooks' -and $parts[2] -is [int] -and $parts[3] -ceq 'hooks' -and $parts[4] -is [int] -and $parts[5] -ceq 'command') {
+            $value = ConvertFrom-Json -InputObject $token.Value
+            if ($knownCommands -ccontains $value) { $values.Add($token) }
+        }
+    }
+    $position = 0
+    & $findCommands ([ref]$position) @()
+    if ($values.Count -eq 0) {
+        Write-Host 'PASS: No known Bash-only RepoWise hook commands need repair.'
+        return
+    }
+
+    $exe = $AugmentExe
+    if ([string]::IsNullOrWhiteSpace($exe)) {
+        $cmd = Get-Command -Name repowise-augment.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        $exe = if ($cmd) { $cmd.Source } else { Join-Path $env:USERPROFILE '.local\bin\repowise-augment.exe' }
+    }
+    if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
+        throw 'Native repowise-augment executable is missing; required hook repair was not applied.'
+    }
+    $command = (Get-Item -LiteralPath $exe).FullName.Replace('\', '/')
+    if ($command -match '\s') { $command = '"' + $command + '"' }
+    $commandJson = ConvertTo-Json -InputObject $command -Compress
+    # Token replacement keeps unrelated settings and their original formatting intact.
+    for ($i = $values.Count - 1; $i -ge 0; $i--) {
+        $rawSettings = $rawSettings.Remove($values[$i].Index, $values[$i].Length).Insert($values[$i].Index, $commandJson)
+    }
+    [IO.File]::WriteAllText($settingsPath, $rawSettings, $encoding)
+    Write-Host "PASS: Repaired $($values.Count) known Bash-only RepoWise hook commands."
+}
 
 function Get-RepoWiseVersionFromText([string]$Text) {
     if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
@@ -111,6 +203,7 @@ function Get-InstalledRepoWiseVersion {
     }
     $parsed = Get-RepoWiseVersionFromText $out
     if (-not $parsed) { throw "could not parse repowise --version output: $out" }
+    $script:repoWiseExe = $exe
     return $parsed
 }
 
@@ -165,10 +258,14 @@ function Remove-UpdateTask {
 
 $installed = $null
 $latest = $null
+$repoWiseExe = $null
 $exit = 0
 try {
     if ($RegisterSchedule) {
         throw "-RegisterSchedule is retired (owner direction 2026-10-13: no scheduled agent jobs). Run -Apply manually; use -RemoveSchedule to delete an old $TaskName task."
+    }
+    if ($Audit -and ($Apply -or $RepairHooks -or $RemoveSchedule)) {
+        throw '-Audit cannot be combined with a mutating action.'
     }
     if ($Audit -or $Apply) {
         $installed = Get-InstalledRepoWiseVersion
@@ -202,15 +299,26 @@ try {
             Write-Host "PASS: RepoWise CLI is the PyPI latest ($latest)."
         }
 
-        Write-State @{
-            checkedAt = [datetime]::UtcNow.ToString('o')
-            installed = $installed
-            latest = $latest
-            status = $status
-            apply = [bool]$Apply
+        if ($Apply) {
+            $migrationExitCode = 0
+            if ($repoWiseExe) {
+                # The eager version option skips migrations; normalize only after they run.
+                $null = & $repoWiseExe agents --help 2>&1 | Out-String
+                $migrationExitCode = $LASTEXITCODE
+            }
+            Repair-RepoWiseHooks
+            if ($migrationExitCode -ne 0) { throw "RepoWise editor migration initialization failed (exit $migrationExitCode)." }
+            Write-State @{
+                checkedAt = [datetime]::UtcNow.ToString('o')
+                installed = $installed
+                latest = $latest
+                status = $status
+                apply = [bool]$Apply
+            }
         }
     }
 
+    if ($RepairHooks -and -not $Apply) { Repair-RepoWiseHooks }
     if ($RemoveSchedule) { Remove-UpdateTask }
 } catch {
     Write-Host "FAIL: $($_.Exception.Message)"

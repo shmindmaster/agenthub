@@ -527,7 +527,7 @@
       },
       "hosts": [],
       "hostScopeNote": "Intentionally no direct host MCP registrations. Reachability is through capability arxiv-research hostMappings and the self-contained use-arxiv-research loose skill/launcher, deployed by Sync-Capabilities. This avoids starting one server per idle host. The command here identifies the upstream package, not an instruction to bypass the serialized client.",
-      "notes": "Public literature research only. Shared runtime under the user AgentHub runtime/arxiv-research. PDF fallback installed, pro/semantic extras excluded. The OpenConnector gateway arXiv source was retired together with the gateway on 2026-10-30; this route adds upstream full-paper, section, LaTeX, citation and prompt workflows without starting Docker."
+      "notes": "Public literature research only. Shared runtime under the user AgentHub runtime/arxiv-research. PDF fallback installed, pro/semantic extras excluded. This route adds upstream full-paper, section, LaTeX, citation and prompt workflows without starting Docker."
     }
   ]
 }

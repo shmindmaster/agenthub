@@ -340,20 +340,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - `tests/Run-AllTests.ps1` runs all behavior tests and package validators.
 - Sync scripts deploy managed instructions/skills/MCP config to host user
   directories (`Sync-AgentHub.ps1`, `Sync-Capabilities.ps1`, audit by default).
-- **OpenConnector fleet gateway: RETIRED 2026-10-30 at owner direction.** The
-  gateway (container on `127.0.0.1:3400`), its `registry/mcps.json` row, its
-  capability row, `packages/open-connector`, the `use-open-connector` skill,
-  `tests/Test-OpenConnector.ps1` and every host shared-gateway exposure were
-  removed after the Docker outage left the endpoint refusing connections and
-  the owner removed it from the fleet. Brave Search is no longer served
-  anywhere in the fleet; reintroduce only through a new registry decision.
-  On 2026-10-31 the owner also retired the `digitalocean`, `elevenlabs`,
-  `browser-toolkit`, `learning-studio` and `slack` capabilities and packages,
-  and directed that AgentHub deploys no custom MCP servers into host configs
-  (plugin-owned MCPs remain allowed): persisted `windows-mcp`,
-  `repowise-workspace`, `slack` and `linkedin` host entries were pruned from
-  OpenCode, Cursor (user and `C:/Repos` workspace) and the retired slack row
-  from every host.
+- **Custom MCP deployment policy (owner direction 2026-10-31):** AgentHub
+  deploys no custom MCP servers into host configs; plugin-owned MCPs remain
+  allowed. On 2026-10-30/31 the owner retired six capabilities and their
+  packages (`digitalocean`, `elevenlabs`, `browser-toolkit`,
+  `learning-studio`, `slack`, and one loopback SaaS gateway), and persisted
+  `windows-mcp`, `repowise-workspace`, `slack` and `linkedin` host entries
+  were pruned from OpenCode, Cursor (user and `C:/Repos` workspace). Brave
+  Search is no longer served anywhere in the fleet; reintroduce only through a
+  new registry decision.
 - **Sync safety (2026-09-13):** `Sync-AgentHub.ps1 -Validate` is read-only;
   only `-Apply` writes host configs. A bare `-Validate` used to imply
   `-Apply` (`Test-SyncAgentHubIdempotency` now guards it). The four tests that

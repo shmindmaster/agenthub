@@ -60,10 +60,10 @@
       "nextStep": "Chrome DevTools MCP coverage question closed by owner-authorized retirement on 2026-10-24. Preserve Playwright and the other declared providers; never recreate the retired server.",
       "retired": {
         "chrome-devtools": "Removed 2026-10-24 by owner direction, including chrome-devtools-isolated. Neither is a live provider, alias, lifecycle exception or plugin exposure. Native-pane hosts Codex, Cursor and Claude use native browser tools; other hosts use Playwright.",
-        "brave-search": "Removed from registry/mcps.json on 2026-09-13. It was an on-demand-local npx stdio bridge (@brave/brave-search-mcp-server, unpinned) declared by no host and carried by no host config since at least 2026-08-20, so removal changed no deployment. Brave Search was served by the open-connector gateway's brave_search provider under the same BRAVE_API_KEY User environment variable until the gateway was retired on 2026-10-30; it is no longer served anywhere in the fleet. It was never in onDemandLocalMcpIds, which is why it appears here rather than as a removal from that list."
+        "brave-search": "Removed from registry/mcps.json on 2026-09-13. It was an on-demand-local npx stdio bridge (@brave/brave-search-mcp-server, unpinned) declared by no host and carried by no host config since at least 2026-08-20, so removal changed no deployment. Brave Search is no longer served anywhere in the fleet (withdrawn 2026-10-30); the BRAVE_API_KEY User environment variable remains owner-managed. It was never in onDemandLocalMcpIds, which is why it appears here rather than as a removal from that list."
       }
     },
-    "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. 2026-09-13: open-connector added as the one exception, and it is a different shape -- transport http to a standing Docker container on 127.0.0.1:3400 that only the owner's wrapper starts. A host carrying its entry spawns nothing at session start; the fan-out this list guards against cannot occur. Exposure recorded as shared-gateway on codex, cursor, opencode and grok. 2026-10-28: windows-mcp added as an owner-decided exception of the stdio shape this list normally refuses. Scope is enforced by its mcps.json hosts plus plugin-owned exposures: claude and codex stay plugin-gated (no persisted entry), opencode gets enabled=false, and only cursor runs it at session start. 2026-10-30: open-connector, the list's one http-shape exception, retired from the fleet at owner direction; the exception is withdrawn. 2026-10-31: the windows-mcp Cursor always-on exception is revoked at owner direction (AgentHub deploys no custom MCP entries into host configs); the list stays empty. Owner decision 2026-10-28, chosen in an AskUserQuestion relayed by the coordinating session: 'Cursor always-on' -- \"Install Windows-MCP in Cursor even though Cursor can't ship it disabled -- it will start in every Cursor session until you toggle it off\" -- and \"everything we need to do should be possible with commands\".",
+    "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. 2026-10-28: windows-mcp added as an owner-decided exception of the stdio shape this list normally refuses. Scope is enforced by its mcps.json hosts plus plugin-owned exposures: claude and codex stay plugin-gated (no persisted entry), opencode gets enabled=false, and only cursor runs it at session start. 2026-10-31: the windows-mcp Cursor always-on exception is revoked at owner direction (AgentHub deploys no custom MCP entries into host configs); the list stays empty. Owner decision 2026-10-28, chosen in an AskUserQuestion relayed by the coordinating session: 'Cursor always-on' -- \"Install Windows-MCP in Cursor even though Cursor can't ship it disabled -- it will start in every Cursor session until you toggle it off\" -- and \"everything we need to do should be possible with commands\".",
     "onDemandLocalMcpIdsNote": "Refreshed 2026-10-24. Chrome DevTools MCP is retired; do not register it. playwright is --extension attach for hosts without a native browser pane, plugin-gated and never persisted. the AgentHub slack bridge was retired with the slack capability on 2026-10-30 at owner direction. repowise-workspace is plugin-gated (repowise@agenthub), never persisted. appium-mobile and linkedin stay on-demand-local and unpersisted.",
     "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
     "browserActivationRoute": "Codex, Cursor and Claude use their native browser surface. browser-toolkit was retired on 2026-10-30 at owner direction: no AgentHub browser plugin and no Playwright MCP lane remain. Repeatable browser regression stays in each repo's own Playwright tests; ad-hoc browser automation uses the host first-party browser surface or the agent-browser CLI. Chrome DevTools MCP is retired: never register or enable chrome-devtools or chrome-devtools-isolated.",
@@ -323,8 +323,7 @@
         "Codex uses its native browser surface. Chrome DevTools MCP was retired on 2026-10-24; remaining plugin MCP ownership includes Descript, Linear, and Notion.",
         "The installed Firecrawl plugin is skills-only and contains no MCP manifest; registry/mcps.json retains the Firecrawl service contract.",
         "Installed Codex app connectors own GitHub.",
-        "Tavily was retired from the fleet on 2026-08-03. Adobe and Canva were retired the same day and un-retired 2026-10-21 as claude.ai account connectors with single media roles (mediaConnectorRoles); neither is registered in registry/mcps.json or delivered to Codex.",
-        "open-connector added to shared-gateway exposure on 2026-09-13 and retired from every host config and from registry/mcps.json on 2026-10-30 at owner direction (gateway unreachable after the Docker outage; owner removed it from the fleet). No process was ever spawned by the host."
+        "Tavily was retired from the fleet on 2026-08-03. Adobe and Canva were retired the same day and un-retired 2026-10-21 as claude.ai account connectors with single media roles (mediaConnectorRoles); neither is registered in registry/mcps.json or delivered to Codex."
       ],
       "exposureNote": "github added to codex's shared-gateway exposure on 2026-08-20. mcps.json listed codex among github's hosts, but codex had no delivery route for it in any mode -- not in config.toml, not plugin-owned, not gateway -- so the declaration was unreachable. Caught by Test-DeclaredVsDeployedMcp, which compares declared hosts against the host's actual config; no prior test opened a config file. github is shared-remote over HTTP, so this costs a config line and no process."
     },
@@ -396,9 +395,7 @@
         ],
         "local-only": []
       },
-      "evidence": [
-        "open-connector added to shared-gateway exposure on 2026-09-13 and retired from every host config and from registry/mcps.json on 2026-10-30 at owner direction (gateway unreachable after the Docker outage; owner removed it from the fleet). No process was ever spawned by the host."
-      ]
+      "evidence": []
     },
     {
       "hostId": "cursor-agent",
@@ -456,9 +453,7 @@
         ],
         "local-only": []
       },
-      "evidence": [
-        "open-connector added to shared-gateway exposure on 2026-09-13 and retired from every host config and from registry/mcps.json on 2026-10-30 at owner direction (gateway unreachable after the Docker outage; owner removed it from the fleet). No process was ever spawned by the host."
-      ]
+      "evidence": []
     },
     {
       "hostId": "opencode-desktop",
@@ -547,7 +542,6 @@
         "local-only": []
       },
       "evidence": [
-        "open-connector added to shared-gateway exposure on 2026-09-13 and retired from every host config and from registry/mcps.json on 2026-10-30 at owner direction (gateway unreachable after the Docker outage; owner removed it from the fleet). No process was ever spawned by the host.",
         "2026-10-23: installed plugin inventory has no Descript provider. Use the canonical remote MCP registration; do not suppress it as plugin-owned."
       ]
     },
