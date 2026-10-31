@@ -1,4 +1,0 @@
-interface:
-  display_name: "DigitalOcean App Platform"
-  short_description: "Operate App Platform specs, deployments, and logs."
-  default_prompt: "Troubleshoot this DO app."

@@ -67,8 +67,7 @@ npm run validate
 ## Starter path
 
 After init, prefer enabling only what you need. Good first public
-capabilities (already in the registry when present): `security`,
-`browser-toolkit`, `open-connector`, `slack` (fixture mode). Heavy studio
+capabilities (already in the registry when present): `security`. Heavy studio
 packs can wait.
 
 See [setup.md](./setup.md) for machine requirements and

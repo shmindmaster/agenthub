@@ -80,15 +80,15 @@ Report 'at least one deployed media-studio-compose copy exists on this workstati
     'No agent skillsDir contained media-studio-compose; the deploy check would pass over nothing.'
 Report 'deployed media-studio-compose copies name Finish-Media' ($staleCompose.Count -eq 0) `
     ($staleCompose -join '; ')
-Report 'at least one deployed desktop-evidence copy exists on this workstation' ($desktopHits -gt 0) `
-    'No agent skillsDir contained desktop-evidence; Cursor/Qoder would be invisible to this check.'
-Report 'deployed desktop-evidence copies name Capture-Screen' ($staleDesktop.Count -eq 0) `
+Report 'desktop-evidence is retired with browser-toolkit; no deployed copies remain' ($desktopHits -eq 0) `
+    ($staleDesktop -join '; ')
+Report 'no stale desktop-evidence copies remain deployed' ($staleDesktop.Count -eq 0) `
     ($staleDesktop -join '; ')
 
 $cursorDesktop = Join-Path $HOME '.cursor\skills\desktop-evidence\SKILL.md'
-Report 'Cursor skillsDir has desktop-evidence (cursor-agent reads this path, not only the plugin junction)' `
-    (Test-Path -LiteralPath $cursorDesktop) `
-    "missing $cursorDesktop"
+Report 'Cursor skillsDir no longer carries desktop-evidence (retired 2026-10-30)' `
+    (-not (Test-Path -LiteralPath $cursorDesktop)) `
+    "stale copy at $cursorDesktop"
 
 $pluginFinish = [Collections.Generic.List[string]]::new()
 foreach ($cacheRoot in @(
@@ -103,9 +103,8 @@ Report 'Claude or Codex plugin cache ships Finish-Media.ps1' ($pluginFinish.Coun
     "checked under ~/.claude and ~/.codex plugins/cache/agenthub/media-studio (any version)"
 
 $finish = Join-Path $repoRoot 'packages\media-studio\scripts\Finish-Media.ps1'
-$capture = Join-Path $repoRoot 'packages\browser-toolkit\scripts\Capture-Screen.ps1'
 Report 'skill-documented Finish-Media.ps1 exists in the package' (Test-Path -LiteralPath $finish) $finish
-Report 'skill-documented Capture-Screen.ps1 exists in the package' (Test-Path -LiteralPath $capture) $capture
+Report 'browser-toolkit package removed (retired 2026-10-30)' (-not (Test-Path (Join-Path $repoRoot 'packages\browser-toolkit'))) 'retired package still present'
 
 $ffmpeg = Get-Command -Name ffmpeg -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($ffmpeg -and (Test-Path -LiteralPath $finish)) {
@@ -145,15 +144,7 @@ if ($ffmpeg -and (Test-Path -LiteralPath $finish)) {
         'ffmpeg or Finish-Media.ps1 missing; live agent invocation could not be proven'
 }
 
-$bt = @($caps.capabilities | Where-Object { [string]$_.id -eq 'browser-toolkit' })[0]
-$cursorMap = @($bt.hostMappings | Where-Object { [string]$_.hostId -eq 'cursor' })[0]
-$qoderMap = @($bt.hostMappings | Where-Object { [string]$_.hostId -eq 'qoder' })[0]
-Report 'cursor browser-toolkit skills deploy as managed-loose-skills' `
-    ($cursorMap -and [string]$cursorMap.deploymentStatus -eq 'managed-loose-skills') `
-    "cursor mapping is '$($cursorMap.deploymentStatus)'; cursor-agent would miss desktop-evidence"
-Report 'qoder browser-toolkit skills deploy as managed-loose-skills' `
-    ($qoderMap -and [string]$qoderMap.deploymentStatus -eq 'managed-loose-skills') `
-    "qoder mapping is '$($qoderMap.deploymentStatus)'"
+Report 'browser-toolkit capability retired from capabilities.json' (@($caps.capabilities | Where-Object { [string]$_.id -eq 'browser-toolkit' }).Count -eq 0) 'retired capability reintroduced'
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed" -ForegroundColor Red

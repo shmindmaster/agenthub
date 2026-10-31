@@ -100,7 +100,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   composition (`kit/src/MarketingAd.tsx`) crops the receipt-bound UI clip with
   a focus-follow camera inside the platform-safe area; audio is mixed and
   loudness-normalized with FFmpeg. Paid ElevenLabs speech, sound effects and
-  music go through the governed adapter (`packages/elevenlabs`:
+  music went through the governed adapter (`packages/elevenlabs`, retired 2026-10-30 at owner direction; Azure AI Speech is the fleet TTS route):
   `governed_audio.py`, `elevenlabs_cli.py sfx|music`); Local-AI forced alignment
   supplies take-bound word timing, while OpenAI supplies stills, the explicit
   `--whisper-timing` fallback, and paid vision QA. `validate-viewer-release.mjs` accepts
@@ -140,7 +140,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   the portable core; `global-agent-policy.md` is the generic public policy, and owner-specific policy lives only in `overlays/personal/global-agent-policy.md`.
   `scripts/AgentHub.ps1 init` scaffolds overlay + profile for strangers.
 
-- **Canonical Slack capability (2026-09-10, bridge launch fixed 2026-09-13):**
+- **Canonical Slack capability (2026-09-10, bridge launch fixed 2026-09-13; RETIRED 2026-10-30 at owner direction -- `packages/slack`, the capability row, the MCP row and every host mapping are removed; Slack work now uses host-native plugins or direct API per task authorization):**
   `packages/slack` 1.0.1 is the AgentHub-owned Slack contract (tools,
   schemas, identity, Web API bridge). Hosts are frontends. MCP is
   plugin-gated / OpenCode opt-in-disabled; not persisted at session start.
@@ -213,7 +213,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   bed. AAC-LC 48 kHz Fast Start. Not an enhancer: no DeepFilterNet,
   Resemble Enhance, or Descript Studio Sound on owner voice.
 
-- **Fleet evidence capture (2026-08-26):** browser-toolkit owns one capture
+- **Fleet evidence capture (2026-08-26; browser-toolkit RETIRED 2026-10-30 at owner direction -- capture lanes now live in each repo's own tooling):** browser-toolkit owned one capture
   contract. Web stills/console/network use the host browser or Playwright MCP;
   **session video and traces use Playwright CLI** (fleet MCP does not pass
   `--caps=devtools`). Native Windows windows and the whole desktop use
@@ -340,32 +340,20 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - `tests/Run-AllTests.ps1` runs all behavior tests and package validators.
 - Sync scripts deploy managed instructions/skills/MCP config to host user
   directories (`Sync-AgentHub.ps1`, `Sync-Capabilities.ps1`, audit by default).
-- **OpenConnector fleet gateway (deployed 2026-09-13):** capability
-  `open-connector` (`packages/open-connector`) runs one self-hosted
-  oomol-lab/open-connector container (v1.5.0 by digest, `127.0.0.1:3400`,
-  SQLite and secrets under `%LOCALAPPDATA%\AgentHub\runtime\open-connector`)
-  and owns the `use-open-connector` loose skill and `tests/Test-OpenConnector.ps1`.
-  The data directory is the state; the container is disposable. After the
-  2026-09-13 20:39 reboot the container and its compose network were absent
-  (the `stop` footprint; the reboot had cleared the Docker event log, so the
-  cause is unattributed) and `start` recreated it with the `brave_search`
-  connection, the `agent-hosts` token, and the encrypted key all intact
-  (`npm.get_package` and `brave_search.web_search` verified live). If a host
-  reports the gateway unreachable, run `status`, then `start`.
-  Persisted as an HTTP MCP entry on codex, cursor, opencode, and grok
-  (`persistedOnDemandLocalMcpIds`, `shared-gateway` exposure); Claude keeps
-  its first-party connectors; products never use it (single-owner runtime).
-  Honest scope: Brave Search (the `brave-search` npx stdio bridge is retired
-  from `mcps.json`; `brave_search` is connected from the `BRAVE_API_KEY`
-  User variable), the 22 built-in no-auth research/dev providers, and
-  long-tail api_key providers without a hosted MCP (PostHog, Sentry,
-  DigitalOcean). GitHub, Linear, Notion, Context7, Exa, Firecrawl, Railway,
-  Descript stay on hosted MCPs, Slack stays AgentHub-owned. Hosts
-  authenticate with the minted, revocable runtime token `agent-hosts` in the
-  User variable `OPEN_CONNECTOR_AGENT_TOKEN`; the bootstrap token is
-  operator-only. Lifecycle is `packages/open-connector/scripts/Invoke-OpenConnector.ps1`
-  (`start|stop|status|probe|connect|disconnect|list-connections|mint-token|list-tokens|revoke-token|smoke|exit-test`).
-  Fit assessment: https://claude.ai/code/artifact/1c336229-6774-4e2b-9a20-139111ae1d22.
+- **OpenConnector fleet gateway: RETIRED 2026-10-30 at owner direction.** The
+  gateway (container on `127.0.0.1:3400`), its `registry/mcps.json` row, its
+  capability row, `packages/open-connector`, the `use-open-connector` skill,
+  `tests/Test-OpenConnector.ps1` and every host shared-gateway exposure were
+  removed after the Docker outage left the endpoint refusing connections and
+  the owner removed it from the fleet. Brave Search is no longer served
+  anywhere in the fleet; reintroduce only through a new registry decision.
+  On 2026-10-31 the owner also retired the `digitalocean`, `elevenlabs`,
+  `browser-toolkit`, `learning-studio` and `slack` capabilities and packages,
+  and directed that AgentHub deploys no custom MCP servers into host configs
+  (plugin-owned MCPs remain allowed): persisted `windows-mcp`,
+  `repowise-workspace`, `slack` and `linkedin` host entries were pruned from
+  OpenCode, Cursor (user and `C:/Repos` workspace) and the retired slack row
+  from every host.
 - **Sync safety (2026-09-13):** `Sync-AgentHub.ps1 -Validate` is read-only;
   only `-Apply` writes host configs. A bare `-Validate` used to imply
   `-Apply` (`Test-SyncAgentHubIdempotency` now guards it). The four tests that
@@ -514,12 +502,12 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `media-studio-compose/references/descript.md`. `story-series-studio` and
   `technical-storytelling` are retired into `references/series.md`,
   `story-craft.md`, `technical-story.md` and `direction.md` (schemas moved to
-  `packages/media-studio/schemas`). `elevenlabs` is one skill with `tts.md`,
+  `packages/media-studio/schemas`). `elevenlabs` was one skill with `tts.md` (package retired 2026-10-30),
   `account-health.md`, `stt.md` (disabled) references. Every retired name is in
   `retiredFleetSkills`; every gate, schema and script kept its owner.
 - **Creative / learning packages (2026-08-21)**: `technical-storytelling`,
   `story-series-studio` (both retired 2026-10-21, see above), and
-  `learning-studio` are registered packages.
+  `learning-studio` were registered packages until retirement on 2026-10-30.
   `startup-series` is now a Receipts-only overlay (`startup-showrunner`,
   `comedy-writer`); generic craft lives in the studio packages. Private show
   bibles stay outside AgentHub.

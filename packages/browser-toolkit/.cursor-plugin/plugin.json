@@ -1,8 +1,0 @@
-{
-  "name": "browser-toolkit",
-  "description": "Interactive visual browser testing with Playwright MCP, CLI, and Test provider catalogs for debugging and evidence capture.",
-  "author": {
-    "name": "Sarosh Hussain"
-  },
-  "version": "2.3.2"
-}

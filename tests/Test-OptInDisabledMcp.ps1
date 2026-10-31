@@ -26,12 +26,13 @@ $persisted = @($conn.lifecyclePolicy.persistedOnDemandLocalMcpIds)
 $optIn = @($conn.lifecyclePolicy.optInDisabledLocalMcpIds)
 $optHosts = @($conn.lifecyclePolicy.optInDisabledHosts)
 
-foreach ($id in @('playwright', 'chrome-devtools', 'linkedin', 'slack', 'appium-mobile')) {
+foreach ($id in @('playwright', 'chrome-devtools', 'linkedin', 'appium-mobile')) {
     Report "'$id' is not session-start persisted" ($id -notin $persisted) "still in persistedOnDemandLocalMcpIds"
 }
-foreach ($id in @('playwright', 'linkedin', 'slack')) {
-    Report "'$id' is opt-in-disabled" ($id -in $optIn) "missing from optInDisabledLocalMcpIds"
+foreach ($id in @('playwright', 'linkedin')) {
+    Report "'$id' is not opt-in-disabled persisted (pattern retired 2026-10-31)" ($id -notin $optIn) "still in optInDisabledLocalMcpIds"
 }
+Report 'opt-in-disabled list is empty (owner direction 2026-10-31: no AgentHub-deployed custom MCP entries)' ($optIn.Count -eq 0) "optInDisabledLocalMcpIds=$($optIn -join ', ')"
 Report 'OpenCode is the opt-in-disabled host' ($optHosts -contains 'opencode') "optInDisabledHosts=$($optHosts -join ',')"
 Report 'Grok is not an opt-in-disabled host' ($optHosts -notcontains 'grok') 'Grok would start stdio MCP from config.toml'
 Report 'Chrome DevTools is retired, absent from live and opt-in registries' (
@@ -47,13 +48,7 @@ if ($li) {
     Report 'linkedin pins mcp-server-linkedin@4.24.0' (($li.args -join ' ') -match 'mcp-server-linkedin@4\.24\.0') ($li.args -join ' ')
 }
 
-$sl = @($mcp.mcpServers | Where-Object id -eq 'slack')[0]
-Report 'slack MCP is registered' ($null -ne $sl) 'missing from mcps.json'
-if ($sl) {
-    Report 'slack is on-demand-local' ($sl.activationMode -eq 'on-demand-local') "activationMode=$($sl.activationMode)"
-    Report 'slack startupEnabled is false' ($sl.startupEnabled -eq $false) "startupEnabled=$($sl.startupEnabled)"
-    Report 'slack MCP launches the AgentHub bridge' (($sl.args -join ' ') -match 'slack-mcp\.mjs') ($sl.args -join ' ')
-}
+Report 'slack is retired, absent from mcps.json' (@($mcp.mcpServers | Where-Object id -eq 'slack').Count -eq 0) 'retired server reintroduced'
 
 # linkedin is a PRIVATE plugin since the public-first split (871b7f3): its
 # package lives in the gitignored personal overlay and it is catalogued by
@@ -67,14 +62,13 @@ if ($overlay.Root) {
 } else {
     Write-Host "SKIP: linkedin plugin manifest checks -- $($overlay.Reason)"
 }
-$slackPluginMcp = Get-Content (Join-Path $repoRoot 'packages\slack\.mcp.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-Report 'slack plugin declares no MCP servers; the registry is the single source' (@($slackPluginMcp.mcpServers.PSObject.Properties).Count -eq 0) 'packages/slack/.mcp.json still declares a server'
+Report 'packages/slack is removed' (-not (Test-Path (Join-Path $repoRoot 'packages\slack'))) 'retired package still present'
 $catalog = Get-Content (Join-Path $repoRoot '.agents\plugins\marketplace.json') -Raw -Encoding UTF8
 Report 'public agenthub marketplace does not leak private linkedin' ($catalog -notmatch '"linkedin"') 'private plugin listed in .agents/plugins/marketplace.json'
-Report 'agenthub marketplace catalogs slack' ($catalog -match '"slack"') 'missing from .agents/plugins/marketplace.json'
+Report 'agenthub marketplace no longer catalogs slack' ($catalog -notmatch '"name": "slack"') 'retired plugin still listed in .agents/plugins/marketplace.json'
 $claudeCat = Get-Content (Join-Path $repoRoot '.claude-plugin\marketplace.json') -Raw -Encoding UTF8
 Report 'public claude marketplace does not leak private linkedin' ($claudeCat -notmatch '"linkedin"') 'private plugin listed in .claude-plugin/marketplace.json'
-Report 'claude marketplace catalogs slack' ($claudeCat -match '"slack"') 'missing from .claude-plugin/marketplace.json'
+Report 'claude marketplace no longer catalogs slack' ($claudeCat -notmatch '"name": "slack"') 'retired plugin still listed in .claude-plugin/marketplace.json'
 
 $sync = Get-Content (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') -Raw -Encoding UTF8
 Report 'sync reads optInDisabledLocalMcpIds' ($sync -match 'optInDisabledLocalMcpIds') 'Sync-AgentHub does not consume the list'
@@ -84,13 +78,8 @@ $oc = Join-Path $HOME '.config\opencode\opencode.json'
 if (Test-Path $oc) {
     $oj = Get-Content $oc -Raw -Encoding UTF8 | ConvertFrom-Json
     Report 'OpenCode has no retired Chrome DevTools entry' ($null -eq $oj.mcp.'chrome-devtools') 'retired entry remains'
-    foreach ($id in @('linkedin')) {
-        $node = $oj.mcp.$id
-        if ($null -eq $node) {
-            Report "OpenCode config lists '$id'" $false 'absent — run Sync-AgentHub -Apply after registry change'
-            continue
-        }
-        Report "OpenCode '$id' is disabled" ($node.enabled -eq $false) "enabled=$($node.enabled)"
+    foreach ($id in @('linkedin', 'slack', 'windows-mcp', 'repowise-workspace')) {
+        Report "OpenCode config carries no '$id' entry (no AgentHub-deployed custom MCP)" ($null -eq $oj.mcp.$id) "stale AgentHub-deployed entry remains"
     }
     # 2026-10-29: playwright is retired fleet-wide, so a host config that still
     # lists it is drift, not a missing opt-in entry.

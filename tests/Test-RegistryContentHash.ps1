@@ -123,7 +123,7 @@ function Test-PowerShellModuleLineEndingsAreStable {
 
 # --- Behavior 4: if git is unavailable, fail loudly instead of returning a wrong hash. ---
 function Test-UnavailableGitFailsLoudly {
-    $packageDir = Join-Path $repoRoot 'packages\digitalocean'
+    $packageDir = Join-Path $repoRoot 'packages\repowise'
     $originalPath = $env:PATH
     try {
         $sep = [IO.Path]::PathSeparator

@@ -197,22 +197,9 @@ try {
 # The real registry must use the token for its one bundled stdio server, and
 # the token must resolve to a file that exists in this checkout.
 $mcps = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\mcps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$slack = @($mcps.mcpServers | Where-Object { $_.id -eq 'slack' })[0]
-if ($slack) {
-    $slackArg = [string](@($slack.args)[0])
-    Report 'registry slack args reference the bridge through {registryRoot}' ($slackArg -match '^\{registryRoot\}/packages/slack/mcp/slack-mcp\.mjs$') "args[0]=$slackArg"
-    $resolved = $slackArg.Replace('{registryRoot}', $repoRoot)
-    Report 'registry slack bridge path resolves to a file in this checkout' (Test-Path -LiteralPath $resolved) "resolved=$resolved"
-} else {
-    Report 'registry has a slack MCP entry' $false 'missing from registry/mcps.json'
-}
+Report 'registry has no slack MCP entry (retired 2026-10-30)' (@($mcps.mcpServers | Where-Object { $_.id -eq 'slack' }).Count -eq 0) 'retired server reintroduced'
+Report 'packages/slack is removed' (-not (Test-Path (Join-Path $repoRoot 'packages\slack'))) 'retired package still present'
 
-# The plugin manifest is loaded by Claude (and Codex, which sets the same
-# variable for compatibility) with no guaranteed cwd, so it must anchor the
-# bundled script the documented way rather than rely on a relative path.
-$pluginManifest = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\slack\.mcp.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$pluginServers = @($pluginManifest.mcpServers.PSObject.Properties).Count
-Report 'slack plugin declares no MCP servers; the registry is the single source' ($pluginServers -eq 0) "packages/slack/.mcp.json declares $pluginServers server(s)"
 
 Write-Host ''
 if ($failures.Count -gt 0) {
