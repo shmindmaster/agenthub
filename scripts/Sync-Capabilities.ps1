@@ -55,6 +55,14 @@ $agentHubRuntimeRoot = Join-AgentHubPlatformPath -Platform (Get-AgentHubPlatform
 $runtimeRoot = Join-Path $agentHubRuntimeRoot 'sync'
 $statePath = Join-Path $runtimeRoot 'managed-skills.json'
 $capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+# Owner direction 2026-10-30: deploy plugins only. Loose skills are not copied
+# into host skill libraries, and -Apply -Prune removes the copies already there,
+# including unmanaged ones. Absent keeps the historical deploy-loose-skills
+# behavior so fixture tests that do not set the flag stay valid.
+$script:deployLooseSkills = $true
+if ($capabilities.PSObject.Properties.Name -contains 'deployLooseSkills') {
+  $script:deployLooseSkills = [System.Convert]::ToBoolean($capabilities.deployLooseSkills)
+}
 $agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 Use-AgentHubPlatformPaths -AgentsDocument $agentsDocument -Platform $requestedPlatform | Out-Null
 $script:skillPathBinding = New-AgentHubPathBindingContext -TargetUserProfile $UserProfile -InvokingUserProfile $realProfile -RegistryUserProfile (Get-AgentHubRecordedUserProfile $agentsDocument) -Platform $requestedPlatform
@@ -350,6 +358,10 @@ foreach ($capability in $capabilities.capabilities) {
       $rows.Add([pscustomobject]@{ capability=$capability.id; host=$agent.id; mode='native-plugin'; status='host-managed' })
       continue
     }
+    if (-not $script:deployLooseSkills) {
+      $rows.Add([pscustomobject]@{ capability=$capability.id; host=$agent.id; mode='loose-skill-suppressed'; status='plugins-only' })
+      continue
+    }
     # A host that declares nativePaths.sharedSkillsDir wants ONE deployment
     # in that shared directory instead of a redundant copy in its own
     # skillsDir. The fleet master is ~/.agents/skills. Hosts that natively
@@ -521,12 +533,56 @@ if ($Apply -and $Prune) {
     # Same stored-format rule as the replace guard above.
     $currentHash = if (Test-LegacyManagedHash $destination) { Get-TreeHashLegacy $destination } else { Get-TreeHash $destination }
     if ($currentHash -ne $prior.managed[$destination].hash) {
-      $failures.Add("refusing to prune modified managed skill: $destination")
-      $refused[$destination] = $true
-      continue
+      if ($script:deployLooseSkills) {
+        $failures.Add("refusing to prune modified managed skill: $destination")
+        $refused[$destination] = $true
+        continue
+      }
+      Write-Host "PLUGINS-ONLY removing modified managed skill: $destination"
     }
     Remove-Item -LiteralPath (Resolve-PhysicalWritePath $destination) -Recurse -Force
     $pruned++
+  }
+}
+
+$pluginsOnlyRemoved = 0
+if (-not $script:deployLooseSkills -and $Apply -and $Prune) {
+  $skillRoots = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+  foreach ($agent in $allAgents) {
+    foreach ($raw in @([string]$agent.nativePaths.skillsDir, [string]$agent.nativePaths.sharedSkillsDir, [string]$agent.nativePaths.cliSkillsDir)) {
+      if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+      $dir = Resolve-UnderUserProfile $raw
+      if ([string]::IsNullOrWhiteSpace($dir)) { continue }
+      [void]$skillRoots.Add(([IO.Path]::GetFullPath($dir)).TrimEnd('\', '/'))
+    }
+  }
+  # Grok also loads its product skill library. It is not an AgentHub skillsDir,
+  # and a later Grok update can restore it.
+  $grokBundledSkills = Join-Path $UserProfile '.grok\bundled\skills'
+  if (Test-Path -LiteralPath $grokBundledSkills -PathType Container) {
+    [void]$skillRoots.Add(([IO.Path]::GetFullPath($grokBundledSkills)).TrimEnd('\', '/'))
+  }
+  $retiredRoot = Join-Path $UserProfile '.agents\retired-skills-plugins-only-2026-10-30'
+  New-Item -ItemType Directory -Path $retiredRoot -Force | Out-Null
+  $removedPhysical = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+  foreach ($dir in $skillRoots) {
+    if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
+    foreach ($child in @(Get-ChildItem -LiteralPath $dir -Force)) {
+      if (Test-ReparsePoint $child.FullName) {
+        Write-Host "PLUGINS-ONLY left reparse point in place: $($child.FullName)"
+        continue
+      }
+      $physical = (Resolve-PhysicalWritePath $child.FullName).TrimEnd('\', '/')
+      if (-not $removedPhysical.Add($physical)) { continue }
+      if (-not (Test-Path -LiteralPath $child.FullName)) { continue }
+      $target = Join-Path $retiredRoot $child.Name
+      if (Test-Path -LiteralPath $target) {
+        $target = Join-Path $retiredRoot ($child.Name + '-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
+      }
+      Move-Item -LiteralPath $child.FullName -Destination $target
+      $pluginsOnlyRemoved++
+      Write-Host "PLUGINS-ONLY moved skill: $($child.FullName) -> $target"
+    }
   }
 }
 
@@ -798,4 +854,4 @@ if ($rows.Count -eq 0 -and $pruned -eq 0) {
 }
 
 $counts = $rows | Group-Object status | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Count)" }
-Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; retired-pruned=$retiredPruned; cli-shadow-pruned=$cliShadowPruned; yaml-repaired=$yamlRepaired; yaml-needs-repair=$yamlNeedsRepair; skill-override-hosts-changed=$overridesChanged; apply=$Apply."
+Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; plugins-only-removed=$pluginsOnlyRemoved; retired-pruned=$retiredPruned; cli-shadow-pruned=$cliShadowPruned; yaml-repaired=$yamlRepaired; yaml-needs-repair=$yamlNeedsRepair; skill-override-hosts-changed=$overridesChanged; apply=$Apply."

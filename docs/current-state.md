@@ -1,5 +1,13 @@
 # Current State
 
+- **Plugins only (2026-10-30):** `registry/capabilities.json` sets
+  `deployLooseSkills` to false. Sync no longer copies loose skills into host
+  skill libraries. `Sync-Capabilities.ps1 -Apply -Prune` removes managed and
+  unmanaged skill folders from every registered skills directory, and from
+  Grok's bundled skill library. Native plugins stay host-managed. Skill files
+  inside `packages/*/skills` stay in the repo because they are the plugin
+  payload. A Grok product update can restore `~/.grok/bundled/skills`.
+
 - **Local AI retired (2026-10-29):** owner direction turned local AI off: no
   local models, embedders, rerankers or TTS/STT servers. The private `local-ai`
   capability (`local-ai-stack`, `gpu-cluster-inference`) is unregistered and both

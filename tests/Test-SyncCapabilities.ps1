@@ -936,6 +936,53 @@ function Test-CopyVerificationRejectsBadCopies {
     }
 }
 
+function Test-PluginsOnlyRemovesLooseSkills {
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-plugins-only-cap' -HostId 'zz-plugins-only-host' -SkillName 'sample-skill' -SkillContent 'canonical content v1'
+    $pluginFile = $null
+    try {
+        $first = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($first.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "first -Apply exit code was $($first.ExitCode). Output: $($first.Output)" }
+        }
+        $unmanaged = Join-Path $fixture.SkillsDir 'unmanaged-skill'
+        New-Item -ItemType Directory -Path $unmanaged -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $unmanaged 'SKILL.md'), 'third-party skill', [Text.UTF8Encoding]::new($false))
+        $pluginDir = Join-Path (Split-Path -Parent $fixture.SkillsDir) 'plugins\sample-plugin'
+        New-Item -ItemType Directory -Path $pluginDir -Force | Out-Null
+        $pluginFile = Join-Path $pluginDir 'plugin.json'
+        [IO.File]::WriteAllText($pluginFile, '{"name":"sample-plugin"}', [Text.UTF8Encoding]::new($false))
+
+        $capsPath = Join-Path $fixture.RegistryDir 'capabilities.json'
+        $doc = Get-Content -LiteralPath $capsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $doc | Add-Member -NotePropertyName deployLooseSkills -NotePropertyValue $false -Force
+        [IO.File]::WriteAllText($capsPath, (($doc | ConvertTo-Json -Depth 10) + "`r`n"), [Text.UTF8Encoding]::new($false))
+
+        $second = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-Prune', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($second.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "plugins-only -Apply -Prune exit code was $($second.ExitCode). Output: $($second.Output)" }
+        }
+        if (Test-Path -LiteralPath $fixture.Destination) {
+            return @{ Passed = $false; Detail = 'managed loose skill was still present' }
+        }
+        if (Test-Path -LiteralPath $unmanaged) {
+            return @{ Passed = $false; Detail = 'unmanaged loose skill was still present' }
+        }
+        if (-not (Test-Path -LiteralPath $pluginFile)) {
+            return @{ Passed = $false; Detail = 'plugin file next to the skill library was removed' }
+        }
+        if ($second.Output -notmatch 'plugins-only-removed=') {
+            return @{ Passed = $false; Detail = "expected plugins-only-removed in the summary. Output: $($second.Output)" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $fixture
+        if ($pluginFile) { Remove-Item -LiteralPath (Split-Path -Parent (Split-Path -Parent $pluginFile)) -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+$rPluginsOnly = Test-PluginsOnlyRemovesLooseSkills
+Report 'plugins-only mode removes managed and unmanaged loose skills and leaves a sibling plugin' $rPluginsOnly.Passed $rPluginsOnly.Detail
+
 $rJunction = Test-JunctionRuntimeWritesKeepLogicalLedger
 Report 'junction runtime writes preserve canonical ledger keys and converge' $rJunction.Passed $rJunction.Detail
 $rBadCopy = Test-CopyVerificationRejectsBadCopies
