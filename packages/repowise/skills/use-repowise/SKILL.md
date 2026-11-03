@@ -109,3 +109,11 @@ No automatic post-commit refresh. No unbounded update, `--full`, docs generation
 - [ ] Receipt acceptance and real retrieval quality reported separately.
 
 Existing index required. Hybrid search/reindex uses local OpenAI-compatible embeddings. Never send repository queries or a remote credential to a hosted endpoint.
+
+## Codex startup index check
+
+`scripts/codex_session_context.py` is a standalone Codex-native `SessionStart` hook, independent of plugin/MCP activation. It reads only the nearest repository's local state and bounded Git metadata; at the workspace root it checks index-file availability without scanning members. It compares the recorded index commit with HEAD and reports tracked dirtiness, explicitly leaving index availability/coverage and untracked files unverified. Git runs with filesystem monitoring disabled, optional locks disabled and strict timeouts. It emits at most 600 characters and remains quiet for unindexed paths or invalid/unavailable input.
+
+Register it for `startup|resume|clear|compact|fork` in native Codex hooks configuration using an absolute Python/script path, a 5-second timeout and `additionalContextLimit: 600`. It never imports RepoWise, starts a server, runs a search/model, migrates editor settings or refreshes an index. Do not restore the upstream per-tool augment/rewrite hooks. Refresh remains a separate bounded capability invocation.
+
+Offline validation: `python -B -m unittest discover -s packages/repowise/tests -p test_codex_session_context.py`.
