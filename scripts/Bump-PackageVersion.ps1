@@ -6,7 +6,8 @@
 .DESCRIPTION
   AgentHub treats packages/<id>/plugin.json as the portable Agent Plugins floor
   and the version authority. Host projections (.claude-plugin, .codex-plugin,
-  .cursor-plugin, .qoder-plugin) must carry the same version string.
+  .cursor-plugin, .qoder-plugin, .antigravity-plugin, gemini-extension.json) must
+  carry the same version string.
 
   This script updates those manifests together. It does not recompute
   contentHash or edit registry/capabilities.json — run RegistryContentHash.ps1
@@ -35,7 +36,8 @@ if ($Version -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
     throw "Version '$Version' is not a simple semver-like string (expected N.N.N)."
 }
 
-$hostDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin', '.qoder-plugin')
+$hostDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin', '.qoder-plugin', '.antigravity-plugin')
+$hostManifests = @($hostDirs | ForEach-Object { "$_/plugin.json" }) + 'gemini-extension.json'
 $schema = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 $rootManifestPath = Join-Path $packageRoot 'plugin.json'
 
@@ -86,14 +88,14 @@ Write-JsonFile -Path $rootManifestPath -Object ([pscustomobject]$portable)
 Write-Host "updated $Package/plugin.json -> $Version"
 
 $updated = @('plugin.json')
-foreach ($hostDir in $hostDirs) {
-    $hostPath = Join-Path $packageRoot "$hostDir/plugin.json"
+foreach ($hostManifest in $hostManifests) {
+    $hostPath = Join-Path $packageRoot $hostManifest
     if (-not (Test-Path -LiteralPath $hostPath)) { continue }
     $hostObj = Read-JsonFile -Path $hostPath
     $hostObj | Add-Member -NotePropertyName version -NotePropertyValue $Version -Force
     Write-JsonFile -Path $hostPath -Object $hostObj
-    $updated += "$hostDir/plugin.json"
-    Write-Host "updated $Package/$hostDir/plugin.json -> $Version"
+    $updated += $hostManifest
+    Write-Host "updated $Package/$hostManifest -> $Version"
 }
 
 # A deployable kit (media-studio) carries the release version in more files than the plugin manifests, and the package
