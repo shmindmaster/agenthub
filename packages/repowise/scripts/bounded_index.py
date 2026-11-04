@@ -3,7 +3,7 @@
 By default it refreshes facts only (symbols, graph, git history). Rendering and
 embedding wiki pages took 81% of a measured delta (119 of 147 s on agenthub) and
 is the only step that sends code to the embedder, so it is opt-in. A normal repo
-peaks under 1.1 GB; the largest (abacare) reaches 3 GiB on its first run after a
+peaks under 1.1 GB; the largest (abacare) reaches 3.3 GiB on its first run after a
 RepoWise upgrade, which sets the 4 GiB default below.
 """
 from __future__ import annotations
