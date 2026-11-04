@@ -505,6 +505,87 @@ class LedgerTests(unittest.TestCase):
                     recovery_epoch_ledger(manifest, 'fixture', text, changed['model_id'], request=changed)
             secure.assert_not_called()
 
+    def project_v4_fixture(self):
+        text, request, proof, inventory, policy, manifest = self.project_v2_fixture()
+        request['model_id'] = request['payload']['model_id'] = 'eleven_v4'
+        policy['model_id'] = 'eleven_v4'
+        policy['allowed_requests'][0]['request_sha256'] = request_key(request)
+        manifest.write_text(json.dumps(policy))
+        return text, request, proof, inventory, policy, manifest
+
+    def test_project_v2_new_job_runs_the_v4_model_its_manifest_pins(self):
+        text, request, _, _, _, manifest = self.project_v4_fixture()
+        with self.project_v2_environment():
+            ledger = recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4', request=request)
+            self.assertEqual(ledger.recovery_epoch, 'elevenlabs-project-v2-fixture')
+            self.assertEqual((ledger.root / 'authorization.json').read_bytes(), manifest.read_bytes())
+
+    def test_project_v2_v4_pin_refuses_other_models_and_payload_drift(self):
+        text, request, _, _, policy, manifest = self.project_v4_fixture()
+        drifted = json.loads(json.dumps(request))
+        drifted['payload']['model_id'] = 'eleven_multilingual_v2'
+        policy['allowed_requests'][0]['request_sha256'] = request_key(drifted)
+        drifted_manifest = self.root / 'drifted.json'
+        drifted_manifest.write_text(json.dumps(policy))
+        with patch('content_runtime.secure_directory') as secure:
+            for model in ('eleven_multilingual_v2', 'eleven_v4_turbo', 'eleven_flash_v2_5'):
+                with self.subTest(model=model), self.assertRaises(RuntimeError):
+                    recovery_epoch_ledger(manifest, 'fixture', text, model, request={**request, 'model_id': model})
+            with self.assertRaisesRegex(RuntimeError, 'pinned speech request'):
+                recovery_epoch_ledger(drifted_manifest, 'fixture', text, 'eleven_v4', request=drifted)
+            secure.assert_not_called()
+
+    def test_project_v2_refuses_every_manifest_model_outside_the_pair(self):
+        text, request, _, _, policy, manifest = self.project_v2_fixture()
+        with patch('content_runtime.secure_directory') as secure:
+            for model in ('eleven_v4_turbo', 'eleven_v3', 'eleven_flash_v2_5', '', None, ['eleven_v4']):
+                with self.subTest(model=model):
+                    manifest.write_text(json.dumps({**policy, 'model_id': model}))
+                    with self.assertRaises(RuntimeError):
+                        recovery_epoch_ledger(manifest, 'fixture', text, model or '', request=request)
+            secure.assert_not_called()
+
+    def test_project_v2_pinned_model_cannot_change_after_first_use(self):
+        text, request, _, _, policy, manifest = self.project_v4_fixture()
+        with self.project_v2_environment():
+            recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4', request=request)
+            policy['model_id'] = request['model_id'] = request['payload']['model_id'] = 'eleven_multilingual_v2'
+            policy['allowed_requests'][0]['request_sha256'] = request_key(request)
+            manifest.write_text(json.dumps(policy))
+            with self.assertRaisesRegex(RuntimeError, 'immutable'):
+                recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_multilingual_v2', request=request)
+
+    def test_project_v2_v4_manifest_refuses_a_missing_request_cleanly(self):
+        text, _, _, _, _, manifest = self.project_v4_fixture()
+        with self.assertRaisesRegex(RuntimeError, 'pinned speech request'):
+            recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4')
+
+    def test_correction_of_a_v4_job_stays_on_v4(self):
+        text, request, _, _, _, manifest = self.project_v4_fixture()
+        corrected = json.loads(json.dumps(request))
+        corrected['payload']['text'] = 'The corrected financial explanation.'
+        entry = dict(text_sha256=hashlib.sha256(corrected['payload']['text'].encode()).hexdigest(),
+                     request_sha256=request_key(corrected))
+        amendment = dict(kind='elevenlabs-project-delivery-correction-v1',
+                         parent_authorization=dict(path=str(manifest), sha256=hashlib.sha256(manifest.read_bytes()).hexdigest()),
+                         owner_authorization='Approve 4,200 existing credits',
+                         purpose='owner-requested-delivery-correction', amendment_id='correction-one',
+                         model_id='eleven_v4', allowed_requests=[entry])
+        path = self.root / 'correction.json'
+        path.write_text(json.dumps(amendment))
+        downgraded = json.loads(json.dumps(corrected))
+        downgraded['model_id'] = downgraded['payload']['model_id'] = 'eleven_multilingual_v2'
+        off_model = {**amendment, 'amendment_id': 'correction-two', 'model_id': 'eleven_multilingual_v2',
+                     'allowed_requests': [dict(text_sha256=entry['text_sha256'], request_sha256=request_key(downgraded))]}
+        off_path = self.root / 'correction-two.json'
+        off_path.write_text(json.dumps(off_model))
+        with self.project_v2_environment():
+            recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4', request=request)
+            with self.assertRaisesRegex(RuntimeError, 'pinned speech request'):
+                recovery_epoch_ledger(off_path, 'fixture', downgraded['payload']['text'], 'eleven_multilingual_v2', request=downgraded)
+            ledger = recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], 'eleven_v4', request=corrected)
+            self.assertEqual(ledger.recovery_epoch, 'elevenlabs-project-v2-fixture')
+
     def test_project_v2_fences_historical_ambiguous_and_tampered_proof(self):
         text, request, proof, inventory, policy, manifest = self.project_v2_fixture()
         original_proof = json.dumps(proof)

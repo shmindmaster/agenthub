@@ -155,7 +155,9 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
     project = project_v2 or policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v1"
     project_limit = 4200 if project_v2 else 12000
     project_approval = "Approve 4,200 existing credits" if project_v2 else "Authorize 12,000 existing credits"
-    selected_model = "eleven_multilingual_v2" if project_v2 else "eleven_flash_v2_5"
+    # A new project v2 job pins one of these in its immutable manifest; anything else stays refused below.
+    selected_model = ("eleven_v4" if project_v2 and policy.get("model_id") == "eleven_v4"
+                      else "eleven_multilingual_v2" if project_v2 else "eleven_flash_v2_5")
     if project:
         # A separate, explicitly approved project authorization never raises the
         # generic recovery ceiling or rewrites an existing epoch's authority.
@@ -165,6 +167,8 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
                 or not epoch.startswith("elevenlabs-project-")
                 or policy.get("additional_batch_id") is not None
                 or not isinstance(request, dict)
+                or (selected_model == "eleven_v4"
+                    and request.get("payload", {}).get("model_id") != selected_model)
                 or request.get("voice_id") != policy.get("voice_id")
                 or not policy.get("voice_id")
                 or request.get("output_format") != policy.get("output_format")
