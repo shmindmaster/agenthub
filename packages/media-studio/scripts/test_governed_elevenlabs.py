@@ -3,6 +3,8 @@ import hashlib
 import json
 import os
 import pathlib
+import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -119,6 +121,105 @@ class Reconcile(EpochCase):
         self.assertEqual(self.reconcile(row), 2)
         self.assertIn("mismatch", self.err)
         self.history_calls.assert_not_called()
+
+
+class OneRequestOnePurchase(EpochCase):
+    """A request hash buys once: another epoch or another key is no fresh right to buy it."""
+
+    def other_epoch(self):
+        return self.authorize(name="second.json", epoch_id="elevenlabs-project-second")
+
+    def assert_no_second_purchase(self, manifest):
+        before = self.committed()
+        with self.paid() as post:
+            self.assertEqual(self.speak("b.mp3", manifest=manifest), 2)
+        post.assert_not_called()
+        self.assertEqual(self.committed(), before)
+        self.assertFalse((self.root / "b.mp3").exists())
+
+    def test_a_new_epoch_refuses_a_fenced_request(self):
+        self.purchase_lost_after_receipt()
+        self.assert_no_second_purchase(self.other_epoch())
+        self.assertIn("elevenlabs-project-fixture", self.err)
+        self.assertFalse((self.epochs / "elevenlabs-project-second").exists())
+
+    def test_a_new_epoch_refuses_a_purchased_request(self):
+        self.purchase_complete()
+        self.assert_no_second_purchase(self.other_epoch())
+
+    def test_a_new_epoch_may_buy_a_request_no_epoch_has_seen(self):
+        self.purchase_complete()
+        fresh = self.authorize(texts=("A different fixture line.",), name="second.json", epoch_id="elevenlabs-project-second")
+        with self.paid() as post:
+            self.assertEqual(self.speak("b.mp3", manifest=fresh, text="A different fixture line."), 0, self.err)
+        self.assertEqual(post.call_count, 1)
+
+    def test_the_own_epoch_is_not_a_conflict(self):
+        self.purchase_complete()
+        with self.paid() as post:
+            self.assertEqual(self.speak("again.mp3"), 0, self.err)
+        post.assert_not_called()
+
+    def test_unreadable_accounting_elsewhere_refuses_before_any_state(self):
+        for label, breakage in (("no ledger", lambda folder: None),
+                                ("not a database", lambda folder: (folder / "ledger.sqlite3").write_bytes(b"not sqlite" * 100)),
+                                ("no requests table", lambda folder: sqlite3.connect(folder / "ledger.sqlite3").close())):
+            with self.subTest(label):
+                folder = self.epochs / "elevenlabs-project-damaged"
+                folder.mkdir()
+                self.addCleanup(shutil.rmtree, folder, True)
+                breakage(folder)
+                self.manifest = self.authorize()
+                with self.paid() as post:
+                    self.assertEqual(self.speak(), 2)
+                self.assertIn("elevenlabs-project-damaged", self.err)
+                post.assert_not_called()
+                self.assertFalse((self.epochs / EPOCH).exists())
+                shutil.rmtree(folder)
+
+    def test_a_linked_epoch_elsewhere_refuses(self):
+        content_runtime.Ledger(self.epochs / "elevenlabs-project-linked")
+        self.manifest = self.authorize()
+        real = content_runtime.linked_path
+        with self.paid() as post, patch.object(content_runtime, "linked_path",
+                                               side_effect=lambda path: path.name == "elevenlabs-project-linked" or real(path)):
+            self.assertEqual(self.speak(), 2)
+        self.assertIn("elevenlabs-project-linked", self.err)
+        post.assert_not_called()
+
+    def test_a_stray_file_beside_the_epochs_is_not_an_epoch(self):
+        (self.epochs / "notes.txt").write_text("synthetic")
+        self.manifest = self.authorize()
+        with self.paid() as post:
+            self.assertEqual(self.speak(), 0, self.err)
+        self.assertEqual(post.call_count, 1)
+
+    def test_the_posix_root_may_not_exist_yet(self):
+        self.manifest = self.authorize()
+        with self.paid() as post, patch.object(content_runtime, "stable_epoch_parent", return_value=self.root / "not-yet"), \
+                patch.object(content_runtime, "secure_directory", side_effect=lambda path: path.mkdir(parents=True, exist_ok=True)):
+            self.assertEqual(self.speak(), 0, self.err)
+        self.assertEqual(post.call_count, 1)
+
+    def test_a_rotated_key_refuses_a_fenced_request(self):
+        self.purchase_lost_after_receipt()
+        with patch.dict(os.environ, {"ELEVENLABS_API_KEY": "rotated-synthetic-credential"}):
+            self.assert_no_second_purchase(self.manifest)
+        self.assertIn("rotation", self.err)
+
+    def test_a_rotated_key_refuses_a_purchased_request(self):
+        self.purchase_complete()
+        with patch.dict(os.environ, {"ELEVENLABS_API_KEY": "rotated-synthetic-credential"}):
+            self.assert_no_second_purchase(self.manifest)
+
+    def test_a_rotated_key_may_buy_a_new_request_in_the_same_epoch(self):
+        lines = (TEXT, "A second fixture line.")
+        self.manifest = self.authorize(texts=lines)
+        with self.paid():
+            self.assertEqual(self.speak(), 0, self.err)
+        with patch.dict(os.environ, {"ELEVENLABS_API_KEY": "rotated-synthetic-credential"}), self.paid() as post:
+            self.assertEqual(self.speak("b.mp3", text=lines[1]), 0, self.err)
+        self.assertEqual(post.call_count, 1)
 
 
 class Accept(EpochCase):

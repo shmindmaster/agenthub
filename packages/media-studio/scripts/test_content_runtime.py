@@ -519,6 +519,16 @@ class LedgerTests(unittest.TestCase):
             self.assertEqual(ledger.recovery_epoch, 'elevenlabs-project-v2-fixture')
             self.assertEqual((ledger.root / 'authorization.json').read_bytes(), manifest.read_bytes())
 
+    def test_claim_can_fence_a_request_across_every_namespace(self):
+        ledger = Ledger(self.root / 'fenced')
+        ledger.configure('b', 10)
+        first = ledger.claim('key-a', 'request', 'b', 1, fence_other_namespaces=True)
+        self.assertEqual(first['state'], 'leader')
+        self.assertEqual(ledger.claim('key-b', 'other-request', 'b', 1, fence_other_namespaces=True)['state'], 'leader')
+        with self.assertRaisesRegex(RuntimeError, 'rotation'):
+            ledger.claim('key-b', 'request', 'b', 1, fence_other_namespaces=True)
+        self.assertEqual(ledger.claim('key-b', 'request', 'b', 1)['state'], 'leader', 'other adapters keep per-namespace claims')
+
     def test_project_ledger_takes_checked_bytes_and_refuses_every_other_kind(self):
         text, request, _, _, policy, manifest = self.project_v4_fixture()
         checked = manifest.read_bytes()

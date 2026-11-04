@@ -228,7 +228,8 @@ class VoiceAllowlist(OfflineCase):
         self.assert_refused(self.correction(parent), "exact voice")
         same = self.authorize(name="same.json")
         correction = self.correction(same)
-        self.assertEqual(governed.authorized_policy(correction, VOICE, WORKSPACE, "eleven_v4"), correction.read_bytes())
+        checked, policy = governed.authorized_policy(correction, VOICE, WORKSPACE, "eleven_v4")
+        self.assertEqual((checked, policy["voice_id"]), (correction.read_bytes(), VOICE))
 
     def test_a_correction_whose_parent_changed_refuses(self):
         parent = self.authorize()
@@ -674,9 +675,10 @@ class PaidSpeech(PaidFixture):
                                ("json", (200, "application/json", b"{}", {"request-id": "fixture-request"})),
                                ("unbound", (200, "audio/mpeg", b"synthetic audio", {}))):
             with self.subTest(response=name):
-                self.manifest = self.authorize(name=name + ".json", workspace=name, voice=VOICE, epoch_id=f"{EPOCH}-{name}")
+                line = f"A synthetic {name} fixture line."
+                self.manifest = self.authorize(texts=(line,), name=name + ".json", workspace=name, voice=VOICE, epoch_id=f"{EPOCH}-{name}")
                 with patch.object(cli, "_request_full", return_value=response) as post:
-                    self.assertEqual(self.speak(name + ".mp3", workspace=name), 2)
+                    self.assertEqual(self.speak(name + ".mp3", workspace=name, text=line), 2)
                 self.assertEqual(post.call_count, 1)
                 self.assertFalse((self.root / (name + ".mp3")).exists())
 

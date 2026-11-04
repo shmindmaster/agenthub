@@ -603,7 +603,7 @@ class Ledger:
                         (bucket, ceiling))
 
     def claim(self, namespace: str, key: str, bucket: str, maximum: int,
-              lease_seconds: float = 600, required_gates=VOICE_GATES) -> dict:
+              lease_seconds: float = 600, required_gates=VOICE_GATES, fence_other_namespaces=False) -> dict:
         integer(maximum)
         if not namespace or not key or not 0 < lease_seconds <= 3600 or not required_gates:
             raise ValueError("Request identity, finite lease and required gates needed")
@@ -629,6 +629,10 @@ class Ledger:
                     result["state"] = "wait"
                 result.pop("token", None)
                 return result
+            if fence_other_namespaces and con.execute("SELECT 1 FROM requests WHERE key=? AND namespace<>? LIMIT 1",
+                                                      (key, namespace)).fetchone():
+                raise RuntimeError(f"Request already exists under another credential (cache_key {key}); "
+                                   "a key rotation grants no second purchase. No repeat purchase allowed.")
             budget = con.execute("SELECT ceiling FROM budgets WHERE bucket=?", (bucket,)).fetchone()
             if not budget:
                 raise RuntimeError("Shared budget unset; paid generation disabled")

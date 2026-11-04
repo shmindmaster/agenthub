@@ -45,7 +45,7 @@ def _manifest_bytes(path, refusal):
 def authorized_policy(manifest, voice_id, workspace, model_id):
     """The one gate for every voice: the manifest must name this exact voice, workspace and model.
 
-    project_v2_ledger still applies its own checks, to the checked bytes this returns. This gate refuses the
+    project_v2_ledger still applies its own checks, to the checked bytes returned here. This gate refuses the
     epoch kinds that pin no voice, and it refuses before a dry run reaches the provider or a paid run creates
     any accounting.
     """
@@ -67,13 +67,35 @@ def authorized_policy(manifest, voice_id, workspace, model_id):
         raise RuntimeError("Owner authorization does not name this exact voice and job workspace")
     if (pinned_model or policy.get("model_id")) != model_id:
         raise RuntimeError("Owner authorization pins a different model")
-    return checked
+    return checked, policy
 
 
-def generate(cli, args, checked, voice_id, model_id, output_format, payload):
+def refuse_bought_elsewhere(key, own_epoch):
+    """A request hash buys once under the stable root. Accounting that cannot be read refuses the purchase."""
+    parent = runtime.stable_epoch_parent()
+    if not parent.exists():  # A POSIX account's first epoch; Windows has already refused a missing root.
+        return
+    for root in sorted(parent.iterdir()):
+        database = root / "ledger.sqlite3"
+        if root.name == own_epoch or not (root.is_dir() or runtime.linked_path(root)):
+            continue
+        try:
+            if runtime.linked_path(root) or runtime.linked_path(database):
+                raise OSError("linked accounting")
+            with contextlib.closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as con:
+                found = con.execute("SELECT 1 FROM requests WHERE key=? LIMIT 1", (key,)).fetchone()
+        except (OSError, sqlite3.Error):
+            raise RuntimeError(f"Cannot read epoch {root.name} accounting; no purchase until it is intact") from None
+        if found:
+            raise RuntimeError(f"Request already exists in epoch {root.name} (cache_key {key}). No repeat purchase allowed.")
+
+
+def generate(cli, args, authorized, voice_id, model_id, output_format, payload):
     """Return (raw bytes, receipt). Spend happens only inside the manifest's own epoch ledger: the default
     ledger is never opened here, so a ceiling configured there authorizes nothing."""
     request = speech_request(args, voice_id, model_id, output_format, payload)
+    checked, policy = authorized
+    refuse_bought_elsewhere(runtime.request_key(request), policy.get("epoch_id"))
     ledger = runtime.project_v2_ledger(checked, args.cache_workspace, args.text, model_id, request)
     with ledger.session() as ledger:
         return _generate(ledger, cli, args, voice_id, model_id, output_format, payload, request)
@@ -86,7 +108,7 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, req
     deadline = time.monotonic() + 610
     reused = True
     while True:
-        row = ledger.claim(namespace, key, BUCKET, maximum)
+        row = ledger.claim(namespace, key, BUCKET, maximum, fence_other_namespaces=True)
         if row["state"] == "leader":
             try:
                 # A replacement of a never-submitted lease inherits its original
