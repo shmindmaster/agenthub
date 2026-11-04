@@ -24,11 +24,11 @@ Azure first, cheapest option that passes QA. Escalate only the item that failed.
 | Chat, script review | Anthropic Haiku for bulk | `gpt-6-luna` on grounded input, then `gpt-6.1-sol` |
 | Hero video | Approved shots only | Remotion or Recast composition |
 
-Paid speech runs only through a governed adapter. A connector, SDK sample or raw REST call is ungoverned, even for one line. ElevenLabs is blocked until a governed adapter returns. Higgsfield and Runway credits are frozen until the owner approves. Local AI is off. Never use `AZURE_OPENAI_*` or Pendoah endpoints.
+Paid speech runs only through a governed adapter. A connector, SDK sample or raw REST call is ungoverned, even for one line. ElevenLabs speech runs only for an owner-authorized job, through `scripts/elevenlabs_cli.py` and an immutable manifest naming the exact voice and job workspace (`references/content-controls.md`); without one it stays blocked. ElevenLabs sound effects, music and STT stay disabled. Higgsfield and Runway credits are frozen until the owner approves. Local AI is off. Never use `AZURE_OPENAI_*` or Pendoah endpoints.
 
 ## Voice
 
-Cast one distinct, expressive voice per character from `references/azure.md`, and honour each beat's `direction.register` with a style the voice supports. No Sarosh voice clone. Run this loop for every line:
+Cast one distinct, expressive voice per character from `references/azure.md`, and honour each beat's `direction.register` with a style the voice supports. No Sarosh voice clone: the adapter's owner manifest is the only exception, and it exists per job, never by default. Run this loop for every line:
 
 ```text
 - [ ] Quote, then synthesize through the governed adapter
@@ -43,7 +43,7 @@ Speaker similarity is advisory. Do not fail, block or re-voice on it, however lo
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '2.1.1') { throw 'Speech tools are stale. Deploy the 2.1.0 package first.' }
+if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '2.1.2') { throw 'Speech tools are stale. Deploy the 2.1.0 package first.' }
 pwsh -NoProfile -File "$tools/Test-SpeechIntegrity.ps1" -Path <take.wav> -Text '<locked line>' -JsonOut qa/integrity/<id>.json
 ```
 

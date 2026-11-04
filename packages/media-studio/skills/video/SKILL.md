@@ -28,7 +28,7 @@ A short ask is enough. Infer kind, `programForm`, audience, voice and delivery, 
 - Screencasts are real captured WebM plus Recast. Never Ken Burns, auto-cards or animated screenshots, even when a clip is missing.
 - Captions are a sidecar `.srt` only, never embedded or burned in.
 - Never invent metrics, customers or product behaviour. Never ship an addendum clip; re-record the section and re-cut the master.
-- Higgsfield and Runway credits are frozen until the owner approves a spend. ElevenLabs is blocked until a governed adapter returns. Generative video is for approved hero shots only.
+- Higgsfield and Runway credits are frozen until the owner approves a spend. ElevenLabs speech is owner-authorized per job through `generate`; ElevenLabs sound effects and music stay disabled. Generative video is for approved hero shots only.
 
 ## Pipeline
 

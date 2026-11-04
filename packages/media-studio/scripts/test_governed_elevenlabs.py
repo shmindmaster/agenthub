@@ -5,7 +5,6 @@ import os
 import pathlib
 import subprocess
 import sys
-import tempfile
 import time
 import unittest
 from unittest.mock import patch
@@ -15,7 +14,6 @@ import test_elevenlabs_cli as fixtures
 import content_control
 import content_runtime
 import elevenlabs_cli as cli
-import governed_elevenlabs as governed
 
 RAW = AUDIO[2]
 HISTORY = "fixture-history"
@@ -230,6 +228,5 @@ class Processes(EpochCase):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "worker":
-        tempfile.tempdir = os.path.realpath(tempfile.gettempdir())
         raise SystemExit(worker(sys.argv[2], sys.argv[3], sys.argv[4]))
     unittest.main()

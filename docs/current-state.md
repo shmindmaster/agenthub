@@ -87,9 +87,13 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   hash, per-run and cumulative budgets). The `MarketingAd` Remotion
   composition (`kit/src/MarketingAd.tsx`) crops the receipt-bound UI clip with
   a focus-follow camera inside the platform-safe area; audio is mixed and
-  loudness-normalized with FFmpeg. Paid ElevenLabs speech, sound effects and
-  music went through the governed adapter (`packages/elevenlabs`, retired 2026-10-30 at owner direction; Azure AI Speech is the fleet TTS route):
-  `governed_audio.py`, `elevenlabs_cli.py sfx|music`); Local-AI forced alignment
+  loudness-normalized with FFmpeg. Azure AI Speech is the fleet TTS route.
+  ElevenLabs speech returned in media-studio 2.1.2 (2026-11-04) as
+  `packages/media-studio/scripts/elevenlabs_cli.py`, owner-authorized jobs only:
+  an immutable project manifest must name the exact voice and job workspace,
+  or it refuses before any network call. ElevenLabs sound effects and music
+  left with `packages/elevenlabs` (retired 2026-10-30 at owner direction) and
+  stay disabled. Local-AI forced alignment
   supplies take-bound word timing, while OpenAI supplies stills, the explicit
   `--whisper-timing` fallback, and paid vision QA. `validate-viewer-release.mjs` accepts
   the mvg picture report for `generator: media-studio/mvg` jobs and a per-job
@@ -332,7 +336,9 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   deploys no custom MCP servers into host configs; plugin-owned MCPs remain
   allowed. On 2026-10-30/31 the owner retired six capabilities and their
   packages (`digitalocean`, `elevenlabs`, `browser-toolkit`,
-  `learning-studio`, `slack`, and one loopback SaaS gateway), and persisted
+  `learning-studio`, `slack`, and one loopback SaaS gateway; ElevenLabs speech
+  alone returned on 2026-11-04 inside `media-studio`, with no package, plugin,
+  skill or MCP server), and persisted
   `repowise-workspace`, `slack` and `linkedin` host entries
   were pruned from OpenCode, Cursor (user and `C:/Repos` workspace). Brave
   Search is no longer served anywhere in the fleet; reintroduce only through a
