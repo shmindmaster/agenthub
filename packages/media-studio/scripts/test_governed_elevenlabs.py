@@ -168,6 +168,52 @@ class OneRequestOnePurchase(EpochCase):
             self.assertEqual(self.speak("b.mp3", manifest=fresh, text="A different fixture line."), 0, self.err)
         self.assertEqual(post.call_count, 1)
 
+    def old_root_holding_the_first_epoch(self):
+        """The root moved: the first epoch's ledger is left behind and the pinned root starts empty."""
+        old = self.root / "old-root"
+        old.mkdir()
+        shutil.move(str(self.epochs / EPOCH), str(old / EPOCH))
+        return old
+
+    def test_a_request_fenced_under_the_old_root_is_not_bought_again(self):
+        self.purchase_lost_after_receipt()
+        old = self.old_root_holding_the_first_epoch()
+        with patch.object(content_runtime, "legacy_epoch_parents", return_value=[old]), self.paid() as post:
+            self.assertEqual(self.speak("b.mp3"), 2)
+        post.assert_not_called()
+        self.assertIn(EPOCH, self.err)
+        self.assertFalse((self.epochs / EPOCH).exists())
+
+    def test_old_accounting_that_cannot_be_read_refuses(self):
+        self.manifest = self.authorize()
+        old = self.root / "old-root"
+        (old / "elevenlabs-project-damaged").mkdir(parents=True)
+        (old / "elevenlabs-project-damaged/ledger.sqlite3").write_bytes(b"not sqlite" * 100)
+        with patch.object(content_runtime, "legacy_epoch_parents", return_value=[old]), self.paid() as post:
+            self.assertEqual(self.speak(), 2)
+        post.assert_not_called()
+
+    def test_an_old_folder_with_no_ledger_and_the_pinned_root_itself_are_not_conflicts(self):
+        self.purchase_complete()
+        old = self.root / "old-root"
+        (old / "elevenlabs-project-empty").mkdir(parents=True)
+        with patch.object(content_runtime, "legacy_epoch_parents", return_value=[old, self.epochs]), self.paid() as post:
+            self.assertEqual(self.speak("again.mp3"), 0, self.err)
+        post.assert_not_called()
+
+    def test_adopted_epochs_fence_a_route_that_cannot_see_the_old_root(self):
+        self.purchase_lost_after_receipt()
+        old = self.old_root_holding_the_first_epoch()
+        with patch.object(content_runtime, "legacy_epoch_parents", return_value=[old]):
+            import governed_elevenlabs as governed
+            first = governed.adopt_old_epochs()
+            self.assertEqual(governed.adopt_old_epochs(), [], "the same ledger is adopted once")
+        self.assertEqual(len(first), 1)
+        with self.paid() as post:
+            self.assertEqual(self.speak("b.mp3"), 2)
+        post.assert_not_called()
+        self.assertIn(first[0], self.err)
+
     def test_the_own_epoch_is_not_a_conflict(self):
         self.purchase_complete()
         with self.paid() as post:

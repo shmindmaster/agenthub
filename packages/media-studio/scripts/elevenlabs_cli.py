@@ -217,6 +217,8 @@ def main(argv=None):
     p_tts.add_argument("--authorization-manifest", help="Absolute immutable owner manifest naming this voice and workspace")
     p_tts.add_argument("--dry-run", action="store_true", help="Check credits and voice readiness without generating")
     p_tts.set_defaults(func=tts)
+    p_adopt = sub.add_parser("adopt-old-epochs", help="Offline: copy pre-pin epoch ledgers under the pinned root")
+    p_adopt.set_defaults(func=lambda args: print(json.dumps({"adopted": governed.adopt_old_epochs()})) or 0)
     p_reconcile = sub.add_parser("reconcile", help="Provider GET-only recovery of one epoch request; never resubmits")
     p_accept = sub.add_parser("accept", help="Offline: attach QA evidence to exact epoch bytes")
     for existing in (p_reconcile, p_accept):

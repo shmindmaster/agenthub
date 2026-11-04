@@ -70,24 +70,62 @@ def authorized_policy(manifest, voice_id, workspace, model_id):
     return checked, policy
 
 
+def _refuse_if_held(root, key):
+    database = root / "ledger.sqlite3"
+    try:
+        if runtime.linked_path(root) or runtime.linked_path(database):
+            raise OSError("linked accounting")
+        with contextlib.closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as con:
+            found = con.execute("SELECT 1 FROM requests WHERE key=? LIMIT 1", (key,)).fetchone()
+    except (OSError, sqlite3.Error):
+        raise RuntimeError(f"Cannot read epoch {root.name} accounting; no purchase until it is intact") from None
+    if found:
+        raise RuntimeError(f"Request already exists in epoch {root.name} (cache_key {key}). No repeat purchase allowed.")
+
+
+def old_epochs(parent):
+    """Epochs left outside the stable root. A folder with no ledger has no accounting to fence."""
+    for old in runtime.legacy_epoch_parents():
+        if old.resolve() == parent.resolve():
+            continue
+        yield from (root for root in sorted(old.iterdir()) if (root / "ledger.sqlite3").exists())
+
+
 def refuse_bought_elsewhere(key, own_epoch):
-    """A request hash buys once under the stable root. Accounting that cannot be read refuses the purchase."""
+    """A request hash buys once. Accounting that cannot be read refuses the purchase.
+
+    An old epoch fences even under this epoch's own name: its ledger did not move with the root, so the name
+    says nothing about the fresh ledger a retried manifest would open here.
+    """
     parent = runtime.stable_epoch_parent()
     if not parent.exists():  # A POSIX account's first epoch; Windows has already refused a missing root.
         return
     for root in sorted(parent.iterdir()):
-        database = root / "ledger.sqlite3"
-        if root.name == own_epoch or not (root.is_dir() or runtime.linked_path(root)):
+        if root.name != own_epoch and (root.is_dir() or runtime.linked_path(root)):
+            _refuse_if_held(root, key)
+    for root in old_epochs(parent):
+        _refuse_if_held(root, key)
+
+
+def adopt_old_epochs():
+    """Copy this launch route's old ledgers under the stable root, where every route's fence reads them.
+
+    Offline and repeatable: the name carries the ledger's hash, so the same ledger is copied once and two
+    routes' same-named epochs stay apart. Nothing is read from or written to the provider."""
+    parent = runtime.stable_epoch_parent()
+    adopted = []
+    for root in old_epochs(parent):
+        digest = hashlib.sha256((root / "ledger.sqlite3").read_bytes()).hexdigest()[:12]
+        target = parent / f"adopted-{digest}-{root.name}"
+        if target.exists():
             continue
-        try:
-            if runtime.linked_path(root) or runtime.linked_path(database):
-                raise OSError("linked accounting")
-            with contextlib.closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as con:
-                found = con.execute("SELECT 1 FROM requests WHERE key=? LIMIT 1", (key,)).fetchone()
-        except (OSError, sqlite3.Error):
-            raise RuntimeError(f"Cannot read epoch {root.name} accounting; no purchase until it is intact") from None
-        if found:
-            raise RuntimeError(f"Request already exists in epoch {root.name} (cache_key {key}). No repeat purchase allowed.")
+        runtime.secure_directory(target)
+        source = sqlite3.connect((root / "ledger.sqlite3").as_uri() + "?mode=ro", uri=True)
+        copy = sqlite3.connect(target / "ledger.sqlite3")
+        with contextlib.closing(source), contextlib.closing(copy):
+            source.backup(copy)
+        adopted.append(target.name)
+    return adopted
 
 
 def generate(cli, args, authorized, voice_id, model_id, output_format, payload):

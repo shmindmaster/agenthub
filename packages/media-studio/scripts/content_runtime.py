@@ -125,6 +125,20 @@ def stable_epoch_parent() -> pathlib.Path:
     return parent
 
 
+def legacy_epoch_parents() -> list:
+    """Where this launch route can see epochs from before the pin. Empty off Windows, where the root never moved.
+
+    The known-folder path shows a different directory depending on the launch route, and only a packaged
+    app's own view is reachable as a plain path, so `adopt-old-epochs` must also run from the `py -3` route.
+    """
+    if not running_on_windows():
+        return []
+    known = local_app_data()
+    tail = "AgentHub/runtime/content-recovery-epochs"
+    found = [known / tail, *sorted((known / "Packages").glob(f"*/LocalCache/Local/{tail}"))]
+    return [path for path in found if path.is_dir()]
+
+
 def project_correction_entries(raw, parent_sha, parent_approval):
     amendment = json.loads(raw)
     entries = amendment.get("allowed_requests", [])
@@ -262,10 +276,11 @@ def _epoch_ledger(raw, workspace, text, model_id, request):
             raise RuntimeError("Speech request is outside the project epoch allowlist")
         proof_ref = policy.get("inventory_proof", {})
         proof_path = pathlib.Path(proof_ref.get("path", ""))
-        if (not proof_path.is_absolute() or not proof_path.is_file() or linked_path(proof_path)
-                or hashlib.sha256(proof_path.read_bytes()).hexdigest() != proof_ref.get("sha256")):
+        proof_bytes = (proof_path.read_bytes() if proof_path.is_absolute() and proof_path.is_file()
+                       and not linked_path(proof_path) else None)
+        if proof_bytes is None or hashlib.sha256(proof_bytes).hexdigest() != proof_ref.get("sha256"):
             raise RuntimeError("Project epoch requires intact external new-input inventory proof")
-        proof = json.loads(proof_path.read_bytes())
+        proof = json.loads(proof_bytes)
         if (proof.get("kind") != "elevenlabs-new-input-inventory"
                 or not proof.get("enumerated_scopes")
                 or not all(isinstance(proof.get(k), list) for k in
@@ -667,15 +682,6 @@ class Ledger:
                                   (namespace, key, time.time())).rowcount
             if changed != 1:
                 raise RuntimeError("Release requires an expired, never-submitted reservation")
-
-    def reject(self, claim):
-        """The provider refused this fenced submission before generating anything (for example HTTP 429).
-        Releases its reservation so the exact request can be submitted again; any other outcome stays unknown."""
-        with self.connect(True) as con:
-            changed = con.execute("DELETE FROM requests WHERE namespace=? AND key=? AND token=? AND state='submitted'",
-                                  (claim["namespace"], claim["key"], claim["token"])).rowcount
-            if changed != 1:
-                raise RuntimeError("Rejection requires this worker's own submitted request")
 
     def freeze(self, bucket):
         with self.connect(True) as con:
