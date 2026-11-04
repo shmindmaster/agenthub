@@ -1,5 +1,6 @@
 """Synthetic, offline checks for the owner-authorized speech adapter. No request ever leaves this process."""
 import contextlib
+import email.message
 import hashlib
 import io
 import json
@@ -10,8 +11,10 @@ import sys
 import tempfile
 import unittest
 import urllib.error
+import urllib.request
+import urllib.response
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 # Whatever launched this test, the real provider credential is gone before the adapter loads.
 os.environ.pop("ELEVENLABS_API_KEY", None)
@@ -24,6 +27,7 @@ import governed_elevenlabs as governed
 # fixtures stay valid when TMPDIR sits under a junction (e.g. %LOCALAPPDATA%\AgentHub).
 tempfile.tempdir = os.path.realpath(tempfile.gettempdir())
 
+REAL_BUILD_OPENER = urllib.request.build_opener
 REAL_PIN = content_runtime.runtime_pin
 REAL_LOCAL_APP_DATA = content_runtime.local_app_data
 VOICE = "fixture-professional-clone"
@@ -42,6 +46,24 @@ def refuse_network(*_args, **_kwargs):
     raise AssertionError("A test attempted a network connection")
 
 
+class RedirectingHop(urllib.request.HTTPHandler, urllib.request.HTTPSHandler):
+    """The last hop of a real opener: no socket, every hop recorded, always a redirect to a plain http origin."""
+
+    def __init__(self):
+        super().__init__()
+        self.seen = []
+
+    def respond(self, request):
+        self.seen.append((request.full_url, request.get_header("Xi-api-key")))
+        headers = email.message.Message()
+        headers["Location"] = "http://other-origin.invalid/fixture"
+        reply = urllib.response.addinfourl(io.BytesIO(b"{}"), headers, request.full_url, 302)
+        reply.msg = "Found"
+        return reply
+
+    http_open = https_open = respond
+
+
 class OfflineCase(unittest.TestCase):
     """Private runtime root, no provider credential, and sockets that fail the test."""
 
@@ -54,6 +76,7 @@ class OfflineCase(unittest.TestCase):
         for guard in (patch.object(socket.socket, "connect", refuse_network),
                       patch.object(socket, "create_connection", refuse_network),
                       patch.object(cli.urllib.request, "urlopen", refuse_network),
+                      patch.object(cli.urllib.request, "build_opener", refuse_network),
                       patch.object(content_runtime, "runtime_pin", return_value=str(self.epochs.parent)),
                       patch.object(content_runtime, "local_app_data", return_value=self.root / "known-local-app-data"),
                       patch.object(content_runtime, "running_on_windows", return_value=True)):
@@ -159,14 +182,6 @@ class WithoutOwnerAuthorization(OfflineCase):
                                           "--max-credits", "10"), 2)
         provider.assert_not_called()
         self.assert_nothing_happened()
-
-    def test_voice_never_comes_from_the_environment(self):
-        with patch.dict(os.environ, {"ELEVENLABS_VOICE_ID": VOICE}), patch.object(cli, "_request_full") as provider:
-            code = self.invoke("tts", "--model-id", "eleven_v4", "--text", TEXT, "--output", str(self.root / "take.mp3"),
-                               "--max-credits", "10", "--cache-workspace", WORKSPACE, "--cache-revision", REVISION,
-                               *V4_SETTINGS)
-        self.assertEqual(code, 2)
-        provider.assert_not_called()
 
 
 class SpeechOnly(OfflineCase):
@@ -378,22 +393,32 @@ class Preflight(OfflineCase):
     def test_http_errors_do_not_echo_private_text(self):
         body = io.BytesIO(json.dumps({"detail": {"status": "missing_permissions", "message": "private submitted text"}}).encode())
         error = urllib.error.HTTPError("https://example.invalid", 401, "private reason", {}, body)
-        with patch.object(cli.urllib.request, "urlopen", side_effect=error):
+        with patch.object(cli.urllib.request, "build_opener", return_value=SimpleNamespace(open=Mock(side_effect=error))):
             with self.assertRaisesRegex(RuntimeError, r"HTTP 401 \(missing_permissions\)") as caught:
                 cli._request_full("/fixture")
         self.assertNotIn("private", str(caught.exception))
 
     def test_non_speech_posts_are_disabled_at_the_transport(self):
         for path in ("/sound-generation", "/music", "/speech-to-text", "/forced-alignment"):
-            with self.subTest(path=path), patch.object(cli.urllib.request, "urlopen") as sent:
+            with self.subTest(path=path), patch.object(cli.urllib.request, "build_opener") as sent:
                 with self.assertRaisesRegex(RuntimeError, "disabled"):
                     cli._request_full(path, method="POST", governed_submission=True)
                 sent.assert_not_called()
 
     def test_ungoverned_speech_post_is_disabled_at_the_transport(self):
-        with patch.object(cli.urllib.request, "urlopen") as sent, self.assertRaisesRegex(RuntimeError, "disabled"):
+        with patch.object(cli.urllib.request, "build_opener") as sent, self.assertRaisesRegex(RuntimeError, "disabled"):
             cli._request_full("/text-to-speech/fixture", method="POST")
         sent.assert_not_called()
+
+    def test_the_credential_never_follows_a_redirect(self):
+        for call in ({"path": "/fixture"}, {"path": "/text-to-speech/fixture", "method": "POST", "governed_submission": True}):
+            with self.subTest(call=call):
+                hop = RedirectingHop()
+                build = lambda *handlers: REAL_BUILD_OPENER(*handlers, hop)
+                with patch.object(cli.urllib.request, "build_opener", build), \
+                        self.assertRaisesRegex(cli.ProviderHTTPError, "HTTP 302"):
+                    cli._request_full(**call)
+                self.assertEqual([url for url, _ in hop.seen], [cli.BASE_URL + call["path"]])
 
     def test_dry_run_reads_metadata_and_writes_nothing(self):
         manifest = self.authorize()
@@ -526,6 +551,50 @@ class StableRoot(PaidFixture):
 
 
 class PaidSpeech(PaidFixture):
+    def test_voice_never_comes_from_the_environment(self):
+        manifest = self.authorize()
+        with patch.dict(os.environ, {"ELEVENLABS_VOICE_ID": VOICE}), self.paid() as provider:
+            code = self.invoke("tts", "--model-id", "eleven_v4", "--text", TEXT, "--output", str(self.root / "take.mp3"),
+                               "--max-credits", "10", "--cache-workspace", WORKSPACE, "--cache-revision", REVISION,
+                               *V4_SETTINGS, "--authorization-manifest", str(manifest))
+        self.assertEqual(code, 2)
+        self.assertIn("--voice-id", self.err)
+        provider.assert_not_called()
+
+    def test_the_receipt_is_bound_before_the_real_transport_reads_the_body(self):
+        self.manifest = self.authorize()
+        order, case = [], self
+        headers = email.message.Message()
+        headers["Content-Type"], headers["request-id"] = "audio/mpeg", "fixture-request"
+
+        class Response:
+            status = 200
+
+            def __init__(self):
+                self.headers = headers
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self):
+                with case.ledger.connect() as con:
+                    order.append(("body", con.execute("SELECT receipt FROM requests").fetchone()[0]))
+                return AUDIO[2]
+
+        class Opener:
+            def open(self, request, timeout):
+                order.append(("post", request.get_method(), timeout))
+                return Response()
+
+        with patch.object(cli.urllib.request, "build_opener", return_value=Opener()) as build:
+            self.assertEqual(self.speak(), 0, self.err)
+        self.assertEqual(order, [("post", "POST", 300), ("body", "fixture-request")])
+        self.assertIsInstance(build.call_args.args[0], cli._NoRedirect)
+        self.assertIsNone(build.call_args.args[0].redirect_request(None, None, 302, "", {}, "https://example.invalid"))
+
     def test_the_maximum_is_reserved_before_the_provider_is_called(self):
         self.manifest = self.authorize()
         seen = {}

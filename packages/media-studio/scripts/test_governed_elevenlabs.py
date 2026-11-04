@@ -51,13 +51,13 @@ class EpochCase(fixtures.PaidFixture):
 
 
 class Reconcile(EpochCase):
-    def reconcile(self, row, *changes, history=None, manifest=None):
+    def reconcile(self, row, *changes, history=None, manifest=None, audio=(200, "audio/mpeg", RAW, {})):
         """Provider metadata comes from GOOD_HISTORY unless a test replaces it."""
         args = ["reconcile", "--authorization-manifest", str(manifest or self.manifest), "--namespace", row["namespace"],
                 "--cache-key", row["key"], "--cache-workspace", WORKSPACE, "--history-id", HISTORY, *changes]
         with patch.object(cli, "_get_json", return_value=history or GOOD_HISTORY) as metadata, \
-                patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", RAW, {})) as audio:
-            self.history_calls, self.audio_calls = metadata, audio
+                patch.object(cli, "_request_full", return_value=audio) as download:
+            self.history_calls, self.audio_calls = metadata, download
             return self.invoke(*args)
 
     def test_a_lost_response_recovers_without_a_second_purchase(self):
@@ -99,6 +99,20 @@ class Reconcile(EpochCase):
             self.assertEqual(self.reconcile(row), 2)
         self.assertIn("namespace", self.err)
         self.history_calls.assert_not_called()
+
+    def test_a_workspace_the_manifest_does_not_name_never_reaches_the_provider(self):
+        row = self.purchase_lost_after_receipt()
+        self.assertEqual(self.reconcile(row, "--cache-workspace", "fixture-other-workspace"), 2)
+        self.assertIn("workspace mismatch", self.err)
+        self.history_calls.assert_not_called()
+
+    def test_a_download_that_is_not_audio_retains_the_maximum(self):
+        row = self.purchase_lost_after_receipt()
+        self.assertEqual(self.reconcile(row, audio=(200, "text/html", b"<html>", {})), 2)
+        self.assertIn("no audio", self.err)
+        self.assertEqual(self.request_row()["state"], "unknown")
+        self.assertIsNone(self.request_row()["actual"])
+        self.assertEqual(self.committed(), 100)
 
     def test_missing_accounting_fails_closed_and_is_never_recreated(self):
         row = self.purchase_lost_after_receipt()

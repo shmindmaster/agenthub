@@ -30,6 +30,13 @@ class ProviderHTTPError(RuntimeError):
     """An HTTP error status from the provider; the message carries only the status and a sanitized code."""
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """The key is a request header, so a followed redirect would carry it to the new origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def _request_full(path, method="GET", body=None, content_type=None, timeout=30, on_headers=None, governed_submission=False):
     if method != "GET" and not (governed_submission and method == "POST" and path.startswith(GOVERNED_POST_PREFIX)):
         raise RuntimeError("Paid requests require the governed speech route; this route is disabled")
@@ -41,7 +48,7 @@ def _request_full(path, method="GET", body=None, content_type=None, timeout=30, 
         headers["Content-Type"] = content_type
     req = urllib.request.Request(BASE_URL + path, data=body, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with urllib.request.build_opener(_NoRedirect()).open(req, timeout=timeout) as response:
             if on_headers:
                 on_headers(response.headers)
             return response.status, response.headers.get_content_type(), response.read(), response.headers

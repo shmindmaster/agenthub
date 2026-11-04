@@ -565,8 +565,9 @@ class LedgerTests(unittest.TestCase):
             for model in ('eleven_v4_turbo', 'eleven_v3', 'eleven_flash_v2_5', '', None, ['eleven_v4']):
                 with self.subTest(model=model):
                     manifest.write_text(json.dumps({**policy, 'model_id': model}))
-                    with self.assertRaises(RuntimeError):
-                        recovery_epoch_ledger(manifest, 'fixture', text, model or '', request=request)
+                    for caller_model in (model or '', request['model_id']):
+                        with self.assertRaisesRegex(RuntimeError, 'requires exact owner approval|bounded authorization'):
+                            recovery_epoch_ledger(manifest, 'fixture', text, caller_model, request=request)
             secure.assert_not_called()
 
     def test_project_v2_pinned_model_cannot_change_after_first_use(self):
