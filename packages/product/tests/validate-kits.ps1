@@ -29,7 +29,10 @@ function Invoke-Checked {
 
 try {
     # 1. Reference implementations against the shared vectors (both languages).
-    Invoke-Checked 'TypeScript kit tests' $node @('--test', (Join-Path $kits 'execution-controls\ts\test\')) | Out-Null
+    # Named files, not the directory: Node 24 treats a directory argument as a module to load.
+    $tsTests = @(Get-ChildItem -LiteralPath (Join-Path $kits 'execution-controls\ts\test') -File -Filter '*.test.ts' | ForEach-Object FullName)
+    if ($tsTests.Count -eq 0) { throw 'No TypeScript kit tests found.' }
+    Invoke-Checked 'TypeScript kit tests' $node (@('--test') + $tsTests) | Out-Null
     Invoke-Checked 'Python kit tests' $python @('-m', 'unittest', 'discover', '-s', (Join-Path $kits 'execution-controls\python\tests')) | Out-Null
 
     # 1b. Strict typecheck of the TypeScript a product vendors (tsconfig: strict,

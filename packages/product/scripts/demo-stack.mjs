@@ -12,8 +12,10 @@
 // focus never moves. (Detached children get DETACHED_PROCESS instead, which
 // makes Windows ignore CREATE_NO_WINDOW and lets grandchildren open consoles;
 // `conhost --headless` ends its session when its stdin closes. Both were tested
-// and rejected.) Non-detached children also die with the supervisor, so nothing
-// outlives `down`. No scheduled task, Run key or service is ever registered.
+// and rejected.) On macOS and Linux each service is detached instead, which puts
+// it in its own process group: the shell is the group leader, so signalling the
+// group also reaches the service the shell started, and nothing outlives `down`.
+// No scheduled task, Run key or service is ever registered.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -126,7 +128,7 @@ for (const service of services) {
     env: { ...process.env, ...(service.env ?? {}) },
     shell: true,
     windowsHide: true,
-    detached: false,
+    detached: process.platform !== 'win32',
     stdio: ['ignore', log, log],
   });
   closeSync(log);
