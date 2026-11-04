@@ -5,6 +5,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
 from unittest.mock import patch
@@ -17,6 +18,8 @@ import elevenlabs_cli as cli
 
 RAW = AUDIO[2]
 HISTORY = "fixture-history"
+# Located through the known folder: the Python harness points LOCALAPPDATA at a sandbox.
+ALIAS = content_runtime.local_app_data() / "Microsoft/WindowsApps/python.exe" if os.name == "nt" else None
 GOOD_HISTORY = {"request_id": "fixture-request", "history_item_id": HISTORY,
                 "character_count_change_from": 0, "character_count_change_to": 5}
 
@@ -97,7 +100,7 @@ class Reconcile(EpochCase):
 
     def test_missing_accounting_fails_closed_and_is_never_recreated(self):
         row = self.purchase_lost_after_receipt()
-        root = self.root / "AgentHub/runtime/content-recovery-epochs" / EPOCH
+        root = self.epochs / EPOCH
         for name in ("namespace-salt", "authorization.json"):
             missing = root / name
             original = missing.read_bytes()
@@ -157,7 +160,7 @@ class Accept(EpochCase):
             content_control.accept_manifest(default, row["namespace"], row["key"], self.gates(row["sha256"]))
 
 
-def worker(root, number, text):
+def worker(root, number, text, known_folder="fixture"):
     """One independent CLI process: real ledger, stubbed provider. Purchases are counted in a file."""
     posts = pathlib.Path(root) / "posts.log"
 
@@ -173,8 +176,11 @@ def worker(root, number, text):
     argv = ["tts", "--voice-id", VOICE, "--model-id", "eleven_v4", "--text", text, "--output", str(pathlib.Path(root) / f"take-{number}.mp3"),
             "--cache-workspace", WORKSPACE, "--cache-revision", REVISION, *V4_SETTINGS,
             "--authorization-manifest", str(pathlib.Path(root) / "authorization.json"), "--max-credits", "1500"]
-    with patch.dict(os.environ, {"LOCALAPPDATA": root, "ELEVENLABS_API_KEY": "synthetic-credential"}), \
+    known = content_runtime.local_app_data if known_folder == "real" else lambda: pathlib.Path(root) / "known-local-app-data"
+    with patch.dict(os.environ, {"ELEVENLABS_API_KEY": "synthetic-credential"}), \
             patch.object(content_runtime, "running_on_windows", return_value=True), \
+            patch.object(content_runtime, "runtime_pin", return_value=str(pathlib.Path(root) / "AgentHub/runtime")), \
+            patch.object(content_runtime, "local_app_data", known), \
             patch.object(cli, "_request_full", side_effect=provider), \
             patch.object(cli, "_get_json", side_effect=lambda path: metadata[path]):
         return cli.main(argv)
@@ -218,6 +224,27 @@ class Processes(EpochCase):
         self.assertEqual(self.posts(), 2)
         self.assertEqual(self.committed(), 3100)
 
+    @unittest.skipUnless(ALIAS and ALIAS.exists(), "Needs the Windows python.exe alias; checked absent on this host")
+    def test_both_launch_routes_buy_once_and_share_one_directory(self):
+        # Under the scripts folder, not TEMP: TEMP can sit in LocalAppData, which the alias route virtualizes.
+        folder = tempfile.TemporaryDirectory(dir=pathlib.Path(__file__).parent, prefix="launch-route-")
+        self.addCleanup(folder.cleanup)
+        line = "A launch route fixture line."
+        with patch.object(self, "root", pathlib.Path(folder.name)):
+            (self.root / "AgentHub/runtime/content-recovery-epochs").mkdir(parents=True)
+            self.manifest = self.authorize(texts=(line,))
+            codes = []
+            for number, interpreter in enumerate((ALIAS, pathlib.Path(sys.executable))):
+                # The alias launcher itself needs the real value; the real interpreter gets a decoy to prove it is not read.
+                env = {**os.environ, "LOCALAPPDATA": str(ALIAS.parents[2] if interpreter == ALIAS else self.root / "decoy")}
+                run = subprocess.run([str(interpreter), __file__, "worker", str(self.root), str(number), line, "real"], capture_output=True,
+                                     text=True, env=env, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                codes.append((run.returncode, run.stderr.strip()[-300:]))
+            self.assertEqual([code for code, _ in codes], [0, 0], codes)
+            self.assertEqual(self.posts(), 1)
+            self.assertEqual((self.root / "take-0.mp3").read_bytes(), (self.root / "take-1.mp3").read_bytes())
+            self.assertFalse((self.root / "decoy").exists())
+
     def test_a_first_use_race_fails_closed_without_a_purchase_on_the_loser(self):
         line = "A first use fixture line."
         self.manifest = self.authorize(texts=(line,))
@@ -228,5 +255,5 @@ class Processes(EpochCase):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "worker":
-        raise SystemExit(worker(sys.argv[2], sys.argv[3], sys.argv[4]))
+        raise SystemExit(worker(*sys.argv[2:]))
     unittest.main()

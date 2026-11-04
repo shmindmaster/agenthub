@@ -149,7 +149,7 @@ def tts(args):
         raise RuntimeError("ElevenLabs speech requires an immutable owner authorization manifest; "
                            "nothing was reserved or requested")
     payload = speech_payload(args)
-    governed.authorized_policy(args.authorization_manifest, args.voice_id, args.cache_workspace, args.model_id)
+    checked = governed.authorized_policy(args.authorization_manifest, args.voice_id, args.cache_workspace, args.model_id)
     if args.dry_run:
         print(json.dumps({"dry_run": True, **tts_preflight(args.voice_id, args.model_id, args.text, args.max_credits)}))
         return 0
@@ -167,7 +167,7 @@ def tts(args):
         output.unlink()
     except OSError:
         raise RuntimeError("Output destination is not writable; no generation was requested") from None
-    raw, receipt = governed.generate(sys.modules[__name__], args, args.voice_id, args.model_id, args.output_format, payload)
+    raw, receipt = governed.generate(sys.modules[__name__], args, checked, args.voice_id, args.model_id, args.output_format, payload)
     receipt["output"] = str(output.resolve())
     # Save the receipt first; a failed local save remains recoverable without repurchasing.
     with receipt_path.open("x", encoding="utf-8") as handle:

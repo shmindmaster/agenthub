@@ -6,9 +6,11 @@ import json
 import os
 import pathlib
 import socket
+import sys
 import tempfile
 import unittest
 import urllib.error
+from types import SimpleNamespace
 from unittest.mock import patch
 
 # Whatever launched this test, the real provider credential is gone before the adapter loads.
@@ -22,6 +24,8 @@ import governed_elevenlabs as governed
 # fixtures stay valid when TMPDIR sits under a junction (e.g. %LOCALAPPDATA%\AgentHub).
 tempfile.tempdir = os.path.realpath(tempfile.gettempdir())
 
+REAL_PIN = content_runtime.runtime_pin
+REAL_LOCAL_APP_DATA = content_runtime.local_app_data
 VOICE = "fixture-professional-clone"
 WORKSPACE = "fixture-film-workspace"
 REVISION = "locked-voice-model-v1"
@@ -45,10 +49,13 @@ class OfflineCase(unittest.TestCase):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         self.root = pathlib.Path(folder.name)
+        self.epochs = self.root / "AgentHub/runtime/content-recovery-epochs"
+        self.epochs.mkdir(parents=True)
         for guard in (patch.object(socket.socket, "connect", refuse_network),
                       patch.object(socket, "create_connection", refuse_network),
                       patch.object(cli.urllib.request, "urlopen", refuse_network),
-                      patch.dict(os.environ, {"LOCALAPPDATA": str(self.root)}),
+                      patch.object(content_runtime, "runtime_pin", return_value=str(self.epochs.parent)),
+                      patch.object(content_runtime, "local_app_data", return_value=self.root / "known-local-app-data"),
                       patch.object(content_runtime, "running_on_windows", return_value=True)):
             guard.start()
             self.addCleanup(guard.stop)
@@ -104,7 +111,7 @@ class OfflineCase(unittest.TestCase):
 
     def assert_nothing_happened(self):
         """No accounting was created: the refusal came before any ledger, reservation or request."""
-        self.assertFalse((self.root / "AgentHub").exists())
+        self.assertEqual(list(self.epochs.iterdir()), [])
 
 
 class WithoutOwnerAuthorization(OfflineCase):
@@ -220,7 +227,8 @@ class VoiceAllowlist(OfflineCase):
         parent = self.authorize(voice="fixture-other-voice")
         self.assert_refused(self.correction(parent), "exact voice")
         same = self.authorize(name="same.json")
-        self.assertEqual(governed.authorized_policy(self.correction(same), VOICE, WORKSPACE, "eleven_v4")["voice_id"], VOICE)
+        correction = self.correction(same)
+        self.assertEqual(governed.authorized_policy(correction, VOICE, WORKSPACE, "eleven_v4"), correction.read_bytes())
 
     def test_a_correction_whose_parent_changed_refuses(self):
         parent = self.authorize()
@@ -420,7 +428,7 @@ class PaidFixture(OfflineCase):
 
     @property
     def ledger(self):
-        return content_runtime.Ledger(self.root / "AgentHub/runtime/content-recovery-epochs" / EPOCH)
+        return content_runtime.Ledger(self.epochs / EPOCH)
 
     def committed(self):
         return self.ledger.status()["budgets"][0]["committed"]
@@ -431,6 +439,89 @@ class PaidFixture(OfflineCase):
 
     def paid(self, provider=None, **patched):
         return patch.object(cli, "_request_full", **({"side_effect": provider} if provider else {"return_value": AUDIO}), **patched)
+
+
+class StableRoot(PaidFixture):
+    def test_the_environment_never_selects_the_ledger(self):
+        with patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "elsewhere"), "HOME": str(self.root / "elsewhere")}):
+            self.assertEqual(content_runtime.stable_epoch_parent(), self.epochs)
+
+    def test_a_changed_localappdata_gets_no_fresh_accounting_for_a_fenced_request(self):
+        self.manifest = self.authorize()
+        with self.paid(RuntimeError("synthetic lost response")) as post:
+            self.assertEqual(self.speak("a.mp3"), 2)
+            other = self.root / "elsewhere"
+            other.mkdir()
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(other)}):
+                self.assertEqual(self.speak("b.mp3"), 2)
+        self.assertIn("No repeat purchase", self.err)
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(list(other.iterdir()), [])
+
+    def assert_refused_before_state(self, pattern):
+        self.manifest = self.authorize()
+        with self.paid() as post:
+            self.assertEqual(self.speak(), 2)
+        self.assertRegex(self.err, pattern)
+        post.assert_not_called()
+        self.assert_nothing_happened()
+
+    def test_an_unset_pin_refuses_before_any_state(self):
+        with patch.object(content_runtime, "runtime_pin", return_value=None):
+            self.assert_refused_before_state("RuntimeRoot")
+
+    def test_a_pin_inside_local_app_data_refuses_because_windows_virtualizes_it(self):
+        inside = self.root / "known-local-app-data" / "AgentHub" / "runtime" / "content-recovery-epochs"
+        inside.mkdir(parents=True)
+        for pin in (str(inside.parent), str(inside.parent).upper()):
+            with self.subTest(pin=pin), patch.object(content_runtime, "runtime_pin", return_value=pin):
+                self.assert_refused_before_state("outside LocalAppData")
+
+    def test_a_relative_absent_or_linked_pin_refuses(self):
+        for pin in ("relative/runtime", str(self.root / "absent")):
+            with self.subTest(pin=pin), patch.object(content_runtime, "runtime_pin", return_value=pin):
+                self.assert_refused_before_state("RuntimeRoot")
+        with patch.object(content_runtime, "linked_path", side_effect=lambda path: path == self.epochs.parent):
+            self.assert_refused_before_state("RuntimeRoot")
+
+    def test_the_pin_is_read_from_the_user_registry(self):
+        opened = []
+
+        class Key:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+        fake = SimpleNamespace(HKEY_CURRENT_USER="hkcu", OpenKey=lambda hive, name: opened.append((hive, name)) or Key(),
+                               QueryValueEx=lambda _key, name: opened.append(name) or ("D:/pinned/runtime", 1))
+        with patch.dict(sys.modules, {"winreg": fake}):
+            self.assertEqual(REAL_PIN(), "D:/pinned/runtime")
+        self.assertEqual(opened, [("hkcu", r"Software\AgentHub"), "RuntimeRoot"])
+
+    def test_a_missing_registry_value_is_no_pin(self):
+        def absent(*_args):
+            raise FileNotFoundError
+
+        with patch.dict(sys.modules, {"winreg": SimpleNamespace(HKEY_CURRENT_USER="hkcu", OpenKey=absent)}):
+            self.assertIsNone(REAL_PIN())
+
+    def test_posix_root_comes_from_the_account_not_home(self):
+        account = SimpleNamespace(pw_dir=str(self.root / "account"))
+        with patch.object(content_runtime, "running_on_windows", return_value=False), \
+                patch.dict(sys.modules, {"pwd": SimpleNamespace(getpwuid=lambda _uid: account)}), \
+                patch.object(content_runtime.os, "getuid", return_value=1000, create=True), \
+                patch.dict(os.environ, {"HOME": str(self.root / "elsewhere")}):
+            self.assertEqual(content_runtime.stable_epoch_parent(),
+                             self.root / "account/.local/share/AgentHub/runtime/content-recovery-epochs")
+
+    @unittest.skipUnless(os.name == "nt", "Windows known-folder API")
+    def test_local_app_data_comes_from_the_known_folder_not_the_environment(self):
+        with patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "elsewhere")}):
+            found = REAL_LOCAL_APP_DATA()
+        self.assertNotEqual(found, self.root / "elsewhere")
+        self.assertTrue(found.is_dir())
 
 
 class PaidSpeech(PaidFixture):
@@ -544,7 +635,7 @@ class PaidSpeech(PaidFixture):
             self.assertEqual(self.speak(), 2)
         self.assertIn("credential", self.err)
         post.assert_not_called()
-        self.assertFalse((self.root / "AgentHub/runtime/content-recovery-epochs" / EPOCH).exists())
+        self.assertFalse((self.epochs / EPOCH).exists())
 
     def test_ambiguous_failure_keeps_the_reservation_and_never_retries(self):
         self.manifest = self.authorize()
@@ -588,6 +679,23 @@ class PaidSpeech(PaidFixture):
                     self.assertEqual(self.speak(name + ".mp3", workspace=name), 2)
                 self.assertEqual(post.call_count, 1)
                 self.assertFalse((self.root / (name + ".mp3")).exists())
+
+    def test_the_ledger_uses_the_bytes_the_gate_checked(self):
+        self.manifest = self.authorize()
+        checked = self.manifest.read_bytes()
+        real_gate = governed.authorized_policy
+
+        def gate_then_swap(*args):
+            result = real_gate(*args)
+            self.manifest.write_text(json.dumps({"epoch_id": "elevenlabs-swapped", "maximum_credits": 1000, "workspace": WORKSPACE,
+                                                 "owner_authorization": "swapped", "historical_accounting": "UNKNOWN",
+                                                 "historical_requests": "FENCED", "allowed_text_sha256": []}))
+            return result
+
+        with self.paid(), patch.object(governed, "authorized_policy", side_effect=gate_then_swap):
+            self.assertEqual(self.speak(), 0, self.err)
+        self.assertEqual((self.epochs / EPOCH / "authorization.json").read_bytes(), checked)
+        self.assertEqual(sorted(path.name for path in self.epochs.iterdir()), [EPOCH])
 
     def test_preflight_failure_releases_only_a_never_submitted_reservation(self):
         self.manifest = self.authorize()

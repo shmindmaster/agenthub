@@ -16,7 +16,7 @@ from content_runtime import Ledger, request_key
 from content_control import accept_manifest
 from unittest.mock import patch
 from types import SimpleNamespace
-from content_runtime import linked_path, canonical_default_root, recovery_epoch_ledger
+from content_runtime import linked_path, canonical_default_root, project_v2_ledger, recovery_epoch_ledger
 
 # The content ledger refuses linked directories by design. Resolve the temp root once so
 # fixtures stay valid when TMPDIR sits under a junction (e.g. %LOCALAPPDATA%\AgentHub).
@@ -455,9 +455,8 @@ class LedgerTests(unittest.TestCase):
 
     @contextlib.contextmanager
     def project_v2_environment(self):
-        with patch.dict(os.environ, {'LOCALAPPDATA': str(self.root),
-                                    'ELEVENLABS_API_KEY': 'synthetic-v2-fixture'}), \
-             patch('content_runtime.running_on_windows', return_value=True), \
+        with patch.dict(os.environ, {'ELEVENLABS_API_KEY': 'synthetic-v2-fixture'}), \
+             patch('content_runtime.stable_epoch_parent', return_value=self.root / 'AgentHub/runtime/content-recovery-epochs'), \
              patch('content_runtime.secure_directory', side_effect=lambda p: p.mkdir(parents=True, exist_ok=True)):
             yield
 
@@ -519,6 +518,21 @@ class LedgerTests(unittest.TestCase):
             ledger = recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4', request=request)
             self.assertEqual(ledger.recovery_epoch, 'elevenlabs-project-v2-fixture')
             self.assertEqual((ledger.root / 'authorization.json').read_bytes(), manifest.read_bytes())
+
+    def test_project_ledger_takes_checked_bytes_and_refuses_every_other_kind(self):
+        text, request, _, _, policy, manifest = self.project_v4_fixture()
+        checked = manifest.read_bytes()
+        manifest.unlink()
+        with self.project_v2_environment():
+            ledger = project_v2_ledger(checked, 'fixture', text, 'eleven_v4', request)
+            self.assertEqual((ledger.root / 'authorization.json').read_bytes(), checked)
+        with patch('content_runtime.secure_directory') as secure:
+            for kind in ('elevenlabs-owner-authorized-project-epoch-v1', None, 'other'):
+                with self.subTest(kind=kind), self.assertRaisesRegex(RuntimeError, 'project v2'):
+                    project_v2_ledger(json.dumps({**policy, 'kind': kind}).encode(), 'fixture', text, 'eleven_v4', request)
+            with self.assertRaisesRegex(RuntimeError, 'project v2'):
+                project_v2_ledger(b'[]', 'fixture', text, 'eleven_v4', request)
+            secure.assert_not_called()
 
     def test_project_v2_v4_pin_refuses_other_models_and_payload_drift(self):
         text, request, _, _, policy, manifest = self.project_v4_fixture()

@@ -45,11 +45,13 @@ def _manifest_bytes(path, refusal):
 def authorized_policy(manifest, voice_id, workspace, model_id):
     """The one gate for every voice: the manifest must name this exact voice, workspace and model.
 
-    recovery_epoch_ledger still applies its own checks. This gate refuses the epoch kinds that pin no
-    voice, and it refuses before a dry run reaches the provider or a paid run creates any accounting.
+    project_v2_ledger still applies its own checks, to the checked bytes this returns. This gate refuses the
+    epoch kinds that pin no voice, and it refuses before a dry run reaches the provider or a paid run creates
+    any accounting.
     """
     refusal = "Owner authorization must be an absolute, unlinked project manifest"
-    policy = json.loads(_manifest_bytes(manifest, refusal))
+    checked = _manifest_bytes(manifest, refusal)
+    policy = json.loads(checked)
     pinned_model = None
     if isinstance(policy, dict) and policy.get("kind") == CORRECTION_KIND:
         pinned_model = policy.get("model_id")
@@ -65,14 +67,14 @@ def authorized_policy(manifest, voice_id, workspace, model_id):
         raise RuntimeError("Owner authorization does not name this exact voice and job workspace")
     if (pinned_model or policy.get("model_id")) != model_id:
         raise RuntimeError("Owner authorization pins a different model")
-    return policy
+    return checked
 
 
-def generate(cli, args, voice_id, model_id, output_format, payload):
+def generate(cli, args, checked, voice_id, model_id, output_format, payload):
     """Return (raw bytes, receipt). Spend happens only inside the manifest's own epoch ledger: the default
     ledger is never opened here, so a ceiling configured there authorizes nothing."""
     request = speech_request(args, voice_id, model_id, output_format, payload)
-    ledger = runtime.recovery_epoch_ledger(args.authorization_manifest, args.cache_workspace, args.text, model_id, request=request)
+    ledger = runtime.project_v2_ledger(checked, args.cache_workspace, args.text, model_id, request)
     with ledger.session() as ledger:
         return _generate(ledger, cli, args, voice_id, model_id, output_format, payload, request)
 
@@ -151,10 +153,7 @@ def existing_epoch(args):
             or policy.get("historical_accounting") != "UNKNOWN"
             or policy.get("historical_requests") != "FENCED"):
         raise RuntimeError("Epoch authorization/workspace mismatch")
-    base = os.environ.get("LOCALAPPDATA") if runtime.running_on_windows() else str(pathlib.Path.home() / ".local/share")
-    if not base:
-        raise RuntimeError("Cannot resolve private local runtime directory")
-    root = (pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs").resolve() / epoch
+    root = runtime.stable_epoch_parent().resolve() / epoch
     if any(runtime.linked_path(path) for path in (root, *root.parents)):
         raise RuntimeError("Recovery refuses linked epoch accounting")
     files = [root / name for name in ("authorization.json", "ledger.sqlite3", "namespace-salt")]

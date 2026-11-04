@@ -73,6 +73,58 @@ def canonical_default_root(root: pathlib.Path) -> pathlib.Path:
     return target
 
 
+def runtime_pin():
+    """The owner's per-user `HKCU\\Software\\AgentHub\\RuntimeRoot`; None when it is not set."""
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\AgentHub") as key:
+            return winreg.QueryValueEx(key, "RuntimeRoot")[0]
+    except FileNotFoundError:
+        return None
+
+
+def local_app_data() -> pathlib.Path:
+    """FOLDERID_LocalAppData from the shell, which a process's environment cannot change."""
+    from ctypes import wintypes
+    folder = ctypes.create_string_buffer(uuid.UUID("F1B32785-6FBA-4FCF-9D55-7B8E7F157091").bytes_le, 16)
+    found = wintypes.LPWSTR()
+    shell = ctypes.windll.shell32
+    shell.SHGetKnownFolderPath.argtypes = [ctypes.c_void_p, wintypes.DWORD, wintypes.HANDLE, ctypes.POINTER(wintypes.LPWSTR)]
+    if shell.SHGetKnownFolderPath(folder, 0, None, ctypes.byref(found)) != 0:
+        raise RuntimeError("Cannot resolve the LocalAppData known folder")
+    try:
+        return pathlib.Path(found.value)
+    finally:
+        ctypes.windll.ole32.CoTaskMemFree.argtypes = [ctypes.c_void_p]
+        ctypes.windll.ole32.CoTaskMemFree(ctypes.cast(found, ctypes.c_void_p))
+
+
+def stable_epoch_parent() -> pathlib.Path:
+    """The one directory paid project epochs live under, read from the account and never the environment.
+
+    The Windows answer is an explicit pin because no API can derive it. The MSIX `python.exe` alias runs
+    Python and its children in a virtualized view of LocalAppData: the known folder returns one path, but a
+    junction under it exists only outside that view, so the same path names two different directories.
+    A pin outside LocalAppData names one directory from either launch route. This never creates a root.
+    """
+    if not running_on_windows():
+        import pwd
+        return pathlib.Path(pwd.getpwuid(os.getuid()).pw_dir) / ".local/share/AgentHub/runtime/content-recovery-epochs"
+    pin = runtime_pin()
+    if not pin or not isinstance(pin, str) or not pathlib.Path(pin).is_absolute():
+        raise RuntimeError("Paid project speech requires an absolute HKCU\\Software\\AgentHub RuntimeRoot pin")
+    pinned = pathlib.Path(pin)
+    known = os.path.normpath(str(local_app_data())).casefold()
+    for candidate in (pin, str(pinned.resolve())):
+        candidate = os.path.normpath(candidate).casefold()
+        if candidate == known or candidate.startswith(known + os.sep):
+            raise RuntimeError("RuntimeRoot must sit outside LocalAppData: launch routes see different directories there")
+    parent = pinned / "content-recovery-epochs"
+    if any(linked_path(path) for path in (parent, *parent.parents)) or not parent.is_dir():
+        raise RuntimeError("RuntimeRoot must hold an existing, unlinked content-recovery-epochs directory")
+    return parent
+
+
 def project_correction_entries(raw, parent_sha):
     amendment = json.loads(raw)
     entries = amendment.get("allowed_requests", [])
@@ -133,8 +185,19 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
     speech. All historical requests remain unavailable, including ambiguous ones.
     The normal lifetime ledger is neither created nor configured by this route.
     """
-    manifest_path = pathlib.Path(manifest_path)
-    raw = manifest_path.read_bytes()
+    return _epoch_ledger(pathlib.Path(manifest_path).read_bytes(), workspace, text, model_id, request)
+
+
+def project_v2_ledger(raw, workspace, text, model_id, request):
+    """The same checks on the exact bytes a caller's gate already read, for project v2 kinds only."""
+    policy = json.loads(raw)
+    if not isinstance(policy, dict) or policy.get("kind") not in ("elevenlabs-owner-authorized-project-epoch-v2",
+                                                                  "elevenlabs-project-delivery-correction-v1"):
+        raise RuntimeError("This route requires a project v2 manifest or its correction")
+    return _epoch_ledger(raw, workspace, text, model_id, request)
+
+
+def _epoch_ledger(raw, workspace, text, model_id, request):
     policy = json.loads(raw)
     correction_raw = None
     if policy.get("kind") == "elevenlabs-project-delivery-correction-v1":
@@ -180,10 +243,7 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
             raise RuntimeError("Project epoch requires exact owner approval and pinned speech request")
         allowed_requests = policy.get("allowed_requests", [])
         if correction_raw is not None:
-            base = os.environ.get("LOCALAPPDATA") if running_on_windows() else str(pathlib.Path.home() / ".local/share")
-            if not base:
-                raise RuntimeError("Cannot resolve correction accounting")
-            correction_root = pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs" / epoch
+            correction_root = stable_epoch_parent() / epoch
             if not correction_root.is_dir() or not (correction_root / "authorization.json").is_file():
                 raise RuntimeError("Corrections never initialize missing original accounting")
             allowed_requests = project_correction_inventory(correction_root, policy, hashlib.sha256(raw).hexdigest(), correction_raw)
@@ -227,10 +287,13 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
             or any(not re.fullmatch(r"[0-9a-f]{64}", item) for item in allowed)
             or text_hash in policy.get("ambiguous_text_sha256", [])):
         raise RuntimeError("Speech is outside this recovery epoch's new/unsubmitted allowlist")
-    base = os.environ.get("LOCALAPPDATA") if running_on_windows() else str(pathlib.Path.home() / ".local/share")
-    if not base:
-        raise RuntimeError("Cannot resolve private local runtime directory")
-    parent = pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs"
+    if project_v2:
+        parent = stable_epoch_parent()
+    else:
+        base = os.environ.get("LOCALAPPDATA") if running_on_windows() else str(pathlib.Path.home() / ".local/share")
+        if not base:
+            raise RuntimeError("Cannot resolve private local runtime directory")
+        parent = pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs"
     if project_v2 and any(linked_path(p) for p in (parent, *parent.parents)):
         raise RuntimeError("Project v2 refuses linked epoch accounting")
     root = parent.resolve() / epoch
