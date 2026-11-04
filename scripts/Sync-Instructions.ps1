@@ -346,8 +346,15 @@ foreach ($agent in $allHosts) {
     } else {
         $existingContent = [System.IO.File]::ReadAllText($target.DestinationPath)
         if ($existingContent.IndexOf($Marker, [StringComparison]::Ordinal) -lt 0) {
-            $state = 'unmanaged'
-            $hasUnmanaged = $true
+            # The registry can declare that the owner keeps this host's file by
+            # hand. It stays unwritten either way; only the failure goes away,
+            # so one such host cannot hold every other host at drift.
+            if ([bool]$agent.nativePaths.instructionsAuthoredByOwner) {
+                $state = 'owner-authored'
+            } else {
+                $state = 'unmanaged'
+                $hasUnmanaged = $true
+            }
         } elseif ($existingContent -ceq $expectedContent) {
             $state = 'current'
         } else {

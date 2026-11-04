@@ -530,7 +530,7 @@
       "managedSkillNames": [
         "repowise"
       ],
-      "contentHash": "C74572912D423FB19ED31645A7E725406150F7BBE3006EE083FDBB8ED1E7C0BE",
+      "contentHash": "BFDD4A3DF60E6E246C1441C7F84B8909F9ED3B6B59935E59526EAE5C076BE937",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -625,7 +625,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "6F7B585FCBD7D4B16FB85EFC83749CC262594FFB67F752BEDFB5E2BC620082EE",
+      "contentHash": "2033D3423EFF701D2449932C73A7701ADEB247058D0A636C89A6F7C7072E90DB",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -780,7 +780,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "0070D539CC0BF955CEED033A9AE2518E5ACFEC54D14E976CC61D902184F05A50",
+      "contentHash": "2A81C5FE3F3D2F15EC201E603B845DC1DFDB1D6DD79010471FAF23ACAD03A027",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [

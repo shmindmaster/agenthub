@@ -264,6 +264,36 @@ function Test-UnmanagedDestinationRefusesAndExitsNonZero {
     }
 }
 
+# --- Behavior 2a: a host the registry declares owner-authored is left alone
+# without failing the run, so it cannot hold every other host at drift. ---
+function Test-OwnerAuthoredDestinationIsKeptAndDoesNotFail {
+    $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-owner-authored-" + [guid]::NewGuid())
+    $codexDest = Join-Path $userProfile '.codex\AGENTS.md'
+    $factoryDest = Join-Path $userProfile '.factory\AGENTS.md'
+    $handWritten = "# Global Agent Instructions`n`nWritten by the owner, with no AgentHub marker.`n"
+    try {
+        New-Item -ItemType Directory -Path (Split-Path -Parent $codexDest) -Force | Out-Null
+        [IO.File]::WriteAllText($codexDest, $handWritten, [System.Text.UTF8Encoding]::new($false))
+
+        $result = Invoke-SyncInstructions -ExtraArgs @('-Apply', '-UserProfile', $userProfile)
+        if ($result.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "exit code $($result.ExitCode) with only an owner-authored destination present. Output: $($result.Output)" }
+        }
+        if ($result.Output -notmatch '(?m)^codex\s+owner-authored\b') {
+            return @{ Passed = $false; Detail = "expected 'codex ... owner-authored' in the output. Output: $($result.Output)" }
+        }
+        if ([IO.File]::ReadAllText($codexDest) -cne $handWritten) {
+            return @{ Passed = $false; Detail = "the owner-authored destination was overwritten." }
+        }
+        if (-not (Test-Path -LiteralPath $factoryDest)) {
+            return @{ Passed = $false; Detail = "the other hosts were not deployed alongside the owner-authored host." }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 # --- Behavior 2b (fix round 1, IMPORTANT): the canonical policy body
 # itself contains <!-- agenthub:canonical --> at its own line 3. The
 # managed-marker guard must key on <!-- agenthub:managed --> SPECIFICALLY
@@ -489,6 +519,8 @@ $r1b = Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd
 Report 'Hermes template substitution preserves the identity preamble and places the marker at the end' $r1b.Passed $r1b.Detail
 
 $r2 = Test-UnmanagedDestinationRefusesAndExitsNonZero
+$r2a = Test-OwnerAuthoredDestinationIsKeptAndDoesNotFail
+Report 'owner-authored destination is kept, reported, and does not fail the run' $r2a.Passed $r2a.Detail
 Report 'unmanaged destination is refused and the run exits non-zero' $r2.Passed $r2.Detail
 
 $r2b = Test-MarkerDetectionCannotBeSatisfiedByCanonicalMarker

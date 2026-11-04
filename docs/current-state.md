@@ -13,7 +13,7 @@
   capability (`local-ai-stack`, `gpu-cluster-inference`) is unregistered and both
   skills are in `retiredFleetSkills`. The H100 cluster is gone; compute is chosen
   by capacity per the policy. Code retrieval is RepoWise, document retrieval is
-  `docwise` (in build). Older entries below that mention Local-AI describe history,
+  `docwise`. Older entries below that mention Local-AI describe history,
   not the current route. The `packages/media-studio` pack still carries Local-AI
   code paths and docs; retiring them needs a media-studio release that is
   sequenced after the Azure routing release (PR 97).

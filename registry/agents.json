@@ -83,6 +83,7 @@
       "nativePaths": {
         "config": "{userHome}/.codex/config.toml",
         "instructions": "{userHome}/.codex/AGENTS.md",
+        "instructionsAuthoredByOwner": true,
         "instructionHeader": "# Shared Codex Guidance",
         "instructionFormat": "markdown",
         "skillsDir": "{userHome}/.codex/skills",

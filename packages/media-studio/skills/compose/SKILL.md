@@ -12,7 +12,7 @@ Check the runtime first:
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/briefing-kit'
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '2.1.0') { throw "Stale runtime: $m" } }
+foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '2.1.1') { throw "Stale runtime: $m" } }
 ```
 
 To repair, set `MEDIA_STUDIO_PACKAGE_ROOT` to a package whose `plugin.json` version is `'2.1.0'`, then run `pwsh -NoProfile -File "$env:MEDIA_STUDIO_PACKAGE_ROOT/scripts/Sync-MediaStudioKit.ps1"`. With no package source, ask for an AgentHub deploy instead of guessing.

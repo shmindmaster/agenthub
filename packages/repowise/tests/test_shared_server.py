@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import sys
 import unittest
 from unittest.mock import patch, Mock
 from types import SimpleNamespace
@@ -28,6 +29,59 @@ def azure_env(**extra):
            'FOUNDRY_EMBEDDING_DEPLOYMENT': 'text-embedding-3-small'}
     env.update(extra)
     return env
+
+
+class VendorLauncherTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        sys.modules['shared_server'] = shared
+        launcher_spec = importlib.util.spec_from_file_location(
+            'vendor_mcp', Path(__file__).parents[1] / 'scripts/vendor_mcp.py')
+        cls.launcher = importlib.util.module_from_spec(launcher_spec)
+        launcher_spec.loader.exec_module(cls.launcher)
+
+    def run_main(self, configure, which='C:/bin/repowise.exe', argv=()):
+        call = Mock(return_value=7)
+        with patch.object(self.launcher, 'configure_remote_embedder', configure), \
+                patch.object(self.launcher.shutil, 'which', return_value=which), \
+                patch.object(self.launcher.subprocess, 'call', call), \
+                patch.object(self.launcher.sys, 'argv', ['vendor_mcp.py', *argv]):
+            return self.launcher.main(), call
+
+    def test_configures_azure_before_starting_vendor_server(self):
+        order = []
+        configure = Mock(side_effect=lambda: order.append('configure'))
+        call = Mock(side_effect=lambda *a, **k: order.append('start') or 0)
+        with patch.object(self.launcher, 'configure_remote_embedder', configure), \
+                patch.object(self.launcher.shutil, 'which', return_value='C:/bin/repowise.exe'), \
+                patch.object(self.launcher.subprocess, 'call', call), \
+                patch.object(self.launcher.sys, 'argv', ['vendor_mcp.py']):
+            self.assertEqual(self.launcher.main(), 0)
+        self.assertEqual(order, ['configure', 'start'])
+        self.assertEqual(call.call_args.args[0], ['C:/bin/repowise.exe', 'mcp'])
+
+    def test_returns_vendor_exit_code_and_forwards_arguments(self):
+        code, call = self.run_main(Mock(), argv=('--transport', 'stdio'))
+        self.assertEqual(code, 7)
+        self.assertEqual(call.call_args.args[0],
+                         ['C:/bin/repowise.exe', 'mcp', '--transport', 'stdio'])
+
+    def test_azure_failure_still_starts_keyword_retrieval(self):
+        for failure in (RuntimeError('probe failed'), ValueError('missing settings')):
+            with self.subTest(failure=failure):
+                code, call = self.run_main(Mock(side_effect=failure))
+                self.assertEqual(code, 7)
+                call.assert_called_once()
+
+    def test_missing_cli_stops_without_starting(self):
+        code, call = self.run_main(Mock(), which=None)
+        self.assertEqual(code, 1)
+        call.assert_not_called()
+
+    def test_stdio_is_passed_explicitly_so_the_child_gets_the_host_pipes(self):
+        _, call = self.run_main(Mock())
+        for stream in ('stdin', 'stdout', 'stderr'):
+            self.assertIn(stream, call.call_args.kwargs)
 
 
 class RemoteEmbeddingTest(unittest.TestCase):
