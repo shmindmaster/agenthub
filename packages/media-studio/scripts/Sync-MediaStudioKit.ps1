@@ -167,17 +167,17 @@ $mediaHelpers = @('Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Test-SpeechIn
 foreach ($name in $mediaHelpers) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $sharedTools $name) -Force
 }
-# Skills cite these by name from the deployed shared tools: the visual-quality inspector (media-studio-qa, the story
-# reviewer, engagement.md) and the workspace scaffold (media-studio-capture). A missing script is a hard stop.
+# Skills cite these by name from the deployed shared tools: the visual-quality inspector (review, the story
+# reviewer, story.md) and the workspace scaffold (capture). A missing script is a hard stop.
 foreach ($name in @('Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs')) {
     $from = Join-Path $PSScriptRoot $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical tool missing: $from" }
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
 }
-# demo-stack.mjs is owned by product-experience-engineering (registry/capabilities.json). The capture skill starts a
+# demo-stack.mjs is owned by the product plugin (registry/capabilities.json). The capture skill starts a
 # product's demo harness with it before recording, and loose-skill hosts have no package checkout, so the canonical
 # file is copied beside the capture tools rather than re-implemented here. The copy is read-only output of that owner.
-$demoStack = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\product-experience-engineering\scripts\demo-stack.mjs'))
+$demoStack = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\product\scripts\demo-stack.mjs'))
 if (-not (Test-Path -LiteralPath $demoStack)) { throw "Canonical demo-stack runner missing: $demoStack" }
 Copy-Item -LiteralPath $demoStack -Destination (Join-Path $sharedTools 'demo-stack.mjs') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\plugin.json') -Destination (Join-Path $sharedTools 'plugin.json') -Force

@@ -2,7 +2,7 @@
 # Idempotent Appium setup for the macOS guest. Safe to re-run.
 #
 # Deliberate choices, each with a reason recorded in
-# references/architecture-decisions.md:
+# references/lab-operations.md:
 #   * no sudo -- node is nvm-managed and user-owned; sudo would either miss
 #     nvm's node or leave root-owned files in the user's tree
 #   * pinned versions -- so a re-run does not silently move the lab

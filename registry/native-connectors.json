@@ -28,31 +28,25 @@
     "defaultHostConfiguration": "shared-remote-only-persisted",
     "sharedRemoteTransport": "http",
     "onDemandLocalMcpIds": [
-      "arxiv-research",
       "appium-mobile",
       "playwright",
       "repowise-workspace",
-      "linkedin",
-      "windows-mcp"
+      "linkedin"
     ],
-    "persistedOnDemandLocalMcpIds": [
-      "windows-mcp"
-    ],
+    "persistedOnDemandLocalMcpIds": [],
     "hostConfiguredLocalMcpIds": [
       "node_repl"
     ],
     "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
     "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright ships only in the browser-toolkit plugin .mcp.json for hosts without a native browser pane; enable it when needed, disable when done. Codex, Cursor and Claude use their native browser surface. Chrome DevTools MCP is retired and must not be registered. Same gate as appiumActivationRoute for mobile-development and repowiseActivationRoute for repowise-workspace.",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
-    "arxivActivationRoute": "Use the managed loose skill use-arxiv-research. Its Invoke-ArxivResearch.ps1 client acquires one shared OS lock, starts the pinned upstream MCP only for a bounded research session and closes it on exit. Install dependencies explicitly through -Operation install. Never persist arxiv-research in a host MCP config or enable a duplicate native plugin.",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
     "onDemandLocalCoverage": {
       "reconciledOn": "2026-09-17",
       "why": "generatedAt is bumped by this reconciliation, so it would otherwise read as a claim that onDemandLocalMcpIds covers every on-demand-local server in registry/mcps.json as of today. It does not. This block is what keeps the bumped date from overclaiming, and it is the record that the gap was seen rather than missed.",
       "added": {
         "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers.",
-        "repowise-workspace": "Resolved 2026-09-17. Measured: C:/Repos/.cursor/mcp.json persisted the stdio server as a workspace-open fallback and Cursor agent sessions each spawned a `repowise mcp C:/Repos` process tree (multiple hundred MB aggregate) with no plugin enable step. Correct shape matches browser-toolkit: plugin-gated .mcp.json on packages/repowise, never persisted in host or workspace MCP config. scope remains global-default for eligibility; activationMode stays on-demand-local; not in persistedOnDemandLocalMcpIds.",
-        "windows-mcp": "Registered 2026-10-28 (capability windows-desktop). Plugin-gated on Claude and Codex. Persisted for Cursor as an always-on owner exception and for OpenCode with enabled=false; see persistedOnDemandLocalMcpIdsNote."
+        "repowise-workspace": "Resolved 2026-09-17. Measured: C:/Repos/.cursor/mcp.json persisted the stdio server as a workspace-open fallback and Cursor agent sessions each spawned a `repowise mcp C:/Repos` process tree (multiple hundred MB aggregate) with no plugin enable step. Correct shape matches browser-toolkit: plugin-gated .mcp.json on packages/repowise, never persisted in host or workspace MCP config. scope remains global-default for eligibility; activationMode stays on-demand-local; not in persistedOnDemandLocalMcpIds."
       },
       "notAdded": {
         "railway": "Was on-demand-local stdio from 2026-08-19 to 2026-08-20. Moved to shared-remote https://mcp.railway.com (OAuth, no local process) on 2026-08-20 after Cursor's official plugin spawned two `railway mcp` process trees. No longer belongs in this on-demand-local coverage list."
@@ -63,12 +57,11 @@
         "brave-search": "Removed from registry/mcps.json on 2026-09-13. It was an on-demand-local npx stdio bridge (@brave/brave-search-mcp-server, unpinned) declared by no host and carried by no host config since at least 2026-08-20, so removal changed no deployment. Brave Search is no longer served anywhere in the fleet (withdrawn 2026-10-30); the BRAVE_API_KEY User environment variable remains owner-managed. It was never in onDemandLocalMcpIds, which is why it appears here rather than as a removal from that list."
       }
     },
-    "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. 2026-10-28: windows-mcp added as an owner-decided exception of the stdio shape this list normally refuses. Scope is enforced by its mcps.json hosts plus plugin-owned exposures: claude and codex stay plugin-gated (no persisted entry), opencode gets enabled=false, and only cursor runs it at session start. 2026-10-31: the windows-mcp Cursor always-on exception is revoked at owner direction (AgentHub deploys no custom MCP entries into host configs); the list stays empty. Owner decision 2026-10-28, chosen in an AskUserQuestion relayed by the coordinating session: 'Cursor always-on' -- \"Install Windows-MCP in Cursor even though Cursor can't ship it disabled -- it will start in every Cursor session until you toggle it off\" -- and \"everything we need to do should be possible with commands\".",
-    "onDemandLocalMcpIdsNote": "Refreshed 2026-10-24. Chrome DevTools MCP is retired; do not register it. playwright is --extension attach for hosts without a native browser pane, plugin-gated and never persisted. the AgentHub slack bridge was retired with the slack capability on 2026-10-30 at owner direction. repowise-workspace is plugin-gated (repowise@agenthub), never persisted. appium-mobile and linkedin stay on-demand-local and unpersisted.",
+    "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. The list stays empty.",
+    "onDemandLocalMcpIdsNote": "Refreshed 2026-10-24. Chrome DevTools MCP is retired; do not register it. playwright is --extension attach for hosts without a native browser pane, plugin-gated and never persisted. the AgentHub slack bridge was retired with the slack capability on 2026-10-30 at owner direction. RepoWise is vendor-plugin-owned on Claude/Codex and AgentHub-plugin-owned on remaining hosts, never duplicated in host MCP configuration. appium-mobile and linkedin stay on-demand-local and unpersisted.",
     "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
     "browserActivationRoute": "Codex, Cursor and Claude use their native browser surface. browser-toolkit was retired on 2026-10-30 at owner direction: no AgentHub browser plugin and no Playwright MCP lane remain. Repeatable browser regression stays in each repo's own Playwright tests; ad-hoc browser automation uses the host first-party browser surface or the agent-browser CLI. Chrome DevTools MCP is retired: never register or enable chrome-devtools or chrome-devtools-isolated.",
-    "repowiseActivationRoute": "RepoWise MCP is plugin-gated. Skills (use-repowise) and CLI stay available without the process. On claude: install `repowise@agenthub` when absent, then `claude plugin enable repowise@agenthub` only for MCP tool calls; cleanup is `claude plugin disable repowise@agenthub`. On codex: `codex plugin add repowise@agenthub` / `codex plugin remove repowise@agenthub`. On cursor: install the AgentHub repowise plugin when MCP is needed; do not write `C:/Repos/.cursor/mcp.json` or any host MCP entry. Official RepoWise marketplace plugins are forbidden. Never persist this stdio server.",
-    "windowsDesktopActivationRoute": "Windows-MCP is plugin-gated and rests installed-disabled. On claude: `claude plugin install windows-desktop@agenthub` installs ENABLED and reloads into every running session, so follow it immediately with `claude plugin disable windows-desktop@agenthub`; enable only for a desktop-control task and disable after. Disable does not stop servers already running; they exit with their sessions. A one-off task can use `claude -p --plugin-dir <agenthub>/packages/windows-desktop` instead. On codex: `codex plugin add windows-desktop@agenthub` once, then rest with [plugins.\"windows-desktop@agenthub\"] enabled = false in ~/.codex/config.toml; flip to true for a task. On cursor (IDE and cursor-agent): always-on by owner decision 2026-10-28; sync persists windows-mcp in ~/.cursor/mcp.json. Off switch, per workspace: `cursor-agent mcp disable windows-mcp` run from that workspace folder writes ~/.cursor/projects/<workspace>/mcp-disabled.json ('will not be loaded or prompted for approval'); `cursor-agent mcp enable windows-mcp` reverses it. The state lives outside ~/.cursor/mcp.json, so AgentHub sync never clears it (measured 2026-10-28). The Cursor IDE also has a per-server toggle in Customize. Do not also place the plugin under ~/.cursor/plugins/local. OpenCode may write mcp.windows-mcp with enabled=false. Never persist this stdio server as a session-start entry, never start it from a logon or scheduled task, and never widen the --tools allowlist without owner approval.",
+    "repowiseActivationRoute": "Owner migration 2026-11-03 supersedes the old vendor-plugin prohibition. Claude: repowise@repowise from repowise-dev/repowise. Codex: codex@repowise from the same vendor repository. Uninstall repowise@agenthub on those hosts; never restore it as parity repair. Vendor plugins own MCP, hooks and skills; remove duplicate user hooks and MCP entries. Use the existing C:/Repos workspace. Other hosts keep the AgentHub bridge until migrated. Keep bounded indexing scripts and approved personal AgentHub plugins.",
     "optInDisabledLocalMcpIds": [],
     "optInDisabledLocalMcpIdsNote": "On-demand-local stdio servers that hosts with an enabled=false switch may write into config without starting them. OpenCode is the verified writer (opencode.ai/docs/mcp-servers). Claude/Codex/Grok still suppress these from host MCP config and use plugin enable/disable instead. A host without an enabled=false switch must not be added here.",
     "optInDisabledHosts": [
@@ -305,8 +298,7 @@
           "descript",
           "linear",
           "notion",
-          "linkedin",
-          "windows-mcp"
+          "linkedin"
         ],
         "native-connector": [
           "github"
@@ -338,8 +330,7 @@
           "assemblyai-docs",
           "appium-mobile",
           "github",
-          "linkedin",
-          "windows-mcp"
+          "linkedin"
         ],
         "native-connector": [
           "context7",
@@ -680,7 +671,7 @@
         "owner": "personal-media",
         "surface": "claude.ai account connector (registry/mcps.json descript row unchanged)",
         "defaultStep": "Optional editorial finishing of cleared working media (transcript edits, filler removal, share links). Studio Sound is banned on owner voice.",
-        "referencedBy": "packages/media-studio/skills/media-studio-compose/references/descript.md",
+        "referencedBy": "packages/media-studio/skills/compose/references/descript.md",
         "live": true,
         "liveEvidence": "2026-10-21: get_drive_info returned the owner's drive in the recording session."
       },
@@ -793,7 +784,7 @@
           "command": "npx skills add firecrawl/skills",
           "docs": "https://github.com/firecrawl/skills"
         },
-        "note": "Official core/build/workflow skills plus Claude/Cursor/Codex plugin packaging. AgentHub keeps only the firecrawl-web-ingestion overlay and the shared-remote MCP at https://mcp.firecrawl.dev/v2/mcp. Do not republish firecrawl-scrape or firecrawl-crawl from AgentHub.",
+        "note": "Official core/build/workflow skills plus Claude/Cursor/Codex plugin packaging. AgentHub ships no Firecrawl package (the firecrawl-web-ingestion overlay was deleted 2026-11-03); the vendor plugin firecrawl@claude-plugins-official owns the skills, and the shared-remote MCP at https://mcp.firecrawl.dev/v2/mcp stays registry-owned. Do not republish firecrawl-scrape or firecrawl-crawl from AgentHub.",
         "observedAt": "2026-08-24",
         "hostChannels": [
           {
@@ -847,7 +838,7 @@
           "command": "npx --yes skills add coderabbitai/skills -g --all",
           "docs": "https://docs.coderabbit.ai/cli"
         },
-        "note": "Official code-review and autofix skills plus host plugins. AgentHub keeps only the use-coderabbit overlay. Native Windows CLI 0.7.5 at %LOCALAPPDATA%\\Programs\\coderabbit talks to CodeRabbit cloud. Do not vendor code-review or autofix, and do not install the Enterprise self-hosted server.",
+        "note": "Official code-review and autofix skills plus host plugins. AgentHub ships no CodeRabbit package (the use-coderabbit overlay was deleted 2026-11-03); the vendor plugin coderabbit@claude-plugins-official owns it. Native Windows CLI 0.7.5 at %LOCALAPPDATA%\\Programs\\coderabbit talks to CodeRabbit cloud. Do not vendor code-review or autofix, and do not install the Enterprise self-hosted server.",
         "observedAt": "2026-09-03",
         "hostChannels": [
           {

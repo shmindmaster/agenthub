@@ -620,7 +620,7 @@ foreach ($dir in $sharedRoots) {
 # Host skill-visibility overrides. The native-plugin skip above withholds a
 # host's own deployment, but a host whose skillsDir is a junction onto the
 # shared library still loads every loose copy deployed there for OTHER hosts.
-# On 2026-10-26 Claude listed media-studio (x5), product-experience-engineering
+# On 2026-10-26 Claude listed media-studio (x5), product
 # (x11) and use-repowise twice: once from its plugin, once as a loose copy.
 # Claude Code documents skillOverrides in settings.json: "off" hides a skill
 # from the model listing and the / menu, and plugin skills are unaffected. So

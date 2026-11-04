@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build"
+  short_description: "Implement a scoped change, test first"
+  default_prompt: "Use $build to implement this change, test first."

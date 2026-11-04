@@ -139,7 +139,7 @@ write(
   `# ${productName} demo production\n\nThis is an external, disposable production workspace. The product repository remains read-only.\n\n## Capture\n\nUse \`pnpm exec playwright-cli\` for agent-operated sessions. It owns mouse/keyboard interaction,\ntrace capture, WebM recording, chapters, and optional action annotations. Use \`@playwright/test\`\nonly when the same capture must be deterministically rerun. Store any episode script here, never in\nthe product repository.\n\n## Inputs and outputs\n\n- \`traces/\`: Playwright \`trace.zip\` plus its sibling high-resolution WebM. The WebM is the video\n  source; trace screenshots are metadata fallback only.\n- \`narration/\`: optional SRT and audio sources.\n- \`output/\`: disposable render candidates.\n- \`evidence/\`: Product Demo Studio validation and review evidence. Create \`source-scenario.json\` and \`demo-scenario-proof.json\`, then run \`validate-demo-scenario.mjs\` before recording.\n\nRun \`pnpm render -- traces output/${productSlug}-demo.mp4 narration/demo.srt --burn-captions\`. The\nthin adapter uses Recast for cursor/click/animated zoom and voice timing, keeps paths relative for\nWindows compatibility, embeds captions first, and uses one FFmpeg pass to burn the synchronized\ncaption track when requested. Install \`@elevenlabs/elevenlabs-js\` here only when ElevenLabs is\nselected; OpenAI is the minimal installed provider. After each recut, create candidate-bound \`qa/viewer-release-evidence.json\` and run \`validate-viewer-release.mjs\`; a missing, stale, or ASR-grounded review is not a pass. After the release gate passes, package the\naccepted candidate into the product's mapped OneDrive review root. Do not copy this workspace into\nthe product repository.\n`,
 );
 
-// A product that follows demo-harness/v1 (product-experience-engineering
+// A product that follows demo-harness/v1 (product plugin
 // kits/demo-harness) gets a capture skeleton prefilled from its harness file.
 // The harness is read, never written; the skeleton lives in this workspace.
 const harnessPath = join(repoRoot, "demo", "harness.json");
@@ -153,7 +153,7 @@ if (existsSync(harnessPath)) {
 //
 // Before every take, in the product repository:
 //   1. reset the demo tenant:  ${harness.reset?.full ?? "(no reset command declared)"}
-//   2. bring the stack up hidden: node <agenthub>/packages/product-experience-engineering/scripts/demo-stack.mjs up --repo <product>
+//   2. bring the stack up hidden: node <agenthub>/packages/product/scripts/demo-stack.mjs up --repo <product>
 //   3. record the build on screen: GET ${(harness.versionEndpoints ?? []).map((endpoint) => endpoint.url).join(", ") || "(no version endpoint declared)"}
 //      and copy its gitSha into job.json as deployedSha.
 // Claims in narration come only from the "Demonstrate now" table in ${harness.truthTable ?? "the truth table"}.

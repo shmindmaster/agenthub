@@ -1,7 +1,6 @@
 {
   "name": "assemblyai",
   "description": "Thin AssemblyAI capability: one routing skill plus the hosted AssemblyAI and docs MCP servers. No key in config.",
-  "version": "1.0.0",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -14,5 +13,6 @@
     "mcp"
   ],
   "skills": "./skills/",
-  "mcpServers": "./mcp.json"
+  "mcpServers": "./mcp.json",
+  "version": "1.1.0"
 }

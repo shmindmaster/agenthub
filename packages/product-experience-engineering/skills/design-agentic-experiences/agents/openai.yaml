@@ -1,4 +1,0 @@
-interface:
-  display_name: "Design Agentic Experiences"
-  short_description: "Design transparent, controllable AI interactions"
-  default_prompt: "Use $design-agentic-experiences to design this AI-assisted workflow safely and clearly."

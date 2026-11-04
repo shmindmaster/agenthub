@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 
-const source = readFileSync(new URL('../skills/use-coding-agent/opencode/lightweight-chat.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../skills/dispatch/opencode/lightweight-chat.js', import.meta.url), 'utf8');
 async function fixture() {
   const sandbox = vm.createContext({});
   vm.runInContext(source.replace('export default', 'globalThis.plugin ='), sandbox);
@@ -80,7 +80,7 @@ test('OpenCode prunes incompatible and low-value skills while retaining core cap
   assert.equal(f.removedSkills.length, 14);
   for (const id of ['built-in-browser', 'chrome-browser', 'computer-use', 'comedy-writer', 'sarosh-voice'])
     assert.ok(f.removedSkills.includes(id));
-  for (const id of ['sarosh-communication', 'use-playwright-cli', 'use-playwright-test', 'use-repowise', 'opportunity-engine', 'media-studio'])
+  for (const id of ['write', 'use-playwright-cli', 'use-playwright-test', 'repowise', 'opportunity', 'media-studio'])
     assert.ok(!f.removedSkills.includes(id));
 });
 

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Measure Experience Outcomes"
-  short_description: "Define evidence and metrics for product outcomes"
-  default_prompt: "Use $measure-experience-outcomes to create an experience measurement plan."

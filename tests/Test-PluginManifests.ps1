@@ -3,7 +3,7 @@
 Validates every AgentHub plugin against the HOST'S OWN schema, not a
 reimplementation of it.
 
-Why this exists: product-experience-engineering shipped
+Why this exists: product shipped
 `"agents": "./agents/"` -- a directory string where the schema requires an
 array of file paths. Claude Code refused to load the entire plugin, so all four
 of its subagents were unavailable. Validate-AgentHub.ps1 reported PASS and
@@ -106,9 +106,9 @@ function Test-HostValidatorRejectsABrokenManifest {
         return New-EmptyResult "the 'claude' CLI is not on PATH, so the anti-vacuity mutation could not be run."
     }
 
-    $package = Get-PluginPackages | Where-Object { $_.Name -eq 'product-experience-engineering' } | Select-Object -First 1
+    $package = Get-PluginPackages | Where-Object { $_.Name -eq 'product' } | Select-Object -First 1
     if (-not $package) {
-        return New-EmptyResult 'product-experience-engineering package not found; this mutation targets its agents array specifically.'
+        return New-EmptyResult 'product package not found; this mutation targets its agents array specifically.'
     }
     $trackedManifest = Join-Path $package.FullName '.claude-plugin\plugin.json'
     $trackedBytesBefore = [IO.File]::ReadAllBytes($trackedManifest)
@@ -188,7 +188,7 @@ function Test-HasUtf8Bom([byte[]]$Bytes) {
 # --- Behavior 3: this suite never writes to a tracked file.
 #
 # Behavior 2 used to mutate the REAL, TRACKED
-# packages/product-experience-engineering/.claude-plugin/plugin.json in whichever
+# packages/product/.claude-plugin/plugin.json in whichever
 # checkout ran it, and rely on a `finally` to put it back. A hard-killed run --
 # Ctrl+C at the wrong instant, a killed shell, a crashed host -- bypasses
 # `finally` and leaves a manifest Claude Code then refuses to load, in the user's

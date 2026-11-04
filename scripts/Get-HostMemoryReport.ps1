@@ -50,7 +50,6 @@ $classes = @(
     @('cliDaemon\.js', 'leftover-candidate:playwright-cli-daemon'),
     @('claude-code\\[\d.]+\\[0-9a-f]+\\claude\.exe', 'claude:cli-session'),
     @('-NoExit -Command "try \{ if \(\$ExecutionContext', 'claude:terminal-panel-shell'),
-    @('windows-mcp', 'mcp:windows-mcp'),
     @('copilot\.exe', 'copilot:cli'),
     @('vmware-vmx', 'vm:vmware-vmx')
 )

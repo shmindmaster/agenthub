@@ -119,7 +119,7 @@ async function visionGate(ctx, { ad, qdir, ratio, cut, gateSegments, gates }) {
 function storyGate(ctx, ratio, reviews) {
   const storyMin = ctx.spec.qa?.storyMin ?? 85;
   const sr = reviews.storyReview;
-  return sr && sr.reviewer && Number(sr.score) >= storyMin && sr.cta ? { status: 'pass', detail: `score ${sr.score} by ${sr.reviewer}` } : pending(`media-studio-qa story-experience review score >= ${storyMin} on this candidate (qa/${ratio}/reviews.json storyReview)`);
+  return sr && sr.reviewer && Number(sr.score) >= storyMin && sr.cta ? { status: 'pass', detail: `score ${sr.score} by ${sr.reviewer}` } : pending(`the review skill story-experience review score >= ${storyMin} on this candidate (qa/${ratio}/reviews.json storyReview)`);
 }
 
 async function viewerReleaseGate(ctx, { ws, qdir, candidate, sha, srt, loudPath, loud, reviews }) {

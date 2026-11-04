@@ -60,8 +60,8 @@ try {
         if ((Get-FileHash -LiteralPath $source).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) { throw "Stale cited tool: $destination" }
         $checks++
     }
-    # demo-stack.mjs is product-experience-engineering's; the capture skill cites it from the deployed tools.
-    $demoStackSource = Join-Path $repoRoot 'packages\product-experience-engineering\scripts\demo-stack.mjs'
+    # demo-stack.mjs is product's; the capture skill cites it from the deployed tools.
+    $demoStackSource = Join-Path $repoRoot 'packages\product\scripts\demo-stack.mjs'
     $demoStackDeployed = Join-Path $shared 'demo-stack.mjs'
     if (-not (Test-Path -LiteralPath $demoStackDeployed)) { throw "Missing demo-stack runner: $demoStackDeployed" }
     if ((Get-FileHash -LiteralPath $demoStackSource).Hash -ne (Get-FileHash -LiteralPath $demoStackDeployed).Hash) { throw "Stale demo-stack runner: $demoStackDeployed" }
@@ -75,12 +75,12 @@ try {
     $runtimeVersion = (Get-Content -LiteralPath (Join-Path $runtimeKit 'package.json') -Raw -Encoding utf8 | ConvertFrom-Json).version
     if ($runtimeVersion -ne $packageVersion) { throw "Runtime kit version $runtimeVersion does not match package $packageVersion" }
     $checks++
-    $composeGuide = Get-Content -LiteralPath (Join-Path $package 'skills\media-studio-compose\SKILL.md') -Raw -Encoding utf8
+    $composeGuide = Get-Content -LiteralPath (Join-Path $package 'skills\compose\SKILL.md') -Raw -Encoding utf8
     if ($composeGuide -match 'C:\\Repos\\shmindmaster\\agenthub' -or $composeGuide -notmatch 'MEDIA_STUDIO_PACKAGE_ROOT' -or $composeGuide -notmatch 'Finish-Media.ps1' -or $composeGuide -notmatch [regex]::Escape("'$packageVersion'")) {
         throw 'Compose guide does not describe verified package and deployed finishing paths'
     }
     $checks++
-    $generateGuide = Get-Content -LiteralPath (Join-Path $package 'skills\media-studio-generate\SKILL.md') -Raw -Encoding utf8
+    $generateGuide = Get-Content -LiteralPath (Join-Path $package 'skills\generate\SKILL.md') -Raw -Encoding utf8
     if ($generateGuide -match 'C:\\Repos\\shmindmaster\\agenthub') { throw 'Generate guide hardcodes a checkout path' }
     $checks++
     $retiredPattern = ($retiredOwnerVoice | ForEach-Object { [regex]::Escape($_) }) -join '|'

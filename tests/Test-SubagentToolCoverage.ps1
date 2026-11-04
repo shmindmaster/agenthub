@@ -14,7 +14,7 @@ reports full parity, and the only trace of a role deployed without half its
 tools is a console line that scrolls away.
 
 Measured on 2026-08-05 before this file existed: three
-product-experience-engineering roles -- experience-auditor,
+roles of the plugin now named product -- experience-auditor,
 experience-designer, experience-validator -- deployed to BOTH gemini and
 antigravity with WebSearch and WebFetch stripped. An auditor whose declared
 job is gathering external evidence arrived on two hosts with no way to

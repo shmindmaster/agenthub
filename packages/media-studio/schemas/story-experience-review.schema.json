@@ -54,10 +54,11 @@
               "media-storyboard",
               "media-director",
               "media-studio-visuals",
-              "media-studio-generate",
-              "media-studio-compose",
-              "media-studio",
-              "media-studio-qa"
+              "generate",
+              "capture",
+              "compose",
+              "video",
+              "review"
             ]
           }
         }

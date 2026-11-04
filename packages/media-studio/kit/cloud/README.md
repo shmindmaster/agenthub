@@ -1,7 +1,7 @@
 # cloud-render: shared cloud rendering for media-studio films
 
 Owner direction (2026-10-26): voice and rendering run in the cloud; screen capture and mouse movement stay local.
-Update 2026-10-29: placement is now capacity-based (see `media-studio-compose`): local NVENC when the PC is not taxed, this Azure job when it is or when work can run in parallel, Daytona only with the orchestrator's OK. Verified 2026-10-29: an ffmpeg transcode through this lane took 62 s wall time and $0.0065.
+Placement is capacity-based (see the `compose` skill): local NVENC when the PC is not taxed, this Azure job when it is or when work can run in parallel, Daytona only with the orchestrator's OK. Verified 2026-10-29: an ffmpeg transcode through this lane took 62 s wall time and $0.0065.
 
 `cloud-render.mjs` is the one render path every film session calls: it uploads the inputs from this machine,
 renders in Azure, and downloads the result into your job folder.
@@ -48,8 +48,8 @@ node cloud-ai.mjs qa     --images <contact-sheet.jpg> [...] --prompt <context> -
   * Word-sync: offset 0 ms and drift 0 ms.
 * **review / qa**: Anthropic (latest Opus) only by default. There is no automatic fallback to a different paid
   provider: exhausted credit, an auth failure or a free-tier quota refusal stops with the blocker named, and
-  `--provider azure-openai|gemini|openai` must be passed to use another (Azure OpenAI is gpt-5-mini in this resource
-  group, Entra auth, key auth disabled). Rate-limit retries stay on the same provider. `--client` material never goes to Anthropic and
+  `--provider azure-openai|gemini|openai` must be passed to use another (Azure OpenAI is `gpt-6-luna` by default, or `gpt-6.1-sol`, on
+  resource `mt-foundary-resource`, Entra auth, key auth disabled). Rate-limit retries stay on the same provider. `--client` material never goes to Anthropic and
   defaults to Azure OpenAI in the owner's tenant. The report has score 0–100, pass, findings with fixes, provider,
   model and usage. Exit 0 means pass.
 * Keys are read by name from the environment, then the Windows user environment, and are never printed.

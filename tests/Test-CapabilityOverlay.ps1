@@ -89,12 +89,12 @@ function Test-PolicyCoreHasNoOwnerIdentity {
         return @{ Passed = $false; Detail = 'policy-core.md contains owner identity' }
     }
     $fragment = Get-Content -LiteralPath (Join-Path $OverlayRoot 'policy-fragment.md') -Raw -Encoding UTF8
-    if ($fragment -notmatch 'sarosh-communication') {
-        return @{ Passed = $false; Detail = 'personal fragment does not route sarosh-communication' }
+    if ($fragment -notmatch 'sarosh:write') {
+        return @{ Passed = $false; Detail = 'personal fragment does not route sarosh:write' }
     }
     $compiled = Get-Content -LiteralPath (Join-Path $OverlayRoot 'global-agent-policy.md') -Raw -Encoding UTF8
-    if ($compiled -notmatch 'sarosh-communication') {
-        return @{ Passed = $false; Detail = 'compiled personal policy no longer routes sarosh-communication; this machine would deploy a weaker policy' }
+    if ($compiled -notmatch 'sarosh:write') {
+        return @{ Passed = $false; Detail = 'compiled personal policy no longer routes sarosh:write; this machine would deploy a weaker policy' }
     }
     return @{ Passed = $true; Detail = $null }
 }

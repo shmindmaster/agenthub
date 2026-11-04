@@ -2,7 +2,7 @@
 <#
 Pins the viewer-facing engagement contract in packages/media-studio:
 
-- engagement.md is the diagnose/tools/ownership home; story-craft and archetypes are catalogs
+- story.md is the diagnose/tools home; scenes.md holds the archetype catalog
 - producer/writer/storyboard/visuals/director/generate/compose/qa/critic load it
 - rapid path is writer → storyboard → visuals → director → generate → compose → critic → QA
 - schemas carry story roles, shot plan, sound, delivery profile, craftScoreMin
@@ -35,60 +35,46 @@ function Read-Pkg([string]$Relative) {
     return [IO.File]::ReadAllText($path)
 }
 
-$engagement = Read-Pkg 'skills\media-studio\references\engagement.md'
-$producer = Read-Pkg 'skills\media-studio\SKILL.md'
-# Consolidation (2026-10-21): writer, storyboard, visuals and director are references of the producer skill; the
-# story-experience critic is a section of media-studio-qa.
-$writer = Read-Pkg 'skills\media-studio\references\writer.md'
-$storyboard = Read-Pkg 'skills\media-studio\references\storyboard.md'
-$visuals = Read-Pkg 'skills\media-studio\references\visuals.md'
-$director = Read-Pkg 'skills\media-studio\references\direction.md'
-$generate = Read-Pkg 'skills\media-studio-generate\SKILL.md'
-$compose = Read-Pkg 'skills\media-studio-compose\SKILL.md'
-$qa = Read-Pkg 'skills\media-studio-qa\SKILL.md'
+$engagement = Read-Pkg 'skills\video\references\story.md'
+$producer = Read-Pkg 'skills\video\SKILL.md'
+# The script craft is one reference (story.md), storyboard, visuals and direction are one reference (scenes.md), and
+# the story-experience critic is a section of the review skill.
+$writer = $engagement
+$storyboard = Read-Pkg 'skills\video\references\scenes.md'
+$visuals = $storyboard
+$director = $storyboard
+$generate = Read-Pkg 'skills\generate\SKILL.md'
+$compose = Read-Pkg 'skills\compose\SKILL.md'
+$qa = Read-Pkg 'skills\review\SKILL.md'
 $critic = $qa
-$capture = Read-Pkg 'skills\media-studio-capture\SKILL.md'
+$capture = Read-Pkg 'skills\capture\SKILL.md'
 $job = Read-Pkg 'schemas\job.schema.json'
 $play = Read-Pkg 'schemas\screenplay.schema.json'
 $board = Read-Pkg 'schemas\storyboard.schema.json'
 $bible = Read-Pkg 'schemas\visual-bible.schema.json'
 $review = Read-Pkg 'schemas\story-experience-review.schema.json'
-$craft = Read-Pkg 'skills\media-studio\references\story-craft.md'
-$archetypes = Read-Pkg 'skills\media-studio\references\scene-archetypes.md'
-$rubric = Read-Pkg 'skills\media-studio\references\story-review-rubric.md'
+$craft = $engagement
+$archetypes = $storyboard
+$rubric = Read-Pkg 'skills\review\references\story-review-rubric.md'
 $manifest = Read-Pkg 'plugin.json'
 
-Report 'engagement.md exists' (-not [string]::IsNullOrWhiteSpace($engagement)) 'missing skills/media-studio/references/engagement.md'
-Report 'engagement.md diagnoses wall-to-wall speech and static picture' (
+Report 'story.md exists' (-not [string]::IsNullOrWhiteSpace($engagement)) 'missing skills/video/references/story.md'
+Report 'story.md diagnoses wall-to-wall speech and static picture' (
     $engagement -match 'Wall-to-wall speech' -and $engagement -match 'One visual held'
 ) 'Diagnose first must name those failure modes'
-Report 'engagement.md maps music to accepted assets and Finish-Media duck' (
+Report 'story.md maps music to accepted assets and Finish-Media duck' (
     $engagement -match 'Accepted, licensed bed asset' -and $engagement -match 'Finish-Media'
 ) 'Tools table must name the actual providers'
-Report 'engagement.md sends product-screencast to the PDS killer-demo guide' (
-    $engagement -match 'killer-demo-production-guide' -and $engagement -match 'Do not invent another overlay stack'
+Report 'story.md keeps product-screencast off a parallel overlay stack' (
+    $engagement -match 'Do not invent another overlay stack'
 ) 'Screencasts must not grow a parallel overlay stack'
 
-foreach ($pair in @(
-        @{ Name = 'producer'; Text = $producer },
-        @{ Name = 'generate'; Text = $generate },
-        @{ Name = 'compose'; Text = $compose },
-        @{ Name = 'qa'; Text = $qa }
-    )) {
-    Report "$($pair.Name) loads engagement.md" (
-        $pair.Text -match 'engagement\.md'
-    ) "$($pair.Name) SKILL.md does not name engagement.md"
-}
-foreach ($pair in @(
-        @{ Name = 'writer'; Text = $writer; File = 'writer.md' },
-        @{ Name = 'storyboard'; Text = $storyboard; File = 'storyboard.md' },
-        @{ Name = 'visuals'; Text = $visuals; File = 'visuals.md' },
-        @{ Name = 'director'; Text = $director; File = 'direction.md' }
-    )) {
-    Report "$($pair.Name) reference exists and the producer routes to it" (
-        -not [string]::IsNullOrWhiteSpace($pair.Text) -and $producer -match [regex]::Escape($pair.File)
-    ) "skills/media-studio/references/$($pair.File) missing or not named by the producer"
-}
+Report 'producer loads story.md and scenes.md' (
+    $producer -match 'references/story\.md' -and $producer -match 'references/scenes\.md'
+) 'video SKILL.md does not name story.md and scenes.md'
+Report 'review walks Diagnose first in story.md' (
+    $qa -match 'references/story\.md' -and $qa -match 'Diagnose first'
+) 'review SKILL.md does not name the Diagnose first table'
 
 Report 'producer no longer skips music as the rapid default' (
     $producer -notmatch 'Skip Motif/lipsync/music unless needed'
@@ -96,20 +82,19 @@ Report 'producer no longer skips music as the rapid default' (
 Report 'producer defaults intent to viewer-facing' (
     $producer -match 'intent: viewer-facing'
 ) 'producer must default viewer-facing'
-Report 'producer QA step includes an engagement pass for non-screencast kinds' (
-    $producer -match 'engagement pass'
-) 'producer must run an engagement pass'
+Report 'producer pipeline ends in review of the encoded file' (
+    $producer -match 'Review the encoded file'
+) 'producer must review the encoded file'
 Report 'producer crew includes storyboard then visuals then critic' (
-    $producer -match 'storyboard\.md' -and
-    $producer -match 'visuals\.md' -and
-    $producer -match 'story-experience'
+    $producer -match 'storyboard, visual bible, direction' -and
+    $producer -match 'Review the encoded file'
 ) 'rapid path must insert storyboard, visuals, and craft critic'
 Report 'producer requires Remotion for viewer-facing briefing/training/explainer/series-episode' (
     $producer -match 'requires Remotion' -and $producer -match 'intent: draft'
 ) 'viewer-facing motion jobs must not silently fall back to static slides'
-Report 'writer hands off to storyboard' (
-    $writer -match 'storyboard\.md'
-) 'writer must not skip to director'
+Report 'producer runs the script before the beat sheet' (
+    $producer -match '(?s)2\. Script.*3\. Beat sheet'
+) 'pipeline must not skip the beat sheet'
 Report 'director prefers simplest truthful visual that maintains attention' (
     $director -match 'simplest truthful visual that maintains attention'
 ) 'director still prefers cheapest still'
@@ -135,8 +120,8 @@ Report 'qa engagement pass inspects the encoded file' (
     $qa -match 'encoded' -and $qa -match 'Diagnose first'
 ) 'non-screencast QA must walk the encoded file against Diagnose first'
 Report 'capture keeps screencast engagement on the PDS gate' (
-    $capture -match 'product-picture\.md' -and $capture -match 'story-experience' -and $capture -match 'not `engagement.md` and not a second overlay stack'
-) 'capture must not apply engagement.md as a second overlay stack'
+    $capture -match 'product-picture\.md' -and $capture -match 'story-experience' -and $capture -match 'not a second overlay stack'
+) 'capture must not add a second overlay stack'
 
 Report 'job schema has intent draft|viewer-facing' (
     $job -match '"intent"' -and $job -match '"viewer-facing"' -and $job -match '"draft"'
@@ -169,19 +154,19 @@ Report 'storyboard schema requires shotPlan, archetype, sound, chosenHook' (
 Report 'visual-bible and story-experience-review schemas exist' (
     $bible -match '"motif"' -and $review -match '"reviseSceneIds"' -and $review -match '"pass"'
 ) 'missing visual-bible or review schema'
-Report 'story-craft and scene-archetype catalogs exist' (
+Report 'story and scene-archetype catalogs exist' (
     $craft -match 'Question' -and $craft -match 'Reveal' -and
     $archetypes -match 'kinetic-statement' -and $archetypes -match 'hero-reveal'
-) 'missing story-craft or scene-archetype library'
+) 'missing story or scene-archetype library'
 Report 'job schema has deliveryProfile and craftScoreMin' (
     $job -match '"deliveryProfile"' -and $job -match '"craftScoreMin"'
 ) 'job.schema.json missing delivery or craft gate'
 Report 'job schema has programForm and webcast/teaser kinds' (
     $job -match '"programForm"' -and $job -match '"outcome-workflow"' -and $job -match '"webcast"' -and $job -match '"teaser"'
 ) 'job.schema.json missing library forms or broadcast kinds'
-$picture = Read-Pkg 'skills\media-studio\references\product-picture.md'
-$forms = Read-Pkg 'skills\media-studio\references\program-forms.md'
-$studio = Read-Pkg 'skills\media-studio\references\studio-craft.md'
+$picture = Read-Pkg 'skills\video\references\product-picture.md'
+$forms = Read-Pkg 'skills\video\references\forms.md'
+$studio = $storyboard
 Report 'product-picture.md is the single interaction contract' (
     $picture -match 'start → locator → pointer lead → action → visible product response → result hold' -and
     $picture -match 'validate-product-picture' -and
@@ -196,15 +181,15 @@ Report 'product-picture.md is the single interaction contract' (
 Report 'feature-tutorial and onboarding default to product-screencast' (
     $forms -match '`feature-tutorial`[^\n]+`product-screencast`' -and
     $forms -match '`onboarding`[^\n]+`product-screencast`'
-) 'program-forms still default tutorials to Remotion training'
-Report 'program-forms catalog exists' (
+) 'forms.md still defaults tutorials to Remotion training'
+Report 'forms catalog exists' (
     $forms -match 'outcome-workflow' -and $forms -match 'ai-trust' -and $forms -match 'One promise'
-) 'missing program-forms.md library'
-Report 'studio-craft exists' (
+) 'missing forms.md library'
+Report 'scenes.md keeps studio craft' (
     $studio -match 'felt not heard' -and $studio -match 'Coverage'
-) 'missing studio-craft.md'
+) 'scenes.md lost studio craft'
 Report 'producer infers programForm' (
-    $producer -match 'programForm' -and $producer -match 'program-forms.md'
+    $producer -match 'programForm' -and $producer -match 'references/forms\.md'
 ) 'producer does not infer library form'
 
 $plugin = $manifest | ConvertFrom-Json

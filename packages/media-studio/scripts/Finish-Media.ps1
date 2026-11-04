@@ -4,7 +4,7 @@
     Two-pass linear loudness finish and optional music duck for media-studio.
 
 .DESCRIPTION
-    Canonical delivery helper for media-studio-compose. Default loudness matches
+    Canonical delivery helper for the compose skill. Default loudness matches
     the Product Demo Studio gate and Apple Podcasts spoken-word guidance:
 
         I=-16 LUFS, TP=-1.5 dBTP, LRA=7 LU  (ITU-R BS.1770 / EBU loudnorm)

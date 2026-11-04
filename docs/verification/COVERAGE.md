@@ -26,7 +26,7 @@ Commit `5002737`. A cell says what exists in the repo. "Test: file exists, not r
 | Host config files (JSON/TOML) for 22 active agent entries | local file write | Implemented. Observed `latest-drift.json` statuses are unlinked to a commit |
 | MCP servers (15 in `registry/mcps.json`) | declared, per-host emit | Implemented. Protocol revision recorded per server by probe; probes not re-run here |
 | Slack Web API | external, live | Implemented. Live call not made (external-communicating) |
-| ElevenLabs, Firecrawl, DigitalOcean, CodeRabbit packages | capability content | Implemented (content only). No live call verified |
+| ElevenLabs, DigitalOcean packages | capability content | Implemented (content only). No live call verified |
 | GitHub (repo, Dependabot) | remote | Verified by read: repo public, one workflow (Dependabot). No CI |
 | Linear projects P-SH-21 and P-SH-22 | tracking | Both "Planned" per the operator; not read by the pack |
 
@@ -48,5 +48,5 @@ The whole product. It acts on the operator machine's user-level paths. There is 
 
 ## Test-discovery gaps (found while building this matrix)
 
-- `packages/product-experience-engineering/tests/run-all.ps1` runs `validate-runtime.ps1`, `validate-demo-readiness.ps1` and `validate-kits.ps1` (which runs the execution-controls Python unit tests and, if env is set, a strict `tsc`). `Run-AllTests.ps1` only picks up `validate-plugin.ps1` (`tests/Run-AllTests.ps1:32-47`), and `validate-plugin.ps1` does not call the others (grep). So these checks, and `kit.test.ts` / `schema.test.ts`, are outside the aggregate runner.
+- `packages/product/tests/run-all.ps1` runs `validate-runtime.ps1`, `validate-demo-readiness.ps1` and `validate-kits.ps1` (which runs the execution-controls Python unit tests and, if env is set, a strict `tsc`). `Run-AllTests.ps1` only picks up `validate-plugin.ps1` (`tests/Run-AllTests.ps1:32-47`), and `validate-plugin.ps1` does not call the others (grep). So these checks, and `kit.test.ts` / `schema.test.ts`, are outside the aggregate runner.
 - `Run-AllTests.ps1` ignores `tests/Test-AppiumSessionCleanup.mjs` and `Test-MobileLabGuestStart.mjs` directly; `Test-MobileDevelopment.ps1` references both by name, so they are probably reached indirectly. Not traced.

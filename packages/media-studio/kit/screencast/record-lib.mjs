@@ -1,5 +1,5 @@
 // Product-neutral Playwright recording library for media-studio screencasts.
-// Contract: skills/media-studio/references/product-picture.md. Timing: PDS killer-demo production guide
+// Contract: skills/video/references/product-picture.md. Timing:
 // (eased pointer 400–600 ms, settle ≥250 ms, click pulse 300–400 ms via Recast, result hold ≥500 ms).
 //
 // Every pointer move, click, keystroke, wheel and expectation that a scene script performs through the

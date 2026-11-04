@@ -53,7 +53,7 @@ function Test-ExportOmitsPersonalSurface {
             return @{ Passed = $false; Detail = "export missing: $($missing -join ', ')" }
         }
         $forbidden = @(
-            'packages\sarosh-communication',
+            'packages\sarosh',
             'overlays\personal',
             'global-agent-policy.md',
             'scripts\Export-PublicCore.ps1',
@@ -66,8 +66,8 @@ function Test-ExportOmitsPersonalSurface {
             return @{ Passed = $false; Detail = "export still contains: $($present -join ', ')" }
         }
         $caps = Get-Content -LiteralPath (Join-Path $dest 'registry\capabilities.json') -Raw -Encoding UTF8
-        if ($caps -match 'sarosh-communication') {
-            return @{ Passed = $false; Detail = 'exported capabilities.json still names sarosh-communication' }
+        if ($caps -match 'sarosh:|overlays/personal/packages/sarosh') {
+            return @{ Passed = $false; Detail = 'exported capabilities.json still names the private sarosh plugin' }
         }
         $agents = Get-Content -LiteralPath (Join-Path $dest 'registry\agents.json') -Raw -Encoding UTF8
         if ($agents -match 'SaroshHussain') {

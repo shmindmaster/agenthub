@@ -1,0 +1,23 @@
+# Provider plugins
+
+Load when choosing a provider. Azure comes first, reuse accepted assets, and a named provider runs only when a job calls for it. Local AI is off. Paid speech stays on a governed adapter and the shared spend record. A plugin never bypasses them.
+
+"None found" means checked and absent from `claude plugin list`, `codex plugin list` and the Claude official and community marketplaces. "Not established" means not checked. Key states were checked by name only.
+
+| Provider | Capability | Claude | Codex | Other hosts | Publisher | Cost and credentials | Pick it over the default when |
+|---|---|---|---|---|---|---|---|
+| Azure AI Speech and Foundry | TTS, STT, images, avatar clips, embeddings, OCR. The plugin adds Azure MCP, Foundry MCP and the `azure-ai` skill | `azure@claude-plugins-official`, enabled | `azure@azure-skills`, enabled | `microsoft/azure-skills`, MIT | Microsoft | MCPP credit. `AZURE_SPEECH_KEY`, `AZURE_AI_SERVICES_KEY` set | It is the default. Use the plugin for resource and Foundry work; speech stays on `scripts/governed_azure_speech.py` |
+| AssemblyAI | Second-opinion ASR, `keyterms_prompt`, diarization, speaker identification, PII redaction | `assemblyai@agenthub`, enabled. Skill `assemblyai:assemblyai`; hosted MCP not signed in | `assemblyai@agenthub`, enabled | `packages/assemblyai/README.md` | AgentHub wrapper over AssemblyAI's hosted MCP | Billed by usage. `ASSEMBLYAI_API_KEY` not set, so `cloud-ai.mjs align --provider assemblyai` is blocked | Only a job naming it, usually for a line that failed Azure or a transcript leaving the project |
+| Deepgram | Real-time STT (Nova-3), fallback TTS (Flux) | Not installed. `deepgram@deepgram-agent-skills`, vendor marketplace `deepgram/skills` | None found | `npx skills add deepgram/skills` | Deepgram | Nova-3 $0.46 / hr, Flux $45 / 1M chars. `DEEPGRAM_API_KEY` set | Streaming STT, or a TTS line that failed an Azure gate. Paid TTS uses `scripts/deepgram_cli.py`, not the plugin |
+| ElevenLabs | TTS, STT, SFX, music, dubbing, voice tools | Restricted connector, read-only for this plugin | None found | `npx skills add elevenlabs/skills`, MIT | ElevenLabs | `ELEVENLABS_API_KEY` set, no governed adapter | Blocked until a governed adapter returns |
+| HeyGen | HyperFrames (HTML with a paused GSAP timeline to video); HeyGen video service | `hyperframes@claude-plugins-official`, not installed | `hyperframes@openai-curated-remote`, `heygen@openai-curated-remote`, not installed | `heygen-com/hyperframes` | HeyGen | `HEYGEN_API_KEY` not set. Account cost not established | A job names it. Pick HyperFrames or Remotion per job, not both |
+| Runway | Video, image and audio generation | `runway-api@claude-plugins-official`, enabled; Dev MCP not signed in | `runway-api@openai-curated-remote`, not installed | `runwayml/skills` | Runway | Credits frozen. `RUNWAYML_API_SECRET` not set | Only when the owner approves a spend |
+| Higgsfield | Video generation | None found | None found | None found | Not established | Credits frozen | Only when the owner approves a spend |
+| Remotion | Typed React composition and parametrised templates; the compose default | Official agent skills not installed: `npx skills add remotion-dev/skills`. The community plugin loads no skills | `remotion@openai-curated-remote`, enabled | `remotion-dev/skills` | Remotion | Local tool, no generation credit | Authoring a new composition (`compose` skill). Use the official skills; do not restate them |
+| Descript | Optional editorial finishing | Native connector | `media-studio@agenthub` plugin MCP | `descriptinc/skills`, MIT, stale | Descript | OAuth. Uses media minutes and AI credits | A job calls for finishing. Never connect both routes in one session |
+| Adobe | Image, vector, design and video edits | `adobe-for-creativity@synced`, loaded | None found | `adobe/skills` | Adobe | Account sign-in. Plan cost not established | A job names an Adobe edit |
+| Canva | Design, resize, brand check | `canva@synced`, loaded | `canva@openai-curated-remote`, enabled | `canva-sdks/canva-skills` | Canva | Account sign-in. Plan cost not established | A job names a Canva design or brand kit |
+
+Left out: Together AI (`togetherai-skills@claude-plugins-official`), because its audio, image and LLM routes overlap Azure, and its video route is unassessed with `TOGETHER_API_KEY` not set.
+
+Excluded: Codex's `aivideogenerator`, `imagetovideo` and `texttospeech`, because their publisher is not identified.

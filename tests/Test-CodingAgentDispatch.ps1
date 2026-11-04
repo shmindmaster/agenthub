@@ -5,7 +5,7 @@
 param([string]$DispatcherPath)
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-if (-not $DispatcherPath) { $DispatcherPath = Join-Path $repoRoot 'packages\coding-agent-dispatch\skills\use-coding-agent\Invoke-CodingAgent.ps1' }
+if (-not $DispatcherPath) { $DispatcherPath = Join-Path $repoRoot 'packages\coding-agent-dispatch\skills\dispatch\Invoke-CodingAgent.ps1' }
 $failed = 0; $checked = 0
 function Check([string]$Name, [bool]$Passed, [string]$Detail = '') {
     $script:checked++
@@ -39,9 +39,9 @@ $fixture = Join-Path ([IO.Path]::GetTempPath()) ('cad fixture ' + [guid]::NewGui
 try {
     foreach ($dir in @('registry','scripts\lib','scratch','logs')) { $null = New-Item -ItemType Directory -Path (Join-Path $fixture $dir) -Force }
     Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1') -Destination (Join-Path $fixture 'scripts\lib\PathBinding.ps1')
-    $fixtureFactorySettings = Join-Path $fixture 'packages\coding-agent-dispatch\skills\use-coding-agent\factory'
+    $fixtureFactorySettings = Join-Path $fixture 'packages\coding-agent-dispatch\skills\dispatch\factory'
     $null = New-Item -ItemType Directory -Path $fixtureFactorySettings -Force
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'packages\coding-agent-dispatch\skills\use-coding-agent\factory\runtime-settings.json') -Destination $fixtureFactorySettings
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'packages\coding-agent-dispatch\skills\dispatch\factory\runtime-settings.json') -Destination $fixtureFactorySettings
     $recorder = Join-Path $fixture 'record.cjs'
     @'
 const fs = require('node:fs');
@@ -72,7 +72,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $ids = @('claude','codex','cursor','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','qoder','warp','windsurf','antigravity-desktop')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode/glm-5.3-flash' }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/use-coding-agent/factory/runtime-settings.json' } } }
+    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode/glm-5.3-flash' }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8

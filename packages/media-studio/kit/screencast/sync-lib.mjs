@@ -1,5 +1,5 @@
 // Narration-to-visual sync primitives shared by build-cue-sheet.mjs, compose-screencast.mjs and validate-sync.mjs.
-// Contract: VIDEO-SYNC-DIRECTIVE (2026-10-15) and skills/media-studio/references/product-picture.md.
+// Contract: VIDEO-SYNC-DIRECTIVE (2026-10-15) and skills/video/references/product-picture.md.
 // Pure functions only (no ffmpeg, no filesystem), so the timing rules are unit-tested on their own and the three
 // tools cannot drift apart on what "the action lands on the word" means.
 

@@ -398,7 +398,7 @@
       ],
       "autonomy": "medium",
       "autonomyNote": "Dispatch runs `--auto` at low or medium only. `--auto high` permits git push, and --skip-permissions-unsafe is never emitted; the dispatcher refuses any autonomy value outside low or medium. Outward-action rules live in the repo-owned runtimeSettings file, verified with `droid rules check` 2026-10-26.",
-      "runtimeSettings": "packages/coding-agent-dispatch/skills/use-coding-agent/factory/runtime-settings.json",
+      "runtimeSettings": "packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json",
       "reason": "2026-10-26: team-tier account login verified (droid doctor). Live probes returned the expected text: gpt-6-luna 651 credits, glm-5.3-flash 827, gemini-3.8-flash 4,382, gpt-6-sol 14,089 for a one-line prompt. Four headless tasks (F-1..F-4) were completed and integrated under these rules. There is no spend flag, so the dispatcher timeout bounds each run.",
       "verifiedOn": "2026-10-26",
       "ownerDirection": "2026-10-26: owner asked in the Claude session to make Factory Droid a first-class execution peer, then to commit, merge and deploy everything. This supersedes, for Factory only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
@@ -571,7 +571,7 @@
     },
     "qoder": {
       "enabled": true,
-      "reason": "qodercli status reports Sarosh Hussain (sarosh.hussain@gmail.com, browser login) and standalone response smoke returned ok on Qoder CLI 1.1.81.",
+      "reason": "qodercli status reports the owner account (browser login) and standalone response smoke returned ok on Qoder CLI 1.1.81.",
       "ownerAction": null,
       "verifiedOn": "2026-10-30"
     }
@@ -590,7 +590,7 @@
     "capabilityMeanings": {
       "browser.isolated": "A browser the agent drives itself with a throwaway or per-workspace profile, carrying no signed-in session. Suits localhost and public pages. This is the capability that scales across hosts, because no two sessions contend for one profile directory -- Playwright MCP partitions automatically as mcp-{channel}-{workspace-hash}, and --isolated removes the on-disk profile entirely.",
       "browser.authenticated": "A browser carrying a signed-in session, so already-authenticated sites work without logging in each run. Owner direction 2026-10-23: Codex, Cursor and Claude use their native browser surface. Hosts without a native browser pane use Playwright MCP --extension through browser-toolkit when needed, never persisted as session-start stdio. Chrome DevTools MCP is retired across the fleet.",
-      "computer.gui": "First-party control of native desktop applications. A surface value records first-party support only. Where it is not true, the fleet provider is the windows-mcp MCP (registry/mcps.json, capability windows-desktop), plugin-gated and started only for a desktop-control task.",
+      "computer.gui": "First-party control of native desktop applications. A surface value records first-party support only. AgentHub ships no fleet provider for it (the windows-desktop package was deleted 2026-11-03); Claude ships computer use.",
       "mobile.android.local": "Driving an Android emulator or attached device on the Windows host. On this fleet the provider is the appium-mobile MCP through its embedded UiAutomator2. Does not cover a physical iPhone or any real-hardware claim.",
       "mobile.ios.simulated": "Driving an iOS Simulator inside the VMware macOS guest, reached as a remote Appium client because Xcode and simctl do not exist on Windows. On this fleet the provider is the appium-mobile MCP with remoteServerUrl set to the guest. Does not cover a physical iPhone or any real-hardware claim."
     },
@@ -610,7 +610,7 @@
           "browser.authenticated": "The same quoted sentence. What the documentation withholds from this surface is Browser itself, so it covers the authenticated variant and the isolated one alike."
         },
         "capabilityNotEstablished": {
-          "computer.gui": "Computer Use was not probed from this surface. The documented evidence here covers Browser availability only and says nothing about first-party control of native desktop applications. Recorded false until 2026-08-05 on the strength of that Browser sentence, which is the assumption this table exists to forbid; demoted to null rather than backfilled with a finding nobody made. 2026-10-28: computer-use@openai-bundled and unified-computer-use@openai-bundled are installed and enabled (codex plugin list; cua_repl in codex mcp list, whose Auth column reads Unsupported, which is an auth status, not a runtime verdict). Not live-probed, so still null. The windows-desktop plugin is the fleet provider here and was exercised live through codex exec.",
+          "computer.gui": "Computer Use was not probed from this surface. The documented evidence here covers Browser availability only and says nothing about first-party control of native desktop applications. Recorded false until 2026-08-05 on the strength of that Browser sentence, which is the assumption this table exists to forbid; demoted to null rather than backfilled with a finding nobody made. 2026-10-28: computer-use@openai-bundled and unified-computer-use@openai-bundled are installed and enabled (codex plugin list; cua_repl in codex mcp list, whose Auth column reads Unsupported, which is an auth status, not a runtime verdict). Not live-probed, so still null.",
           "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
         },
@@ -654,7 +654,7 @@
         },
         "capabilityNotEstablished": {
           "browser.authenticated": "2026-09-02 disk probe: ChatGPT/Codex extension hehggadaopoacecdllhhajmbjkdcmajg is installed on Chrome Default and Edge Default. That is the product on disk, not a live Computer Use / @Chrome / @Edge session from the ChatGPT desktop app. Connection was not probed this visit, so it stays null rather than assumed.",
-          "computer.gui": "Computer Use is documented on the desktop app (learn.chatgpt.com/docs/browser, 'Computer Use in the browser') but was not live-probed from this machine this visit, so it is recorded null rather than assumed. 2026-10-28: computer-use@openai-bundled and unified-computer-use@openai-bundled are installed and enabled (codex plugin list; cua_repl in codex mcp list, whose Auth column reads Unsupported, which is an auth status, not a runtime verdict). Not live-probed, so still null. The windows-desktop plugin is the fleet provider here and was exercised live through codex exec.",
+          "computer.gui": "Computer Use is documented on the desktop app (learn.chatgpt.com/docs/browser, 'Computer Use in the browser') but was not live-probed from this machine this visit, so it is recorded null rather than assumed. 2026-10-28: computer-use@openai-bundled and unified-computer-use@openai-bundled are installed and enabled (codex plugin list; cua_repl in codex mcp list, whose Auth column reads Unsupported, which is an auth status, not a runtime verdict). Not live-probed, so still null.",
           "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
         },
@@ -698,7 +698,7 @@
         },
         "capabilityNotEstablished": {
           "browser.authenticated": "Workspace cookies persist per Cursor workspace. That is still an isolated profile, not the owner's personal Chrome. A connected Chrome/Edge extension was not probed, so authenticated stays null.",
-          "computer.gui": "Cursor changelog mentions self-hosted machines that can click, type, take screenshots, and drive the browser. That worker path was not probed from this IDE surface. Provider, not first-party: since 2026-10-28 the windows-mcp MCP is persisted always-on in ~/.cursor/mcp.json by owner decision, and cursor-agent mcp list reports it ready. That does not make this surface's own computer use established, so the value stays null.",
+          "computer.gui": "Cursor changelog mentions self-hosted machines that can click, type, take screenshots, and drive the browser. That worker path was not probed from this IDE surface. The value stays null.",
           "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
         },
@@ -720,7 +720,7 @@
           "browser.authenticated": "The same CLI pages withhold a headed browser from this surface entirely, so they cover the authenticated variant and the isolated one alike."
         },
         "capabilityNotEstablished": {
-          "computer.gui": "CLI changelog mentions --computer-use on self-hosted workers, which is a different surface. Local cursor-agent Computer Use was not probed. Provider, not first-party: since 2026-10-28 the windows-mcp MCP is persisted always-on in ~/.cursor/mcp.json by owner decision, and cursor-agent mcp list reports it ready. That does not make this surface's own computer use established, so the value stays null.",
+          "computer.gui": "CLI changelog mentions --computer-use on self-hosted workers, which is a different surface. Local cursor-agent Computer Use was not probed. The value stays null.",
           "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
         },

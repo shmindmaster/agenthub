@@ -6,8 +6,10 @@ $root = Split-Path -Parent $PSScriptRoot
 $package = Join-Path $root 'packages\repowise'
 # A bare python.exe may resolve to the Microsoft Store stub (the wrapper refuses
 # it), so resolve a real installed interpreter once and use it everywhere.
-$realPython = Get-Command python.exe -All -CommandType Application |
-    Where-Object { $_.Source -notlike '*\WindowsApps\*' } | Select-Object -First 1 -ExpandProperty Source
+# App aliases resolve to a real interpreter; bundled copies such as LibreOffice's do not.
+$realPython = Get-Command python.exe -All -CommandType Application | ForEach-Object {
+    try { & $_.Source -c 'import sys; print(sys.executable)' 2>$null | Select-Object -Last 1 } catch { }
+} | Where-Object { $_ -and $_ -notlike '*\WindowsApps\*' -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
 if (-not $realPython) { throw 'No installed (non-Store) python.exe found for the admission tests.' }
 $prior = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'

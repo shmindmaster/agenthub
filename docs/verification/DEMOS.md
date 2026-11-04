@@ -8,7 +8,7 @@ None recorded. The video library root has no AgentHub folder. The notes folder h
 
 ## Traces and screenshots
 
-None in the repo. Tracked image files under `packages/` are product-experience-engineering icon assets, not product evidence. The demo fixtures under `packages/product-experience-engineering/tests/fixtures/` belong to that package's own tests; they are not AgentHub demos.
+None in the repo. Tracked image files under `packages/` are product icon assets, not product evidence. The demo fixtures under `packages/product/tests/fixtures/` belong to that package's own tests; they are not AgentHub demos.
 
 ## What a demo could use
 

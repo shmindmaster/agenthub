@@ -53,10 +53,9 @@ Report 'the inventory names at least one installed host' ($installed.Count -gt 0
 $installedSet = @{}
 foreach ($h in $installed) { if ($h) { $installedSet[[string]$h] = $true } }
 
-# arxiv-research is invoked through its serialized loose-skill client, never
-# registered in a host MCP config. The scope is the capability's hostMappings;
-# assigning direct hosts here would start a server per idle host.
-$intentionallyUnscoped = @('arxiv-research')
+# No on-demand-local server is intentionally unscoped today (arxiv-research was
+# retired 2026-11-03). Add an id here only to declare it unscoped on purpose.
+$intentionallyUnscoped = @()
 $localServers = @($mcp.mcpServers | Where-Object { $_.activationMode -eq 'on-demand-local' })
 Report 'the registry declares at least one on-demand-local server' ($localServers.Count -gt 0) `
     'No server matched activationMode on-demand-local. If that field was renamed, every scope check below silently disappears.'

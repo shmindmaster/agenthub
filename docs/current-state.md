@@ -24,22 +24,6 @@
   when a job names it, and `provider-plugins.md`, its provider map. Offline tests
   only: `ASSEMBLYAI_API_KEY` is not set and no live call has been made.
 
-- **Windows desktop control (2026-10-28):** `packages/windows-desktop` is the
-  first owner of `computer.gui` as a provider. It ships the
-  `windows-desktop@agenthub` plugin (Claude, Codex, Cursor) and the loose skill
-  `use-windows-mcp`, and runs upstream `windows-mcp==0.8.8` through `uvx` only
-  while the plugin is enabled. The launch passes a `--tools` allowlist, so
-  PowerShell, Registry, FileSystem, Process, Clipboard and Scrape are never
-  exposed. Telemetry and the capture flash are off. OpenCode gets the entry with
-  `enabled=false`. Every other host gets the skill only: the MCP is
-  discovery-required there, because a persisted stdio entry would start with
-  every session. Verified on this branch: a stdio handshake returned exactly 15
-  tools, and a read-only Screenshot wrote a PNG to the evidence root without
-  changing the foreground window. A `claude -p --plugin-dir` run then called
-  DisplayInventory. No Run key, scheduled task, service or host MCP entry was
-  created. Live deployment to hosts waits for merge, because the `agenthub`
-  marketplaces read the main checkout.
-
 - **RepoWise bridge remote mode (2026-10-28):** plugin 1.2.12 lets the
   `repowise@agenthub` stdio bridge forward to a self-hosted RepoWise endpoint
   when `AGENTHUB_REPOWISE_MODE=remote`, with the URL in
@@ -52,16 +36,6 @@
   `packages/repowise/tests/test_repowise_bridge.py` cover forwarding with a
   bearer, no-launch, no-fallback, missing and wrong tokens, and URL rules. No
   host has been switched; that is a separate overlay cutover.
-
-- **arXiv product research (2026-10-23):** `packages/arxiv-research` adds the
-  fleet skill `use-arxiv-research`, with an on-demand client for upstream
-  `arxiv-mcp-server[pdf]==0.8.2`. A machine-wide OS lock prevents overlapping
-  sessions; bounded MCP sessions close their child server and share a local
-  paper library. Live verification covered discovery, search, cached paper
-  retrieval, outlines, section reading, BibTeX export and prompt listing.
-  The workflow maps paper evidence to product hypotheses and measurable
-  experiments. Semantic model extras are omitted. Host mappings deploy the
-  shared loose skill; no persistent host MCP entry or schedule is installed.
 
 Verified 2026-08-08. This file records demonstrated reality, not intent.
 
@@ -118,7 +92,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   the external media workspace.
 
 - **Coding-agent dispatch (2026-10-22):** `packages/coding-agent-dispatch`
-  owns the `use-coding-agent` skill and `Invoke-CodingAgent.ps1`. Claude and
+  owns the `dispatch` skill and `Invoke-CodingAgent.ps1`. Claude and
   Codex are the primary orchestrators; any host with the skill can call the
   same script. The dispatcher reads `registry/fleet-profile.json` on each
   invocation, so policy changes take effect immediately for source-checkout
@@ -200,7 +174,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   manifest hints `trimStart`, `trimEnd`, `speed`, `skip`, `fit`, `overlay`),
   the transparent annotation overlay (`render-overlay.mjs`), code-reveal and
   card renderers; `Sync-MediaStudioKit.ps1` copies them to the runtime kit,
-  which now declares `playwright`. `media-studio-capture` records the measured
+  which now declares `playwright`. the `capture` skill records the measured
   Recast limits (`.recast-tmp` collides under concurrent renders; long
   many-click clips need `autoZoom` off or a split), resolves the browser
   provider from `hostSurfaces` instead of naming a host tool, and carries the
@@ -255,15 +229,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   listening comparison; the retained validation line was complete at WER
   0.000 and 145.8 WPM. Chatterbox Sarosh profiles, aliases, x-vector-only
   cloning, meeting/singing profiles, shootout profiles, and loose references
-  are retired. The AgentHub local-AI and media-studio-generate skills
+  are retired. The AgentHub local-AI and media-studio `generate` skills
   enforce the same route across managed hosts.
 
-- **Fleet-wide Sarosh expression split (2026-09-02):** AgentHub exposes three
-  composable personal skills: `sarosh-communication` for direct interactions
-  and concise messaging, `sarosh-writing` for evidence-led long-form artifacts,
-  and `sarosh-audio-voice` as a thin route into the existing Local-AI `sarosh`
-  clone (speaker identity is advisory only, see the 2026-10-27 entry below). Each has one global capability owner; none is
-  owned or deployed by a client or product repository.
+- **Fleet-wide Sarosh expression (2026-09-02, merged 2026-11-03):** the private
+  `sarosh` plugin's `write` skill covers direct interactions, concise messaging,
+  evidence-led long-form artifacts and the route into the existing Local-AI
+  `sarosh` clone (speaker identity is advisory only, see the 2026-10-27 entry
+  below). It has one global capability owner and is not owned or deployed by a
+  client or product repository.
 
 - **Speaker identity is advisory only (owner direction, 2026-10-27):** identity is
   advisory only; never fail, block or re-voice on speaker similarity. The identity
@@ -351,7 +325,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   allowed. On 2026-10-30/31 the owner retired six capabilities and their
   packages (`digitalocean`, `elevenlabs`, `browser-toolkit`,
   `learning-studio`, `slack`, and one loopback SaaS gateway), and persisted
-  `windows-mcp`, `repowise-workspace`, `slack` and `linkedin` host entries
+  `repowise-workspace`, `slack` and `linkedin` host entries
   were pruned from OpenCode, Cursor (user and `C:/Repos` workspace). Brave
   Search is no longer served anywhere in the fleet; reintroduce only through a
   new registry decision.
@@ -371,7 +345,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   at that Documents root; `_MAP.md`
   is a pointer. Exact search uses WSL `rga` 0.10.10 plus pandoc/poppler
   (no Windows rga build exists). Opportunity rendering is
-  `opportunity-engine`; portfolio and professional-material enrichment is
+  `sarosh:opportunity`; portfolio and professional-material enrichment is
   `portfolio-enrichment`. Runtime records are the private repo
   `C:\Repos\shmindmaster\portfolio-records` (three fail-closed YAML
   records as of 2026-08-21 evening; synthetic fixtures stay in the
@@ -401,7 +375,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   repo's `.repowise/` plus `C:\Repos\.repowise-workspace\`; default update
   is `--index-only` (no LLM). Do not `repowise login`. agenthub is the
   default/primary repo. On-demand-local: Claude is wired, other hosts use
-  the `use-repowise` skill plus CLI.
+  the `repowise` skill plus CLI.
 - **Fleet checker**: `scripts/Check-RepoStandard.ps1` with fixture tests in
   `tests/Test-RepoStandard.ps1` (11 behavior checks, passing 2026-08-08).
 - **Skill deployment ledger**: fixed 2026-08-08. `Sync-Capabilities.ps1` wrote
@@ -424,8 +398,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   content, filenames, and commit messages across the whole history — verified
   independently here. Fleet references (`repo-standard.json`,
   `mobile-scope.json`, the DigitalOcean portfolio/DNS skills, the
-  product-experience-engineering
-  leak guard, and the RepoWise workspace) now say `lienwise`. The freeze exit
+  product leak guard, and the RepoWise workspace) now say `lienwise`. The freeze exit
   condition was met, so it moved to `include` (P1). **Pre-rewrite SHAs are
   dead**: any other checkout needs `git fetch && git reset --hard origin/main`.
 - **What a history rewrite does not reach** (measured on lienwise 2026-08-08,
@@ -463,8 +436,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   (firecrawl/skills), **clerk-skills**, **railway**, **framer-agent**,
   **elevenlabs-skills**, **do-app-platform-skills**, **remotion**, **daytona**, and
   optional **creative-writing-skills**. AgentHub overlays may add fleet
-  policy (Firecrawl ingestion governance, owner-voice routing, DigitalOcean
-  portfolio map) but must not republish upstream skill names. Measured
+  policy (owner-voice routing, DigitalOcean portfolio map) but must not republish upstream skill names. Measured
   2026-08-24: AgentHub had been publishing `clerk@agenthub` and
   `firecrawl@agenthub` and deploying vendored `use-railway` / Framer skills
   as managed loose skills, which pinned hosts and would have downgraded
@@ -495,12 +467,12 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - **Portable plugin version authority (2026-08-21)**: root `plugin.json` is the
   Agent Plugins floor and single version authority; host projections must match
   (`scripts/Bump-PackageVersion.ps1`, `tests/Test-PluginManifests.ps1`).
-- **Media consolidation (2026-10-21)**: `media-studio` is one skill for
-  pre-production plus four crew skills (capture, generate, compose, qa). The
+- **Media consolidation (2026-10-21)**: `media-studio` was one skill for
+  pre-production plus four crew skills; since 2.1.0 (2026-11-03) the five skills are `video`, `generate`, `capture`, `compose`, `review` and `commands/video.md` is gone. The
   writer, storyboard, visuals, director and story-experience-reviewer front
-  doors are `skills/media-studio/references/{writer,storyboard,visuals,direction}.md`
-  and a section of `media-studio-qa`; Descript finishing is
-  `media-studio-compose/references/descript.md`. `story-series-studio` and
+  doors are `skills/video/references/{writer,storyboard,visuals,direction}.md`
+  and a section of `review`; Descript finishing is
+  `skills/compose/references/descript.md`. `story-series-studio` and
   `technical-storytelling` are retired into `references/series.md`,
   `story-craft.md`, `technical-story.md` and `direction.md` (schemas moved to
   `packages/media-studio/schemas`). `elevenlabs` was one skill with `tts.md` (package retired 2026-10-30),
@@ -517,7 +489,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   concept or outline is enough; writer → storyboard → visuals → director →
   Local-AI generate → Remotion/FFmpeg/Recast compose → craft critic → QA.
   Viewer-facing jobs apply `engagement.md` plus `story-craft.md` and the
-  scene-archetype kit; the story-experience review (now inside `media-studio-qa`) fails closed below 85.
+  scene-archetype kit; the story-experience review (now inside the `review` skill) fails closed below 85.
   `intent: draft` skips GPU plates and the critic gate. Remotion is required
   for viewer-facing briefing/training/explainer/series-episode unless draft.
   Product screencasts use Playwright WebM + Recast in media-studio

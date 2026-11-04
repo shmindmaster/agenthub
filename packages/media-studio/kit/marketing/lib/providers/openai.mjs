@@ -1,6 +1,6 @@
 // OpenAI REST client for mvg: images (gpt-image), speech (gpt-4o-mini-tts), word timing (whisper-1, the only OpenAI
-// STT with word timestamps) and vision QA (Responses API with a JSON schema). The Sora Videos API was shut down on
-// 2026-09-24; there is no OpenAI video call here. Requests carry only approved ad text and sampled frames.
+// STT with word timestamps) and vision QA (Responses API with a JSON schema).
+// There is no OpenAI video call here. Requests carry only approved ad text and sampled frames.
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
@@ -36,7 +36,7 @@ async function call(path, init, { retries = 3, fetchImpl = fetch } = {}) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function generateImage({ prompt, model = 'gpt-image-2', size = '1536x1024', quality = 'medium', fetchImpl }) {
+export async function generateImage({ prompt, model = 'gpt-image-2.5-flare', size = '1536x1024', quality = 'medium', fetchImpl }) {
   const res = await call('/images/generations', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, prompt, size, quality, n: 1, output_format: 'png' }),
@@ -64,6 +64,23 @@ export async function transcribeWords(file, { fetchImpl } = {}) {
   form.append('timestamp_granularities[]', 'word');
   form.append('language', 'en');
   const res = await call('/audio/transcriptions', { method: 'POST', body: form }, { fetchImpl });
+  return res.json();
+}
+
+/**
+ * Azure OpenAI speech-to-text through the MahumTech resource (mt-foundary-resource). Deployments: gpt-4o-mini-transcribe
+ * (default), gpt-transcribe, gpt-4o-transcribe-diarize. These return text (and segments for diarize), not the word
+ * timestamps that whisper-1 gives, so word timing stays on the forced aligner. Endpoint and key come from
+ * AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY by name; neither is printed.
+ */
+export async function transcribeAzure(file, { deployment = 'gpt-4o-mini-transcribe', fetchImpl = fetch, endpoint = process.env.AZURE_OPENAI_ENDPOINT, key = process.env.AZURE_OPENAI_API_KEY } = {}) {
+  if (!endpoint || !key) throw new OpenAiError('AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY must be set');
+  const form = new FormData();
+  form.append('file', new Blob([readFileSync(file)]), basename(file));
+  form.append('response_format', 'json');
+  const url = `${endpoint.replace(/\/$/, '')}/openai/deployments/${encodeURIComponent(deployment)}/audio/transcriptions?api-version=2025-04-01-preview`;
+  const res = await fetchImpl(url, { method: 'POST', headers: { 'api-key': key }, body: form });
+  if (!res.ok) throw new OpenAiError(`Azure transcription returned HTTP ${res.status}`, res.status);
   return res.json();
 }
 

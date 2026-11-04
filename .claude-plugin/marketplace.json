@@ -6,8 +6,8 @@
   },
   "plugins": [
     {
-      "name": "product-experience-engineering",
-      "source": "./packages/product-experience-engineering"
+      "name": "product",
+      "source": "./packages/product"
     },
     {
       "name": "mobile-development",
@@ -20,10 +20,6 @@
     {
       "name": "repowise",
       "source": "./packages/repowise"
-    },
-    {
-      "name": "windows-desktop",
-      "source": "./packages/windows-desktop"
     },
     {
       "name": "assemblyai",

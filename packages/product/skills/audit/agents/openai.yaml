@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audit"
+  short_description: "Find what works, what breaks and what to fix first"
+  default_prompt: "Use $audit to assess this application and rank what to fix first."

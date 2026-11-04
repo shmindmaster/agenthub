@@ -63,5 +63,3 @@ stranger-safe first run. For this private fleet checkout, also use
 - [proposals/media-studio-2.1-sync-and-build.md](./proposals/media-studio-2.1-sync-and-build.md) —
   proposed media-studio 2.1: word-synced text, diagrams that build on narration
   beats, emphasis role tokens, and the word-sync gate (review only).
-- [proposals/windows-ui-automation-capability.md](./proposals/windows-ui-automation-capability.md) —
-  proposed Windows UI Automation capability and Windows-MCP evaluation (review only).

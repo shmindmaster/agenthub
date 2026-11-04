@@ -68,7 +68,7 @@ $kitPkg = Get-Content -LiteralPath (Join-Path $pkg 'kit\package.json') -Raw -Enc
 Report 'runtime kit declares playwright-recast' ($kitPkg -match '"playwright-recast"\s*:\s*"0\.21\.0"') 'kit/package.json does not pin playwright-recast 0.21.0, so record-job.mjs cannot finish takes'
 Report 'record-job.mjs exists in the kit' (Test-Path -LiteralPath (Join-Path $pkg 'kit\screencast\record-job.mjs')) 'missing kit/screencast/record-job.mjs'
 Report 'validate-encoded-picture.mjs exists' (Test-Path -LiteralPath (Join-Path $pkg 'scripts\validate-encoded-picture.mjs')) 'missing scripts/validate-encoded-picture.mjs'
-$pictureMd = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\product-picture.md') -Raw -Encoding UTF8
+$pictureMd = Get-Content -LiteralPath (Join-Path $pkg 'skills\video\references\product-picture.md') -Raw -Encoding UTF8
 Report 'product-picture requires end-to-end demonstration' (
     $pictureMd -match 'End-to-end demonstration' -and
     $pictureMd -match 'Mute test' -and

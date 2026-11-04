@@ -16,11 +16,11 @@ to close permanently.
 
 The active `(?m)...$` literals found in the three files named by the task-6
 brief (search: `rg "\(\?m[s]?\)" scripts/Sync-AgentHub.ps1
-scripts/Validate-AgentHub.ps1 packages/product-experience-engineering/tests/validate-plugin.ps1`,
+scripts/Validate-AgentHub.ps1 packages/product/tests/validate-plugin.ps1`,
 then manually filtering to the ones that actually terminate in a bare `$`)
 are audited below:
 
-  packages/product-experience-engineering/tests/validate-plugin.ps1
+  packages/product/tests/validate-plugin.ps1
     L92  ^description: .+$                       -- already tolerant (`.` absorbs \r, no capture group at risk) -- UNCHANGED, verified below
     L97  ^tools:\s*(.+)$                          -- latent capture contamination -- FIXED
     L105 ^readonly:\s*(true|false)\s*$            -- already tolerant (\s*$, group closes before it) -- UNCHANGED, verified below
@@ -59,7 +59,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$validatePluginScript = Join-Path $repoRoot 'packages\product-experience-engineering\tests\validate-plugin.ps1'
+$validatePluginScript = Join-Path $repoRoot 'packages\product\tests\validate-plugin.ps1'
 $validateAgentHubScript = Join-Path $repoRoot 'scripts\Validate-AgentHub.ps1'
 $syncAgentHubScript = Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1'
 $hostExe = (Get-Process -Id $PID).Path
@@ -148,7 +148,7 @@ function Test-PackageValidatorNoLongerFailsOnCrlfRegexAnchorChecks {
     if ($output -match 'Canonical pre-video guide') {
         return @{ Passed = $false; Detail = "the guide-hash check is still comparing raw bytes, so it still depends on the checkout's line endings. Output: $output" }
     }
-    if ($output -notmatch 'plugin structure, metadata, references, assets, and inactive hooks are valid') {
+    if ($output -notmatch 'plugin structure, metadata, skills, references, assets and hooks are valid') {
         return @{ Passed = $false; Detail = "expected the package validator to run clean end to end in this CRLF worktree. Output: $output" }
     }
     return @{ Passed = $true; Detail = $null }

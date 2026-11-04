@@ -105,7 +105,7 @@ Verified -> Integrated -> Done (plus Blocked / Stalled / Failed / Superseded).
   Desktop is an Electron IDE: do not open it while other hosts saturate RAM.
 - **Dispatch a task:** write a brief, create a worktree with
   `New-AgentHubWorktree.ps1`, then
-  `pwsh -NoProfile -File <agenthub>\packages\coding-agent-dispatch\skills\use-coding-agent\Invoke-CodingAgent.ps1 -HostId devin -PromptFile <brief> -Cwd <worktree> -Model swe-2-medium -TimeoutSec 3600`.
+  `pwsh -NoProfile -File <agenthub>\packages\coding-agent-dispatch\skills\dispatch\Invoke-CodingAgent.ps1 -HostId devin -PromptFile <brief> -Cwd <worktree> -Model swe-2-medium -TimeoutSec 3600`.
   Output lands in `%LOCALAPPDATA%\AgentHub\runtime\coding-agent-dispatch\`.
 - **Take over manually:** stop the dispatched process, then `devin -c` in the
   same worktree.

@@ -113,6 +113,12 @@ $capabilities.capabilities = @(
         -not (Test-AgentHubCapabilityPrivate $_)
     }
 )
+# Retirement rows for private skills name the private plugin, so they stay out of the public tree.
+if ($capabilities.PSObject.Properties['retiredFleetSkills']) {
+    $capabilities.retiredFleetSkills = @(
+        $capabilities.retiredFleetSkills | Where-Object { -not (Test-AgentHubCapabilityPrivate $_) }
+    )
+}
 # Explicit export provenance distinguishes the portable distribution from a
 # canonical fleet checkout with an accidentally missing private registry.
 $capabilities | Add-Member -NotePropertyName distribution -NotePropertyValue 'public-core' -Force

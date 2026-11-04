@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fail-closed product-picture gate (plan + clips). Contract: skills/media-studio/references/product-picture.md
+// Fail-closed product-picture gate (plan + clips). Contract: skills/video/references/product-picture.md
 // Usage: node validate-product-picture.mjs <jobRoot> [--json]
 //
 // What it proves before compose is allowed to run:
@@ -90,7 +90,7 @@ for (const b of beats) { if (b.id) beatById.set(b.id, b); for (const sid of b.se
 const beatFor = (id) => beatById.get(id) || beatById.get(String(id).replace(/[a-z]$/, '')) || null;
 // visualMode: storyboard beat first, then the screenplay scene (exact id, then the id with the beat suffix stripped).
 // The storyboards this kit writes carry no visualMode, so without the screenplay every card and code reveal read as a
-// screen beat without a clip (Duckie job 13, 2026-09-15). Unknown stays the kind's default so the gate still fails closed.
+// screen beat without a clip (historical capture regression). Unknown stays the kind's default so the gate still fails closed.
 const screenplayModes = new Map(((readJson('story/screenplay.json') || {}).scenes || []).map((s) => [s.id, s.visualMode]));
 const beatMode = (id) => beatFor(id)?.visualMode || screenplayModes.get(id) || screenplayModes.get(String(id).replace(/[a-z]+$/, '')) || 'screen';
 const isScreenMode = (mode) => mode === 'screen' || !CARD_MODES.has(mode);

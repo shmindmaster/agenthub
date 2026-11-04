@@ -2,7 +2,7 @@
 // Marketing-readiness floor on the EXACT encoded candidate. A customer-facing cut competes in a feed against many other
 // videos for attention; the bar is "wins the viewer against the references in the first five seconds", not "accurate and
 // complete". The reviewer records the rubric verdicts with timestamped evidence in qa/marketing-readiness.json
-// (skills/media-studio/references/marketing-readiness.md); this gate holds that file to the floor and measures what it
+// (skills/review/references/marketing-readiness.md); this gate holds that file to the floor and measures what it
 // can measure (hook inside two seconds, one promise, end card inside the last eight seconds, cuts on the beat grid from
 // the real edit decision list, three cited references, the feed verdict). Below the floor the cut cannot release.
 //

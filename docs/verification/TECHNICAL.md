@@ -35,7 +35,7 @@ flowchart LR
 | Auth and secrets | No auth. Secrets stay out of deployed files by design (`docs/runbooks/sync-and-validate.md`); MCP env references use `${env:NAME}` notation and are translated per host (`Sync-AgentHub.ps1`, OpenCode comment near `:2309`). Env var names seen in the showcase: `AGENTHUB_OVERLAY`, `AGENTHUB_WORKTREE_ROOT`, `ANTHROPIC_API_KEY` (dispatcher claude host). Values were not read. |
 | Jobs | None scheduled. A fleet policy forbids automatic scheduled jobs; `Update-RepoWise.ps1` is manual (`AGENTS.md`). |
 | AI | None in the control plane. Models are chosen by dispatched hosts. No prompts or evals are stored here beyond skill text under `packages/`. Golden-task evals for skills do not exist (showcase enhancement 4, not built). |
-| Integrations | 15 MCP servers declared in `registry/mcps.json`; Slack contract in `packages/slack/mcp/`; RepoWise bridge in `packages/repowise/`; ElevenLabs, Firecrawl, DigitalOcean, CodeRabbit and other capability packages under `packages/`. |
+| Integrations | 15 MCP servers declared in `registry/mcps.json`; Slack contract in `packages/slack/mcp/`; RepoWise bridge in `packages/repowise/`; ElevenLabs, DigitalOcean and other capability packages under `packages/`. |
 
 ## Deployed form and release path
 

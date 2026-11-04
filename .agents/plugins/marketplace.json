@@ -5,10 +5,10 @@
                   },
     "plugins":  [
                     {
-                        "name":  "product-experience-engineering",
+                        "name":  "product",
                         "source":  {
                                        "source":  "local",
-                                       "path":  "./packages/product-experience-engineering"
+                                       "path":  "./packages/product"
                                    },
                         "policy":  {
                                        "installation":  "AVAILABLE",
@@ -45,18 +45,6 @@
                         "source":  {
                                        "source":  "local",
                                        "path":  "./packages/repowise"
-                                   },
-                        "policy":  {
-                                       "installation":  "AVAILABLE",
-                                       "authentication":  "ON_USE"
-                                   },
-                        "category":  "Developer Tools"
-                    },
-                    {
-                        "name":  "windows-desktop",
-                        "source":  {
-                                       "source":  "local",
-                                       "path":  "./packages/windows-desktop"
                                    },
                         "policy":  {
                                        "installation":  "AVAILABLE",

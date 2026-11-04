@@ -249,7 +249,7 @@ if (!promiseText) {
 const hook = { firstSentence, words: hookWords, seconds: hookSeconds, ok: hookOk, promiseNamed };
 
 // ---- synthetic data: a caption or an end card, never narration -------------------------------------------------------
-// The storyboard schema carries the caption / end-card declaration too (references/storyboard.md step 8).
+// The storyboard schema carries the caption / end-card declaration too (skills/video/references/scenes.md).
 const storyboardPath = join(root, 'story', 'storyboard.json');
 const storyboard = existsSync(storyboardPath) ? loadJson(storyboardPath, 'storyboard') : null;
 if (storyboard?.syntheticDisclosure) inputs.storyboard = ref(storyboardPath);

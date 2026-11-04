@@ -36,7 +36,7 @@ if ($Version -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
 }
 
 $hostDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin', '.qoder-plugin')
-$schema = 'https://agentplugins.org/schemas/1.0.0/plugin.schema.json'
+$schema = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 $rootManifestPath = Join-Path $packageRoot 'plugin.json'
 
 function Read-JsonFile([string]$Path) {
@@ -129,7 +129,7 @@ if (Test-Path -LiteralPath $policyPath) {
     Write-Host "updated $Package/policy/product-video-policy.json -> $Version"
 }
 
-# Skills that pin the release they verify against (media-studio-compose and -generate check the deployed kit and tools
+# Skills that pin the release they verify against (the compose and generate skills check the deployed kit and tools
 # with -ne '<version>'). Every pin phrase is rewritten whatever version it carries, so a pin left stale by an earlier
 # bump is caught too: -ne '<v>', "skill's <v> release", "verified <v> package", "Media Studio <v>".
 $semver = '\d+\.\d+\.\d+'

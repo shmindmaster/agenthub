@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "media-studio",
-  "capabilityVersion": "2.0.46",
+  "capabilityVersion": "2.1.0",
   "canonicalOwner": "personal-media",
   "toolRouting": {
-    "productReadiness": "product-experience-engineering:prepare-product-for-demo",
+    "productReadiness": "product:demo",
     "browserDiagnostics": "browser-toolkit",
     "masterCapture": "@playwright/cli@0.1.17",
     "repeatableCapture": "@playwright/test@1.62.1",
@@ -17,7 +17,7 @@
     "ownerVoiceAdvisoryScore": null,
     "audioPerceptionRoute": "Azure STT ASR check (fast transcription, or kit/cloud/cloud-ai.mjs align coverage) of the exact encoded candidate against the authored script",
     "elevenLabsProvider": "elevenlabs",
-    "editorialFinish": "media-studio-compose",
+    "editorialFinish": "compose",
     "github": "gh-cli",
     "requirements": [
       "notion:notion",

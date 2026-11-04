@@ -106,9 +106,9 @@ Behavior exists, checks pass, docs match reality.
 # Stand-in for the agenthub checkout the standard reads: the bounded RepoWise
 # entry point and the skill that documents it.
 $boundedRel = 'packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1'
-$skillRel = 'packages/repowise/skills/use-repowise/SKILL.md'
+$skillRel = 'packages/repowise/skills/repowise/SKILL.md'
 $agenthubStub = Join-Path $fixtureRoot 'agenthub-stub'
-New-Item -ItemType Directory -Force (Join-Path $agenthubStub 'packages\repowise\scripts'), (Join-Path $agenthubStub 'packages\repowise\skills\use-repowise') | Out-Null
+New-Item -ItemType Directory -Force (Join-Path $agenthubStub 'packages\repowise\scripts'), (Join-Path $agenthubStub 'packages\repowise\skills/repowise') | Out-Null
 Set-Content -LiteralPath (Join-Path $agenthubStub $boundedRel) -Value '# fixture bounded entry point'
 Set-Content -LiteralPath (Join-Path $agenthubStub $skillRel) -Value 'Refresh with scripts/Invoke-RepoWiseBoundedIndex.ps1.'
 # Fixture config mirrors the real roster shape but points fleetRoot at TEMP.
@@ -201,7 +201,7 @@ try {
     # Old guidance only: the skill still tells people to install the hook and
     # the bounded entry point does not exist.
     $oldOnlyStub = Join-Path $fixtureRoot 'agenthub-old-guidance'
-    New-Item -ItemType Directory -Force (Join-Path $oldOnlyStub 'packages\repowise\skills\use-repowise') | Out-Null
+    New-Item -ItemType Directory -Force (Join-Path $oldOnlyStub 'packages\repowise\skills/repowise') | Out-Null
     Set-Content -LiteralPath (Join-Path $oldOnlyStub $skillRel) -Value 'Run `repowise hook install -w` and `repowise update --repo <name>`.'
     $oldOnly = Invoke-RefreshVariant 'old-hook-only' { param($c) $c.repowiseRefresh.root = $oldOnlyStub }
     Report 'old-hook-guidance-only-fails-naming-the-bounded-command' `

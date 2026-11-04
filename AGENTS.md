@@ -11,7 +11,7 @@ Priorities, in order:
 4. Deterministic validation over re-derivation by agents.
 5. Maintainability and simplicity.
 
-**Public-first:** only public packages under `packages/` are tracked. Private capability packages and registry rows live only in the gitignored `overlays/personal/`. There is no second control-plane repo. Do not recreate one. RepoWise (`packages/repowise`) remains public for bounded indexing and legacy-host compatibility. Owner decision 2026-11-03: Claude uses vendor `repowise@repowise` and Codex uses vendor `codex@repowise`; uninstall the old `repowise@agenthub` on those hosts and never restore it as parity repair. Preserve useful personal AgentHub media, product and Sarosh workflows. Other hosts retain their bridge until explicitly migrated.
+**Public-first:** only public packages under `packages/` are tracked. Private capability packages and registry rows live only in the gitignored `overlays/personal/`. There is no second control-plane repo. Do not recreate one. RepoWise (`packages/repowise`) remains public for bounded indexing and legacy-host compatibility. Owner decision 2026-11-03: Claude uses vendor `repowise@repowise` and Codex uses vendor `codex@repowise`; uninstall the old `repowise@agenthub` on those hosts and never restore it as parity repair. Preserve useful personal AgentHub media, product and owner workflows. Other hosts retain their bridge until explicitly migrated.
 
 ## Start here
 

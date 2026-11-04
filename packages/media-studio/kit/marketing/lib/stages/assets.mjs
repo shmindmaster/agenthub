@@ -110,7 +110,7 @@ export async function assetsStage(ctx) {
       items.push({ kind: 'broll', beat: `${cut.id}/${beat.id}`, path: b.file, provider: 'stock', aiGenerated: false });
       continue;
     }
-    const model = ctx.brand.images?.model || 'gpt-image-2';
+    const model = ctx.brand.images?.model || 'gpt-image-2.5-flare';
     const quality = b.quality || ctx.brand.images?.quality || 'medium';
     const key = hashOf({ kind: 'image', model, size, quality, prompt: b.prompt });
     const rel = join('assets', 'broll', `${beat.id}-${key.slice(0, 12)}.png`);

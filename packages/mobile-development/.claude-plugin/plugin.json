@@ -1,6 +1,5 @@
 {
   "name": "mobile-development",
-  "version": "2.0.8",
   "description": "Canonical mobile development guidance with explicitly enabled, on-demand Appium tooling.",
   "author": {
     "name": "Sarosh Hussain"
@@ -12,5 +11,6 @@
     "android-emulator",
     "ios-simulator",
     "expo"
-  ]
+  ],
+  "version": "2.1.0"
 }

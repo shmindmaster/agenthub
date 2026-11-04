@@ -1,6 +1,6 @@
 # Media Studio 2.1: word sync, building diagrams, emphasis tokens
 
-Status: **proposed** (review only; no kit code, no deploy). Base: media-studio 2.0.4 (repo `packages/media-studio`,
+Status: **proposed** (note 2026-11-03: media-studio 2.1.0 shipped as a five-skill rewrite; skill paths below use the 2.0.4 names `media-studio-capture`, `-generate`, `-compose`, `-qa`, now `skills/capture`, `skills/generate`, `skills/compose`, `skills/review`; review only; no kit code, no deploy). Base: media-studio 2.0.4 (repo `packages/media-studio`,
 runtime `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit` and `_shared\tools`, both reporting 2.0.4).
 Target: 2.1.0. Owner of the capability: `packages/media-studio` (one registry owner; this proposal adds no new
 capability, skill, MCP or plugin).

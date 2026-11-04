@@ -1,6 +1,6 @@
 {
   "name": "assemblyai",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Thin AssemblyAI capability: one routing skill plus the hosted AssemblyAI and docs MCP servers. No key in config.",
   "mcpServers": {
     "assemblyai": {

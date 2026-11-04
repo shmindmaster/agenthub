@@ -121,20 +121,18 @@ finally {
     Remove-Item -LiteralPath $scratchRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# Consolidation (2026-10-21): technical-explainer lives in story-craft.md (explainer path), technical-visualizer and
-# the series director in references/direction.md, series methodology in references/series.md.
-$explainer = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\story-craft.md') -Raw -Encoding UTF8
-$visualizer = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\direction.md') -Raw -Encoding UTF8
-$series = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\series.md') -Raw -Encoding UTF8
-Report 'story-craft carries the explainer comprehension block inside the dramatic spine' (
+# The explainer path and technical-story beat map live in story.md; direction and archetypes in scenes.md;
+# forms, delivery profiles and series methodology in forms.md.
+$producer = Get-Content -LiteralPath (Join-Path $pkg 'skills\video\SKILL.md') -Raw -Encoding UTF8
+$explainer = Get-Content -LiteralPath (Join-Path $pkg 'skills\video\references\story.md') -Raw -Encoding UTF8
+$visualizer = Get-Content -LiteralPath (Join-Path $pkg 'skills\video\references\scenes.md') -Raw -Encoding UTF8
+$series = Get-Content -LiteralPath (Join-Path $pkg 'skills\video\references\forms.md') -Raw -Encoding UTF8
+Report 'story.md carries the explainer comprehension block inside the dramatic spine' (
     $explainer -match 'Question' -and $explainer -match '(?i)core idea' -and $explainer -match '(?i)misconception'
 ) 'explainer comprehension block was lost in the fold or still ships as slides'
-Report 'direction.md maintains attention' (
+Report 'scenes.md maintains attention' (
     $visualizer -match 'maintains attention'
-) 'direction reference still says cheapest truthful visual'
-Report 'series.md points non-series films at story-craft' (
-    $series -match 'story-craft.md'
-) 'series structure was not extracted for general films'
+) 'scenes reference still says cheapest truthful visual'
 $music = Read-LocalAiReference 'music.md'
 $image = Read-LocalAiReference 'image.md'
 if ($null -eq $music -or $null -eq $image) {
@@ -147,40 +145,27 @@ if ($null -eq $music -or $null -eq $image) {
         $image -match 'visual-bible' -and $image -match 'product UI'
     ) 'image.md has no film B-roll contract'
 }
-$tsd = $visualizer
-$editor = $series
-Report 'direction.md series beat hands off to the storyboard reference' (
-    $tsd -match 'storyboard\.md' -and $tsd -match 'story-craft'
-) 'series director still jumps explainer to picture'
-Report 'direction.md routes live product to product-picture' (
-    $tsd -match 'product-picture.md' -and $tsd -match 'product-screencast'
-) 'series director can still pick a Remotion slide stack for a running product'
-Report 'series.md runs the media-studio crew' (
-    $editor -match 'storyboard\.md' -and $editor -match 'media-studio-generate'
-) 'series assembly still composes from the scene plan alone'
+Report 'video skill routes script, scenes, forms and product picture' (
+    $producer -match 'references/story\.md' -and $producer -match 'references/scenes\.md' -and
+    $producer -match 'references/forms\.md' -and $producer -match 'references/product-picture\.md' -and
+    $producer -match 'product-screencast'
+) 'video skill does not route every step to its reference'
+Report 'forms.md runs series through the same crew' (
+    $series -match '## Series' -and $series -match '`generate`' -and $series -match '`compose`' -and $series -match '`review`'
+) 'series assembly does not run the shared crew'
 
-# Technical-story format (1.5.4): one reference owns the beat map and markup
-# rules; writer, storyboard, director, the PDS playbook, and the series director
-# all point at it instead of restating it.
-$techStory = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\technical-story.md') -Raw -Encoding UTF8
-Report 'technical-story.md carries the beat map, markup rules, and the guiding principle' (
+# Technical-story format: story.md owns the beat map and markup rules.
+$techStory = $explainer
+Report 'story.md carries the beat map, markup rules, and the guiding principle' (
     $techStory -match 'Show me what happened' -and
     $techStory -match '0:00' -and $techStory -match '6:00' -and
     $techStory -match 'Code reveal' -and $techStory -match 'before/after' -and
     $techStory -match 'Never make an addendum' -and
     $techStory -match 'render-overlay\.mjs'
-) 'technical-story.md is missing the owner-directed structure or rules'
-$writer = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\writer.md') -Raw -Encoding UTF8
-$board = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\storyboard.md') -Raw -Encoding UTF8
-$director = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\direction.md') -Raw -Encoding UTF8
-$playbook = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\killer-demo-playbook.md') -Raw -Encoding UTF8
-Report 'writer, storyboard, direction references and the PDS playbook link technical-story.md' (
-    $writer -match 'technical-story\.md' -and
-    $board -match 'technical-story\.md' -and
-    $director -match 'technical-story\.md' -and
-    $playbook -match 'technical-story\.md' -and
-    $tsd -match 'technical-story\.md'
-) 'a crew member does not route technical stories to the shared reference'
+) 'story.md is missing the owner-directed structure or rules'
+Report 'video skill names the technical-story form' (
+    $producer -match 'programForm: technical-story'
+) 'video skill does not route technical stories'
 
 # Screencast compositor and annotation layer ship with the kit and document
 # every manifest hint the compositor honors.
@@ -206,28 +191,23 @@ $kitPackage = Get-Content -LiteralPath (Join-Path $pkg 'kit\package.json') -Raw 
 Report 'kit package.json declares playwright for the screencast renderers' (
     $null -ne $kitPackage.dependencies.playwright
 ) 'runtime kit cannot resolve playwright for render-*.mjs'
-$compose = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio-compose\SKILL.md') -Raw -Encoding UTF8
+$compose = Get-Content -LiteralPath (Join-Path $pkg 'skills\compose\SKILL.md') -Raw -Encoding UTF8
 Report 'compose skill documents the hints and the delivery naming rule' (
     $compose -match 'fit: cut\|hold\|fit\|fitpad' -and
     $compose -match 'NN - Title\.mp4' -and
-    $compose -match '_retired'
+    $compose -match 'archive folders'
 ) 'compose skill does not carry the compositor contract or delivery rules'
-$capture = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio-capture\SKILL.md') -Raw -Encoding UTF8
+$capture = Get-Content -LiteralPath (Join-Path $pkg 'skills\capture\SKILL.md') -Raw -Encoding UTF8
 Report 'capture skill resolves the browser provider from hostSurfaces and records the Recast limits' (
     $capture -match 'hostSurfaces' -and
-    $capture -match '\.recast-tmp' -and $capture -match 'autoZoom' -and
-    $capture -match 'references/duckie-capture\.md'
+    $capture -match '\.recast-tmp' -and $capture -match 'autoZoom'
 ) 'capture skill names a host tool or lost the measured Recast notes'
-$duckie = Join-Path $pkg 'skills\media-studio-capture\references\duckie-capture.md'
-Report 'Duckie capture note exists and carries no secret-shaped values' (
-    (Test-Path -LiteralPath $duckie) -and
-    ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -notmatch '(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*\S')
-) 'Duckie operator note missing or carries a credential-shaped line'
-Report 'Duckie public stub carries no tenant identifiers and points to the private note' (
-    ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -notmatch '(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}') -and
-    ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -notmatch '(?i)\.zendesk\.com|ngrok\.app') -and
-    ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -match 'runtime\\private\\media-studio\\duckie-capture\.md')
-) 'Duckie public stub exposes tenant identifiers or sandbox hosts, or lost its private-note pointer'
+Report 'capture skill keeps the synthetic-only capture boundary' (
+    $capture -match 'owner-authorized synthetic tenant' -and $capture -notmatch '(?i)duckie'
+) 'capture skill lost the synthetic-only rule or names a client product'
+Report 'capture references carry no client capture note' (
+    -not (Test-Path -LiteralPath (Join-Path $pkg 'skills\capture\references\duckie-capture.md'))
+) 'a client capture note is present in the public package'
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed" -ForegroundColor Red

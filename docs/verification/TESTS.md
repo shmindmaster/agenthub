@@ -9,17 +9,17 @@ Counts are from `git ls-files` at `5002737`.
 | Suite | Count | How to run | Discovered by `Run-AllTests.ps1` | Status |
 |---|---|---|---|---|
 | Behaviour tests `tests/Test-*.ps1` | 75 files | `pwsh -NoProfile -File .\tests\Run-AllTests.ps1` (or one file directly) | yes (`:32-36`) | not run in this pass |
-| Package validators `validate-plugin.ps1` | 2 (`packages/elevenlabs/tests/`, `packages/product-experience-engineering/tests/`) | via the runner | yes (`:37-41`) | not run in this pass |
+| Package validators `validate-plugin.ps1` | 2 (`packages/elevenlabs/tests/`, `packages/product/tests/`) | via the runner | yes (`:37-41`) | not run in this pass |
 | Node tests `*.test.mjs` | 7: `media-studio/tests/` x4, `security/scripts/` x2, `slack/mcp/contract.test.mjs` | `node --test <file>` via the runner | yes (`:42-46`) | not run in this pass |
 | Registry validation `scripts/Validate-AgentHub.ps1` | 1 script | `pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1` | no (it is a check, run separately; many tests call it) | not run in this pass |
 | Fleet standard `scripts/Check-RepoStandard.ps1 -All` | 1 script | as listed | no | not run in this pass |
 | Python tests | 5: `elevenlabs/scripts/test_*.py` x2, `media-studio/scripts/test_content_*.py` x2, `repowise/tests/test_repowise_bridge.py` | called from `elevenlabs/tests/validate-plugin.ps1` (4) and `tests/Test-RepoWiseBridge.ps1` (1) | indirectly | not run in this pass |
-| Execution-controls kit: Python `test_kit.py`, TS `kit.test.ts`, `schema.test.ts` | 3 files | `packages/product-experience-engineering/tests/validate-kits.ps1` (Python via `unittest discover`; strict `tsc` only if `EXECUTION_CONTROLS_TSC` is set, otherwise printed as SKIP, `validate-kits.ps1:31-40`) | **no**, see gap below | not run in this pass |
+| Execution-controls kit: Python `test_kit.py`, TS `kit.test.ts`, `schema.test.ts` | 3 files | `packages/product/tests/validate-kits.ps1` (Python via `unittest discover`; strict `tsc` only if `EXECUTION_CONTROLS_TSC` is set, otherwise printed as SKIP, `validate-kits.ps1:31-40`) | **no**, see gap below | not run in this pass |
 | Other package scripts `Test-*.ps1` under `packages/` | 4 (`Test-SpeechIntegrity`, `Test-MobileLab`, `Test-MobileLabAppConfig`, `Test-MobileLabIdle`) | called by tests in `tests/` | indirectly | not run in this pass |
 
 Runner behaviour worth knowing: it parses `RESULT: N passed, M failed` from each PowerShell test and runs Node files with `node --test` (`Run-AllTests.ps1:68-80`); it exits 1 when it discovers zero files (`:49-52`). Whether that guard can actually fire was not tested (a check that has never been seen to fail is not yet evidence).
 
-Gap: `packages/product-experience-engineering/tests/run-all.ps1:4-6` runs `validate-runtime.ps1`, `validate-demo-readiness.ps1` and `validate-kits.ps1`, but the aggregate runner only picks `validate-plugin.ps1`, and `validate-plugin.ps1` does not call them. Those three validators and the kit tests are not part of the aggregate suite.
+Gap: `packages/product/tests/run-all.ps1:4-6` runs `validate-runtime.ps1`, `validate-demo-readiness.ps1` and `validate-kits.ps1`, but the aggregate runner only picks `validate-plugin.ps1`, and `validate-plugin.ps1` does not call them. Those three validators and the kit tests are not part of the aggregate suite.
 
 ## Categories the fleet directive asks for
 
@@ -28,7 +28,7 @@ Gap: `packages/product-experience-engineering/tests/run-all.ps1:4-6` runs `valid
 | Unit | yes, as behaviour tests and Node/Python tests | |
 | API/contract | partial: `Test-SlackToolContract.ps1`, `contract.test.mjs`, `campaign-contract.test.mjs` | |
 | Integration | partial: sync tests against synthetic profiles (`Test-SyncAgentHubRegistryRoot.ps1`, `Test-HostSurfaces.ps1`); whether any touch the live profile was not checked | |
-| Playwright E2E | none for AgentHub itself; a demo-harness spec exists as a fixture (`packages/product-experience-engineering/kits/demo-harness/demo-harness.smoke.spec.ts`) | there is no UI |
+| Playwright E2E | none for AgentHub itself; a demo-harness spec exists as a fixture (`packages/product/kits/demo-harness/demo-harness.smoke.spec.ts`) | there is no UI |
 | Role/authorization | n/a (no roles); dispatcher refusal rules covered by `Test-CodingAgentDispatch.ps1` | |
 | Negative and recovery | several guard tests: `Test-PruneProtection.ps1`, `Test-ManagedJunctionRemoval.ps1`, `Test-ScriptsFailLoudly.ps1` | |
 | Accessibility/responsive | n/a | |
@@ -58,7 +58,7 @@ No GitHub Actions workflow on `main`. The only workflow GitHub knows is "Dependa
 
 ## What would raise the rung to Tested
 
-Run `Validate-AgentHub.ps1` and `Run-AllTests.ps1` on a clean checkout at a recorded SHA, save the output, and add the counts to this file with commit and timestamp. Add the product-experience-engineering validators to the aggregate run. Whether to restore hosted CI is an owner decision: GitHub runner workflows were retired across the fleet in July and August 2026.
+Run `Validate-AgentHub.ps1` and `Run-AllTests.ps1` on a clean checkout at a recorded SHA, save the output, and add the counts to this file with commit and timestamp. Add the product validators to the aggregate run. Whether to restore hosted CI is an owner decision: GitHub runner workflows were retired across the fleet in July and August 2026.
 
 ## Gate location
-No check blocks a push or a merge. The installed `pre-push` hook runs only the config-payload scanner (`packages/security/hooks/pre-push`). The one working blocker is `agenthub sync --apply`, which runs `scripts/Validate-AgentHub.ps1` first and refuses on failure (`scripts/AgentHub.ps1:363-374`), so it protects the operator's installed state, not the repository. `tests/Run-AllTests.ps1` is manual and does not include the product-experience-engineering validators or Python/TypeScript package tests that no PowerShell test calls. Nothing runs a conformance suite, a JSON Schema check on `registry/*.json`, or a dependency audit; GitHub Actions stay removed. Native option: chain `Validate-AgentHub.ps1` and `Run-AllTests.ps1` onto the existing pre-push hook.
+No check blocks a push or a merge. The installed `pre-push` hook runs only the config-payload scanner (`packages/security/hooks/pre-push`). The one working blocker is `agenthub sync --apply`, which runs `scripts/Validate-AgentHub.ps1` first and refuses on failure (`scripts/AgentHub.ps1:363-374`), so it protects the operator's installed state, not the repository. `tests/Run-AllTests.ps1` is manual and does not include the product validators or Python/TypeScript package tests that no PowerShell test calls. Nothing runs a conformance suite, a JSON Schema check on `registry/*.json`, or a dependency audit; GitHub Actions stay removed. Native option: chain `Validate-AgentHub.ps1` and `Run-AllTests.ps1` onto the existing pre-push hook.

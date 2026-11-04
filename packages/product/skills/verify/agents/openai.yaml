@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify"
+  short_description: "Get an independent Pass, Fail or Blocked verdict"
+  default_prompt: "Use $verify to run the checks and issue a verdict."

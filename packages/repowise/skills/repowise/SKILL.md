@@ -1,6 +1,6 @@
 ---
 name: repowise
-description: Use when exploring or changing code in a repository under C:/Repos on a host that uses the AgentHub RepoWise bridge, to query the shared workspace index (symbols, history, health, risk, cross-repo links) before broad searching, and to refresh that index. Claude and Codex use the vendor plugins instead.
+description: Answers code questions from the shared RepoWise workspace index (symbols, history, health, risk, cross-repo links) and refreshes it. Use when exploring or changing code under C:/Repos on a host using the AgentHub bridge; Claude and Codex use the vendor plugins.
 ---
 
 # RepoWise

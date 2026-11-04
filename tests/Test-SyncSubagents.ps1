@@ -213,8 +213,8 @@ function Test-DestinationPathsAreRebasedUnderUserProfileOverride {
     New-Item -ItemType Directory -Path (Join-Path $userProfile '.codex') -Force | Out-Null
     try {
         $result = Invoke-SyncSubagents -ExtraArgs @('-Audit', '-UserProfile', $userProfile)
-        if ($result.Output -notmatch '(?m)product-experience-engineering\s+codex\s+experience-auditor\s+\S+\s+\S+\s+(\S+)') {
-            return @{ Passed = $false; Detail = "could not find a product-experience-engineering/codex/experience-auditor row with a path. Output: $($result.Output)" }
+        if ($result.Output -notmatch '(?m)product\s+codex\s+reviewer\s+\S+\s+\S+\s+(\S+)') {
+            return @{ Passed = $false; Detail = "could not find a product/codex/reviewer row with a path. Output: $($result.Output)" }
         }
         $reportedPath = $Matches[1]
         if (-not $reportedPath.StartsWith($userProfile, [StringComparison]::OrdinalIgnoreCase)) {
@@ -232,7 +232,7 @@ function Test-DestinationPathsAreRebasedUnderUserProfileOverride {
 # 'unmanaged', run exits non-zero, file left byte-identical. ---
 function Test-UnmanagedDestinationRefusesAndExitsNonZero {
     $userProfile = New-SyntheticProfile -Name 'unmanaged' -InstallCodex
-    $dest = Join-Path $userProfile '.codex\agents\product-experience-engineering-experience-auditor.toml'
+    $dest = Join-Path $userProfile '.codex\agents\product-reviewer.toml'
     $handWritten = "this is not a TOML subagent file at all, just some unrelated hand-written text that happens to live at the exact generated filename`n"
     try {
         New-Item -ItemType Directory -Path (Split-Path -Parent $dest) -Force | Out-Null
@@ -242,8 +242,8 @@ function Test-UnmanagedDestinationRefusesAndExitsNonZero {
         if ($result.ExitCode -eq 0) {
             return @{ Passed = $false; Detail = "exit code was 0 (reported success) with an unmanaged destination present. Output: $($result.Output)" }
         }
-        if ($result.Output -notmatch '(?m)product-experience-engineering\s+codex\s+experience-auditor\s+unmanaged\b') {
-            return @{ Passed = $false; Detail = "expected an 'unmanaged' row for product-experience-engineering/codex/experience-auditor. Output: $($result.Output)" }
+        if ($result.Output -notmatch '(?m)product\s+codex\s+reviewer\s+unmanaged\b') {
+            return @{ Passed = $false; Detail = "expected an 'unmanaged' row for product/codex/reviewer. Output: $($result.Output)" }
         }
         $stillThere = [IO.File]::ReadAllText($dest)
         if ($stillThere -cne $handWritten) {
@@ -316,7 +316,7 @@ function Test-HostNotInstalledIsSkippedCleanlyWithoutCreatingDirectories {
         if ($result.ExitCode -ne 0) {
             return @{ Passed = $false; Detail = "exit code was $($result.ExitCode) for a profile with zero hosts installed. Output: $($result.Output)" }
         }
-        if ($result.Output -notmatch '(?m)product-experience-engineering\s+codex\s+experience-auditor\s+skipped \(host not installed\)') {
+        if ($result.Output -notmatch '(?m)product\s+codex\s+reviewer\s+skipped \(host not installed\)') {
             return @{ Passed = $false; Detail = "expected a 'skipped (host not installed)' row for codex. Output: $($result.Output)" }
         }
         if (Test-Path -LiteralPath (Join-Path $userProfile '.codex')) {

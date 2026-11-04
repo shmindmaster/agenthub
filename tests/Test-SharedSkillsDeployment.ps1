@@ -548,7 +548,7 @@ foreach ($a in @($agents.activeAgents)) {
     $sharedHosts++
     if (-not (Test-Path -LiteralPath $own)) { continue }
     foreach ($d in @(Get-ChildItem -LiteralPath $own -Directory -ErrorAction SilentlyContinue)) {
-        if ($managedNames.ContainsKey($d.Name)) {
+        if ($managedNames.ContainsKey($d.Name) -and (Test-Path -LiteralPath (Join-Path $shared $d.Name))) {
             $shadowed.Add("$($a.id): $($d.FullName) shadows the managed copy in $shared (owner: $($managedNames[$d.Name]))")
         }
     }

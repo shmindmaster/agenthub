@@ -1,6 +1,6 @@
 ---
 name: assemblyai
-description: Use when a task calls AssemblyAI directly, such as speech-to-text, streaming transcription, speaker labels, PII redaction, transcript analysis, or code against its API or MCP servers.
+description: "Builds AssemblyAI calls and code for speech-to-text and audio analysis. Use when a task calls AssemblyAI directly: transcription, streaming, speaker labels, PII redaction, transcript analysis, or its API or MCP servers."
 ---
 
 # AssemblyAI

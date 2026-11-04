@@ -2,16 +2,15 @@
 // returns no usage. Sources: playbook research 2026-10-20 (developers.openai.com pricing, elevenlabs.io/pricing).
 // Estimates round up; actual spend is read from provider usage where the response carries it.
 
-/** gpt-image-2 per-image USD at 1536x1024 / 1024x1536 (flagged as ~1.0 for square) by quality. */
+/** Per-image USD (gpt-image-2.5-flare is the default; its and sunburst's rows are padded estimates, not sourced prices) at 1536x1024 / 1024x1536 (flagged as ~1.0 for square) by quality. */
 const IMAGE_USD = {
-  'gpt-image-2': { low: 0.006, medium: 0.053, high: 0.211 },
   'gpt-image-2.5-flare': { low: 0.01, medium: 0.07, high: 0.25 }, // token-priced; padded estimate
   'gpt-image-2.5-sunburst': { low: 0.01, medium: 0.07, high: 0.25 },
   'gpt-image-1.5': { low: 0.013, medium: 0.05, high: 0.2 },
 };
 
 export function estimateImageUsd(model, quality = 'medium') {
-  const row = IMAGE_USD[model] || IMAGE_USD['gpt-image-2.5-sunburst'];
+  const row = IMAGE_USD[model] || IMAGE_USD['gpt-image-2.5-flare'];
   return row[quality] ?? row.high;
 }
 
@@ -24,6 +23,19 @@ export function estimateOpenAiSpeechUsd(text) {
 /** whisper-1: $0.006 per audio minute (billed per second, rounded up to the second). */
 export function estimateWhisperUsd(seconds) {
   return Math.max(0.0005, (Math.ceil(seconds) / 60) * 0.006);
+}
+
+// gpt-6.1-sol and gpt-6-luna (Azure chat deployments on mt-foundary-resource) have no sourced price, so they take the
+// padded fallback in visionRates(); the rows below are OpenAI list prices.
+/**
+ * Azure speech-to-text, USD per audio hour (owner-supplied known rates). gpt-4o-mini-transcribe $0.18/hr; gpt-transcribe
+ * $0.27/hr. gpt-4o-transcribe-diarize and gpt-4o-transcribe have no sourced rate, so they reserve the higher known rate
+ * ($0.27/hr) as a flagged placeholder rather than an invented price.
+ */
+const STT_USD_PER_HOUR = { 'gpt-4o-mini-transcribe': 0.18, 'gpt-transcribe': 0.27 };
+export function estimateSttUsd(model, seconds) {
+  const perHour = STT_USD_PER_HOUR[model] ?? 0.27;
+  return Math.max(0.0005, (Math.ceil(seconds) / 3600) * perHour);
 }
 
 const VISION_USD_PER_M = {

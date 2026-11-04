@@ -1,312 +1,49 @@
-# The inner loop
+# Inner loop
 
-How to get from "I changed a line" to "I can see and assert the new behaviour"
-without waiting forty minutes. Read this before doing any mobile work in this
-lab; it is the difference between a loop measured in seconds and one measured
-in tea breaks.
+Read when choosing between reload and rebuild, speeding a native build, picking a test tool, or testing a web app on a device.
 
-Everything here is local. No cloud build, no hosted runner, no device farm.
+## Reload, don't rebuild
 
-## The one thing to internalise
+A Debug simulator build embeds no JavaScript; it fetches it from Metro at runtime. A Release build in the guest takes about 40 minutes.
 
-**A JavaScript change does not need a native build.**
-
-The lab spent months rebuilding a Release binary in the macOS guest for every
-change, including changes that were a single line of TypeScript. That is a
-~40-minute round trip to test something the bundler could have served in about
-a second.
-
-React Native's own build script says so out loud. In
-`scripts/react-native-xcode.sh`, a Debug + simulator build prints:
-
-```
-Skipping bundling in Debug for the Simulator (since the packager bundles for you)
-```
-
-and exits. A Debug build embeds no JavaScript at all; it fetches it from Metro
-at runtime. So:
-
-| What changed | What it costs |
+| Change | Cost |
 | --- | --- |
-| JavaScript / TypeScript / assets | reload — seconds |
-| A new native dependency | rebuild |
-| `app.config.*`, a config plugin, anything under `ios/` | prebuild + rebuild |
-| `EXPO_PUBLIC_*` value | restart Metro, then full reload — no rebuild |
+| JavaScript, TypeScript, assets | reload |
+| `EXPO_PUBLIC_*` value | restart Metro, reload |
+| New native dependency | rebuild |
+| App config, config plugin, anything under `ios/` | prebuild and rebuild |
 
-That last row is worth its own paragraph.
+Steps:
 
-## `EXPO_PUBLIC_*` is inlined by Metro, not by Xcode
+1. Sync and build the Debug shell once (`build-expo-simulator.sh ... booted --dev`). A red screen on first launch is expected.
+2. Run `mobile.ps1 metro <productId> -ProjectPath <app> -Attach`. It starts Metro on the VMnet8 address, sets `adb reverse`, proves the guest can reach Metro, and opens the dev-client link. Metro runs hidden; read its logs under `%LOCALAPPDATA%\AgentHub\mobile-lab\logs` when bundling fails.
+3. Edit on Windows; the app reloads.
 
-This was misdiagnosed here for a long time, and the wrong diagnosis produced a
-wrong fix.
+## `EXPO_PUBLIC_*` is inlined by Metro
 
-Expo inlines `EXPO_PUBLIC_*` values into the JavaScript bundle at **bundle**
-time. The bundler is Metro. Xcode never sees these values.
+Config must exist on the machine that runs Metro. A Release build in the guest runs Metro there, the sync skips gitignored `.env`, and the build succeeds with those values absent; nothing repairs it afterwards. Prefer Metro on the host. When a Release build is required, run `scripts/Test-MobileLabAppConfig.ps1 -ProjectPath <app>` first (it lists the variables the source reads and whether each is present, never printing values), then carry the file by name: `Sync-RepoToGuest.ps1 ... -IncludeIgnored 'apps/mobile/.env'`. Use explicit repo-relative paths, never globs, because these files hold credentials.
 
-Consequence: config has to exist on **whichever machine runs Metro**.
+## Cheaper native builds
 
-- **Release build in the guest** — the guest runs Metro during the build, so
-  `.env` must be in the guest. It is gitignored, the repo sync skips gitignored
-  files, so it was not. The build then *succeeded* and produced a finished
-  binary with those values baked in as absent. ABACare spent ~40 minutes on
-  2026-08-17 to be shown its own "BUILD NOT CONFIGURED" screen.
-- **Debug build + Metro on the Windows host** — the host runs Metro, `.env` is
-  already sitting there next to the source, and the problem does not exist.
+- React Native core and Hermes ship prebuilt (including x86_64 simulator slices); every `expo-*` and community pod still compiles from source.
+- `build-expo-simulator.sh` builds the host architecture only and enables `ccache` when installed in the guest. `--all-archs` and `--no-ccache` reverse that. `--profile` prints per-phase timings; use it before arguing about where time goes.
+- Keep `~/Library/Caches/ReactNative`; a clean prebuild otherwise re-downloads 200 MB.
+- Never add `expo prebuild --clean` to a warm path. The script prebuilds only when `ios/` is absent.
+- If the log says "reverting to building from source", a prebuilt download failed; fix the network and rebuild.
+- Debug does not substitute for Release when the subject is startup time, Hermes bytecode or `__DEV__` behavior.
 
-The essential property of the first case: it is not a build that fails. It is a
-build that succeeds and cannot work, and cannot be repaired afterwards, because
-the values are already inlined. Nothing you do post-build fixes it.
+## Web apps on a device
 
-Two defences, in order of preference:
+`mobile.ps1 web <productId> -Url <url>` opens Mobile Safari (iOS Simulator) and Chrome (emulator). Only loopback hosts (`localhost`, `127.0.0.1`, `::1`, `*.localhost`) are rewritten: Android uses `10.0.2.2`, the guest uses the Windows VMnet8 address. Any other host opens unchanged. The script checks the port on the VMnet8 address; a dev server bound to `127.0.0.1` is invisible to both devices, so start it with `--host 0.0.0.0` (`vite --host 0.0.0.0`, `next dev -H 0.0.0.0`).
 
-1. Run Metro on the host (`Start-MobileLabMetro.ps1`). Best — removes the
-   failure mode instead of guarding it.
-2. When a Release build is genuinely needed, carry the config across
-   explicitly:
-   ```powershell
-   .\Sync-RepoToGuest.ps1 -RepoPath C:\Repos\shmindmaster\abacare `
-     -GuestPath '~/Repos/shmindmaster/abacare' `
-     -IncludeIgnored 'apps/mobile/.env'
-   ```
-   `-IncludeIgnored` takes explicit repo-relative paths, never a glob. These
-   files carry credentials; which ones cross the boundary is a decision made by
-   name, not by pattern.
+## Which tool
 
-And before either, run the check that costs a second instead of forty minutes:
-
-```powershell
-.\Test-MobileLabAppConfig.ps1 -ProjectPath C:\Repos\shmindmaster\abacare\apps\mobile
-```
-
-It discovers which `EXPO_PUBLIC_*` variables the source actually reads, reports
-whether each will be present at build time, and never prints a value.
-
-## The loop
-
-### 1. Build the dev shell once
-
-```powershell
-.\Sync-RepoToGuest.ps1 -RepoPath C:\Repos\shmindmaster\<product> -GuestPath '~/Repos/shmindmaster/<product>'
-```
-```bash
-ssh macvm 'bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/<product> "" booted --dev'
-```
-
-`--dev` builds Debug. Expect a red screen on launch — correct and expected, it
-has no bundle yet.
-
-### 2. Start Metro on the host and point the app at it
-
-```powershell
-.\Start-MobileLabMetro.ps1 -ProjectPath C:\Repos\shmindmaster\<product>\apps\mobile -Attach
-```
-
-This resolves the VMnet8 address, starts Metro advertising it, sets up
-`adb reverse` for Android, **proves the guest can actually reach Metro**, and
-opens the dev-client deep link on the booted simulator.
-
-That reachability proof is not ceremony. A dev server bound to `127.0.0.1` is
-perfectly healthy from a host browser and completely invisible to both
-simulators, and the symptom is an app that will not load — which reads as an
-app bug and gets debugged as one.
-
-### 3. Edit and reload
-
-Metro runs hidden on the host and writes its output under
-`%LOCALAPPDATA%\AgentHub\mobile-lab\logs`. The launcher reports both log paths
-and the process ID. Read these logs when bundling fails; no terminal needs to
-open or take keyboard focus.
-
-Edit on Windows. The app reloads. There is no sync step, because Metro is
-serving the files being edited.
-
-Rebuild only when the table above says to.
-
-## When you do need a native build, make it cheaper
-
-Measured facts about this stack, as of RN 0.86 / Expo SDK 57:
-
-- **React Native ships precompiled iOS binaries by default since 0.84**, and
-  their simulator slices really do include `x86_64` — verified by downloading
-  `React.xcframework` and `ReactNativeDependencies.xcframework` from Maven
-  Central and reading the `Info.plist`. The Intel guest is *not* forced to
-  compile RN core from source. Hermes is likewise downloaded prebuilt.
-- So prebuilts were never the problem. **Prebuilts cover React core, its C++
-  dependencies, and Hermes — and nothing else.** Every `expo-*` and community
-  pod still compiles from source.
-- **`ONLY_ACTIVE_ARCH` is set only in the Debug configuration** by the Expo bare
-  template. A *Release* simulator build therefore defaults it to `NO` and
-  compiles **arm64 and x86_64 for every target and every pod**, and on an
-  x86-only host the arm64 half cannot be run by anything. This is the largest
-  single lever, and `build-expo-simulator.sh` now sets `ONLY_ACTIVE_ARCH=YES`
-  and `ARCHS=$(uname -m)` by default. `--all-archs` restores the old behaviour.
-- **ccache is first-party** in this RN line: `react_native_pods.rb` reads
-  `USE_CCACHE`, and RN ships its own compiler shims plus a `ccache.conf` whose
-  sloppiness settings exist specifically to survive Xcode's index store and
-  module maps. The build script enables it when `ccache` is installed
-  (`brew install ccache` in the guest). Savings here are **unmeasured** — RN
-  and Expo publish no number.
-- **Protect `~/Library/Caches/ReactNative`.** It is a shared, SHA1-validated
-  tarball cache; without it a clean prebuild re-downloads 200 MB+ over the VM
-  network stack.
-- **Do not add `expo prebuild --clean` to a warm path.** SDK 57 made prebuild
-  clean by default, which regenerates the project and discards target-level
-  incrementality. The build script only prebuilds when `ios/` is absent.
-- **`--profile`** adds `-showBuildTimingSummary`. Use it before arguing about
-  where the time goes; "the build is slow" has at least three causes
-  (compilation, codegen script phases, artifact downloads) with entirely
-  different fixes.
-- **Watch for the silent fallback.** If a prebuilt artifact fails to download,
-  RN logs *"reverting to building from source"* and compiles core itself. The
-  build still succeeds, just much slower. The build script now surfaces this.
-
-## Testing web apps on a mobile device
-
-The lab is not only for native apps. A web app running as a dev server on
-Windows can be viewed and debugged in Mobile Safari on the iOS Simulator and
-Chrome on the Android emulator:
-
-```powershell
-.\Open-MobileLabWebTarget.ps1 -Url http://localhost:5173/dashboard
-```
-
-The hard part is that `localhost` means something different in each target, so
-the script rewrites **loopback hosts only**:
-
-| Target | How it reaches the Windows host |
+| Question | Tool |
 | --- | --- |
-| Android emulator | `10.0.2.2` (the emulator's alias for the host) |
-| iOS Simulator in the guest | the Windows **VMnet8** adapter address |
+| Does this component or logic behave? | Jest + React Native Testing Library |
+| Does this flow still work end to end? | Maestro (committed flows) |
+| What is this app doing right now? | Appium MCP (this lab) |
 
-`localhost`, `127.0.0.1`, `::1` and `*.localhost` are translated; path, query
-and port are preserved. **Any other host is opened unchanged**, which is what
-you want when pointing the lab at staging or production — those names already
-mean the same thing from every device.
+A bug found with Appium should leave a Maestro flow behind. Maestro runs natively on Windows (Java 17+, on `PATH`) and drives development builds; `maestro test --continuous` re-runs on change. Maestro cannot drive a physical iPhone locally. Do not adopt Detox: it needs its own instrumented build and has no supported Expo path on this stack.
 
-That distinction is load-bearing rather than pedantic. The script originally
-rewrote unconditionally, so `-Url https://example.com -Platform android` opened
-`https://10.0.2.2/` — this workstation — and reported success. Anyone checking a
-deployed site on a device would have been looking at their own dev server.
-
-The most common failure is a dev server bound to `127.0.0.1`, which is
-reachable from a Windows browser and from nothing else. The script checks the
-port on the VMnet8 address specifically and names the fix
-(`vite --host 0.0.0.0`, `next dev -H 0.0.0.0`, and so on) rather than letting
-it present as a device problem.
-
-## Which tool for which job
-
-There is real overlap here, and it is worth being deliberate rather than
-running everything.
-
-| Tool | Use it for | Notes |
-| --- | --- | --- |
-| **Appium MCP** | interactive, agent-driven investigation — poke at a running app, read the element tree, try things | Android embedded locally; iOS over `remoteServerUrl` to the guest. WDA compiles on first session. |
-| **Maestro** | committed, deterministic regression flows | iOS must run *inside* the guest, because it shells to Xcode tooling — that path is verified. The Windows-native CLI for the Android half is **not installed here** (checked 2026-08-18: nothing on `PATH`, no `~/.maestro`); Java 21 is present, so it is an install away, not a redesign. |
-| **Jest + RNTL** | component and logic behaviour | Fastest by a wide margin. See the gotcha below. |
-| **Detox** | — | Not viable on this stack. |
-
-Maestro specifics worth knowing, since they change the loop:
-
-- It drives **Expo development builds**, not just Release ones. So E2E flows do
-  not require the slow build either.
-- `maestro test --continuous` re-runs flows on change.
-- `maestro start-device` boots a simulator or emulator directly.
-- There is a first-party `maestro mcp` server, which overlaps functionally with
-  the Appium MCP for agent-driven use. (`maestro chat` is discontinued.)
-
-Why Detox is out, on four independent grounds: its support matrix stops at RN
-0.84 and this stack is on 0.86; `@config-plugins/detox` was deleted from the
-Expo monorepo in June 2025 and its npm package is frozen at `expo ^53`; Expo's
-Detox guide is a 404; and Detox's own docs say *"There is no special support for
-Expo projects in Detox"* and refer you to the Expo community. Both sides point
-at each other and one target does not exist. There is no deprecation notice —
-the evidence is a commit rate that fell from 971 in 2024 to 41 year-to-date.
-
-## Component testing works — the gotcha that made it look broken
-
-`@testing-library/react-native` v14 made the whole API **asynchronous**.
-`render`, `renderHook`, and `fireEvent` return Promises, and `act` must always
-be awaited.
-
-Calling `render(...)` without `await` gives you a Promise. `Object.keys()` on it
-is `[]`. That looks *exactly* like a broken environment, and it was diagnosed as
-one here — component testing was written off, and real logic went untested on
-the strength of it. The actual fix is one keyword:
-
-```tsx
-import { render, screen } from '@testing-library/react-native';
-
-it('renders and finds text when render is awaited', async () => {
-  await render(<View><Text>hello lab</Text></View>);
-  expect(screen.getByText('hello lab')).toBeTruthy();
-});
-```
-
-Two related traps in the same area:
-
-- **`expect(value, message)` is vitest syntax.** Jest's `expect` takes exactly
-  one argument, and the second is silently ignored. If a failure needs to name
-  something, put it in the test name or the asserted value.
-- **A `console.error` may fail the test.** ABACare's `jest.setup.js`
-  deliberately throws on any `console.error`, because React reports `act()`
-  violations and invalid props through it. When that fires, the test is usually
-  missing an `await` — fix the test, do not silence the setup.
-
-## When the guest misbehaves
-
-The guest is the least reliable component in the lab, and its most common
-failure is not being down — it is being *reported* as down.
-
-Measured 2026-08-17: the guest had been up 4h13m and was serving SSH and Appium
-normally. `vmrun list` said "Total running VMs: 0" and
-`vmrun getGuestIPAddress` failed from every shell. The host-to-guest VMX
-control channel had degraded while the network was entirely healthy. An hour
-went into diagnosing a guest that was fine the whole time.
-
-Both entry points now separate *proposing* an address from *believing* one.
-`MobileLabGuest.psm1` collects candidates from four sources — the on-disk cache,
-the VMware DHCP lease file, `ssh_config`, and `vmrun` last — and accepts only an
-address SSH actually reaches. On the day above, the DHCP lease file held the
-correct address the entire time; the resolver now finds it in about 0.2s.
-
-`Test-MobileLab.ps1` no longer gates on `vmrun list` either. If SSH reaches the
-guest while `vmrun` claims nothing is running, it says so explicitly and
-continues, naming the VMX channel as the degraded component rather than the
-guest. `Start-MobileLab.ps1` likewise probes SSH and the `vmware-vmx` process
-before deciding to start, so it never restarts a guest that is answering.
-
-If the guest really is down and `vmrun start` says only `Unknown error`, check
-the VMware host services first. The starter now names them; see
-"VMware host services" in `SKILL.md`.
-
-To check by hand:
-
-```powershell
-Import-Module .\MobileLabGuest.psm1
-Resolve-MobileLabGuestAddress -SkipVmrun    # route around a broken VMX channel
-Get-MobileLabLeaseAddresses                 # what VMware's own DHCP handed out
-```
-
-## Things this lab still cannot tell you
-
-- **Nothing here proves real-hardware behaviour.** A simulator does not
-  exercise real GPU, camera, sensors, thermals, or App Store signing. Say
-  "verified on simulator", never "verified on device".
-- **Debug is not a substitute for Release** when the subject is startup time,
-  Hermes bytecode behaviour, or anything gated on `__DEV__`. Release-only
-  faults in this RN line are real and current.
-- **The guest has a dated ceiling, and Xcode 27 is past it.** macOS 26 Tahoe
-  is the last macOS supporting Intel. Checked 2026-10-13 against Apple's
-  primary sources: the Xcode 27 release notes say "Xcode 27 will only install
-  and run on Apple silicon Macs", and the Xcode system-requirements page lists
-  macOS Tahoe 26.6 or later for Xcode 27. This guest is x86_64, so meeting the
-  26.6 floor does not make Xcode 27 installable here. The guest stays on the
-  Xcode 26.x line, and Xcode 26.6 is the newest version it can run
-  (`registry/mobile-development.json` → `expectations.xcode`). The
-  first Expo SDK that requires Xcode 27 ends this VM, and no build flag helps,
-  because the blocker is the Xcode binary's own architecture. Re-check both
-  Apple pages before acting on this.
-- **Maestro's per-run startup cost against an Appium/WDA session is not
-  measured**, here or anywhere published. If that number matters to a decision,
-  time it locally rather than reading a comparison page.
+Testing Library v14 is async: `await render(...)`, `await fireEvent...`, `await act(...)`. An un-awaited `render` returns a Promise that looks like a broken environment. Jest's `expect` takes one argument. A `console.error` can fail a test where `jest.setup.js` throws on it; the cause is usually a missing `await`, so fix the test.

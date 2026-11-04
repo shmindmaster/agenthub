@@ -44,7 +44,7 @@ AgentHub deploys to the operator's machine by copying files; there is no hosted 
 2. No CI. GitHub Actions workflows were removed (last deletion `74504f2`, 2026-07-31); only Dependabot runs. Restoring hosted CI is an owner decision.
 3. No source SHA in installed state.
 4. No recorded demo.
-5. Test-discovery gap: product-experience-engineering `run-all.ps1` validators and execution-controls kit tests are not in the aggregate run.
+5. Test-discovery gap: product `run-all.ps1` validators and execution-controls kit tests are not in the aggregate run.
 
 ## Risks
 

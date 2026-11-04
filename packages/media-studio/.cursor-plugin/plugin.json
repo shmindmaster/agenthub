@@ -1,6 +1,6 @@
 {
   "name": "media-studio",
-  "description": "Creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Azure AI Services for voice, transcription and images. Product-demo-studio is the internal engine, not a second plugin.",
+  "description": "Creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Azure AI Services for voice, transcription and images.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -16,5 +16,5 @@
     "director"
   ],
   "skills": "./skills/",
-  "version": "2.0.46"
+  "version": "2.1.0"
 }

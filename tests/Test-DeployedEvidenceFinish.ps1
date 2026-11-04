@@ -57,7 +57,7 @@ foreach ($a in @($agents.activeAgents)) {
     if ($shared -and $shared -ne $own) { $dirs.Add($shared) }
     foreach ($d in @($dirs | Select-Object -Unique)) {
         if (-not (Test-Path -LiteralPath $d)) { continue }
-        $compose = Join-Path $d 'media-studio-compose\SKILL.md'
+        $compose = Join-Path $d 'compose\SKILL.md'
         if (Test-Path -LiteralPath $compose) {
             $composeHits++
             $text = [IO.File]::ReadAllText($compose)
@@ -76,9 +76,18 @@ foreach ($a in @($agents.activeAgents)) {
     }
 }
 
-Report 'at least one deployed media-studio-compose copy exists on this workstation' ($composeHits -gt 0) `
-    'No agent skillsDir contained media-studio-compose; the deploy check would pass over nothing.'
-Report 'deployed media-studio-compose copies name Finish-Media' ($staleCompose.Count -eq 0) `
+foreach ($pluginCompose in @(
+        (Join-Path $HOME '.claude\plugins\cache\agenthub\media-studio\*\skills\compose\SKILL.md'),
+        (Join-Path $HOME '.codex\plugins\cache\agenthub\media-studio\*\skills\compose\SKILL.md')
+    )) {
+    foreach ($copy in @(Get-Item -Path $pluginCompose -ErrorAction SilentlyContinue)) {
+        $composeHits++
+        if ([IO.File]::ReadAllText($copy.FullName) -notmatch 'Finish-Media') { $staleCompose.Add($copy.FullName) }
+    }
+}
+Report 'at least one deployed compose copy exists on this workstation' ($composeHits -gt 0) `
+    'No agent skillsDir or plugin cache contained compose; the deploy check would pass over nothing.'
+Report 'deployed compose copies name Finish-Media' ($staleCompose.Count -eq 0) `
     ($staleCompose -join '; ')
 Report 'desktop-evidence is retired with browser-toolkit; no deployed copies remain' ($desktopHits -eq 0) `
     ($staleDesktop -join '; ')

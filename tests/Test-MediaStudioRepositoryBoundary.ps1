@@ -27,12 +27,11 @@ function Read-Text([string]$Path) {
 
 . (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
 $policy = Read-AgentHubTestPolicy -PolicyPath (Get-AgentHubTestEffectivePolicy -RepositoryRoot $repoRoot).Path -Domains media
-$producer = Read-Text (Join-Path $media 'skills\media-studio\SKILL.md')
-$capture = Read-Text (Join-Path $media 'skills\media-studio-capture\SKILL.md')
-$compose = Read-Text (Join-Path $media 'skills\media-studio-compose\SKILL.md')
-$generate = Read-Text (Join-Path $media 'skills\media-studio-generate\SKILL.md')
-$workflows = Read-Text (Join-Path $media 'skills\media-studio\references\workflows.md')
-$command = Read-Text (Join-Path $media 'commands\video.md')
+$producer = Read-Text (Join-Path $media 'skills\video\SKILL.md')
+$capture = Read-Text (Join-Path $media 'skills\capture\SKILL.md')
+$compose = Read-Text (Join-Path $media 'skills\compose\SKILL.md')
+$generate = Read-Text (Join-Path $media 'skills\generate\SKILL.md')
+$forms = Read-Text (Join-Path $media 'skills\video\references\forms.md')
 $recordJob = Read-Text (Join-Path $media 'kit\screencast\record-job.mjs')
 
 Report 'global policy makes product repositories read-only for media' (
@@ -53,15 +52,15 @@ Report 'active product config is external, not created in the repo' (
     $producer -notmatch 'Config in the product repo' -and
     $producer -match 'job\.json' -and
     $producer -match 'external workspace' -and
-    $workflows -notmatch 'Product-repo config filename stays' -and
-    $workflows -match 'legacy .+ is read-only input'
+    $forms -notmatch 'Product-repo config filename stays' -and
+    $forms -match 'in a product repository is read-only input'
 ) 'active Media Studio guidance still creates or maintains config in the product repo'
 
-Report 'capture, generate, compose, and command keep code and artifacts external' (
+Report 'video, capture, generate and compose keep code and artifacts external' (
     $capture -match 'Never add a capture test' -and
     $generate -match 'Never copy generated plates' -and
     $compose -match 'Never scaffold or edit a Remotion app' -and
-    $command -match 'Treat every product repository as read-only'
+    $producer -match 'Treat every product repository as read-only'
 ) 'one or more public entry points omit the no-write rule'
 
 Report 'screencast recorder treats product source as read-only' (

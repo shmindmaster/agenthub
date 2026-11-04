@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import vm from 'node:vm';
 import test from 'node:test';
 
-const skill = fileURLToPath(new URL('../skills/use-coding-agent/', import.meta.url));
+const skill = fileURLToPath(new URL('../skills/dispatch/', import.meta.url));
 const source = readFileSync(join(skill, 'cline/peer-guard.js'), 'utf8');
 
 function makePlugin() {

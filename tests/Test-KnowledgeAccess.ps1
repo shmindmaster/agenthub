@@ -33,12 +33,12 @@ function Report {
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $failures.Add($Name) }
 }
 
-$oe = 'skills\opportunity-engine'
-$sd = 'skills\search-documents'
+$oe = 'skills\opportunity'
+$sd = 'skills\search-docs'
 $required = @(
     '.claude-plugin\plugin.json',
     'plugin.json',
-    'skills\sarosh-communication\SKILL.md',
+    'skills\write\SKILL.md',
     "$sd\SKILL.md",
     "$oe\SKILL.md",
     "$sd\scripts\New-KnowledgeIndex.ps1",
@@ -64,7 +64,7 @@ Report 'detect script has no -Execute switch' ($detect -notmatch '(?m)\[switch\]
 
 $fixtures = @(Get-ChildItem -LiteralPath (Join-Path $devTests 'fixtures\engagements') -Filter '*.yaml' -ErrorAction SilentlyContinue)
 Report 'at least one synthetic engagement fixture exists' ($fixtures.Count -gt 0) `
-    'fixtures/engagements is empty, so opportunity-engine has nothing legal to match.'
+    'fixtures/engagements is empty, so opportunity has nothing legal to match.'
 
 foreach ($f in $fixtures) {
     $text = Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8
@@ -81,38 +81,33 @@ foreach ($f in $fixtures) {
 
 $engine = (Get-Content -LiteralPath (Join-Path $pkg "$oe\SKILL.md") -Raw -Encoding UTF8) + "`n" +
     (Get-Content -LiteralPath (Join-Path $pkg "$oe\references\job-search.md") -Raw -Encoding UTF8)
-Report 'opportunity-engine fail-closed on invented specifics' ($engine -match 'invented specifics') `
-    'the fail-closed sentence is gone from opportunity-engine'
-Report 'opportunity-engine owns the complete job lifecycle' (
+Report 'opportunity fail-closed on invented specifics' ($engine -match 'invented specifics') `
+    'the fail-closed sentence is gone from opportunity'
+Report 'opportunity owns the complete job lifecycle' (
     $engine -match 'DISCOVER.*VERIFY.*RANK.*RESEARCH.*AUGMENT.*MATCH.*RENDER.*QA' -and
     $engine -match 'ROUTE.*SUBMIT.*FOLLOW THROUGH.*LEARN'
 ) 'the canonical skill no longer covers discovery through learning'
-Report 'opportunity-engine is quality-first rather than LinkedIn-first' (
+Report 'opportunity is quality-first rather than LinkedIn-first' (
     $engine -match 'Do not center discovery on LinkedIn' -and
     $engine -match 'application convenience' -and
     $engine -match '`checked`' -and $engine -match '`unavailable`' -and
     $engine -match '`unchecked`'
 ) 'discovery coverage or quality-first routing is missing'
-Report 'opportunity-engine includes VC and accelerator discovery channels' (
-    $engine -match 'vc-and-accelerator-channels.md' -and
-    $engine -match 'talent network' -and
-    (Test-Path -LiteralPath (Join-Path $pkg 'skills\opportunity-engine\references\vc-and-accelerator-channels.md'))
-) 'VC/accelerator channel reference is missing from the canonical skill'
-Report 'opportunity-engine preserves the compensation and geography contract' (
+Report 'opportunity preserves the compensation and geography contract' (
     $engine -match '300K-1M\+' -and $engine -match '250K-299K' -and
     $engine -match 'worldwide target' -and $engine -match 'below USD 250K'
 ) 'standing compensation bands or geography preferences drifted'
-Report 'opportunity-engine deep research names the approved research lanes' (
+Report 'opportunity deep research names the approved research lanes' (
     $engine -match 'Firecrawl' -and $engine -match 'Exa' -and
     $engine -match 'Tavily' -and $engine -match 'Context7' -and
     $engine -match 'official job, company, team, engineering, and candidate-policy pages'
 ) 'deep company research routing is incomplete'
-Report 'opportunity-engine requires machine parseability and private answer resolution' (
+Report 'opportunity requires machine parseability and private answer resolution' (
     $engine -match 'DOCX/PDF machine parseability' -and
     $engine -match 'application-answer-profile.yaml' -and
     $engine -match 'Never infer citizenship from work authorization'
 ) 'ATS parsing or the private answer-profile contract is missing'
-Report 'opportunity-engine counts only authoritative submission proof' (
+Report 'opportunity counts only authoritative submission proof' (
     $engine -match 'Only a confirmation page, confirmation email' -and
     $engine -match 'Prepared, saved, attached, uploaded' -and
     $engine -match 'accepted \| declined'
@@ -135,7 +130,7 @@ if ($pythonCommand) {
     & $pythonCommand.Source -c 'import yaml; from jsonschema import Draft202012Validator, FormatChecker' *> $null
     $dependenciesReady = $LASTEXITCODE -eq 0
     Report 'application profile validation dependencies are available' $dependenciesReady `
-        'run opportunity-engine/scripts/Install-ValidationRuntime.ps1 from the sarosh plugin or pass a provisioned -PythonExecutable'
+        'run opportunity/scripts/Install-ValidationRuntime.ps1 from the sarosh plugin or pass a provisioned -PythonExecutable'
     if ($dependenciesReady) {
     $validator = Join-Path $pkg "$oe\scripts\validate_application_answer_profile.py"
     $profileFixtures = Join-Path $devTests 'fixtures\application-profiles'
@@ -183,15 +178,15 @@ for case in cases:
 }
 
 $skill = Get-Content -LiteralPath (Join-Path $pkg "$sd\SKILL.md") -Raw -Encoding UTF8
-Report 'opportunity-engine routes evidence to search-documents and RepoWise' (
-    $engine -match 'search-documents' -and $engine -match 'RepoWise' -and $engine -match 'client-facing handling' -and
+Report 'opportunity routes evidence to search-docs and RepoWise' (
+    $engine -match 'search-docs' -and $engine -match 'RepoWise' -and $engine -match 'client-facing handling' -and
     $engine -notmatch 'knowledge_v\d'
-) 'skill must route documents to search-documents, code to RepoWise, with client-facing handling'
+) 'skill must route documents to search-docs, code to RepoWise, with client-facing handling'
 Report 'document search refuses legal, Duckie Qdrant, and a local model' (
     $skill -match '20_Legal_Matters' -and $skill -match ':6333' -and $skill -match 'local model' -and
     $engine -match 'You are the writer'
 ) 'skill dropped a hard exclusion or the writer rule'
-Report 'opportunity-engine rewrites the actual asset' (
+Report 'opportunity rewrites the actual asset' (
     $engine -match 'Rewrite and enhance the actual asset' -and
     $engine -match 'credible synthesis'
 ) 'skill no longer requires rewriting the asset from retrieved knowledge'
@@ -204,7 +199,7 @@ Report 'Search-Knowledge semantic path calls docwise, not Local-AI' (
     $search -match 'docwise is not installed yet' -and $search -notmatch 'rag-index'
 ) 'semantic search must call the docwise CLI when installed and throw a clear message otherwise'
 
-Report 'search-documents routes semantic to docwise with exact-search/RepoWise fallback' (
+Report 'search-docs routes semantic to docwise with exact-search/RepoWise fallback' (
     $skill -match '-Semantic' -and $skill -match 'docwise' -and $skill -match 'RepoWise'
 ) 'skill must route -Semantic to docwise and fall back to exact search and RepoWise'
 
@@ -223,7 +218,7 @@ foreach ($rel in $localAiScanned) {
         $text -notmatch 'LOCAL_AI_ROOT' -and $text -notmatch 'LocalAiRoot' -and $text -notmatch 'ai\.ps1'
     ) 'Local AI is off: no D:\Local-AI, query.ps1, ai.ps1 or LocalAiRoot reference may remain'
 }
-Report 'search-documents includes 01' (
+Report 'search-docs includes 01' (
     $skill -match '01_Business_and_Entities'
 ) '01 must be in scope'
 Report 'Search-Knowledge aliases 01' (

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design"
+  short_description: "Turn a finding or idea into a testable contract"
+  default_prompt: "Use $design to turn this into a testable acceptance contract."

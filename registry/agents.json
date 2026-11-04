@@ -5,7 +5,7 @@
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.304",
+      "version": "2.1.316",
       "executable": "{userHome}/.local/bin/claude.exe",
       "platformPaths": {
         "darwin": {
@@ -77,7 +77,7 @@
     {
       "id": "codex",
       "name": "OpenAI Codex",
-      "version": "0.162.1",
+      "version": "0.166.0",
       "executable": "{userHome}/bin/codex.cmd",
       "executableNote": "Stable launcher prefers the installed Codex CLI junction, then the Desktop bundled CLI. CLI and Desktop versions are independent.",
       "nativePaths": {
@@ -88,6 +88,7 @@
         "skillsDir": "{userHome}/.codex/skills",
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "agentsDir": "{userHome}/.codex/agents",
+        "agentsDirNote": "Checked 2026-11-03: absent on this machine because no custom agent is deployed there. The path stays declared for Codex custom agents.",
         "pluginsDir": "{userHome}/.codex/plugins"
       },
       "supportedCapabilities": [
@@ -105,7 +106,7 @@
     {
       "id": "opencode",
       "name": "OpenCode",
-      "version": "2.1.4",
+      "version": "2.2.5",
       "versionObserved": "2026-10-23: bare opencode and the registered wrapper both returned opencode v2.1.4. The wrapper selects the newest installed Desktop-bundled 2.x x64 CLI numerically.",
       "executable": "{userHome}/.local/bin/opencode.cmd",
       "nativePaths": {
@@ -138,9 +139,9 @@
     {
       "id": "opencode-desktop",
       "name": "OpenCode Desktop",
-      "version": "2.1.4",
-      "executable": "{userHome}/AppData/Local/Programs/@opencodedesktop/OpenCode.exe",
-      "executableNote": "2026-10-23: installed executable and ProductVersion 2.1.4.0 verified on disk. Shared native 2.1.4 backend configuration and account inference verified without launching the GUI.",
+      "version": "2.2.5",
+      "executable": "{userHome}/AppData/Local/Programs/ai.opencode.desktop/OpenCode.exe",
+      "executableNote": "2026-11-03: installed executable and ProductVersion 2.2.5.0 verified on disk without launching the GUI.",
       "versionProbe": "file-version",
       "versionProbeNote": "2026-10-23: read installed executable ProductVersion without starting Desktop.",
       "nativePaths": {
@@ -218,7 +219,7 @@
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.4.5",
+      "version": "1.4.12",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
@@ -679,7 +680,7 @@
     {
       "id": "vscode-insiders",
       "name": "VS Code Insiders",
-      "version": "1.144.0-insider",
+      "version": "1.145.0-insider",
       "executable": "{userHome}/AppData/Local/Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd",
       "nativePaths": {
         "mcp": "{roamingConfig}/Code - Insiders/User/mcp.json",

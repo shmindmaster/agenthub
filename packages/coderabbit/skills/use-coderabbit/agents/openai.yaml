@@ -1,4 +1,0 @@
-interface:
-  display_name: "Use CodeRabbit"
-  short_description: "Run fleet CodeRabbit CLI reviews"
-  default_prompt: "Review the current changes with CodeRabbit CLI."

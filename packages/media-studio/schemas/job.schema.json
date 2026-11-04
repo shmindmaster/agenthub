@@ -54,7 +54,7 @@
         "campaign-outreach",
         "marketing-cutdown"
       ],
-      "description": "Buyer-library or named format. See references/program-forms.md. Infer from the brief."
+      "description": "Buyer-library or named format. See skills/video/references/forms.md. Infer from the brief."
     },
     "dataClass": {
       "type": "string",
@@ -96,7 +96,7 @@
     "durationSeconds": { "type": "number", "minimum": 1 },
     "voice": {
       "type": "string",
-      "description": "Program narrator voice: an Azure Speech voice name from the media-studio-generate voice cast (for example en-US-AriaNeural or en-US-Ava:DragonHDLatestNeural). No Sarosh voice clone in films. Historical jobs may carry a retired local voice id (sarosh, role-*, narrator-*); they stay read-only evidence."
+      "description": "Program narrator voice: an Azure Speech voice name from the generate skill voice cast (for example en-US-AriaNeural or en-US-Ava:DragonHDLatestNeural). No Sarosh voice clone in films. Historical jobs may carry a retired local voice id (sarosh, role-*, narrator-*); they stay read-only evidence."
     },
     "workspace": {
       "type": "string",
@@ -125,7 +125,7 @@
     "bounceTo": {
       "type": ["string", "null"],
       "enum": ["story-series-studio", null],
-      "description": "Legacy value kept so old job files validate. Series methodology now lives in skills/media-studio/references/series.md and nothing leaves the studio; product screencasts stay here and invoke the internal engine."
+      "description": "Accepted for job-file compatibility. Series methodology is in skills/video/references/forms.md; product screencasts run in this plugin."
     },
     "truth": {
       "type": "string",
@@ -134,7 +134,7 @@
     "intent": {
       "type": "string",
       "enum": ["draft", "viewer-facing"],
-      "description": "viewer-facing (default) applies references/engagement.md. draft skips generated plates but still writes for the ear."
+      "description": "viewer-facing (default) applies skills/video/references/story.md. draft skips generated plates but still writes for the ear."
     },
     "emotionalTarget": {
       "type": "string",
@@ -157,7 +157,7 @@
         "onboarding",
         "webcast"
       ],
-      "description": "Platform frame. briefing-board is the house 1600×1000 kit. See references/delivery-profiles.md."
+      "description": "Platform frame. briefing-board is the house 1600×1000 kit. See skills/video/references/forms.md."
     },
     "craftScoreMin": {
       "type": "number",
@@ -167,7 +167,7 @@
     },
     "captureViewports": {
       "type": "object",
-      "description": "Per-ratio capture table (media-studio-capture 2b): each delivered aspect ratio is recorded at its own viewport with device emulation, never derived from a desktop capture. Keys are ratio strings such as 16:9, 4:5, 9:16.",
+      "description": "Per-ratio capture table (capture skill, skills/capture/references/recording.md): each delivered aspect ratio is recorded at its own viewport with device emulation, never derived from a desktop capture. Keys are ratio strings such as 16:9, 4:5, 9:16.",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
@@ -198,7 +198,7 @@
     },
     "flows": {
       "type": "object",
-      "description": "Per-flow picture source (media-studio-capture 2c): native-app flows are recorded from the real mobile app on the emulator; responsive-web flows from the web app at the ratio's viewport.",
+      "description": "Per-flow picture source (capture skill, skills/capture/references/recording.md): native-app flows are recorded from the real mobile app on the emulator; responsive-web flows from the web app at the ratio's viewport.",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Backfill capture/receipt.json for takes recorded by a recorder that predates the receipt (the runtime
-// _shared/capture-lib lane used by the 2026-09 Duckie jobs). Evidence comes from the Playwright trace that
+// _shared/capture-lib lane used by the historical capture jobs). Evidence comes from the Playwright trace that
 // recorder saved beside each raw take, never from the clip alone: pointer moves, clicks, keystrokes and
 // wheel events are counted from trace.trace, and the finished clip is hash-bound. A take with no trace
 // gets no receipt entry (and validate-product-picture.mjs will refuse it).

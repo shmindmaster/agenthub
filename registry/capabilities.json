@@ -51,35 +51,35 @@
     {
       "name": "product-demo-studio-capture",
       "retiredOn": "2026-08-25",
-      "supersededBy": "media-studio-capture",
+      "supersededBy": "media-studio:capture",
       "reason": "Renamed into media-studio.",
       "whyFleetScoped": "Same shared-dir spread as product-demo."
     },
     {
       "name": "product-demo-studio-narration",
       "retiredOn": "2026-08-25",
-      "supersededBy": "media-studio-generate",
+      "supersededBy": "media-studio:generate",
       "reason": "Narration is Local-AI generate in media-studio.",
       "whyFleetScoped": "Same shared-dir spread as product-demo."
     },
     {
       "name": "product-demo-studio-render",
       "retiredOn": "2026-08-25",
-      "supersededBy": "media-studio-compose",
-      "reason": "Composition is media-studio-compose.",
+      "supersededBy": "media-studio:compose",
+      "reason": "Composition is media-studio:compose.",
       "whyFleetScoped": "Same shared-dir spread as product-demo."
     },
     {
       "name": "product-demo-studio-qa",
       "retiredOn": "2026-08-25",
-      "supersededBy": "media-studio-qa",
+      "supersededBy": "media-studio:review",
       "reason": "Renamed into media-studio.",
       "whyFleetScoped": "Same shared-dir spread as product-demo."
     },
     {
       "name": "product-demo-studio-descript",
       "retiredOn": "2026-08-25",
-      "supersededBy": "media-studio-compose",
+      "supersededBy": "media-studio:compose",
       "reason": "Renamed into media-studio.",
       "whyFleetScoped": "Same shared-dir spread as product-demo."
     },
@@ -121,15 +121,15 @@
     {
       "name": "media-story-experience-reviewer",
       "retiredOn": "2026-10-21",
-      "supersededBy": "media-studio-qa",
-      "reason": "Folded into media-studio-qa (P2): the story-experience review of the encoded file, the 85 floor and the marketing feed test live there; story-review-rubric.md and the review schema are unchanged.",
+      "supersededBy": "media-studio:review",
+      "reason": "Folded into media-studio:review (P2; skill renamed from media-studio-qa in 2.1.0): the story-experience review of the encoded file, the 85 floor and the marketing feed test live there; story-review-rubric.md and the review schema are unchanged.",
       "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
     },
     {
       "name": "media-studio-descript",
       "retiredOn": "2026-10-21",
-      "supersededBy": "media-studio-compose",
-      "reason": "Folded into media-studio-compose references/descript.md (P3). The Studio Sound ban on owner voice and the mcps.json descript row are unchanged.",
+      "supersededBy": "media-studio:compose",
+      "reason": "Folded into media-studio:compose references/descript.md (P3). The Studio Sound ban on owner voice and the mcps.json descript row are unchanged.",
       "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
     },
     {
@@ -250,6 +250,165 @@
       "supersededBy": "media-studio",
       "reason": "The DigitalOcean H100 cluster is deleted (owner direction 2026-10-29). Compute is chosen by capacity (local GPU, Daytona, Azure, on-demand droplets, AWS) per the policy; remote APIs serve LLM, speech and images.",
       "whyFleetScoped": "Same eight-host spread as local-ai-stack."
+    },
+    {
+      "name": "use-windows-mcp",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "computer-use (first-party Claude desktop)",
+      "reason": "Owner direction 2026-11-03: capabilities end up enabled or gone. AgentHub deployed nothing for it; Claude ships computer use and the windows-desktop package is deleted.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "use-coderabbit",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "external:coderabbit@claude-plugins-official",
+      "reason": "Owner direction 2026-11-03: the vendor plugin and the official coderabbitai/skills cover CodeRabbit. The AgentHub overlay package is deleted.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "firecrawl-web-ingestion",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "external:firecrawl@claude-plugins-official",
+      "reason": "Owner direction 2026-11-03: the vendor Firecrawl plugin covers the work. The AgentHub ingestion overlay package is deleted. The Firecrawl remote MCP in registry/mcps.json is unchanged.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "use-arxiv-research",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "external:firecrawl@claude-plugins-official",
+      "reason": "Owner direction 2026-11-03: Firecrawl research tools (firecrawl_research_*) cover arXiv literature. The arxiv-research package and its pinned upstream MCP client are deleted.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "audit-product-experience",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:audit",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "discover-application",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:audit",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "measure-experience-outcomes",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:verify",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "validate-product-experience",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:verify",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "design-agentic-experiences",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:design",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "design-new-application-experience",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:design",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "design-workflows-and-features",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:design",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "specify-experience-improvements",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:design",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "engineer-product-experience",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:build",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "implement-experience-improvements",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:build",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "prepare-product-for-demo",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "product:demo",
+      "reason": "The product-experience-engineering plugin became product 2.0.0 with the skills audit, design, build, verify and demo. This skill name no longer ships.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "sarosh-communication",
+      "visibility": "private",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "sarosh:write",
+      "reason": "The private sarosh plugin 1.1.0 ships write in place of this skill.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "sarosh-writing",
+      "visibility": "private",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "sarosh:write",
+      "reason": "The private sarosh plugin ships write, which covers long-form authored work.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "sarosh-audio-voice",
+      "visibility": "private",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "sarosh:write",
+      "reason": "The private sarosh plugin ships write, which covers the route into owner speech.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "opportunity-engine",
+      "visibility": "private",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "sarosh:opportunity",
+      "reason": "The private sarosh plugin 1.1.0 ships opportunity in place of this skill.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "search-documents",
+      "visibility": "private",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "sarosh:search-docs",
+      "reason": "The private sarosh plugin 1.1.0 ships search-docs in place of this skill.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "use-coding-agent",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "dispatch",
+      "reason": "The coding-agent-dispatch plugin ships dispatch in place of this skill.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "use-repowise",
+      "retiredOn": "2026-11-03",
+      "supersededBy": "repowise",
+      "reason": "The repowise plugin ships repowise in place of this skill.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
     }
   ],
   "surfaceAliases": [
@@ -284,14 +443,14 @@
   ],
   "capabilities": [
     {
-      "id": "product-experience-engineering",
+      "id": "product",
       "owner": "handoff",
-      "capabilityType": "plugin+hooks",
-      "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "EDE81D78C09DB6C0776EE87B1C7E65E4D2F528C9F8A4E7F0FA8DEF3CF9AF186B",
-      "hashBasis": "packages/product-experience-engineering",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/product",
+      "contentHash": "1B4BE1375DCE40B96070BDD00FBF42AE97CE9E9904CC50535C9AF5943137716E",
+      "hashBasis": "packages/product",
       "status": "active-canonical",
-      "notes": "2026-10-14: owner of the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors; adversarial suite for adopters) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, Demonstrate now / Build next / Do not claim truth table, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
+      "notes": "Owns the product skills audit, design, build, verify and demo and the reviewer agent (2.0.0, no hooks). Also owns the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
       "hostMappings": [
         {
           "hostId": "claude",
@@ -364,306 +523,25 @@
       ]
     },
     {
-      "id": "firecrawl",
-      "owner": "portfolio",
-      "capabilityType": "skills",
-      "canonicalSource": "packages/firecrawl",
-      "managedSkillNames": [
-        "firecrawl-web-ingestion"
-      ],
-      "contentHash": "AAE7859ED2C4775278DC7A1D1495D4641B2B2F5C98ADA62D9A6C833A4FFF6639",
-      "hashBasis": "packages/firecrawl",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "notes": "Converted 2026-08-24 from a republished Firecrawl plugin to a fleet overlay. Official scrape/crawl/cli/build/research skills and the plugin live at https://github.com/firecrawl/skills; the fleet remote MCP remains registry/mcps.json#firecrawl. This package keeps only governed ingestion constraints. Do not restore firecrawl-scrape, firecrawl-crawl, or firecrawl-cli here — those names collide with upstream."
-    },
-    {
-      "id": "coderabbit",
-      "owner": "fleet-intelligence",
-      "capabilityType": "skills",
-      "canonicalSource": "packages/coderabbit",
-      "managedSkillNames": [
-        "use-coderabbit"
-      ],
-      "contentHash": "557C485E12A645E754DADF03B62359EF76F0C8E9BE73B2BDA50C01323655B01E",
-      "hashBasis": "packages/coderabbit",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "notes": "Fleet overlay only (use-coderabbit). Official code-review and autofix skills install from https://github.com/coderabbitai/skills; Claude plugin is coderabbit@claude-plugins-official; Codex plugin is coderabbit@openai-curated-remote. Do not vendor those names into AgentHub. CLI talks to CodeRabbit cloud; do not install the Enterprise self-hosted server."
-    },
-    {
-      "id": "windows-desktop",
-      "owner": "packages/windows-desktop",
-      "capabilityType": "plugin+mcp+skills",
-      "canonicalSource": "packages/windows-desktop",
-      "managedSkillNames": [
-        "use-windows-mcp"
-      ],
-      "contentHash": "80DB38CF8CF6AC67A34F2152B53ECAE1B0906F2544689539B5F408F44200BE6D",
-      "hashBasis": "packages/windows-desktop",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated (windows-desktop@agenthub); enable for a desktop-control task, disable when done. Covers Claude Code CLI and the Claude Desktop Code tab, which read the same ~/.claude plugins. Prefer first-party computer use where the session has it loaded."
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated. Rest state: `codex plugin add windows-desktop@agenthub` once, then [plugins.\"windows-desktop@agenthub\"] enabled = false in ~/.codex/config.toml (Codex's documented disable-without-uninstall switch; `codex plugin list` shows installed, disabled). Flip to true for a task, new session, flip back after. Live 2026-10-28: with the key true, `codex exec` exposed the windows_mcp tools and made a DisplayInventory call only when the prompt invoked $use-windows-mcp."
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-native-mcp",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "Skills deploy loosely. MCP is ALWAYS-ON by owner decision 2026-10-28: AgentHub sync persists windows-mcp in ~/.cursor/mcp.json (persistedOnDemandLocalMcpIds), so it serves both the Cursor IDE and cursor-agent. Per-workspace off switch: `cursor-agent mcp disable windows-mcp` / `cursor-agent mcp enable windows-mcp`. No Cursor local plugin copy; that would start a second server."
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "Skills deploy loosely. MCP written as mcp.windows-mcp with enabled=false (optInDisabledLocalMcpIds); enable per session when needed."
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "managed-loose-skills",
-          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
-        }
-      ],
-      "provides": [
-        "computer.gui"
-      ],
-      "dependencies": {
-        "requires": [],
-        "recommends": [
-          "browser-toolkit"
-        ],
-        "optional": []
-      },
-      "notes": "Fleet owner of native Windows desktop control. Before 2026-10-28 no capability owned computer.gui: browser-toolkit's desktop-evidence captures screenshots and recordings but cannot click or type, and claude-cli's first-party computer use is not loaded in every session. Owns registry/mcps.json#windows-mcp, delivered only by this package's plugin manifests, plus the use-windows-mcp loose skill. desktop-evidence stays the owner of written evidence files.",
-      "kind": "provider",
-      "maturity": "beta",
-      "provenance": "upstream-pinned"
-    },
-    {
       "id": "repowise",
       "owner": "fleet-intelligence",
       "capabilityType": "plugin+mcp+skills",
       "canonicalSource": "packages/repowise",
       "managedSkillNames": [
-        "use-repowise"
+        "repowise"
       ],
-      "contentHash": "B55DAE09AB9DC37DE243351FEA30AED7F601C954790B626E5CFC6522A146A7C7",
+      "contentHash": "C74572912D423FB19ED31645A7E725406150F7BBE3006EE083FDBB8ED1E7C0BE",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
         {
           "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Loose skills always; MCP only when `claude plugin enable repowise@agenthub`. Same split as browser-toolkit: disabling the plugin gates the stdio process without stranding CLI guidance. While the plugin is enabled, Sync-Capabilities hides the loose use-repowise from Claude through skillOverrides (registry/agents.json claude.skillOverrides), because the plugin already lists repowise:use-repowise."
+          "deploymentStatusNote": "Owner migration 2026-11-03: vendor repowise@repowise owns MCP, hooks and skills on this host. Uninstall repowise@agenthub; never reinstall or re-enable it as parity repair. Use the existing C:/Repos workspace. No loose duplicate skills or user hooks."
         },
         {
           "hostId": "codex",
@@ -672,7 +550,7 @@
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Install-disabled by default. `codex plugin add repowise@agenthub` when MCP tools are needed; remove when done."
+          "deploymentStatusNote": "Owner migration 2026-11-03: vendor codex@repowise owns MCP, hooks and skills on this host. Uninstall repowise@agenthub; never reinstall or re-enable it as parity repair. Use the existing C:/Repos workspace. No loose duplicate skills or user hooks."
         },
         {
           "hostId": "cursor",
@@ -736,7 +614,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) delivered only by packages/repowise plugin .mcp.json, plus the use-repowise loose skill and CLI. The external CLI is uv-managed machine tooling, kept on the PyPI latest by scripts/Update-RepoWise.ps1 on explicit or capability-invoked demand. Scheduled updates are retired. Official Claude/Codex RepoWise marketplace plugins are not installed: they would register a second MCP pointed at the nearest repo instead of C:/Repos."
+      "notes": "Fleet code intelligence. Claude uses vendor repowise@repowise and Codex uses vendor codex@repowise. AgentHub retains bounded local indexing and the bridge for hosts not yet migrated; it must not restore its wrapper on Claude/Codex. The uv-managed CLI updates through scripts/Update-RepoWise.ps1 only when behind, without editor migrations. Personal AgentHub plugins remain approved."
     },
     {
       "id": "mobile-development",
@@ -747,7 +625,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "BE9DB8315E4C4B2B74DBBA67021A1AB9650D27B7B3806B349E7433CF0021F7AD",
+      "contentHash": "6F7B585FCBD7D4B16FB85EFC83749CC262594FFB67F752BEDFB5E2BC620082EE",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -896,13 +774,13 @@
       "capabilityType": "plugin+skills",
       "canonicalSource": "packages/media-studio",
       "managedSkillNames": [
-        "media-studio",
-        "media-studio-capture",
-        "media-studio-generate",
-        "media-studio-compose",
-        "media-studio-qa"
+        "video",
+        "generate",
+        "capture",
+        "compose",
+        "review"
       ],
-      "contentHash": "4D251E05D6CE7B76729BE65352D042DA4BDB49950F4AA8A30CB6A9E6E6EEFA54",
+      "contentHash": "0070D539CC0BF955CEED033A9AE2518E5ACFEC54D14E976CC61D902184F05A50",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -984,7 +862,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 2.0.46 (2026-11-03 AssemblyAI provider and provider map; expressive meeting rehearsal recipe documents correspondence grounding, per-turn auditions, pronunciation and synchronized avatar composition, with governed-adapter limits and price caveats; documentation only, no new generation route; prior 2.0.44 (2026-10-29 Local-AI retired from the package: no local model, TTS or ASR runtime, no retired-runtime paths, MEDIA_STUDIO_ROOT media root, hosted-only defaults refuse with a clear message, historical alignment receipts stay readable, media-capabilities.md one-page reference; prior pack 2.0.42 (2026-10-29 Azure AI Services is the default provider for TTS, STT, images and avatar clips; media-studio-generate/references/azure-ai-services.md holds the capability table, eastus2 prices from the Retail Prices API, voice cast and cheapest-first routing; ElevenLabs, Deepgram and Gemini are fallbacks; no Sarosh clone in films; prior 2.0.28 (2026-10-28 fail-closed encoded input reports and exact square delivery frame; prior 2.0.27 (2026-10-27 receipt-bound Azure HD and standard-voice speech on one $1 ledger; Deepgram additional batches keep the original ledger, legacy inventory receipts and inherited ambiguity; a hero count other than exactly one scores like a missing hero; prior 2.0.26 (2026-10-27 owner direction: speaker identity is advisory only; never fail, block or re-voice on speaker similarity; Generate/ReGate-OwnerVoice verdict is integrity + ASR only, voice score is opt-in -AdvisoryIdentity and recorded for information, the content ledger no longer requires an identity acceptance gate; prior 2.0.20 (2026-10-25 native receipt-relative capture clip resolution; hash-bound missing/tampered capture evidence fails despite a matching job-root decoy; 27 focused sync CPU tests); prior 2.0.19 (2026-10-24 receipt- and clip-hash-bound pointer-arrival and existing-state observation semantics; strict transition and maximum-hold gates retained; 55 CPU tests); prior 2.0.18 response evidence quarantine and strict parsing; prior 2.0.17 (2026-10-24 governed Deepgram Sienna exact-cache TTS with shared conservative microdollar reservations and explicitly authorized bounded recovery epochs; offline tests only, no provider verification); prior 2.0.9 (2026-10-23 shared content ledger: Ledger.reject lets a worker release its own submission when the provider refuses it before generating, used by the ElevenLabs adapter for HTTP 429); 2.0.8 (2026-10-22 pre-render picture gates: validate-picture-inputs refuses a non-aligner clock, fact-lock number drift, off-word or out-of-order spotlight anchors, mp3 or PASS-less takes and an undisclosed role voice; render-program is the single Remotion entry and deletes a picture whose duration misses the voice; lock-facts, write-captions with a hash-bound rate-bound report, merge-designed-cuts; build-cue-sheet prefers voice/align and refuses Whisper on forced-aligner jobs; owner voice renders each scene on its allowlisted voiceStyle reference); 2.0.7 (2026-10-22 timing uses accepted-take/script-bound forced-alignment onsets by default; Whisper timing requires the explicit --whisper-timing compatibility flag; aligner script words tokenized like sync-lib); 2.0.6 (2026-10-22 one flat folder per product directly under F:/My Drive/Videos, no subfolders); 2.0.5 (2026-10-21 isolated immutable-candidate QA, forced-alignment word clock, transcript-only Whisper, local vision with explicit paid fallback, optional clean caption layer); 2.0.4 (2026-10-21 kit lockfile takes hono 4.13.13, a transitive patch release via the MCP SDK); 2.0.3 (2026-10-21 owner-voice take reuse is keyed on a content fingerprint, not the segment id: OwnerVoice-TakeReuse.ps1 is shared by Generate-OwnerVoice.ps1 and ReGate-OwnerVoice.ps1 and deployed to _shared/tools; listen rejections persist in REJECTED.json and re-gate no longer skips a rejected segment); 2.0.2 (2026-10-21 Sync-MediaStudioKit mirrors kit/marketing in place with robocopy /MIR and refuses while an mvg job runs from the target unless -Force); 2.0.1 (2026-10-21 review fixes on PRs 41-42: taps count as interactions, --ratio takes record at viewport x DSF, validate-narration checks the locked timeline and storyboard disclosure, viewer-release requires canonical gate thresholds, marketing qa names media-studio-qa). 2.0.0 (2026-10-21 consolidation P1-P8: one producer skill with writer/storyboard/visuals/direction/series/campaigns references plus capture, generate, compose, qa; story-series-studio and technical-storytelling retired into it; descript a compose reference; story-experience review inside qa). 1.8.0 (2026-10-20 video standard, owner direction: validate-narration no-fluff check, capture pre-flight in record-job, validate-pointer-path, validate-frame-integrity, validate-picture-integrity and per-ratio capture, validate-marketing-readiness feed test, build-contact-sheet, freeze gate accepts declared holds; validate-viewer-release requires their reports; the deploy list must add the seven new gate scripts). 1.7.6 (2026-10-20: delivery review roots repointed to F:/My Drive/Videos/<Product>; Sync-MediaStudioKit.ps1 deploys Inspect-MediaVisualQuality.ps1, scaffold-video-workspace.mjs and product-experience-engineering's demo-stack.mjs to _shared/tools and reports unmanaged files left there). 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 2.1.0 (2026-11-03 rewrite: five skills video, generate, capture, compose, review replace media-studio, media-studio-generate, -capture, -compose and -qa; commands/video.md removed; Azure resource mt-foundary-resource with current chat, image, STT and TTS deployments; plugin.json $schema agent-plugins.org); prior 2.0.46 (2026-11-03 AssemblyAI provider and provider map; expressive meeting rehearsal recipe documents correspondence grounding, per-turn auditions, pronunciation and synchronized avatar composition, with governed-adapter limits and price caveats; documentation only, no new generation route; prior 2.0.44 (2026-10-29 Local-AI retired from the package: no local model, TTS or ASR runtime, no retired-runtime paths, MEDIA_STUDIO_ROOT media root, hosted-only defaults refuse with a clear message, historical alignment receipts stay readable, media-capabilities.md one-page reference; prior pack 2.0.42 (2026-10-29 Azure AI Services is the default provider for TTS, STT, images and avatar clips; media-studio-generate/references/azure-ai-services.md holds the capability table, eastus2 prices from the Retail Prices API, voice cast and cheapest-first routing; ElevenLabs, Deepgram and Gemini are fallbacks; no Sarosh clone in films; prior 2.0.28 (2026-10-28 fail-closed encoded input reports and exact square delivery frame; prior 2.0.27 (2026-10-27 receipt-bound Azure HD and standard-voice speech on one $1 ledger; Deepgram additional batches keep the original ledger, legacy inventory receipts and inherited ambiguity; a hero count other than exactly one scores like a missing hero; prior 2.0.26 (2026-10-27 owner direction: speaker identity is advisory only; never fail, block or re-voice on speaker similarity; Generate/ReGate-OwnerVoice verdict is integrity + ASR only, voice score is opt-in -AdvisoryIdentity and recorded for information, the content ledger no longer requires an identity acceptance gate; prior 2.0.20 (2026-10-25 native receipt-relative capture clip resolution; hash-bound missing/tampered capture evidence fails despite a matching job-root decoy; 27 focused sync CPU tests); prior 2.0.19 (2026-10-24 receipt- and clip-hash-bound pointer-arrival and existing-state observation semantics; strict transition and maximum-hold gates retained; 55 CPU tests); prior 2.0.18 response evidence quarantine and strict parsing; prior 2.0.17 (2026-10-24 governed Deepgram Sienna exact-cache TTS with shared conservative microdollar reservations and explicitly authorized bounded recovery epochs; offline tests only, no provider verification); prior 2.0.9 (2026-10-23 shared content ledger: Ledger.reject lets a worker release its own submission when the provider refuses it before generating, used by the ElevenLabs adapter for HTTP 429); 2.0.8 (2026-10-22 pre-render picture gates: validate-picture-inputs refuses a non-aligner clock, fact-lock number drift, off-word or out-of-order spotlight anchors, mp3 or PASS-less takes and an undisclosed role voice; render-program is the single Remotion entry and deletes a picture whose duration misses the voice; lock-facts, write-captions with a hash-bound rate-bound report, merge-designed-cuts; build-cue-sheet prefers voice/align and refuses Whisper on forced-aligner jobs; owner voice renders each scene on its allowlisted voiceStyle reference); 2.0.7 (2026-10-22 timing uses accepted-take/script-bound forced-alignment onsets by default; Whisper timing requires the explicit --whisper-timing compatibility flag; aligner script words tokenized like sync-lib); 2.0.6 (2026-10-22 one flat folder per product directly under F:/My Drive/Videos, no subfolders); 2.0.5 (2026-10-21 isolated immutable-candidate QA, forced-alignment word clock, transcript-only Whisper, local vision with explicit paid fallback, optional clean caption layer); 2.0.4 (2026-10-21 kit lockfile takes hono 4.13.13, a transitive patch release via the MCP SDK); 2.0.3 (2026-10-21 owner-voice take reuse is keyed on a content fingerprint, not the segment id: OwnerVoice-TakeReuse.ps1 is shared by Generate-OwnerVoice.ps1 and ReGate-OwnerVoice.ps1 and deployed to _shared/tools; listen rejections persist in REJECTED.json and re-gate no longer skips a rejected segment); 2.0.2 (2026-10-21 Sync-MediaStudioKit mirrors kit/marketing in place with robocopy /MIR and refuses while an mvg job runs from the target unless -Force); 2.0.1 (2026-10-21 review fixes on PRs 41-42: taps count as interactions, --ratio takes record at viewport x DSF, validate-narration checks the locked timeline and storyboard disclosure, viewer-release requires canonical gate thresholds, marketing qa names media-studio-qa). 2.0.0 (2026-10-21 consolidation P1-P8: one producer skill with writer/storyboard/visuals/direction/series/campaigns references plus capture, generate, compose, qa; story-series-studio and technical-storytelling retired into it; descript a compose reference; story-experience review inside qa). 1.8.0 (2026-10-20 video standard, owner direction: validate-narration no-fluff check, capture pre-flight in record-job, validate-pointer-path, validate-frame-integrity, validate-picture-integrity and per-ratio capture, validate-marketing-readiness feed test, build-contact-sheet, freeze gate accepts declared holds; validate-viewer-release requires their reports; the deploy list must add the seven new gate scripts). 1.7.6 (2026-10-20: delivery review roots repointed to F:/My Drive/Videos/<Product>; Sync-MediaStudioKit.ps1 deploys Inspect-MediaVisualQuality.ps1, scaffold-video-workspace.mjs and product's demo-stack.mjs to _shared/tools and reports unmanaged files left there). 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [],
         "recommends": [
@@ -1018,9 +896,9 @@
       "capabilityType": "skills",
       "canonicalSource": "packages/coding-agent-dispatch",
       "managedSkillNames": [
-        "use-coding-agent"
+        "dispatch"
       ],
-      "contentHash": "7BDA5AE6F1FC3E0396C036FEA02912808298EDC73B03DFCEE4B410E3B36ACD93",
+      "contentHash": "5324B35E1F40ECC03437D08AEC493861AE2914C0DB7D5F12F43487E226977F77",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1112,7 +990,7 @@
       "managedSkillNames": [
         "assemblyai"
       ],
-      "contentHash": "4228E85549BF694AC442C2D61EDC177D2CB5C5E22B9D3FFCFB8A81A81911AC89",
+      "contentHash": "150C542D7191C4C336C1E4F30ECDAB6EA1EF480E013144429872E3F56A493A47",
       "hashBasis": "packages/assemblyai",
       "status": "active-canonical",
       "hostMappings": [
@@ -1228,96 +1106,6 @@
       "kind": "provider",
       "maturity": "beta",
       "provenance": "agenthub-owned"
-    },
-    {
-      "id": "arxiv-research",
-      "owner": "personal-infrastructure",
-      "capabilityType": "skills+mcp",
-      "canonicalSource": "packages/arxiv-research",
-      "managedSkillNames": [
-        "use-arxiv-research"
-      ],
-      "contentHash": "FDD6927D3B29F28CD5628D0E55D63E754D77EA7D7450DFB96FE24C819BA45243",
-      "hashBasis": "packages/arxiv-research",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "dependencies": {
-        "requires": [],
-        "recommends": [
-          "repowise",
-          "product-experience-engineering"
-        ],
-        "optional": []
-      },
-      "kind": "tool",
-      "maturity": "beta",
-      "provenance": "agenthub-owned",
-      "notes": "Cross-project paper-to-product research workflow and bounded MCP client. Upstream blazickjp/arxiv-mcp-server owns the unmodified PyPI server, tools and prompts. One OS lock serializes explicit sessions across local hosts; each session closes its server. No per-host MCP entries, native-plugin replication, startup services, scheduled watches or semantic model downloads. Runtime papers stay outside repositories. A deployed skill is not proof an already-running host loaded it."
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",

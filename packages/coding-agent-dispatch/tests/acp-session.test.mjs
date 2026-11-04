@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PassThrough, Writable } from 'node:stream';
-import { createAcpSession } from '../skills/use-coding-agent/cline/acp-session.mjs';
+import { createAcpSession } from '../skills/dispatch/cline/acp-session.mjs';
 
 function fixture({ empty = false, unsupported = false, timeout = false, unconfirmed = false } = {}) {
   const input = new PassThrough();

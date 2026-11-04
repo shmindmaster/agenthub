@@ -1,4 +1,0 @@
-interface:
-  display_name: "Engineer Product Experience"
-  short_description: "Route complete app assessment and improvement work"
-  default_prompt: "Use $engineer-product-experience to improve this application from discovery through validated implementation."

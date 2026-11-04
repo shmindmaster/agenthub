@@ -338,7 +338,7 @@ if (candidateSha && cueSheet && probe && video) {
   skip('cursor-lead', 'the cursor arriving just before the spoken word is not measured; only the action instant is gated.');
   skip('cursor-continuity-across-cuts', 'cursor position consistency across cuts is not measured; judge it in the final watch pass.');
   skip('action-visual-confirmation', 'the click or state change is not detected in the encoded pixels; action times come from the capture receipt through the edit decision list, and the picture is bound to the capture by validate-encoded-picture.mjs.');
-  skip('rendered-audio-and-picture-review', 'a person must still watch and listen to the exact encoded file against the cue sheet (media-studio-qa final check); this gate does not replace it.');
+  skip('rendered-audio-and-picture-review', 'a person must still watch and listen to the exact encoded file against the cue sheet (review final check); this gate does not replace it.');
   avReport = av;
 }
 

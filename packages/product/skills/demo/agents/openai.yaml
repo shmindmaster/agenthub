@@ -1,0 +1,4 @@
+interface:
+  display_name: "Demo"
+  short_description: "Make a workflow ready to record"
+  default_prompt: "Use $demo to make this workflow ready to record."

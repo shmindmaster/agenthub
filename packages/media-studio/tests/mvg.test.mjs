@@ -23,7 +23,7 @@ import { DEFAULT_REQUIRED, captionsCheck, readReviews, releasable, requiredGates
 import { CHAIN_GATES, captureViewportsFor, chainGateResult, readMarketingReadiness, readinessPending, declaredCutsSheet, runFrameIntegrityGate, runMarketingGate, runPointerGate } from '../kit/marketing/lib/chain-gates.mjs';
 import { applyArbitration, buildInstructions, evaluate, parseVerdict, sampleTimes, runVisionQa, VerdictError } from '../kit/marketing/vision-qa.mjs';
 import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/picture-gate.mjs';
-import { estimateImageUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
+import { estimateImageUsd, estimateSttUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
 import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
 import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
 import { assetsStage, musicKey, musicLengthMs, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
@@ -294,8 +294,21 @@ test('planCost sums voice, sfx, music, stills and vision and is checked against 
   assert.ok(planCost(s, { ...brand, timing: { provider: 'local-whisper' } }, { whisperTiming: true, hostedOnly: true }).openaiUsd > 0, 'hosted-only overrides local Whisper and budgets OpenAI');
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_v4'), 120);
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_flash_v2_5'), 60);
-  assert.ok(estimateImageUsd('gpt-image-2', 'medium') < estimateImageUsd('gpt-image-2', 'high'));
+  assert.ok(estimateImageUsd('gpt-image-2.5-flare', 'medium') < estimateImageUsd('gpt-image-2.5-flare', 'high'));
   assert.ok(estimateVisionUsd('gpt-5.6-sol', 14) < 1);
+  assert.ok(Math.abs(estimateSttUsd('gpt-4o-mini-transcribe', 3600) - 0.18) < 1e-9);
+  assert.ok(Math.abs(estimateSttUsd('gpt-transcribe', 3600) - 0.27) < 1e-9);
+});
+
+test('Azure transcription posts to the deployment path with the pinned api-version', async () => {
+  const { transcribeAzure } = await import('../kit/marketing/lib/providers/openai.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'stt-'));
+  const f = join(dir, 'a.wav'); writeFileSync(f, 'x');
+  let seen;
+  const out = await transcribeAzure(f, { endpoint: 'https://example.invalid/', key: 'k', fetchImpl: async (url, init) => { seen = { url, key: init.headers['api-key'] }; return { ok: true, json: async () => ({ text: 'hi' }) }; } });
+  rmSync(dir, { recursive: true, force: true });
+  assert.equal(seen.url, 'https://example.invalid/openai/deployments/gpt-4o-mini-transcribe/audio/transcriptions?api-version=2025-04-01-preview');
+  assert.equal(out.text, 'hi');
 });
 
 // ---- crop math

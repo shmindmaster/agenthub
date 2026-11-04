@@ -221,7 +221,7 @@ ACP is not a general agent-to-agent bus.
     one writer per session.
 - **Assign a new task:** write a brief (copy an `OC-*.md`, include
   `COMMON.md`), create a worktree with the AgentHub helper, then run
-  `pwsh -NoProfile -File "$env:USERPROFILE\.agents\skills\use-coding-agent\Invoke-CodingAgent.ps1" -HostId opencode -PromptFile <brief> -Cwd <worktree> -Model <allowed> -Title "OC-n ..." -TimeoutSec 5400`.
+  `pwsh -NoProfile -File "$env:USERPROFILE\.agents\skills\dispatch\Invoke-CodingAgent.ps1" -HostId opencode -PromptFile <brief> -Cwd <worktree> -Model <allowed> -Title "OC-n ..." -TimeoutSec 5400`.
   Add a registry row.
 - **Change the default or allowed models:** probe first
   (`opencode run --model opencode/<id> "Reply READY"`), then edit

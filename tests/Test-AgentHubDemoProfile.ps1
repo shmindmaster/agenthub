@@ -112,7 +112,7 @@ try {
     Report 'the edited line reaches the profile host file and nothing private does' (
         (Test-Path -LiteralPath $deployed) -and
         ([IO.File]::ReadAllText($deployed) -match 'Demo profile rule:') -and
-        ([IO.File]::ReadAllText($deployed) -notmatch 'sarosh-communication')
+        ([IO.File]::ReadAllText($deployed) -notmatch 'sarosh:write')
     ) 'profile CLAUDE.md lacks the edit or carries private-overlay policy'
 
     $allOutput = ($new, $a1, $p1, $a2, $e1, $a3, $p2, $a4 | ForEach-Object { $_.Output }) -join "`n"

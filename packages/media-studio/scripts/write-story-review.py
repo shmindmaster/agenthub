@@ -5,7 +5,7 @@ or audio required, and writes qa/story-review.json in the story-experience-revie
 pass, missingEvidence, reason, checks, findings, reviseSceneIds). It is a screenplay lint, not a craft pass. It does not authorize capture, compose, or delivery.
 Product-screencast still requires validate-product-picture.mjs (WebM + Recast) and PDS review of the
 encoded file. The encoded-file critic (the PDS story-experience-reviewer agent for screencasts,
-the media-studio-qa story-experience review for the rest) still runs on the candidate after the master exists and
+the review skill story-experience review for the rest) still runs on the candidate after the master exists and
 supersedes this file with qa/story-experience-review.json.
 
 Usage:
@@ -447,7 +447,7 @@ def main() -> int:
                   "checks": checks, "findings": findings, "reviseSceneIds": revise}
     out_p.write_text(json.dumps(review, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    rubric = sorted(Path.home().glob(".claude/plugins/cache/agenthub/media-studio/*/skills/media-studio/references/story-review-rubric.md"))
+    rubric = sorted(Path.home().glob(".claude/plugins/cache/agenthub/media-studio/*/skills/review/references/story-review-rubric.md"))
     prov = {"tool": "write-story-review.py", "toolVersion": TOOL_VERSION, "method": "pre-capture structural gate + recorded judgments",
             "inputs": {"screenplay": sha(sp_p), "storyboard": sha(sb_p), "job": sha(job_p) if job_p.exists() else None,
                        "judgments": sha(jd_p) if jd_p.exists() else None,

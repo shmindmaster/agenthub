@@ -43,7 +43,7 @@ Not taken (already owned): `validateCampaign`, `lintSpec` (Factory F-1),
 ## Runbook
 
 ```powershell
-pwsh -NoProfile -File packages\coding-agent-dispatch\skills\use-coding-agent\Invoke-CodingAgent.ps1 `
+pwsh -NoProfile -File packages\coding-agent-dispatch\skills\dispatch\Invoke-CodingAgent.ps1 `
   -HostId warp -Cwd C:\wt\agenthub\<task> -PromptFile <brief.md> -Model glm-5.3-fireworks -TimeoutSec 3600
 ```
 

@@ -131,9 +131,8 @@ procedure that can be exercised without another product's release.
 ## 5. Registry, evidence and gates
 
 `registry/capabilities.json` owns agent capabilities, not production service
-instances. Its existing `portfolio-engineering` owner maintains the product
-roster in `packages/portfolio-engineering/portfolio.json` and the sharing
-declarations in the adjacent `architecture.json`. Do not create a second
+instances. The product roster and the sharing declarations are not held in
+this registry. Do not create a second
 capability owner or put secrets/customer evidence into either registry.
 
 The architecture declarations record tier, kind, consumers, ownership, status,

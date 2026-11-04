@@ -1,0 +1,21 @@
+{
+  "name": "product",
+  "version": "2.0.0",
+  "description": "Audit, design, build, verify and demo product experiences on evidence.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "keywords": [
+    "product",
+    "user-experience",
+    "frontend",
+    "usability",
+    "accessibility",
+    "agentic-ai",
+    "demo-readiness"
+  ],
+  "skills": "./skills/",
+  "agents": [
+    "./agents/reviewer.agent.md"
+  ]
+}

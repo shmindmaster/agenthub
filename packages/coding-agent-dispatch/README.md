@@ -52,7 +52,7 @@ Offline tests cover the full dispatcher with a synthetic ACP executable;
 live Cline resume remains unverified under the current restriction.
 
 The optional Cline Qwen tool-discovery plugin is maintained in this package's
-`skills/use-coding-agent/cline/lightweight-chat.js`. It uses documented SDK
+`skills/dispatch/cline/lightweight-chat.js`. It uses documented SDK
 hooks to send only `find_tools` initially, loads a bounded selection when needed,
 and resets the selection for each user turn. Native tool implementations and
 approval choices remain intact. CLI 3.0.73 and Desktop 0.0.48 passed actual
@@ -65,7 +65,7 @@ lives outside the application installation and normally survives updates;
 future SDK compatibility still requires verification after an upgrade.
 
 The optional Cline peer guard plugin is maintained in this package's
-`skills/use-coding-agent/cline/peer-guard.js`. It uses the Cline SDK `beforeTool`
+`skills/dispatch/cline/peer-guard.js`. It uses the Cline SDK `beforeTool`
 hook to block a deny-list of dangerous commands when running unattended with
 `--auto-approve true`. The guard activates only when the launcher sets
 `AGENTHUB_PEER_GUARD=1` and the session runs in-process (`CLINE_SESSION_BACKEND_MODE=local`);
@@ -83,7 +83,7 @@ to `~/.cline/plugins/peer-guard.js` with hash readback. It never starts Cline or
 registers background maintenance.
 
 OpenCode 2.1.4 has the equivalent native plugin in
-`skills/use-coding-agent/opencode/lightweight-chat.js`. It defers tool schemas,
+`skills/dispatch/opencode/lightweight-chat.js`. It defers tool schemas,
 skill descriptions and MCP instructions until `find_tools` selects them, then
 resets that selection on each user turn. `Install-OpenCodeToolDiscovery.ps1`
 audits by default; `-Apply` installs and verifies the single global plugin file.
@@ -117,7 +117,7 @@ timeout cleanup, run hidden. No cloud adapter, login or scheduled task is
 created. Hosted cloud aliases are explicitly refused.
 
 ```powershell
-pwsh -NoProfile -File .\packages\coding-agent-dispatch\skills\use-coding-agent\Invoke-CodingAgent.ps1 -List
+pwsh -NoProfile -File .\packages\coding-agent-dispatch\skills\dispatch\Invoke-CodingAgent.ps1 -List
 ```
 
 Deployment is a separate gate. The skill's targeted command is

@@ -40,7 +40,7 @@ export function readMarketingReadiness(path, candidateSha) {
 /** The pending detail that names the file the reviewer must write for this exact candidate. */
 export function readinessPending({ ratio, state, boundTo, sha }) {
   const file = `qa/${ratio}/marketing-readiness.json`;
-  const need = `candidate.sha256 ${sha.slice(0, 12)}... and its byte count, schema media-studio/marketing-readiness/1 (skills/media-studio/references/marketing-readiness.md)`;
+  const need = `candidate.sha256 ${sha.slice(0, 12)}... and its byte count, schema media-studio/marketing-readiness/1 (skills/review/references/marketing-readiness.md)`;
   if (state === 'stale') return `${file} is bound to another candidate (${String(boundTo || 'no candidate hash').slice(0, 12)}...); the reviewer must re-review this file and write ${need}`;
   if (state === 'unreadable') return `${file} is not valid JSON; the reviewer must rewrite it with ${need}`;
   return `the reviewer must write ${file} for this candidate: ${need}`;

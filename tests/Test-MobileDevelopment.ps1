@@ -299,7 +299,7 @@ $portfolio = @($capabilities.capabilities | Where-Object id -eq 'portfolio-engin
 Report 'mobile-development is the one owner of both recognizable skills' (
     $mobileCapability.Count -eq 1 -and $oldCapability.Count -eq 0 -and $owners.Count -eq 1 -and `
     (Test-Sequence @($mobileCapability[0].managedSkillNames) @('mobile-device-lab','mobile-platform-standard')) -and `
-    'mobile-platform-standard' -notin @($portfolio[0].managedSkillNames)
+    $portfolio.Count -eq 0
 ) "owners=$(@($owners.id) -join ',')"
 Report 'old package and split skill residues are absent' (
     @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'packages\mobile-device-lab') -Recurse -File -Force -ErrorAction SilentlyContinue).Count -eq 0 -and `
@@ -330,27 +330,14 @@ $mobileDeploymentFailures = @(
         $resolvedHost = if ($alias.ContainsKey([string]$activeAgent.id)) { $alias[[string]$activeAgent.id] } else { [string]$activeAgent.id }
         $resolvedAgent = @($agents.activeAgents | Where-Object id -eq $resolvedHost | Select-Object -First 1)
         $mapping = @($mobileCapability[0].hostMappings | Where-Object hostId -eq $resolvedHost)
-        $skillsDir = if ($resolvedAgent.Count -eq 1 -and -not [string]::IsNullOrWhiteSpace([string]$resolvedAgent[0].nativePaths.sharedSkillsDir)) {
-            Resolve-MobileNativeSkillsDir ([string]$resolvedAgent[0].nativePaths.sharedSkillsDir)
-        } elseif ($resolvedAgent.Count -eq 1) {
-            Resolve-MobileNativeSkillsDir ([string]$resolvedAgent[0].nativePaths.skillsDir)
-        } else { $null }
-        $skillsReadable = $true
-        foreach ($skillName in @($mobileCapability[0].managedSkillNames)) {
-            $source = Join-Path $packageRoot "skills\$skillName"
-            $destination = if ($skillsDir) { Join-Path $skillsDir $skillName } else { $null }
-            if (-not $destination -or -not (Test-ReadableSkillTree -Source $source -Destination $destination)) {
-                $skillsReadable = $false
-            }
-        }
         $catalogReadable = $deployedPackageMatchesSource -and $deployedAuthorityMatchesSource -and $deployedCatalogResolves
         if ($mapping.Count -ne 1 -or 'skills' -notin @($mapping[0].components) -or
-            'catalog' -notin @($mapping[0].components) -or -not $skillsReadable -or -not $catalogReadable) {
-            "$($activeAgent.id)->$resolvedHost skillsDir=$skillsDir mappingCount=$($mapping.Count) skillsReadable=$skillsReadable catalogReadable=$catalogReadable"
+            'catalog' -notin @($mapping[0].components) -or -not $catalogReadable) {
+            "$($activeAgent.id)->$resolvedHost mappingCount=$($mapping.Count) catalogReadable=$catalogReadable"
         }
     }
 )
-Report 'all active coding hosts receive the loose mobile skills and catalog' (
+Report 'all active coding hosts map the mobile plugin skills and receive the catalog' (
     (Test-Sequence $mappedHosts $activeHosts) -and `
     $mobileCapability[0].catalogEntrypoint -eq 'packages/mobile-development/mobile.ps1 catalog' -and `
     $mobileCapability[0].deployedCatalog.syncOwner -eq 'scripts/Sync-Capabilities.ps1' -and `

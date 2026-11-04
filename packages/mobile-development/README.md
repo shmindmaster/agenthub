@@ -44,7 +44,7 @@ The command catalog and lifecycle metadata come from
 - Guest expectations come from `registry/mobile-development.json`; live VM
   hardware comes from the VMX authority named there and is not copied here.
 
-The dated measurements and rejected alternatives are retained in
-[`architecture-decisions.md`](./skills/mobile-device-lab/references/architecture-decisions.md).
+Lab operating rules and fixed choices are in
+[`lab-operations.md`](./skills/mobile-device-lab/references/lab-operations.md).
 Nothing in this contract proves physical-device, credential, signing, cloud,
 or store readiness.

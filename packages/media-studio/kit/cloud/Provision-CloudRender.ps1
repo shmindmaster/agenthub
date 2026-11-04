@@ -10,7 +10,7 @@ Creates, in one resource group:
   - a consumption-only Container Apps environment (no Log Analytics: the worker writes its own log to Blob);
   - a manual-trigger Container Apps job on mcr.microsoft.com/playwright (scale to zero: it bills only while running);
   - Storage Blob Data Contributor for the job's managed identity and for the signed-in user;
-  - an Azure OpenAI (AIServices) account with a gpt-5-mini deployment, key auth disabled, for cloud-ai.mjs;
+  - the MahumTech Azure AI Services account (default mt-foundary-resource) with a gpt-6-luna chat deployment, key auth disabled, for cloud-ai.mjs;
   - a monthly cost budget on the resource group with e-mail alerts.
 Writes the non-secret resource names and list prices to %LOCALAPPDATA%\AgentHub\media-studio\cloud-render.json.
 
@@ -27,7 +27,8 @@ param(
     [string]$Memory = '8Gi',
     [int]$BudgetUsd = 20,
     [string]$AoaiLocation = 'eastus2',
-    [string]$AoaiModel = 'gpt-5-mini',
+    [string]$AoaiAccount = 'mt-foundary-resource',
+    [string]$AoaiModel = 'gpt-6-luna',
     [string]$ConfigPath = (Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\cloud-render.json')
 )
 
@@ -153,8 +154,9 @@ Invoke-Arm PUT "$rgPath/providers/Microsoft.Consumption/budgets/media-render-mon
 } catch { Write-Warning "Budget not created ($($_.Exception.Message)). Create it in Cost Management for $ResourceGroup." }
 
 # Azure OpenAI for cloud-ai.mjs (client-safe QA/review in this tenant). Pay per token, nothing idle; key auth is
-# disabled, so callers use Entra tokens. Only gpt-5-mini has GlobalStandard quota on this subscription (2026-10-26).
-$aoai = "aoai-mrender-$suffix"
+# disabled, so callers use Entra tokens. The account name is a parameter (default mt-foundary-resource); the chat
+# deployments are gpt-6-luna (default) and gpt-6.1-sol. The former aoai-mrender account and gpt-5-mini deployment no longer exist.
+$aoai = $AoaiAccount
 if (-not (Invoke-Az cognitiveservices account list -g $ResourceGroup --subscription $SubscriptionId --query "[?name=='$aoai'].name" -o tsv)) {
     Invoke-Az cognitiveservices account create -n $aoai -g $ResourceGroup -l $AoaiLocation --kind AIServices --sku S0 --custom-domain $aoai --subscription $SubscriptionId --tags purpose=media-render owner=owner --yes -o none
 }

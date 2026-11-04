@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { resumeDispatch, transportCommand } from '../skills/use-coding-agent/cline/acp-dispatch.mjs';
+import { resumeDispatch, transportCommand } from '../skills/dispatch/cline/acp-dispatch.mjs';
 
 test('ACP transport keeps session and prompt out of command arguments', async () => {
   const methods = [];
@@ -76,7 +76,7 @@ test('dispatcher SessionId wiring and refusal use synthetic registry only', { ti
     writeFileSync(join(root, 'registry/agents.json'), JSON.stringify({ activeAgents: ['cline', 'codex'].map(id => ({ id, executable: fake })) }));
     const fleet = { autonomyProfiles: { profiles: [] }, hostSettings: { cline: { provider: 'cline', model: 'synthetic/model:free' } }, dispatchPolicy: {} };
     const save = () => writeFileSync(join(root, 'registry/fleet-profile.json'), JSON.stringify(fleet));
-    const run = (host, extra = []) => spawnSync('pwsh', ['-NoProfile', '-File', resolve(repo, 'packages/coding-agent-dispatch/skills/use-coding-agent/Invoke-CodingAgent.ps1'), '-HostId', host, '-SessionId', 'synthetic', '-Prompt', 'synthetic "task"\nnext', '-Cwd', root, '-TimeoutSec', '15', ...extra], { encoding: 'utf8', windowsHide: true, timeout: 25000, env: { ...process.env, AGENTHUB_ROOT: root, LOCALAPPDATA: join(root, 'runtime') } });
+    const run = (host, extra = []) => spawnSync('pwsh', ['-NoProfile', '-File', resolve(repo, 'packages/coding-agent-dispatch/skills/dispatch/Invoke-CodingAgent.ps1'), '-HostId', host, '-SessionId', 'synthetic', '-Prompt', 'synthetic "task"\nnext', '-Cwd', root, '-TimeoutSec', '15', ...extra], { encoding: 'utf8', windowsHide: true, timeout: 25000, env: { ...process.env, AGENTHUB_ROOT: root, LOCALAPPDATA: join(root, 'runtime') } });
     save();
     let result = run('cline');
     assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).text, 'synthetic "task"\nnext');

@@ -31,7 +31,7 @@ Ladder: Planned, Implemented, Integrated, Tested, Demonstrated, Production-Verif
 | Public-first overlay merge | `scripts/lib/CapabilityGraph.ps1`, `tests/Test-CapabilityOverlay.ps1` | Implemented | Run the overlay test; run audit with overlay on and off |
 | MCP registry and per-host emission (15 servers in `registry/mcps.json`) | `registry/mcps.json`, `scripts/Sync-AgentHub.ps1` | Implemented | Declared-versus-deployed test run; protocol probe re-run |
 | Policy compiler to host instruction files | `scripts/Sync-Instructions.ps1`, `policy-core.md` | Implemented | `Test-SyncInstructions.ps1` result; a rendered file diff |
-| Coding-agent dispatcher | `packages/coding-agent-dispatch/skills/use-coding-agent/Invoke-CodingAgent.ps1` | Implemented | `-List` output captured; `Test-CodingAgentDispatch.ps1` result. `docs/current-state.md` itself says "prepared; deployment pending" |
+| Coding-agent dispatcher | `packages/coding-agent-dispatch/skills/dispatch/Invoke-CodingAgent.ps1` | Implemented | `-List` output captured; `Test-CodingAgentDispatch.ps1` result. `docs/current-state.md` itself says "prepared; deployment pending" |
 | Fleet repo-standard checker | `scripts/Check-RepoStandard.ps1`, `registry/repo-standard.json` | Implemented | `Test-RepoStandard.ps1` result and a `-All` report |
 | Media-studio release gates | `packages/media-studio/scripts/validate-demo-scenario.mjs` and siblings | Implemented | Node tests under `packages/media-studio/tests/` run |
 | Slack capability contract | `packages/slack/mcp/` | Implemented | `contract.test.mjs` run; a live Slack call is a separate, externally-communicating step and out of scope here |

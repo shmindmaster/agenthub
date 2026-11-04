@@ -78,7 +78,7 @@ $oc = Join-Path $HOME '.config\opencode\opencode.json'
 if (Test-Path $oc) {
     $oj = Get-Content $oc -Raw -Encoding UTF8 | ConvertFrom-Json
     Report 'OpenCode has no retired Chrome DevTools entry' ($null -eq $oj.mcp.'chrome-devtools') 'retired entry remains'
-    foreach ($id in @('linkedin', 'slack', 'windows-mcp', 'repowise-workspace')) {
+    foreach ($id in @('linkedin', 'slack', 'repowise-workspace')) {
         Report "OpenCode config carries no '$id' entry (no AgentHub-deployed custom MCP)" ($null -eq $oj.mcp.$id) "stale AgentHub-deployed entry remains"
     }
     # 2026-10-29: playwright is retired fleet-wide, so a host config that still

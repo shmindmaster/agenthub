@@ -5,7 +5,9 @@ against docs/development/skill-authoring-standard.md.
 
 Hard failures (fail the run):
   - frontmatter `name` must equal the skill's own directory name
-  - frontmatter `description` must start with "Use when"
+  - frontmatter `description` must contain "Use when" (after the outcome)
+  - frontmatter `description` must be at most 300 characters
+  - frontmatter `name` must not contain "claude" or "anthropic"
   - frontmatter values must be YAML-safe (no unquoted `: `)
 
 Reported only (never fails the run):
@@ -38,6 +40,8 @@ if ($skillFiles.Count -eq 0) {
 
 $nameMismatches = [Collections.Generic.List[string]]::new()
 $descriptionFailures = [Collections.Generic.List[string]]::new()
+$descriptionTooLong = [Collections.Generic.List[string]]::new()
+$reservedNames = [Collections.Generic.List[string]]::new()
 $yamlUnsafe = [Collections.Generic.List[string]]::new()
 $noNumberedSections = [Collections.Generic.List[string]]::new()
 
@@ -57,9 +61,16 @@ foreach ($file in $skillFiles) {
     }
 
     $descMatch = [regex]::Match($content, '(?m)^description:\s*(.*)$')
-    # A YAML-quoted description ("Use when ...") is the same contract; the quote is syntax, not content.
-    if (-not $descMatch.Success -or $descMatch.Groups[1].Value -notmatch '^\s*["'']?Use when\b') {
+    # The description states the outcome first and then carries "Use when"; a YAML quote is syntax, not content.
+    $descValue = if ($descMatch.Success) { $descMatch.Groups[1].Value.Trim().Trim('"', "'") } else { '' }
+    if ($descValue -notmatch '\bUse when\b') {
         $descriptionFailures.Add($relativePath)
+    }
+    if ($descValue.Length -gt 300) {
+        $descriptionTooLong.Add("$relativePath ($($descValue.Length) characters)")
+    }
+    if ($skillDirName -match '(?i)claude|anthropic') {
+        $reservedNames.Add($relativePath)
     }
 
     $fmMatch = [regex]::Match($content, '(?s)\A---\r?\n(?<yaml>.*?)\r?\n---')
@@ -95,10 +106,26 @@ if ($nameMismatches.Count -gt 0) {
 
 if ($descriptionFailures.Count -gt 0) {
     $hardFailed = $true
-    Write-Host "FAIL: description does not start with 'Use when' ($($descriptionFailures.Count)):" -ForegroundColor Red
+    Write-Host "FAIL: description does not contain 'Use when' ($($descriptionFailures.Count)):" -ForegroundColor Red
     $descriptionFailures | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
 } else {
-    Write-Host "PASS: every skill's description starts with 'Use when'" -ForegroundColor Green
+    Write-Host "PASS: every skill's description contains 'Use when'" -ForegroundColor Green
+}
+
+if ($descriptionTooLong.Count -gt 0) {
+    $hardFailed = $true
+    Write-Host "FAIL: description exceeds 300 characters ($($descriptionTooLong.Count)):" -ForegroundColor Red
+    $descriptionTooLong | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+} else {
+    Write-Host "PASS: every skill's description is at most 300 characters" -ForegroundColor Green
+}
+
+if ($reservedNames.Count -gt 0) {
+    $hardFailed = $true
+    Write-Host "FAIL: skill name contains 'claude' or 'anthropic' ($($reservedNames.Count)):" -ForegroundColor Red
+    $reservedNames | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+} else {
+    Write-Host "PASS: no skill name contains 'claude' or 'anthropic'" -ForegroundColor Green
 }
 
 if ($yamlUnsafe.Count -gt 0) {

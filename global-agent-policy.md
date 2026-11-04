@@ -4,7 +4,7 @@
 
 ## RepoWise vendor migration - owner direction, November 3, 2026
 
-Claude uses `repowise@repowise` and Codex uses `codex@repowise`, both from `repowise-dev/repowise`. The former `repowise@agenthub` wrapper is retired on these hosts: uninstall it and duplicate user hooks; never restore them as parity repair or run `repowise agents refresh`. Vendor plugins own MCP, hooks and skills. Preserve useful personal AgentHub media, product and Sarosh workflows. Other hosts retain their compatibility bridge until migrated. CLI updates must not initialize editors or restore removed integrations.
+Claude uses `repowise@repowise` and Codex uses `codex@repowise`, both from `repowise-dev/repowise`. The former `repowise@agenthub` wrapper is retired on these hosts: uninstall it and duplicate user hooks; never restore them as parity repair or run `repowise agents refresh`. Vendor plugins own MCP, hooks and skills. Preserve useful personal AgentHub media, product and owner workflows. Other hosts retain their compatibility bridge until migrated. CLI updates must not initialize editors or restore removed integrations.
 
 This is the public, portable global policy compiled into host-native instruction files. A deployment that carries owner-specific rules keeps them in the gitignored personal overlay (`overlays/personal/global-agent-policy.md`), which replaces this file for that machine. Agent homes are deployment and runtime locations, not independent policy authorities.
 

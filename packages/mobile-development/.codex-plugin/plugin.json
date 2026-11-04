@@ -1,6 +1,5 @@
 {
   "name": "mobile-development",
-  "version": "2.0.8",
   "description": "Canonical mobile development guidance with explicitly added, on-demand Appium tooling.",
   "author": {
     "name": "Sarosh Hussain"
@@ -30,5 +29,6 @@
       "Run the same flow on the iOS Simulator and compare.",
       "Capture a screen recording of this bug reproducing."
     ]
-  }
+  },
+  "version": "2.1.0"
 }

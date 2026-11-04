@@ -23,7 +23,7 @@ export function planCost(spec, brand, flags = {}) {
           if (flags.whisperTiming && (flags.hostedOnly || brand.timing?.provider !== 'local-whisper')) usd += 0.002;
         }
       }
-      if (b.broll?.provider === 'openai-image') usd += estimateImageUsd(brand.images?.model || 'gpt-image-2', b.broll.quality || brand.images?.quality || 'medium');
+      if (b.broll?.provider === 'openai-image') usd += estimateImageUsd(brand.images?.model || 'gpt-image-2.5-flare', b.broll.quality || brand.images?.quality || 'medium');
     }
   }
   const sfxPrompts = new Set(cuts.flatMap((c) => c.beats.flatMap((b) => (b.sfx || []).map((s) => `${s.prompt}|${s.durationSeconds || 1}`))));

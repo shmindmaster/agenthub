@@ -88,8 +88,9 @@ function Test-AgentHubSkillPackageTree([string]$PackageRoot, [string]$PackageNam
     $skillName = [regex]::Match($skillText, '(?m)^name:\s*([^\r\n]+)\r?$').Groups[1].Value.Trim().Trim('"')
     $description = [regex]::Match($skillText, '(?m)^description:\s*([^\r\n]+)\r?$').Groups[1].Value.Trim().Trim('"')
     if ($skillName -ne $skill.Name) { Fail "skill frontmatter name mismatch: $skillPath" }
-    if (-not $description.StartsWith('Use when')) { Fail "skill description must start with 'Use when': $skillPath" }
-    if ($description.Length -gt 500) { Fail "skill description exceeds 500 characters: $skillPath" }
+    if ($description -notmatch 'Use when') { Fail "skill description must state the outcome and contain 'Use when': $skillPath" }
+    if ($description.Length -gt 300) { Fail "skill description exceeds 300 characters ($($description.Length)): $skillPath" }
+    if ($skillName -match '(?i)claude|anthropic') { Fail "skill name must not contain 'claude' or 'anthropic': $skillPath" }
   }
 }
 foreach ($packageName in $packageNames) {
@@ -118,7 +119,7 @@ foreach ($entry in $marketplace.plugins) {
     # with no signal here, because a wrong type is still valid JSON and still has
     # the right name.
     #
-    # product-experience-engineering shipped `"agents": "./agents/"` (a directory
+    # product shipped `"agents": "./agents/"` (a directory
     # string) and was rejected with `agents: Invalid input`, so all four of its
     # subagents were unavailable, while this validator reported PASS and counted
     # it among the installable plugins. Found only by running `claude plugin
@@ -185,7 +186,7 @@ if (@($pluginFormats.hosts | Where-Object id -eq 'opencode').manifest) {
   Fail 'OpenCode must not be assigned a capability-bundle manifest'
 }
 
-foreach ($packageName in @('product-experience-engineering')) {
+foreach ($packageName in @('product')) {
   $agentFiles = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot "$packageName\agents") -File -ErrorAction SilentlyContinue)
   if ($agentFiles.Count -eq 0) { Fail "subagent-driven package has no agents: $packageName" }
   foreach ($agentFile in $agentFiles) {

@@ -10,7 +10,7 @@
   },
   "repowiseRefresh": {
     "entryPoint": "packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1",
-    "documentedIn": ["packages/repowise/skills/use-repowise/SKILL.md"],
+    "documentedIn": ["packages/repowise/skills/repowise/SKILL.md"],
     "note": "Paths are relative to the agenthub checkout the checker runs from. The fleet's only RepoWise freshness path is this manual, bounded, index-only entry point. A post-commit hook and a bare `repowise update` are not part of the standard."
   },
   "excluded": [
