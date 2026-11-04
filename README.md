@@ -165,7 +165,7 @@ Runtime output goes under the OS local-data root: `%LOCALAPPDATA%\AgentHub` on W
 | --- | --- | --- | --- |
 | `agenthub doctor` (Node 20+) | yes | yes | yes |
 | `validate`, `sync` audit, `sync --apply` (PowerShell 7+) | yes | yes | yes |
-| Coding-agent dispatch, fleet board, demo profile | yes | yes | yes |
+| Coding-agent dispatch, demo profile | yes | yes | yes |
 | Test suite in CI | full | full, minus Windows-host features | full, minus Windows-host features |
 
 A host whose config location differs by OS declares the macOS and Linux paths in `platformPaths` in [`registry/agents.json`](./registry/agents.json), with the vendor documentation each was checked against. A Windows install pin (`.exe`, `.cmd`, `AppData`) is never mapped onto another OS; for a CLI that installs onto `PATH`, its command name is looked up there instead.

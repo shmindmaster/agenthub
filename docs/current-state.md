@@ -509,9 +509,8 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - **Creative / learning packages (2026-08-21)**: `technical-storytelling`,
   `story-series-studio` (both retired 2026-10-21, see above), and
   `learning-studio` were registered packages until retirement on 2026-10-30.
-  `startup-series` is now a Receipts-only overlay (`startup-showrunner`,
-  `comedy-writer`); generic craft lives in the studio packages. Private show
-  bibles stay outside AgentHub.
+  `startup-series` was deleted on 2026-11-03. Private show bibles stay outside
+  AgentHub.
 
 - **Local media studio (2026-08-25, craft 2026-09-02):** `packages/media-studio`
   is the **only public** video/audio/animation pack (its release is the `version` in `packages/media-studio/plugin.json`). Rapid default: a
