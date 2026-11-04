@@ -72,7 +72,7 @@ write(
 import { existsSync } from "node:fs";
 import { mkdir, unlink } from "node:fs/promises";
 import { dirname, isAbsolute, parse, posix } from "node:path";
-import { ElevenLabsProvider, OpenAIProvider, Recast } from "playwright-recast";
+import { OpenAIProvider, Recast } from "playwright-recast";
 
 const argv = process.argv.slice(2);
 const burnCaptions = argv.includes("--burn-captions");
@@ -93,15 +93,15 @@ let pipeline = Recast.from(input)
 
 if (subtitles) {
   pipeline = pipeline.subtitlesFromSrt(subtitles);
-  const provider = process.env.RECAST_TTS_PROVIDER
-    ?? (process.env.OPENAI_API_KEY ? "openai" : process.env.ELEVENLABS_API_KEY ? "elevenlabs" : "none");
+  const provider = process.env.RECAST_TTS_PROVIDER ?? (process.env.OPENAI_API_KEY ? "openai" : "none");
+  if (provider === "elevenlabs") {
+    throw new Error("ElevenLabs speech runs only through Media Studio's owner-authorized generate route.");
+  }
   if (provider === "openai") {
     pipeline = pipeline.voiceover(OpenAIProvider({
       voice: process.env.RECAST_TTS_VOICE ?? "nova",
       instructions: "Warm, concise, professional product demo narration.",
     }), { normalize: true });
-  } else if (provider === "elevenlabs") {
-    pipeline = pipeline.voiceover(ElevenLabsProvider({ voice: process.env.RECAST_TTS_VOICE }), { normalize: true });
   }
 }
 
@@ -136,7 +136,7 @@ console.log(output);
 
 write(
   join(workspaceRoot, "README.md"),
-  `# ${productName} demo production\n\nThis is an external, disposable production workspace. The product repository remains read-only.\n\n## Capture\n\nUse \`pnpm exec playwright-cli\` for agent-operated sessions. It owns mouse/keyboard interaction,\ntrace capture, WebM recording, chapters, and optional action annotations. Use \`@playwright/test\`\nonly when the same capture must be deterministically rerun. Store any episode script here, never in\nthe product repository.\n\n## Inputs and outputs\n\n- \`traces/\`: Playwright \`trace.zip\` plus its sibling high-resolution WebM. The WebM is the video\n  source; trace screenshots are metadata fallback only.\n- \`narration/\`: optional SRT and audio sources.\n- \`output/\`: disposable render candidates.\n- \`evidence/\`: Product Demo Studio validation and review evidence. Create \`source-scenario.json\` and \`demo-scenario-proof.json\`, then run \`validate-demo-scenario.mjs\` before recording.\n\nRun \`pnpm render -- traces output/${productSlug}-demo.mp4 narration/demo.srt --burn-captions\`. The\nthin adapter uses Recast for cursor/click/animated zoom and voice timing, keeps paths relative for\nWindows compatibility, embeds captions first, and uses one FFmpeg pass to burn the synchronized\ncaption track when requested. Install \`@elevenlabs/elevenlabs-js\` here only when ElevenLabs is\nselected; OpenAI is the minimal installed provider. After each recut, create candidate-bound \`qa/viewer-release-evidence.json\` and run \`validate-viewer-release.mjs\`; a missing, stale, or ASR-grounded review is not a pass. After the release gate passes, package the\naccepted candidate into the product's mapped OneDrive review root. Do not copy this workspace into\nthe product repository.\n`,
+  `# ${productName} demo production\n\nThis is an external, disposable production workspace. The product repository remains read-only.\n\n## Capture\n\nUse \`pnpm exec playwright-cli\` for agent-operated sessions. It owns mouse/keyboard interaction,\ntrace capture, WebM recording, chapters, and optional action annotations. Use \`@playwright/test\`\nonly when the same capture must be deterministically rerun. Store any episode script here, never in\nthe product repository.\n\n## Inputs and outputs\n\n- \`traces/\`: Playwright \`trace.zip\` plus its sibling high-resolution WebM. The WebM is the video\n  source; trace screenshots are metadata fallback only.\n- \`narration/\`: optional SRT and audio sources.\n- \`output/\`: disposable render candidates.\n- \`evidence/\`: Product Demo Studio validation and review evidence. Create \`source-scenario.json\` and \`demo-scenario-proof.json\`, then run \`validate-demo-scenario.mjs\` before recording.\n\nRun \`pnpm render -- traces output/${productSlug}-demo.mp4 narration/demo.srt --burn-captions\`. The\nthin adapter uses Recast for cursor/click/animated zoom and voice timing, keeps paths relative for\nWindows compatibility, embeds captions first, and uses one FFmpeg pass to burn the synchronized\ncaption track when requested. OpenAI is the only voice provider here;\nElevenLabs speech runs only through Media Studio's owner-authorized \`generate\` route. After each recut, create candidate-bound \`qa/viewer-release-evidence.json\` and run \`validate-viewer-release.mjs\`; a missing, stale, or ASR-grounded review is not a pass. After the release gate passes, package the\naccepted candidate into the product's mapped OneDrive review root. Do not copy this workspace into\nthe product repository.\n`,
 );
 
 // A product that follows demo-harness/v1 (product plugin

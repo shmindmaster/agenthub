@@ -145,7 +145,7 @@
                      "properties": { "id": { "type": "string" }, "version": { "type": "string" } } }
         },
         "disclosure": { "type": "string", "description": "Where the AI-voice disclosure appears. Required for OpenAI voices." },
-        "ownerVoice": { "type": "boolean", "description": "Must be false or absent: marketing narration is never the owner clone." }
+        "ownerVoice": { "type": "boolean", "description": "True only for an ElevenLabs job whose owner manifest names this voiceId, with a stated disclosure. Lint refuses it otherwise." }
       }
     },
     "beat": {

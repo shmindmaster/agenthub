@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync, symlinkSync } from 'node:fs';
 import { validate } from '../kit/marketing/lib/schema.mjs';
 import { bannedHits, DEFAULT_BANNED, estimateCutSeconds, lintSpec, normalizeCuts } from '../kit/marketing/lib/lint.mjs';
-import { canonical, hashOf, readJson } from '../kit/marketing/lib/util.mjs';
+import { canonical, fileSha, hashOf, readJson } from '../kit/marketing/lib/util.mjs';
 import { checkStage, stageKey, writeStage } from '../kit/marketing/lib/cache.mjs';
 import { BudgetError, CostLedger } from '../kit/marketing/lib/ledger.mjs';
 import { bandRegion, cameraKeyframes, focusAt, focusWindows, pointerTrack, readability, windowAt } from '../kit/marketing/lib/crop.mjs';
@@ -25,6 +25,7 @@ import { applyArbitration, buildInstructions, evaluate, parseVerdict, sampleTime
 import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/picture-gate.mjs';
 import { estimateImageUsd, estimateSttUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
 import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
+import { readmeSection } from '../kit/marketing/lib/stages/deliver.mjs';
 import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
 import { assetsStage, musicKey, musicLengthMs, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
@@ -155,6 +156,67 @@ test('banned phrases honor negation: "nothing is sent to a payer" is allowed, "s
   assert.equal(bannedHits('We guarantee approval.', banned).length, 1);
   assert.equal(bannedHits('Fewer denials for every clinic.', banned).length, 1);
   assert.equal(bannedHits('HIPAA certified.', banned).length, 1);
+});
+
+test('lint: an owner clone passes only under a manifest naming that voice, with a stated disclosure', () => {
+  const manifest = join(root, 'owner-voice-manifest.json');
+  const v2 = { kind: 'elevenlabs-owner-authorized-project-epoch-v2', voice_id: 'fixture-owner-clone' };
+  const spec = (voice = {}) => {
+    const s = baseSpec();
+    s.voice = { ...s.voice, voiceId: 'fixture-owner-clone', name: 'Owner', ownerVoice: true, disclosure: 'AI clone of the owner voice.', ...voice };
+    return s;
+  };
+  const found = (s, authorizationManifest = manifest) => codes(lintSpec(s, brand, { adSchema, brandSchema, specDir: root, authorizationManifest }))
+    .filter((c) => ['owner-voice', 'voice-policy', 'disclosure'].includes(c));
+  writeFileSync(manifest, JSON.stringify(v2));
+  assert.deepEqual(found(spec()), [], 'an authorized clone with a disclosure passes');
+  assert.deepEqual(found(spec({ name: 'Sarosh' })), [], 'its own name is not an unauthorized clone');
+  assert.deepEqual(found(spec({ disclosure: '  ' })), ['disclosure']);
+  assert.deepEqual(found(spec({ name: 'Morgan Freeman sound-alike' })), ['voice-policy'], 'a celebrity sound-alike stays refused');
+  assert.ok(found(spec({ voiceId: 'fixture-other-voice' })).includes('owner-voice'));
+  assert.ok(found(spec({ provider: 'openai', model: 'gpt-4o-mini-tts' })).includes('owner-voice'));
+  assert.ok(found(spec(), '').includes('owner-voice'), 'no manifest');
+  assert.ok(found(spec({ name: 'Sarosh' }), '').includes('voice-policy'), 'an unauthorized owner name stays refused');
+  assert.ok(found(spec(), join(root, 'absent.json')).includes('owner-voice'));
+  const cwd = process.cwd();
+  process.chdir(root);
+  try {
+    assert.ok(found(spec(), 'owner-voice-manifest.json').includes('owner-voice'), 'a relative manifest, even one that resolves');
+  } finally {
+    process.chdir(cwd);
+  }
+  writeFileSync(manifest, 'not json');
+  assert.ok(found(spec()).includes('owner-voice'));
+  writeFileSync(manifest, JSON.stringify({ ...v2, kind: 'elevenlabs-owner-authorized-project-epoch-v1' }));
+  assert.ok(found(spec()).includes('owner-voice'), 'a kind that pins no clone authority');
+  const parent = join(root, 'owner-voice-parent.json');
+  writeFileSync(parent, JSON.stringify(v2));
+  const correction = (sha256) => writeFileSync(manifest, JSON.stringify({ kind: 'elevenlabs-project-delivery-correction-v1', parent_authorization: { path: parent, sha256 } }));
+  correction(fileSha(parent));
+  assert.deepEqual(found(spec()), [], 'a correction inherits its hash-bound parent');
+  correction('0'.repeat(64));
+  assert.ok(found(spec()).includes('owner-voice'));
+  writeFileSync(manifest, JSON.stringify(v2));
+  const saved = process.env.MVG_ELEVENLABS_AUTHORIZATION;
+  process.env.MVG_ELEVENLABS_AUTHORIZATION = manifest;
+  try {
+    assert.deepEqual(found(spec(), null), [], 'the same variable the speech provider reads');
+  } finally {
+    if (saved === undefined) delete process.env.MVG_ELEVENLABS_AUTHORIZATION; else process.env.MVG_ELEVENLABS_AUTHORIZATION = saved;
+  }
+});
+
+test('delivery note never denies an owner voice it cannot rule out', () => {
+  const note = (voice) => readmeSection({ ctx: { spec: { ...baseSpec(), voice }, jobDir: 'job' }, nn: 1, title: 'A title',
+    delivered: [{ ratio: '16x9', seconds: 20, mp4Sha256: 'a'.repeat(64) }], gatesByRatio: {}, date: '2026-11-04' });
+  const eleven = baseSpec().voice;
+  assert.match(note({ provider: 'openai', voiceId: 'marin', model: 'gpt-4o-mini-tts' }), /AI-generated, not an owner voice or a celebrity-style clone/);
+  const omitted = note(eleven);
+  assert.match(omitted, /AI-generated/);
+  assert.doesNotMatch(omitted, /not an owner voice/, 'a clone job may omit ownerVoice');
+  const clone = note({ ...eleven, ownerVoice: true, disclosure: 'AI clone of the owner voice.' });
+  assert.match(clone, /an AI clone of the owner's voice, used under this job's owner authorization; disclosure: AI clone of the owner voice\./);
+  assert.doesNotMatch(clone, /not an owner voice/);
 });
 
 test('lint: voice, music, label and evidence policy', () => {

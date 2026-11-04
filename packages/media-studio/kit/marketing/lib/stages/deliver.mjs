@@ -8,6 +8,13 @@ import { fileSha, readJson, writeJson } from '../util.mjs';
 import { selectedCuts, verifiedCandidate } from '../candidate.mjs';
 import { releasable, requiredGates } from '../gates.mjs';
 
+// Only an OpenAI stock voice can be denied as a clone. An ElevenLabs job may be a clone that omits ownerVoice.
+function narratorNote(v) {
+  const nature = v.ownerVoice === true ? "an AI clone of the owner's voice, used under this job's owner authorization"
+    : v.provider === 'openai' ? 'AI-generated, not an owner voice or a celebrity-style clone' : 'AI-generated';
+  return `${v.provider} ${v.name || v.voiceId} (${v.model}), ${nature}${v.disclosure ? `; disclosure: ${v.disclosure}` : ''}`;
+}
+
 export function readmeSection({ ctx, nn, title, delivered, gatesByRatio, date }) {
   const v = ctx.spec.voice;
   const gateLine = Object.entries(gatesByRatio).map(([ratio, g]) => `${ratio}: ${Object.entries(g.gates).map(([k, s]) => `${k} ${s.detail ? `(${s.detail})` : s.status}`).join(', ')}`).join('; ');
@@ -15,7 +22,7 @@ export function readmeSection({ ctx, nn, title, delivered, gatesByRatio, date })
   return [
     `## ${String(nn).padStart(2, '0')} - ${title} (delivered ${date})`,
     '',
-    `${ctx.spec.objective}. Cuts: ${delivered.map((d) => `${d.ratio} ${mmss(d.seconds)} (sha256 ${d.mp4Sha256.slice(0, 12)}...)`).join(', ')}. Narrator: ${v.provider} ${v.name || v.voiceId} (${v.model}), AI-generated, not an owner voice or a celebrity-style clone${v.disclosure ? `; disclosure: ${v.disclosure}` : ''}. Picture: receipt-bound Playwright + Recast captures (${clips.join(', ')}) on the bounded synthetic Demo Clinic, cropped to follow the pointer; generated assets are abstract and assert nothing. Gates on the exact files: ${gateLine}. Ledger: \`${ctx.jobDir}\`.`,
+    `${ctx.spec.objective}. Cuts: ${delivered.map((d) => `${d.ratio} ${mmss(d.seconds)} (sha256 ${d.mp4Sha256.slice(0, 12)}...)`).join(', ')}. Narrator: ${narratorNote(v)}. Picture: receipt-bound Playwright + Recast captures (${clips.join(', ')}) on the bounded synthetic Demo Clinic, cropped to follow the pointer; generated assets are abstract and assert nothing. Gates on the exact files: ${gateLine}. Ledger: \`${ctx.jobDir}\`.`,
     '',
   ].join('\n');
 }

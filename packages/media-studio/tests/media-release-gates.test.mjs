@@ -158,6 +158,40 @@ test("scaffold generates parseable release-gate instructions in an external work
   assert.match(readme, /viewer-release-evidence\.json/);
 });
 
+test("scaffold render has no direct ElevenLabs route; OpenAI and silent renders stay", () => {
+  const product = join(scratch, "no-direct-speech-product"); const output = join(scratch, "no-direct-speech"); mkdirSync(product, { recursive: true });
+  assert.equal(run(scaffold, ["--repo", product, "--workspace", output]).code, 0);
+  assert.doesNotMatch(readFileSync(join(output, "render.mjs"), "utf8"), /ElevenLabsProvider/);
+  assert.doesNotMatch(readFileSync(join(output, "README.md"), "utf8"), /elevenlabs-js|ElevenLabs is\s+selected/);
+  // A stand-in for the one dependency render.mjs imports: records which voice provider a render selects.
+  const recast = join(output, "node_modules", "playwright-recast"); mkdirSync(recast, { recursive: true });
+  writeFileSync(join(recast, "package.json"), JSON.stringify({ name: "playwright-recast", type: "module", exports: "./index.js" }));
+  writeFileSync(join(recast, "index.js"), `import { appendFileSync } from "node:fs";
+const log = (line) => appendFileSync("calls.log", line + "\\n");
+const chain = new Proxy(function () {}, { get: (_, name) => name === "then" ? undefined : (...args) => { if (name === "voiceover") log(args[0].name); return chain; } });
+export const OpenAIProvider = () => ({ name: "openai" });
+export const ElevenLabsProvider = () => ({ name: "elevenlabs" });
+export const Recast = chain;
+`);
+  const calls = join(output, "calls.log");
+  const render = (env) => {
+    rmSync(calls, { force: true });
+    const { OPENAI_API_KEY, ELEVENLABS_API_KEY, RECAST_TTS_PROVIDER, ...clean } = process.env;
+    const result = spawnSync(process.execPath, ["render.mjs", "traces", "output/take.mp4", "narration/demo.srt"],
+      { cwd: output, env: { ...clean, ...env }, encoding: "utf8", windowsHide: true });
+    return { code: result.status, err: result.stderr, voice: existsSync(calls) ? readFileSync(calls, "utf8").trim() : "" };
+  };
+  const refused = render({ RECAST_TTS_PROVIDER: "elevenlabs", ELEVENLABS_API_KEY: "synthetic" });
+  assert.notEqual(refused.code, 0);
+  assert.match(refused.err, /owner-authorized/);
+  assert.equal(refused.voice, "");
+  const keyOnly = render({ ELEVENLABS_API_KEY: "synthetic" });
+  assert.deepEqual([keyOnly.code, keyOnly.voice], [0, ""], "the key alone selects nothing");
+  assert.equal(render({ OPENAI_API_KEY: "synthetic" }).voice, "openai");
+  assert.equal(render({ RECAST_TTS_PROVIDER: "openai" }).voice, "openai");
+  assert.equal(render({}).code, 0);
+});
+
 test("scaffold prefills a capture skeleton from a demo-harness/v1 product without touching the product", () => {
   const product = join(scratch, "harness-product"); const output = join(scratch, "harness-scaffolded");
   mkdirSync(join(product, "demo"), { recursive: true });

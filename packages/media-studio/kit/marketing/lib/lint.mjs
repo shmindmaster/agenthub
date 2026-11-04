@@ -4,7 +4,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { validate } from './schema.mjs';
-import { readJson, sentences, words } from './util.mjs';
+import { fileSha, readJson, sentences, words } from './util.mjs';
 
 /** Narration that talks about the demo data, the film or its making instead of the viewer's problem. */
 export const FLUFF = /\b(synthetic|sample data|demo data|in this (?:video|film|demo)|welcome to|let's take a look|as you can see)\b/i;
@@ -158,10 +158,29 @@ function createTextScanner(brand, err) {
   };
 }
 
-function lintVoice(spec, err, warn) {
+// The manifest named by the same setting the speech provider reads, following a correction to its hash-bound parent.
+function manifestVoiceId(path) {
+  if (!path || !isAbsolute(path)) return null;
+  try {
+    let manifest = readJson(path);
+    if (manifest.kind === 'elevenlabs-project-delivery-correction-v1') {
+      const parent = manifest.parent_authorization;
+      if (fileSha(parent.path) !== parent.sha256) return null;
+      manifest = readJson(parent.path);
+    }
+    return manifest.kind === 'elevenlabs-owner-authorized-project-epoch-v2' ? manifest.voice_id : null;
+  } catch {
+    return null;
+  }
+}
+
+function lintVoice(spec, err, warn, options) {
   const v = spec.voice;
-  if (v.ownerVoice === true) err('owner-voice', 'marketing narration is never the owner voice clone', 'voice');
-  if (/\b(sh|sarosh)\b/i.test(v.name || '') || CELEBRITY.test(`${v.name || ''} ${v.instructions || ''}`)) err('voice-policy', 'owner clone names and celebrity sound-alikes are not allowed', 'voice');
+  const manifest = options.authorizationManifest ?? process.env.MVG_ELEVENLABS_AUTHORIZATION;
+  const ownerClone = v.ownerVoice === true && v.provider === 'elevenlabs' && Boolean(v.voiceId) && manifestVoiceId(manifest) === v.voiceId;
+  if (v.ownerVoice === true && !ownerClone) err('owner-voice', "marketing narration is the owner voice clone only under that job's owner manifest", 'voice');
+  if ((!ownerClone && /\b(sh|sarosh)\b/i.test(v.name || '')) || CELEBRITY.test(`${v.name || ''} ${v.instructions || ''}`)) err('voice-policy', 'owner clone names and celebrity sound-alikes are not allowed', 'voice');
+  if (ownerClone && !String(v.disclosure || '').trim()) err('disclosure', 'An owner voice clone requires a stated AI-voice disclosure', 'voice');
   if (v.provider === 'openai' && !String(v.disclosure || '').trim()) err('disclosure', 'OpenAI voices require a stated AI-voice disclosure (usage policy)', 'voice');
   if (v.provider === 'elevenlabs') {
     const s = v.settings || {};
@@ -287,7 +306,7 @@ export function lintSpec(spec, brand, options = {}) {
   const cuts = normalizeCuts(spec);
   const claimsById = lintClaims(spec, io, err);
   const scanText = createTextScanner(brand, err);
-  lintVoice(spec, err, warn);
+  lintVoice(spec, err, warn, options);
   const music = spec.music;
   lintMusic(music, err);
   lintLabelsAndCta(spec, brand, claimsById, err, warn, scanText);

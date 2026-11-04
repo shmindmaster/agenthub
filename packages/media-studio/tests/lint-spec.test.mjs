@@ -88,7 +88,7 @@ test('lintSpec preserves exact ordered findings and estimates for an invalid syn
         { code: 'evidence', message: 'c1: evidence must start with file:, clip: or approved:', where: 'c1' },
         { code: 'claim-duplicate', message: 'duplicate claim id c1', where: 'c1' },
         { code: 'evidence', message: 'c1: approved: evidence needs a named source', where: 'c1' },
-        { code: 'owner-voice', message: 'marketing narration is never the owner voice clone', where: 'voice' },
+        { code: 'owner-voice', message: "marketing narration is the owner voice clone only under that job's owner manifest", where: 'voice' },
         { code: 'voice-policy', message: 'owner clone names and celebrity sound-alikes are not allowed', where: 'voice' },
         { code: 'disclosure', message: 'OpenAI voices require a stated AI-voice disclosure (usage policy)', where: 'voice' },
         { code: 'music', message: 'music.prompt is required when music.provider is elevenlabs', where: 'music' },

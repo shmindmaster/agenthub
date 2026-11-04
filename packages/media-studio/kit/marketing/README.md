@@ -109,7 +109,7 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 - Every narration sentence and on-screen text maps to a claim with checked evidence; any figure (digits or number words) must
   appear in a referenced claim. "Submitted to a payer" and payer-outcome language fail unless negated ("nothing is sent to a
   payer"). Ready to Bill is local readiness.
-- Marketing narration is never the owner clone, unless that job's immutable owner manifest names the voice, and never a celebrity sound-alike. OpenAI voices need a stated AI disclosure.
+- Marketing narration is never the owner clone unless `voice.ownerVoice` is true, that job's immutable owner manifest names the voice, and `voice.disclosure` states it. Never a celebrity sound-alike. OpenAI voices need a stated AI disclosure. The delivery note denies an owner voice only for OpenAI stock voices.
   Eleven Music needs a `licenseBasis` (its terms limit Creator to individual use and never name advertising; confirm in
   writing before paid media).
 - Budgets: the per-run and the cumulative cap are checked before each paid call, and spend is recorded after it.
