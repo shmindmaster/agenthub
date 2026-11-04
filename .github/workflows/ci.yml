@@ -48,6 +48,13 @@ jobs:
       - name: Install the Claude Code CLI (plugin schema validator)
         run: npm install -g @anthropic-ai/claude-code@2.1.310
 
+      - name: Install TypeScript for the strict kit typecheck
+        shell: bash
+        run: |
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/kit-tsc" typescript@5.9.3 @types/node@24.10.1
+          echo "EXECUTION_CONTROLS_TSC=$RUNNER_TEMP/kit-tsc/node_modules/typescript/bin/tsc" >> "$GITHUB_ENV"
+          echo "EXECUTION_CONTROLS_TYPE_ROOTS=$RUNNER_TEMP/kit-tsc/node_modules/@types" >> "$GITHUB_ENV"
+
       - name: Validate registry
         shell: pwsh
         run: pwsh -NoProfile -File ./scripts/AgentHub.ps1 validate

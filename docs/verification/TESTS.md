@@ -19,7 +19,7 @@ Counts are from `git ls-files` at `5002737`.
 
 Runner behaviour worth knowing: it parses `RESULT: N passed, M failed` from each PowerShell test and runs Node files with `node --test` (`Run-AllTests.ps1:68-80`); it exits 1 when it discovers zero files (`:49-52`). Whether that guard can actually fire was not tested (a check that has never been seen to fail is not yet evidence).
 
-Gap: `packages/product/tests/run-all.ps1:4-6` runs `validate-runtime.ps1`, `validate-demo-readiness.ps1` and `validate-kits.ps1`, but the aggregate runner only picks `validate-plugin.ps1`, and `validate-plugin.ps1` does not call them. Those three validators and the kit tests are not part of the aggregate suite.
+Update 2026-11-03, superseding the inventory rows above: the aggregate runner now discovers every `packages/*/tests/validate-*.ps1`, so the product validators and kit tests run in the suite, and CI sets `EXECUTION_CONTROLS_TSC` so the strict `tsc` check runs there. Python tests run through `Test-*.ps1` wrappers built on `tests/lib/PythonUnitTests.ps1`; see `docs/development/testing.md`.
 
 ## Categories the fleet directive asks for
 

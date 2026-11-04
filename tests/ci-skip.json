@@ -86,6 +86,10 @@
       "reason": "The RepoWise host plugin launches its bridge through the Windows py/pyw launcher and Start-RepoWiseShared.ps1 under Windows PowerShell 5.1, and the test inspects ports with Get-NetTCPConnection; the shared RepoWise service is a Windows-host integration."
     },
     {
+      "file": "tests/Test-RepoWiseSharedServer.ps1",
+      "reason": "Runs under the repowise uv tool environment for its repowise, mcp and starlette imports; CI runners do not install that tool."
+    },
+    {
       "file": "tests/Test-UpdateRepoWise.ps1",
       "platforms": ["linux", "macos"],
       "reason": "Update-RepoWise.ps1 manages the RepoWise upgrade as a Windows Task Scheduler job (schtasks.exe) and resolves uv.exe from Windows install locations."

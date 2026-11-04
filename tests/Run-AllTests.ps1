@@ -1,9 +1,9 @@
 #Requires -Version 5.1
 <#
 Aggregate test runner: discovers and runs every tests/Test-*.ps1 file, every
-packages/*/tests/*.ps1 package validator, and every packages/**/*.test.mjs
-Node test file with node --test. It aggregates their results and exits
-non-zero if any of them fail.
+packages/*/tests/validate-*.ps1 package validator, and every
+packages/**/*.test.mjs Node test file with node --test. It aggregates their
+results and exits non-zero if any of them fail.
 
 Fails loudly if it discovers zero test files -- a green runner that ran
 nothing is precisely the failure mode this task exists to prevent (this
@@ -11,8 +11,8 @@ project's defining defect, restated one level up).
 
 Each tests/Test-*.ps1 file follows the accumulate-and-report idiom (ends
 with "RESULT: N passed, M failed" and a matching exit code); each
-packages/*/tests/*.ps1 validator ends with a single PASS: line and exit 0,
-or throws and exits non-zero. Node test files are run with `node --test`
+packages/*/tests/validate-*.ps1 validator ends with a single PASS: line and exit
+0, or throws and exits non-zero. Node test files are run with `node --test`
 and report an N-passed/M-failed summary on stdout. All are run as child
 processes under the appropriate executable, so `pwsh tests/Run-AllTests.ps1`
 runs PowerShell tests under pwsh and Node tests under node.
@@ -44,7 +44,7 @@ $testFiles = @(
         ForEach-Object FullName
 )
 $validatorFiles = @(
-    Get-ChildItem -LiteralPath $packagesDir -Recurse -File -Filter 'validate-plugin.ps1' -ErrorAction SilentlyContinue |
+    Get-ChildItem -Path (Join-Path (Join-Path (Join-Path $packagesDir '*') 'tests') 'validate-*.ps1') -File -ErrorAction SilentlyContinue |
         Sort-Object FullName |
         ForEach-Object FullName
 )
@@ -56,7 +56,7 @@ $nodeTestFiles = @(
 $allFiles = @($testFiles + $validatorFiles + $nodeTestFiles)
 
 if ($allFiles.Count -eq 0) {
-    Write-Host 'FAIL: Run-AllTests.ps1 discovered zero test files under tests/Test-*.ps1, packages/*/tests/validate-plugin.ps1, or packages/**/*.test.mjs. A runner that ran nothing is not a passing test suite.' -ForegroundColor Red
+    Write-Host 'FAIL: Run-AllTests.ps1 discovered zero test files under tests/Test-*.ps1, packages/*/tests/validate-*.ps1, or packages/**/*.test.mjs. A runner that ran nothing is not a passing test suite.' -ForegroundColor Red
     exit 1
 }
 
@@ -130,7 +130,7 @@ foreach ($file in $allFiles) {
             $fileFailed = [int]$Matches[1]
         }
     } elseif ($exitCode -eq 0) {
-        # Package validators (validate-plugin.ps1) report a single PASS: line
+        # Package validators (validate-*.ps1) report a single PASS: line
         # and exit 0/1 rather than an N-passed/M-failed summary; treat the
         # whole file as one assertion.
         $filePassed = 1

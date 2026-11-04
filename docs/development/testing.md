@@ -8,7 +8,13 @@
    (sync idempotency, host surfaces, capability ownership/routing, worktree
    helper, repo standard checker, ...). Each ends with
    `RESULT: N passed, M failed` and a matching exit code.
-3. **Package validators** — `packages/*/tests/validate-plugin.ps1`.
+3. **Package validators** — `packages/*/tests/validate-*.ps1`.
+4. **Node tests** — `packages/**/*.test.mjs`, run with `node --test`.
+5. **Python tests** — `test_*.py` files, run with `python -m unittest` from a
+   `tests/Test-*.ps1` wrapper through `tests/lib/PythonUnitTests.ps1`, which
+   removes credential variables and points `LOCALAPPDATA` and `HOME` at a
+   throwaway directory. The runner does not discover `.py` files itself, so a
+   new Python test needs a wrapper.
 
 ## Canonical commands
 

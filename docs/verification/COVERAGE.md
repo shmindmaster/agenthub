@@ -48,5 +48,7 @@ The whole product. It acts on the operator machine's user-level paths. There is 
 
 ## Test-discovery gaps (found while building this matrix)
 
-- `packages/product/tests/run-all.ps1` runs `validate-runtime.ps1`, `validate-demo-readiness.ps1` and `validate-kits.ps1` (which runs the execution-controls Python unit tests and, if env is set, a strict `tsc`). `Run-AllTests.ps1` only picks up `validate-plugin.ps1` (`tests/Run-AllTests.ps1:32-47`), and `validate-plugin.ps1` does not call the others (grep). So these checks, and `kit.test.ts` / `schema.test.ts`, are outside the aggregate runner.
-- `Run-AllTests.ps1` ignores `tests/Test-AppiumSessionCleanup.mjs` and `Test-MobileLabGuestStart.mjs` directly; `Test-MobileDevelopment.ps1` references both by name, so they are probably reached indirectly. Not traced.
+- Closed 2026-11-03: `Run-AllTests.ps1` now discovers every `packages/*/tests/validate-*.ps1`, so `validate-runtime.ps1`, `validate-demo-readiness.ps1` and `validate-kits.ps1` (with `kit.test.ts`, `schema.test.ts` and `test_kit.py`) run in the aggregate suite. CI also runs the strict `tsc` check.
+- Closed 2026-11-03: `test_*.py` files the suite never reached now run through wrappers: `Test-MediaStudioPython.ps1`, `Test-AgentContextPython.ps1` and `Test-RepoWiseSharedServer.ps1`. The last needs the repowise uv tool environment, so `tests/ci-skip.json` lists it and it runs locally only.
+- `Run-AllTests.ps1` does not discover `tests/Test-AppiumSessionCleanup.mjs` and `Test-MobileLabGuestStart.mjs` directly; `Test-MobileDevelopment.ps1:654,660` runs both. CI skips that test, so these two run locally only.
+- `test/doctor/*.test.mjs` are outside `Run-AllTests.ps1`; `npm test` and the CI Doctor job run them.
