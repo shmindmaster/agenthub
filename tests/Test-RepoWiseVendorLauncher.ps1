@@ -35,8 +35,8 @@ try {
     Report 'audit writes nothing' ((Get-FileHash -LiteralPath $claudeFile).Hash -eq $vendorBytes)
 
     $apply = Invoke-Installer @('-Apply')
-    $claude = Get-Content -LiteralPath $claudeFile -Raw | ConvertFrom-Json
-    $codex = Get-Content -LiteralPath $codexFile -Raw | ConvertFrom-Json
+    $claude = Get-Content -LiteralPath $claudeFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $codex = Get-Content -LiteralPath $codexFile -Raw -Encoding UTF8 | ConvertFrom-Json
     Report 'apply succeeds' ($apply.ExitCode -eq 0)
     Report 'Claude shape starts the launcher through py' ($claude.mcpServers.repowise.command -eq 'py' -and $claude.mcpServers.repowise.args[1] -like '*/packages/repowise/scripts/vendor_mcp.py')
     Report 'Codex shape starts the launcher through py' ($codex.repowise.command -eq 'py' -and $codex.repowise.args[1] -like '*/packages/repowise/scripts/vendor_mcp.py')

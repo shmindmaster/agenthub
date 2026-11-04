@@ -28,7 +28,7 @@ $stale = 0
 foreach ($hostEntry in $hosts) {
     foreach ($file in @(Get-ChildItem -Path (Join-Path $UserProfile $hostEntry.Glob) -File -Force -ErrorAction SilentlyContinue)) {
         $found++
-        $config = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
+        $config = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
         $servers = if ($hostEntry.Nested) { $config.mcpServers } else { $config }
         $server = $servers.repowise
         if (-not $server) { throw "No repowise server in $($file.FullName)" }

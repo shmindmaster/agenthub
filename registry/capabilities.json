@@ -486,7 +486,7 @@
         },
         {
           "hostId": "factory",
-          "deploymentStatus": "preprovisioned-loose-skills"
+          "deploymentStatus": "native-local-plugin"
         },
         {
           "hostId": "windsurf",
@@ -530,7 +530,7 @@
       "managedSkillNames": [
         "repowise"
       ],
-      "contentHash": "BFDD4A3DF60E6E246C1441C7F84B8909F9ED3B6B59935E59526EAE5C076BE937",
+      "contentHash": "A3D8F064BFA9B9A488D11834BE26DEBA796DFBD753B41B39CD1C385BA335F4FA",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -603,7 +603,7 @@
         },
         {
           "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin"
         },
         {
           "hostId": "antigravity",
@@ -843,7 +843,7 @@
         },
         {
           "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin"
         },
         {
           "hostId": "amp",
