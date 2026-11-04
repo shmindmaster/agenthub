@@ -36,3 +36,6 @@ evidence-augmentation.md
 # Personal overlay (packages + private capability rows). Never commit.
 overlays/personal/
 
+
+# Test run output
+packages/media-studio/logs/

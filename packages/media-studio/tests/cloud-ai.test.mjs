@@ -303,3 +303,89 @@ test('align() on free-tier quota refusal stops and does not try azure-s0 or deep
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// AssemblyAI: mocked upload, submit and poll, so no live call and no key is used.
+async function withAssemblyAi(handler, run) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-ai-assemblyai-'));
+  const env = saveEnv(['ASSEMBLYAI_API_KEY']);
+  process.env.ASSEMBLYAI_API_KEY = 'test-key';
+  const originalFetch = global.fetch;
+  const calls = [];
+  global.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    return handler(String(url), init, calls);
+  };
+  try {
+    fs.writeFileSync(path.join(tmp, 'take.wav'), makeWav(1));
+    fs.writeFileSync(path.join(tmp, 'script.txt'), 'hello world');
+    const opts = { take: path.join(tmp, 'take.wav'), script: path.join(tmp, 'script.txt'), out: path.join(tmp, 'r.json'), provider: 'assemblyai', pollMs: 1, pollTimeoutMs: 40 };
+    await run(opts, calls);
+  } finally {
+    global.fetch = originalFetch;
+    restoreEnv(env);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+const aaiStage = (url, init) => {
+  if (url.endsWith('/v2/upload')) return makeResponse({ upload_url: 'https://cdn.example/audio' });
+  if (url.endsWith('/v2/transcript') && init.method === 'POST') return makeResponse({ id: 't1', status: 'queued' });
+  return null;
+};
+
+test('align() --provider assemblyai uploads raw bytes, polls, converts ms to seconds and reports the model', async () => {
+  let polls = 0;
+  await withAssemblyAi((url, init) => aaiStage(url, init) || (++polls < 2
+    ? makeResponse({ id: 't1', status: 'processing' })
+    : makeResponse({ id: 't1', status: 'completed', audio_duration: 1, speech_model_used: 'vendor-model', words: [{ text: 'hello', start: 80, end: 400 }, { text: 'world', start: 480, end: 880 }] })), async (opts, calls) => {
+    const report = await align(opts);
+    assert.equal(report.ok, true);
+    assert.deepEqual([report.provider.name, report.provider.model], ['assemblyai', 'vendor-model']);
+    assert.deepEqual(report.words.map((w) => w.start), [0.08, 0.48]);
+    assert.ok(calls.every((c) => c.init.headers.Authorization === 'test-key'), 'REST takes the raw key with no Bearer');
+    assert.ok(Buffer.isBuffer(calls[0].init.body), 'upload is raw binary');
+    const body = JSON.parse(calls[1].init.body);
+    assert.deepEqual([body.audio_url, body.punctuate, body.format_text], ['https://cdn.example/audio', false, false]);
+    assert.equal(polls, 2);
+  });
+});
+
+test('align() --provider assemblyai reports a 401 as an authentication blocker', async () => {
+  await withAssemblyAi(() => makeResponse({ error: 'bad key' }, 401), async (opts, calls) => {
+    await assert.rejects(align(opts), /assemblyai blocked \(authentication/);
+    assert.equal(calls.length, 1);
+  });
+});
+
+test('align() --provider assemblyai treats 429 as unavailable and does not spill to another provider', async () => {
+  await withAssemblyAi((url, init) => (url.endsWith('/v2/upload') ? makeResponse({ upload_url: 'u' }) : aaiStage(url, init) && makeResponse({}, 429)), async (opts, calls) => {
+    await assert.rejects(align(opts), /assemblyai blocked \(still rate limited or unavailable/);
+    assert.ok(calls.every((c) => c.url.includes('api.assemblyai.com')), calls.map((c) => c.url).join(', '));
+  });
+});
+
+test('align() --provider assemblyai stops polling at the timeout', async () => {
+  await withAssemblyAi((url, init) => aaiStage(url, init) || makeResponse({ id: 't1', status: 'processing' }), async (opts, calls) => {
+    await assert.rejects(align(opts), /assemblyai blocked .*not completed within/);
+    assert.ok(calls.length >= 3);
+  });
+});
+
+test('align() --provider assemblyai surfaces a failed transcript', async () => {
+  await withAssemblyAi((url, init) => aaiStage(url, init) || makeResponse({ id: 't1', status: 'error', error: 'bad audio' }), async (opts) => {
+    await assert.rejects(align(opts), /assemblyai blocked \(failed\): transcript t1 failed: bad audio/);
+  });
+});
+
+test('align() without --provider never calls AssemblyAI', async () => {
+  const env = saveEnv(['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION']);
+  Object.assign(process.env, { AZURE_SPEECH_KEY: 'k', AZURE_SPEECH_REGION: 'eastus' });
+  try {
+    await withAssemblyAi(() => makeResponse({ error: 'quota' }, 429), async (opts, calls) => {
+      await assert.rejects(align({ ...opts, provider: undefined }), /azure blocked/);
+      assert.ok(!calls.some((c) => c.url.includes('assemblyai')));
+    });
+  } finally {
+    restoreEnv(env);
+  }
+});

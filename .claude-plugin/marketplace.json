@@ -24,6 +24,10 @@
     {
       "name": "windows-desktop",
       "source": "./packages/windows-desktop"
+    },
+    {
+      "name": "assemblyai",
+      "source": "./packages/assemblyai"
     }
   ]
 }

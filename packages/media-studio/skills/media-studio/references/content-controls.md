@@ -1,8 +1,9 @@
 # Shared content controls
 
 The Media Studio owner supplies `packages/media-studio/scripts/content_runtime.py`.
-The ElevenLabs owner supplies `packages/elevenlabs/scripts/elevenlabs_cli.py` and
-its mandatory TTS adapter. Resolve these paths from `AGENTHUB_ROOT` or the
+`packages/elevenlabs` (`elevenlabs_cli.py` and its TTS adapter) was retired
+2026-10-30, so the ElevenLabs REST routes below stay inactive until a governed
+adapter returns. Resolve paths from `AGENTHUB_ROOT` or the
 canonical AgentHub checkout; never copy a helper into a product repository.
 Python 3.11+ and the standard library are sufficient. No daemon or scheduler runs.
 

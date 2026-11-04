@@ -18,6 +18,12 @@
   code paths and docs; retiring them needs a media-studio release that is
   sequenced after the Azure routing release (PR 97).
 
+- **AssemblyAI (2026-11-03):** `packages/assemblyai` is a thin plugin: one routing
+  skill plus the hosted `assemblyai` and `assemblyai-docs` MCP servers. Plugin-gated
+  and off by default. media-studio gained `align --provider assemblyai`, used only
+  when a job names it, and `provider-plugins.md`, its provider map. Offline tests
+  only: `ASSEMBLYAI_API_KEY` is not set and no live call has been made.
+
 - **Windows desktop control (2026-10-28):** `packages/windows-desktop` is the
   first owner of `computer.gui` as a provider. It ships the
   `windows-desktop@agenthub` plugin (Claude, Codex, Cursor) and the loose skill

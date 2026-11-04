@@ -1,14 +1,14 @@
-// ElevenLabs via the governed adapter (packages/elevenlabs/scripts/elevenlabs_cli.py). Every paid call reserves
+// ElevenLabs via a governed adapter named by MVG_ELEVENLABS_CLI. AgentHub ships none: packages/elevenlabs was retired
+// 2026-10-30, so these stages fail closed until one is set. Every paid call reserves
 // credits in the shared content ledger and is receipt-bound; mvg never talks to the REST API directly.
 // Run with plain `python`, never `python -I` (isolated mode drops the script folder and the adapter import fails).
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export function resolveCli(brand = {}) {
-  const root = process.env.MVG_AGENTHUB_ROOT || process.env.AGENTHUB_ROOT || brand.kit?.agenthubRoot || 'C:\\Repos\\shmindmaster\\agenthub';
-  const script = process.env.MVG_ELEVENLABS_CLI || join(root, 'packages', 'elevenlabs', 'scripts', 'elevenlabs_cli.py');
-  if (!existsSync(script)) throw new Error(`governed ElevenLabs adapter not found: ${script} (set MVG_AGENTHUB_ROOT)`);
+export function resolveCli() {
+  const script = process.env.MVG_ELEVENLABS_CLI;
+  if (!script || !existsSync(script)) throw new Error('no governed ElevenLabs adapter: packages/elevenlabs was retired 2026-10-30. Use an Azure voice, or set MVG_ELEVENLABS_CLI to a governed adapter');
   return { python: process.env.MVG_PYTHON || 'python', script, cwd: join(script, '..') };
 }
 

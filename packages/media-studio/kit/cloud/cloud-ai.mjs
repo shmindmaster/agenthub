@@ -4,7 +4,7 @@
 //   node cloud-ai.mjs qa     --images <a.jpg> [<b.jpg>...] [--prompt <text|file>] --out <report.json>
 //   node cloud-ai.mjs review --files <script.md> [<more>...] [--rubric <text|file>] [--threshold 85] --out <review.json>
 //   node cloud-ai.mjs align  --take <take.wav> --script <locked-script.txt> --out <voice/align/<id>.json | qa/encoded-alignment.json>
-//                            [--provider azure|azure-s0|deepgram]   (default Azure F0 only; name another provider explicitly to use it)
+//                            [--provider azure|azure-s0|deepgram|assemblyai]   (default Azure F0 only; name another provider explicitly to use it)
 //
 // opts: --provider anthropic|azure-openai|gemini|openai (default: anthropic only; name another provider explicitly to use it)
 //       --model <id>   --client (client material: never Anthropic; defaults to Azure OpenAI in the owner tenant)
@@ -431,6 +431,37 @@ async function deepgramWords(buf) {
   return { words: heardKeys(words), durationSeconds: j.metadata?.duration, provider: { name: 'deepgram', model: 'nova-3' } };
 }
 
+export async function assemblyaiWords(buf, opts = {}) {
+  const key = userEnv('ASSEMBLYAI_API_KEY');
+  if (!key) throw new Error('ASSEMBLYAI_API_KEY not set');
+  const api = 'https://api.assemblyai.com/v2';
+  // Raw key: the REST API takes no Bearer prefix.
+  const call = async (url, init = {}) => {
+    const res = await fetch(url, { ...init, headers: { Authorization: key, ...init.headers } });
+    const text = await res.text();
+    if (res.status === 429 || res.status === 402 || res.status >= 500) throw new RateLimited(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+    return JSON.parse(text);
+  };
+  const { upload_url: audioUrl } = await call(`${api}/upload`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buf });
+  // No speech_models: inherit the vendor default and record the model it reports.
+  const { id } = await call(`${api}/transcript`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audio_url: audioUrl, language_code: 'en', punctuate: false, format_text: false }) });
+  const pollMs = Number(opts.pollMs) || 3000;
+  const timeoutMs = Number(opts.pollTimeoutMs) || 600000;
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const j = await call(`${api}/transcript/${id}`);
+    if (j.status === 'completed') {
+      // words[].start and end are integer milliseconds.
+      const words = (j.words || []).map((w) => ({ text: w.text, start: w.start / 1000, end: w.end / 1000 }));
+      return { words: heardKeys(words), durationSeconds: j.audio_duration, provider: { name: 'assemblyai', model: j.speech_model_used } };
+    }
+    if (j.status === 'error') throw new Error(`transcript ${id} failed: ${String(j.error).slice(0, 200)}`);
+    if (Date.now() + pollMs > deadline) throw new RateLimited(`transcript ${id} not completed within ${timeoutMs / 1000} s`);
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+}
+
 export const alignOutPath = (out, ok) => (ok ? out : `${out}.failed.json`);
 
 export async function align(opts) {
@@ -444,9 +475,10 @@ export async function align(opts) {
   try {
     heard = p === 'azure' ? await azureWords(take, 'AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION')
       : p === 'azure-s0' ? await azureWords(take, 'AZURE_AI_SERVICES_KEY', 'AZURE_AI_SERVICES_REGION')
+      : p === 'assemblyai' ? await assemblyaiWords(take, opts)
       : await deepgramWords(take);
   } catch (err) {
-    throw blocker(p, err, 'name a paid speech provider explicitly with --provider azure-s0|deepgram to use it.');
+    throw blocker(p, err, 'name a paid speech provider explicitly with --provider azure-s0|deepgram|assemblyai to use it.');
   }
   const durationSeconds = wavSeconds(take) ?? heard.durationSeconds;
   const { words, coverage } = alignScript(scriptTokens(scriptText), heard.words.filter((w) => w.key), durationSeconds);

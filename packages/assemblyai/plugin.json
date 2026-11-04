@@ -1,0 +1,35 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "assemblyai",
+  "version": "1.0.0",
+  "description": "Thin AssemblyAI capability: one routing skill plus the hosted AssemblyAI and docs MCP servers. No key in config.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "assemblyai",
+    "speech-to-text",
+    "transcription",
+    "asr",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AssemblyAI",
+        "shortDescription": "AssemblyAI speech-to-text through the hosted MCP servers.",
+        "longDescription": "One routing skill plus the hosted AssemblyAI and docs MCP servers. Sign-in is OAuth, no key is stored in config, and hosted usage is billed. Media work goes through media-studio.",
+        "developerName": "Sarosh Hussain",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Use $assemblyai to transcribe this audio URL."
+        ]
+      }
+    }
+  }
+}

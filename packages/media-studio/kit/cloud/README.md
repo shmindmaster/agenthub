@@ -35,7 +35,7 @@ node cloud-ai.mjs review --files <script.md> [...] --rubric <text|file> --thresh
 node cloud-ai.mjs qa     --images <contact-sheet.jpg> [...] --prompt <context> --out qa.json [--client]
 ```
 
-* **align**: Azure fast transcription (sh-speech F0 by default; `--provider azure-s0|deepgram` only when named) word times, anchored token by
+* **align**: Azure fast transcription (sh-speech F0 by default; `--provider azure-s0|deepgram|assemblyai` only when named) word times, anchored token by
   token to the locked script. Exact matches keep the acoustic onset. Numbers, currency, contractions and hyphenated
   compounds are matched by spoken form. A word the ASR heard differently gets a precisionLimited onset bounded by
   its neighbours. The report is `cloud-speech/script-alignment/1` with method **`asr-anchored-alignment`**, on the

@@ -498,6 +498,60 @@
       "notes": "Switched 2026-08-20 from stdio `railway mcp` to Remote MCP. Local CLI MCP spawned a Node+railway.exe process per host session; measured two copies from Cursor's official plugin alone (~136 MB) with no Railway work in progress. Do not configure `railway mcp` or `railway mcp proxy` -- both spawn local processes. Direct OAuth to https://mcp.railway.com spawns nothing. The use-railway skill still drives the CLI for cwd/deploy work; this server is the OAuth remote convenience path, not the capability."
     },
     {
+      "id": "assemblyai",
+      "name": "AssemblyAI",
+      "scope": "on-demand-desktop",
+      "transport": "http",
+      "activationMode": "shared-remote",
+      "url": "https://mcp.assemblyai.com/mcp",
+      "credentialPolicy": "oauth",
+      "protocol": {
+        "revision": null,
+        "verifiedOn": "2026-11-03",
+        "verification": "Not probed: no live call was made. AssemblyAI documents HTTP 401 without an OAuth sign-in or Bearer key, so the revision cannot be established non-interactively. Deliberately left null rather than assumed. URL source: https://www.assemblyai.com/docs/mcp-server."
+      },
+      "owner": {
+        "type": "capability",
+        "id": "assemblyai"
+      },
+      "hosts": [
+        "claude",
+        "codex"
+      ],
+      "pluginOwnersByHost": {
+        "claude": "assemblyai@agenthub",
+        "codex": "assemblyai@agenthub"
+      },
+      "notes": "Plugin-gated and off by default: delivered only by packages/assemblyai. scope on-demand-desktop keeps it out of the default sync, and pluginOwnersByHost stops the global writer from persisting it on Claude and Codex. Hosted usage is billed. Needs audio at a public URL or an upload_url. No key in config."
+    },
+    {
+      "id": "assemblyai-docs",
+      "name": "AssemblyAI docs",
+      "scope": "on-demand-desktop",
+      "transport": "http",
+      "activationMode": "shared-remote",
+      "url": "https://assemblyai.com/docs/mcp",
+      "credentialPolicy": "none-in-config; public documentation server with no sign-in.",
+      "protocol": {
+        "revision": null,
+        "verifiedOn": "2026-11-03",
+        "verification": "Not probed: no call was made in this change, so the revision cannot be established from it. Left null rather than assumed. URL source: https://www.assemblyai.com/docs/coding-agent-prompts."
+      },
+      "owner": {
+        "type": "capability",
+        "id": "assemblyai"
+      },
+      "hosts": [
+        "claude",
+        "codex"
+      ],
+      "pluginOwnersByHost": {
+        "claude": "assemblyai@agenthub",
+        "codex": "assemblyai@agenthub"
+      },
+      "notes": "Plugin-gated with the assemblyai server; delivered only by packages/assemblyai. Free documentation lookup."
+    },
+    {
       "id": "arxiv-research",
       "name": "arXiv research (upstream MCP, capability-invoked)",
       "scope": "on-demand-desktop",

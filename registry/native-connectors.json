@@ -300,6 +300,8 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
+          "assemblyai",
+          "assemblyai-docs",
           "descript",
           "linear",
           "notion",
@@ -332,6 +334,8 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
+          "assemblyai",
+          "assemblyai-docs",
           "appium-mobile",
           "github",
           "linkedin",

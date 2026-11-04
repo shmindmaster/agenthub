@@ -397,8 +397,9 @@ The owner's own voice is not produced here at all — see §5.8.
 
 Owner direction 2026-10-29: films cast a distinct, expressive Azure voice per
 scene and character, and never use a Sarosh voice clone. Local AI is off, so
-there is no local owner-voice route. Where the owner names his own voice for
-non-film work, load `sarosh-audio-voice`; `media-studio-generate` owns the
+there is no local owner-voice route. No Sarosh voice clones; cast a remote voice.
+Owner speech only where the owner names his voice for non-film work;
+`media-studio-generate` owns the
 provider routing and the integrity, ASR and pronunciation gates. There is no
 `generate-narration.mjs` entry point in this package.
 

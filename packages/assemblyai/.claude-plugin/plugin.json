@@ -1,0 +1,18 @@
+{
+  "name": "assemblyai",
+  "description": "Thin AssemblyAI capability: one routing skill plus the hosted AssemblyAI and docs MCP servers. No key in config.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "assemblyai",
+    "speech-to-text",
+    "transcription",
+    "asr",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

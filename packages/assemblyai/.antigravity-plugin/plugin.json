@@ -1,0 +1,23 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "assemblyai",
+  "displayName": "AssemblyAI",
+  "version": "1.0.0",
+  "description": "Thin AssemblyAI capability: one routing skill plus the hosted AssemblyAI and docs MCP servers. No key in config.",
+  "disabled": true,
+  "suggestedPrompts": [
+    "Look up the current AssemblyAI transcript parameters",
+    "Transcribe this public audio URL with AssemblyAI"
+  ],
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "assemblyai",
+    "speech-to-text",
+    "transcription",
+    "asr",
+    "mcp"
+  ]
+}

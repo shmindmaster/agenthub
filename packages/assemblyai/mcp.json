@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "assemblyai": {
+      "type": "streamable-http",
+      "url": "https://mcp.assemblyai.com/mcp"
+    },
+    "assemblyai-docs": {
+      "type": "streamable-http",
+      "url": "https://assemblyai.com/docs/mcp"
+    }
+  }
+}

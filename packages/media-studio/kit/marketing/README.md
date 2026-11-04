@@ -113,7 +113,7 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
   Eleven Music needs a `licenseBasis` (its terms limit Creator to individual use and never name advertising; confirm in
   writing before paid media).
 - Budgets: the per-run and the cumulative cap are checked before each paid call, and spend is recorded after it.
-  ElevenLabs goes only through `packages/elevenlabs/scripts/elevenlabs_cli.py` (shared content ledger, reservation at about
+  ElevenLabs goes only through a governed adapter named by `MVG_ELEVENLABS_CLI`; `packages/elevenlabs` was retired 2026-10-30, so ElevenLabs stages fail closed until one is set (shared content ledger, reservation at about
   1.2x characters, receipts, no repeat purchase); run it with plain `python`, never `python -I`. Cumulative spend is in
   `_spend\ledger.jsonl`.
 

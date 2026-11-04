@@ -1,18 +1,19 @@
 ---
 name: media-studio-generate
-description: Use when a video or audio job needs provider-routed generation — narration and character voices, still images, avatar presenter clips, music beds and stings from accepted assets, or transcription and ASR checks — through the MahumTech Azure AI Services default, with Deepgram then ElevenLabs as governed fallbacks. Local AI is off.
+description: Use when a video or audio job needs provider-routed generation — narration and character voices, still images, avatar presenter clips, music beds and stings from accepted assets, or transcription and ASR checks — through the MahumTech Azure AI Services default, with Deepgram as the governed fallback. Local AI is off.
 ---
 
 # Media studio generate
 
 ## Provider routing — Azure is the default (owner direction 2026-10-29)
 
-Load `references/azure-ai-services.md` before planning any generation. The MahumTech Azure resource `aoai-mrender-4e123a95` (eastus2) is the default provider; within Azure take the cheapest option that passes QA, and escalate only items that fail review.
+Load `references/azure-ai-services.md` before planning any generation. The MahumTech Azure resource `mt-foundary-resource` (eastus2, resource group `mcpp-purchase`) is the default provider; within Azure take the cheapest option that passes QA, and escalate only items that fail review. Load `references/provider-plugins.md` when choosing a provider.
 
 | Need | Default | Fallback, only when Azure cannot do it or a gate failed |
 |---|---|---|
-| Narration and character voices | Azure Speech TTS: **standard neural is the default narration voice**; Neural HD and MAI-Voice for cinematic principals and characters (MAI is a preview: fall back to HD if an interjection drops). Run an ASR check on every line. Cast from the voice cast in the reference | Deepgram governed adapter first; ElevenLabs last |
+| Narration and character voices | Azure Speech TTS: **standard neural is the default narration voice**; Neural HD and MAI-Voice for cinematic principals and characters (MAI is a preview: fall back to HD if an interjection drops). Run an ASR check on every line. Cast from the voice cast in the reference | Deepgram governed adapter; ElevenLabs stays blocked until a ledgered route returns |
 | Transcription and ASR gates | Azure batch transcription for backlogs (private blob + SAS) and fast transcription for one file. Real-time and streaming STT stay on Deepgram (Azure is $1 / hr vs $0.46 / hr) | Deepgram Nova-3 |
+| Named-job ASR second opinion | Azure, unchanged. AssemblyAI runs only when a job names it | AssemblyAI: `cloud-ai.mjs align --provider assemblyai` on a line that failed Azure. Through the `assemblyai` plugin: `keyterms_prompt` on proper nouns, diarization (`speaker_labels`), speaker identification, and PII redaction before external sharing (`redact_pii`, which needs `format_text: true`) |
 | Images | Azure `gpt-image-2.5-flare` at low or medium quality is the default per image (about $0.006 / $0.013); capacity 2 requests/min | Gemini Batch only for volume until the Azure image quota rises; OpenAI |
 | Avatar presenter clips | Azure TTS avatar, batch API, prebuilt avatars | none; use Remotion/Recast composition instead |
 | Video generation | Sora 2 works but its inference ends 2026-11-02: do not plan around it | Remotion/Recast composition |
@@ -20,15 +21,15 @@ Load `references/azure-ai-services.md` before planning any generation. The Mahum
 
 Rules that apply to every Azure call: never use `AZURE_OPENAI_*` or the Pendoah endpoints; credentials stay in environment variables; hash inputs and reuse accepted takes; quote the price basis in the report; stay inside the credit budget alerts ($400 / $600 / $680). Films and cinematic work cast a distinct, expressive voice per scene and character; **no Sarosh voice clone in films** (owner direction 2026-10-29). Custom avatars, personal voice and professional voice are Limited Access; do not apply without an owner decision (steps are in the reference).
 
-The governed adapters (`scripts/governed_azure_speech.py` with `scripts/governed_azure_speech.md`, `scripts/deepgram_cli.py`, `packages/elevenlabs`) are the ledgered paths for paid speech. **Local AI is off (owner direction 2026-10-29):** never start local models, TTS/STT servers or embedders. The local owner-voice pipeline is removed; there is no local voice, music, image, motion, lipsync or portrait route. Artifact paths resolve from `MEDIA_STUDIO_ROOT` (default `D:\Media-Studio`); never hard-code the drive path.
+The governed adapters (`scripts/governed_azure_speech.py` with `scripts/governed_azure_speech.md`, `scripts/deepgram_cli.py`) are the ledgered paths for paid speech. **Local AI is off (owner direction 2026-10-29):** never start local models, TTS/STT servers or embedders. The local owner-voice pipeline is removed; there is no local voice, music, image, motion, lipsync or portrait route. Artifact paths resolve from `MEDIA_STUDIO_ROOT` (default `D:\Media-Studio`); never hard-code the drive path.
 
 ## 0. Before generating
 
-Choose by cost, latency, quality, privacy. Reuse accepted assets first. Load `../media-studio/references/content-controls.md` before paid planning, and `elevenlabs` (its `SKILL.md` and `references/cost-controls.md`) before any ElevenLabs fallback. Native connectors and SDK examples must not bypass the ledger. Unsupported paid modalities stay disabled.
+Choose by cost, latency, quality, privacy. Reuse accepted assets first. Load `../media-studio/references/content-controls.md` before paid planning. Native connectors and SDK examples must not bypass the ledger. Unsupported paid modalities stay disabled.
 
 Load `../media-studio/references/engagement.md`. Viewer-facing jobs consume **locked** `storyboard.json`, `visual-bible.json`, `direction.json`. Do not invent plates the director did not call. Skip a beat whose selected take matches the locked narration hash. Do not rerun the whole job for one scene.
 
-Owner speech loads `sarosh-audio-voice`, and only where the owner names his voice for non-film work. Speaker identity is advisory only (owner direction 2026-10-27): never fail, block or re-voice on speaker similarity. Takes still pass integrity and ASR.
+No Sarosh voice clones; cast a remote voice. Owner speech only where the owner names his voice for non-film work. Speaker identity is advisory only (owner direction 2026-10-27): never fail, block or re-voice on speaker similarity. Takes still pass integrity and ASR.
 
 ## 1. Inputs
 
@@ -59,8 +60,8 @@ $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $manifest = Join-Path $tools 'plugin.json'
 $integrity = Join-Path $tools 'Test-SpeechIntegrity.ps1'
 $stems = Join-Path $tools 'Finish-BriefingStems.ps1'
-if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '2.0.44' -or -not (Test-Path -LiteralPath $integrity) -or -not (Test-Path -LiteralPath $stems)) {
-    throw 'Media Studio 2.0.44 speech tools are missing or stale. Deploy them from a verified package before generation.'
+if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '2.0.46' -or -not (Test-Path -LiteralPath $integrity) -or -not (Test-Path -LiteralPath $stems)) {
+    throw 'Media Studio 2.0.46 speech tools are missing or stale. Deploy them from a verified package before generation.'
 }
 & pwsh -NoProfile -File $integrity -Path <take.wav> -Text '<locked line text>' -JsonOut <qa/integrity/<id>.json>
 ```

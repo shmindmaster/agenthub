@@ -1,6 +1,6 @@
 // Cost ledger and budget cap. Every paid provider call is checked BEFORE it is made (projected spend against the
-// per-run cap and the brand's cumulative cap) and recorded AFTER. ElevenLabs is counted in credits (its own
-// governed ledger in packages/elevenlabs is the authority; this mirrors it for the run manifest), OpenAI in USD.
+// per-run cap and the brand's cumulative cap) and recorded AFTER. ElevenLabs is counted in credits (the
+// shared content ledger is the authority; this mirrors it for the run manifest), OpenAI in USD.
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { writeJson } from './util.mjs';

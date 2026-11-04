@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "assemblyai": {
+      "url": "https://mcp.assemblyai.com/mcp"
+    },
+    "assemblyai-docs": {
+      "url": "https://assemblyai.com/docs/mcp"
+    }
+  }
+}
