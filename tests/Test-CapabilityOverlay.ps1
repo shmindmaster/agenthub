@@ -45,8 +45,8 @@ function Test-OverlayOnIncludesPrivate {
         }
         $effective = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilities -OverlayRoot $root)
         $ids = @($effective | ForEach-Object { [string]$_.id })
-        if ($ids -notcontains 'sarosh-communication') {
-            return @{ Passed = $false; Detail = 'overlay on dropped sarosh-communication' }
+        if ($ids -notcontains 'sarosh') {
+            return @{ Passed = $false; Detail = 'overlay on dropped sarosh' }
         }
         if ($ids -notcontains 'repowise') {
             return @{ Passed = $false; Detail = 'overlay on dropped public capability repowise' }
@@ -68,7 +68,7 @@ function Test-OverlayOffDropsPrivate {
         }
         $effective = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilities -OverlayRoot $root)
         $ids = @($effective | ForEach-Object { [string]$_.id })
-        $leaked = @($ids | Where-Object { $_ -in @('sarosh-communication', 'sarosh-writing', 'sarosh-audio-voice', 'knowledge-access', 'local-ai', 'portfolio-engineering') })
+        $leaked = @($ids | Where-Object { $_ -in @('sarosh', 'local-ai', 'portfolio-engineering') })
         if ($leaked.Count -gt 0) {
             return @{ Passed = $false; Detail = "public graph still contains: $($leaked -join ', ')" }
         }

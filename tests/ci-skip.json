@@ -18,18 +18,6 @@
       "reason": "Requires the fleet-wide repository boundary from the private overlay policy (overlays/personal/global-agent-policy.md)."
     },
     {
-      "file": "tests/Test-SaroshAudioVoice.ps1",
-      "reason": "Requires the private overlay package overlays/personal/packages/sarosh-audio-voice and the overlay policy."
-    },
-    {
-      "file": "tests/Test-SaroshCommunication.ps1",
-      "reason": "Requires the private overlay package overlays/personal/packages/sarosh-communication and the overlay policy."
-    },
-    {
-      "file": "tests/Test-SaroshWriting.ps1",
-      "reason": "Requires the private overlay package overlays/personal/packages/sarosh-writing and the overlay policy."
-    },
-    {
       "file": "tests/Test-CodingAgentDispatch.ps1",
       "reason": "One case launches a Copilot child through the owner's gh account; a CI runner has no such account."
     },

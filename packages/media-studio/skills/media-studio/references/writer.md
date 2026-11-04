@@ -79,4 +79,4 @@ Comedy craft belongs inside dramatization; it is not a separate step. Keep comed
 4. Reverse: the "fix" reveals the real system rule.
 5. Payoff teaches the takeaway without humiliating real people.
 
-Tag every beat `FACT` / `DRAMATIZED` / `COMPOSITE`. Fictionalize before any external share (the `sarosh-writing` fictionalization reference; `series.md`). Series methodology, truth ledger and continuity are in `series.md`.
+Tag every beat `FACT` / `DRAMATIZED` / `COMPOSITE`. Fictionalize before any external share (the `sarosh-communication` fictionalization reference; `series.md`). Series methodology, truth ledger and continuity are in `series.md`.

@@ -61,7 +61,7 @@ are stored in each repo's `.repowise/` directory.
 
 ## Knowledge-access documents layer
 
-`packages/knowledge-access` is the sibling for curated documents under
+The private `sarosh` plugin (`search-documents` skill) is the sibling for curated documents under
 `D:\OneDrive - MahumTech\Documents\` folders `01`–`06` and `10`. It is
 not a RepoWise workspace: OneDrive is not a git root, and client names
 are an output gate. Agents read `_INDEX.md`, then exact-search or
@@ -95,7 +95,7 @@ Direction is one-way: content → index → logic. A script that writes content
 into OneDrive, or an index treated as authority over the file on disk, is a
 break in the contract.
 
-`packages/knowledge-access` owns both directions of this seam:
+The private `sarosh` plugin owns both directions of this seam:
 `scripts/Search-Knowledge.ps1` for locating documents and
 `scripts/Get-EvidenceAugmentation.ps1` for retrieving layered material to
 augment a document being written. Layer and rendering-mode definitions are
@@ -170,7 +170,7 @@ RepoWise stays SQLite because a graph traversal is not a vector query.
   machine.
 - **The index is wider than the skill that reads it.** `knowledge` scope in
   `corpus-v2.sqlite` registers roots `00`, `07`, `08` and `09` next to the
-  `01`-`06`/`10` that `use-knowledge-access` declares in scope, so personal
+  `01`-`06` that `search-documents` declares in scope, so personal
   finance, family records and inbox capture sit in the same collection as
   client work. Nothing at the collection level separates them. Retrieval
   profile is the only boundary, which is why `-Profile client-facing` is

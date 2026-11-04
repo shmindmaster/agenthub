@@ -7,7 +7,7 @@ Read this for kind `series-episode` and for any multi-episode technical story se
 1. Confirm the series repository / working tree (outside AgentHub) for the private bible, casts and media.
 2. Real incident → `writer.md` §5 (Dramatize a real incident, with the comedy escalation craft).
 3. Tech teaching moments → also `story-craft.md` → "Explainer path" and `direction.md` §6 (which visual).
-4. Fictionalize before any external share: the `sarosh-writing` fictionalization reference. Record mappings only in the private series repository, never in AgentHub.
+4. Fictionalize before any external share: the `sarosh-communication` fictionalization reference. Record mappings only in the private series repository, never in AgentHub.
 5. Continuity → §4 below.
 6. Assembly → §5 below.
 7. Direction of technical scenes → `direction.md` §7 (series technical beats).

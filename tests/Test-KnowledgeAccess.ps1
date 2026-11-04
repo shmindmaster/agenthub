@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
-Behavior tests for the private knowledge-access package
-(overlays/personal/packages/knowledge-access).
+Behavior tests for the private sarosh plugin
+(overlays/personal/packages/sarosh).
 
 The fail-closed gate is the load-bearing one: a fixture that ships a
 numeric claim without a locatable citation would teach every renderer
@@ -15,14 +15,15 @@ param([string]$PythonExecutable = '')
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 . (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
-# knowledge-access is a private package in the gitignored personal overlay.
+# sarosh is a private package in the gitignored personal overlay.
 $overlay = Resolve-AgentHubTestOverlay -RepositoryRoot $repoRoot
 if (-not $overlay.Root) {
-    Write-Host "SKIP: knowledge-access is a private overlay package -- $($overlay.Reason)"
+    Write-Host "SKIP: sarosh is a private overlay package -- $($overlay.Reason)"
     Write-Host 'RESULT: 0 passed, 0 failed'
     exit 0
 }
-$pkg = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/knowledge-access'
+$pkg = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/sarosh'
+$devTests = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'tests/sarosh'
 
 $failures = [Collections.Generic.List[string]]::new()
 $passed = 0
@@ -32,32 +33,36 @@ function Report {
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $failures.Add($Name) }
 }
 
+$oe = 'skills\opportunity-engine'
+$sd = 'skills\search-documents'
 $required = @(
-    'skills\use-knowledge-access\SKILL.md',
-    'skills\opportunity-engine\SKILL.md',
-    'skills\portfolio-enrichment\SKILL.md',
-    'scripts\New-KnowledgeIndex.ps1',
-    'scripts\Search-Knowledge.ps1',
-    'scripts\Find-CodeInKnowledge.ps1',
-    'scripts\validate_application_answer_profile.py',
-    'scripts\Install-ValidationRuntime.ps1',
-    'scripts\requirements.txt',
-    'schemas\opportunity.schema.yaml',
-    'schemas\engagement-record.schema.yaml',
-    'schemas\application-answer-profile.schema.yaml',
-    'references\knowledge-access-plan.md',
-    'references\opportunity-response-engine.md'
+    '.claude-plugin\plugin.json',
+    'plugin.json',
+    'skills\sarosh-communication\SKILL.md',
+    "$sd\SKILL.md",
+    "$oe\SKILL.md",
+    "$sd\scripts\New-KnowledgeIndex.ps1",
+    "$sd\scripts\Search-Knowledge.ps1",
+    "$sd\scripts\Find-CodeInKnowledge.ps1",
+    "$oe\scripts\validate_application_answer_profile.py",
+    "$oe\scripts\Install-ValidationRuntime.ps1",
+    "$oe\scripts\requirements.txt",
+    "$oe\schemas\opportunity.schema.yaml",
+    "$oe\schemas\engagement-record.schema.yaml",
+    "$oe\schemas\application-answer-profile.schema.yaml",
+    "$oe\references\job-search.md",
+    "$oe\references\reply-preflight.md"
 )
 foreach ($rel in $required) {
     $p = Join-Path $pkg $rel
     Report "package file exists: $rel" (Test-Path -LiteralPath $p) "missing $p"
 }
 
-$detect = Get-Content -LiteralPath (Join-Path $pkg 'scripts\Find-CodeInKnowledge.ps1') -Raw -Encoding UTF8
+$detect = Get-Content -LiteralPath (Join-Path $pkg "$sd\scripts\Find-CodeInKnowledge.ps1") -Raw -Encoding UTF8
 Report 'detect script has no -Execute switch' ($detect -notmatch '(?m)\[switch\]\$Execute') `
     'Find-CodeInKnowledge.ps1 grew an -Execute path; detect-only is the contract until the owner authorizes a move.'
 
-$fixtures = @(Get-ChildItem -LiteralPath (Join-Path $pkg 'fixtures\engagements') -Filter '*.yaml' -ErrorAction SilentlyContinue)
+$fixtures = @(Get-ChildItem -LiteralPath (Join-Path $devTests 'fixtures\engagements') -Filter '*.yaml' -ErrorAction SilentlyContinue)
 Report 'at least one synthetic engagement fixture exists' ($fixtures.Count -gt 0) `
     'fixtures/engagements is empty, so opportunity-engine has nothing legal to match.'
 
@@ -74,7 +79,8 @@ foreach ($f in $fixtures) {
     }
 }
 
-$engine = Get-Content -LiteralPath (Join-Path $pkg 'skills\opportunity-engine\SKILL.md') -Raw -Encoding UTF8
+$engine = (Get-Content -LiteralPath (Join-Path $pkg "$oe\SKILL.md") -Raw -Encoding UTF8) + "`n" +
+    (Get-Content -LiteralPath (Join-Path $pkg "$oe\references\job-search.md") -Raw -Encoding UTF8)
 Report 'opportunity-engine fail-closed on invented specifics' ($engine -match 'invented specifics') `
     'the fail-closed sentence is gone from opportunity-engine'
 Report 'opportunity-engine owns the complete job lifecycle' (
@@ -129,10 +135,10 @@ if ($pythonCommand) {
     & $pythonCommand.Source -c 'import yaml; from jsonschema import Draft202012Validator, FormatChecker' *> $null
     $dependenciesReady = $LASTEXITCODE -eq 0
     Report 'application profile validation dependencies are available' $dependenciesReady `
-        'run packages/knowledge-access/scripts/Install-ValidationRuntime.ps1 or pass a provisioned -PythonExecutable'
+        'run opportunity-engine/scripts/Install-ValidationRuntime.ps1 from the sarosh plugin or pass a provisioned -PythonExecutable'
     if ($dependenciesReady) {
-    $validator = Join-Path $pkg 'scripts\validate_application_answer_profile.py'
-    $profileFixtures = Join-Path $pkg 'fixtures\application-profiles'
+    $validator = Join-Path $pkg "$oe\scripts\validate_application_answer_profile.py"
+    $profileFixtures = Join-Path $devTests 'fixtures\application-profiles'
 
     & $pythonCommand.Source $validator (Join-Path $profileFixtures 'valid-synthetic.yaml') *> $null
     Report 'application profile validator accepts the valid synthetic profile' ($LASTEXITCODE -eq 0) `
@@ -166,7 +172,7 @@ for case in cases:
     if actual != case["expected"]:
         raise SystemExit(f"{case['id']}: expected {case['expected']}, got {actual}")
 '@
-    $smokePath = Join-Path $pkg 'fixtures\opportunities\job-search-policy-smoke.yaml'
+    $smokePath = Join-Path $devTests 'fixtures\opportunities\job-search-policy-smoke.yaml'
     $smokeScript | & $pythonCommand.Source - $smokePath *> $null
     Report 'job policy smoke cases preserve worldwide, US secondary, and reject behavior' ($LASTEXITCODE -eq 0) `
         'a synthetic job policy case did not produce the expected lane'
@@ -176,21 +182,21 @@ for case in cases:
     }
 }
 
-$enrich = Get-Content -LiteralPath (Join-Path $pkg 'skills\portfolio-enrichment\SKILL.md') -Raw -Encoding UTF8
-Report 'portfolio-enrichment routes document search to docwise with exact-search fallback' (
-    $enrich -match 'docwise' -and $enrich -match 'RepoWise' -and $enrich -match 'exact' -and
-    $enrich -match 'client-safe' -and $enrich -notmatch 'knowledge_v\d'
-) 'skill must name docwise (with exact-search fallback), RepoWise and client-safe handling'
-Report 'portfolio-enrichment refuses legal, Duckie Qdrant, and local chat draft' (
-    $enrich -match 'legal' -and $enrich -match ':6333' -and
-    $enrich -match 'llama\.cpp' -and $enrich -match 'You are the writer'
+$skill = Get-Content -LiteralPath (Join-Path $pkg "$sd\SKILL.md") -Raw -Encoding UTF8
+Report 'opportunity-engine routes evidence to search-documents and RepoWise' (
+    $engine -match 'search-documents' -and $engine -match 'RepoWise' -and $engine -match 'client-facing handling' -and
+    $engine -notmatch 'knowledge_v\d'
+) 'skill must route documents to search-documents, code to RepoWise, with client-facing handling'
+Report 'document search refuses legal, Duckie Qdrant, and a local model' (
+    $skill -match '20_Legal_Matters' -and $skill -match ':6333' -and $skill -match 'local model' -and
+    $engine -match 'You are the writer'
 ) 'skill dropped a hard exclusion or the writer rule'
-Report 'portfolio-enrichment rewrites the actual asset' (
-    $enrich -match 'Rewrite and enhance the actual asset' -and
-    $enrich -match 'credible synthesis'
+Report 'opportunity-engine rewrites the actual asset' (
+    $engine -match 'Rewrite and enhance the actual asset' -and
+    $engine -match 'credible synthesis'
 ) 'skill no longer requires rewriting the asset from retrieved knowledge'
 
-$search = Get-Content -LiteralPath (Join-Path $pkg 'scripts\Search-Knowledge.ps1') -Raw -Encoding UTF8
+$search = Get-Content -LiteralPath (Join-Path $pkg "$sd\scripts\Search-Knowledge.ps1") -Raw -Encoding UTF8
 Report 'Search-Knowledge exposes -Semantic' ($search -match '(?m)\[switch\]\$Semantic') `
     'semantic search flag missing from Search-Knowledge.ps1'
 Report 'Search-Knowledge semantic path calls docwise, not Local-AI' (
@@ -198,27 +204,17 @@ Report 'Search-Knowledge semantic path calls docwise, not Local-AI' (
     $search -match 'docwise is not installed yet' -and $search -notmatch 'rag-index'
 ) 'semantic search must call the docwise CLI when installed and throw a clear message otherwise'
 
-$skill = Get-Content -LiteralPath (Join-Path $pkg 'skills\use-knowledge-access\SKILL.md') -Raw -Encoding UTF8
-Report 'use-knowledge-access routes semantic to docwise with exact-search/RepoWise fallback' (
-    $skill -match '-Semantic' -and $skill -match 'docwise --help' -and $skill -match 'exact rga search' -and
-    $skill -match 'RepoWise' -and $skill -notmatch 'D:\\rag-index'
-) 'skill must route -Semantic to docwise and fall back to exact rga search and RepoWise'
-
-$plan = Get-Content -LiteralPath (Join-Path $pkg 'references\knowledge-access-plan.md') -Raw -Encoding UTF8
-Report 'plan phase 4 is docwise, no local vector engine' (
-    $plan -match 'docwise' -and $plan -match 'Local AI is off' -and $plan -match 'do not stand up'
-) 'knowledge-access-plan.md must name docwise and refuse a local model or vector engine'
+Report 'search-documents routes semantic to docwise with exact-search/RepoWise fallback' (
+    $skill -match '-Semantic' -and $skill -match 'docwise' -and $skill -match 'RepoWise'
+) 'skill must route -Semantic to docwise and fall back to exact search and RepoWise'
 
 $localAiScanned = @(
-    'skills\use-knowledge-access\SKILL.md',
-    'skills\opportunity-engine\SKILL.md',
-    'skills\portfolio-enrichment\SKILL.md',
-    'commands\portfolio-enrichment.md',
-    'references\knowledge-access-plan.md',
-    'references\opportunity-response-engine.md',
-    'scripts\Search-Knowledge.ps1',
-    'scripts\Get-EvidenceAugmentation.ps1',
-    'scripts\New-KnowledgeIndex.ps1'
+    "$sd\SKILL.md",
+    "$oe\SKILL.md",
+    "$oe\references\job-search.md",
+    "$oe\references\reply-preflight.md",
+    "$sd\scripts\Search-Knowledge.ps1",
+    "$sd\scripts\New-KnowledgeIndex.ps1"
 )
 foreach ($rel in $localAiScanned) {
     $text = Get-Content -LiteralPath (Join-Path $pkg $rel) -Raw -Encoding UTF8
@@ -227,24 +223,17 @@ foreach ($rel in $localAiScanned) {
         $text -notmatch 'LOCAL_AI_ROOT' -and $text -notmatch 'LocalAiRoot' -and $text -notmatch 'ai\.ps1'
     ) 'Local AI is off: no D:\Local-AI, query.ps1, ai.ps1 or LocalAiRoot reference may remain'
 }
-$evidence = Get-Content -LiteralPath (Join-Path $pkg 'scripts\Get-EvidenceAugmentation.ps1') -Raw -Encoding UTF8
-Report 'Get-EvidenceAugmentation reports docwise unavailable instead of failing' (
-    $evidence -match 'docwise-unavailable' -and $evidence -match '(?m)^exit 0\s*$'
-) 'the evidence layer must degrade to "docwise unavailable" without failing the run'
-Report 'plan and skill include 01 and 10' (
-    $skill -match '01_Business_and_Entities' -and $skill -match '10_Certifications_Prep' -and
-    $plan -match '01_Business_and_Entities' -and $plan -match '10_Certifications_Prep' -and
-    $skill -notmatch 'Folders ``00``, ``01``'
-) '01/10 must be in-scope; 01 must not be listed as out of scope'
-Report 'Search-Knowledge aliases 01 and 10' (
-    $search -match "'01'\s*=\s*'01_Business_and_Entities'" -and
-    $search -match "'10'\s*=\s*'10_Certifications_Prep'"
-) 'Search-Knowledge.ps1 missing 01 or 10 aliases'
+Report 'search-documents includes 01' (
+    $skill -match '01_Business_and_Entities'
+) '01 must be in scope'
+Report 'Search-Knowledge aliases 01' (
+    $search -match "'01'\s*=\s*'01_Business_and_Entities'"
+) 'Search-Knowledge.ps1 missing the 01 alias'
 Report 'package no longer ships New-KnowledgeMap.ps1' (
-    -not (Test-Path -LiteralPath (Join-Path $pkg 'scripts\New-KnowledgeMap.ps1'))
+    -not (Test-Path -LiteralPath (Join-Path $pkg "$sd\scripts\New-KnowledgeMap.ps1"))
 ) 'New-KnowledgeMap.ps1 is the old 6k-line map writer; New-KnowledgeIndex.ps1 replaced it'
 
-$replyTests = Join-Path $pkg 'scripts\test_reply_preflight.py'
+$replyTests = Join-Path $devTests 'test_reply_preflight.py'
 Report 'reply preflight behavior tests exist' (Test-Path -LiteralPath $replyTests -PathType Leaf) `
     'the opportunity reply gate needs executable synthetic regression cases'
 if ($pythonCommand -and (Test-Path -LiteralPath $replyTests -PathType Leaf)) {
