@@ -1,6 +1,8 @@
-// ElevenLabs via a governed adapter named by MVG_ELEVENLABS_CLI. AgentHub ships none: packages/elevenlabs was retired
-// 2026-10-30, so these stages fail closed until one is set. Every paid call reserves
-// credits in the shared content ledger and is receipt-bound; mvg never talks to the REST API directly.
+// ElevenLabs speech through the governed adapter at packages/media-studio/scripts/elevenlabs_cli.py, named by
+// MVG_ELEVENLABS_CLI. It runs for owner-authorized jobs only: the immutable manifest must name the exact voice and job
+// workspace (MVG_ELEVENLABS_AUTHORIZATION or o.authorizationManifest), or the adapter refuses before any network call.
+// Every paid call reserves credits in that job's ledger and is receipt-bound; mvg never talks to the REST API directly.
+// Sound effects and music stay disabled: the adapter is speech only.
 // Run with plain `python`, never `python -I` (isolated mode drops the script folder and the adapter import fails).
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -8,7 +10,7 @@ import { join } from 'node:path';
 
 export function resolveCli() {
   const script = process.env.MVG_ELEVENLABS_CLI;
-  if (!script || !existsSync(script)) throw new Error('no governed ElevenLabs adapter: packages/elevenlabs was retired 2026-10-30. Use an Azure voice, or set MVG_ELEVENLABS_CLI to a governed adapter');
+  if (!script || !existsSync(script)) throw new Error('ElevenLabs speech is owner-authorized only: use an Azure voice, or set MVG_ELEVENLABS_CLI to packages/media-studio/scripts/elevenlabs_cli.py in the AgentHub checkout');
   return { python: process.env.MVG_PYTHON || 'python', script, cwd: join(script, '..') };
 }
 
@@ -48,22 +50,18 @@ export async function speech(cli, o) {
   if (o.previousText) args.push('--previous-text', o.previousText);
   if (o.nextText) args.push('--next-text', o.nextText);
   for (const d of o.dictionaries || []) args.push('--pronunciation-dictionary', `${d.id}:${d.version}`);
+  const manifest = o.authorizationManifest ?? process.env.MVG_ELEVENLABS_AUTHORIZATION;
+  if (manifest) args.push('--authorization-manifest', manifest);
   const result = parseResult(await (o.run || runCli)(cli, args), 'speech');
   return { ...result, receipt: readReceipt(o.output) };
 }
 
-export async function soundEffect(cli, o) {
-  const args = ['sfx', '--text', o.prompt, '--output', o.output, '--duration-seconds', String(o.durationSeconds),
-    '--max-credits', String(o.maxCredits), '--cache-workspace', o.workspace, '--cache-revision', o.revision];
-  if (o.promptInfluence !== undefined) args.push('--prompt-influence', String(o.promptInfluence));
-  const result = parseResult(await (o.run || runCli)(cli, args), 'sound effect');
-  return { ...result, receipt: readReceipt(o.output) };
+const speechOnly = (what) => new Error(`ElevenLabs ${what} are disabled: the governed adapter is speech only. Use an accepted, licensed asset`);
+
+export async function soundEffect() {
+  throw speechOnly('sound effects');
 }
 
-export async function music(cli, o) {
-  const args = ['music', '--prompt', o.prompt, '--output', o.output, '--length-ms', String(o.lengthMs),
-    '--max-credits', String(o.maxCredits), '--cache-workspace', o.workspace, '--cache-revision', o.revision];
-  if (o.model) args.push('--model-id', o.model);
-  const result = parseResult(await (o.run || runCli)(cli, args), 'music');
-  return { ...result, receipt: readReceipt(o.output) };
+export async function music() {
+  throw speechOnly('music beds');
 }
