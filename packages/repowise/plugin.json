@@ -1,6 +1,6 @@
 {
   "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "repowise",
-  "version": "1.2.16",
-  "description": "Fleet RepoWise workspace MCP pinned at C:/Repos. Plugin-gated: a small stdio bridge forwards to the one shared server on 127.0.0.1:7339 and starts it (hidden, fail-closed on the embedder) when a host connects and the port is down; no session-start or scheduled server process. Official RepoWise marketplace plugins are forbidden — they register a second MCP at the nearest repo."
+  "version": "1.2.17",
+  "description": "Legacy-host RepoWise workspace bridge and bounded indexing tools. Claude and Codex use the vendor repowise-dev/repowise plugins instead; never install this wrapper alongside them. Other hosts retain the loopback shared-server bridge until migrated."
 }

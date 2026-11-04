@@ -22,7 +22,7 @@ A refreshed index is part of the definition of done.
 
 ## Updating the CLI
 
-This is a manual step that updates the CLI to the latest PyPI release. There is no scheduled task.
+This is a manual step that updates the CLI to the latest PyPI release. There is no scheduled task. The updater compares versions first and replaces an obsolete exact uv requirement with `repowise@latest` only when behind. It does not initialize editors, rewrite hooks, or reinstall a current package. `-RepairHooks` is a separate explicit legacy repair.
 
 ```powershell
 pwsh -NoProfile -File .\scripts\Update-RepoWise.ps1 -Apply
@@ -30,8 +30,10 @@ pwsh -NoProfile -File .\scripts\Update-RepoWise.ps1 -Apply
 
 ## Status of the package
 
-RepoWise is a tracked public package (`packages/repowise`) and stays enabled for fleet code intelligence. Do not treat it as a private overlay item or disable it as part of overlay work.
+RepoWise remains a tracked public package (`packages/repowise`) for bounded indexing and legacy-host compatibility. Claude uses the vendor `repowise@repowise` plugin and Codex uses `codex@repowise`, from `https://github.com/repowise-dev/repowise`. Both use the existing C:/Repos workspace. On these hosts uninstall the old `repowise@agenthub` wrapper and remove duplicate user hooks; never restore them as parity repair. Other hosts keep their existing bridge until migrated. Useful personal AgentHub plugins remain separate and approved.
+
+Vendor hooks belong to the plugin. Codex reviews and trusts them through `/hooks`; changed hook content requires fresh review. Do not write trust hashes manually. Keep the bounded indexing rule above even when vendor guidance suggests bare `repowise update`.
 
 ## Full contract
 
-[`packages/repowise/skills/use-repowise/SKILL.md`](../../packages/repowise/skills/use-repowise/SKILL.md)
+[`packages/repowise/skills/repowise/SKILL.md`](../../packages/repowise/skills/repowise/SKILL.md)

@@ -87,12 +87,12 @@ $applyBehind = Invoke-Updater -UpdaterArgs @(
 )
 Report 'apply-behind-invokes-uv' (Test-Path -LiteralPath $log) 'uv stub was not executed'
 $uvLog = if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Raw -Encoding UTF8 } else { '' }
-Report 'apply-behind-upgrade-not-install' ($uvLog -match 'tool upgrade repowise') $uvLog
+Report 'apply-behind-replaces-old-version-requirement' ($uvLog -match 'tool install repowise@latest --force') $uvLog
 Report 'apply-behind-fails-if-uv-fails' ($applyBehind.ExitCode -ne 0) "exit=$($applyBehind.ExitCode) output=$($applyBehind.Output)"
 Report 'apply-behind-does-not-claim-current' ($applyBehind.Output -notmatch 'PASS: RepoWise CLI is now') $applyBehind.Output
 
 Report 'does-not-pin-a-version-in-the-script' ($raw -notmatch '0\.44\.0') 'script hardcodes 0.44.0; latest must come from PyPI'
-Report 'uses-uv-tool-upgrade' ($raw -match 'tool'', ''upgrade'', ''repowise') 'missing uv tool upgrade'
+Report 'uses-unpinned-latest-requirement' ($raw -match 'tool'', ''install'', ''repowise@latest') 'missing uv latest install'
 
 # Owner direction 2026-10-13: no scheduled agent jobs. The updater may only
 # delete its retired task, never create one.
@@ -207,7 +207,7 @@ Report 'second-repair-is-byte-and-write-noop' ($second.ExitCode -eq 0 -and [Conv
 
 [IO.File]::WriteAllText($settingsFile, $fixture, $encoding)
 $applyCurrent = Invoke-Updater -UpdaterArgs (@('-Apply', '-InstalledVersion', '0.59.0', '-LatestVersion', '0.59.0', '-UvExe', $stub) + $hookArgs)
-Report 'apply-current-repairs-hooks' ($applyCurrent.ExitCode -eq 0 -and [Convert]::ToBase64String([IO.File]::ReadAllBytes($settingsFile)) -ceq $expectedBase64) "exit=$($applyCurrent.ExitCode)"
+Report 'apply-current-preserves-editor-settings' ($applyCurrent.ExitCode -eq 0 -and [Convert]::ToBase64String([IO.File]::ReadAllBytes($settingsFile)) -ceq $originalBytes) "exit=$($applyCurrent.ExitCode)"
 
 $migrationSource = Join-Path $scratch 'migration-settings.json'
 $migrationLog = Join-Path $scratch 'migration.log'
@@ -233,10 +233,10 @@ try {
 } finally {
     $env:PATH = $previousPath
 }
-Report 'apply-runs-editor-migrations-before-hook-repair' ($migratedApply.ExitCode -eq 0 -and (Test-Path -LiteralPath $migrationLog) -and [Convert]::ToBase64String([IO.File]::ReadAllBytes($settingsFile)) -ceq $expectedBase64) "exit=$($migratedApply.ExitCode)"
+Report 'apply-does-not-trigger-editor-regeneration' ($migratedApply.ExitCode -eq 0 -and -not (Test-Path -LiteralPath $migrationLog) -and [Convert]::ToBase64String([IO.File]::ReadAllBytes($settingsFile)) -ceq $originalBytes) "exit=$($migratedApply.ExitCode)"
 
 [IO.File]::WriteAllText($settingsFile, $expected, $encoding)
-Remove-Item -LiteralPath $migrationLog -Force
+Remove-Item -LiteralPath $migrationLog -Force -ErrorAction SilentlyContinue
 try {
     $env:PATH = $scratch + [IO.Path]::PathSeparator + $previousPath
     $failedLatest = Invoke-Updater -FailLatestProbe -UpdaterArgs (@('-Apply', '-UvExe', $stub) + $hookArgs)

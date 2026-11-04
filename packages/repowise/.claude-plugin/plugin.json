@@ -1,6 +1,6 @@
 {
   "name": "repowise",
-  "description": "Fleet RepoWise workspace MCP pinned at C:/Repos. Enable only when code-intelligence tools are needed; disable when done.",
+  "description": "Legacy-host RepoWise bridge. Claude uses vendor repowise@repowise instead; do not install or re-enable this retired Claude wrapper.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -12,5 +12,5 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
-  "version": "1.2.16"
+  "version": "1.2.17"
 }

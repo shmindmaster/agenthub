@@ -11,8 +11,8 @@
     job runs this script, because a Task Scheduler powershell.exe action opens
     a console window and takes keyboard focus.
 
-    Audit (default) never writes. Apply upgrades (or installs if missing),
-    then repairs known Bash-only RepoWise hooks. RepairHooks runs only that
+    Audit (default) never writes. Apply upgrades (or installs if missing)
+    without changing editor configuration. RepairHooks runs only the explicit legacy
     repair, without version or installation probes.
     RemoveSchedule deletes the retired AgentHub-Update-RepoWise task if an
     older checkout registered it.
@@ -22,7 +22,7 @@
     action is passed.
 
 .PARAMETER Apply
-    Install or upgrade to the PyPI latest via `uv tool`, then repair hooks.
+    Install or upgrade to the PyPI latest via `uv tool`; preserve editor configuration.
 
 .PARAMETER RepairHooks
     Normalize known generated Bash hook commands to the native augment executable.
@@ -227,7 +227,10 @@ function Write-State([hashtable]$Record) {
 }
 
 function Invoke-Upgrade([string]$UvPath, [bool]$AlreadyInstalled) {
-    $args = if ($AlreadyInstalled) { @('tool', 'upgrade', 'repowise') } else { @('tool', 'install', 'repowise') }
+    # uv tool upgrade preserves an old exact-version requirement. Replace that
+    # requirement only when behind; current installations are left untouched.
+    $args = @('tool', 'install', 'repowise@latest')
+    if ($AlreadyInstalled) { $args += '--force' }
     $out = & $UvPath @args 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         throw "uv $($args -join ' ') failed (exit $LASTEXITCODE): $out"
@@ -300,14 +303,6 @@ try {
         }
 
         if ($Apply) {
-            $migrationExitCode = 0
-            if ($repoWiseExe) {
-                # The eager version option skips migrations; normalize only after they run.
-                $null = & $repoWiseExe agents --help 2>&1 | Out-String
-                $migrationExitCode = $LASTEXITCODE
-            }
-            Repair-RepoWiseHooks
-            if ($migrationExitCode -ne 0) { throw "RepoWise editor migration initialization failed (exit $migrationExitCode)." }
             Write-State @{
                 checkedAt = [datetime]::UtcNow.ToString('o')
                 installed = $installed
@@ -318,7 +313,7 @@ try {
         }
     }
 
-    if ($RepairHooks -and -not $Apply) { Repair-RepoWiseHooks }
+    if ($RepairHooks) { Repair-RepoWiseHooks }
     if ($RemoveSchedule) { Remove-UpdateTask }
 } catch {
     Write-Host "FAIL: $($_.Exception.Message)"
