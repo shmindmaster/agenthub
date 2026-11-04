@@ -41,6 +41,12 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **RepoWise refresh and serving (2026-11-04):** package 1.4.0 refreshes only
+  entries whose files moved (`Invoke-RepoWiseRefreshChanged.ps1`), facts only by
+  default, and every session on every host shares one server that exits after 30
+  idle minutes. This supersedes the 8 GiB limits and the server per session on
+  Claude and Codex described below.
+
 - **Bounded RepoWise updates:** package 1.2.6 adds the manual
   `Invoke-RepoWiseBoundedIndex.ps1` entry point. It acquires a caller-specified
   atomic lease, pins existing local embeddings, and installs an 8 GiB / 900 s

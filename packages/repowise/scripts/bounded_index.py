@@ -1,4 +1,11 @@
-"""One local, index-only RepoWise update under an already-owned atomic lease."""
+"""One local, index-only RepoWise update under an already-owned atomic lease.
+
+By default it refreshes facts only (symbols, graph, git history). Rendering and
+embedding wiki pages took 81% of a measured delta (119 of 147 s on agenthub) and
+is the only step that sends code to the embedder, so it is opt-in. A normal repo
+peaks under 1.1 GB; the largest (abacare) reaches 3 GiB on its first run after a
+RepoWise upgrade, which sets the 4 GiB default below.
+"""
 from __future__ import annotations
 
 import argparse
@@ -11,11 +18,15 @@ import shutil
 import subprocess
 import sys
 
+from changed_repos import workspace_members
 from shared_server import configure_remote_embedder
 from source_fence import source_fence
 from windows_job import LeaseRetentionError, free_memory, run
 
 GIB = 1024**3
+# The floor decides whether to start. Free RAM swings by gigabytes here, and
+# killing a started run costs its snapshot, so only real pressure stops one.
+STOP_FREE_BYTES = GIB
 LEASE_OWNER = "AgentHub bounded RepoWise index"
 # Terminate, reconcile and re-fence need time inside the caller's deadline.
 CLEANUP_RESERVE_SECONDS = 30
@@ -151,8 +162,8 @@ def validate_paths(workspace: Path, repo: Path, output: Path) -> None:
     root = subprocess.check_output(
         ["git", "-C", str(repo), "rev-parse", "--show-toplevel"], text=True,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).strip()
-    if Path(root).resolve() != repo:
-        raise RuntimeError("Repository must be its own Git root")
+    if Path(root).resolve() != repo and repo not in workspace_members(workspace):
+        raise RuntimeError("Repository must be its own Git root or a listed workspace member")
     if output.is_relative_to(workspace):
         raise RuntimeError("Receipts must be outside the source workspace")
     if not output_permitted(output):
@@ -185,9 +196,11 @@ def main(argv=None) -> int:
     parser.add_argument("--lease", type=Path, required=True)
     parser.add_argument("--lease-token", required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--memory-gib", type=int, choices=range(1, 9), default=8)
-    parser.add_argument("--timeout-seconds", type=int, choices=range(1, 901), default=900)
-    parser.add_argument("--minimum-free-gib", type=float, default=8)
+    parser.add_argument("--memory-gib", type=int, choices=range(1, 9), default=4)
+    parser.add_argument("--timeout-seconds", type=int, choices=range(1, 3601), default=900)
+    parser.add_argument("--minimum-free-gib", type=float, default=4)
+    parser.add_argument("--render-docs", action="store_true",
+                        help="also re-render wiki pages and embed them (slow, uses Azure)")
     parser.add_argument("--ram-floor-waiver-reason")
     parser.add_argument("--deadline")
     args = parser.parse_args(argv)
@@ -215,7 +228,8 @@ def main(argv=None) -> int:
         output.mkdir(parents=True, exist_ok=False)
         receipt = {"accepted": False, "headBefore": git_head(repo),
                    "lastSyncCommitBefore": state_commit(repo),
-                   "sourceBefore": source_fence(repo), "mode": "index-only",
+                   "sourceBefore": source_fence(repo),
+                   "mode": "index-only" if args.render_docs else "facts-only",
                    "ramFloorPolicy": ram_policy}
     except Exception as error:
         write_admission_failure(workspace, output, error)
@@ -224,16 +238,23 @@ def main(argv=None) -> int:
     try:
         # Reuse the shared server's Azure endpoint validation and actual embedding
         # probe so indexing and querying use the same deployment and width.
-        configure_remote_embedder()
+        if args.render_docs:
+            configure_remote_embedder()
         require_lease(args.lease, args.lease_token)
+        command = [executable, "update", "--no-workspace", "--index-only",
+                   "--concurrency", "1", "--progress", "json"]
+        if not args.render_docs:
+            command.append("--defer-docs")
         result = run(
-            [executable, "update", "--no-workspace", "--index-only",
-             "--concurrency", "1", "--progress", "json"],
+            command,
             cwd=repo, output=output / "child",
             memory_bytes=args.memory_gib * GIB,
             timeout_seconds=remaining_seconds(args.timeout_seconds, args.deadline),
-            minimum_free_bytes=ram_policy["effectiveMinimumFreeBytes"],
-            environment=dict(os.environ), parent_pid=os.getppid())
+            minimum_free_bytes=min(ram_policy["effectiveMinimumFreeBytes"], STOP_FREE_BYTES),
+            # The update's detached commit-health drain would outlive the run
+            # and fail acceptance; the next update resumes what it leaves.
+            environment={**os.environ, "REPOWISE_COMMIT_HEALTH_BACKGROUND": "0"},
+            parent_pid=os.getppid())
         receipt["child"] = result
     except BaseException as error:
         receipt["failure"] = type(error).__name__

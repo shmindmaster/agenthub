@@ -25,8 +25,8 @@ Pass `repo=<alias>` or `repo=all`. Wrap noisy commands in `repowise distill <cmd
 
 ## Hosts
 
-- Claude uses vendor `repowise@repowise`, Codex uses vendor `codex@repowise` (both from `repowise-dev/repowise`). They own MCP, hooks and skills. Uninstall `repowise@agenthub` there and never re-enable it. Never register both routes on one host.
-- Other hosts use the AgentHub bridge to one shared loopback server (port 7339), started by `Start-RepoWiseShared.ps1`. It fails closed when the embedder probe fails, with no local embedding fallback.
+- Claude uses vendor `repowise@repowise`, Codex uses vendor `codex@repowise` (both from `repowise-dev/repowise`). They own hooks and skills, and `Install-RepoWiseVendorLauncher.ps1` points their MCP entry at the bridge below. Uninstall `repowise@agenthub` there and never re-enable it. Never register both routes on one host.
+- Every host reaches one shared loopback server (port 7339) through the AgentHub bridge. The bridge starts it on demand through `Start-RepoWiseShared.ps1`, it exits after 30 idle minutes, and calls that name no repo go to the repo the session started in. It fails closed when the embedder probe fails, with no local embedding fallback.
 - Add no per-repository MCP entries, user hooks, post-commit hooks, logon tasks or scheduled updaters.
 
 ## Rules
@@ -39,7 +39,7 @@ Pass `repo=<alias>` or `repo=all`. Wrap noisy commands in `repowise distill <cmd
 
 ## Refresh the index
 
-After material changes, refresh only through `packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1`: one repo, index-only, memory-capped, deadline-bound. Read `references/refresh.md` for its parameters and acceptance checks before running it.
+Refresh with `packages/repowise/scripts/Invoke-RepoWiseRefreshChanged.ps1`. It visits only entries whose files moved, one at a time, and at most once in 20 hours. For one repo use `Invoke-RepoWiseBoundedIndex.ps1`. Read `references/refresh.md` for parameters and acceptance checks before running either.
 
 Report the receipt result and real retrieval quality (run actual queries) separately; a clean receipt does not prove vector search works.
 

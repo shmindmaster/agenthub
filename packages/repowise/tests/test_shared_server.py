@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 import unittest
 from unittest.mock import patch, Mock
 from types import SimpleNamespace
@@ -32,56 +33,39 @@ def azure_env(**extra):
 
 
 class VendorLauncherTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        sys.modules['shared_server'] = shared
-        launcher_spec = importlib.util.spec_from_file_location(
-            'vendor_mcp', Path(__file__).parents[1] / 'scripts/vendor_mcp.py')
-        cls.launcher = importlib.util.module_from_spec(launcher_spec)
-        launcher_spec.loader.exec_module(cls.launcher)
+    def test_launcher_serves_through_the_bridge_and_starts_no_server_of_its_own(self):
+        source = (Path(__file__).parents[1] / 'scripts/vendor_mcp.py').read_text(encoding='utf-8')
+        self.assertIn('from repowise_bridge import main', source)
+        self.assertNotIn('subprocess', source)
 
-    def run_main(self, configure, which='C:/bin/repowise.exe', argv=()):
-        call = Mock(return_value=7)
-        with patch.object(self.launcher, 'configure_remote_embedder', configure), \
-                patch.object(self.launcher.shutil, 'which', return_value=which), \
-                patch.object(self.launcher.subprocess, 'call', call), \
-                patch.object(self.launcher.sys, 'argv', ['vendor_mcp.py', *argv]):
-            return self.launcher.main(), call
 
-    def test_configures_azure_before_starting_vendor_server(self):
-        order = []
-        configure = Mock(side_effect=lambda: order.append('configure'))
-        call = Mock(side_effect=lambda *a, **k: order.append('start') or 0)
-        with patch.object(self.launcher, 'configure_remote_embedder', configure), \
-                patch.object(self.launcher.shutil, 'which', return_value='C:/bin/repowise.exe'), \
-                patch.object(self.launcher.subprocess, 'call', call), \
-                patch.object(self.launcher.sys, 'argv', ['vendor_mcp.py']):
-            self.assertEqual(self.launcher.main(), 0)
-        self.assertEqual(order, ['configure', 'start'])
-        self.assertEqual(call.call_args.args[0], ['C:/bin/repowise.exe', 'mcp'])
+class IdleExitTest(unittest.TestCase):
+    def test_idle_counts_only_time_with_no_request_in_flight(self):
+        now = [100.0]
+        activity = shared.Activity(clock=lambda: now[0])
+        now[0] = 160.0
+        self.assertEqual(activity.idle_seconds(), 60.0)
+        activity.enter()
+        now[0] = 900.0
+        self.assertEqual(activity.idle_seconds(), 0.0)
+        activity.leave()
+        now[0] = 930.0
+        self.assertEqual(activity.idle_seconds(), 30.0)
 
-    def test_returns_vendor_exit_code_and_forwards_arguments(self):
-        code, call = self.run_main(Mock(), argv=('--transport', 'stdio'))
-        self.assertEqual(code, 7)
-        self.assertEqual(call.call_args.args[0],
-                         ['C:/bin/repowise.exe', 'mcp', '--transport', 'stdio'])
+    def test_app_asks_to_stop_once_idle_and_not_before(self):
+        @asynccontextmanager
+        async def lifespan(server):
+            yield {}
 
-    def test_azure_failure_still_starts_keyword_retrieval(self):
-        for failure in (RuntimeError('probe failed'), ValueError('missing settings')):
-            with self.subTest(failure=failure):
-                code, call = self.run_main(Mock(side_effect=failure))
-                self.assertEqual(code, 7)
-                call.assert_called_once()
-
-    def test_missing_cli_stops_without_starting(self):
-        code, call = self.run_main(Mock(), which=None)
-        self.assertEqual(code, 1)
-        call.assert_not_called()
-
-    def test_stdio_is_passed_explicitly_so_the_child_gets_the_host_pipes(self):
-        _, call = self.run_main(Mock())
-        for stream in ('stdin', 'stdout', 'stderr'):
-            self.assertIn(stream, call.call_args.kwargs)
+        stopped = []
+        app = shared.create_app(FastMCP('fixture', lifespan=lifespan), server_version='test',
+                                idle_seconds=0.05, on_idle=lambda: stopped.append(True))
+        with TestClient(app, base_url='http://127.0.0.1:8000'):
+            self.assertEqual(stopped, [])
+            deadline = time.monotonic() + 5
+            while not stopped and time.monotonic() < deadline:
+                time.sleep(0.01)
+        self.assertEqual(stopped, [True])
 
 
 class RemoteEmbeddingTest(unittest.TestCase):

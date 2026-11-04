@@ -434,6 +434,82 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(reply["result"], {})
 
 
+class SessionRepoTests(unittest.TestCase):
+    WORKSPACE = ("version: 1\ndefault_repo: one\nrepos:\n- path: one\n  alias: first\n  tags:\n  - x\n"
+                 "- path: mono/apps/web\n  alias: 'web'\n- path: mono\n  alias: mono-root\n")
+
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory(prefix="session-repo-")
+        self.addCleanup(folder.cleanup)
+        self.root = Path(folder.name).resolve()
+        (self.root / ".repowise-workspace.yaml").write_text(self.WORKSPACE, encoding="utf-8")
+        (self.root / "mono" / "apps" / "web" / "src").mkdir(parents=True)
+        (self.root / "one").mkdir()
+        (self.root / "other").mkdir()
+
+    def test_deepest_member_containing_the_session_wins(self):
+        pick = lambda *parts: repowise_bridge.session_repo(self.root.joinpath(*parts), self.root)
+        self.assertEqual(pick("one"), "first")
+        self.assertEqual(pick("mono", "apps", "web", "src"), "web")
+        self.assertEqual(pick("mono", "apps"), "mono-root")
+        self.assertIsNone(pick("other"))
+
+    def test_missing_workspace_file_means_no_session_repo(self):
+        self.assertIsNone(repowise_bridge.session_repo(self.root, self.root / "other"))
+
+    def scoped(self, repo, params, method="tools/call"):
+        bridge = repowise_bridge.Bridge.__new__(repowise_bridge.Bridge)
+        bridge.repo = repo
+        bridge.aliases = {"first", "web", "mono-root"}
+        bridge.cache = type("Cache", (), {"get": staticmethod(lambda name: {"tools": [
+            {"name": "search_codebase", "inputSchema": {"properties": {"repo": {}, "query": {}}}},
+            {"name": "list_repos", "inputSchema": {"properties": {}}}]})})()
+        return bridge.with_session_repo({"id": 1, "method": method, "params": params})["params"]
+
+    def test_call_without_a_repo_is_aimed_at_the_session(self):
+        out = self.scoped("web", {"name": "search_codebase", "arguments": {"query": "x"}})
+        self.assertEqual(out["arguments"], {"query": "x", "repo": "web"})
+
+    def test_explicit_repo_and_tools_without_one_are_left_alone(self):
+        explicit = {"name": "search_codebase", "arguments": {"repo": "all"}}
+        self.assertEqual(self.scoped("web", explicit), explicit)
+        for params in ({"name": "list_repos", "arguments": {}}, {"name": "unknown", "arguments": {}}):
+            self.assertEqual(self.scoped("web", params), params)
+
+    def test_target_naming_its_repo_is_left_for_the_server_to_route(self):
+        absolute = str(self.root / "one" / "a.py")
+        for key, value in (("targets", ["first:src/a.py"]), ("id", "first:src/a.py::Name"),
+                           ("targets", [absolute]), ("id", f"{absolute}::Name"),
+                           ("changed_files", ["src/b.py", "first:src/a.py"])):
+            params = {"name": "search_codebase", "arguments": {key: value}}
+            self.assertEqual(self.scoped("web", params), params)
+
+    def test_plain_values_still_get_the_session_repo(self):
+        arguments = {"targets": ["src/a.py", "src/a.py::Name", "first"], "query": "first: why"}
+        out = self.scoped("web", {"name": "search_codebase", "arguments": arguments})
+        self.assertEqual(out["arguments"]["repo"], "web")
+
+    def test_linked_worktree_answers_as_its_main_checkout(self):
+        mono = self.root / "mono"
+
+        def git(*args):
+            subprocess.run(["git", "-c", "user.email=t@example.invalid", "-c", "user.name=t", *args],
+                           cwd=mono, check=True, capture_output=True)
+
+        git("init", "-q")
+        (mono / "apps" / "web" / "a.txt").write_text("x", encoding="utf-8")
+        git("add", ".")
+        git("commit", "-qm", "first")
+        worktree = self.root / "elsewhere" / "task"
+        git("worktree", "add", "-q", str(worktree))
+        self.assertEqual(repowise_bridge.session_repo(worktree / "apps" / "web", self.root), "web")
+        self.assertEqual(repowise_bridge.session_repo(worktree, self.root), "mono-root")
+
+    def test_session_outside_the_workspace_keeps_the_server_default(self):
+        params = {"name": "search_codebase", "arguments": {"query": "x"}}
+        self.assertEqual(self.scoped(None, params), params)
+
+
 class SpawnFlagTests(unittest.TestCase):
     def test_launcher_is_windowless_and_detached(self) -> None:
         flags = repowise_bridge.spawn_flags(True)

@@ -15,7 +15,8 @@ def source_fence(repo: Path) -> dict:
     names.update(os.fsencode(name) for name in
                  (".vscode/mcp.json", ".mcp.json", "AGENTS.md", "CLAUDE.md",
                   ".claude/CLAUDE.md", ".repowise/config.yaml"))
-    digest = sha256(git("status", "--porcelain=v1", "-z", "--untracked-files=all"))
+    # Scoped to the folder: in a monorepo a sibling's edit is not this entry's.
+    digest = sha256(git("status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."))
     staged = git("ls-files", "--stage", "-z")
     digest.update(staged)
     gitlinks = {}

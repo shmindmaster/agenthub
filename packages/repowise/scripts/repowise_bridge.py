@@ -46,6 +46,7 @@ from __future__ import annotations
 import http.client
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -63,6 +64,13 @@ MODE_ENV = "AGENTHUB_REPOWISE_MODE"
 REMOTE_URL_ENV = "AGENTHUB_REPOWISE_REMOTE_URL"
 REMOTE_TOKEN_ENV_ENV = "AGENTHUB_REPOWISE_REMOTE_TOKEN_ENV"
 DEFAULT_REMOTE_TOKEN_ENV = "REPOWISE_REMOTE_TOKEN"
+WORKSPACE_ENV = "REPOWISE_BRIDGE_WORKSPACE"
+DEFAULT_WORKSPACE = "C:/Repos"
+WORKSPACE_MEMBER = re.compile(
+    r"^-\s*path:\s*['\"]?([^'\"\n#]+?)['\"]?\s*\n\s*alias:\s*['\"]?([^'\"\n#]+?)['\"]?\s*$", re.M)
+# Arguments that may hold `alias:path` or an absolute path. The server routes
+# those to the owning repo itself, and only when the call carries no repo.
+ROUTED_ARGUMENTS = ("targets", "id", "changed_files")
 CACHED_METHODS = ("initialize", "tools/list", "prompts/list", "resources/list")
 # Requests with possible side effects (RepoWise has write tools such as
 # update_decision_records): never resent after the connection dropped mid-call.
@@ -115,6 +123,51 @@ def runtime_dir() -> Path:
         return Path(override)
     base = os.environ.get("LOCALAPPDATA") or str(Path.home())
     return Path(base) / "AgentHub" / "runtime" / "repowise-shared"
+
+
+def workspace_entries(workspace: Path) -> list[tuple[Path, str]]:
+    try:
+        text = (workspace / ".repowise-workspace.yaml").read_text(encoding="utf-8-sig")
+    except OSError:
+        return []
+    return [((workspace / path.strip()).resolve(), alias.strip())
+            for path, alias in WORKSPACE_MEMBER.findall(text)]
+
+
+def main_checkout(cwd: Path) -> Path | None:
+    """This folder in the main checkout. Worktrees live under C:/wt, unindexed."""
+    command = ["git", "-C", str(cwd), "rev-parse", "--path-format=absolute",
+               "--git-common-dir", "--show-prefix"]
+    try:
+        lines = subprocess.run(command, capture_output=True, text=True, timeout=10,
+                               creationflags=CREATE_NO_WINDOW if os.name == "nt" else 0
+                               ).stdout.splitlines()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if not lines:
+        return None
+    return Path(lines[0]).parent / (lines[1] if len(lines) > 1 else "")
+
+
+def session_repo(cwd: Path, workspace: Path) -> str | None:
+    """The workspace member this session runs in, deepest match first.
+
+    A server per session defaulted to the repo it started in. One shared server
+    has a single default, so the bridge carries that choice for its session.
+    """
+    entries = workspace_entries(workspace)
+
+    def deepest(folder: Path) -> str | None:
+        matches = [(len(member.parts), alias) for member, alias in entries
+                   if member == folder or member in folder.parents]
+        return max(matches)[1] if matches else None
+
+    cwd = cwd.resolve()
+    found = deepest(cwd)
+    if found or not entries:
+        return found
+    checkout = main_checkout(cwd)
+    return deepest(checkout.resolve()) if checkout else None
 
 
 class UpstreamConfig:
@@ -640,6 +693,36 @@ class Bridge:
         self._pool = ThreadPoolExecutor(max_workers=8)
         self._warm_lock = threading.Lock()
         self._warming = False
+        workspace = Path(os.environ.get(WORKSPACE_ENV, DEFAULT_WORKSPACE))
+        self.aliases = {alias for _, alias in workspace_entries(workspace)}
+        self.repo = session_repo(Path.cwd(), workspace)
+
+    def accepts_repo(self, tool: Any) -> bool:
+        tools = (self.cache.get("tools/list") or {}).get("tools") or []
+        return any(item.get("name") == tool
+                   and "repo" in ((item.get("inputSchema") or {}).get("properties") or {})
+                   for item in tools)
+
+    def routes_itself(self, arguments: dict) -> bool:
+        for key in ROUTED_ARGUMENTS:
+            values = arguments.get(key)
+            for value in values if isinstance(values, list) else [values]:
+                if not isinstance(value, str):
+                    continue
+                if ":" in value and value.partition(":")[0] in self.aliases:
+                    return True
+                if Path(value.partition("::")[0]).is_absolute():
+                    return True
+        return False
+
+    def with_session_repo(self, message: dict) -> dict:
+        """Aim a call that names no repo at this session's repo."""
+        params = message.get("params") or {}
+        arguments = params.get("arguments") or {}
+        if (not self.repo or message.get("method") != "tools/call" or "repo" in arguments
+                or self.routes_itself(arguments) or not self.accepts_repo(params.get("name"))):
+            return message
+        return {**message, "params": {**params, "arguments": {**arguments, "repo": self.repo}}}
 
     def write(self, message: dict) -> None:
         try:
@@ -743,7 +826,7 @@ class Bridge:
         if wait is None:
             wait = self.handshake_wait if cacheable else self.call_wait
         deadline = time.monotonic() + wait
-        self._forward_request(message, message_id, method, deadline, cacheable)
+        self._forward_request(self.with_session_repo(message), message_id, method, deadline, cacheable)
 
     def handle_notification(self, message: dict) -> None:
         if message.get("method") == "notifications/initialized":

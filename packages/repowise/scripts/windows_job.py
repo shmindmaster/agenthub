@@ -61,6 +61,14 @@ class Accounting(C.Structure):
         (name, W.DWORD) for name in ("pageFaults", "totalProcesses", "activeProcesses", "terminatedProcesses")]
 
 
+# Free RAM here swings by gigabytes for a single sample (7 GiB to 0.8 and back in
+# one 500 ms tick killed a run). Only pressure that lasts stops a job: 10 s.
+LOW_RAM_SAMPLES = 20
+# Interpreter shutdown outlives the launcher by a few seconds. A descendant that
+# is still running after this is a real leftover.
+SETTLE_SECONDS = 5
+
+
 def free_memory() -> int:
     if os.name != "nt":
         raise OSError("Windows Job Objects are required")
@@ -174,6 +182,7 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
             with (output / "resource-samples.jsonl").open("w", encoding="utf-8") as samples:
                 waitable = [info.process] + ([parent] if parent else [])
                 waitables = (W.HANDLE * len(waitable))(*waitable)
+                low_samples = 0
                 while True:
                     wait = kernel.WaitForMultipleObjects(len(waitable), waitables, False, 500)
                     if wait not in (0, 1, 258) or (wait == 1 and not parent):
@@ -192,7 +201,8 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
                         result["reason"] = "parent-exited"
                         terminate_owned()
                         break
-                    if elapsed >= timeout_seconds or available < minimum_free_bytes:
+                    low_samples = low_samples + 1 if available < minimum_free_bytes else 0
+                    if elapsed >= timeout_seconds or low_samples >= LOW_RAM_SAMPLES:
                         result["reason"] = "timeout" if elapsed >= timeout_seconds else "low-ram"
                         terminate_owned()
                         break
@@ -211,7 +221,7 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
             if assigned:
                 # A launcher can exit while a detached descendant keeps running.
                 # Record that before the cleanup below hides it.
-                settle = time.monotonic() + 0.25
+                settle = time.monotonic() + SETTLE_SECONDS
                 result["activeProcessesBeforeCleanup"] = active_processes()
                 while result["activeProcessesBeforeCleanup"] and time.monotonic() < settle:
                     time.sleep(0.025)

@@ -4,6 +4,7 @@
 Manually run one local index-only update under an atomic coordination lease.
 .DESCRIPTION
 No install, service restart, schedule, agent generation, docs or paid provider.
+-RenderDocs also re-renders wiki pages and embeds them through Azure.
 The caller supplies the shared heavy-work lease path, never a foreign lease.
 #>
 [CmdletBinding()]
@@ -12,9 +13,10 @@ param(
     [Parameter(Mandatory)][string]$RepositoryRoot,
     [Parameter(Mandatory)][string]$LeasePath,
     [Parameter(Mandatory)][string]$OutputDirectory,
-    [ValidateRange(1, 8)][int]$MemoryGiB = 8,
-    [ValidateRange(1, 900)][int]$TimeoutSeconds = 900,
-    [ValidateRange(4, 64)][double]$MinimumFreeGiB = 8,
+    [ValidateRange(1, 8)][int]$MemoryGiB = 4,
+    [ValidateRange(1, 3600)][int]$TimeoutSeconds = 900,
+    [ValidateRange(4, 64)][double]$MinimumFreeGiB = 4,
+    [switch]$RenderDocs,
     [ValidateLength(1, 512)]
     [ValidateScript({ -not [string]::IsNullOrWhiteSpace($_) })]
     [string]$RamFloorWaiverReason,
@@ -89,6 +91,7 @@ try {
         '--minimum-free-gib', [string]$MinimumFreeGiB,
         '--deadline', $Deadline.ToUniversalTime().ToString('o'))
     if ($RamFloorWaiverReason) { $childArguments += @('--ram-floor-waiver-reason', $RamFloorWaiverReason) }
+    if ($RenderDocs) { $childArguments += '--render-docs' }
     $run = Invoke-HiddenProcess -FilePath $pythonCommand -ArgumentList $childArguments
     if ($run.StdOut) { Write-Output $run.StdOut.TrimEnd() }
     if ($run.StdErr) { Write-Host $run.StdErr.TrimEnd() }
@@ -96,6 +99,13 @@ try {
     if ($code -eq 3) {
         # Exit 3: owned processes may still be alive. Keep the lease.
         $retainLease = $true
+        # Lets a later run tell this from a lease a killed run left behind.
+        $record.retained = $true
+        $bytes = [Text.Encoding]::UTF8.GetBytes(($record | ConvertTo-Json -Compress))
+        $stream.SetLength(0)
+        $stream.Position = 0
+        $stream.Write($bytes, 0, $bytes.Length)
+        $stream.Flush($true)
         throw "Bounded indexing could not prove its owned processes are gone. The admission lease REMAINS at '$LeasePath'. An operator must verify the processes are gone before removing it."
     }
     if ($code -ne 0) { throw 'Bounded indexing was not accepted.' }

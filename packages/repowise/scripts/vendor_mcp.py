@@ -1,36 +1,14 @@
-"""Start the vendor RepoWise MCP server on the MahumTech Azure embedder.
+"""Serve vendor RepoWise to one host session through the one shared server.
 
-Vendor `repowise mcp` reads OPENAI_BASE_URL and OPENAI_API_KEY from its own
-process and has no Azure provider. Setting them here keeps Azure scoped to this
-process tree, so machine-wide OpenAI settings stay untouched and no key is
-copied into a config file. If Azure is unavailable the vendor server still
-starts and serves keyword retrieval.
+The vendor plugin's .mcp.json points here (Install-RepoWiseVendorLauncher.ps1).
+A `repowise mcp` per session holds about 330 MB each, measured at 3.3 GB across
+10 sessions; the shared vendor server holds 760 MB for all of them, and this
+process stays small. The bridge starts that server when it is down, and the
+server exits after 30 idle minutes, so nothing runs without a session using it.
 """
 from __future__ import annotations
 
-import shutil
-import subprocess
-import sys
-
-from shared_server import configure_remote_embedder
-
-CREATE_NO_WINDOW = 0x08000000
-
-
-def main() -> int:
-    executable = shutil.which('repowise')
-    if not executable:
-        print('RepoWise CLI not found', file=sys.stderr)
-        return 1
-    try:
-        configure_remote_embedder()
-    except (RuntimeError, ValueError) as error:
-        print(f'RepoWise vector retrieval unavailable: {error}', file=sys.stderr)
-    flags = CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-    # Pass stdio explicitly: Windows does not hand pipes to a child otherwise.
-    return subprocess.call([executable, 'mcp', *sys.argv[1:]], stdin=sys.stdin,
-                           stdout=sys.stdout, stderr=sys.stderr, creationflags=flags)
-
+from repowise_bridge import main
 
 if __name__ == '__main__':
     raise SystemExit(main())

@@ -1,11 +1,12 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-Point the vendor RepoWise plugins at the Azure-scoped MCP launcher.
+Point the vendor RepoWise plugins at the shared-server launcher.
 
 .DESCRIPTION
-Vendor `repowise mcp` has no Azure provider, so the Claude and Codex plugins start
-it through vendor_mcp.py. A plugin update restores the vendor file, so run this
+The Claude and Codex plugins start vendor_mcp.py, which bridges each session to
+one shared vendor server on Azure embeddings instead of running a server per
+session. A plugin update restores the vendor file, so run this
 again after updating. Audit is the default; only -Apply writes. Other fields in
 each server entry are kept.
 #>

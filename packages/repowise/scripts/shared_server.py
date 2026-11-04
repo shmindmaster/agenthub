@@ -9,12 +9,14 @@ installed module is patched and each client retains its own MCP session.
 from __future__ import annotations
 
 import argparse
+import asyncio
 from contextlib import asynccontextmanager
 from importlib.metadata import version
 import json
 import math
 import os
 import sys
+import time
 from urllib.parse import urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
 
@@ -83,7 +85,26 @@ def configure_remote_embedder(environ=None) -> None:
                       REPOWISE_EMBEDDING_DECLARED_DIMS=str(len(vector)))
 
 
-def create_app(upstream, *, server_version: str):
+class Activity:
+    """How long the server has gone with no request in flight."""
+
+    def __init__(self, clock=time.monotonic):
+        self._clock = clock
+        self._open = 0
+        self._last = clock()
+
+    def enter(self):
+        self._open += 1
+
+    def leave(self):
+        self._open -= 1
+        self._last = self._clock()
+
+    def idle_seconds(self) -> float:
+        return 0.0 if self._open else self._clock() - self._last
+
+
+def create_app(upstream, *, server_version: str, idle_seconds: float = 0, on_idle=None):
     from mcp.server.lowlevel import Server
     from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
     from starlette.applications import Starlette
@@ -105,16 +126,35 @@ def create_app(upstream, *, server_version: str):
     server.get_prompt()(upstream.get_prompt)
     manager = StreamableHTTPSessionManager(
         server, security_settings=upstream.settings.transport_security)
+    activity = Activity()
+
+    async def stop_when_idle():
+        while activity.idle_seconds() < idle_seconds:
+            await asyncio.sleep(min(60.0, idle_seconds))
+        on_idle()
 
     @asynccontextmanager
     async def application_lifespan(app):
         async with lifespan(upstream):
             async with manager.run():
-                yield
+                watcher = asyncio.create_task(stop_when_idle()) if idle_seconds else None
+                try:
+                    yield
+                finally:
+                    if watcher:
+                        watcher.cancel()
 
     class Endpoint:
         async def __call__(self, scope, receive, send):
-            await manager.handle_request(scope, receive, send)
+            # A GET is a long-lived event stream, not work.
+            if scope['method'] != 'POST':
+                await manager.handle_request(scope, receive, send)
+                return
+            activity.enter()
+            try:
+                await manager.handle_request(scope, receive, send)
+            finally:
+                activity.leave()
 
     return Starlette(routes=[Route('/mcp', Endpoint(),
                                   methods=['GET', 'POST', 'DELETE'])],
@@ -125,6 +165,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('workspace')
     parser.add_argument('--port', type=int, default=7339)
+    parser.add_argument('--idle-minutes', type=float, default=30,
+                        help='exit after this long with no request; the next bridge '
+                             'call starts it again (0 keeps it running)')
     parser.add_argument('--check-embedder', action='store_true',
                         help='probe the Azure embedder and exit 0, or 2 when it '
                              'is missing or failing (no server is started)')
@@ -144,8 +187,13 @@ def main():
     from repowise.server.mcp_server import create_mcp_server
     import uvicorn
     upstream = create_mcp_server(repo_path=args.workspace, workspace_mode=True)
-    app = create_app(upstream, server_version=version('repowise'))
-    uvicorn.run(app, host='127.0.0.1', port=args.port)
+    served = {}
+    app = create_app(upstream, server_version=version('repowise'),
+                     idle_seconds=args.idle_minutes * 60,
+                     on_idle=lambda: setattr(served['server'], 'should_exit', True))
+    served['server'] = uvicorn.Server(uvicorn.Config(
+        app, host='127.0.0.1', port=args.port, timeout_graceful_shutdown=5))
+    served['server'].run()
 
 
 if __name__ == '__main__':

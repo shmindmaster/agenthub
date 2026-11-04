@@ -1,14 +1,22 @@
 # Bounded refresh
 
-Read when: running `packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1` or reviewing Codex vendor hook ownership.
+Read when: running `packages/repowise/scripts/Invoke-RepoWiseRefreshChanged.ps1` or `Invoke-RepoWiseBoundedIndex.ps1`, or reviewing Codex vendor hook ownership.
 
-## Run it
+## Refresh what changed
+
+`Invoke-RepoWiseRefreshChanged.ps1` compares each workspace entry's last synced commit with HEAD, inside that entry's folder, so a commit elsewhere in a monorepo does not count. Unchanged entries are never started. Changed entries run one at a time through the bounded wrapper, smallest first, each with 1800 s. `-DryRun` lists them. A repeat within 20 hours returns without visiting anything (`-MinimumHours`, `-Force`), so a capability can call it freely. `-Only <path>` limits it to named entries. Failures are listed and do not stop the rest, and a run where every visit failed does not count toward the 20 hours. A lease left by a killed run is cleared; a lease held by a live run or kept after exit 3 stops the run with `stopped` in its report. It registers no schedule.
+
+Facts are refreshed by default: symbols, graph, git history and health. Wiki pages stay stale until `-RenderDocs`, which adds about four times the run time and embeds through Azure. Code search reads live files, so it does not wait for pages; semantic search over page text does.
+
+The first refresh after a RepoWise version upgrade re-scores every repo in full, so it costs far more than a normal delta. Expect that once per upgrade.
+
+## Refresh one repo
 
 Pass absolute `-Workspace`, `-RepositoryRoot`, `-LeasePath`, `-OutputDirectory` and a timezone-bearing `-Deadline`. Use the shared heavy-work lease path; a foreign lease is a refusal. Do not start during a closed heavy-work window.
 
-The wrapper updates one repo, index-only, with no agent generation, inside a Windows Job Object. Defaults: 8 GiB aggregate commit-memory ceiling, 900 s, more than 8 GiB free physical RAM. Free RAM below the floor stops only the owned job; the deadline shortens the budget. The owner may waive the free-RAM floor with `-RamFloorWaiverReason` (1-512 nonblank characters); it waives only the free-RAM checks, applies to that task alone, and is recorded in the lease and receipt.
+The wrapper updates one repo, index-only, with no agent generation, inside a Windows Job Object. A monorepo folder qualifies when the workspace file lists it. Defaults: 4 GiB aggregate commit-memory ceiling, 900 s, more than 4 GiB free physical RAM to start. A started job stops only after 10 s below 1 GiB free, because single samples here swing by gigabytes; the deadline shortens the budget. The owner may waive the free-RAM floor with `-RamFloorWaiverReason` (1-512 nonblank characters); it waives only the free-RAM checks, applies to that task alone, and is recorded in the lease and receipt.
 
-Receipts and logs must resolve, junctions and symlinks followed, beneath `%LOCALAPPDATA%/AgentHub` and outside the source workspace; any other `-OutputDirectory` is refused and no receipt is written. The child uses the shared server's Azure embedding probe (same deployment and width) and runs hidden via `System.Diagnostics.Process`. It starts or stops no service and schedules nothing.
+Receipts and logs must resolve, junctions and symlinks followed, beneath `%LOCALAPPDATA%/AgentHub` and outside the source workspace; any other `-OutputDirectory` is refused and no receipt is written. With `-RenderDocs` the child uses the shared server's Azure embedding probe (same deployment and width); without it nothing leaves the machine. It runs hidden via `System.Diagnostics.Process`. It starts or stops no service and schedules nothing.
 
 The wrapper refuses unless `.repowise/config.yaml` already sets `editor_files.claude_md: false` (and `agents_md: false` where applicable), because `update` regenerates those files otherwise. It never writes that config; creating it is the owner's per-repo decision. Submodules are fenced by gitlink commit and checked-out HEAD.
 

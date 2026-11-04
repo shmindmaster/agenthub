@@ -67,7 +67,24 @@ class AdmissionTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "member"):
                     validate_paths(workspace, root / "foreign", root / "receipt")
 
-    def exercise_acceptance(self, *, child=None, fences=None, commits=None, waiver=None, free_gib=16):
+    def test_monorepo_folder_is_accepted_only_as_a_listed_member(self):
+        with runtime_tmp() as folder:
+            root = Path(folder).resolve()
+            workspace = root / "workspace"
+            listed, unlisted = workspace / "mono" / "api", workspace / "mono" / "web"
+            for path in (listed, unlisted):
+                (path / ".repowise").mkdir(parents=True)
+                (path / ".repowise" / "state.json").write_text("{}")
+            (workspace / ".repowise-workspace.yaml").write_text(
+                "repos:\n- alias: api\n  path: mono/api\n")
+            with patch("bounded_index.subprocess.check_output",
+                       return_value=str(workspace / "mono")):
+                validate_paths(workspace, listed, root / "receipt")
+                with self.assertRaisesRegex(RuntimeError, "Git root"):
+                    validate_paths(workspace, unlisted, root / "receipt")
+
+    def exercise_acceptance(self, *, child=None, fences=None, commits=None, waiver=None, free_gib=16,
+                            render_docs=False):
         with runtime_tmp() as folder:
             output = Path(folder) / "result"
             successful = {"exitCode": 0, "reason": "exited",
@@ -87,7 +104,9 @@ class AdmissionTests(unittest.TestCase):
                                "--lease-token", "synthetic", "--output", str(output)]
                 if waiver is not None:
                     argv += ["--ram-floor-waiver-reason", waiver]
-                if free_gib <= 8 and waiver is None:
+                if render_docs:
+                    argv.append("--render-docs")
+                if free_gib <= 4 and waiver is None:
                     with self.assertRaisesRegex(RuntimeError, "free physical RAM"):
                         main(argv)
                     job.assert_not_called()
@@ -98,11 +117,13 @@ class AdmissionTests(unittest.TestCase):
                 self.assertIn("--index-only", args[0])
                 self.assertNotIn("--no-agents", args[0])  # it persists editor_files in config.yaml
                 self.assertIn("--no-workspace", args[0])
-                self.assertEqual(kwargs["memory_bytes"], 8 * 1024**3)
-                self.assertEqual(kwargs["minimum_free_bytes"], 0 if waiver else 8 * 1024**3)
+                self.assertEqual("--defer-docs" in args[0], not render_docs)
+                self.assertEqual(kwargs["environment"]["REPOWISE_COMMIT_HEALTH_BACKGROUND"], "0")
+                self.assertEqual(kwargs["memory_bytes"], 4 * 1024**3)
+                self.assertEqual(kwargs["minimum_free_bytes"], 0 if waiver else 1024**3)
                 self.assertLessEqual(kwargs["timeout_seconds"], 900)
                 self.assertEqual(kwargs["parent_pid"], os.getppid())
-                embedder.assert_called_once_with()
+                self.assertEqual(embedder.call_count, 1 if render_docs else 0)
                 receipt = json.loads((output / "acceptance.json").read_text())
                 self.assertEqual(receipt["ramFloorPolicy"]["waived"], waiver is not None)
                 self.assertEqual(receipt["ramFloorPolicy"]["waiverReason"], waiver)
@@ -112,7 +133,13 @@ class AdmissionTests(unittest.TestCase):
 
     def test_ram_floor_still_refuses_without_explicit_waiver(self):
         self.exercise_acceptance(free_gib=1)
-        self.exercise_acceptance(free_gib=8)
+        self.exercise_acceptance(free_gib=4)
+
+    def test_facts_refresh_starts_above_the_measured_floor_and_sends_nothing_out(self):
+        self.assertEqual(self.exercise_acceptance(free_gib=5), 0)
+
+    def test_render_docs_opts_back_into_pages_and_the_embedder(self):
+        self.assertEqual(self.exercise_acceptance(render_docs=True), 0)
 
     def test_explicit_waiver_reaches_monitor_and_receipt_but_not_other_gates(self):
         self.assertEqual(self.exercise_acceptance(waiver="Owner waived RAM floor for this run", free_gib=1), 0)

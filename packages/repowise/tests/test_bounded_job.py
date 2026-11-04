@@ -178,6 +178,24 @@ class BoundedJobTests(unittest.TestCase):
             with self.assertRaises(LeaseRetentionError):
                 self.execute("print('done')")
 
+    def monitored(self, readings, **limits):
+        """Run a short child while free RAM follows *readings*, then stays high."""
+        high = 64 * 1024**3
+        stream = iter([high, *readings])
+        with patch('windows_job.free_memory', side_effect=lambda: next(stream, high)), \
+                patch.multiple(windows_job, **limits):
+            return run([sys.executable, '-c', 'import time; time.sleep(2)'], cwd=self.root,
+                       output=self.root / 'out', memory_bytes=256*1024**2, timeout_seconds=30,
+                       minimum_free_bytes=1024**3)
+
+    def test_one_low_ram_sample_does_not_stop_the_job(self):
+        result = self.monitored([0], LOW_RAM_SAMPLES=2)
+        self.assertEqual((result['reason'], result['exitCode']), ('exited', 0))
+
+    def test_sustained_low_ram_stops_the_job(self):
+        result = self.monitored([0] * 200, LOW_RAM_SAMPLES=2)
+        self.assertEqual(result['reason'], 'low-ram')
+
     def test_low_ram_refuses_before_child(self):
         with self.assertRaisesRegex(RuntimeError, 'child not started'):
             run([sys.executable, '-c', "raise AssertionError('must not start')"],
