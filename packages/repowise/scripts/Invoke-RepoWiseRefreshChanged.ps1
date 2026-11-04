@@ -15,7 +15,7 @@ param(
     [string[]]$Only = @(),
     [switch]$DryRun,
     [switch]$Force,
-    [switch]$RenderDocs,
+    [switch]$FactsOnly,
     [ValidateRange(1, 168)][double]$MinimumHours = 20,
     [ValidateRange(1, 3600)][int]$TimeoutSeconds = 1800,
     [string]$RuntimeDir = (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\repowise-refresh')
@@ -110,7 +110,7 @@ $results = foreach ($entry in $changed) {
         LeasePath = $lease
         OutputDirectory = (Join-Path $RuntimeDir "$runId\$name")
         Deadline = [DateTimeOffset]::Now.AddSeconds($TimeoutSeconds + 60)
-        TimeoutSeconds = $TimeoutSeconds; RenderDocs = $RenderDocs }
+        TimeoutSeconds = $TimeoutSeconds; FactsOnly = $FactsOnly }
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $failure = $null
     try { $null = & $wrapper @arguments *>&1 } catch { $failure = $_.Exception.Message }

@@ -1,8 +1,10 @@
 """One local, index-only RepoWise update under an already-owned atomic lease.
 
-By default it refreshes facts only (symbols, graph, git history). Rendering and
-embedding wiki pages took 81% of a measured delta (119 of 147 s on agenthub) and
-is the only step that sends code to the embedder, so it is opt-in. A normal repo
+It refreshes facts and re-renders the affected wiki pages, with no model call
+and embeddings through Azure. --facts-only (--defer-docs underneath) saves about
+7 of 31 s on a one-file delta, and after a RepoWise upgrade it keeps the old
+renderer stamp, so every later update repeats the full re-score (76 s against 31 s
+on agenthub) until a rendered run clears it. Keep it for an Azure outage. A normal repo
 peaks under 1.1 GB; the largest (abacare) reaches 3.3 GiB on its first run after a
 RepoWise upgrade, which sets the 4 GiB default below.
 """
@@ -199,8 +201,8 @@ def main(argv=None) -> int:
     parser.add_argument("--memory-gib", type=int, choices=range(1, 9), default=4)
     parser.add_argument("--timeout-seconds", type=int, choices=range(1, 3601), default=900)
     parser.add_argument("--minimum-free-gib", type=float, default=4)
-    parser.add_argument("--render-docs", action="store_true",
-                        help="also re-render wiki pages and embed them (slow, uses Azure)")
+    parser.add_argument("--facts-only", action="store_true",
+                        help="skip wiki pages and the embedder, for an Azure outage")
     parser.add_argument("--ram-floor-waiver-reason")
     parser.add_argument("--deadline")
     args = parser.parse_args(argv)
@@ -229,7 +231,7 @@ def main(argv=None) -> int:
         receipt = {"accepted": False, "headBefore": git_head(repo),
                    "lastSyncCommitBefore": state_commit(repo),
                    "sourceBefore": source_fence(repo),
-                   "mode": "index-only" if args.render_docs else "facts-only",
+                   "mode": "facts-only" if args.facts_only else "index-only",
                    "ramFloorPolicy": ram_policy}
     except Exception as error:
         write_admission_failure(workspace, output, error)
@@ -238,12 +240,12 @@ def main(argv=None) -> int:
     try:
         # Reuse the shared server's Azure endpoint validation and actual embedding
         # probe so indexing and querying use the same deployment and width.
-        if args.render_docs:
+        if not args.facts_only:
             configure_remote_embedder()
         require_lease(args.lease, args.lease_token)
         command = [executable, "update", "--no-workspace", "--index-only",
                    "--concurrency", "1", "--progress", "json"]
-        if not args.render_docs:
+        if args.facts_only:
             command.append("--defer-docs")
         result = run(
             command,

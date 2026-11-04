@@ -37,6 +37,12 @@
       "note": "Owner Azure inference infrastructure and inference-budget gateway, as declared by README and service runtime configuration; no native mobile product surface. Classified from repository evidence 2026-10-24."
     },
     {
+      "productId": "desktop-solver",
+      "repository": "shmindmaster/desktop-solver",
+      "bucket": "noNative",
+      "note": "Windows desktop capture-and-solve tool, as declared by its README; no native mobile product surface. Local repository with no remote. Classified from repository evidence 2026-11-04."
+    },
+    {
       "productId": "agent-prompt-safeguards-2026",
       "repository": "shmindmaster/agent-prompt-safeguards-2026",
       "bucket": "noNative",

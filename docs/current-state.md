@@ -41,9 +41,9 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
-- **RepoWise refresh and serving (2026-11-04):** package 1.4.0 refreshes only
-  entries whose files moved (`Invoke-RepoWiseRefreshChanged.ps1`), facts only by
-  default, and every session on every host shares one server that exits after 30
+- **RepoWise refresh and serving (2026-11-04):** package 1.4.1 refreshes only
+  entries whose files moved (`Invoke-RepoWiseRefreshChanged.ps1`), re-renders the
+  affected pages, and every session on every host shares one server that exits after 30
   idle minutes. A refresh makes no model calls; only a page render uses Azure
   embeddings. A one-file change to this repository takes about 30 s and 320 MB.
   This supersedes the 8 GiB limits and the server per session on

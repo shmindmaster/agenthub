@@ -3,8 +3,8 @@
 .SYNOPSIS
 Manually run one local index-only update under an atomic coordination lease.
 .DESCRIPTION
-No install, service restart, schedule, agent generation, docs or paid provider.
--RenderDocs also re-renders wiki pages and embeds them through Azure.
+No install, service restart, schedule, agent generation or paid model. Wiki
+pages re-render and embed through Azure; -FactsOnly skips both for an outage.
 The caller supplies the shared heavy-work lease path, never a foreign lease.
 #>
 [CmdletBinding()]
@@ -16,7 +16,7 @@ param(
     [ValidateRange(1, 8)][int]$MemoryGiB = 4,
     [ValidateRange(1, 3600)][int]$TimeoutSeconds = 900,
     [ValidateRange(4, 64)][double]$MinimumFreeGiB = 4,
-    [switch]$RenderDocs,
+    [switch]$FactsOnly,
     [ValidateLength(1, 512)]
     [ValidateScript({ -not [string]::IsNullOrWhiteSpace($_) })]
     [string]$RamFloorWaiverReason,
@@ -91,7 +91,7 @@ try {
         '--minimum-free-gib', [string]$MinimumFreeGiB,
         '--deadline', $Deadline.ToUniversalTime().ToString('o'))
     if ($RamFloorWaiverReason) { $childArguments += @('--ram-floor-waiver-reason', $RamFloorWaiverReason) }
-    if ($RenderDocs) { $childArguments += '--render-docs' }
+    if ($FactsOnly) { $childArguments += '--facts-only' }
     $run = Invoke-HiddenProcess -FilePath $pythonCommand -ArgumentList $childArguments
     if ($run.StdOut) { Write-Output $run.StdOut.TrimEnd() }
     if ($run.StdErr) { Write-Host $run.StdErr.TrimEnd() }

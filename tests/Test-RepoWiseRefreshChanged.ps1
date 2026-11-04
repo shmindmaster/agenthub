@@ -22,8 +22,8 @@ try {
     Copy-Item (Join-Path $package 'Invoke-RepoWiseRefreshChanged.ps1'), (Join-Path $package 'changed_repos.py') $scripts
     $visits = Join-Path $scratch 'visits.log'
     @'
-param($Workspace, $RepositoryRoot, $LeasePath, $OutputDirectory, $Deadline, $TimeoutSeconds, $Python, [switch]$RenderDocs)
-Add-Content -LiteralPath $env:STUB_VISITS -Value "$(Split-Path -Leaf $RepositoryRoot) docs=$RenderDocs"
+param($Workspace, $RepositoryRoot, $LeasePath, $OutputDirectory, $Deadline, $TimeoutSeconds, $Python, [switch]$FactsOnly)
+Add-Content -LiteralPath $env:STUB_VISITS -Value "$(Split-Path -Leaf $RepositoryRoot) facts=$FactsOnly"
 if ($RepositoryRoot -like '*bad*' -or $env:STUB_FAIL_ALL) { throw 'Bounded indexing was not accepted.' }
 '@ | Set-Content -LiteralPath (Join-Path $scripts 'Invoke-RepoWiseBoundedIndex.ps1') -Encoding UTF8
     $env:STUB_VISITS = $visits
@@ -57,15 +57,15 @@ if ($RepositoryRoot -like '*bad*' -or $env:STUB_FAIL_ALL) { throw 'Bounded index
 
     $first = & $refresh @common | Out-String | ConvertFrom-Json
     $seen = @(Get-Content -LiteralPath $visits -Encoding UTF8)
-    Assert-That ($seen.Count -eq 2 -and $seen -notcontains 'still docs=False') 'unchanged entry is never started'
+    Assert-That ($seen.Count -eq 2 -and $seen -notcontains 'still facts=False') 'unchanged entry is never started'
     Assert-That ($first.accepted -eq 1 -and @($first.failed).Count -eq 1) 'one failure does not stop the rest'
 
     $again = & $refresh @common | Out-String | ConvertFrom-Json
     Assert-That ($again.skipped -and @(Get-Content -LiteralPath $visits -Encoding UTF8).Count -eq 2) 'repeat inside the window visits nothing'
 
-    $null = & $refresh @common -Force -RenderDocs
+    $null = & $refresh @common -Force -FactsOnly
     $seen = @(Get-Content -LiteralPath $visits -Encoding UTF8)
-    Assert-That ($seen.Count -eq 4 -and $seen[-1] -like '*docs=True') '-Force overrides the window and -RenderDocs reaches the wrapper'
+    Assert-That ($seen.Count -eq 4 -and $seen[-1] -like '*facts=True') '-Force overrides the window and -FactsOnly reaches the wrapper'
 
     Remove-Item -LiteralPath (Join-Path $runtime 'last-run.json')
     $null = & $refresh @common -Only (Join-Path $workspace 'moved')

@@ -84,7 +84,7 @@ class AdmissionTests(unittest.TestCase):
                     validate_paths(workspace, unlisted, root / "receipt")
 
     def exercise_acceptance(self, *, child=None, fences=None, commits=None, waiver=None, free_gib=16,
-                            render_docs=False):
+                            facts_only=False):
         with runtime_tmp() as folder:
             output = Path(folder) / "result"
             successful = {"exitCode": 0, "reason": "exited",
@@ -104,8 +104,8 @@ class AdmissionTests(unittest.TestCase):
                                "--lease-token", "synthetic", "--output", str(output)]
                 if waiver is not None:
                     argv += ["--ram-floor-waiver-reason", waiver]
-                if render_docs:
-                    argv.append("--render-docs")
+                if facts_only:
+                    argv.append("--facts-only")
                 if free_gib <= 4 and waiver is None:
                     with self.assertRaisesRegex(RuntimeError, "free physical RAM"):
                         main(argv)
@@ -117,13 +117,13 @@ class AdmissionTests(unittest.TestCase):
                 self.assertIn("--index-only", args[0])
                 self.assertNotIn("--no-agents", args[0])  # it persists editor_files in config.yaml
                 self.assertIn("--no-workspace", args[0])
-                self.assertEqual("--defer-docs" in args[0], not render_docs)
+                self.assertEqual("--defer-docs" in args[0], facts_only)
                 self.assertEqual(kwargs["environment"]["REPOWISE_COMMIT_HEALTH_BACKGROUND"], "0")
                 self.assertEqual(kwargs["memory_bytes"], 4 * 1024**3)
                 self.assertEqual(kwargs["minimum_free_bytes"], 0 if waiver else 1024**3)
                 self.assertLessEqual(kwargs["timeout_seconds"], 900)
                 self.assertEqual(kwargs["parent_pid"], os.getppid())
-                self.assertEqual(embedder.call_count, 1 if render_docs else 0)
+                self.assertEqual(embedder.call_count, 0 if facts_only else 1)
                 receipt = json.loads((output / "acceptance.json").read_text())
                 self.assertEqual(receipt["ramFloorPolicy"]["waived"], waiver is not None)
                 self.assertEqual(receipt["ramFloorPolicy"]["waiverReason"], waiver)
@@ -135,11 +135,11 @@ class AdmissionTests(unittest.TestCase):
         self.exercise_acceptance(free_gib=1)
         self.exercise_acceptance(free_gib=4)
 
-    def test_facts_refresh_starts_above_the_measured_floor_and_sends_nothing_out(self):
+    def test_refresh_starts_above_the_measured_floor_and_renders_pages(self):
         self.assertEqual(self.exercise_acceptance(free_gib=5), 0)
 
-    def test_render_docs_opts_back_into_pages_and_the_embedder(self):
-        self.assertEqual(self.exercise_acceptance(render_docs=True), 0)
+    def test_facts_only_skips_pages_and_the_embedder(self):
+        self.assertEqual(self.exercise_acceptance(facts_only=True), 0)
 
     def test_explicit_waiver_reaches_monitor_and_receipt_but_not_other_gates(self):
         self.assertEqual(self.exercise_acceptance(waiver="Owner waived RAM floor for this run", free_gib=1), 0)
