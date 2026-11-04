@@ -125,13 +125,13 @@ def stable_epoch_parent() -> pathlib.Path:
     return parent
 
 
-def project_correction_entries(raw, parent_sha):
+def project_correction_entries(raw, parent_sha, parent_approval):
     amendment = json.loads(raw)
     entries = amendment.get("allowed_requests", [])
     if (set(amendment) != {"kind", "parent_authorization", "owner_authorization", "purpose", "amendment_id", "allowed_requests", "model_id"}
             or amendment.get("kind") != "elevenlabs-project-delivery-correction-v1"
             or amendment.get("parent_authorization", {}).get("sha256") != parent_sha
-            or amendment.get("owner_authorization") != "Approve 4,200 existing credits"
+            or amendment.get("owner_authorization") != parent_approval
             or amendment.get("purpose") != "owner-requested-delivery-correction"
             or amendment.get("model_id") not in ("eleven_multilingual_v2", "eleven_v4")
             or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", amendment.get("amendment_id", ""))
@@ -145,7 +145,7 @@ def project_correction_entries(raw, parent_sha):
 
 def project_correction_inventory(root, original, parent_sha, pending_raw):
     # Read-only until the original accounting has passed all existing integrity checks.
-    pending, entries = project_correction_entries(pending_raw, parent_sha)
+    pending, entries = project_correction_entries(pending_raw, parent_sha, original["owner_authorization"])
     originals = original.get("allowed_requests", [])
     combined = list(originals)
     seen = {e["text_sha256"] for e in originals}
@@ -160,7 +160,7 @@ def project_correction_inventory(root, original, parent_sha, pending_raw):
             if linked_path(path):
                 raise RuntimeError("Linked correction authorization refused")
             content = path.read_bytes()
-            item, rows = project_correction_entries(content, parent_sha)
+            item, rows = project_correction_entries(content, parent_sha, original["owner_authorization"])
             if path.name != item["amendment_id"] + ".json":
                 raise RuntimeError("Correction registration identity mismatch")
             if item["amendment_id"] == pending["amendment_id"]:
@@ -217,16 +217,20 @@ def _epoch_ledger(raw, workspace, text, model_id, request):
     project_v2 = policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v2"
     project = project_v2 or policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v1"
     project_limit = 4200 if project_v2 else 12000
-    project_approval = "Approve 4,200 existing credits" if project_v2 else "Authorize 12,000 existing credits"
     # A new project v2 job pins one of these in its immutable manifest; anything else stays refused below.
-    selected_model = ("eleven_v4" if project_v2 and policy.get("model_id") == "eleven_v4"
+    project_v4 = project_v2 and policy.get("model_id") == "eleven_v4"
+    selected_model = ("eleven_v4" if project_v4
                       else "eleven_multilingual_v2" if project_v2 else "eleven_flash_v2_5")
+    # Only a v4 manifest may approve less than the limit; every other kind keeps its one fixed grant.
+    project_grant = ceiling if project_v4 else project_limit
+    project_approval = f"Approve {project_grant:,} existing credits" if project_v2 else "Authorize 12,000 existing credits"
     if project:
         # A separate, explicitly approved project authorization never raises the
         # generic recovery ceiling or rewrites an existing epoch's authority.
-        if (ceiling > project_limit or policy.get("owner_authorized_maximum_credits") != project_limit
+        if (ceiling > project_limit or policy.get("owner_authorized_maximum_credits") != project_grant
+                or (project_v4 and type(policy.get("owner_authorized_maximum_credits")) is not int)
                 or policy.get("owner_authorization") != project_approval
-                or (project_v2 and (ceiling != project_limit or policy.get("model_id") != selected_model))
+                or (project_v2 and (ceiling != project_grant or policy.get("model_id") != selected_model))
                 or not epoch.startswith("elevenlabs-project-")
                 or policy.get("additional_batch_id") is not None
                 or not isinstance(request, dict)
@@ -247,7 +251,7 @@ def _epoch_ledger(raw, workspace, text, model_id, request):
             if not correction_root.is_dir() or not (correction_root / "authorization.json").is_file():
                 raise RuntimeError("Corrections never initialize missing original accounting")
             allowed_requests = project_correction_inventory(correction_root, policy, hashlib.sha256(raw).hexdigest(), correction_raw)
-            amendment, _ = project_correction_entries(correction_raw, hashlib.sha256(raw).hexdigest())
+            amendment, _ = project_correction_entries(correction_raw, hashlib.sha256(raw).hexdigest(), project_approval)
             selected_model = amendment["model_id"]
             if selected_model == "eleven_v4" and request.get("payload", {}).get("model_id") != selected_model:
                 raise RuntimeError("Correction payload must pin the approved v4 model")
@@ -387,7 +391,7 @@ def _epoch_ledger(raw, workspace, text, model_id, request):
             project_correction_inventory(root, policy, hashlib.sha256(raw).hexdigest(), correction_raw)
             corrections = root / "delivery-corrections"
             secure_directory(corrections)
-            amendment, _ = project_correction_entries(correction_raw, hashlib.sha256(raw).hexdigest())
+            amendment, _ = project_correction_entries(correction_raw, hashlib.sha256(raw).hexdigest(), project_approval)
             target = corrections / (amendment["amendment_id"] + ".json")
             try:
                 with target.open("xb") as handle:

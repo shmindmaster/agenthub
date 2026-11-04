@@ -6,7 +6,7 @@ Paid speech runs only through a governed adapter, which reserves the maximum in 
 |---|---|---|---|
 | Azure TTS | `scripts/governed_azure_speech.py` | `azure-speech/usd-micros`, per workspace under `%LOCALAPPDATA%/AgentHub/runtime/azure-speech-jobs` | `azure-speech-new-provider-job` $1. `azure-speech-bounded-standard-job` at most 150,000 microdollars. Extension at most $0.69 inside the $1 |
 | Deepgram Flux Sienna TTS | `scripts/deepgram_cli.py` | `deepgram/usd-micros` under `%LOCALAPPDATA%/AgentHub/runtime/content-controls` | No budget row means disabled. Recovery epoch at most $3 |
-| ElevenLabs speech | `scripts/elevenlabs_cli.py` | `elevenlabs/credits`, per job under `%LOCALAPPDATA%/AgentHub/runtime/content-recovery-epochs/<epoch_id>` | Owner-authorized jobs only. With no manifest it refuses before any network call. The ceiling is fixed by `recovery_epoch_ledger` |
+| ElevenLabs speech | `scripts/elevenlabs_cli.py` | `elevenlabs/credits`, per job under `<RuntimeRoot>/content-recovery-epochs/<epoch_id>` | Owner-authorized jobs only. With no manifest it refuses before any network call. The manifest sets the ceiling inside the limit below |
 
 Disabled: speech-to-text adapters, sound effects, music, avatar submission, voice fallback, automatic retry. `kit/marketing/lib/providers/elevenlabs.mjs` throws on sound effects and music, and the adapter has no such command. `cloud-ai.mjs align` is outside the spend record, so report it. On Codex, `scripts/content_host_controls.py --apply` blocks the ElevenLabs app; it needs a new session.
 
@@ -26,6 +26,14 @@ Azure: `quote()` returns `cache_key` and `maximum_usd_micros`. The owner's immut
 
 Owner-authorized only. No Sarosh voice clone stays the rule; a clone runs only for a job whose private manifest names it. There is no default voice, model or budget, and a ceiling in the default ledger authorizes nothing. Never put a real voice ID in this repository.
 
+The manifest is a procedural control, not a security boundary. It keeps a cooperating agent on the approved request, and it stops nothing else: any process running as this user with the key could write a manifest or call the API directly.
+
+Owner setup, once per Windows machine. The route reads the per-user registry value `HKCU\Software\AgentHub` `RuntimeRoot`, never the environment:
+
+`reg add HKCU\Software\AgentHub /v RuntimeRoot /t REG_SZ /d <absolute-folder> /f`
+
+Run it from a normal shell. The folder must sit outside LocalAppData and must already hold `content-recovery-epochs`. The `python.exe` alias runs Python in a virtualized view of LocalAppData, and the known-folder API returns the same path in both views, so a folder there can be two different directories depending on how Python started. With the value unset or invalid, the route refuses before any state. macOS and Linux use `.local/share/AgentHub/runtime` under the account's home directory from the user database, never `HOME`.
+
 Quote each locked line. This is offline and needs no credential or manifest:
 
 `python scripts/elevenlabs_cli.py quote --text <t> --voice-id <v> --model-id eleven_v4 --cache-workspace <w> --cache-revision <r> --stability <0-1> --similarity-boost <0-1> --text-normalization <auto|on|off>`
@@ -35,7 +43,9 @@ Add `--previous-text`, `--next-text`, `--pronunciation-dictionary <id:version>` 
 The owner then writes two private files outside this repository, with absolute paths:
 
 - Inventory proof: `kind` `elevenlabs-new-input-inventory`, `enumerated_scopes` (non-empty), `new_text_sha256`, `historical_text_sha256`, `ambiguous_text_sha256`.
-- Manifest: `kind` `elevenlabs-owner-authorized-project-epoch-v2`, `epoch_id` (`elevenlabs-project-...`, lowercase, up to 64 characters), `workspace`, `voice_id`, `model_id` (`eleven_v4` or `eleven_multilingual_v2`), `output_format`, `request_revision`, `pronunciation_locators_sha256`, `allowed_text_sha256` (equal to the proof's new texts), `allowed_requests` (1 to 20 `text_sha256` and `request_sha256` pairs), `inventory_proof` (`path`, `sha256`), `historical_accounting` `UNKNOWN`, `historical_requests` `FENCED`, and `maximum_credits`, `owner_authorized_maximum_credits` and `owner_authorization`, which must equal `project_limit` and `project_approval` in `recovery_epoch_ledger` exactly.
+- Manifest: `kind` `elevenlabs-owner-authorized-project-epoch-v2`, `epoch_id` (`elevenlabs-project-...`, lowercase, up to 64 characters), `workspace`, `voice_id`, `model_id` (`eleven_v4` or `eleven_multilingual_v2`), `output_format`, `request_revision`, `pronunciation_locators_sha256`, `allowed_text_sha256` (equal to the proof's new texts), `allowed_requests` (1 to 20 `text_sha256` and `request_sha256` pairs), `inventory_proof` (`path`, `sha256`), `historical_accounting` `UNKNOWN`, `historical_requests` `FENCED`, and `maximum_credits`, `owner_authorized_maximum_credits` and `owner_authorization`.
+
+Ceiling. An `eleven_v4` manifest approves any integer from 1 to `project_limit` in `content_runtime.py`: `maximum_credits` and `owner_authorized_maximum_credits` hold that integer, and `owner_authorization` reads exactly `Approve <n> existing credits`, with commas, such as `Approve 1,000 existing credits` for 1000. An `eleven_multilingual_v2` manifest has one fixed grant: all three must equal `project_limit` and `project_approval` exactly. A correction repeats its parent's `owner_authorization`.
 
 Check, then execute after approval. `--dry-run` makes read-only calls and writes nothing:
 
@@ -43,11 +53,17 @@ Check, then execute after approval. `--dry-run` makes read-only calls and writes
 
 `python scripts/elevenlabs_cli.py tts <same flags> --output <absent.mp3> --authorization-manifest <manifest> --max-credits <integer>`
 
-The first paid call copies the manifest into the epoch and creates its ledger; after that any changed byte is refused. Live overages must read as off, and a professional voice must be `fine_tuned` on the pinned model. A correction uses `elevenlabs-project-delivery-correction-v1` with a hash-bound parent, and a job pinned to `eleven_v4` stays on it. To retake a line under the same text, get a new manifest: a request hash is one purchase.
+The first paid call copies the manifest into the epoch and creates its ledger; after that any changed byte is refused. Live overages must read as off, and a professional voice must be `fine_tuned` on the pinned model. A correction uses `elevenlabs-project-delivery-correction-v1` with a hash-bound parent, and a job pinned to `eleven_v4` stays on it.
 
-`mvg` keeps its `speech()` call. Set `MVG_ELEVENLABS_CLI` to this script in the AgentHub checkout and `MVG_ELEVENLABS_AUTHORIZATION` to the manifest. Quote with the job's workspace ID and `--cache-revision mvg-voice-v1`.
+A request hash is one purchase. Before any paid call the adapter reads every other epoch under the root and refuses a hash it finds there, whether purchased, unresolved or fenced, and it refuses if another epoch's accounting can't be read. A rotated key gets no second purchase of a hash in the same epoch either. A retake needs a changed request, such as a new `--cache-revision`, quoted into a new manifest. That is a new purchase, so it is an owner decision: the fence matches exact hashes and can't tell it is the same line. The check across epochs isn't atomic, so run one new epoch's first purchase at a time.
+
+`mvg` keeps its `speech()` call. Set `MVG_ELEVENLABS_CLI` to this script in the AgentHub checkout and `MVG_ELEVENLABS_AUTHORIZATION` to the manifest. Quote with the job's workspace ID and `--cache-revision mvg-voice-v1`. For a clone, set `voice.ownerVoice` to true and state it in `voice.disclosure`: lint reads the same manifest and passes only that exact voice ID, and the delivery note says it is a clone.
 
 After a failure, `python scripts/elevenlabs_cli.py reconcile --authorization-manifest <original-manifest> --namespace <n> --cache-workspace <w> --cache-key <k> --history-id <h>` recovers exact bytes with GET requests and settles actual credits. It needs the provider history ID and intact accounting, and never resubmits. `content_control.py status`, `accept` and `release-prepared` read only the default ledger.
+
+Rotating the key: `reconcile` and `accept` match the key that submitted, so they refuse under a new key, and the new key can't buy that hash. Keep the old key until the job is reconciled.
+
+Stranded credits: `reconcile` needs the request ID bound at submission. A response lost before its headers arrive leaves no receipt, so that request can't be reconciled. It stays fenced and keeps its full reservation, whether or not the provider charged. Report those credits as stranded. Never buy the request again to clear them.
 
 ## Blocked or failed call
 

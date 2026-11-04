@@ -28,6 +28,10 @@ class LedgerTests(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.root = pathlib.Path(self.folder.name)
+        # Without a root every project v2 call refuses, and a bare assertRaises would pass for that reason.
+        root = patch('content_runtime.stable_epoch_parent', return_value=self.root / 'AgentHub/runtime/content-recovery-epochs')
+        root.start()
+        self.addCleanup(root.stop)
         self.ledger = Ledger(self.root)
         self.ledger.configure("fixture/credits", 10)
 
@@ -456,7 +460,6 @@ class LedgerTests(unittest.TestCase):
     @contextlib.contextmanager
     def project_v2_environment(self):
         with patch.dict(os.environ, {'ELEVENLABS_API_KEY': 'synthetic-v2-fixture'}), \
-             patch('content_runtime.stable_epoch_parent', return_value=self.root / 'AgentHub/runtime/content-recovery-epochs'), \
              patch('content_runtime.secure_directory', side_effect=lambda p: p.mkdir(parents=True, exist_ok=True)):
             yield
 
@@ -518,6 +521,84 @@ class LedgerTests(unittest.TestCase):
             ledger = recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4', request=request)
             self.assertEqual(ledger.recovery_epoch, 'elevenlabs-project-v2-fixture')
             self.assertEqual((ledger.root / 'authorization.json').read_bytes(), manifest.read_bytes())
+
+    def v4_ceiling(self, ceiling, approval, fixture=None, **changes):
+        text, request, _, _, policy, manifest = (fixture or self.project_v4_fixture)()
+        policy.update({'maximum_credits': ceiling, 'owner_authorized_maximum_credits': ceiling,
+                       'owner_authorization': approval, **changes})
+        manifest.write_text(json.dumps(policy))
+        return text, request, manifest
+
+    def test_project_v4_manifest_may_approve_a_smaller_ceiling(self):
+        for ceiling, approval in ((1, 'Approve 1 existing credits'), (999, 'Approve 999 existing credits'),
+                                  (1000, 'Approve 1,000 existing credits'), (4200, 'Approve 4,200 existing credits')):
+            with self.subTest(ceiling=ceiling), self.project_v2_environment():
+                text, request, manifest = self.v4_ceiling(ceiling, approval, epoch_id=f'elevenlabs-project-ceiling-{ceiling}')
+                ledger = recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4', request=request)
+                self.assertEqual(ledger.status()['budgets'][0]['ceiling'], ceiling)
+                ledger.claim('one', 'one', 'elevenlabs/credits', ceiling)
+                with self.assertRaisesRegex(RuntimeError, 'ceiling'):
+                    ledger.claim('two', 'two', 'elevenlabs/credits', 1)
+                again = recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4', request=request)
+                self.assertEqual(again.status()['budgets'][0]['ceiling'], ceiling)
+
+    def test_project_v4_ceiling_refuses_everything_but_the_exact_grant(self):
+        cases = ((4201, 'Approve 4,201 existing credits', {}), (0, 'Approve 0 existing credits', {}),
+                 (-1, 'Approve -1 existing credits', {}), (True, 'Approve 1 existing credits', {}),
+                 (1000.0, 'Approve 1,000 existing credits', {}), ('1000', 'Approve 1,000 existing credits', {}),
+                 (1000, 'Approve 1000 existing credits', {}), (1000, 'Approve 4,200 existing credits', {}),
+                 (1000, 'approve 1,000 existing credits', {}), (1000, 'Approve 1,000 existing credits.', {}),
+                 (1000, 'Approve 1,000 existing credits', {'owner_authorized_maximum_credits': 4200}),
+                 (1000, 'Approve 1,000 existing credits', {'owner_authorized_maximum_credits': 1000.0}),
+                 (1, 'Approve 1 existing credits', {'owner_authorized_maximum_credits': True}),
+                 (1000, 'Approve 1,000 existing credits', {'owner_authorized_maximum_credits': None}))
+        with patch('content_runtime.secure_directory') as secure:
+            for ceiling, approval, changes in cases:
+                with self.subTest(ceiling=ceiling, approval=approval, changes=changes):
+                    text, request, manifest = self.v4_ceiling(ceiling, approval, **changes)
+                    with self.assertRaisesRegex((RuntimeError, ValueError), 'exact owner approval|Cost/ceiling must be'):
+                        recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4', request=request)
+            secure.assert_not_called()
+
+    def test_only_v4_gets_a_smaller_ceiling(self):
+        with patch('content_runtime.secure_directory') as secure:
+            text, request, manifest = self.v4_ceiling(1000, 'Approve 1,000 existing credits', self.project_v2_fixture)
+            with self.assertRaisesRegex(RuntimeError, 'exact owner approval'):
+                recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            text, request, manifest = self.v4_ceiling(1000, 'Approve 4,200 existing credits', self.project_v2_fixture,
+                                                      owner_authorized_maximum_credits=4200)
+            with self.assertRaisesRegex(RuntimeError, 'exact owner approval'):
+                recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            text, request, manifest = self.v4_ceiling(1000, 'Approve 1,000 existing credits', self.project_fixture)
+            with self.assertRaisesRegex(RuntimeError, 'exact owner approval'):
+                recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            secure.assert_not_called()
+
+    def v4_correction(self, parent_ceiling, parent_approval, approval):
+        text, request, manifest = self.v4_ceiling(parent_ceiling, parent_approval)
+        corrected = json.loads(json.dumps(request))
+        corrected['payload']['text'] = 'A corrected synthetic explanation.'
+        path = self.root / 'correction.json'
+        path.write_text(json.dumps(dict(
+            kind='elevenlabs-project-delivery-correction-v1', owner_authorization=approval,
+            parent_authorization=dict(path=str(manifest), sha256=hashlib.sha256(manifest.read_bytes()).hexdigest()),
+            purpose='owner-requested-delivery-correction', amendment_id='correction-one', model_id='eleven_v4',
+            allowed_requests=[dict(text_sha256=hashlib.sha256(corrected['payload']['text'].encode()).hexdigest(),
+                                   request_sha256=request_key(corrected))])))
+        recovery_epoch_ledger(manifest, 'fixture', text, 'eleven_v4', request=request)
+        return path, corrected
+
+    def test_a_correction_repeats_its_smaller_parent_approval(self):
+        with self.project_v2_environment():
+            path, corrected = self.v4_correction(1000, 'Approve 1,000 existing credits', 'Approve 1,000 existing credits')
+            ledger = recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], 'eleven_v4', request=corrected)
+            self.assertEqual(ledger.status()['budgets'][0]['ceiling'], 1000)
+
+    def test_a_correction_cannot_raise_its_smaller_parent_approval(self):
+        with self.project_v2_environment():
+            path, corrected = self.v4_correction(1000, 'Approve 1,000 existing credits', 'Approve 4,200 existing credits')
+            with self.assertRaisesRegex(RuntimeError, 'exact owner-approved'):
+                recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], 'eleven_v4', request=corrected)
 
     def test_claim_can_fence_a_request_across_every_namespace(self):
         ledger = Ledger(self.root / 'fenced')

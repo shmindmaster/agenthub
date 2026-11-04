@@ -595,6 +595,17 @@ class PaidSpeech(PaidFixture):
         self.assertIsInstance(build.call_args.args[0], cli._NoRedirect)
         self.assertIsNone(build.call_args.args[0].redirect_request(None, None, 302, "", {}, "https://example.invalid"))
 
+    def test_a_smaller_v4_approval_is_the_ceiling_the_adapter_spends_against(self):
+        self.manifest = self.authorize(maximum_credits=1000, owner_authorized_maximum_credits=1000,
+                                       owner_authorization="Approve 1,000 existing credits")
+        with self.paid() as post:
+            self.assertEqual(self.speak(max_credits="1001"), 2)
+            self.assertIn("ceiling", self.err)
+            post.assert_not_called()
+            self.assertEqual(self.speak(max_credits="1000"), 0, self.err)
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(self.ledger.status()["budgets"][0]["ceiling"], 1000)
+
     def test_the_maximum_is_reserved_before_the_provider_is_called(self):
         self.manifest = self.authorize()
         seen = {}

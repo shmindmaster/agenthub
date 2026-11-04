@@ -91,9 +91,12 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   ElevenLabs speech returned in media-studio 2.1.2 (2026-11-04) as
   `packages/media-studio/scripts/elevenlabs_cli.py`, owner-authorized jobs only:
   an immutable project manifest must name the exact voice and job workspace,
-  or it refuses before any network call. ElevenLabs sound effects and music
-  left with `packages/elevenlabs` (retired 2026-10-30 at owner direction) and
-  stay disabled. Local-AI forced alignment
+  or it refuses before any network call. On Windows it also needs the owner's
+  `HKCU\Software\AgentHub` `RuntimeRoot` pin, outside LocalAppData, because the
+  `python.exe` alias virtualizes that tree; unset, it refuses before any state.
+  The manifest is a procedural control, not a security boundary. ElevenLabs
+  sound effects and music left with `packages/elevenlabs` (retired 2026-10-30
+  at owner direction) and stay disabled. Local-AI forced alignment
   supplies take-bound word timing, while OpenAI supplies stills, the explicit
   `--whisper-timing` fallback, and paid vision QA. `validate-viewer-release.mjs` accepts
   the mvg picture report for `generator: media-studio/mvg` jobs and a per-job
