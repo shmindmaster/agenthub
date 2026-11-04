@@ -35,7 +35,7 @@ function Invoke-Hidden([string]$Executable, [string[]]$Arguments) {
 $uv = (Get-Command uv -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 if ($Operation -eq 'install') {
     $spec = (Get-Content (Join-Path $PSScriptRoot 'requirements.txt') -Raw -Encoding UTF8).Trim()
-    $result = Invoke-Hidden $uv @('tool','install','--python','3.12',$spec)
+    $result = Invoke-Hidden $uv @('tool','install','--python','3.14',$spec)
 } else {
     $location = Invoke-Hidden $uv @('tool','dir')
     if ($location.Code -ne 0) { throw 'uv tool directory could not be resolved.' }
