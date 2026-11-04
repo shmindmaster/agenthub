@@ -19,7 +19,7 @@ shared = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(shared)
 
 
-AZURE_URL = 'https://aoai-mrender-4e123a95.openai.azure.com/openai/v1/'
+AZURE_URL = 'https://mt-foundary-resource.openai.azure.com/openai/v1/'
 FIXTURE_KEY = 'fixture-azure-key'
 
 
@@ -106,15 +106,15 @@ class RemoteEmbeddingTest(unittest.TestCase):
 
     def test_other_hosts_and_credential_urls_are_rejected_without_network(self):
         for url in ('https://api.openai.com/v1',
-                    'http://aoai-mrender-4e123a95.openai.azure.com/openai/v1',
+                    'http://mt-foundary-resource.openai.azure.com/openai/v1',
                     'https://aoai.openai.azure.com.evil.test/openai/v1',
                     'https://evil-openai.azure.com/openai/v1x',
                     'https://pndh-aoai.openai.azure.com/openai/v1',
                     'https://.openai.azure.com/openai/v1',
-                    'https://aoai-mrender-4e123a95.openai.azure.com:8443/openai/v1',
-                    'https://u:p@aoai-mrender-4e123a95.openai.azure.com/openai/v1',
-                    'https://aoai-mrender-4e123a95.openai.azure.com/openai/v1?api-version=x',
-                    'https://aoai-mrender-4e123a95.openai.azure.com/openai/other',
+                    'https://mt-foundary-resource.openai.azure.com:8443/openai/v1',
+                    'https://u:p@mt-foundary-resource.openai.azure.com/openai/v1',
+                    'https://mt-foundary-resource.openai.azure.com/openai/v1?api-version=x',
+                    'https://mt-foundary-resource.openai.azure.com/openai/other',
                     'https://127.0.0.1/openai/v1'):
             with self.subTest(url=url), \
                     patch.dict(os.environ, azure_env(FOUNDRY_OPENAI_BASE_URL=url), clear=True), \
