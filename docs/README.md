@@ -38,6 +38,8 @@ stranger-safe first run. For this private fleet checkout, also use
 - [runbooks/stale-agent-sessions.md](./runbooks/stale-agent-sessions.md) —
   on-demand recycle of coding-agent sessions older than seven days, and where
   each agent keeps them.
+- [runbooks/hosting-routing.md](./runbooks/hosting-routing.md) — deployment
+  provider selection and retained-integration rules.
 
 ## Execution
 
