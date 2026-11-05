@@ -30,7 +30,14 @@ function Read-Utf8([string]$Path) {
     return Get-Content -LiteralPath $Path -Raw -Encoding UTF8
 }
 
+# A dependency tree can carry its own skills directory, and this scan is about the
+# skills AgentHub authors. Measured 2026-11-05: playwright-core ships
+# lib/tools/skills/playwright-cli/SKILL.md and two siblings, which satisfied the
+# skills/<name>/SKILL.md shape below and failed the 'Use when' and 300-character
+# rules as if they were ours. Same exclusion set Sync-Capabilities.ps1 refuses to
+# deploy, and the same class of over-count that Test-MobileDevelopment.ps1 had.
 $skillFiles = @(Get-ChildItem -LiteralPath $packagesRoot -Recurse -File -Filter 'SKILL.md' -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|dist|coverage)[\\/]' } |
     Where-Object { $_.FullName -match '[\\/]skills[\\/][^\\/]+[\\/]SKILL\.md$' })
 
 if ($skillFiles.Count -eq 0) {
