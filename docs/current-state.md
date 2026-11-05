@@ -536,9 +536,22 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   rule. Every `hostChannels` row records `installedVersion` 1.0.0, `current`
   true, and a filesystem readback in which all 20 official SKILL.md texts
   match upstream commit `1e92b7d15015fb53ada5f466463bcc49ad4a777a` after line
-  ending normalization, with the exact official remote URL configured. Those
-  same rows record host loading and OAuth as unverified, so no host is
-  accepted as functional yet. `tests/Test-ThirdPartyPlugins.ps1`
+  ending normalization, with the exact official remote URL configured. Since
+  then three hosts are measured rather than assumed. Claude reports
+  `Status Connected` for `plugin:clerk:clerk` and Codex reports
+  `auth_status o_auth` with its plugin server temporarily enabled and then
+  restored to off, so OAuth is verified on both. A live Qoder session
+  discovered all 20 skills by name while the hosted MCP exposed zero tools,
+  which is the off-by-default state `activationPolicy.sessionStart` requires
+  rather than a discovery failure. Devin is confirmed configured from the
+  official plugin, but `devin mcp get` reports no auth status, so its OAuth is
+  unproven. Cursor and Amp have their isolated management directories staged
+  by `scripts/Prepare-ClerkManagement.py` and stop at a human consent
+  decision: `cursor-agent mcp login` has no non-interactive flag, and Amp's
+  local OAuth needs a vendor-supported client ID that must not be invented.
+  No host has run authenticated tool invocation against a live application,
+  so no application role acceptance is claimed anywhere.
+  `tests/Test-ThirdPartyPlugins.ps1`
   fails if a lagging host names no fix, if an absent host explains no
   reason, or if a tracked extension is ever republished from AgentHub's own
   marketplace. `hostPrivateExtensionPolicy` withholds install authority for

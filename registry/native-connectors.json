@@ -912,7 +912,7 @@
             "installedVersion": "1.0.0",
             "current": true,
             "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host claude",
-            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. 2026-11-05 readback: `claude mcp get plugin:clerk:clerk` reports Status Connected against https://mcp.clerk.com/mcp carrying the X-Clerk-MCP-Consumer plugin header, which is the acceptance signal docs/runbooks/clerk-auth.md requires, so OAuth is verified on this host. Authenticated tool invocation against a live application, and any application role acceptance, remain unperformed."
           },
           {
             "hostId": "codex",
@@ -920,7 +920,7 @@
             "installedVersion": "1.0.0",
             "current": true,
             "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host codex",
-            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. 2026-11-05 readback: with [plugins.\"clerk@clerk\".mcp_servers.clerk] enabled temporarily set to true, `codex mcp list --json` reported auth_status o_auth, so OAuth is verified on this host. The setting was restored to false and re-read as unsupported, which is what a disabled server reports despite a completed grant. Codex exposes no mcp tools verb, so the live tool inventory was not enumerated and the app-server mcpServerStatus/list check the runbook describes was not run."
           },
           {
             "hostId": "copilot",
@@ -952,7 +952,7 @@
             "installedVersion": "1.0.0",
             "current": true,
             "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host devin",
-            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. 2026-11-05 readback: `devin mcp get clerk` confirms the server is configured from the official plugin at the exact URL. That command reports no auth status, so OAuth and live tool discovery remain unverified here."
           },
           {
             "hostId": "grok",
@@ -976,7 +976,7 @@
             "installedVersion": "1.0.0",
             "current": true,
             "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host cursor",
-            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. 2026-11-05: the isolated management directory was staged with scripts/Prepare-ClerkManagement.py --host cursor --apply under %LOCALAPPDATA%/AgentHub/clerk/management/cursor, which writes only that private config and starts nothing. `cursor-agent mcp login` has no non-interactive flag, so completing OAuth opens a consent screen and needs a human decision about which Clerk workspace and permissions to grant; it was deliberately not run. IDE plugin discovery and CLI OAuth both remain unverified."
           },
           {
             "hostId": "cline",
@@ -992,7 +992,7 @@
             "installedVersion": "1.0.0",
             "current": true,
             "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host amp",
-            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. 2026-11-05: the isolated management directory was staged with scripts/Prepare-ClerkManagement.py --host amp --apply, which writes only that private config and starts nothing. Amp's local oauth login requires a vendor-supported client ID, so this host is blocked on vendor support rather than on a step nobody ran, and a client ID must not be invented or borrowed from another host."
           },
           {
             "hostId": "opencode",
