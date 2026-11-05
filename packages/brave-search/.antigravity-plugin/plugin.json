@@ -1,0 +1,23 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ah-brave-search",
+  "displayName": "AH-Brave-Search",
+  "version": "1.0.1",
+  "description": "Search the live web with the Brave Search API: page content for grounding, web, news, images, videos, places and cited answers. Needs a key in the environment; none is stored.",
+  "suggestedPrompts": [
+    "Look up the current docs for this error",
+    "What happened in this news story today?"
+  ],
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "brave",
+    "web-search",
+    "search",
+    "grounding",
+    "news",
+    "places"
+  ]
+}

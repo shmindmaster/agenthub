@@ -73,3 +73,22 @@ Always pass `--device`; bare `maestro test` silently picks the guest's iOS simul
 - Android and iOS run concurrently; no reboot or alternation.
 - Node versions are not standardized; both runtimes already satisfy the packages.
 - `build-expo-simulator.sh` defaults to Release (standalone binary); `--dev` is for development.
+
+## Lease and idle check
+
+Acquire before any build, install or session, and release in `finally`.
+
+```powershell
+$root = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\skills\mobile-device-lab\scripts"
+$lease = (& "$root\Enter-MobileLabLease.ps1" -Action Acquire -Json | ConvertFrom-Json)
+try {
+  & "$root\Test-MobileLabIdle.ps1" -GuestIp <ip> -LeaseId $lease.leaseId -Json
+  # builds, installs, sessions
+}
+finally { & "$root\Enter-MobileLabLease.ps1" -Action Release -LeaseId $lease.leaseId -Json }
+```
+
+## When it breaks
+
+- "Guest down" is usually a degraded `vmrun list`, not a dead guest. Check SSH first.
+- `vmrun start` reporting `Unknown error` means a stopped VMware service (`VMAuthdService`, `VMnetDHCP`, `VMware NAT Service`). From an elevated shell, only when startup names stopped services: `$mobile start ios -RepairVmwareServices -Json`. It never self-elevates.

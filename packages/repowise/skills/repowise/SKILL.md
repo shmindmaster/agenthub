@@ -13,8 +13,8 @@ Read the exact file you are editing; use the index for orientation and impact.
 
 | Situation | First | Then |
 | --- | --- | --- |
-| Unfamiliar repo | `get_overview` | `get_answer`, `get_context` |
-| Code question | `get_answer` | low confidence: `search_codebase`, `get_context` |
+| Unfamiliar repo | `get_overview` | `search_codebase`, `get_context` |
+| Code question | `search_codebase` | `get_context`; `get_answer` only for a how/why question search cannot settle (paid model call) |
 | Before editing | `get_context` | hotspot: `get_risk` |
 | Working tree or PR | `get_risk` with `changed_files` | read `directive` |
 | Commit range | `get_change_risk` | `risk_percentile` |
@@ -25,7 +25,7 @@ Pass `repo=<alias>` or `repo=all`. Wrap noisy commands in `repowise distill <cmd
 
 ## Hosts
 
-- Claude uses vendor `repowise@repowise`, Codex uses vendor `codex@repowise` (both from `repowise-dev/repowise`). They own hooks and skills, and `Install-RepoWiseVendorLauncher.ps1` points their MCP entry at the bridge below. Uninstall `repowise@agenthub` there and never re-enable it. Never register both routes on one host.
+- Claude uses vendor `repowise@repowise`, Codex uses vendor `codex@repowise` (both from `repowise-dev/repowise`). They own hooks and skills, and `Install-RepoWiseVendorLauncher.ps1` points their MCP entry at the bridge below. Uninstall `ah-repowise@agenthub` there and never re-enable it. Never register both routes on one host.
 - Every host reaches one shared loopback server (port 7339) through the AgentHub bridge. The bridge starts it on demand through `Start-RepoWiseShared.ps1`, it exits after 30 idle minutes, and calls that name no repo go to the repo the session started in. It fails closed when the embedder probe fails, with no local embedding fallback.
 - Add no per-repository MCP entries, user hooks, post-commit hooks, logon tasks or scheduled updaters.
 
@@ -35,11 +35,11 @@ Pass `repo=<alias>` or `repo=all`. Wrap noisy commands in `repowise distill <cmd
 - Telemetry stays disabled (`repowise telemetry status`).
 - Never run bare `repowise update`, `repowise agents refresh`, `--full`, docs generation or first-time init.
 - Never index `D:/OneDrive - MahumTech/Documents`, and never run `--full` against private evidence.
-- Embeddings use MahumTech Azure OpenAI `mt-foundary-resource`, deployment `text-embedding-3-small`, read from env and never persisted. Never read `AZURE_OPENAI_*` or any `pndh` host. Setup and probe details: `references/setup.md`.
+- Embeddings use MahumTech Azure OpenAI `mt-foundary-resource`, deployment `text-embedding-3-small`, read from env and never persisted. The `AZURE_OPENAI_*` and `FOUNDRY_*` variables are valid only while their endpoint host is `mt-foundary-resource`; never use `AZURE_OPENAI_PNDH_*` or any `pndh` host. Setup and probe details: `references/setup.md`.
 
 ## Refresh the index
 
-Refresh with `packages/repowise/scripts/Invoke-RepoWiseRefreshChanged.ps1`. It visits only entries whose files moved, one at a time, and at most once in 20 hours. For one repo use `Invoke-RepoWiseBoundedIndex.ps1`. Read `references/refresh.md` for parameters and acceptance checks before running either.
+Refresh with `pwsh -NoProfile -File <agenthub>/packages/repowise/scripts/Invoke-RepoWiseRefreshChanged.ps1`. It visits only entries whose files moved, one at a time, and at most once in 20 hours. For one repo use `Invoke-RepoWiseBoundedIndex.ps1`. Read `references/refresh.md` for parameters and acceptance checks before running either.
 
 Report the receipt result and real retrieval quality (run actual queries) separately; a clean receipt does not prove vector search works.
 

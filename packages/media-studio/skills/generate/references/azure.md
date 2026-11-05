@@ -8,7 +8,7 @@ Azure is the default provider. Take the cheapest tier that passes QA and escalat
 
 Env vars (print set or not, never a value): `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`, `AZURE_AI_SERVICES_ENDPOINT` (ends in `/`), `AZURE_AI_SERVICES_KEY`, `AZURE_AI_SERVICES_REGION`, `FOUNDRY_OPENAI_BASE_URL`, `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT`, `AZURE_DOCUMENT_INTELLIGENCE_KEY`.
 
-Never use `AZURE_OPENAI_*`, `AZURE_OPENAI_PNDH_*` or `aif-pndh-*` endpoints (Pendoah client infrastructure).
+Use `AZURE_OPENAI_*` and `FOUNDRY_*` only while the endpoint host is `mt-foundary-resource` (MahumTech); never use `AZURE_OPENAI_PNDH_*`, `aif-pndh-*` or any `pndh` host (Pendoah client infrastructure).
 
 ## Deployments
 

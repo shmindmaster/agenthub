@@ -119,10 +119,14 @@ if (Test-Path -LiteralPath $grokConfig) {
     # Expected count comes from the registry and its lifecycle policy, not a
     # magic number. hosts[] is eligibility, not deployment authority:
     # on-demand-local servers stay out of persistent host config unless the
-    # lifecycle policy records a reviewed exception.
+    # lifecycle policy records a reviewed exception. Grok is also plugin-only, so
+    # only servers the policy names belong in its config.
+    $grokPolicy = $mcpRegistry.activationPolicy.pluginOnly.hosts.PSObject.Properties['grok']
+    $grokAllowed = if ($grokPolicy) { @($grokPolicy.Value.PSObject.Properties.Name) } else { @() }
     $expected = @($mcpRegistry.mcpServers | Where-Object {
         @($_.hosts) -contains 'grok' -and
-        ([string]$_.activationMode -ne 'on-demand-local' -or $_.id -in $persistedOnDemand)
+        ([string]$_.activationMode -ne 'on-demand-local' -or $_.id -in $persistedOnDemand) -and
+        (-not $grokPolicy -or $_.id -in $grokAllowed)
     } | ForEach-Object { $_.id })
     $missing = @($expected | Where-Object { $_ -notin $gk })
     Report 'grok retains every persistable canonical server the registry scopes to it' ($missing.Count -eq 0) `

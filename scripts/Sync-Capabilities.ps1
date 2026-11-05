@@ -670,7 +670,7 @@ foreach ($agent in $agents) {
   $desiredHides = [ordered]@{}
   $marketplace = [string]$overrideConfig.pluginMarketplace
   foreach ($capability in $capabilities.capabilities) {
-    $pluginKey = "$($capability.id)@$marketplace"
+    $pluginKey = "ah-$($capability.id)@$marketplace"
     $pluginEnabled = $settings.enabledPlugins -and $settings.enabledPlugins.PSObject.Properties[$pluginKey] -and
       ($settings.enabledPlugins.$pluginKey -eq $true)
     if (-not $pluginEnabled) { continue }

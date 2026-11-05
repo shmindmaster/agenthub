@@ -12,7 +12,7 @@ The first refresh after a RepoWise version upgrade re-scores every repo in full,
 
 ## Refresh one repo
 
-Pass absolute `-Workspace`, `-RepositoryRoot`, `-LeasePath`, `-OutputDirectory` and a timezone-bearing `-Deadline`. Use the shared heavy-work lease path; a foreign lease is a refusal. Do not start during a closed heavy-work window.
+Pass absolute `-Workspace`, `-RepositoryRoot`, `-LeasePath`, `-OutputDirectory` and a timezone-bearing `-Deadline`. Use the shared heavy-work lease path; a foreign lease is a refusal.
 
 The wrapper updates one repo, index-only, with no agent generation, inside a Windows Job Object. A monorepo folder qualifies when the workspace file lists it. Defaults: 4 GiB aggregate commit-memory ceiling, 900 s, more than 4 GiB free physical RAM to start. A started job stops only after 10 s below 1 GiB free, because single samples here swing by gigabytes; the deadline shortens the budget. The owner may waive the free-RAM floor with `-RamFloorWaiverReason` (1-512 nonblank characters); it waives only the free-RAM checks, applies to that task alone, and is recorded in the lease and receipt.
 

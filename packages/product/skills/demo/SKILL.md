@@ -19,7 +19,7 @@ Copy this list and tick each item.
 - [ ] For `REMEDIABLE`, fix within the authorised scope using `design` and `build`. For `DEFERRED`, stop and say why.
 - [ ] Make the product demo-runnable under the [demo harness](../../kits/demo-harness/README.md). Run `node ../../scripts/validate-demo-harness.mjs <repo>`, fix what it reports, and repeat until it passes.
 - [ ] Start the stack in the background with `node ../../scripts/demo-stack.mjs up --repo <repo>`; stop it with `down`.
-- [ ] Have the `reviewer` agent re-score all eleven criteria from a fresh context. The builder never issues the verdict.
+- [ ] Have the `product:reviewer` agent re-score all eleven criteria from a fresh context. The builder never issues the verdict.
 - [ ] Write the handoff and run its validators until both pass.
 
 Read when scoring or writing the handoff: [demo handoff](../../references/demo-handoff.md).

@@ -30,14 +30,14 @@ Status: **help** means checked against the installed CLI's help, **docs** means 
 
 | Host | Install | Off switch | Status |
 |---|---|---|---|
-| Claude Code | `claude plugin marketplace add shmindmaster/agenthub`, then `claude plugin install assemblyai@agenthub` | `claude plugin disable assemblyai@agenthub` | help |
-| Codex | `codex plugin marketplace add shmindmaster/agenthub`, then `codex plugin add assemblyai@agenthub` | `[plugins."assemblyai@agenthub"] enabled = false` in `~/.codex/config.toml` | help, docs |
+| Claude Code | `claude plugin marketplace add shmindmaster/agenthub`, then `claude plugin install ah-assemblyai@agenthub` | `claude plugin disable ah-assemblyai@agenthub` | help |
+| Codex | `codex plugin marketplace add shmindmaster/agenthub`, then `codex plugin add ah-assemblyai@agenthub` | `[plugins."ah-assemblyai@agenthub"] enabled = false` in `~/.codex/config.toml` | help, docs |
 | Cursor | Copy this folder to `~/.cursor/plugins/local/assemblyai`, then run Developer: Reload Window. Symlinks from outside that folder are skipped | Remove the folder | docs |
 | Copilot CLI | `copilot plugin install shmindmaster/agenthub:packages/assemblyai` | `copilot plugin disable assemblyai` | help |
 | Gemini CLI | `gemini extensions install ./packages/assemblyai`, or `gemini extensions link ./packages/assemblyai` | Unverified | docs |
 | Antigravity | `agy plugin install ./packages/assemblyai`, then `agy plugin enable assemblyai` | `agy plugin disable assemblyai` | help, docs |
 | Grok | `grok plugin install shmindmaster/agenthub#packages/assemblyai` | `grok plugin disable assemblyai` | help |
-| Factory | `droid plugin marketplace add https://github.com/shmindmaster/agenthub`, then `droid plugin install assemblyai@agenthub --scope user`. The marketplace name comes from the source, so confirm it with `droid plugin marketplace list` | `enabledPlugins` | help, docs |
+| Factory | `droid plugin marketplace add https://github.com/shmindmaster/agenthub`, then `droid plugin install ah-assemblyai@agenthub --scope user`. The marketplace name comes from the source, so confirm it with `droid plugin marketplace list` | `enabledPlugins` | help, docs |
 | OpenCode | Copy `skills/assemblyai` to `~/.config/opencode/skills/`, then `opencode mcp add assemblyai --url https://mcp.assemblyai.com/mcp --global` and `opencode mcp auth assemblyai` | Remove the entry | help, docs |
 | Cline | Copy `skills/assemblyai` to `~/.cline/skills/` | Remove the folder | unverified: path from `registry/` only |
 | Amp | Copy `skills/assemblyai` to `~/.config/amp/skills/` | Remove the folder | unverified: path from `registry/` only |

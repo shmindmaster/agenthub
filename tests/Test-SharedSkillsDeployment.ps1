@@ -422,7 +422,7 @@ function Test-SkillOverridesHideSharedDuplicates {
     $settings = [ordered]@{
         theme = 'dark'
         hooks = @{ PreToolUse = @(@{ matcher = 'Bash'; hooks = @(@{ type = 'command'; command = 'pwsh -File "C:\hooks\guard.ps1"' }) }) }
-        enabledPlugins = @{ 'zz-ovr-cap@agenthub' = $true; 'other@agenthub' = $false }
+        enabledPlugins = @{ 'ah-zz-ovr-cap@agenthub' = $true; 'other@agenthub' = $false }
         skillOverrides = @{ 'owner-skill' = 'name-only' }
     }
     $pluginHost = @{
@@ -463,7 +463,7 @@ function Test-SkillOverridesHideSharedDuplicates {
 
         # Owner flips docx back on and disables the plugin.
         $after.skillOverrides.docx = 'on'
-        $after.enabledPlugins.'zz-ovr-cap@agenthub' = $false
+        $after.enabledPlugins.'ah-zz-ovr-cap@agenthub' = $false
         [IO.File]::WriteAllText($settingsPath, ($after | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
         $second = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
         if ($second.ExitCode -ne 0) { return @{ Passed = $false; Detail = "second -Apply exit code was $($second.ExitCode). Output: $($second.Output)" } }

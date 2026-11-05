@@ -1,0 +1,31 @@
+{
+  "name": "ah-assemblyai",
+  "description": "Thin AssemblyAI capability: one routing skill plus the hosted AssemblyAI and docs MCP servers. No key in config.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "assemblyai",
+    "speech-to-text",
+    "transcription",
+    "asr",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AH-AssemblyAI",
+    "shortDescription": "Look up and call AssemblyAI speech-to-text.",
+    "longDescription": "Thin AssemblyAI capability: one routing skill that points at the current vendor docs. The hosted MCP servers are registered through AgentHub's MCP sync.",
+    "developerName": "Sarosh Hussain",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Look up the current AssemblyAI transcript parameters.",
+      "Transcribe this public audio URL with AssemblyAI."
+    ]
+  },
+  "version": "1.1.1"
+}

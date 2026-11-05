@@ -1,0 +1,10 @@
+{
+  "name": "ah-context7",
+  "description": "Look up current library and framework documentation through Context7's hosted server, for hosts whose catalog has no Context7 plugin. Remote only: no local process and no stored key.",
+  "mcpServers": {
+    "context7": {
+      "httpUrl": "https://mcp.context7.com/mcp"
+    }
+  },
+  "version": "1.0.0"
+}

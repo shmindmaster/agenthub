@@ -133,7 +133,8 @@ function Remove-PrivateMarketplacePlugins {
     foreach ($id in $privateIds) { $privateSet[$id] = $true }
     $doc.plugins = @(
         $doc.plugins | Where-Object {
-            $name = [string]$_.name
+            # Plugin names are ah-<capability id>; the private set holds ids.
+            $name = ([string]$_.name) -replace '^ah-', ''
             -not $privateSet.ContainsKey($name)
         }
     )

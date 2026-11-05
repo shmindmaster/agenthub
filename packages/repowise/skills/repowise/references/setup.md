@@ -14,7 +14,7 @@ Accept https and `*.openai.azure.com` only. The probe must return a finite, nonz
 
 ## CLI and dashboard
 
-The CLI is uv-managed (`uv tool install repowise`). Update manually with `scripts/Update-RepoWise.ps1 -Apply`; it installs `repowise@latest` only when a newer version exists and does not touch editors or hooks. Run `repowise search "<q>"`, `repowise status -w` and `repowise doctor -w` from `C:/Repos`.
+The CLI is uv-managed (`uv tool install repowise`). Update manually with `pwsh -NoProfile -File <agenthub>/scripts/Update-RepoWise.ps1 -Apply` (the script lives in the repository's `scripts/` folder, not this package); it installs `repowise@latest` only when a newer version exists and does not touch editors or hooks. Run `repowise search "<q>"`, `repowise status -w` and `repowise doctor -w` from `C:/Repos`.
 
 Dashboard: `repowise serve --host 127.0.0.1 --ui-port 7338` from `C:/Repos`; API on `http://127.0.0.1:7337`.
 

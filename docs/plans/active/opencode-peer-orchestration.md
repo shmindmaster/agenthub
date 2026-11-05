@@ -118,7 +118,7 @@ The AgentHub fleet deploy (`Sync-AgentHub -Apply`) was not run, because the main
 - **Resume any task in the TUI:** `droid --resume <session>` from its worktree. The orchestrator must stop the headless writer first, so there is one writer per session.
 - **Verified integrations:**
   - auth: `droid doctor` passes
-  - RepoWise MCP via `repowise@agenthub`: a real call matched a direct call
+  - RepoWise MCP via `ah-repowise@agenthub`: a real call matched a direct call
   - ACP: initialize and `session/new` succeed
   - session resume: `exec -s`, used for F-3 and F-4
   - permissionRules: blocks fired live

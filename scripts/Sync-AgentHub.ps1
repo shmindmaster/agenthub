@@ -571,6 +571,13 @@ function Normalize-McpTargetKeys {
     return $Target
 }
 
+# A disabled entry runs nothing, and on Devin and Antigravity it is how a plugin's
+# server is switched off. Removing one would start that server again.
+function Test-McpEntryDisabled {
+    param([object]$Entry)
+    return ($Entry -is [hashtable]) -and ($Entry['disabled'] -eq $true)
+}
+
 function Remove-McpTargetKeys {
     param(
         [hashtable]$Target,
@@ -580,7 +587,7 @@ function Remove-McpTargetKeys {
     foreach ($key in @($Keys)) {
         $resolved = Resolve-McpAliasKey $key
         foreach ($candidate in @($resolved) + @(Get-McpAliasesForCanonicalKey $resolved)) {
-            if ($Target.ContainsKey($candidate)) { $Target.Remove($candidate) }
+            if ($Target.ContainsKey($candidate) -and -not (Test-McpEntryDisabled $Target[$candidate])) { $Target.Remove($candidate) }
         }
     }
     return $Target
@@ -668,7 +675,7 @@ function Merge-McpServers {
             if ($k) { $canonicalKeys[$k] = $true }
         }
         foreach ($k in @($Target.Keys)) {
-            if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $k))) {
+            if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $k)) -and -not (Test-McpEntryDisabled $Target[$k])) {
                 $Target.Remove($k)
             }
         }
@@ -822,6 +829,23 @@ function Get-McpCandidatesForScope {
     }
 
     return $filtered
+}
+
+function Get-PluginOnlyAllowedMcpKeys {
+    # Returns $null when the host is not plugin-only, otherwise the direct
+    # entries activationPolicy.pluginOnly allows there (possibly none). The
+    # default for a plugin-only host is no direct entry, so a new registry
+    # server cannot reach it without a recorded reason.
+    param(
+        [object]$McpRegistry,
+        [string]$HostId
+    )
+
+    $policy = $McpRegistry.activationPolicy
+    if (-not $policy -or -not $policy.PSObject.Properties['pluginOnly']) { return $null }
+    $hostEntry = $policy.pluginOnly.hosts.PSObject.Properties[$HostId]
+    if (-not $hostEntry) { return $null }
+    return ,[string[]]@($hostEntry.Value.PSObject.Properties.Name | ForEach-Object { Resolve-McpAliasKey ([string]$_) })
 }
 
 function Get-PluginProvidedMcpKeysByHost {
@@ -1082,12 +1106,15 @@ function Get-HostMcpEntries {
         [hashtable]$HostAllowlist,
         [hashtable]$HostConfigOverrides,
         [hashtable]$PluginProvidedByHost,
-        [object]$GatewayPlan
+        [object]$GatewayPlan,
+        # Direct entries allowed on a plugin-only host; $null for any other host.
+        [string[]]$PluginOnlyAllowed = $null
     )
 
     $filtered = @{}
     foreach ($key in $BaseEntries.Keys) {
         $resolved = Resolve-McpAliasKey $key
+        if ($null -ne $PluginOnlyAllowed -and $resolved -notin $PluginOnlyAllowed) { continue }
         if ($HostAllowlist.ContainsKey($resolved) -and $HostId -notin $HostAllowlist[$resolved]) { continue }
         if ($PluginProvidedByHost.ContainsKey($HostId) -and $PluginProvidedByHost[$HostId].ContainsKey($resolved)) { continue }
         if ($GatewayPlan -and $resolved -in @($GatewayPlan.managedKeys)) { continue }
@@ -1579,6 +1606,21 @@ function Convert-McpStringMapEnvironmentReferences {
     return $converted
 }
 
+function ConvertTo-AmpMcpEntry {
+    param([hashtable]$Entry)
+
+    # Amp expands ${NAME} and sends ${env:NAME} literally, so a shared-notation
+    # header reaches the server as placeholder text (loopback test, 2026-11-04).
+    $converted = @{}
+    foreach ($key in $Entry.Keys) { $converted[$key] = $Entry[$key] }
+    foreach ($map in 'headers', 'env') {
+        if ($Entry.ContainsKey($map) -and $Entry[$map]) {
+            $converted[$map] = Convert-McpStringMapEnvironmentReferences -Map $Entry[$map] -Style braced
+        }
+    }
+    return $converted
+}
+
 function Sync-HostMcp-ConvertedJsonFile {
     param(
         [string]$Path,
@@ -1636,7 +1678,7 @@ function Sync-HostMcp-ConvertedJsonFile {
 
     if ($Prune) {
         foreach ($key in @($servers.Keys)) {
-            if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key))) { $servers.Remove($key) }
+            if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key)) -and -not (Test-McpEntryDisabled $servers[$key])) { $servers.Remove($key) }
         }
     }
 
@@ -2314,10 +2356,12 @@ foreach ($agent in $agentsToSync) {
     if (-not (Test-AgentHubHostSyncEnabled -Agent $agent)) { continue }
     $hostDrift = @{ host=$agent.id; mcp=@(); files=@(); status='ok' }
     $gatewayPlan = Get-GatewayPlanForHost -HostId $agent.id -GatewayRegistry $gatewayReg -ConnectorRegistry $connectorReg
-    $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -HostConfigOverrides $mcpHostConfigOverrides -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan
+    $pluginOnlyAllowed = Get-PluginOnlyAllowedMcpKeys -McpRegistry $mcpsReg -HostId $agent.id
+    $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -HostConfigOverrides $mcpHostConfigOverrides -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan -PluginOnlyAllowed $pluginOnlyAllowed
     if ($agent.id -in $optInDisabledHosts) {
         foreach ($optInServer in $optInExceptionServers) {
             $optId = Resolve-McpAliasKey ([string]$optInServer.id)
+            if ($null -ne $pluginOnlyAllowed -and $optId -notin $pluginOnlyAllowed) { continue }
             $hostMcpEntries[$optId] = Get-CanonicalMcpEntry $optInServer
         }
     }
@@ -2330,6 +2374,11 @@ foreach ($agent in $agentsToSync) {
     }
     $suppressedKeys = @($pluginOwnedKeys) + @($nonPersistedOnDemandLocalMcpKeys) + @($retiredMcpKeys)
     if ($gatewayPlan) { $suppressedKeys += @($gatewayPlan.managedKeys) }
+    # A plugin-only host loses every registry entry the policy does not allow,
+    # including one written by an older sync.
+    if ($null -ne $pluginOnlyAllowed) {
+        $suppressedKeys += @($allMcpEntries.Keys | ForEach-Object { Resolve-McpAliasKey $_ } | Where-Object { $_ -notin $pluginOnlyAllowed })
+    }
     $suppressedKeys = @($suppressedKeys | Sort-Object -Unique)
 
     switch ($agent.id) {
@@ -2379,7 +2428,7 @@ foreach ($agent in $agentsToSync) {
             $hostDrift.mcp += $r
         }
         'amp' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.settings -McpEntries $hostMcpEntries -JsonProperty 'amp.mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.settings -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-AmpMcpEntry} -JsonProperty 'amp.mcpServers' -SuppressedKeys $suppressedKeys -ReplaceExistingEntries -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'windsurf' {

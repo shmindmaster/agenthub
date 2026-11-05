@@ -1,0 +1,19 @@
+{
+  "name": "ah-brave-search",
+  "displayName": "AH-Brave-Search",
+  "description": "Search the live web with the Brave Search API: page content for grounding, web, news, images, videos, places and cited answers. Needs a key in the environment; none is stored.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "brave",
+    "web-search",
+    "search",
+    "grounding",
+    "news",
+    "places"
+  ],
+  "skills": "./skills/",
+  "version": "1.0.1"
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ah-railway",
+  "version": "1.0.0",
+  "description": "Manage Railway projects, services and deployments through Railway's hosted server, for hosts whose only Railway plugin carries an auto-approve hook or that have none. Remote only: no local process, no stored key, no hooks.",
+  "license": "MIT",
+  "keywords": [
+    "railway",
+    "deploy",
+    "hosting",
+    "mcp"
+  ]
+}

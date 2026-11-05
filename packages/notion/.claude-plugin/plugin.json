@@ -1,0 +1,18 @@
+{
+  "name": "ah-notion",
+  "displayName": "AH-Notion",
+  "description": "Read and write Notion pages and databases through Notion's hosted server, for hosts that cannot load Notion's own plugin. Remote only: no local process and no stored key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "notion",
+    "docs",
+    "database",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "version": "1.0.0"
+}

@@ -1,5 +1,6 @@
 {
-  "name": "repowise",
+  "name": "ah-repowise",
+  "displayName": "AH-Repowise",
   "description": "Legacy-host RepoWise bridge. Claude uses vendor repowise@repowise instead; do not install or re-enable this retired Claude wrapper.",
   "author": {
     "name": "Sarosh Hussain"
@@ -12,5 +13,5 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
-  "version": "1.4.1"
+  "version": "1.4.2"
 }

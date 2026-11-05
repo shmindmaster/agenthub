@@ -1,29 +1,98 @@
 {
   "name": "agenthub",
-  "description": "Lean shared AgentHub capability catalog.",
+  "description": "AgentHub shared capability catalog. Every plugin is named ah-<capability> so AgentHub plugins sort together in each host.",
   "owner": {
     "name": "MahumTech"
   },
+  "renames": {
+    "product": "ah-product",
+    "mobile-development": "ah-mobile-development",
+    "media-studio": "ah-media-studio",
+    "repowise": "ah-repowise",
+    "assemblyai": "ah-assemblyai",
+    "brave-search": "ah-brave-search",
+    "browser": "ah-browser"
+  },
   "plugins": [
     {
-      "name": "product",
+      "name": "ah-product",
+      "displayName": "AH-Product",
       "source": "./packages/product"
     },
     {
-      "name": "mobile-development",
+      "name": "ah-mobile-development",
+      "displayName": "AH-Mobile-Development",
       "source": "./packages/mobile-development"
     },
     {
-      "name": "media-studio",
+      "name": "ah-media-studio",
+      "displayName": "AH-Media-Studio",
       "source": "./packages/media-studio"
     },
     {
-      "name": "repowise",
+      "name": "ah-repowise",
+      "displayName": "AH-Repowise",
       "source": "./packages/repowise"
     },
     {
-      "name": "assemblyai",
+      "name": "ah-assemblyai",
+      "displayName": "AH-AssemblyAI",
       "source": "./packages/assemblyai"
+    },
+    {
+      "name": "ah-brave-search",
+      "displayName": "AH-Brave-Search",
+      "source": "./packages/brave-search"
+    },
+    {
+      "name": "ah-daytona",
+      "displayName": "AH-Daytona",
+      "source": "./packages/daytona"
+    },
+    {
+      "name": "ah-browser",
+      "displayName": "AH-Browser",
+      "source": "./packages/browser"
+    },
+    {
+      "name": "ah-firecrawl",
+      "displayName": "AH-Firecrawl",
+      "source": "./packages/firecrawl"
+    },
+    {
+      "name": "ah-railway",
+      "displayName": "AH-Railway",
+      "source": "./packages/railway"
+    },
+    {
+      "name": "ah-descript",
+      "displayName": "AH-Descript",
+      "source": "./packages/descript"
+    },
+    {
+      "name": "ah-exa",
+      "displayName": "AH-Exa",
+      "source": "./packages/exa"
+    },
+    {
+      "name": "ah-notion",
+      "displayName": "AH-Notion",
+      "source": "./packages/notion"
+    },
+    {
+      "name": "ah-aws",
+      "displayName": "AH-AWS",
+      "source": "./packages/aws"
+    },
+    {
+      "name": "ah-linear",
+      "displayName": "AH-Linear",
+      "source": "./packages/linear"
+    },
+    {
+      "name": "ah-context7",
+      "displayName": "AH-Context7",
+      "source": "./packages/context7"
     }
   ]
 }

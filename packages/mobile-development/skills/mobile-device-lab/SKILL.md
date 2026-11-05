@@ -5,7 +5,7 @@ description: Drives an Android emulator and iOS Simulator through Appium MCP to 
 
 # Mobile device lab
 
-Android runs on this Windows host; iOS runs in the macOS VM, driven remotely. Both use `appium-mcp`. Report results as "verified on simulator", never "on device".
+Android runs on this Windows host; iOS runs in the macOS VM, driven remotely. Both use the `appium-mobile` MCP server. Report results as "verified on simulator", never "on device".
 
 ```powershell
 $mobile = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1"
@@ -37,45 +37,21 @@ The check stops at the first broken layer; fix only that layer. Nothing restarts
 
 ## 3. Exclusivity
 
-Hold the lease for the whole build, install and session window of anything that mutates a shared emulator or Simulator; an idle probe alone is not permission. Stop if either step fails. If Maestro, Xcode or another Appium session is active, wait; never kill another run.
-
-```powershell
-$root = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\skills\mobile-device-lab\scripts"
-$lease = (& "$root\Enter-MobileLabLease.ps1" -Action Acquire -Json | ConvertFrom-Json)
-try {
-  & "$root\Test-MobileLabIdle.ps1" -GuestIp <ip> -LeaseId $lease.leaseId -Json
-  # builds, installs, sessions
-}
-finally { & "$root\Enter-MobileLabLease.ps1" -Action Release -LeaseId $lease.leaseId -Json }
-```
+Hold the lease around anything that mutates a shared emulator or Simulator: build, install, session. An idle probe alone is not permission. Stop if the lease or idle check fails. If Maestro, Xcode or another Appium session is active, wait; never kill another run. Commands: `references/lab-operations.md`.
 
 ## 4. Drive
 
-- Android: `select_device` (android), then `appium_session_management` create with `remoteServerUrl` omitted (selects the embedded driver).
+- Android: `appium-mobile:select_device` (android), then `appium-mobile:appium_session_management` create with `remoteServerUrl` omitted (selects the embedded driver).
 - iOS: create with `remoteServerUrl` from the `start ios -Json` output; the guest address changes. Capabilities and device name come from `$mobile catalog device.ios-simulator -Json`. Do not set `appium:usePrebuiltWDA` on a first session.
-- Prefer `appium_get_page_source` and accessibility ids over screenshots and XPath.
+- Prefer `appium-mobile:appium_get_page_source` and accessibility ids over screenshots and XPath.
 - Web app in mobile browsers: `$mobile web <productId> -Url <url>`; the dev server must listen on `0.0.0.0`.
 
-## 5. The app under test
+## 5. Build, reload and troubleshoot
 
-The app must sit where its server runs: Android `.apk` on Windows, iOS simulator `.app` inside the VM. Address it by `appium:bundleId`.
-
-For JavaScript changes, never rebuild. Build the Debug shell once, run Metro on the host, then reload:
-
-```powershell
-ssh macvm 'bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/<product> "" booted --dev'
-pwsh -NoProfile -File $mobile metro <productId> -ProjectPath <repo>\apps\mobile -Attach
-```
-
-Rebuild only for a new native dependency, an app config or plugin change, or edits under `ios/`. Before a Release build of an Expo product, run `scripts/Test-MobileLabAppConfig.ps1 -ProjectPath <app>`: a missing `EXPO_PUBLIC_*` value gives a build that succeeds and cannot work. Sync with `$mobile sync <productId> -RepoPath <repo> -GuestPath <guest-path>`; `-IncludeIgnored` takes explicit file paths, never globs.
-
-## 6. When it breaks
-
-- "Guest down" is usually a degraded `vmrun list`, not a dead guest. Check SSH first.
-- `vmrun start` reporting `Unknown error` means a stopped VMware service (`VMAuthdService`, `VMnetDHCP`, `VMware NAT Service`). From an elevated shell, only when startup names stopped services: `$mobile start ios -RepairVmwareServices -Json`. It never self-elevates.
+Reload JavaScript with Metro instead of rebuilding; rebuild only for native changes. Read `references/inner-loop.md` for the app under test. If a guest looks down, check SSH before `vmrun`. Read `references/lab-operations.md` for repair steps.
 
 ## References
 
-- `references/inner-loop.md`. Read when choosing rebuild vs reload, build speed, test tools, or web targets.
-- `references/lab-operations.md`. Read for Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
+- `references/inner-loop.md`. Read when choosing rebuild vs reload, building or syncing the app under test, build speed, test tools, or web targets.
+- `references/lab-operations.md`. Read for the lease and idle-check commands, a guest that will not start, Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
 - `references/physical-iphone.md`. Read when driving the iPhone attached to Windows.

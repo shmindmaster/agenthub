@@ -1,8 +1,8 @@
 ---
 name: dispatch
-description: Runs a task on another coding-agent host and returns its output. Use when work should go to Codex, Cursor Agent, Gemini, Grok, OpenCode, Devin, Amp, Qoder, Factory Droid, Copilot, Cline or Antigravity, or when asked which hosts can be called.
+description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.3.0"
+  version: "0.3.1"
 ---
 
 # Dispatch to another coding agent

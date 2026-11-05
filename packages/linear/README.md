@@ -1,0 +1,5 @@
+# AH-Linear
+
+Read and update Linear issues and projects through Linear's hosted server, for hosts whose catalog has no Linear plugin. Remote only: no local process and no stored key.
+
+A thin wrapper: one skill and one server, no hooks. Hosts with a clean native plugin for this service use that instead. `registry/mcps.json` records which plugin owns the server on each host.

@@ -1,0 +1,18 @@
+{
+  "name": "ah-daytona",
+  "displayName": "AH-Daytona",
+  "description": "Create and run isolated Daytona cloud sandboxes for heavy, parallel or untrusted work: Python and TypeScript SDKs, API and CLI references, plus an index of runnable guides. Needs DAYTONA_API_KEY in the environment; none is stored.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "daytona",
+    "sandbox",
+    "cloud-compute",
+    "isolated-runtime",
+    "fan-out"
+  ],
+  "skills": "./skills/",
+  "version": "1.0.1"
+}

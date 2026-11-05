@@ -158,8 +158,11 @@ function Get-InstalledAgentHubPlugins {
         $entry = @($property.Value | Select-Object -Last 1)
         if ($entry.Count -ne 1) { continue }
 
+        # AgentHub plugins are named ah-<package folder>. A registration without
+        # the prefix is a legacy install; the legacy-identity check reports it.
         $pluginName = $property.Name -replace '@agenthub$', ''
-        $sourcePackage = Join-Path $repoRoot "packages\$pluginName"
+        if ($pluginName -notlike 'ah-*') { continue }
+        $sourcePackage = Join-Path $repoRoot ('packages\' + ($pluginName -replace '^ah-', ''))
         if (-not (Test-Path -LiteralPath $sourcePackage -PathType Container)) { continue }
 
         $result.Add([pscustomobject]@{
@@ -328,8 +331,19 @@ $RetiredPluginNames = @(
     'technical-storytelling',   # retired 2026-10-21 into media-studio (consolidation P5)
     'story-series-studio'       # retired 2026-10-21 into media-studio (consolidation P4)
 )
+# Plugins were named after their package folder until they became ah-<folder>.
+# A registration under the old name is a second, stale copy of the same plugin.
+$LegacyUnprefixedPluginNames = @('product', 'media-studio', 'mobile-development', 'repowise', 'assemblyai')
 function Test-RetiredPluginIdentitiesAreAbsent {
     $hits = [Collections.Generic.List[string]]::new()
+    foreach ($legacyName in $LegacyUnprefixedPluginNames) {
+        $legacyId = "$legacyName@agenthub"
+        foreach ($file in @((Join-Path $HOME '.claude\settings.json'), (Join-Path $HOME '.claude\plugins\installed_plugins.json'), (Join-Path $HOME '.codex\config.toml'))) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { continue }
+            if (Select-String -LiteralPath $file -SimpleMatch -Quiet -Pattern ('"' + $legacyId + '"')) { $hits.Add("legacy $legacyId registration: $file") }
+            if (Select-String -LiteralPath $file -SimpleMatch -Quiet -Pattern ('[plugins."' + $legacyId + '"]')) { $hits.Add("legacy $legacyId registration: $file") }
+        }
+    }
     $files = @(
         (Join-Path $HOME '.claude\settings.json'),
         (Join-Path $HOME '.claude\plugins\installed_plugins.json'),

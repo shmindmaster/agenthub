@@ -1,0 +1,33 @@
+{
+  "name": "ah-brave-search",
+  "version": "1.0.1",
+  "description": "Search the live web with the Brave Search API: page content for grounding, web, news, images, videos, places and cited answers. Needs a key in the environment; none is stored.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "brave",
+    "web-search",
+    "search",
+    "grounding",
+    "news",
+    "places"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AH-Brave-Search",
+    "shortDescription": "Search the live web, news, images, videos and places with Brave.",
+    "longDescription": "Search the live web with the Brave Search API: page content for grounding, web, news, images, videos, places and cited answers. Needs a key in the environment; none is stored.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Look up the current docs for this error.",
+      "What happened in this news story in the last day?",
+      "Find well-reviewed coffee shops near this address."
+    ]
+  }
+}

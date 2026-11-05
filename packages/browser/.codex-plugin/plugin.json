@@ -1,0 +1,33 @@
+{
+  "name": "ah-browser",
+  "version": "1.0.0",
+  "description": "Drive a hidden browser to automate a website task or test a web app as a user would, on hosts without a high-fidelity browser of their own. Wraps agent-browser with fleet defaults; installs nothing and stores no key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "browser",
+    "automation",
+    "web-testing",
+    "qa",
+    "headless"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AH-Browser",
+    "shortDescription": "Automate websites and test web apps in a hidden browser.",
+    "longDescription": "Drive a hidden browser to automate a website task or test a web app as a user would, on hosts without a high-fidelity browser of their own. Wraps agent-browser with fleet defaults; installs nothing and stores no key.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Test this web app as a user would and report what breaks.",
+      "Open this page, fill the form and show me the result.",
+      "Check the signup flow on mobile and desktop widths."
+    ]
+  }
+}

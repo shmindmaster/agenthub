@@ -1,0 +1,21 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ah-firecrawl",
+  "displayName": "AH-Firecrawl",
+  "version": "1.0.1",
+  "description": "Read, crawl and search websites through Firecrawl's hosted server, for hosts whose own catalog has no Firecrawl plugin. Remote only: no local process and no stored key.",
+  "suggestedPrompts": [
+    "Read this page and summarize it",
+    "Collect the docs pages from this site"
+  ],
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "firecrawl",
+    "scrape",
+    "crawl",
+    "web"
+  ]
+}

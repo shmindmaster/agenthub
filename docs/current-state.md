@@ -1,3 +1,49 @@
+- **Plugin-only MCP (2026-11-04):** the sync used to write every registry server to every
+  host unless marked plugin-owned, so removed entries came back. `activationPolicy.pluginOnly`
+  in `registry/mcps.json` now lists fourteen coding hosts and the only direct entries allowed
+  on each, with a reason. The sync writes nothing else there, and
+  `tests/Test-PluginOnlyMcp.ps1` fails on any other entry in the real host configs. Gemini was
+  not migrated and keeps the older behaviour. Native plugins were installed on every host,
+  with thin `ah-railway`, `ah-descript`, `ah-exa`, `ah-notion`, `ah-firecrawl`, `ah-aws`,
+  `ah-linear` and `ah-context7` plugins where no clean native one exists. Plugin registration
+  is proven by each host's list command and Cline's own loader; loading inside a real session
+  was not tested on any host. See [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
+- **Lean hosts and Daytona (2026-11-04):** unused vendor plugins came off every host and the
+  shared policy dropped from about 20.8K to 12.4K characters, with detail moved to two on-demand
+  guidance files. The one-host rule was replaced by a free-RAM check. Daytona reaches every host
+  through `ah-daytona` or the host's own catalog. On disk on this machine; not exercised in a
+  fresh session. See [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
+- **Context limits (2026-11-04):** `registry/context-limits.json` records each host's context
+  settings, or why it has none, and `scripts/Set-ContextLimits.py` applies them. Applied to the
+  host configs on this machine. Duplicate policy loads were removed on Grok and Copilot CLI.
+  Not yet measured in a fresh session on any host. See
+  [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
+- **Session start (2026-11-04):** plugin-only removed direct entries but did not make servers
+  on-demand, so plugin servers are now off by default where a host has a supported switch.
+  `activationPolicy.sessionStart` in `registry/mcps.json` records each host. Applied on Grok,
+  Copilot, Antigravity, Devin, Codex, VS Code, OpenCode, Cline and Amp. Not applied on Claude,
+  Cursor or Factory. Stray RepoWise hooks on Cursor and Grok were removed, and Azure telemetry
+  is off for the user. Each change was confirmed by the host's own list command or config. No
+  fresh session has been measured.
+- **Amp, Devin and Warp (2026-11-04):** Windsurf is now Devin Desktop, so the `windsurf` row
+  stays inactive and Devin is the host. Amp loads 15 generated plugins from
+  `scripts/Install-AmpPlugins.py`. Warp has no plugin format, so it has skill junctions from
+  `scripts/Install-WarpSkills.ps1` and seven remote servers named in the policy. Devin has no
+  direct servers. Each host's own status command confirmed the install; no session has run.
+- **Cursor local plugins (2026-11-04):** Cursor IDE and Cursor Agent reject a link in
+  `~/.cursor/plugins/local` whose target is outside that folder, and a Windows junction
+  counts as a link, so no `ah-*` plugin had been loading there. Cursor's own log records the
+  rejection. `scripts/Install-CursorLocalPlugins.ps1` now installs real copies and must be
+  rerun after a package changes; `tests/Test-CursorLocalPlugins.ps1` fails on a link. The
+  nine copies pass a replay of Cursor's check; a real Cursor session has not loaded them yet.
+- **Plugin names and browser (2026-11-04):** every plugin is named `ah-<folder>` with an
+  `AH-` display name; see [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
+  `ah-brave-search` (one skill, a dependency-free Node client, offline tests only, no live
+  request made) and `ah-browser` (a wrapper around the already installed agent-browser, run
+  hidden and verified once against a local page) are new. Deployed to Claude, Codex, Copilot,
+  Factory, Qoder, Grok, Devin, Antigravity and Cursor. Cline's `loadAgentPluginPackages`
+  accepts the junctioned plugins and their servers.
+
 # Current State
 
 - **Plugins only (2026-10-30):** `registry/capabilities.json` sets
@@ -25,7 +71,7 @@
   only: `ASSEMBLYAI_API_KEY` is not set and no live call has been made.
 
 - **RepoWise bridge remote mode (2026-10-28):** plugin 1.2.12 lets the
-  `repowise@agenthub` stdio bridge forward to a self-hosted RepoWise endpoint
+  `ah-repowise@agenthub` stdio bridge forward to a self-hosted RepoWise endpoint
   when `AGENTHUB_REPOWISE_MODE=remote`, with the URL in
   `AGENTHUB_REPOWISE_REMOTE_URL` (https only) and the bearer token read from the
   env var named by `AGENTHUB_REPOWISE_REMOTE_TOKEN_ENV`. Local mode stays the
@@ -362,7 +408,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   at that Documents root; `_MAP.md`
   is a pointer. Exact search uses WSL `rga` 0.10.10 plus pandoc/poppler
   (no Windows rga build exists). Opportunity rendering is
-  `sarosh:opportunity`; portfolio and professional-material enrichment is
+  `ah-sarosh:opportunity`; portfolio and professional-material enrichment is
   `portfolio-enrichment`. Runtime records are the private repo
   `C:\Repos\shmindmaster\portfolio-records` (three fail-closed YAML
   records as of 2026-08-21 evening; synthetic fixtures stay in the

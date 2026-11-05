@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ah-context7",
+  "version": "1.0.0",
+  "description": "Look up current library and framework documentation through Context7's hosted server, for hosts whose catalog has no Context7 plugin. Remote only: no local process and no stored key.",
+  "license": "MIT",
+  "keywords": [
+    "context7",
+    "docs",
+    "libraries",
+    "mcp"
+  ]
+}

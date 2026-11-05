@@ -1,0 +1,21 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ah-notion",
+  "displayName": "AH-Notion",
+  "version": "1.0.0",
+  "description": "Read and write Notion pages and databases through Notion's hosted server, for hosts that cannot load Notion's own plugin. Remote only: no local process and no stored key.",
+  "suggestedPrompts": [
+    "Find my notes on this topic in Notion.",
+    "Summarize this Notion page."
+  ],
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "notion",
+    "docs",
+    "database",
+    "mcp"
+  ]
+}

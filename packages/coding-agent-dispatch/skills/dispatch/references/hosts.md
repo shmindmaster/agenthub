@@ -15,7 +15,7 @@ Contents: Account hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installer
 
 ## Factory
 
-Dispatch stays governed while the host is disabled. `exec --auto` runs at low or medium only (`high` permits git push; `--skip-permissions-unsafe` is never emitted). `-o json` returns a session id and credit usage. `-m` defaults to `dispatchPolicy.factory.model`; `-Model` refuses anything outside `dispatchPolicy.factory.allowedModels`. `--settings` points at `factory/runtime-settings.json`, checked with `droid rules check`.
+Dispatch is governed. `exec --auto` runs at low or medium only (`high` permits git push; `--skip-permissions-unsafe` is never emitted). `-o json` returns a session id and credit usage. `-m` defaults to `dispatchPolicy.factory.model`; `-Model` refuses anything outside `dispatchPolicy.factory.allowedModels`. `--settings` points at `factory/runtime-settings.json`, checked with `droid rules check`.
 
 ## Devin
 
@@ -23,11 +23,11 @@ Local only: `devin -p --prompt-file`, never `--cloud`. `--model` defaults to `di
 
 ## Warp
 
-The child sets `WARP_CLI_MODE=1` and never opens the terminal GUI. A recorded `dispatchPolicy.warp.mcpConfig` is passed as `--mcp` with `--mcp-startup-timeout 30s` after resolving its `{userHome}` template; a missing file skips both flags with one stderr warning, and the file is never read or printed. Keep Warp disabled unless an account-status command and a local-only mode are both verified.
+The child sets `WARP_CLI_MODE=1` and never opens the terminal GUI. A recorded `dispatchPolicy.warp.mcpConfig` is passed as `--mcp` with `--mcp-startup-timeout 30s` after resolving its `{userHome}` template; a missing file skips both flags with one stderr warning, and the file is never read or printed. Keep Warp enabled only while an account-status command and a local-only mode are both verified.
 
 ## Cline
 
-Cline dispatch is disabled by owner policy. When enabled:
+Cline dispatch is enabled in `dispatchPolicy`:
 
 - Uses the saved provider settings in the private Cline profile (keys stay there), `--json` execution, low thinking and the dispatcher timeout. Native skills, plugins and MCP are retained. Do not use `--yolo`.
 - Resume: `-HostId cline -SessionId <id>` uses ACP `session/load` (the `--id` flag forces interactive mode). It starts a windowless ACP child after the normal gates, keeps task text on stdin, cancels permission requests (tasks needing permission can stop early), stops its child tree on completion, and returns JSON with `sessionId`, `text` and `stopReason`. Other hosts refuse `-SessionId`. A live resumed prompt is unverified.

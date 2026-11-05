@@ -1,0 +1,32 @@
+{
+  "name": "ah-context7",
+  "version": "1.0.0",
+  "description": "Look up current library and framework documentation through Context7's hosted server, for hosts whose catalog has no Context7 plugin. Remote only: no local process and no stored key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "context7",
+    "docs",
+    "libraries",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AH-Context7",
+    "shortDescription": "Look up current library docs.",
+    "longDescription": "Look up current library and framework documentation through Context7's hosted server, for hosts whose catalog has no Context7 plugin. Remote only: no local process and no stored key.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Find the current docs for this library.",
+      "Show the migration guide for this version.",
+      "How do I configure this framework option?"
+    ]
+  }
+}

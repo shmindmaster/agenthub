@@ -67,6 +67,15 @@ foreach ($h in @($conn.hosts)) {
     }
 }
 
+# A plugin-only host gets only the direct entries the policy names, so every
+# other server's absence there is correct. Named entries are still asserted, and
+# Test-PluginOnlyMcp.ps1 fails on anything extra. A host outside the policy keeps
+# the older rule.
+$pluginOnlyAllowed = @{}
+foreach ($h in @($mcps.activationPolicy.pluginOnly.hosts.PSObject.Properties)) {
+    $pluginOnlyAllowed[$h.Name] = @($h.Value.PSObject.Properties.Name)
+}
+
 $persistedLocal = @{}
 foreach ($id in @($conn.lifecyclePolicy.persistedOnDemandLocalMcpIds)) { if ($id) { $persistedLocal[[string]$id] = $true } }
 
@@ -85,7 +94,8 @@ function Get-DeployedIds([string]$McpPath, [string]$McpKey) {
     if (-not (Test-Path -LiteralPath $p)) { return $null }          # null = could not check
     $text = Get-Content -LiteralPath $p -Raw -Encoding UTF8
     if ($p -like '*.toml') {
-        return @([regex]::Matches($text, '(?m)^\[mcp_servers\.([^\].]+)\]') | ForEach-Object { $_.Groups[1].Value })
+        # The comma keeps an empty set from unrolling to the missing-file $null.
+        return ,@([regex]::Matches($text, '(?m)^\[mcp_servers\.([^\].]+)\]') | ForEach-Object { $_.Groups[1].Value })
     }
     $json = $text | ConvertFrom-Json
     # A dotted mcpKey may be a PATH (claude: mcpServers) or a LITERAL key name
@@ -174,6 +184,7 @@ foreach ($server in @($mcps.mcpServers)) {
     foreach ($hostId in $hosts) {
         if (-not $hostConfig.ContainsKey($hostId)) { continue }
         if ($notInConfig.ContainsKey("$hostId/$id")) { continue }   # delivered off-config; see $notInConfig
+        if ($pluginOnlyAllowed.ContainsKey($hostId) -and $id -notin $pluginOnlyAllowed[$hostId]) { continue }
         $deployed = Get-DeployedIds $hostConfig[$hostId].Path $hostConfig[$hostId].Key
         if ($null -eq $deployed) {
             Report "persisted '$id' host '$hostId' has a readable config" $false `

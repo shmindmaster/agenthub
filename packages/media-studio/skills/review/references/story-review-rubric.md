@@ -2,7 +2,7 @@
 
 Score 0 to 100. **Below 85 is a fail** (job `craftScoreMin`, default 85). Revise the named scenes and rerun. Marketing cuts also need a passing marketing-readiness check.
 
-Before capture: `validate-narration.mjs <jobRoot>`, then `python write-story-review.py <jobRoot>`. It writes `qa/story-review.json`, a lint, never a craft pass. On the encoded file the critic writes `qa/story-experience-review.json` (`schemas/story-experience-review.schema.json`), the only craft pass: `status: COMPLETE`, score at the minimum, no `block` finding. A check without evidence is `MALFORMED_INPUT`, never a pass.
+Before capture: `validate-narration.mjs <jobRoot>`, then `python write-story-review.py <jobRoot>`. It writes `qa/story-review.json`, a lint, never a craft pass. A screenplay lint from `write-story-review.py` authorizes nothing after capture. On the encoded file the critic writes `qa/story-experience-review.json` (`schemas/story-experience-review.schema.json`), the only craft pass: `status: COMPLETE`, score at the minimum, no `block` finding. A check without evidence is `MALFORMED_INPUT`, never a pass.
 
 ## Checks
 
@@ -48,6 +48,10 @@ Start at 100, floor at 0.
 
 Any `block` finding; missing or failing no-fluff, or `cursor-flow` with screen beats; spoken versions, revisions, what changed, how it was made, or synthetic data; a build or version chip in any frame; a marketing cut below the floor.
 
+Fail when the score is under `craftScoreMin` (default 85), on any `block` finding, or when the hook is missing, the hero count is not exactly one, the opening is a feature tour, the bed is unducked, the narration reads the slide, anything is said twice, or the cursor moves with nothing named. Marketing cuts also need `qa/marketing-readiness-check.json` PASS on this candidate.
+
 ## Judge the encoded file
 
-Sample frames at cue boundaries and scene midpoints. Check word-clock drift with hosted ASR timestamps. Give the vision judge this rubric, randomise order, compare pairwise, use more than one run, and calibrate against human-labelled clips. Metrics are flags, not verdicts. Cite a timestamp per finding, then set `reviseSceneIds` and `findings[].owner`.
+The story-experience review reads the picture. Cite a timestamp or frame for every finding and ignore generator self-assessment. Required inputs: encoded candidate, contact sheet, screenplay, storyboard, visual bible, captions, `job.json`, `qa/narration-check.json`, and `qa/pointer-path.json` with screen beats. A `product-screencast` also needs a passing `validate-product-picture.mjs`. A missing or mutable input is `status: MALFORMED_INPUT`, never a pass.
+
+`build-contact-sheet.mjs <jobRoot> <candidate.mp4>` writes `qa/contact-sheet.png`. Sample frames at cue boundaries and scene midpoints. Check word-clock drift with hosted ASR timestamps. Give the vision judge this rubric, randomise order, compare pairwise, use more than one run, and calibrate against human-labelled clips. Metrics are flags, not verdicts. Cite a timestamp per finding, then set `reviseSceneIds` and `findings[].owner`.

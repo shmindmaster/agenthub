@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-04",
+  "rule": "Every coding host is covered here, either by a setting or by the reason it has none. Values are documented settings. scripts/Set-ContextLimits.py applies them.",
+  "settings": [
+    {
+      "host": "claude",
+      "file": "~/.claude/settings.json",
+      "format": "json",
+      "key": ["modelSettings", "claude-opus-5-5", "autoCompactWindow"],
+      "value": 500000,
+      "why": "Sessions restart at about 175K, so 400K left 225K of working room. The vendor default of about 967K is not used because Anthropic warns that accuracy falls as context grows. The number is a judgment.",
+      "source": "https://code.claude.com/docs/en/model-config.md"
+    },
+    {
+      "host": "claude",
+      "file": "~/.claude/settings.json",
+      "format": "json",
+      "key": ["modelSettings", "claude-sonnet-5-5", "autoCompactWindow"],
+      "value": 500000,
+      "why": "Matches Opus, so a model switch does not change when a session compacts.",
+      "source": "https://code.claude.com/docs/en/model-config.md"
+    },
+    {
+      "host": "claude",
+      "file": "~/.claude/settings.json",
+      "format": "json",
+      "key": ["skillListingBudgetFraction"],
+      "value": 0.005,
+      "why": "Halves the default 1% budget. Over budget, the least-used skills lose their description and keep their name.",
+      "source": "https://code.claude.com/docs/en/settings-reference.md"
+    },
+    {
+      "host": "claude",
+      "file": "~/.claude/settings.json",
+      "format": "json",
+      "key": ["skillListingMaxDescChars"],
+      "value": 800,
+      "why": "Caps each skill description, down from 1536.",
+      "source": "https://code.claude.com/docs/en/settings-reference.md"
+    },
+    {
+      "host": "codex",
+      "file": "~/.codex/config.toml",
+      "format": "toml",
+      "key": ["model_auto_compact_token_limit"],
+      "value": 240000,
+      "why": "120000 is 25% of the 475K window, and sessions restart at about 42K. 240000 stays under the 272K long-context threshold that third-party sources report.",
+      "source": "https://learn.chatgpt.com/docs/config-file/config-sample"
+    },
+    {
+      "host": "codex",
+      "file": "~/.codex/config.toml",
+      "format": "toml",
+      "key": ["tool_output_token_limit"],
+      "value": 12000,
+      "why": "Caps each tool output stored in history, the main source of growth per step. 12000 is the vendor sample value.",
+      "source": "https://learn.chatgpt.com/docs/config-file/config-sample"
+    },
+    {
+      "host": "grok",
+      "file": "~/.grok/config.toml",
+      "format": "toml",
+      "key": ["compat", "claude", "agents"],
+      "value": false,
+      "why": "Session logs show Grok loading the same policy twice, from ~/.grok/AGENTS.md and ~/.claude/CLAUDE.md, about 5K tokens per session. This cell gates ~/.claude/ named files and <dir>/.claude/CLAUDE*.md. compat.claude.rules only gates rules directories, so it stays on.",
+      "source": "Grok user guide embedded in the binary: 05-configuration.md#harness-compatibility, 26-config-reference.md#compat"
+    },
+    {
+      "host": "grok",
+      "file": "~/.grok/config.toml",
+      "format": "toml",
+      "key": ["compat", "claude", "hooks"],
+      "value": false,
+      "why": "Stops Grok importing hooks from ~/.claude/settings.json, which are written for Claude. Plugin hooks are separate and stay on.",
+      "source": "Grok user guide embedded in the binary: 05-configuration.md#harness-compatibility"
+    },
+    {
+      "host": "vscode-insiders",
+      "file": "%APPDATA%/Code - Insiders/User/settings.json",
+      "format": "jsonc",
+      "key": ["chat.tools.compressOutput.enabled"],
+      "value": true,
+      "why": "Compresses large terminal output before it reaches the model. Preview setting.",
+      "source": "https://code.visualstudio.com/docs/agents/reference/ai-settings"
+    },
+    {
+      "host": "vscode-insiders",
+      "file": "%APPDATA%/Code - Insiders/User/settings.json",
+      "format": "jsonc",
+      "key": ["chat.useClaudeMdFile"],
+      "value": false,
+      "why": "Fleet repositories carry AGENTS.md, so loading CLAUDE.md as well repeats the same instructions.",
+      "source": "https://code.visualstudio.com/docs/agents/reference/ai-settings"
+    },
+    {
+      "host": "opencode",
+      "file": "~/.config/opencode/opencode.json",
+      "format": "json",
+      "key": ["tool_output", "max_lines"],
+      "value": 1000,
+      "why": "Halves the default. The full output stays on disk.",
+      "source": "https://opencode.ai/config.json"
+    },
+    {
+      "host": "opencode",
+      "file": "~/.config/opencode/opencode.json",
+      "format": "json",
+      "key": ["tool_output", "max_bytes"],
+      "value": 25600,
+      "why": "Halves the default. The full output stays on disk.",
+      "source": "https://opencode.ai/config.json"
+    },
+    {
+      "host": "cline",
+      "file": "~/.cline/data/settings/cline_mcp_settings.json",
+      "format": "json",
+      "key": ["mcpServers", "*", "disabled"],
+      "value": true,
+      "why": "Servers stay off by default, as on the other hosts. Turn one on in Cline's MCP panel when a task needs it.",
+      "source": "https://docs.cline.bot/cline-cli/configuration"
+    },
+    {
+      "host": "qoder",
+      "file": "~/.qoder/settings.json",
+      "format": "json",
+      "key": ["mcp", "lazyLoad"],
+      "value": true,
+      "why": "Defers MCP tool schemas until they are needed.",
+      "source": "https://docs.qoder.com/cli/settings-reference"
+    },
+    {
+      "host": "fleet",
+      "format": "user-env",
+      "key": ["REPOWISE_SKIP_EDITOR_SETUP"],
+      "value": "1",
+      "why": "Stops the RepoWise hook repairing editor configuration after an update. Owner policy: CLI updates must not touch editors.",
+      "source": "repowise.cli.self_heal"
+    }
+  ],
+  "removedPlugins": {
+    "why": "Removed 2026-11-04 from every host: under 5 calls in 30 days of Claude and Codex logs, frozen spend, or a duplicate of a kept plugin. Set-ContextLimits.py reports any that return. Reinstall from the host's catalog when a task needs one.",
+    "names": ["adobe-for-creativity", "azure", "azure-cosmos-db-assistant", "canva", "coderabbit", "posthog", "remotion", "runway-api", "slack", "superpowers", "tavily", "typescript-lsp"],
+    "configs": [
+      { "host": "claude", "file": "~/.claude/settings.json", "format": "json", "key": "enabledPlugins" },
+      { "host": "codex", "file": "~/.codex/config.toml", "format": "toml", "key": "plugins" },
+      { "host": "factory", "file": "~/.factory/settings.json", "format": "json", "key": "enabledPlugins" },
+      { "host": "qoder", "file": "~/.qoder/settings.json", "format": "json", "key": "enabledPlugins" }
+    ]
+  },
+  "noDocumentedSetting": {
+    "cursor": "Compaction runs at about 90% of the window and Cursor offers no setting. Run /summarize at phase boundaries. 300K context is already selected.",
+    "copilot": "No compaction setting; it compacts at about 80%, confirmed in session logs. Tool search is already automatic.",
+    "grok": "Compaction stays at 80%. It is the server default, and raising it would pass the 200K price step in xAI's API table. Bash output is already capped at 40000 bytes.",
+    "factory": "The 250K compaction default suits gpt-6.1-sol, and plugin servers have no documented per-server switch.",
+    "amp": "Compaction was replaced by handoff, so there is nothing to tune. End threads at task boundaries.",
+    "devin": "No compaction setting is documented. All 28 servers are off and sessions start at about 30K.",
+    "warp": "The GUI profile is already at 1,000,000. Warp syncs its settings, so they are not edited from here.",
+    "antigravity": "Compaction keys exist only in the binary and are undocumented, so they are not used."
+  }
+}

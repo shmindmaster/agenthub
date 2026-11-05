@@ -263,8 +263,17 @@ Report 'live read-only service reader and runtime check leave every VMware servi
 ) "before=$before after=$after error=$($liveState.Error) output=$($runtimeOutput -join ' ')"
 
 # ---------------------------------------------------------------- docs truth
-$platformSkill = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-platform-standard\SKILL.md') -Raw -Encoding UTF8
-$labSkill = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\SKILL.md') -Raw -Encoding UTF8
+# A skill's guidance is its SKILL.md plus the reference files it points to with Read-when lines.
+function Get-SkillGuidanceText([string]$SkillName) {
+    $dir = Join-Path (Join-Path $packageRoot 'skills') $SkillName
+    $text = Get-Content -LiteralPath (Join-Path $dir 'SKILL.md') -Raw -Encoding UTF8
+    foreach ($ref in @(Get-ChildItem -LiteralPath (Join-Path $dir 'references') -Filter '*.md' -File -ErrorAction SilentlyContinue)) {
+        $text += "`n" + (Get-Content -LiteralPath $ref.FullName -Raw -Encoding UTF8)
+    }
+    return $text
+}
+$platformSkill = Get-SkillGuidanceText 'mobile-platform-standard'
+$labSkill = Get-SkillGuidanceText 'mobile-device-lab'
 Report 'Windows usbmuxd guidance accepts both the Apple Devices MSIX and the Apple Mobile Device Service' (
     $platformSkill -match 'Apple Mobile Device Service' -and $platformSkill -match 'AppleDevices' -and
     $platformSkill -notmatch 'There is no Windows \*service\*' -and $platformSkill -match 'usbmux list'

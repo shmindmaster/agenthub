@@ -1,0 +1,19 @@
+{
+  "name": "ah-exa",
+  "displayName": "AH-Exa",
+  "description": "Search the web and read pages through Exa's hosted server, for hosts whose catalog has no Exa plugin. Remote only: no local process and no stored key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "exa",
+    "search",
+    "research",
+    "web",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "version": "1.0.0"
+}

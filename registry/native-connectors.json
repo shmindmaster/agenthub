@@ -9,7 +9,7 @@
       "{userHome}/.codex/plugins/cache"
     ],
     "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. On-demand-local MCPs are removed from host configuration unless lifecyclePolicy.persistedOnDemandLocalMcpIds records a reviewed exception -- and note that 'on-demand' names an intent, not a mechanism: a host starts every stdio server named in its config at session start, so there is no lazy path for a persisted stdio entry. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners.",
-    "retiredExceptionNote": "This policy previously ended the exception sentence with: 'The appium-mobile exception may persist its provider registration but never starts the VM or emulators.' That was false, and it is the sentence that licensed the leak -- appium-mobile was measured on 2026-08-19 holding 15 node processes totalling 2,017 MB at rest, 48-239 MB each and climbing, with no mobile work in progress. Registering a stdio server in a host config IS starting it. appium-mobile was removed from persistedOnDemandLocalMcpIds and gated behind `claude plugin enable mobile-development@agenthub`; see lifecyclePolicy.appiumActivationRoute. Kept here rather than deleted because the wording, not the entry, was the failure mode."
+    "retiredExceptionNote": "This policy previously ended the exception sentence with: 'The appium-mobile exception may persist its provider registration but never starts the VM or emulators.' That was false, and it is the sentence that licensed the leak -- appium-mobile was measured on 2026-08-19 holding 15 node processes totalling 2,017 MB at rest, 48-239 MB each and climbing, with no mobile work in progress. Registering a stdio server in a host config IS starting it. appium-mobile was removed from persistedOnDemandLocalMcpIds and gated behind `claude plugin enable ah-mobile-development@agenthub`; see lifecyclePolicy.appiumActivationRoute. Kept here rather than deleted because the wording, not the entry, was the failure mode."
   },
   "hostPrivateExtensionPolicy": {
     "hosts": [
@@ -59,9 +59,9 @@
     },
     "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. The list stays empty.",
     "onDemandLocalMcpIdsNote": "Refreshed 2026-10-24. Chrome DevTools MCP is retired; do not register it. playwright is --extension attach for hosts without a native browser pane, plugin-gated and never persisted. the AgentHub slack bridge was retired with the slack capability on 2026-10-30 at owner direction. RepoWise is vendor-plugin-owned on Claude/Codex and AgentHub-plugin-owned on remaining hosts, never duplicated in host MCP configuration. appium-mobile and linkedin stay on-demand-local and unpersisted.",
-    "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
+    "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `ah-mobile-development@agenthub` when absent, then `claude plugin enable ah-mobile-development@agenthub`; cleanup is `claude plugin disable ah-mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add ah-mobile-development@agenthub` and `codex plugin remove ah-mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
     "browserActivationRoute": "Codex, Cursor and Claude use their native browser surface. browser-toolkit was retired on 2026-10-30 at owner direction: no AgentHub browser plugin and no Playwright MCP lane remain. Repeatable browser regression stays in each repo's own Playwright tests; ad-hoc browser automation uses the host first-party browser surface or the agent-browser CLI. Chrome DevTools MCP is retired: never register or enable chrome-devtools or chrome-devtools-isolated.",
-    "repowiseActivationRoute": "Owner migration 2026-11-03 supersedes the old vendor-plugin prohibition. Claude: repowise@repowise from repowise-dev/repowise. Codex: codex@repowise from the same vendor repository. Uninstall repowise@agenthub on those hosts; never restore it as parity repair. Vendor plugins own MCP, hooks and skills; remove duplicate user hooks and MCP entries. Use the existing C:/Repos workspace. Other hosts keep the AgentHub bridge until migrated. Keep bounded indexing scripts and approved personal AgentHub plugins.",
+    "repowiseActivationRoute": "Owner migration 2026-11-03 supersedes the old vendor-plugin prohibition. Claude: repowise@repowise from repowise-dev/repowise. Codex: codex@repowise from the same vendor repository. Uninstall ah-repowise@agenthub on those hosts; never restore it as parity repair. Vendor plugins own MCP, hooks and skills; remove duplicate user hooks and MCP entries. Use the existing C:/Repos workspace. Other hosts keep the AgentHub bridge until migrated. Keep bounded indexing scripts and approved personal AgentHub plugins.",
     "optInDisabledLocalMcpIds": [],
     "optInDisabledLocalMcpIdsNote": "On-demand-local stdio servers that hosts with an enabled=false switch may write into config without starting them. OpenCode is the verified writer (opencode.ai/docs/mcp-servers). Claude/Codex/Grok still suppress these from host MCP config and use plugin enable/disable instead. A host without an enabled=false switch must not be added here.",
     "optInDisabledHosts": [
@@ -699,6 +699,7 @@
     "extensions": [
       {
         "extensionId": "superpowers",
+        "removedFromHosts": "2026-11-04: uninstalled from every host, see removedPlugins in registry/context-limits.json. Hosts channels below are history.",
         "kind": "plugin",
         "provenance": "community-upstream",
         "maturity": "stable",
@@ -822,6 +823,7 @@
       },
       {
         "extensionId": "coderabbit",
+        "removedFromHosts": "2026-11-04: uninstalled from every host, see removedPlugins in registry/context-limits.json. Hosts channels below are history.",
         "kind": "skills-package",
         "provenance": "official-upstream",
         "maturity": "beta",
@@ -1147,7 +1149,7 @@
         "maturity": "stable",
         "upstream": "https://github.com/daytona/skills",
         "maintainer": "Daytona",
-        "license": "See upstream",
+        "license": "Apache-2.0",
         "install": {
           "command": "npx skills add https://github.com/daytona/skills --skill daytona",
           "docs": "https://www.daytona.io/docs/en/agent-skills/"
@@ -1156,16 +1158,44 @@
           "compute.daytona-sandboxes"
         ],
         "required": false,
-        "note": "Owner authorized the official upstream skill for the four coordinated Codex product sessions on 2026-10-29. Installed directly from upstream with Codex skill-installer into ~/.agents/skills/daytona; AgentHub records provenance only and does not vendor or publish this skill. Existing SDK execution remains the compute route; this observation does not install the Daytona CLI or MCP server. The pinned skill's no-live-snapshot statement is version-sensitive and differs from newer documentation: verify the installed SDK and runtime before using snapshot APIs. Other hosts were not inspected or changed.",
-        "observedAt": "2026-10-29",
+        "note": "Every host carries Daytona. Claude, Factory and Devin install the vendor plugin from their own catalog, and Grok imports Claude's copy. Other hosts use ah-daytona, built from this upstream at the commit in packages/daytona/NOTICE. Runnable examples are indexed from daytona/guides, not copied.",
+        "observedAt": "2026-11-04",
         "hostChannels": [
           {
+            "hostId": "claude",
+            "channel": "native-plugin",
+            "plugin": "daytona-skills@claude-community",
+          "current": true,
+          "updateCommand": "claude plugin update daytona-skills@claude-community"
+          },
+          {
+            "hostId": "factory",
+            "channel": "native-plugin",
+            "plugin": "daytona-skills@claude-plugins-community",
+          "current": true,
+          "updateCommand": "droid plugin update daytona-skills@claude-plugins-community"
+          },
+          {
+            "hostId": "devin",
+            "channel": "native-plugin",
+            "plugin": "daytona",
+          "current": true,
+          "updateCommand": "devin plugins update daytona"
+          },
+          {
+            "hostId": "grok",
+            "channel": "imported-from-claude",
+            "plugin": "daytona-skills",
+          "current": true,
+          "updateCommand": "Follows Claude: grok imports the plugin installed for Claude"
+          },
+          {
             "hostId": "codex",
-            "channel": "upstream-skills",
-            "installedVersion": "3d6d2395d6da59888851b68cba64a0697cd35ced",
-            "current": true,
-            "updateCommand": "npx skills add https://github.com/daytona/skills -g -y -a codex --skill daytona",
-            "note": "Owner-authorized direct upstream install, pinned to the observed main commit on 2026-10-29. Shared ~/.agents/skills directory is Codex USER tier. Existing sessions must read SKILL.md explicitly; installation does not establish consumption. Currency is an observation at this commit and date."
+            "channel": "ah-plugin",
+            "plugin": "ah-daytona@agenthub",
+          "current": true,
+          "updateCommand": "codex plugin add ah-daytona@agenthub",
+            "note": "Replaces the 2026-10-29 loose skill in ~/.agents/skills, which was checked absent on 2026-11-04."
           }
         ]
       },

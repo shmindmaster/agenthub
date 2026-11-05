@@ -1,6 +1,5 @@
 {
-  "name": "product",
-  "version": "2.0.1",
+  "name": "ah-product",
   "description": "Audit, design, build, verify and demo product experiences on evidence.",
   "author": {
     "name": "MahumTech"
@@ -17,7 +16,7 @@
   "skills": "./skills/",
   "agents": "./agents/",
   "interface": {
-    "displayName": "Product",
+    "displayName": "AH-Product",
     "shortDescription": "Audit, design, build, verify and demo apps.",
     "longDescription": "Audit, design, build, verify and demo product experiences on evidence.",
     "developerName": "MahumTech",
@@ -37,5 +36,6 @@
     "logo": "./assets/product.png",
     "logoDark": "./assets/product-dark.png",
     "screenshots": []
-  }
+  },
+  "version": "2.0.2"
 }

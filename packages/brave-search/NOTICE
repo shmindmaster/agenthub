@@ -1,0 +1,14 @@
+This package adapts documentation from brave/brave-search-skills
+(https://github.com/brave/brave-search-skills), MIT License,
+Copyright (c) 2026 Brave Software.
+
+The adapted material is the endpoint, parameter and response descriptions in
+skills/search/references/. The skill text, the Node client
+(skills/search/scripts/brave.mjs) and its tests are original to AgentHub.
+
+Permission notice (MIT): permission is granted, free of charge, to any person
+obtaining a copy of the software and associated documentation files, to deal in
+them without restriction, including the rights to use, copy, modify, merge,
+publish, distribute, sublicense and sell copies, subject to the inclusion of the
+copyright notice above and this permission notice in all copies or substantial
+portions. The software is provided "as is", without warranty of any kind.

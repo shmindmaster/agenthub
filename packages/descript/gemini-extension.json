@@ -1,0 +1,10 @@
+{
+  "name": "ah-descript",
+  "description": "Edit, transcribe and publish video and audio projects through Descript's hosted server, for hosts whose catalog has no Descript plugin. Remote only: no local process and no stored key.",
+  "mcpServers": {
+    "descript": {
+      "httpUrl": "https://api.descript.com/v2/mcp"
+    }
+  },
+  "version": "1.0.0"
+}

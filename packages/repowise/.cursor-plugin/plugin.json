@@ -1,8 +1,9 @@
 {
-  "name": "repowise",
+  "name": "ah-repowise",
+  "displayName": "AH-Repowise",
   "description": "Fleet RepoWise workspace MCP pinned at C:/Repos. Enable only when code-intelligence tools are needed; disable when done.",
   "author": {
     "name": "Sarosh Hussain"
   },
-  "version": "1.4.1"
+  "version": "1.4.2"
 }

@@ -163,7 +163,7 @@
     {
       "id": "gemini",
       "name": "Gemini CLI",
-      "version": "0.66.0",
+      "version": "0.67.0",
       "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `gemini.cmd --version` printed 0.65.0. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported 0.64.0. `npm view @google/gemini-cli version` returned the same version, so no upgrade was performed.",
       "executable": "{userHome}/bin/gemini.cmd",
       "nativePaths": {
@@ -197,7 +197,9 @@
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
-        "instructions": "{userHome}/.copilot/copilot-instructions.md",
+        "instructions": null,
+        "instructionsOwnedBy": "vscode-insiders",
+        "instructionsNote": "Copilot CLI also loads ~/.copilot/instructions/*.instructions.md, which VS Code owns. Session logs on 2026-11-04 showed both files loaded in 9 of 12 sessions, so the CLI's own copy was removed.",
         "instructionHeader": null,
         "instructionFormat": "markdown",
         "mcp": "{userHome}/.copilot/mcp-config.json",
@@ -220,7 +222,7 @@
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.4.12",
+      "version": "1.5.0",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
@@ -259,7 +261,7 @@
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "2.28.2",
+      "version": "2.29.0",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed 2.24.0.",
@@ -578,7 +580,7 @@
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "skillsDirNote": "Verified 2026-08-04 against ampcode.com/manual skills section. Amp's documented precedence is ~/.config/agents/skills, ~/.agents/skills, ~/.config/amp/skills, then project and .claude scopes. Collapsed onto sharedSkillsDir 2026-09-02: Amp already reads ~/.agents/skills at higher precedence than ~/.config/amp/skills, so the private copy was redundant.",
         "pluginsDir": "{userHome}/.config/amp/plugins",
-        "pluginsDirNote": "Verified 2026-08-05 against ampcode.com/manual. Amp plugins are TypeScript files loaded from .amp/plugins/*.ts (project) and ~/.config/amp/plugins/*.ts (user). Distinct from the skills precedence chain recorded in sharedSkillsDir -- the manual separates them explicitly: plugins for custom tools and event-driven behavior, skills for written guidance. Path correct; absent only because no plugin is installed."
+        "pluginsDirNote": "Tested 2026-11-04 on 0.0.1792022479: Amp also loads <plugins>/<name>/index.ts, and amp.registerSkill makes that folder a plugin that carries skills and servers. scripts/Install-AmpPlugins.py generates 15 of them. Links out of the folder are rejected. History: verified 2026-08-05 against ampcode.com/manual, which described *.ts files only."
       },
       "supportedCapabilities": [
         "rules",
@@ -595,7 +597,7 @@
     {
       "id": "devin",
       "name": "Devin Desktop / CLI",
-      "version": "3000.11.228",
+      "version": "3000.11.234",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
       "platformPaths": {
         "darwin": {
@@ -621,7 +623,7 @@
         "verification": "documented-path",
         "instructionsNote": "Re-verified 2026-10-21 against docs.devin.ai/cli/extensibility/configuration, which now writes the Windows path literally: the user config is %APPDATA%\\devin\\config.json (C:\\Users\\<you>\\AppData\\Roaming\\devin\\config.json) and 'You can also place an AGENTS.md file in this directory' to define global rules for every project. Promoted from documented-feature-inferred-windows-path to a deployment destination. History: researched 2026-08-04 when the page gave only the Unix ~/.config/devin form.",
         "mcpKey": "mcpServers",
-        "mcpNote": "Verified 2026-08-04. docs.devin.ai/cli/extensibility/mcp documents only PROJECT scope (.devin/mcp_config.json and .devin/mcp_config.local.json, key mcpServers) and says nothing about user-level MCP -- which nearly became a false finding that Sync-AgentHub.ps1 writes MCP where Devin does not read it. Checking the live file settled it: %APPDATA%/devin/config.json already carries an mcpServers object with six Devin-owned entries (context7, descript, exa, firecrawl, linear, notion) that AgentHub never wrote. The global key is real and the vendor page is merely incomplete. Sync-AgentHub.ps1's ProtectKeys behavior exists to keep those host-owned entries from being pruned.",
+        "mcpNote": "Checked 2026-11-04: on this version the global file is %APPDATA%/devin/mcp_config.json, shared with Devin Desktop, and it holds no direct entries because every server comes from a plugin. ~/.config/devin and ~/.codeium/mcp_config.json are not read on Windows. History: verified 2026-08-04. docs.devin.ai/cli/extensibility/mcp documents only PROJECT scope (.devin/mcp_config.json and .devin/mcp_config.local.json, key mcpServers) and says nothing about user-level MCP -- which nearly became a false finding that Sync-AgentHub.ps1 writes MCP where Devin does not read it. Checking the live file settled it: %APPDATA%/devin/config.json already carries an mcpServers object with six Devin-owned entries (context7, descript, exa, firecrawl, linear, notion) that AgentHub never wrote. The global key is real and the vendor page is merely incomplete. Sync-AgentHub.ps1's ProtectKeys behavior exists to keep those host-owned entries from being pruned.",
         "agentsDirNote": "Verified 2026-08-05 against docs.devin.ai/cli/subagents. Devin CLI reads subagent profiles from %APPDATA%/devin/agents on Windows (~/.config/devin/agents on macOS and Linux), each as agents/<name>/AGENT.md -- a directory per agent, not a flat file per agent. Path correct; absent only because AgentHub does not generate Devin subagents: registry/subagent-formats.json is scoped to four hosts and devin is not one of them.",
         "hooksDirNote": "Set to null 2026-08-05; previously claimed a directory at %APPDATA%/devin/hooks that does not exist as a concept. docs.devin.ai/cli/extensibility/hooks/overview documents NO user-level hooks directory: project hooks are a single file .devin/hooks.v1.json, and user-level hooks are configured as a 'hooks' key nested inside %APPDATA%/devin/config.json itself. Left as an explicit null rather than deleted, so the next person to notice that every other host has a hooks directory finds the answer instead of re-adding the wrong path."
       },
@@ -749,7 +751,8 @@
       "installationExpectation": "in-use-executable-not-located",
       "notes": "2026-10-21 reconciliation: the recorded ~/.codeium/windsurf configuration tree is now absent; the earlier configuration inventory below is historical. Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%/Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch.",
       "headlessDispatchNote": "Windsurf routes to the installed Devin CLI; dispatch and autonomy restrictions on Devin also apply.",
-      "inactiveNote": "Moved to inactiveAgents 2026-10-22: no windsurf executable on PATH or under %LOCALAPPDATA%/Programs and no ~/.codeium directory (hostInventory.notInstalled already recorded this). An active entry made Sync-AgentHub report drift and create ~/.codeium/windsurf/mcp_config.json for a host that is not installed. Dispatch of `windsurf` still routes to Devin per the dispatcher. Reactivate after an install is verified."
+      "inactiveNote": "Moved to inactiveAgents 2026-10-22: no windsurf executable on PATH or under %LOCALAPPDATA%/Programs and no ~/.codeium directory (hostInventory.notInstalled already recorded this). An active entry made Sync-AgentHub report drift and create ~/.codeium/windsurf/mcp_config.json for a host that is not installed. Dispatch of `windsurf` still routes to Devin per the dispatcher. Reactivate after an install is verified.",
+      "renamedNote": "Checked 2026-11-04: Windsurf is now Devin Desktop. Version 3.11.238 is installed at %LOCALAPPDATA%/Programs/Devin/Devin.exe with its own CLI, and both read %APPDATA%/devin. Do not reactivate this row; the `devin` row is the host."
     }
   ]
 }

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ah-aws",
+  "displayName": "AH-AWS",
+  "version": "1.0.1",
+  "description": "Run AWS commands and read AWS documentation through the official AWS MCP server, using the fleet's approved AWS profile. Starts one local proxy for a session, so install it only on hosts that do AWS work.",
+  "suggestedPrompts": [
+    "List the regions this service runs in.",
+    "Check the status of this resource."
+  ],
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "aws",
+    "cloud",
+    "mcp"
+  ]
+}

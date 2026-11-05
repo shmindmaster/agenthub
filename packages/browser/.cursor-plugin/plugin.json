@@ -1,0 +1,18 @@
+{
+  "name": "ah-browser",
+  "displayName": "AH-Browser",
+  "description": "Drive a hidden browser to automate a website task or test a web app as a user would, on hosts without a high-fidelity browser of their own. Wraps agent-browser with fleet defaults; installs nothing and stores no key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "browser",
+    "automation",
+    "web-testing",
+    "qa",
+    "headless"
+  ],
+  "skills": "./skills/",
+  "version": "1.0.0"
+}

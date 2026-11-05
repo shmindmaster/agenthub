@@ -1,6 +1,6 @@
 {
-  "name": "product",
-  "version": "2.0.1",
+  "name": "ah-product",
+  "displayName": "AH-Product",
   "description": "Audit, design, build, verify and demo product experiences on evidence.",
   "author": {
     "name": "MahumTech"
@@ -17,5 +17,6 @@
   "skills": "./skills/",
   "agents": [
     "./agents/reviewer.agent.md"
-  ]
+  ],
+  "version": "2.0.2"
 }

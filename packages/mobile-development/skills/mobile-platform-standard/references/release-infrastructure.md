@@ -42,3 +42,20 @@ py -m pymobiledevice3 apps install <path-to-ipa>
 ```
 
 An App Store Connect API key (or an exported `.p12`) removes the credential fetch. It holds a private key, so the account holder handles it, not an agent.
+
+## Local builds
+
+| Target | Command | Where |
+| --- | --- | --- |
+| Android APK | `gradlew` (see mobile-device-lab `references/lab-operations.md`) | Windows |
+| iOS Simulator `.app` | `xcodebuild`, `ios.simulator: true` | macOS guest |
+| Signed iOS `.ipa` | `eas build --platform ios --profile <p> --local` | macOS guest |
+
+`--local` contacts Expo only for the project check and credentials. Zero identities from `security find-identity -v -p codesigning` is normal afterwards (throwaway keychain); check for the signed artifact.
+
+Install an `.ipa` on a phone from Windows with `pymobiledevice3 apps install` over USB; readiness is `usbmux list` answering. `usbmuxd` comes from the Apple Devices app (`AppleDevices` MSIX: no service, needs one launch) or from Apple Mobile Device Support (runs `Apple Mobile Device Service`); don't judge one form by the other's checks.
+
+## Identity details
+
+- One bundle identifier and one EAS `development` profile per product until it ships; every suffix is another Apple App ID and profile. Add variants only for a real store or side-by-side need, and record the reason in the authority.
+- One EAS project per eligible product unless the authority records an exception. Treat EAS IDs and slugs, Apple team and certificate state, App IDs, profiles, devices and account topology as live facts: resolve them at execution time and do not persist a second table in a skill.

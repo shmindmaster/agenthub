@@ -277,7 +277,7 @@ Report 'deep smoke receives the resolved pin and emits the resolved version' (
 $claudeManifest = Read-Json 'packages\mobile-development\.claude-plugin\plugin.json'
 $codexManifest = Read-Json 'packages\mobile-development\.codex-plugin\plugin.json'
 Report 'generic, Claude, and Codex manifests share one mobile-development identity and version' (
-    $manifest.name -eq 'mobile-development' -and $claudeManifest.name -eq $manifest.name -and $codexManifest.name -eq $manifest.name -and `
+    $manifest.name -eq 'ah-mobile-development' -and $claudeManifest.name -eq $manifest.name -and $codexManifest.name -eq $manifest.name -and `
     $manifest.version -match '^\d+\.\d+\.\d+$' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
 ) "generic=$($manifest.name)@$($manifest.version) claude=$($claudeManifest.name)@$($claudeManifest.version) codex=$($codexManifest.name)@$($codexManifest.version)"
 $retainedHostManifestDirs = @(Get-ChildItem -LiteralPath $packageRoot -Force -Directory | Where-Object Name -match '^\..+-plugin$' | Select-Object -ExpandProperty Name | Sort-Object)
@@ -285,10 +285,10 @@ Report 'unsupported legacy host manifests are absent' (
     Test-Sequence $retainedHostManifestDirs @('.claude-plugin','.codex-plugin')
 ) "retained=$($retainedHostManifestDirs -join ',')"
 Report 'both marketplaces expose only the canonical mobile-development package identity' (
-    @($agentMarketplace.plugins | Where-Object name -eq 'mobile-development').Count -eq 1 -and `
-    @($claudeMarketplace.plugins | Where-Object name -eq 'mobile-development').Count -eq 1 -and `
-    @($agentMarketplace.plugins | Where-Object name -eq 'mobile-development')[0].source.path -eq './packages/mobile-development' -and `
-    @($claudeMarketplace.plugins | Where-Object name -eq 'mobile-development')[0].source -eq './packages/mobile-development' -and `
+    @($agentMarketplace.plugins | Where-Object name -eq 'ah-mobile-development').Count -eq 1 -and `
+    @($claudeMarketplace.plugins | Where-Object name -eq 'ah-mobile-development').Count -eq 1 -and `
+    @($agentMarketplace.plugins | Where-Object name -eq 'ah-mobile-development')[0].source.path -eq './packages/mobile-development' -and `
+    @($claudeMarketplace.plugins | Where-Object name -eq 'ah-mobile-development')[0].source -eq './packages/mobile-development' -and `
     'mobile-device-lab' -notin @($agentMarketplace.plugins.name) -and 'mobile-device-lab' -notin @($claudeMarketplace.plugins.name)
 ) 'A marketplace still exposes the retired package/plugin identity or path.'
 
@@ -363,10 +363,10 @@ Report 'native MCP management is enable/disable and explains new-task loading' (
     $entrypointText -match 'open a new.*task' -and $entrypointText -match 'Existing tasks may retain'
 ) 'The public entrypoint must use claude plugin enable/disable and codex plugin add/remove, then explain task-scoped loading.'
 Report 'native activation registry names the canonical explicit add/remove routes' (
-    $connectors.lifecyclePolicy.appiumActivationRoute -match 'claude plugin enable mobile-development@agenthub' -and `
-    $connectors.lifecyclePolicy.appiumActivationRoute -match 'claude plugin disable mobile-development@agenthub' -and `
-    $connectors.lifecyclePolicy.appiumActivationRoute -match 'codex plugin add mobile-development@agenthub' -and `
-    $connectors.lifecyclePolicy.appiumActivationRoute -match 'codex plugin remove mobile-development@agenthub' -and `
+    $connectors.lifecyclePolicy.appiumActivationRoute -match 'claude plugin enable ah-mobile-development@agenthub' -and `
+    $connectors.lifecyclePolicy.appiumActivationRoute -match 'claude plugin disable ah-mobile-development@agenthub' -and `
+    $connectors.lifecyclePolicy.appiumActivationRoute -match 'codex plugin add ah-mobile-development@agenthub' -and `
+    $connectors.lifecyclePolicy.appiumActivationRoute -match 'codex plugin remove ah-mobile-development@agenthub' -and `
     $connectors.lifecyclePolicy.appiumActivationRoute -match 'new task'
 ) 'The registry does not match the public entrypoint activation contract.'
 

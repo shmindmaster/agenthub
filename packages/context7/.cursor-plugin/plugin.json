@@ -1,0 +1,18 @@
+{
+  "name": "ah-context7",
+  "displayName": "AH-Context7",
+  "description": "Look up current library and framework documentation through Context7's hosted server, for hosts whose catalog has no Context7 plugin. Remote only: no local process and no stored key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "context7",
+    "docs",
+    "libraries",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./mcp.json",
+  "version": "1.0.0"
+}

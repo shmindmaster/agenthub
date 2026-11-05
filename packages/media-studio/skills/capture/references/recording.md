@@ -1,5 +1,9 @@
 # Recording
 
+## Scenes module
+
+`capture/scenes.mjs` exports `options = { baseUrl, storageState?, viewport?, deviceScaleFactor?, recast?: { S05: { autoZoom: false } } }`, `order = [...]`, and one `async S05(h, ctx)` per screen beat. Drive the product only through `h.go`, `h.approach`, `h.click`, `h.typeText`, `h.uploadFile`, `h.fillValue`, `h.selectOption`, `h.pointAt`, `h.hoverHold`, `h.smoothScroll`, `h.expect`, `h.hold`. End every interaction beat with `h.expect(locator, 'label')`. Pacing is built into the helpers, so never add `page.waitForTimeout`; re-pace or split the beat.
+
 ## Every ratio at its own viewport
 
 One job root per delivered ratio, with its own cue sheet and pointer or touch path. Never zoom, crop or reframe desktop capture into a vertical or square cut.

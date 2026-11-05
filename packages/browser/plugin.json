@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ah-browser",
+  "version": "1.0.0",
+  "description": "Drive a hidden browser to automate a website task or test a web app as a user would, on hosts without a high-fidelity browser of their own. Wraps agent-browser with fleet defaults; installs nothing and stores no key.",
+  "license": "MIT",
+  "keywords": [
+    "browser",
+    "automation",
+    "web-testing",
+    "qa",
+    "headless"
+  ]
+}

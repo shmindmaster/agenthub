@@ -31,7 +31,7 @@ $portableManifest = Read-Text $portableManifestPath | ConvertFrom-Json
 
 # The manifests must agree with each other. The version is not pinned here, so a
 # bump edits the manifests alone.
-Assert-True ($manifest.name -eq 'product') 'Unexpected plugin name.'
+Assert-True ($manifest.name -eq 'ah-product') 'Unexpected plugin name.'
 Assert-True ($manifest.version -match '^\d+\.\d+\.\d+$') "Codex plugin version must be semver, found '$($manifest.version)'."
 foreach ($other in @(
     @{ Label = 'Claude'; Manifest = $claudeManifest },
@@ -43,7 +43,7 @@ foreach ($other in @(
     Assert-True ($other.Manifest.description -eq $manifest.description) "$($other.Label) plugin description must match Codex."
 }
 Assert-True ($manifest.author.name -eq 'MahumTech') 'Author must be MahumTech.'
-Assert-True ($manifest.interface.displayName -eq 'Product') 'Incorrect display name.'
+Assert-True ($manifest.interface.displayName -eq 'AH-Product') 'Incorrect display name.'
 Assert-True ($manifest.interface.capabilities.Count -ge 3) 'Capabilities metadata is incomplete.'
 Assert-True ($manifest.interface.defaultPrompt.Count -eq 3) 'Exactly three starter prompts are required.'
 Assert-True (@($portableManifest.PSObject.Properties.Name | Where-Object { $_ -notin @('$schema', 'name', 'version', 'description') }).Count -eq 0) 'Portable manifest must stay compatible with the Agent Plugins floor.'
@@ -183,7 +183,7 @@ Assert-True (-not (Test-Path -LiteralPath (Join-Path $pluginRoot 'hooks'))) 'Thi
 $agentHubRoot = Split-Path -Parent (Split-Path -Parent $pluginRoot)
 $marketplacePath = Join-Path $agentHubRoot '.agents\plugins\marketplace.json'
 $marketplace = Read-Text $marketplacePath | ConvertFrom-Json
-$entry = @($marketplace.plugins | Where-Object name -eq 'product')
+$entry = @($marketplace.plugins | Where-Object name -eq 'ah-product')
 Assert-True ($marketplace.name -eq 'agenthub') 'Canonical marketplace name must be agenthub.'
 Assert-True ($entry.Count -eq 1) 'AgentHub marketplace entry is missing or duplicated.'
 Assert-True ($entry[0].source.path -eq './packages/product') 'Marketplace source path is incorrect.'

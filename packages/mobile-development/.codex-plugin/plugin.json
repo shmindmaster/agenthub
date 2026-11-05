@@ -1,5 +1,5 @@
 {
-  "name": "mobile-development",
+  "name": "ah-mobile-development",
   "description": "Canonical mobile development guidance with explicitly added, on-demand Appium tooling.",
   "author": {
     "name": "Sarosh Hussain"
@@ -15,7 +15,7 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Mobile Development",
+    "displayName": "AH-Mobile-Development",
     "shortDescription": "Develop and test local Android and iOS surfaces.",
     "longDescription": "One Appium MCP control plane for both mobile platforms: an Android emulator running natively on Windows, and an iOS Simulator inside the existing VMware macOS guest driven over the private virtual network. Launch apps, inspect the element tree, tap and type, capture screenshots and screen recordings, and compare the same flow across platforms.",
     "developerName": "Sarosh Hussain",
@@ -30,5 +30,5 @@
       "Capture a screen recording of this bug reproducing."
     ]
   },
-  "version": "2.1.1"
+  "version": "2.1.2"
 }

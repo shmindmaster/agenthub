@@ -1,0 +1,19 @@
+{
+  "name": "ah-descript",
+  "displayName": "AH-Descript",
+  "description": "Edit, transcribe and publish video and audio projects through Descript's hosted server, for hosts whose catalog has no Descript plugin. Remote only: no local process and no stored key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "descript",
+    "video",
+    "audio",
+    "transcript",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./mcp.json",
+  "version": "1.0.0"
+}

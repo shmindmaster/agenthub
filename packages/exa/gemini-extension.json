@@ -1,0 +1,10 @@
+{
+  "name": "ah-exa",
+  "description": "Search the web and read pages through Exa's hosted server, for hosts whose catalog has no Exa plugin. Remote only: no local process and no stored key.",
+  "mcpServers": {
+    "exa": {
+      "httpUrl": "https://mcp.exa.ai/mcp"
+    }
+  },
+  "version": "1.0.0"
+}

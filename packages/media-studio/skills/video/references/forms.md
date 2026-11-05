@@ -72,7 +72,7 @@ The series repository holds bible, casts and media, never AgentHub. Same crew: s
 - Every beat is tagged `FACT`, `DRAMATIZED` or `COMPOSITE`, with a source.
 - Episode: cold open, objective, complication, midpoint reversal, climax on a fact, takeaway.
 - Validate `schemas/series/`: `episode`, `scene-plan`, `receipt-ledger`, `continuity`. Flag contradictions in character knowledge, system state, timeline.
-- Fictionalize first (`sarosh:write`).
+- Fictionalize first (`ah-sarosh:write`).
 
 ## Campaigns
 

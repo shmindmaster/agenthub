@@ -22,7 +22,8 @@ from urllib.request import ProxyHandler, Request, build_opener
 
 
 #: Environment names the fleet embedder is read from. Values are never
-#: persisted; AZURE_OPENAI_* is deliberately not read (that account is a client's).
+#: persisted. Only the FOUNDRY_* and AZURE_AI_SERVICES_* names below are read; an
+#: AZURE_OPENAI_* value never selects the embedder, so a client endpoint cannot leak in.
 EMBEDDER_BASE_URL_ENV = 'FOUNDRY_OPENAI_BASE_URL'
 EMBEDDER_KEY_ENVS = ('FOUNDRY_API_KEY', 'AZURE_AI_SERVICES_KEY')
 EMBEDDER_DEPLOYMENT_ENV = 'FOUNDRY_EMBEDDING_DEPLOYMENT'

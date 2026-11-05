@@ -1,0 +1,31 @@
+{
+  "name": "ah-aws",
+  "version": "1.0.1",
+  "description": "Run AWS commands and read AWS documentation through the official AWS MCP server, using the fleet's approved AWS profile. Starts one local proxy for a session, so install it only on hosts that do AWS work.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "aws",
+    "cloud",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AH-AWS",
+    "shortDescription": "Run AWS commands through the AWS MCP server.",
+    "longDescription": "Run AWS commands and read AWS documentation through the official AWS MCP server, using the fleet's approved AWS profile. Starts one local proxy for a session, so install it only on hosts that do AWS work.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "List the regions this service runs in.",
+      "Check the status of this resource.",
+      "Find the AWS docs for this API."
+    ]
+  }
+}

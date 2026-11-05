@@ -104,7 +104,11 @@ if ($overlayRoot -and (Test-Path -LiteralPath $overlayPackagesRoot)) {
 
 $catalogNames = @($marketplace.plugins | ForEach-Object name | Sort-Object)
 foreach ($entry in $marketplace.plugins) {
-  $expected = "./packages/$($entry.name)"
+  # A plugin is named ah-<package folder>: the prefix groups AgentHub plugins in
+  # every host's plugin list, and the folder stays the capability id.
+  $packageFolder = [string]$entry.source.path -replace '^\./packages/', ''
+  if ($entry.name -ne "ah-$packageFolder") { Fail "marketplace plugin '$($entry.name)' must be named ah-$packageFolder" }
+  $expected = "./packages/$packageFolder"
   if ($entry.source.path -ne $expected) { Fail "marketplace path mismatch for $($entry.name): $($entry.source.path)" }
   $entryRoot = Join-Path $root $entry.source.path
   if (-not (Test-Path -LiteralPath $entryRoot)) { Fail "marketplace package missing: $($entry.name)"; continue }
@@ -166,7 +170,7 @@ foreach ($entry in $marketplace.plugins) {
 foreach ($packageName in $packageNames) {
   $claudeManifest = Join-Path $pluginRoot "$packageName\.claude-plugin\plugin.json"
   if (-not (Test-Path -LiteralPath $claudeManifest)) { continue }
-  if ($packageName -notin $catalogNames) {
+  if ("ah-$packageName" -notin $catalogNames) {
     Fail "package '$packageName' has .claude-plugin/plugin.json but is absent from the plugin catalog, so no host can install it. Add it to .agents/plugins/marketplace.json and .claude-plugin/marketplace.json, or delete the manifest if it is deliberately not distributed."
   }
 }

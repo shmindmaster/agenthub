@@ -1,0 +1,32 @@
+{
+  "name": "ah-linear",
+  "version": "1.0.0",
+  "description": "Read and update Linear issues and projects through Linear's hosted server, for hosts whose catalog has no Linear plugin. Remote only: no local process and no stored key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "linear",
+    "issues",
+    "tracker",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AH-Linear",
+    "shortDescription": "Read and update Linear issues.",
+    "longDescription": "Read and update Linear issues and projects through Linear's hosted server, for hosts whose catalog has no Linear plugin. Remote only: no local process and no stored key.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "List my open Linear issues.",
+      "Summarize this Linear project.",
+      "Add a comment to this issue."
+    ]
+  }
+}

@@ -30,7 +30,7 @@ pwsh -NoProfile -File .\scripts\Update-RepoWise.ps1 -Apply
 
 ## Status of the package
 
-RepoWise remains a tracked public package (`packages/repowise`) for bounded indexing and legacy-host compatibility. Claude uses the vendor `repowise@repowise` plugin and Codex uses `codex@repowise`, from `https://github.com/repowise-dev/repowise`. Both use the existing C:/Repos workspace through one shared server, reached by the bridge at `packages/repowise/scripts/vendor_mcp.py`. On these hosts uninstall the old `repowise@agenthub` wrapper and remove duplicate user hooks; never restore them as parity repair. Other hosts keep their existing bridge until migrated. Useful personal AgentHub plugins remain separate and approved.
+RepoWise remains a tracked public package (`packages/repowise`) for bounded indexing and legacy-host compatibility. Claude uses the vendor `repowise@repowise` plugin and Codex uses `codex@repowise`, from `https://github.com/repowise-dev/repowise`. Both use the existing C:/Repos workspace through one shared server, reached by the bridge at `packages/repowise/scripts/vendor_mcp.py`. On these hosts uninstall the old `ah-repowise@agenthub` wrapper and remove duplicate user hooks; never restore them as parity repair. Other hosts keep their existing bridge until migrated. Useful personal AgentHub plugins remain separate and approved.
 
 Vendor hooks belong to the plugin. Codex reviews and trusts them through `/hooks`; changed hook content requires fresh review. Do not write trust hashes manually. Keep the bounded indexing rule above even when vendor guidance suggests bare `repowise update`.
 

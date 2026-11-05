@@ -7,7 +7,7 @@ description: Produces an independent Pass, Fail or Blocked verdict with command 
 
 Step 4 of 4: ground, decide, build, prove. Start from the request, the diff and the running app; no earlier files are needed.
 
-The builder never issues the verdict. If this context wrote the change, start the `reviewer` agent, or a new session on a host without subagents.
+The builder never issues the verdict. If this context wrote the change, start the `product:reviewer` agent, or a new session on a host without subagents.
 
 Use the repository's Playwright, axe and Lighthouse. If one is missing, mark its check Blocked.
 

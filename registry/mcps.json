@@ -25,9 +25,85 @@
     "rules": [
       "Prefer a shared remote endpoint over a locally spawned process.",
       "A local server runs as one process shared across agents; multiple hosts must not each spawn their own instance of the same server.",
-      "A local server is started by the plugin or skill that needs it, not eagerly at session start, so no process is running for a session that never uses it."
+      "A local server is started by the plugin or skill that needs it, not eagerly at session start, so no process is running for a session that never uses it.",
+      "A coding host named in pluginOnly gets MCP servers from plugins: its own official marketplace, then its community marketplace, then an ah-* plugin. The sync writes no direct entry there unless pluginOnly lists it with a reason."
     ],
-    "note": "Recorded from an explicit owner preference on 2026-08-04: local MCP processes were multiplying across hosts and costing CPU and memory for sessions that never invoked them. activationMode carries this per server. 'shared-remote' means the fleet talks to one hosted endpoint and starts nothing locally. 'on-demand-local' means a local process is permitted, but only invoked through an owning capability, and only when that capability is used. A local server that would be eagerly started by every host at session start does not satisfy this policy regardless of how its activationMode reads."
+    "note": "Recorded from an explicit owner preference on 2026-08-04: local MCP processes were multiplying across hosts and costing CPU and memory for sessions that never invoked them. activationMode carries this per server. 'shared-remote' means the fleet talks to one hosted endpoint and starts nothing locally. 'on-demand-local' means a local process is permitted, but only invoked through an owning capability, and only when that capability is used. A local server that would be eagerly started by every host at session start does not satisfy this policy regardless of how its activationMode reads.",
+    "pluginOnly": {
+      "recordedOn": "2026-11-04",
+      "note": "Owner direction 2026-11-04: no direct MCP entries beyond what a host needs, on every coding host. Each key under hosts is a plugin-only host, and its value lists the only direct entries allowed there, with the reason. pluginOwnersByHost on each server records which plugin carries it. tests/Test-PluginOnlyMcp.ps1 fails on any other entry. Hosts not listed here keep the older write-everything behaviour.",
+      "hosts": {
+        "claude": {},
+        "codex": {
+          "node_repl": "Written by Codex itself; its bundled browser, chrome and computer-use plugins need it."
+        },
+        "cursor": {},
+        "grok": {},
+        "factory": {},
+        "antigravity": {},
+        "qoder": {
+          "microsoft_outlook": "Qoder-hosted connector that belongs to the host runtime."
+        },
+        "copilot": {},
+        "vscode-insiders": {
+          "github": "Copilot's own GitHub endpoint with OAuth. The catalog github plugin needs a personal access token instead."
+        },
+        "cline": {
+          "adobe-for-creativity": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "context7": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "descript": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "exa": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "firecrawl": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "github": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "linear": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "notion": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "posthog": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "railway": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "sentry": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "supabase": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share."
+        },
+        "opencode": {
+          "descript": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
+          "exa": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
+          "linear": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
+          "notion": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
+          "railway": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
+          "sentry": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
+          "aws-mcp": "OpenCode cannot load an ah-* plugin, and this local proxy is its only AWS route. Starts per session; remove it if AWS is not used there."
+        },
+        "amp": {},
+        "devin": {},
+        "warp": {
+          "context7": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
+          "descript": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
+          "exa": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
+          "firecrawl": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
+          "linear": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
+          "notion": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
+          "railway": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process."
+        }
+      }
+    },
+    "sessionStart": {
+      "rule": "A plugin is packaging, not on-demand. Plugin servers stay off by default on every coding host, so a session starts only what the host itself must have. Exception: RepoWise stays on for Claude and Codex.",
+      "recordedOn": "2026-11-04",
+      "offSwitches": {
+        "grok": "grok mcp disable <name>; back on with /mcps",
+        "copilot": "copilot mcp disable <name>; future sessions only",
+        "antigravity": "agy mcp disable <name>",
+        "devin": "a disabled same-name entry in %APPDATA%/devin/mcp_config.json overrides the plugin; delete the entry to restore it, because `devin mcp remove` also deletes the OAuth token",
+        "codex": "[plugins.\"<plugin>@<marketplace>\".mcp_servers.<server>] enabled = false in ~/.codex/config.toml",
+        "vscode-insiders": "chat.mcp.autostart = never; start a server from the MCP list",
+        "opencode": "enabled = false in opencode.json, which the sync keeps; hostConfigOverrides sets it on a new registry entry",
+        "amp": "none; scripts/Install-AmpPlugins.py leaves local servers out",
+        "claude": "per project only, through /mcp, stored as disabledMcpServers in ~/.claude.json; not applied",
+        "cursor": "IDE toggle only; not applied",
+        "factory": "no documented switch for a plugin server; not applied",
+        "cline": "disabled: true per server in cline_mcp_settings.json, which the sync keeps; turn one on in the MCP panel",
+        "qoder": "its own mcp list reports only microsoft_outlook",
+        "warp": "no plugin format; seven remote servers and no local process"
+      }
+    }
   },
   "hostInventory": {
     "recordedOn": "2026-08-19",
@@ -91,7 +167,8 @@
         "vscode-insiders"
       ],
       "pluginOwnersByHost": {
-        "copilot": "built-in:github-mcp-server"
+        "copilot": "built-in:github-mcp-server",
+        "devin": "github@claude-plugins-official"
       },
       "notes": "Canonical personal GitHub MCP owner. The remote endpoint is GitHub-hosted. OAuth only, since 2026-10-02: the owner retired every GitHub token environment variable after the 2026-09-23 force-push compromise. GitHub's authorization server (https://github.com/login/oauth) publishes no dynamic client registration endpoint, so OAuth to this endpoint works only in hosts that ship a pre-registered GitHub OAuth client: Copilot (built-in server) and VS Code Insiders. The official installation-guides table marks Claude Code, Claude Desktop, Cursor, Gemini CLI, OpenCode, Cline and Windsurf as PAT-only. Other hosts do GitHub work through the gh CLI, which holds OAuth tokens for shmindmaster, sh-pendoah and sarosh-pendoah in the Windows keyring (gh auth switch / gh auth token --user). Do not re-add a bearer-token header or a GITHUB_*_TOKEN variable to restore MCP access in those hosts. Official: https://github.com/github/github-mcp-server/tree/main/docs/installation-guides",
       "hostScopeNote": "A shared-remote endpoint adds only host configuration; it does not establish that a host is installed or eligible. Keep host scope aligned with the registered host catalog."
@@ -114,7 +191,21 @@
         "id": "mcp-registry"
       },
       "pluginOwnersByHost": {
-        "codex": "linear@openai-curated-remote"
+        "amp": "ah-linear@agenthub",
+        "antigravity": "linear@agy-github-linear/antigravity-plugin",
+        "codex": "linear@openai-curated-remote",
+        "copilot": "linear@claude-plugins-official",
+        "cursor": "linear@cursor-public",
+        "devin": "linear@devin-marketplace",
+        "factory": "linear@claude-plugins-official",
+        "grok": "linear@claude-plugins-official",
+        "qoder": "linear@qoder-marketplace",
+        "vscode-insiders": "linear@claude-plugins-official"
+      },
+      "hostConfigOverrides": {
+        "opencode": {
+          "enabled": false
+        }
       }
     },
     {
@@ -123,6 +214,19 @@
       "scope": "global-default",
       "transport": "http",
       "activationMode": "shared-remote",
+      "pluginOwnersByHost": {
+        "amp": "ah-context7@agenthub",
+        "antigravity": "context7@agy-github-upstash/context7",
+        "codex": "app-69ef18c674308191a2f952431f91ea61@openai-curated-remote",
+        "copilot": "context7@claude-plugins-official",
+        "cursor": "context7@cursor-public",
+        "devin": "context7@devin-marketplace",
+        "factory": "context7@claude-plugins-official",
+        "grok": "context7@claude-plugins-official",
+        "opencode": "@upstash/context7-opencode",
+        "qoder": "context7@qoder-marketplace",
+        "vscode-insiders": "context7@claude-plugins-official"
+      },
       "url": "https://mcp.context7.com/mcp",
       "credentialPolicy": "environment-api-key",
       "protocol": {
@@ -157,8 +261,22 @@
         "id": "mcp-registry"
       },
       "pluginOwnersByHost": {
+        "amp": "ah-notion@agenthub",
+        "antigravity": "notion@agy-github-makenotion/notion-cookbook",
         "claude": "notion@claude-plugins-official",
-        "codex": "notion@openai-curated"
+        "codex": "notion@openai-curated",
+        "copilot": "notion@claude-plugins-official",
+        "cursor": "notion-workspace@cursor-public",
+        "devin": "notion@devin-marketplace",
+        "factory": "notion@claude-plugins-official",
+        "grok": "ah-notion@agenthub",
+        "qoder": "ah-notion@agenthub",
+        "vscode-insiders": "notion@claude-plugins-official"
+      },
+      "hostConfigOverrides": {
+        "opencode": {
+          "enabled": false
+        }
       }
     },
     {
@@ -167,6 +285,19 @@
       "scope": "global-default",
       "transport": "http",
       "activationMode": "shared-remote",
+      "pluginOwnersByHost": {
+        "amp": "ah-firecrawl@agenthub",
+        "antigravity": "ah-firecrawl@agenthub",
+        "codex": "ah-firecrawl@agenthub",
+        "copilot": "firecrawl@claude-plugins-official",
+        "cursor": "ah-firecrawl@agenthub",
+        "devin": "firecrawl@devin-marketplace",
+        "factory": "firecrawl@claude-plugins-official",
+        "grok": "firecrawl@xai-official",
+        "opencode": "@firecrawl/opencode",
+        "qoder": "ah-firecrawl@agenthub",
+        "vscode-insiders": "firecrawl@claude-plugins-official"
+      },
       "url": "https://mcp.firecrawl.dev/v2/mcp",
       "headers": {
         "Authorization": "Bearer ${env:FIRECRAWL_API_KEY}"
@@ -188,6 +319,18 @@
       "scope": "global-default",
       "transport": "http",
       "activationMode": "shared-remote",
+      "pluginOwnersByHost": {
+        "amp": "ah-exa@agenthub",
+        "antigravity": "ah-exa@agenthub",
+        "codex": "app-69ea4ed2cf7c8191b742ef3622479ddd@openai-curated-remote",
+        "copilot": "exa@claude-plugins-official",
+        "cursor": "exa@cursor-public",
+        "devin": "exa@devin-marketplace",
+        "factory": "exa@claude-plugins-official",
+        "grok": "exa@xai-official",
+        "qoder": "ah-exa@agenthub",
+        "vscode-insiders": "exa@claude-plugins-official"
+      },
       "url": "https://mcp.exa.ai/mcp",
       "headers": {
         "x-api-key": "${env:EXA_API_KEY}"
@@ -201,6 +344,11 @@
       "owner": {
         "type": "registry",
         "id": "mcp-registry"
+      },
+      "hostConfigOverrides": {
+        "opencode": {
+          "enabled": false
+        }
       }
     },
     {
@@ -270,9 +418,17 @@
         "id": "media-studio"
       },
       "pluginOwnersByHost": {
-        "codex": "media-studio@agenthub"
+        "amp": "ah-descript@agenthub",
+        "antigravity": "ah-descript@agenthub",
+        "codex": "app-69f0dc45f6048191876c14c1016fe778@openai-curated-remote",
+        "copilot": "ah-descript@agenthub",
+        "devin": "ah-descript@agenthub",
+        "factory": "ah-descript@agenthub",
+        "grok": "ah-descript@agenthub",
+        "qoder": "ah-descript@agenthub",
+        "vscode-insiders": "ah-descript@agenthub"
       },
-      "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Public finishing guidance is media-studio:compose references/descript.md (media-studio-descript was folded into it on 2026-10-21). Claude uses its native Descript account connector (media-studio Claude mapping sets mcpOwnership shared-registry so the plugin does not also offer Descript). Codex uses the media-studio plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509",
+      "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Public finishing guidance is ah-media-studio:compose references/descript.md (media-studio-descript was folded into it on 2026-10-21). Claude uses its native Descript account connector (media-studio Claude mapping sets mcpOwnership shared-registry so the plugin does not also offer Descript). Codex uses the media-studio plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509",
       "hosts": [
         "claude",
         "codex",
@@ -293,7 +449,12 @@
         "factory",
         "vscode-insiders"
       ],
-      "hostScopeNote": "hosts[] added 2026-10-22: every active host except amp. Amp's Descript OAuth access token is expired with no refresh token, so a persisted entry stops every headless Amp run at an OAuth prompt (MCP-ACCESS-AUDIT-2026-10-22). The entry was removed from ~/.config/amp/settings.json that day; this allowlist keeps sync from re-adding it. Re-add amp after `amp mcp oauth login descript` succeeds. Windsurf is omitted because it is checked-absent on this machine."
+      "hostScopeNote": "hosts[] added 2026-10-22: every active host except amp. Amp's Descript OAuth access token is expired with no refresh token, so a persisted entry stops every headless Amp run at an OAuth prompt (MCP-ACCESS-AUDIT-2026-10-22). The entry was removed from ~/.config/amp/settings.json that day; this allowlist keeps sync from re-adding it. Re-add amp after `amp mcp oauth login descript` succeeds. Windsurf is omitted because it is checked-absent on this machine.",
+      "hostConfigOverrides": {
+        "opencode": {
+          "enabled": false
+        }
+      }
     },
     {
       "id": "repowise-workspace",
@@ -323,11 +484,16 @@
         "id": "repowise"
       },
       "pluginOwnersByHost": {
+        "amp": "ah-repowise@agenthub",
         "claude": "repowise@repowise",
+        "cline": "ah-repowise@agenthub",
         "codex": "codex@repowise",
-        "cursor": "repowise@agenthub",
-        "grok": "repowise@agenthub",
-        "factory": "repowise@agenthub"
+        "cursor": "ah-repowise@agenthub",
+        "devin": "repowise@repowise",
+        "factory": "repowise@repowise",
+        "grok": "repowise@repowise",
+        "qoder": "repowise@repowise",
+        "vscode-insiders": "ah-repowise@agenthub"
       },
       "pluginOwnersByHostNote": "Owner migration 2026-11-03: Claude uses repowise@repowise; Codex uses codex@repowise. Other host owners retain their existing AgentHub bridge. Do not reinstall the retired Claude/Codex wrapper.",
       "hosts": [
@@ -393,6 +559,19 @@
       "scope": "global-default",
       "transport": "http",
       "activationMode": "shared-remote",
+      "pluginOwnersByHost": {
+        "amp": "ah-railway@agenthub",
+        "antigravity": "ah-railway@agenthub",
+        "claude": "ah-railway@agenthub",
+        "codex": "app-6a502589384081919c5decf93496c9d1@openai-curated-remote",
+        "copilot": "ah-railway@agenthub",
+        "cursor": "railway@cursor-public",
+        "devin": "ah-railway@agenthub",
+        "factory": "ah-railway@agenthub",
+        "grok": "railway@xai-official",
+        "qoder": "ah-railway@agenthub",
+        "vscode-insiders": "ah-railway@agenthub"
+      },
       "url": "https://mcp.railway.com",
       "credentialPolicy": "oauth",
       "providesCapabilities": [
@@ -407,7 +586,12 @@
         "type": "registry",
         "id": "mcp-registry"
       },
-      "notes": "Switched 2026-08-20 from stdio `railway mcp` to Remote MCP. Local CLI MCP spawned a Node+railway.exe process per host session; measured two copies from Cursor's official plugin alone (~136 MB) with no Railway work in progress. Do not configure `railway mcp` or `railway mcp proxy` -- both spawn local processes. Direct OAuth to https://mcp.railway.com spawns nothing. The use-railway skill still drives the CLI for cwd/deploy work; this server is the OAuth remote convenience path, not the capability."
+      "notes": "Switched 2026-08-20 from stdio `railway mcp` to Remote MCP. Local CLI MCP spawned a Node+railway.exe process per host session; measured two copies from Cursor's official plugin alone (~136 MB) with no Railway work in progress. Do not configure `railway mcp` or `railway mcp proxy` -- both spawn local processes. Direct OAuth to https://mcp.railway.com spawns nothing. The use-railway skill still drives the CLI for cwd/deploy work; this server is the OAuth remote convenience path, not the capability.",
+      "hostConfigOverrides": {
+        "opencode": {
+          "enabled": false
+        }
+      }
     },
     {
       "id": "assemblyai",
@@ -431,8 +615,13 @@
         "codex"
       ],
       "pluginOwnersByHost": {
-        "claude": "assemblyai@agenthub",
-        "codex": "assemblyai@agenthub"
+        "amp": "ah-assemblyai@agenthub",
+        "antigravity": "ah-assemblyai@agenthub",
+        "claude": "ah-assemblyai@agenthub",
+        "codex": "ah-assemblyai@agenthub",
+        "devin": "ah-assemblyai@agenthub",
+        "factory": "ah-assemblyai@agenthub",
+        "qoder": "ah-assemblyai@agenthub"
       },
       "notes": "Plugin-gated and off by default: delivered only by packages/assemblyai. scope on-demand-desktop keeps it out of the default sync, and pluginOwnersByHost stops the global writer from persisting it on Claude and Codex. Hosted usage is billed. Needs audio at a public URL or an upload_url. No key in config."
     },
@@ -458,8 +647,13 @@
         "codex"
       ],
       "pluginOwnersByHost": {
-        "claude": "assemblyai@agenthub",
-        "codex": "assemblyai@agenthub"
+        "amp": "ah-assemblyai@agenthub",
+        "antigravity": "ah-assemblyai@agenthub",
+        "claude": "ah-assemblyai@agenthub",
+        "codex": "ah-assemblyai@agenthub",
+        "devin": "ah-assemblyai@agenthub",
+        "factory": "ah-assemblyai@agenthub",
+        "qoder": "ah-assemblyai@agenthub"
       },
       "notes": "Plugin-gated with the assemblyai server; delivered only by packages/assemblyai. Free documentation lookup."
     }

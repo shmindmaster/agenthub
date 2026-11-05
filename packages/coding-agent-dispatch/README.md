@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.2.11 (loose skill; version metadata lives in `SKILL.md`).
+Version 0.3.1 (version metadata lives in `SKILL.md`).
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever
@@ -43,7 +43,7 @@ and configuration; an ACP client is still required for protocol handoff.
 `initialize`, `session/load`, then `session/prompt`, collects the new assistant
 reply without replayed history, bounds requests, and cancels permission
 requests. Its stream tests launch no host. It does not enable Cline dispatch:
-the current owner policy permits only Cursor, Grok and Codex agent work.
+`dispatchPolicy` in `registry/fleet-profile.json` decides which hosts may run agent work.
 `cline/acp-dispatch.mjs` connects this client to a windowless, on-demand
 `cline --acp --auto-approve false` child. Session and task text travel over
 stdin, permissions are cancelled, and only the owned child tree is stopped.

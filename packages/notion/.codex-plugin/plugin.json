@@ -1,0 +1,32 @@
+{
+  "name": "ah-notion",
+  "version": "1.0.0",
+  "description": "Read and write Notion pages and databases through Notion's hosted server, for hosts that cannot load Notion's own plugin. Remote only: no local process and no stored key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "notion",
+    "docs",
+    "database",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AH-Notion",
+    "shortDescription": "Read and write Notion pages.",
+    "longDescription": "Read and write Notion pages and databases through Notion's hosted server, for hosts that cannot load Notion's own plugin. Remote only: no local process and no stored key.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Find my notes on this topic in Notion.",
+      "Summarize this Notion page.",
+      "Add this to my Notion database."
+    ]
+  }
+}

@@ -64,10 +64,10 @@ if ($overlay.Root) {
 }
 Report 'packages/slack is removed' (-not (Test-Path (Join-Path $repoRoot 'packages\slack'))) 'retired package still present'
 $catalog = Get-Content (Join-Path $repoRoot '.agents\plugins\marketplace.json') -Raw -Encoding UTF8
-Report 'public agenthub marketplace does not leak private linkedin' ($catalog -notmatch '"linkedin"') 'private plugin listed in .agents/plugins/marketplace.json'
+Report 'public agenthub marketplace does not leak private linkedin' ($catalog -notmatch '"(ah-)?linkedin"') 'private plugin listed in .agents/plugins/marketplace.json'
 Report 'agenthub marketplace no longer catalogs slack' ($catalog -notmatch '"name": "slack"') 'retired plugin still listed in .agents/plugins/marketplace.json'
 $claudeCat = Get-Content (Join-Path $repoRoot '.claude-plugin\marketplace.json') -Raw -Encoding UTF8
-Report 'public claude marketplace does not leak private linkedin' ($claudeCat -notmatch '"linkedin"') 'private plugin listed in .claude-plugin/marketplace.json'
+Report 'public claude marketplace does not leak private linkedin' ($claudeCat -notmatch '"(ah-)?linkedin"') 'private plugin listed in .claude-plugin/marketplace.json'
 Report 'claude marketplace no longer catalogs slack' ($claudeCat -notmatch '"name": "slack"') 'retired plugin still listed in .claude-plugin/marketplace.json'
 
 $sync = Get-Content (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') -Raw -Encoding UTF8

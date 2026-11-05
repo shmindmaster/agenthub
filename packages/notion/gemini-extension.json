@@ -1,0 +1,10 @@
+{
+  "name": "ah-notion",
+  "description": "Read and write Notion pages and databases through Notion's hosted server, for hosts that cannot load Notion's own plugin. Remote only: no local process and no stored key.",
+  "mcpServers": {
+    "notion": {
+      "httpUrl": "https://mcp.notion.com/mcp"
+    }
+  },
+  "version": "1.0.0"
+}

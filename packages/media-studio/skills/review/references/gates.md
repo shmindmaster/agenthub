@@ -25,3 +25,7 @@ Cheapest first, in `scripts/`. `all` is every kind, `screen` is `product-screenc
 Order 17 reads `qa/viewer-release-evidence.json`. It refuses a missing, stale or loosened report, and checks captions (2 lines, 42 per line, 84 per cue, 20 per second), audio (-16 LUFS ±1.5 or `loudnessTargetLufs`, at most -1 dBTP), `pronunciation` (`authored-script`, `releaseEligible`), title, action-result, `storyReview` CTA, frame size, duration and campaign forms.
 
 It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-256, the narration check to its script and pointer path to `capture/receipt.json`. A recut voids every candidate-bound report. An mvg job may file `media-studio/mvg-picture-gate` for order 11.
+
+## Pronunciation
+
+ASR cannot be its own reference. A proper noun or homophone it cannot confirm needs a verified lexicon entry or an owner listen. Otherwise report it unconfirmed and do not mark it release-eligible.

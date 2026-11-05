@@ -1,5 +1,5 @@
 {
-  "name": "media-studio",
+  "name": "ah-media-studio",
   "description": "Creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Azure AI Services for voice, transcription and images.",
   "author": {
     "name": "Sarosh Hussain"
@@ -17,7 +17,7 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Media Studio",
+    "displayName": "AH-Media-Studio",
     "shortDescription": "Video, audio, and animation from a concept, including live-product screencasts.",
     "longDescription": "Single public video/audio studio. Writes a screenplay, directs the picture, casts narration and character voices through Azure AI Services (Deepgram as governed fallback), captures live product with Playwright when needed, and composes with Remotion, Recast, or FFmpeg. Live-product screencasts invoke the internal screencast engine; everything else stays here.",
     "developerName": "Sarosh Hussain",

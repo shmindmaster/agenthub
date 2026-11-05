@@ -66,7 +66,7 @@ function Test-ExportOmitsPersonalSurface {
             return @{ Passed = $false; Detail = "export still contains: $($present -join ', ')" }
         }
         $caps = Get-Content -LiteralPath (Join-Path $dest 'registry\capabilities.json') -Raw -Encoding UTF8
-        if ($caps -match 'sarosh:|overlays/personal/packages/sarosh') {
+        if ($caps -match '(ah-)?sarosh:|overlays/personal/packages/sarosh') {
             return @{ Passed = $false; Detail = 'exported capabilities.json still names the private sarosh plugin' }
         }
         $agents = Get-Content -LiteralPath (Join-Path $dest 'registry\agents.json') -Raw -Encoding UTF8
@@ -83,7 +83,7 @@ function Test-ExportOmitsPersonalSurface {
         $marketplace = Join-Path $dest '.agents\plugins\marketplace.json'
         if (Test-Path -LiteralPath $marketplace) {
             $market = Get-Content -LiteralPath $marketplace -Raw -Encoding UTF8
-            if ($market -match '"linkedin"') {
+            if ($market -match '"(ah-)?linkedin"') {
                 return @{ Passed = $false; Detail = 'public marketplace still lists linkedin' }
             }
         }

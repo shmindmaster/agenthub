@@ -894,7 +894,7 @@
           "mobile.ios.simulated": null
         },
         "capabilityEvidence": {
-          "browser.isolated": "Grok CLI has no first-party headed browser. 2026-09-02 this session: the connected browser provider is Playwright MCP (browser_take_screenshot and the rest of @playwright/mcp). Optional marketplace Chrome DevTools plugin is not the fleet path (chrome-devtools retired 2026-08-19).",
+          "browser.isolated": "Grok CLI has no first-party headed browser. 2026-09-02 the connected browser provider was Playwright MCP; that server was retired 2026-10-29 and `grok mcp list` on 2026-11-04 shows none (descript, context7, exa, firecrawl, linear, notion, railway only). Optional marketplace Chrome DevTools plugin is not the fleet path (chrome-devtools retired 2026-08-19). Browser tasks on this host use the ah-browser plugin (agent-browser through a shell wrapper, headless).",
           "browser.authenticated": "The same finding: this surface has no first-party browser at all, so it cannot carry a signed-in first-party session."
         },
         "capabilityNotEstablished": {

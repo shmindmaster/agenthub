@@ -1,0 +1,19 @@
+{
+  "name": "ah-aws",
+  "description": "Run AWS commands and read AWS documentation through the official AWS MCP server, using the fleet's approved AWS profile. Starts one local proxy for a session, so install it only on hosts that do AWS work.",
+  "mcpServers": {
+    "aws-mcp": {
+      "command": "uvx",
+      "args": [
+        "mcp-proxy-for-aws@latest",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--metadata",
+        "INSTALL_SOURCE=aws-cli"
+      ],
+      "env": {
+        "AWS_MCP_PROXY_PROFILES": "abacare"
+      }
+    }
+  },
+  "version": "1.0.1"
+}

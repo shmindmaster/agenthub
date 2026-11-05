@@ -1,0 +1,10 @@
+{
+  "name": "ah-linear",
+  "description": "Read and update Linear issues and projects through Linear's hosted server, for hosts whose catalog has no Linear plugin. Remote only: no local process and no stored key.",
+  "mcpServers": {
+    "linear": {
+      "httpUrl": "https://mcp.linear.app/mcp"
+    }
+  },
+  "version": "1.0.0"
+}

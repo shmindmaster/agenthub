@@ -1,0 +1,32 @@
+{
+  "name": "ah-firecrawl",
+  "version": "1.0.1",
+  "description": "Read, crawl and search websites through Firecrawl's hosted server, for hosts whose own catalog has no Firecrawl plugin. Remote only: no local process and no stored key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "firecrawl",
+    "scrape",
+    "crawl",
+    "web"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AH-Firecrawl",
+    "shortDescription": "Read, crawl and search websites with Firecrawl.",
+    "longDescription": "Read, crawl and search websites through Firecrawl's hosted server, for hosts whose own catalog has no Firecrawl plugin. Remote only: no local process and no stored key.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Read this page and summarize it.",
+      "Collect the docs pages from this site.",
+      "Pull the pricing tiers from this page as a table."
+    ]
+  }
+}

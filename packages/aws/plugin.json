@@ -1,0 +1,12 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ah-aws",
+  "version": "1.0.1",
+  "description": "Run AWS commands and read AWS documentation through the official AWS MCP server, using the fleet's approved AWS profile. Starts one local proxy for a session, so install it only on hosts that do AWS work.",
+  "license": "MIT",
+  "keywords": [
+    "aws",
+    "cloud",
+    "mcp"
+  ]
+}

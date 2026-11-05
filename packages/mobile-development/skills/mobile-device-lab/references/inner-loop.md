@@ -47,3 +47,16 @@ Config must exist on the machine that runs Metro. A Release build in the guest r
 A bug found with Appium should leave a Maestro flow behind. Maestro runs natively on Windows (Java 17+, on `PATH`) and drives development builds; `maestro test --continuous` re-runs on change. Maestro cannot drive a physical iPhone locally. Do not adopt Detox: it needs its own instrumented build and has no supported Expo path on this stack.
 
 Testing Library v14 is async: `await render(...)`, `await fireEvent...`, `await act(...)`. An un-awaited `render` returns a Promise that looks like a broken environment. Jest's `expect` takes one argument. A `console.error` can fail a test where `jest.setup.js` throws on it; the cause is usually a missing `await`, so fix the test.
+
+## The app under test
+
+The app must sit where its server runs: Android `.apk` on Windows, iOS simulator `.app` inside the VM. Address it by `appium:bundleId`.
+
+For JavaScript changes, never rebuild. Build the Debug shell once, run Metro on the host, then reload:
+
+```powershell
+ssh macvm 'bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/<product> "" booted --dev'
+pwsh -NoProfile -File $mobile metro <productId> -ProjectPath <repo>\apps\mobile -Attach
+```
+
+Rebuild only for a new native dependency, an app config or plugin change, or edits under `ios/`. Before a Release build of an Expo product, run `pwsh -NoProfile -File scripts/Test-MobileLabAppConfig.ps1 -ProjectPath <app>`: a missing `EXPO_PUBLIC_*` value gives a build that succeeds and cannot work. Sync with `$mobile sync <productId> -RepoPath <repo> -GuestPath <guest-path>`; `-IncludeIgnored` takes explicit file paths, never globs.

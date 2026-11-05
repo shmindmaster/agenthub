@@ -1,0 +1,33 @@
+{
+  "name": "ah-exa",
+  "version": "1.0.0",
+  "description": "Search the web and read pages through Exa's hosted server, for hosts whose catalog has no Exa plugin. Remote only: no local process and no stored key.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "exa",
+    "search",
+    "research",
+    "web",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AH-Exa",
+    "shortDescription": "Search the web with Exa.",
+    "longDescription": "Search the web and read pages through Exa's hosted server, for hosts whose catalog has no Exa plugin. Remote only: no local process and no stored key.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Find recent sources on this topic.",
+      "Read this page and summarize it.",
+      "Find companies that match this description."
+    ]
+  }
+}
