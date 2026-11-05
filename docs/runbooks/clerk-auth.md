@@ -96,21 +96,37 @@ Cursor CLI does not discover the IDE's installed plugin server in the tested
 version. `python scripts/Prepare-ClerkManagement.py --host cursor --apply`
 prepares a private, on-demand management directory under
 `%LOCALAPPDATA%/AgentHub/clerk/management/cursor`, preserving the IDE plugin and
-global settings. From that directory, run `cursor-agent mcp enable clerk`,
-`cursor-agent mcp login clerk`, and `cursor-agent mcp list-tools clerk`.
-The last command must return a fresh live inventory. This proves that isolated
-CLI configuration; separately verify the IDE plugin before claiming IDE parity.
-Disable the isolated server again after an authorized task if it is no longer
-needed. The preparation helper neither logs in nor accesses credential stores.
+global settings. From that directory run `cursor-agent mcp enable clerk`, then
+`cursor-agent mcp login clerk`, complete the consent in a browser already signed
+in to the Clerk dashboard, and re-run the login command so it exchanges the code
+it just received.
+
+Do not accept `cursor-agent mcp list-tools clerk` as evidence. Measured 2026-11-05:
+it returned all 29 Clerk tools and `cursor-agent mcp list` reported `clerk: ready`
+while `mcp login` still printed `MCP 'clerk' requires authentication` and no token
+existed. Both read the tool list the server advertises before any grant. The proof
+is `~/.cursor/projects/<escaped-cwd>/mcp-auth.json` gaining a `clerk.tokens` entry
+whose decoded `exp` is still in the future, together with a refresh token, and
+`mcp login` no longer asking for authentication. Decode the expiry only; never
+print a token. That grant belongs to the isolated directory: the IDE plugin keeps
+a separate entry, `clientInfo` with no tokens, so verify it independently before
+claiming IDE parity. Disable the isolated server again after an authorized task if
+it is no longer needed. The preparation helper neither logs in nor accesses
+credential stores.
 
 Host commands and OAuth support change. Check installed `--help` and current
-vendor documentation before using a route. In particular, Amp's legacy
-`mcp oauth login` requires a registered client ID; an arbitrary ID or another
-host's client identity is not a repair. Factory's unfiltered `mcp auth` can
-authenticate every configured server: isolate Clerk using supported management
-configuration rather than granting unrelated integrations. An installed plugin,
-configuration readback, successful OAuth callback, live tool inventory and an
-IDE's authenticated runtime remain separate evidence stages.
+vendor documentation before using a route, and try every route the host offers
+before recording that host as blocked. Amp's local `mcp oauth login` does require
+a registered client ID, and an arbitrary ID or another host's client identity is
+not a repair; Amp's first-party `mcp remote` route does not. Measured 2026-11-05:
+`amp mcp remote list --personal` reports Clerk `enabled, oauth, connected` and
+`amp mcp remote check Clerk --personal` returns `ok, Clerk MCP Server 0.0.0,
+29 tools`. An earlier record here called Amp blocked after testing only the local
+route. Factory's unfiltered `mcp auth` can authenticate every configured server:
+isolate Clerk using supported management configuration rather than granting
+unrelated integrations. An installed plugin, a configuration readback, a pre-auth
+tool list, a successful OAuth callback, a stored token and an IDE's authenticated
+runtime remain separate evidence stages.
 
 ### Immediate application-session revocation
 
@@ -127,6 +143,11 @@ test refresh denial, role removal, organization membership removal and resource
 isolation. A mocked provider response is a regression test, not deployed proof.
 
 ## Acceptance matrix
+
+Which applications can pass this matrix today, and what each one is missing, is
+recorded in the gitignored `overlays/personal/guidance/clerk-acceptance.md`. That
+inventory names where authorization is not yet enforced server-side, so it does not
+belong in a public repository; only the contract below does.
 
 For each deployed application/revision record the exact URL, source SHA,
 synthetic tenant, real user subject, app role, timestamp and result. Keep raw

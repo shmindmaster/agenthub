@@ -62,6 +62,11 @@ class ClerkManagementTests(unittest.TestCase):
     def test_amp_commands_always_select_isolated_settings(self):
         plan = management.layout("C:/private", "amp")
         self.assertIn("requires a vendor-supported client ID", plan["loginBlocker"])
+        # A blocker note that names only the route which fails is how Amp came to be recorded as blocked
+        # while its own personal remote server was already connected and serving 29 tools. Measured
+        # 2026-11-05. The note must carry the route that works, not just the one that does not.
+        self.assertIn("not blocked", plan["loginBlocker"])
+        self.assertIn("amp mcp remote check Clerk --personal", plan["loginBlocker"])
         for command in plan["commands"]:
             self.assertEqual(command[1:3], ["--settings-file", plan["configPath"]])
             self.assertNotIn("login", command)

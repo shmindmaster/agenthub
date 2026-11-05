@@ -45,9 +45,11 @@ def layout(runtime, host):
         raise ValueError("Only Cursor and Amp need this isolated management bridge")
     return {"host": host, "cwd": str(cwd), "configPath": str(path), "config": config,
             "commands": commands, "execution": "not-started", "oauth": "not-verified",
-            "loginBlocker": ("Installed Amp local oauth login requires a vendor-supported client ID; "
-                             "remote login is a different ampcode.com server ownership path. "
-                             "Do not invent a client ID or copy another host's token."
+            "loginBlocker": ("Amp's local mcp oauth login requires a vendor-supported client ID, "
+                             "and an arbitrary ID or another host's token is not a repair. Use Amp's own "
+                             "personal remote server instead: amp mcp remote check Clerk --personal. "
+                             "Measured 2026-11-05 it reports connected with 29 tools, so this host is not "
+                             "blocked; the isolated local directory below is a second, optional route."
                              if host == "amp" else None),
             "scope": "isolated CLI management; does not prove IDE plugin authentication"}
 
