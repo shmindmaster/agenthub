@@ -5,7 +5,7 @@
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.316",
+      "version": "2.1.318",
       "executable": "{userHome}/.local/bin/claude.exe",
       "platformPaths": {
         "darwin": {
@@ -222,7 +222,7 @@
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.5.0",
+      "version": "1.5.1",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
