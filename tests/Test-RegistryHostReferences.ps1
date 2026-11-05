@@ -246,7 +246,13 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # owner re-admitted OpenCode, then Cline, as execution peers (fleet-profile ownerDirection),
     # and the same day admitted Warp for local runs only, then Factory Droid (allowlisted
     # models, medium autonomy, runtime permission rules), then Devin for local runs only.
-    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin', 'qoder')
+    # 2026-11-05 the owner directed that a host which works should not stay disabled, so
+    # Amp, Antigravity, Copilot and Claude were admitted on their recorded smokes. That
+    # direction does not reach a surface whose own reason prohibits hosted cloud execution,
+    # an inactive host, or one with an uncaptured response; those stay out and are pinned
+    # below, because "nothing should be disabled" is not a budget authorization.
+    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin', 'qoder',
+        'amp', 'antigravity', 'copilot', 'claude')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -254,11 +260,28 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
         if ($entry.Value.enabled -isnot [bool]) {
             $violations.Add("$($entry.Name) must declare an explicit dispatch enabled boolean")
         } elseif ($entry.Name -notin $authorized -and $entry.Value.enabled -ne $false) {
-            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok, Codex, OpenCode, Cline, Warp, Factory and Devin")
+            $violations.Add("$($entry.Name) dispatch is enabled but is not in the owner-authorized host list")
         }
     }
-    foreach ($id in @('cursor', 'cursor-agent', 'grok')) {
+    foreach ($id in @('cursor', 'cursor-agent', 'grok', 'amp', 'antigravity', 'copilot', 'claude')) {
         if ($Policy.PSObject.Properties[$id].Value.enabled -ne $true) { $violations.Add("Authorized verified host $id must remain enabled") }
+    }
+
+    # A surface whose own recorded reason prohibits hosted cloud execution stays
+    # disabled until it carries an explicit budget authorization. Matching on the
+    # reason rather than a name list means a new cloud surface arrives already
+    # guarded instead of needing this test edited first.
+    foreach ($entry in $Policy.PSObject.Properties) {
+        if ([string]$entry.Value.reason -notmatch 'Hosted cloud execution is prohibited') { continue }
+        if ($entry.Value.enabled -ne $false -and [string]::IsNullOrWhiteSpace([string]$entry.Value.cloudBudgetAuthorization)) {
+            $violations.Add("$($entry.Name) prohibits hosted cloud execution and records no cloudBudgetAuthorization, so it must stay disabled")
+        }
+    }
+
+    # Windsurf is an inactive agent on the high-cost Lightning tier, which is the
+    # tier the Devin guard exists to keep out of an allowlist.
+    if (($Policy.PSObject.Properties.Name -contains 'windsurf') -and $Policy.windsurf.enabled -ne $false) {
+        $violations.Add('windsurf must stay disabled while registry/agents.json lists it as an inactive agent')
     }
     return $violations
 }
@@ -382,19 +405,43 @@ function Test-OwnerDispatchPolicyRejectsUnauthorizedChanges {
     if (@(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy).Count -ne 0) {
         return @{Passed=$false;Detail='Current authorized policy, including gated Codex, was rejected'}
     }
-    foreach ($id in @('amp', 'gemini', 'new-unapproved-host')) {
+    foreach ($id in @('gemini', 'windsurf', 'new-unapproved-host')) {
         $policy = $profile.dispatchPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
         $policy | Add-Member -NotePropertyName $id -NotePropertyValue ([pscustomobject]@{enabled=$true}) -Force
         if ((@(Get-OwnerDispatchPolicyViolations $policy) -join ';') -notmatch [regex]::Escape($id)) {
             return @{Passed=$false;Detail="Unauthorized $id dispatch was accepted"}
         }
     }
+
+    # Enabling a surface that prohibits hosted cloud execution must be rejected on
+    # the reason it records, and the budget field must clear that specific charge.
+    # It deliberately does not clear the authorized-list charge, so enabling cloud
+    # execution needs two visible edits: add the host to $authorized and record a
+    # cloudBudgetAuthorization. Asserting both halves is what proves the guard is
+    # a real gate rather than an unconditional refusal.
+    $cloudCharge = 'prohibits hosted cloud execution and records no cloudBudgetAuthorization'
+    $policy = $profile.dispatchPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $policy.jules.enabled = $true
+    $seen = @(Get-OwnerDispatchPolicyViolations $policy) -join ';'
+    if ($seen -notmatch [regex]::Escape($cloudCharge)) {
+        return @{Passed=$false;Detail='Enabling jules raised no cloud-execution charge'}
+    }
+    $policy.jules | Add-Member -NotePropertyName cloudBudgetAuthorization -NotePropertyValue 'fixture authorization' -Force
+    $seen = @(Get-OwnerDispatchPolicyViolations $policy) -join ';'
+    if ($seen -match [regex]::Escape($cloudCharge)) {
+        return @{Passed=$false;Detail='A recorded cloudBudgetAuthorization did not clear the cloud-execution charge'}
+    }
+    if ($seen -notmatch 'jules') {
+        return @{Passed=$false;Detail='A cloud budget alone enabled jules; the authorized-list charge must still apply'}
+    }
+
     $policy = $profile.dispatchPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
     $policy.grok.enabled = $false
     $policy.amp.enabled = $null
+    $policy.claude.enabled = $false
     $policy.PSObject.Properties.Remove('codex')
     $violations = @(Get-OwnerDispatchPolicyViolations $policy) -join ';'
-    foreach ($id in @('grok','amp','codex')) {
+    foreach ($id in @('grok','amp','claude','codex')) {
         if ($violations -notmatch $id) { return @{Passed=$false;Detail="Missing/invalid authorized-policy guard for $id"} }
     }
     return @{Passed=$true;Detail=$null}
