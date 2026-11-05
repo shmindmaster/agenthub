@@ -884,11 +884,12 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 4)
 
     def test_submitted_crash_never_retries_and_can_recover_existing_bytes(self):
-        claim = self.claim(lease=.3)
+        # A long lease and a moved clock: a real short lease can expire before submitted() on a slow runner.
+        claim = self.claim(lease=30)
         self.ledger.submitted(claim)
-        time.sleep(.4)
         restarted = Ledger(self.root)
-        self.assertEqual(restarted.claim("account-a", "same", "fixture/credits", 4)["state"], "unknown")
+        with patch.object(time, "time", return_value=time.time() + 31):
+            self.assertEqual(restarted.claim("account-a", "same", "fixture/credits", 4)["state"], "unknown")
         self.assertEqual(restarted.status()["budgets"][0]["committed"], 4)
         recovered = restarted.recover("account-a", "same", b"recovered fixture", "audio/fixture", "receipt-1", 2)
         self.assertEqual(recovered["state"], "pending")

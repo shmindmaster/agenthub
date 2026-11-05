@@ -387,6 +387,10 @@ class Processes(EpochCase):
 
     @unittest.skipUnless(ALIAS and ALIAS.exists(), "Needs the Windows python.exe alias; checked absent on this host")
     def test_both_launch_routes_buy_once_and_share_one_directory(self):
+        # GitHub's Windows image ships only the Store stub at this path: it exists, then exits 9009.
+        probe = subprocess.run([str(ALIAS), "-c", ""], capture_output=True, timeout=30, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if probe.returncode != 0:
+            self.skipTest("The python.exe alias is the Store stub on this host, not a real interpreter")
         # Under the scripts folder, not TEMP: TEMP can sit in LocalAppData, which the alias route virtualizes.
         folder = tempfile.TemporaryDirectory(dir=pathlib.Path(__file__).parent, prefix="launch-route-")
         self.addCleanup(folder.cleanup)
