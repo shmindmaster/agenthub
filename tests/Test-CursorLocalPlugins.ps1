@@ -55,9 +55,9 @@ try {
     Assert-True ($missing.ExitCode -eq 1 -and $missing.Output -match 'ah-alpha\s+missing') 'audit should fail on a missing plugin'
 
     $link = Join-Path $target 'ah-alpha'
-    [void](New-Item -ItemType Junction -Path $link -Target $package)
+    [void](New-Item -ItemType $(if ($IsWindows) { 'Junction' } else { 'SymbolicLink' }) -Path $link -Target $package)
     $linked = Invoke-Installer @($package) $target -Audit
-    Assert-True ($linked.ExitCode -eq 1 -and $linked.Output -match 'ah-alpha\s+link') 'audit should fail on a link'
+    Assert-True ($linked.ExitCode -eq 1 -and $linked.Output -match 'ah-alpha\s+link') "audit should fail on a link: $($linked.Output)"
 
     $install = Invoke-Installer @($package) $target
     Assert-True ($install.ExitCode -eq 0) "install failed: $($install.Output)"

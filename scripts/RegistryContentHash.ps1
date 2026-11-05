@@ -10,8 +10,10 @@ function Get-AgentHubStableFileHash {
         '.ps1', '.psm1', '.py', '.sh', '.svg', '.toml', '.ts', '.tsx', '.txt',
         '.xml', '.yaml', '.yml'
     )
+    # License files have no extension, and git checks them out with CRLF on Windows.
+    $textNames = @('LICENSE', 'NOTICE', 'COPYING')
     $extension = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
-    if ($extension -in $textExtensions) {
+    if ($extension -in $textExtensions -or [System.IO.Path]::GetFileName($Path) -in $textNames) {
         $text = [System.IO.File]::ReadAllText($Path)
         $normalized = $text.Replace("`r`n", "`n").Replace("`r", "`n")
         $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($normalized)

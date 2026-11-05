@@ -114,7 +114,7 @@ try {
 }
 
 $userHome = [Environment]::GetFolderPath('UserProfile')
-$roaming = [Environment]::GetFolderPath('ApplicationData')
+$roaming = [Environment]::GetFolderPath('ApplicationData', 'DoNotVerify')
 $targets = @(
     @{ HostId = 'claude'; Path = (Join-Path $userHome '.claude.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'codex'; Path = (Join-Path $userHome '.codex/config.toml'); Reader = { param($p) Get-TomlKeys $p } }
