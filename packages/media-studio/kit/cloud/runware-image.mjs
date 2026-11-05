@@ -201,6 +201,11 @@ function secureNewJobDirectory(jobDir) {
     jobDir, '/grant:r', `*${sid}:(OI)(CI)F`, '/grant:r', '*S-1-5-18:(OI)(CI)F', '/inheritance:r',
   ], { encoding: 'utf8', windowsHide: true, timeout: 10000 });
   if (acl.status !== 0) fail('storage-not-private', 'could not restrict the job directory to the local owner and SYSTEM');
+  // An elevated account keeps a BUILTIN\Administrators entry that the calls above leave in place.
+  const admins = spawnSync(join(systemDir, 'icacls.exe'), [jobDir, '/remove:g', '*S-1-5-32-544'], {
+    encoding: 'utf8', windowsHide: true, timeout: 10000,
+  });
+  if (admins.status !== 0) fail('storage-not-private', 'could not remove administrators from the job directory');
 }
 
 function isProcessAlive(pid) {

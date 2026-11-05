@@ -133,11 +133,12 @@ test('job content is protected from inherited workspace access', async (t) => {
   }
   const command = "$ErrorActionPreference='Stop'; $a=[System.IO.Directory]::GetAccessControl($env:RUNWARE_TEST_JOB); $me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; "
     + "$bad=@($a.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]) | Where-Object { $_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Value -notin @($me,'S-1-5-18') }); "
+    + 'Write-Output ("protected=$($a.AreAccessRulesProtected) me=$me unexpected=" + (($bad | ForEach-Object { $_.IdentityReference.Value + \':\' + $_.FileSystemRights }) -join \',\')); '
     + 'if (-not $a.AreAccessRulesProtected -or $bad.Count -ne 0) { exit 1 }';
   const check = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
-    env: { ...process.env, RUNWARE_TEST_JOB: jobDir }, windowsHide: true, timeout: 10000,
+    env: { ...process.env, RUNWARE_TEST_JOB: jobDir }, windowsHide: true, timeout: 10000, encoding: 'utf8',
   });
-  assert.equal(check.status, 0, 'job ACL must be protected and limited to the owner and SYSTEM');
+  assert.equal(check.status, 0, `job ACL must be protected and limited to the owner and SYSTEM: ${check.stdout}${check.stderr}`);
   const inheritedDir = join(f.workspace, 'inherited-acl-probe');
   mkdirSync(inheritedDir);
   const negative = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {

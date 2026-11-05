@@ -372,11 +372,11 @@ if ($verifiedRevisionCount -eq 0) {
 }
 if (-not $isPublicCore) {
   # Delivery roots (2026-10-21): every registered product is unique, delivers under F:/My Drive/Videos, and never into a
-  # personal or restricted folder, its own subfolders included. The floor is the 2026-10-21 baseline of eighteen
-  # products; dropping a mapping is a deliberate edit to this baseline, never a silent shrink.
-  $deliveryBaseline = 18
+  # personal or restricted folder, its own subfolders included. The floor is the 2026-11-04 baseline of sixteen
+  # products, after retiring Sabhi and RepoContext; dropping a mapping is a deliberate edit to this baseline, never a silent shrink.
+  $deliveryBaseline = 16
   $deliveryProducts = @(@($delivery.products) | Where-Object { $null -ne $_ })
-  if ($deliveryProducts.Count -lt $deliveryBaseline) { Fail "product video delivery registry must contain at least $deliveryBaseline products (lists $($deliveryProducts.Count)); it covered $deliveryBaseline on 2026-10-21 and must not shrink silently" }
+  if ($deliveryProducts.Count -lt $deliveryBaseline) { Fail "product video delivery registry must contain at least $deliveryBaseline products (lists $($deliveryProducts.Count)); it covered $deliveryBaseline on 2026-11-04 and must not shrink silently" }
   $deliveryIds = @($deliveryProducts | ForEach-Object { [string]$_.productId })
   $dupIds = @($deliveryIds | Group-Object | Where-Object Count -gt 1 | ForEach-Object Name)
   if ($dupIds.Count) { Fail "product video delivery registry repeats productId: $($dupIds -join ', ')" }

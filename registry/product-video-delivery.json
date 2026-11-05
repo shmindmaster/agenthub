@@ -78,20 +78,6 @@
       "kind": "product"
     },
     {
-      "productId": "repocontext",
-      "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/RepoContext",
-      "kind": "product-retired-repository",
-      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
-    },
-    {
-      "productId": "sabhi",
-      "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/Sabhi",
-      "kind": "client-product",
-      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
-    },
-    {
       "productId": "toptal",
       "repositoryRoot": null,
       "reviewRoot": "F:/My Drive/Videos/Interview Prep/Toptal",
