@@ -13,6 +13,15 @@
   guidance files. The one-host rule was replaced by a free-RAM check. Daytona reaches every host
   through `ah-daytona` or the host's own catalog. On disk on this machine; not exercised in a
   fresh session. See [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
+- **Video library layout (2026-11-04):** the library is now `Area/Customer or company/file`, two
+  folder levels at most, replacing the flat rule. `media-studio` `compose/references/library.md`
+  owns the layout, file names and kind words; `AGENTS.md` at the library root repeats them. The
+  library was retrofitted the same day with nothing deleted, and `reviewRoot` values in
+  `registry/product-video-delivery.json` follow it. Evidence, editable assets and earlier cuts sit
+  outside the library in `F:/My Drive/Video Production Archive`.
+- **Daytona suite pilot (2026-11-04):** the CI recipe ran in a throwaway Linux sandbox from a git
+  bundle of local work: 1497 passed, 0 failed, 26 skipped by `tests/ci-skip.json`, 10.8 minutes
+  end to end, sandbox deleted. Its runner is not in this repository yet, and cost was not measured.
 - **Context limits (2026-11-04):** `registry/context-limits.json` records each host's context
   settings, or why it has none, and `scripts/Set-ContextLimits.py` applies them. Applied to the
   host configs on this machine. Duplicate policy loads were removed on Grok and Copilot CLI.

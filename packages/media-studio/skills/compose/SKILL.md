@@ -58,12 +58,13 @@ Capture stays local. Pick the render lane from measured load and report lane and
 
 Use a new id and checksum for each render; never overwrite a reviewed candidate. After `review` passes:
 
-- One flat folder per product directly under `F:/My Drive/Videos`, no subfolders. Files are `NN - Title.mp4` with the `.srt` beside them and one `README.md` index.
-- Delete a superseded master and its reproducible intermediates. No `_old` or archive folders.
+- Deliver to `F:/My Drive/Videos/<Area>/<Customer or company>/`, two folder levels at most. Files are `NN - Title.mp4` with the `.srt` beside them and one `README.md` index. Read `references/library.md` before naming a folder or file.
+- Delete a superseded master and its reproducible intermediates. No `_old`, type or archive folders.
 - Never put media in git or a product repository. Status names the rung: merged to dev, in main, deployed, production-verified.
 
 ## References
 
+- `references/library.md`: Read before delivering. It holds the folder layout, file names and kind words.
 - `references/runtime.md`: Read when the runtime check throws.
 - `references/briefing.md`: Read when rendering with Remotion.
 - `references/loudness.md`: Read when the target is not web or the bed needs tuning.

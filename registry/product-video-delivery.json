@@ -94,7 +94,7 @@
     {
       "productId": "toptal",
       "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/Toptal",
+      "reviewRoot": "F:/My Drive/Videos/Interview Prep/Toptal",
       "kind": "career",
       "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     },
@@ -102,7 +102,7 @@
       "productId": "upwork",
       "repositoryRoot": null,
       "reviewRoot": "F:/My Drive/Videos/Sarosh - Portfolio",
-      "privatePreparationRoot": "F:/My Drive/Videos/Sarosh - Private Prep",
+      "privatePreparationRoot": "F:/My Drive/Videos/Interview Prep",
       "kind": "career",
       "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     },
@@ -123,14 +123,14 @@
     {
       "productId": "deloitte",
       "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/Sarosh - Private Prep",
+      "reviewRoot": "F:/My Drive/Videos/Interview Prep/Deloitte",
       "kind": "career",
       "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     },
     {
       "productId": "fedex",
       "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/Sarosh - Private Prep",
+      "reviewRoot": "F:/My Drive/Videos/Interview Prep/FedEx",
       "kind": "career",
       "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     }
@@ -144,9 +144,10 @@
       "Private Reference",
       "Gartner",
       "Personal - Family and Music",
-      "Learning - Licensed Research"
+      "Learning - Licensed Research",
+      "Research"
     ],
     "reason": "Personal or restricted (Gartner recordings are licensed and restricted). Never a delivery review root; validation fails if one is registered."
   },
-  "registrationNote": "2026-10-22: portfolio introductions, proof clips and showreels share Sarosh - Portfolio; private career rehearsals share Sarosh - Private Prep unless a named existing organization folder is explicitly selected. Toptal stays in Toptal. Upwork service introductions use the portfolio root; private interview preparation uses privatePreparationRoot. All destinations are flat. File presence does not imply review approval. GentleNext remains registered before first delivery."
+  "registrationNote": "2026-11-04: destinations are Area/Customer or company, two folder levels at most; media-studio compose/references/library.md owns the layout. Portfolio introductions, proof clips and showreels share Sarosh - Portfolio. Interview preparation goes in Interview Prep/<Company>. Upwork service introductions use the portfolio root; private interview preparation uses privatePreparationRoot. File presence does not imply review approval. GentleNext remains registered before first delivery."
 }
