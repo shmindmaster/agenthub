@@ -70,6 +70,12 @@ Grok ships its user guide inside `grok.exe`. Read it there before guessing a key
 
 After any change: `pwsh -NoProfile -File scripts/Validate-AgentHub.ps1`, then `tests/Test-InstalledPluginFreshness.ps1`, which also fails if an un-prefixed registration is left on Claude or Codex.
 
+Keeping every host on the latest version is enforced by that test rather than by a schedule, because no AgentHub script may register a recurring job. It reads Claude's `installed_plugins.json` plus every cache a host copies into: Codex and Qoder by version folder, Cursor, Antigravity and Cline as flat folders, and Factory by nested manifest. Private overlay packages resolve under `overlays/personal/packages`, so `ah-sarosh` and `ah-linkedin` are covered rather than silently skipped.
+
+It compares content and not only version, because a host that copies ignores a content change at an unchanged version. Measured 2026-11-05: `ah-sarosh` carried a stale `write/SKILL.md` on Antigravity and Factory while every copy reported 1.1.2, which no version comparison could have caught. A failure names the host and the exact command that fixes it. Copilot loads this repository live and Amp is rebuilt from source by `scripts/Install-AmpPlugins.py`, so neither carries a version to compare; `tests/Test-AmpPlugins.ps1` covers Amp's shape instead.
+
+The test reads the live profile, so `tests/ci-skip.json` skips it on CI runners that have no hosts installed. A plain local `tests/Run-AllTests.ps1` run executes it.
+
 `Sync-AgentHub.ps1` does not copy the registry to the runtime folder. After changing `registry/mcps.json`, run `scripts/Sync-Capabilities.ps1 -CapabilityId mobile-development -Apply`, or `tests/Test-MobileDevelopment.ps1` fails on `authorityParity=False`.
 
 ## Instructions

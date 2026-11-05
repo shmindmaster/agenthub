@@ -28,14 +28,21 @@ Scope note: only plugins that are actually installed are checked. An
 uninstalled plugin is not drifting, and demanding installation here would make
 the suite fail on a machine that has deliberately not enabled one.
 
-Hosts covered: Claude, from ~/.claude/plugins/installed_plugins.json, plus Codex
-and Qoder, from the version folders under ~/.<host>/plugins/cache/agenthub. The
-two cache hosts record no active version in a manifest, so the newest version
-folder is the copy each resolves. Copilot loads this repository live and copies
-nothing, and Amp is built from source by scripts/Install-AmpPlugins.py, so
-neither has a cache to compare. Measured 2026-11-05: reading Claude alone let a
-stale ah-product sit on Codex and a two-versions-behind ah-media-studio sit on
-Qoder while this suite reported 7 passed, 0 failed.
+Hosts covered: Claude, from ~/.claude/plugins/installed_plugins.json, plus every
+host that copies a plugin into its own cache -- Codex and Qoder by version
+folder, Cursor, Antigravity and Cline as flat folders, and Factory by nested
+manifest. Where a host keeps several version folders, the newest is the copy it
+resolves, because neither Codex nor Qoder records the active one in a manifest.
+Private overlay packages resolve under overlays/personal/packages, so ah-sarosh
+and ah-linkedin are covered rather than silently skipped. Copilot loads this
+repository live and copies nothing, and Amp is built from source by
+scripts/Install-AmpPlugins.py, so neither has a version to compare.
+
+Measured 2026-11-05: reading Claude alone let a stale ah-product sit on Codex and
+a two-versions-behind ah-media-studio sit on Qoder while this suite reported
+7 passed, 0 failed. Widening the scan then found ah-sarosh's write/SKILL.md
+differing from source on Antigravity and Factory at an unchanged version 1.1.2,
+which no version comparison could ever have caught.
 
 The comparison is against COMMITTED source, and the "left behind" arm is not
 academic. The agenthub marketplace is a Directory source pointed at this
@@ -149,42 +156,112 @@ function Compare-DeployedTree {
     return $differences.ToArray()
 }
 
-# Codex and Qoder keep one folder per version under
-# ~/.<host>/plugins/cache/agenthub/<name>/<version>, and neither records the
-# active version in a manifest the way Claude's installed_plugins.json does, so
-# the newest version folder is the copy the host resolves. Reading only Claude
+# Every host that COPIES a plugin keeps its own cache shape, and a freshness
+# check that knows only one shape silently skips the rest. Reading Claude alone
 # let a stale ah-product 2.0.2 sit on Codex against source 2.1.0, and
 # ah-media-studio 2.1.2 sit on Qoder against 2.1.4, while this suite reported
 # 7 passed, 0 failed. Parity with no UNDETECTED drift means the detector has to
-# look where the copies actually are.
-$VersionedCacheHosts = @(
-    @{ Host = 'codex'; Root = (Join-Path $HOME '.codex\plugins\cache\agenthub'); Remedy = 'codex plugin add {0}@agenthub' },
-    @{ Host = 'qoder'; Root = (Join-Path $HOME '.qoder\plugins\cache\agenthub'); Remedy = 'qodercli plugins update {0}@agenthub' }
+# look where every copy actually is.
+#
+# Layouts:
+#   versioned -- <Root>\<name>\<version>\. Neither Codex nor Qoder records the
+#                active version in a manifest, so the newest folder is the copy
+#                the host resolves.
+#   flat      -- <Root>\<name>\ holding the manifest directly.
+#   nested    -- manifests anywhere under Root, grouped by the name they declare.
+#
+# Copilot loads this repository live and Amp is rebuilt from source by
+# scripts/Install-AmpPlugins.py, so neither carries a version to compare;
+# Test-AmpPlugins.ps1 covers Amp's shape instead.
+$PluginCacheHosts = @(
+    @{ Host = 'codex';       Layout = 'versioned'; Root = (Join-Path $HOME '.codex\plugins\cache\agenthub');  PrivateMarketplace = 'sarosh-private'; Remedy = 'codex plugin add {0}@{2}' },
+    @{ Host = 'qoder';       Layout = 'versioned'; Root = (Join-Path $HOME '.qoder\plugins\cache\agenthub');  PrivateMarketplace = 'sarosh-private'; Remedy = 'qodercli plugins update {0}@{2}' },
+    @{ Host = 'cursor';      Layout = 'flat';      Root = (Join-Path $HOME '.cursor\plugins\local');          PrivateMarketplace = 'sarosh-private'; Remedy = 'scripts\Install-CursorLocalPlugins.ps1' },
+    @{ Host = 'antigravity'; Layout = 'flat';      Root = (Join-Path $HOME '.gemini\config\plugins');         PrivateMarketplace = $null;            Remedy = 'agy plugin uninstall {0}, then agy plugin install {1}' },
+    @{ Host = 'cline';       Layout = 'flat';      Root = (Join-Path $HOME '.agents\plugins');                PrivateMarketplace = $null;            Remedy = 're-junction {0} to {1}' },
+    @{ Host = 'factory';     Layout = 'nested';    Root = (Join-Path $HOME '.factory\plugins\cache');         PrivateMarketplace = 'personal';       Remedy = 'droid plugin update {0}@{2}' }
 )
 
-function Get-VersionedCacheAgentHubPlugins {
-    param($Specs = $VersionedCacheHosts)
+# Private capability packages live in the gitignored overlay, so a plugin whose
+# folder is not under packages/ is resolved there before it is dropped. Dropping
+# it would quietly exempt ah-sarosh and ah-linkedin from every check below.
+function Resolve-PluginSourcePackage([string]$PluginName) {
+    $folder = $PluginName -replace '^ah-', ''
+    foreach ($candidate in @("packages\$folder", "overlays\personal\packages\$folder")) {
+        $path = Join-Path $repoRoot $candidate
+        if (Test-Path -LiteralPath $path -PathType Container) { return $path }
+    }
+    return $null
+}
+
+function New-CachePluginRow($Spec, [string]$Name, [string]$Version, [string]$Path) {
+    $sourcePackage = Resolve-PluginSourcePackage $Name
+    if (-not $sourcePackage) { return $null }
+    # The remedy has to name the real source and the real marketplace. A private
+    # overlay plugin does not live under packages/ and is not published as
+    # @agenthub, and Factory registers that overlay under a different name than
+    # every other host does, so a hardcoded remedy would send the reader to a
+    # path and a marketplace that do not exist.
+    $relative = $sourcePackage.Substring($repoRoot.Length).TrimStart('\', '/')
+    $isOverlay = $relative -like 'overlays*'
+    $marketplace = if ($isOverlay) { $spec.PrivateMarketplace } else { 'agenthub' }
+    return [pscustomobject]@{
+        Name             = $Name
+        Host             = $Spec.Host
+        InstalledVersion = $Version
+        InstallPath      = $Path
+        SourcePackage    = $sourcePackage
+        Remedy           = ($Spec.Remedy -f @($Name, $relative, $marketplace))
+    }
+}
+
+function Get-CachedAgentHubPlugins {
+    param($Specs = $PluginCacheHosts)
     $result = [Collections.Generic.List[object]]::new()
     foreach ($spec in $Specs) {
         if (-not (Test-Path -LiteralPath $spec.Root -PathType Container)) { continue }
-        foreach ($pluginDir in @(Get-ChildItem -LiteralPath $spec.Root -Directory -ErrorAction SilentlyContinue)) {
-            $pluginName = $pluginDir.Name
-            if ($pluginName -notlike 'ah-*') { continue }
-            $sourcePackage = Join-Path $repoRoot ('packages\' + ($pluginName -replace '^ah-', ''))
-            if (-not (Test-Path -LiteralPath $sourcePackage -PathType Container)) { continue }
-            $versions = @(Get-ChildItem -LiteralPath $pluginDir.FullName -Directory -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
-                Sort-Object { [version]$_.Name })
-            if ($versions.Count -eq 0) { continue }
-            $newest = $versions[-1]
-            $result.Add([pscustomobject]@{
-                Name             = $pluginName
-                Host             = $spec.Host
-                InstalledVersion = $newest.Name
-                InstallPath      = $newest.FullName
-                SourcePackage    = $sourcePackage
-                Remedy           = ($spec.Remedy -f $pluginName)
-            })
+        switch ($spec.Layout) {
+            'versioned' {
+                foreach ($pluginDir in @(Get-ChildItem -LiteralPath $spec.Root -Directory -ErrorAction SilentlyContinue)) {
+                    if ($pluginDir.Name -notlike 'ah-*') { continue }
+                    $versions = @(Get-ChildItem -LiteralPath $pluginDir.FullName -Directory -ErrorAction SilentlyContinue |
+                        Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+                        Sort-Object { [version]$_.Name })
+                    if ($versions.Count -eq 0) { continue }
+                    $row = New-CachePluginRow $spec $pluginDir.Name $versions[-1].Name $versions[-1].FullName
+                    if ($row) { $result.Add($row) }
+                }
+            }
+            'flat' {
+                foreach ($pluginDir in @(Get-ChildItem -LiteralPath $spec.Root -Directory -ErrorAction SilentlyContinue)) {
+                    if ($pluginDir.Name -notlike 'ah-*') { continue }
+                    $manifest = $null
+                    foreach ($candidate in @('plugin.json', '.claude-plugin\plugin.json')) {
+                        $path = Join-Path $pluginDir.FullName $candidate
+                        if (Test-Path -LiteralPath $path -PathType Leaf) { $manifest = $path; break }
+                    }
+                    if (-not $manifest) { continue }
+                    $row = New-CachePluginRow $spec $pluginDir.Name ([string](Read-JsonFile -Path $manifest).version) $pluginDir.FullName
+                    if ($row) { $result.Add($row) }
+                }
+            }
+            'nested' {
+                $best = @{}
+                foreach ($manifest in @(Get-ChildItem -LiteralPath $spec.Root -Recurse -File -Filter 'plugin.json' -ErrorAction SilentlyContinue)) {
+                    try { $doc = Read-JsonFile -Path $manifest.FullName } catch { continue }
+                    $name = [string]$doc.name
+                    if ($name -notlike 'ah-*') { continue }
+                    $version = [string]$doc.version
+                    if ($version -notmatch '^\d+\.\d+\.\d+$') { continue }
+                    if (-not $best.ContainsKey($name) -or [version]$version -gt [version]$best[$name].Version) {
+                        $best[$name] = @{ Version = $version; Path = $manifest.DirectoryName }
+                    }
+                }
+                foreach ($name in $best.Keys) {
+                    $row = New-CachePluginRow $spec $name $best[$name].Version $best[$name].Path
+                    if ($row) { $result.Add($row) }
+                }
+            }
         }
     }
     return $result.ToArray()
@@ -225,7 +302,7 @@ function Get-InstalledAgentHubPlugins {
         })
     }
 
-    return @($result.ToArray()) + @(Get-VersionedCacheAgentHubPlugins)
+    return @($result.ToArray()) + @(Get-CachedAgentHubPlugins)
 }
 
 # --- Behavior 1: the enumeration reaches something.
@@ -440,8 +517,8 @@ function Test-AppiumIsNotPersisted {
     return @{ Passed = $true; Detail = 'no appium-mobile entry exists in Claude or Codex persistent configuration' }
 }
 
-# --- Behavior 8: the versioned-cache scan reaches what it claims, and orders
-# versions by value.
+# --- Behavior 8: the cache scan reaches what it claims, and orders versions by
+# value.
 #
 # A cache root that exists but contributes nothing would silently drop that host
 # out of Behaviors 2 and 3, which is exactly how Codex went unobserved while it
@@ -449,8 +526,8 @@ function Test-AppiumIsNotPersisted {
 # so the fixture below fails on a string comparison. ---
 function Test-VersionedCacheScanIsProvenSound {
     $problems = [Collections.Generic.List[string]]::new()
-    $scanned = @(Get-VersionedCacheAgentHubPlugins)
-    foreach ($spec in $VersionedCacheHosts) {
+    $scanned = @(Get-CachedAgentHubPlugins)
+    foreach ($spec in $PluginCacheHosts) {
         if (-not (Test-Path -LiteralPath $spec.Root -PathType Container)) { continue }
         if (@($scanned | Where-Object { $_.Host -eq $spec.Host }).Count -eq 0) {
             $problems.Add("$($spec.Host) cache root exists at $($spec.Root) but contributed no ah-* plugin, so the version and content checks observe nothing on that host")
@@ -463,7 +540,7 @@ function Test-VersionedCacheScanIsProvenSound {
         foreach ($version in @('1.9.0', '1.10.0', '2.0.0')) {
             $null = New-Item -ItemType Directory -Force -Path (Join-Path $pluginDir $version)
         }
-        $picked = @(Get-VersionedCacheAgentHubPlugins -Specs @(@{ Host = 'fixture'; Root = $root; Remedy = 'not applicable' }))
+        $picked = @(Get-CachedAgentHubPlugins -Specs @(@{ Host = 'fixture'; Layout = 'versioned'; Root = $root; Remedy = 'not applicable' }))
         if ($picked.Count -ne 1) {
             $problems.Add("fixture cache produced $($picked.Count) entries, expected exactly 1")
         } elseif ($picked[0].InstalledVersion -ne '2.0.0') {
@@ -475,7 +552,7 @@ function Test-VersionedCacheScanIsProvenSound {
 
     if ($problems.Count -gt 0) { return @{ Passed = $false; Detail = ($problems -join '; ') } }
     $hosts = @($scanned | ForEach-Object { $_.Host } | Select-Object -Unique)
-    return @{ Passed = $true; Detail = "versioned cache scan reached $(if ($hosts.Count) { $hosts -join ', ' } else { 'no installed host' }) and orders versions numerically" }
+    return @{ Passed = $true; Detail = "cache scan reached $(if ($hosts.Count) { $hosts -join ', ' } else { 'no installed host' }) and orders versions numerically" }
 }
 
 # --- Behavior 9: the version check rejects a stale copy.
@@ -527,7 +604,7 @@ $r7 = Test-AppiumIsNotPersisted
 Report 'Appium remains absent from Claude and Codex persistent configuration' $r7.Passed $r7.Detail
 
 $r8 = Test-VersionedCacheScanIsProvenSound
-Report 'the Codex and Qoder cache scan reaches every host it claims and orders versions numerically' $r8.Passed $r8.Detail
+Report 'every copying host cache scan reaches the host it claims and orders versions numerically' $r8.Passed $r8.Detail
 
 $r9 = Test-VersionCheckRejectsStaleCopy
 Report 'the version check refuses a fabricated stale copy instead of passing on an unobserved fleet' $r9.Passed $r9.Detail
