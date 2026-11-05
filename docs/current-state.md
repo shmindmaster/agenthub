@@ -544,6 +544,20 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   material without adding a managed capability, CLI, or MCP server. Other
   hosts were not inspected. Snapshot guidance is version-sensitive; check
   the installed SDK and current runtime before selecting snapshot APIs.
+- **Open Dependabot alerts are upstream-blocked, not neglected (measured
+  2026-11-05)**: two medium `minimatch` alerts remain open on `main`, both in
+  lockfiles and both transitive. `packages/mobile-development/fixtures/smoke-app`
+  resolves minimatch 10.2.6 through `@expo/fingerprint` and `glob`, which declare
+  `^10.2.2`; `packages/media-studio/kit` resolves a nested 9.0.9 through
+  `@remotion/eslint-config-flat` 4.0.517's `@typescript-eslint/typescript-estree`,
+  which declares `^9.0.4`. The advisory's first patched version is 11.0.1, a major
+  bump no consumer's declared range admits, so an `overrides` pin to 11.x would
+  close the advisory by violating every dependent's semver contract and putting
+  Expo fingerprinting and ESLint at risk. That kit's own top-level minimatch 3.1.5
+  sits outside the vulnerable range `>= 7.0.0, < 11.0.1`, so ESLint's direct copies
+  are unaffected. Both alerts wait on an upstream release, and Dependabot pull
+  requests are this repository's established route. Do not close them with a forced
+  override.
 - **Shared-library YAML safety (2026-09-08):** Zed loads `~/.agents/skills`
   and refuses a skill whose frontmatter is invalid YAML (`Invalid YAML
   frontmatter`). Railway's `use-railway` (installed by `railway setup agent`,
