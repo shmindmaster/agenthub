@@ -443,6 +443,23 @@ or explicitly superseded, remove this active plan per `docs/plans/PLANS.md`.
   deploy. Nonfatal fixture `Clerk.invalid` and audit-query warnings are test
   observations, not production telemetry. No new PG workflow implementation
   belongs to this closing session.
-- Pending closeout input: coordinator's final Linear/Notion links for this plan.
+- Supporting next-session workbench: the coordinator created a private Notion
+  master plan with 42 blocks, including the 31-action checklist; API readback
+  confirmed all blocks and pagination completion. Repository policy/source and
+  original Linear requirements remain authoritative; Notion does not replace them.
+- Closing coordinator reports clean feature/prerequisite worktrees for Empowera,
+  Revolva voice/parent and CoLedger removed after remote preservation was proven.
+  Unmerged local/remote PR branches were retained. The Runware task worktree/
+  branch was already cleaned after `b5258c91` containment in main. Owner root/
+  history remains untouched. Eleven session agents were idle before cleanup;
+  this is a point-in-time observation, not a future concurrency guarantee.
+- Tracker closeout read back in Linear workspace `shorg`: SH-3719 In Progress,
+  SH-3720 In Review, SH-3721 In Progress, SH-3722 In Review and SH-3723 In
+  Review. All five retain their original acceptance text and link the companion
+  plan; no feature was marked Done/live. The title-space dedupe found no existing
+  equivalent hosting outcome, so SH-3731 was created Todo under SH-3369 for
+  rights-safe DigitalOcean backend migration and conditional Railway retirement.
+  SH-3731 reuses SH-2323 for credit-balance reconciliation rather than duplicating
+  that question.
   PR #104's corrected head/merge receipt is reported; refresh remote main on entry.
 - No next-session action has been executed by preparing this plan.
