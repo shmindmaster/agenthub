@@ -71,7 +71,7 @@
           "notion": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "railway": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "sentry": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
-          "aws-mcp": "OpenCode cannot load an ah-* plugin, and this local proxy is its only AWS route. Starts per session; remove it if AWS is not used there.",
+          "aws-mcp": "OpenCode cannot load an ah-* plugin, and this local proxy is its only AWS route. Starts per session; remove it if AWS is not used there. This entry is deliberately a permission and not a registration: there is no aws-mcp row in mcpServers, and adding one was tried and reverted on 2026-11-05. The proxy is an opt-in local process a human enabled in this file, and the sync never generates it, at any -ScopeProfile, so a registry row turned a tolerated entry into a managed one the writer could not reproduce and reported drift on two hosts whose configuration was already correct. This allowlist is what keeps the prune from removing it.",
           "clerk": "No official Clerk OpenCode plugin format; vendor CLI configures the hosted remote MCP, no local process."
         },
         "amp": {},
@@ -699,41 +699,6 @@
           "disabled": true
         }
       }
-    },
-    {
-      "id": "aws-mcp",
-      "name": "AWS MCP proxy (OpenCode direct entry)",
-      "scope": "on-demand-desktop",
-      "transport": "stdio",
-      "activationMode": "on-demand-local",
-      "command": "uvx",
-      "args": [
-        "mcp-proxy-for-aws@latest",
-        "https://aws-mcp.us-east-1.api.aws/mcp",
-        "--metadata",
-        "INSTALL_SOURCE=aws-cli"
-      ],
-      "env": {
-        "AWS_MCP_PROXY_PROFILES": "abacare"
-      },
-      "credentialPolicy": "none-in-config; the proxy resolves the named AWS profile from the workstation's own AWS configuration and keychain. No key, token or secret appears here. AWS_MCP_PROXY_PROFILES names the approved profile, not a credential.",
-      "protocol": {
-        "revision": null,
-        "verifiedOn": "2026-11-04",
-        "verification": "Not probed. Establishing the revision would require starting the uvx proxy and completing an initialize handshake against the AWS endpoint, which registering this row does not do. The revision cannot be established non-interactively from the registry alone, so it is deliberately left null rather than assumed. The launcher, arguments and profile are copied verbatim from packages/aws/.mcp.json, which is what the hosts that load ah-aws already run."
-      },
-      "localProcessPolicy": {
-        "instancing": "one-process-per-session",
-        "note": "OpenCode is the only host in the list, and it is the only host that needs a direct entry: it cannot load an ah-* plugin, so this local proxy is its only AWS route. Everywhere else ah-aws owns the same launcher through its own .mcp.json, and pluginOwnersByHost is therefore empty rather than duplicated here. scope on-demand-desktop keeps it out of the default sync, so no host starts the proxy at session start; it runs only where the OpenCode entry is enabled. Remove that entry if AWS is not used there."
-      },
-      "owner": {
-        "type": "capability",
-        "id": "aws"
-      },
-      "hosts": [
-        "opencode"
-      ],
-      "notes": "Registered 2026-11-04 to close a registry gap: activationPolicy.pluginOnly.hosts.opencode had already allowed a direct entry named aws-mcp, with the reason that it is OpenCode's only AWS route, but no server with that id existed in mcpServers, so the sync could never write the entry the policy permitted. This row makes the exception reachable. It changes no deployed configuration on its own, because on-demand-desktop scope stays out of the default sync."
     }
   ]
 }
