@@ -526,12 +526,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   marketplace where the host has one and a host-local adapter where it does
   not. `registry/mcps.json` carries the `clerk` server with a plugin owner
   per host, and `docs/runbooks/clerk-auth.md` holds the rollout and the
-  acceptance contract. Measured 2026-11-04 by filesystem readback: official
-  skill content is present on all 15 host routes, the 4 desktop/CLI aliases
-  share their primary host, and `~/.cursor/rules/agenthub-clerk-auth.mdc`
-  carries the bounded companion rule. Fresh-session tool discovery, per-host
-  OAuth and the installer's own `--audit` hash readback are not recorded, so
-  no host is accepted as functional yet. `tests/Test-ThirdPartyPlugins.ps1`
+  acceptance contract. Measured 2026-11-04: official skill content is present
+  on all 15 host routes, the 4 desktop/CLI aliases share their primary host,
+  and `~/.cursor/rules/agenthub-clerk-auth.mdc` carries the bounded companion
+  rule. Every `hostChannels` row records `installedVersion` 1.0.0, `current`
+  true, and a filesystem readback in which all 20 official SKILL.md texts
+  match upstream commit `1e92b7d15015fb53ada5f466463bcc49ad4a777a` after line
+  ending normalization, with the exact official remote URL configured. Those
+  same rows record host loading and OAuth as unverified, so no host is
+  accepted as functional yet. `tests/Test-ThirdPartyPlugins.ps1`
   fails if a lagging host names no fix, if an absent host explains no
   reason, or if a tracked extension is ever republished from AgentHub's own
   marketplace. `hostPrivateExtensionPolicy` withholds install authority for
