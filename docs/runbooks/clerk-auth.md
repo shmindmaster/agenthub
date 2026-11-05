@@ -45,8 +45,11 @@ erase OAuth state to repair a disabled server.
 
 The official [CLI](https://github.com/clerk/cli) is the `clerk` executable
 (npm package `clerk`, not `@clerk/cli`). Check `clerk --version` and command
-`--help` first. It uses the workstation's OS keychain and browser callback;
-authenticate there, never transfer credentials into a cloud test sandbox.
+`--help` first. Account/platform login uses the workstation's OS keychain and
+browser callback. Existing authorized instance BAPI work can instead use an
+approved `CLERK_SECRET_KEY` resolved from 1Password into the child process's
+memory-only environment; account OAuth is not a prerequisite for that route.
+Keep either transport on the workstation, never transfer credentials into a cloud test sandbox.
 `clerk mcp` manages the hosted server; `clerk init` can create a development
 application and write local keys, so it is not an audit command for an existing
 application. MCP OAuth is a separate host grant; account tools can mutate live
@@ -99,3 +102,29 @@ Report each stage separately: installed/configured, fresh-session discovery,
 OAuth authenticated, development harness passed, genuine UI/backend role
 acceptance passed, deployed revision verified. Any unperformed stage remains
 blocked or unverified, with the concrete next action.
+
+## Cursor companion rule
+
+The registry owns the dedicated Cursor rule destination; the Clerk installer
+renders only the following bounded policy block. Existing user rules are
+preserved. [Cursor documents user rule files in `~/.cursor/rules`](https://prod.cursor.com/help/customization/rules).
+This establishes a documented IDE destination, not fresh-session discovery or
+CLI global-rule loading. Warp global rules require its separate Warp Drive UI;
+the installer does not launch Warp or claim that policy has been activated there.
+
+<!-- clerk-companion:start -->
+Use Clerk for personal application authentication and organization permissions;
+client systems remain separate. Use the official Clerk skills, hosted MCP and
+CLI. Enforce tenant membership, app roles, resource ownership and domain rules
+on the backend; organization membership alone does not authorize resources.
+
+For auth changes, verify genuine deployed UI sign-in and direct backend access
+with separate real admin, editor/CFO and viewer sessions. Test denied anonymous,
+revoked and cross-tenant access, including citations, attachments and exports.
+Mocked JWTs, dev testing tokens and impersonation do not prove real user access.
+Resolve approved 1Password references only at runtime; never print credentials,
+invent inbox codes or globally weaken MFA/Device Trust for QA. Report host
+installation, discovery, OAuth and actual role acceptance as separate stages.
+
+Read the full acceptance contract at https://github.com/shmindmaster/agenthub/blob/main/docs/runbooks/clerk-auth.md.
+<!-- clerk-companion:end -->

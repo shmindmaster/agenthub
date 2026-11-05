@@ -435,7 +435,7 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Cline 3.0.71 (observed 2026-10-14). Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; chrome-devtools-mcp is retired and must not be registered; use Playwright for browser work (brave-search was retired on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
+      "notes": "Cline 3.0.71 (observed 2026-10-14). Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion \u2014 same set as gemini and registry allowlist; chrome-devtools-mcp is retired and must not be registered; use Playwright for browser work (brave-search was retired on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
     },
     {
       "id": "cursor",
@@ -455,10 +455,10 @@
         "instructionHeader": null,
         "instructionFormat": "mdc",
         "instructionFormatVerification": "documented-2026-08-04",
-        "instructionFormatNote": "Verified 2026-10-23 against https://cursor.com/docs/rules: .cursor/rules/*.mdc is project-scoped; global User Rules are configured in Cursor Settings > Rules. No documented user-global file destination was established. The home rulesDir is retained as inventory only and is not a deployment target. Existing home files are preserved; no inferred global coverage.",
+        "instructionFormatNote": "2026-11-04: https://prod.cursor.com/help/customization/rules now documents user rule files in ~/.cursor/rules (Windows %USERPROFILE%/.cursor/rules). Full-policy instructions remains null; the narrow Clerk companion is owned by native-connectors.json thirdPartyExtensions clerk-skills companionGuidanceByHost.cursor and scripts/Install-ClerkFleet.py. Existing user rules are preserved. File deployment is not fresh-session discovery.",
         "pluginsDir": "{userHome}/.cursor/plugins",
         "extensionsDir": "{userHome}/.cursor/extensions",
-        "verification": "documented-no-global-file"
+        "verification": "documented-user-rule-file; full-policy destination not configured"
       },
       "supportedCapabilities": [
         "rules",
@@ -500,7 +500,7 @@
         "sharedSkillsDirNote": "Same junction as the cursor host: ~/.cursor/skills -> ~/.agents/skills. cursor-agent reads this path.",
         "instructions": null,
         "verification": "documented-no-global-file",
-        "instructionsNote": "Verified 2026-10-23 against https://cursor.com/docs/cli/using and https://cursor.com/docs/rules: CLI loads project .cursor/rules plus project-root AGENTS.md/CLAUDE.md. User Rules are editor settings; no documented CLI global file destination was established. instructions remains null; project policy and injected dispatcher policy are separate coverage, not proof of global file discovery."
+        "instructionsNote": "2026-11-04: project .cursor/rules plus project-root AGENTS.md/CLAUDE.md remain documented CLI inputs. The Clerk companion is prepared in the shared Cursor user-rules folder through its registry-owned installer; actual CLI global-rule loading is unverified. instructions remains null: do not invent global AGENTS support."
       },
       "supportedCapabilities": [
         "rules",

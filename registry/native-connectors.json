@@ -1058,7 +1058,26 @@
             "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
           }
         ],
-        "rolloutAuthorization": "Owner explicitly requested official Clerk skills/MCP/CLI installation across the coding fleet on 2026-11-04. This targeted authorization supersedes observation-only install preferences for Clerk; ownership remains upstream."
+        "rolloutAuthorization": "Owner explicitly requested official Clerk skills/MCP/CLI installation across the coding fleet on 2026-11-04. This targeted authorization supersedes observation-only install preferences for Clerk; ownership remains upstream.",
+        "companionGuidanceByHost": {
+          "cursor": {
+            "owner": "scripts/Install-ClerkFleet.py",
+            "path": "{userHome}/.cursor/rules/agenthub-clerk-auth.mdc",
+            "source": "docs/runbooks/clerk-auth.md",
+            "format": "mdc",
+            "documentation": "https://prod.cursor.com/help/customization/rules",
+            "scope": "documented-user-rule-file; IDE discovery unverified; CLI loading unverified"
+          },
+          "cursor-agent": {
+            "configurationOwner": "cursor",
+            "scope": "shared rule file; CLI global-rule loading unverified"
+          },
+          "warp": {
+            "owner": "Warp Drive UI",
+            "path": null,
+            "scope": "blocked: no documented local global-rule file; do not launch another coding host"
+          }
+        }
       },
       {
         "extensionId": "railway",

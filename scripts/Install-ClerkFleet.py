@@ -36,6 +36,40 @@ ALIASES = {"cursor-agent": "cursor", "opencode-desktop": "opencode",
            "antigravity-desktop": "antigravity", "antigravity-ide": "antigravity"}
 
 
+def companion_rule(home):
+    document = json.loads((REPO / "registry/native-connectors.json").read_text(encoding="utf-8-sig"))
+    clerk = next(e for e in document["thirdPartyExtensions"]["extensions"] if e["extensionId"] == "clerk-skills")
+    binding = clerk["companionGuidanceByHost"]["cursor"]
+    if binding["owner"] != "scripts/Install-ClerkFleet.py" or binding["format"] != "mdc":
+        raise RuntimeError("Unsupported Cursor companion ownership/format")
+    relative = binding["path"].removeprefix("{userHome}/")
+    if not relative.startswith(".cursor/rules/") or ".." in Path(relative).parts:
+        raise RuntimeError("Cursor companion must remain under the documented rules directory")
+    source = (REPO / binding["source"]).resolve()
+    if not source.is_relative_to((REPO / "docs").resolve()):
+        raise RuntimeError("Companion policy source must remain under docs")
+    text = source.read_text(encoding="utf-8-sig")
+    start, end = "<!-- clerk-companion:start -->", "<!-- clerk-companion:end -->"
+    if text.count(start) != 1 or text.count(end) != 1:
+        raise RuntimeError("Companion policy delimiters missing or ambiguous")
+    body = text.split(start, 1)[1].split(end, 1)[0].strip()
+    if not body:
+        raise RuntimeError("Companion policy is empty")
+    rule = ("---\ndescription: Clerk authentication and genuine role acceptance\n"
+            "alwaysApply: true\n---\n\n<!-- agenthub:clerk-auth -->\n\n" + body + "\n")
+    return home / relative, rule
+
+
+def deploy_companion(home):
+    path, rule = companion_rule(home)
+    if any(p.is_symlink() or p.is_junction() for p in (path, path.parent, path.parent.parent)):
+        raise RuntimeError("Refusing linked Cursor rule destination")
+    if path.exists() and "<!-- agenthub:clerk-auth -->" not in path.read_text(encoding="utf-8-sig"):
+        raise RuntimeError("Cursor companion destination is owner-authored; preserving it")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(rule, encoding="utf-8")
+
+
 def audit(upstream, home):
     patterns = {
         "claude": ".claude/plugins/cache/clerk-skills/clerk/*",
@@ -86,6 +120,10 @@ def audit(upstream, home):
         rows[host] = {"matchingOfficialSkills": len(expected) if matches else 0,
                       "remoteConfigured": remote, "freshSession": "not verified",
                       "authenticatedMcp": "not verified"}
+        if host == "cursor":
+            path, rule = companion_rule(home)
+            rows[host]["qaGuidanceConfigured"] = path.is_file() and path.read_text(encoding="utf-8-sig") == rule
+            rows[host]["qaGuidanceLoading"] = "not verified"
     for alias, host in ALIASES.items():
         rows[alias] = {**rows[host], "configurationOwner": host}
     return rows
@@ -98,17 +136,22 @@ def has_remote(path):
             data = data[key]
             break
     entry = data.get("clerk", {})
-    return entry.get("url", entry.get("httpUrl")) == URL
+    return (not any(k in entry for k in ("command", "args"))
+            and entry.get("url", entry.get("httpUrl")) == URL
+            and entry.get("httpUrl", URL) == URL)
 
 
 def run(args):
     executable = shutil.which(args[0])
     if not executable:
         raise RuntimeError(f"Executable unavailable: {args[0]}")
-    # cmd wrappers require cmd.exe on Windows, without shell=True/string interpolation.
+    # cmd wrappers need its outer quote pair as well as each argument's quotes.
     command = [executable, *args[1:]]
     if os.name == "nt" and executable.lower().endswith((".cmd", ".bat")):
-        command = [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", *command]
+        if any(any(c in arg for c in '&|<>^%!()"\r\n') for arg in command):
+            raise RuntimeError("Refusing shell metacharacters in Windows CLI wrapper arguments")
+        prefix = subprocess.list2cmdline([os.environ.get("COMSPEC", "cmd.exe")])
+        command = prefix + ' /d /v:off /s /c "' + subprocess.list2cmdline(command) + '"'
     result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
                             errors="replace", timeout=180,
                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
@@ -126,7 +169,8 @@ def merge_mcp(path, key="mcpServers", remote_type="http", disabled=True):
     path = Path(path)
     data = json.loads(path.read_text(encoding="utf-8-sig")) if path.exists() else {}
     entry = data.setdefault(key, {}).setdefault("clerk", {})
-    if entry.get("url", URL) != URL:
+    if (entry.get("url", URL) != URL or entry.get("httpUrl", URL) != URL
+            or any(k in entry for k in ("command", "args"))):
         raise RuntimeError(f"Conflicting Clerk endpoint at {path}")
     entry.update({"type": remote_type, "url": URL})
     if disabled:
@@ -151,6 +195,7 @@ def copy_official(source, destination):
 def bridge(host, upstream, home):
     if host == "cursor":
         copy_official(upstream, home / ".cursor/plugins/local/clerk")
+        deploy_companion(home)
     elif host == "cline":
         copy_official(upstream, home / ".agents/plugins/clerk")
         config = home / ".cline/data/settings/cline_mcp_settings.json"
@@ -184,7 +229,8 @@ def bridge(host, upstream, home):
             path = home / ".gemini/settings.json"
             data = json.loads(path.read_text(encoding="utf-8-sig")) if path.exists() else {}
             entry = data.setdefault("mcpServers", {}).setdefault("clerk", {})
-            if entry.get("httpUrl", URL) != URL:
+            if (entry.get("httpUrl", URL) != URL or entry.get("url", URL) != URL
+                    or any(k in entry for k in ("command", "args"))):
                 raise RuntimeError("Conflicting Gemini Clerk endpoint")
             entry.update({"httpUrl": URL})
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -206,15 +252,19 @@ def bridge(host, upstream, home):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--audit", action="store_true", help="Read back official skill hashes and remote config, without starting hosts")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--apply", action="store_true")
+    mode.add_argument("--audit", action="store_true", help="Read back official skill hashes and remote config, without starting hosts")
     parser.add_argument("--host", action="append", choices=sorted(set(NATIVE) | BRIDGES | set(ALIASES)))
     parser.add_argument("--runtime", type=Path, default=Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local/share")) / "AgentHub/clerk")
     args = parser.parse_args()
+    if os.name != "nt" and (args.apply or args.audit):
+        parser.error("Apply/audit currently target Windows fleet layouts; use plan mode on other platforms")
     if args.audit:
         rows = audit(args.runtime / "upstream", Path.home())
         print(json.dumps(rows, indent=2))
-        raise SystemExit(0 if all(r["matchingOfficialSkills"] == 20 and r["remoteConfigured"] for r in rows.values()) else 1)
+        raise SystemExit(0 if all(r["matchingOfficialSkills"] == 20 and r["remoteConfigured"]
+                                 and r.get("qaGuidanceConfigured", True) for r in rows.values()) else 1)
     hosts = sorted({ALIASES.get(h, h) for h in (args.host or [*NATIVE, *BRIDGES])})
     if not args.apply:
         print(json.dumps({"upstream": "https://github.com/clerk/skills", "hosts": hosts,
