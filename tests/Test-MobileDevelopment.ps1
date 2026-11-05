@@ -41,17 +41,26 @@ function Test-Sequence([object[]]$Actual, [object[]]$Expected) {
     (@($Actual) -join "`n") -ceq (@($Expected) -join "`n")
 }
 
+# Sync-Capabilities.ps1 refuses to copy these into a managed runtime tree, so a parity walk that does not
+# refuse them reports drift that no deployment can ever clear. Measured 2026-11-05: an npm install inside
+# fixtures/smoke-app left 21,911 node_modules files on the source side against 39 deployed, and this suite
+# failed on a package whose tracked content was identical.
+$runtimeGeneratedExclusionNames = @('node_modules', '\.git', 'dist', 'coverage')
+$runtimeGeneratedExclusion = '[\\/](' + ($runtimeGeneratedExclusionNames -join '|') + ')[\\/]'
+
 function Test-ReadableSkillTree([string]$Source, [string]$Destination) {
     if (-not (Test-Path -LiteralPath $Source -PathType Container) -or
         -not (Test-Path -LiteralPath $Destination -PathType Container)) { return $false }
     try {
         $sourceFiles = @(
             Get-ChildItem -LiteralPath $Source -Recurse -File -Force |
+                Where-Object { $_.FullName -notmatch $runtimeGeneratedExclusion } |
                 ForEach-Object { $_.FullName.Substring($Source.TrimEnd('\', '/').Length + 1).Replace('\','/') } |
                 Sort-Object
         )
         $destinationFiles = @(
             Get-ChildItem -LiteralPath $Destination -Recurse -File -Force |
+                Where-Object { $_.FullName -notmatch $runtimeGeneratedExclusion } |
                 ForEach-Object { $_.FullName.Substring($Destination.TrimEnd('\', '/').Length + 1).Replace('\','/') } |
                 Sort-Object
         )
@@ -669,6 +678,18 @@ Report 'guest helper sync stages LF-only scripts plus generated registry facts' 
     $syncGuestText -match "guestEnvironmentName = 'mobile-development\.env'" -and `
     $syncGuestText -match 'APPIUM_VERSION' -and $syncGuestText -match 'ANDROID_AVD_NAME'
 ) 'Guest expectations or line endings can drift from canonical source.'
+
+# The parity walk refuses the same generated trees the deployer refuses. If the deployer's exclusion set
+# changes and this one does not, the suite starts reporting drift that no amount of deploying can clear.
+$deployerText = Get-Content -LiteralPath (Join-Path $repoRoot 'scripts\Sync-Capabilities.ps1') -Raw -Encoding UTF8
+$deployerPatterns = @([regex]::Matches($deployerText, "-notmatch '([^']+)'") | ForEach-Object { $_.Groups[1].Value })
+$unrefused = @($runtimeGeneratedExclusionNames | Where-Object {
+    $name = $_
+    (@($deployerPatterns | Where-Object { $_.Contains($name) })).Count -eq 0
+})
+Report 'the deployer still refuses every generated tree the parity walk skips' (
+    $deployerPatterns.Count -gt 0 -and $unrefused.Count -eq 0
+) "deployer -notmatch patterns: $($deployerPatterns -join ' | '); not refused: $($unrefused -join ',')"
 
 if ($failures.Count) {
     Write-Host "`nRESULT: $($reported - $failures.Count) passed, $($failures.Count) failed" -ForegroundColor Red
