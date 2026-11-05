@@ -717,55 +717,56 @@
           {
             "hostId": "claude",
             "channel": "claude-plugins-official",
-            "installedVersion": "6.3.0",
-            "current": true,
+            "installedVersion": null,
+            "current": false,
             "updateCommand": "claude plugin update superpowers@claude-plugins-official",
-            "note": "Observed 2026-08-24 in ~/.claude/plugins/installed_plugins.json (installPath cache/claude-plugins-official/superpowers/6.3.0, lastUpdated 2026-08-18)."
+            "note": "Observed 2026-08-24 in ~/.claude/plugins/installed_plugins.json (installPath cache/claude-plugins-official/superpowers/6.3.0, lastUpdated 2026-08-18). Removed fleet-wide on 2026-11-04 under registry/context-limits.json removedPlugins (under 5 calls in 30 days of Claude and Codex logs). Verified absent from every host plugin cache and settings file on 2026-11-05, so the version recorded above is historical, not installed. Reinstall from the host catalog only when a task needs it; scripts/Set-ContextLimits.py reports it if it returns."
           },
           {
             "hostId": "codex",
             "channel": "openai-curated-remote",
-            "installedVersion": "6.2.0",
+            "installedVersion": null,
             "current": false,
             "updateCommand": "Codex app -> Plugins -> Superpowers",
-            "note": "Last observed live copy is 6.2.0; upstream latest is v6.3.0 (2026-08-12). A stale 6.1.1 also sits in the claude-plugins-official cache under ~/.codex."
+            "note": "Last observed live copy is 6.2.0; upstream latest is v6.3.0 (2026-08-12). A stale 6.1.1 also sits in the claude-plugins-official cache under ~/.codex. Removed fleet-wide on 2026-11-04 under registry/context-limits.json removedPlugins (under 5 calls in 30 days of Claude and Codex logs). Verified absent from every host plugin cache and settings file on 2026-11-05, so the version recorded above is historical, not installed. Reinstall from the host catalog only when a task needs it; scripts/Set-ContextLimits.py reports it if it returns."
           },
           {
             "hostId": "antigravity",
             "channel": "upstream-git",
-            "installedVersion": "6.2.0",
+            "installedVersion": null,
             "current": false,
             "updateCommand": "agy plugin install https://github.com/obra/superpowers",
-            "note": "Installed 2026-08-08 at 6.2.0. Upstream latest is v6.3.0; reinstall-as-update per upstream docs."
+            "note": "Installed 2026-08-08 at 6.2.0. Upstream latest is v6.3.0; reinstall-as-update per upstream docs. Removed fleet-wide on 2026-11-04 under registry/context-limits.json removedPlugins (under 5 calls in 30 days of Claude and Codex logs). Verified absent from every host plugin cache and settings file on 2026-11-05, so the version recorded above is historical, not installed. Reinstall from the host catalog only when a task needs it; scripts/Set-ContextLimits.py reports it if it returns."
           },
           {
             "hostId": "grok",
             "channel": "upstream-git",
-            "installedVersion": "6.2.0",
+            "installedVersion": null,
             "current": false,
             "updateCommand": "grok plugin update superpowers",
-            "note": "Clone last observed at v6.2.0. Upstream latest is v6.3.0. A 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory \u2014 retry when no grok session is running."
+            "note": "Clone last observed at v6.2.0. Upstream latest is v6.3.0. A 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory — retry when no grok session is running. Removed fleet-wide on 2026-11-04 under registry/context-limits.json removedPlugins (under 5 calls in 30 days of Claude and Codex logs). Verified absent from every host plugin cache and settings file on 2026-11-05, so the version recorded above is historical, not installed. Reinstall from the host catalog only when a task needs it; scripts/Set-ContextLimits.py reports it if it returns."
           },
           {
             "hostId": "cursor",
             "channel": "cursor-public",
-            "installedVersion": "6.1.1",
+            "installedVersion": null,
             "current": false,
             "updateCommand": "Cursor in-app plugin UI",
-            "note": "Pinned to upstream commit d884ae0 (v6.1.1). cursor-agent's CLI exposes only marketplace add/list/remove/update, and marketplace update needs account auth that is not present in this environment, so the bump is an in-app owner action."
+            "note": "Pinned to upstream commit d884ae0 (v6.1.1). cursor-agent's CLI exposes only marketplace add/list/remove/update, and marketplace update needs account auth that is not present in this environment, so the bump is an in-app owner action. Removed fleet-wide on 2026-11-04 under registry/context-limits.json removedPlugins (under 5 calls in 30 days of Claude and Codex logs). Verified absent from every host plugin cache and settings file on 2026-11-05, so the version recorded above is historical, not installed. Reinstall from the host catalog only when a task needs it; scripts/Set-ContextLimits.py reports it if it returns."
           },
           {
             "hostId": "cline",
             "channel": null,
             "installedVersion": null,
             "current": false,
-            "note": "Not installed. Cline consumes loose skills rather than plugins; upstream documents no Cline install path, so this is a deliberate gap, not drift."
+            "note": "Not installed. Cline consumes loose skills rather than plugins; upstream documents no Cline install path, so this is a deliberate gap, not drift. Removed fleet-wide on 2026-11-04 under registry/context-limits.json removedPlugins (under 5 calls in 30 days of Claude and Codex logs). Verified absent from every host plugin cache and settings file on 2026-11-05, so the version recorded above is historical, not installed. Reinstall from the host catalog only when a task needs it; scripts/Set-ContextLimits.py reports it if it returns."
           }
         ],
         "upstreamMarketplace": {
           "name": "superpowers-dev",
           "note": "The manifest in obra/superpowers self-describes as a development marketplace. Upstream's README points Claude Code at Anthropic's official marketplace first and at obra/superpowers-marketplace second; the development marketplace is not the distribution channel."
-        }
+        },
+        "note": "Tracked, not installed anywhere. Removed from every host on 2026-11-04 under registry/context-limits.json removedPlugins; every hostChannel below therefore records installedVersion null and current false, and the version each one names is the last copy observed before removal. Verified absent from all plugin caches and settings files on 2026-11-05."
       },
       {
         "extensionId": "firecrawl",

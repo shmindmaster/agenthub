@@ -512,7 +512,8 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - **Third-party extension tracking (updated 2026-11-04)**: `registry/native-connectors.json`
   -> `thirdPartyExtensions` records plugins *and* non-plugin upstream
   distributions the fleet uses but does not own. Tracked today:
-  **superpowers** (obra/superpowers; Claude observed at 6.3.0), **firecrawl**
+  **superpowers** (obra/superpowers; tracked but installed nowhere, since the
+  2026-11-04 context diet removed it from every host), **firecrawl**
   (firecrawl/skills), **clerk-skills**, **railway**, **framer-agent**,
   **elevenlabs-skills**, **do-app-platform-skills**, **remotion**, **daytona**, and
   optional **creative-writing-skills**. AgentHub overlays may add fleet
