@@ -248,10 +248,10 @@ Auto-start entries, checked against the owner's policy:
 |---|---|---|---|
 | Claude desktop app | Desktop Commander (local desktop MCP; toggles file lists `local:desktop-commander:*` and `local:deskcmd:*`). Source config not found in `claude_desktop_config.json` (no `mcpServers`), `Roaming\Claude` (marker only) or a Claude Extensions folder. 13 local tool groups listed in `mcp-user-tool-toggles.json` (azure, Kubernetes, playwright, shadcn, ElevenLabs…), enabled state not recorded in that file | ~35 claude.ai connectors | Remove Desktop Commander or make it on-demand |
 | Claude Code | 1: `repowise-workspace` (bridge) | context7, exa, firecrawl (user), notion (plugin); supabase and descript plugins on but server denied | None. Claude Code is already lean |
-| Codex desktop / CLI | `aws-mcp` (global `[mcp_servers]`), `node_repl` (global), plugin stdio: `codex_app`, `cua_repl` (computer-use), `data` (data-analytics), `repowise-workspace` | context7, exa, firecrawl, railway, n8n (Pendoah tenant), ~15 remote plugin servers | `aws-mcp` out of the global config; data-analytics and computer-use off unless used |
+| Codex desktop / CLI | `aws-mcp` (global `[mcp_servers]`), `node_repl` (global), plugin stdio: `codex_app`, `cua_repl` (computer-use), `data` (data-analytics), `repowise-workspace` | context7, exa, firecrawl, railway, n8n (client tenant), ~15 remote plugin servers | `aws-mcp` out of the global config; data-analytics and computer-use off unless used |
 | Copilot CLI | 0 | 7 remote | None |
 | VS Code Insiders | 0 | 7 remote | None |
-| Cursor | `windows-mcp` (default-on) | 8, incl. n8n Pendoah tenant | `windows-mcp` to on-demand |
+| Cursor | `windows-mcp` (default-on) | 8, incl. the n8n client tenant | `windows-mcp` to on-demand |
 | OpenCode | 0 enabled (5 stdio disabled) | 7 remote + RepoWise HTTP 7339 | None |
 | Grok | 0 in config.toml (plugin servers not parsed) | 8 | Not established |
 
@@ -262,8 +262,11 @@ Auto-start entries, checked against the owner's policy:
   production identity in a personal host's global config, and `@latest` is an
   unpinned package fetched at start. Move it to the Duckie repo's project config
   or disable it (fix F3).
-- Codex and Cursor both carry `n8n` → `pendoah.app.n8n.cloud` globally (Pendoah
-  tenant).
+- Codex and Cursor both carry `n8n` globally, pointed at a client tenant under
+  `*.app.n8n.cloud`. The hostname is redacted here on the same basis as the
+  command lines above: this file is public and the tenant is client
+  infrastructure, not personal. The live value is in each host's own MCP
+  configuration.
 
 ## 9. Fixes, ordered by memory recovered
 
@@ -585,7 +588,7 @@ subagent, read-only), then checked against the live host configs.
 | Codex `aws-mcp` (Duckie production profile) | Written outside AgentHub; `--metadata INSTALL_SOURCE=aws-cli` suggests an AWS tool installer. Present in `~/.codex/config.toml:89` **and** `~/.codex/claude.config.toml` (a profile, so switching profiles brings it back), OpenCode (off) and Gemini | not in repo or overlay | No. `Sync-AgentHub.ps1 -Prune` would *remove* it (lines 1352–1377) | Disable it in both Codex profiles (apply script). Durable: record it in `registry/native-connectors.json` as a denied host-configured id so `-Audit` flags it if it reappears (proposed below) |
 | Codex per-thread and nested-app-server MCP copies | Codex architecture: every loaded thread and every `app-server` that `node_repl` starts launches every enabled stdio server | Codex internals | No | Fewer enabled stdio servers. Codex has no shared-process mode for stdio MCP |
 | Codex computer-use / unified-computer-use / data-analytics | `openai-bundled` and `openai-curated-remote` marketplaces; Codex updates add bundled plugins | `config.toml:77`, `[plugins]` at 148, 211 | No; `Sync-Capabilities.ps1:349-352` skips native-plugin hosts | Codex Plugins UI. Re-check after each Codex update |
-| `n8n` (Pendoah tenant) in Codex and Cursor | Hand-added (present in Codex backups dated 10-23 and 10-25) | not in repo | No (`-Prune` would remove it) | Owner decision; boundary issue |
+| `n8n` (client tenant) in Codex and Cursor | Hand-added (present in Codex backups dated 10-23 and 10-25) | not in repo | No (`-Prune` would remove it) | Owner decision; boundary issue |
 | Cursor `windows-mcp` | Persisted always-on by owner decision 2026-10-28 | `registry/native-connectors.json:40-43`, `registry/mcps.json:486`, written at `Sync-AgentHub.ps1:2279` | **Yes**, every `-Apply` rewrites the whole Cursor entry | Recorded owner decision. Change it only in the registry, never in `~/.cursor/mcp.json` |
 | Claude Code remote MCPs (context7, exa, firecrawl) | Merged into `~/.claude.json` | `Sync-AgentHub.ps1:1118-1185` | Yes, by design | None needed: remote, 0 MB |
 | RepoWise bridge per session | `packages/repowise/.mcp.json`, started while `repowise@agenthub` is enabled | — | Yes, by design | Keep: thin proxy (~37 MB per session). The heavy server stays single |

@@ -64,7 +64,7 @@ test('alignScript keeps exact ASR onsets, merges compounds and snaps to the 80 m
 });
 
 test('alignScript bounds a misheard word by its neighbours and flags it', () => {
-  const { words, coverage } = alignScript(scriptTokens('at Pendoah where'), heard([['at', 0, 0.2], ['pandoa', 0.25, 0.8], ['where', 0.9, 1.1]]), 1.5);
+  const { words, coverage } = alignScript(scriptTokens('at Meridian where'), heard([['at', 0, 0.2], ['meridon', 0.25, 0.8], ['where', 0.9, 1.1]]), 1.5);
   assert.equal(words[1].precisionLimited, true);
   assert.ok(words[1].start >= words[0].end && words[1].end <= words[2].start);
   assert.equal(coverage.longestUnmatchedRun, 1);

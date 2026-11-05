@@ -438,9 +438,12 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - **RepoWise workspace** at `C:\Repos` (relocated 2026-08-21 from
   `C:\Repos\shmindmaster`; created 2026-08-08): covers git repos under
   `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah` (**63
-  members** as of 2026-08-24: 18 shmindmaster including
-  `portfolio-records`, 1 sh-pendoah, 2 musa-dev-team, 42 pendoah). All 63
-  indexed, 0 stale vs HEAD. Nested fixture gits are not members
+  members** as of 2026-08-24). All 63 indexed, 0 stale vs HEAD. The
+  per-organization breakdown was removed from this public file on
+  2026-11-05: it was the only place publishing how many repositories belong to
+  a client organization, and the total plus the freshness claim are the
+  operative facts here. `repowise status -w` from `C:\Repos` reports the live
+  per-member breakdown locally. Nested fixture gits are not members
   (`crewscore/.corpus-cache/*`, `duckie-app/deploy` which is
   `duckie-deploy`). CLI 0.49.0 as of 2026-09-10 (was 0.48.0, behind PyPI),
   kept on PyPI latest by `scripts/Update-RepoWise.ps1`. MCP is local stdio
