@@ -1109,7 +1109,7 @@
           "cloud.app-platform-design"
         ],
         "required": false,
-        "note": "Official App Platform design/migration/networking skills. AgentHub packages/digitalocean stays: it is the fleet doctl overlay plus the portfolio app map, not a copy of this catalog.",
+        "note": "Official App Platform design/migration/networking skills, owned by DigitalOcean upstream. The former AgentHub packages/digitalocean overlay was retired; do not recreate it or republish this catalog. Use the product's authorized release runbook and doctl for deployment operations. Provider selection belongs to the applicable operator policy, not this extension inventory; see docs/runbooks/hosting-routing.md.",
         "observedAt": "2026-08-24",
         "hostChannels": [
           {
