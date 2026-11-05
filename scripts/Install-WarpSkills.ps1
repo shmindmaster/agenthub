@@ -10,8 +10,13 @@ is linked as a folder junction, so it follows the repository.
 ah-product skills reach ../../scripts, ../../references and ../../kits, which
 resolve to ~/.warp/<folder> from a linked skill, so those three are linked too.
 
-ah-aws and RepoWise are left out because each needs a local server Warp does not
-run under the plugin-only policy, and their skills would dead-end.
+RepoWise and LinkedIn are mapped to Warp in the registry but deliberately not
+linked: each needs a local server Warp does not run under the plugin-only policy,
+so their skills would dead-end. ah-aws is not linked either, and needs no
+exclusion, because the registry does not map it to Warp at all.
+tests/Test-InstallerPackageLists.ps1 holds the authoritative exclusion list with
+a reason per entry, and fails if this array stops covering a mapped capability or
+if an exclusion outlives its registry row.
 
 .PARAMETER Audit
 Report missing links without changing anything. Exits 1 when any are found.
