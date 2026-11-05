@@ -106,19 +106,33 @@ $runId = [DateTimeOffset]::UtcNow.ToString('yyyyMMdd-HHmmss')
 $results = foreach ($entry in $changed) {
     if (Test-Path -LiteralPath $lease) { $stopped = "held lease at $lease"; break }
     $name = (($entry.path.Substring($Workspace.TrimEnd('\').Length).TrimStart('\')) -replace '[\\/]', '-')
+    $outDir = Join-Path $RuntimeDir "$runId\$name"
     $arguments = @{ Workspace = $Workspace; RepositoryRoot = $entry.path; Python = $python
         LeasePath = $lease
-        OutputDirectory = (Join-Path $RuntimeDir "$runId\$name")
+        OutputDirectory = $outDir
         Deadline = [DateTimeOffset]::Now.AddSeconds($TimeoutSeconds + 60)
         TimeoutSeconds = $TimeoutSeconds; FactsOnly = $FactsOnly }
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $failure = $null
     try { $null = & $wrapper @arguments *>&1 } catch { $failure = $_.Exception.Message }
-    [ordered]@{ path = $entry.path; files = $entry.files; seconds = [math]::Round($clock.Elapsed.TotalSeconds, 1); failure = $failure }
+    $row = [ordered]@{ path = $entry.path; files = $entry.files; seconds = [math]::Round($clock.Elapsed.TotalSeconds, 1); failure = $failure }
+    if ($failure) {
+        # A rejected visit still leaves RepoWise's own commit marker advanced, so
+        # this script selects nothing on the next run and "retry on the next
+        # update" never arrives through here. Name the invocation that does
+        # retry instead of leaving it to be discovered. Measured 2026-11-05: an
+        # embedding degradation on two pages was rejected, the marker still moved
+        # to HEAD, and a repeat run reported visit 0.
+        $row['retry'] = "pwsh -NoProfile -File $wrapper -Workspace '$Workspace' -RepositoryRoot '$($entry.path)' -Python '$python' -LeasePath '$lease' -OutputDirectory '$outDir-retry' -Deadline ([DateTimeOffset]::Now.AddSeconds($($TimeoutSeconds + 60))) -TimeoutSeconds $TimeoutSeconds"
+    }
+    $row
 }
 $results = @($results)
 $report.accepted = @($results | Where-Object { -not $_['failure'] }).Count
 $report.failed = @($results | Where-Object { $_['failure'] })
+if ($report.failed.Count -gt 0) {
+    $report.retryNote = 'A rejected visit still advances that entry''s commit marker, so re-running this script visits nothing and cannot retry it. Run the command in each failed[].retry to force the bounded index directly. The existing index stays usable meanwhile, and full-text search is unaffected by an embedding degradation.'
+}
 $report.seconds = [math]::Round((($results | ForEach-Object { $_['seconds'] } | Measure-Object -Sum).Sum), 1)
 $report.receipts = Join-Path $RuntimeDir $runId
 if ($stopped) { $report.stopped = $stopped }
