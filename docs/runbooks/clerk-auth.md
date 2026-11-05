@@ -82,6 +82,50 @@ then stop the owned management process and restore the default off setting.
 This proves authenticated discovery, not invocation of every tool, application
 role acceptance or OAuth on another host.
 
+### Other hosts: native management and isolated discovery
+
+Use management commands without starting a model conversation. Claude's installed
+official plugin resolves as `plugin:clerk:clerk`: run
+`claude mcp login plugin:clerk:clerk --no-browser`, then
+`claude mcp get plugin:clerk:clerk` and require `Connected`. Devin resolves the
+official plugin as `clerk`: `devin mcp login clerk` completes its own OAuth;
+`devin mcp get clerk` confirms configuration but does not prove live tool discovery.
+Each grant belongs to that host; do not copy a token from Codex or another host.
+
+Cursor CLI does not discover the IDE's installed plugin server in the tested
+version. `python scripts/Prepare-ClerkManagement.py --host cursor --apply`
+prepares a private, on-demand management directory under
+`%LOCALAPPDATA%/AgentHub/clerk/management/cursor`, preserving the IDE plugin and
+global settings. From that directory, run `cursor-agent mcp enable clerk`,
+`cursor-agent mcp login clerk`, and `cursor-agent mcp list-tools clerk`.
+The last command must return a fresh live inventory. This proves that isolated
+CLI configuration; separately verify the IDE plugin before claiming IDE parity.
+Disable the isolated server again after an authorized task if it is no longer
+needed. The preparation helper neither logs in nor accesses credential stores.
+
+Host commands and OAuth support change. Check installed `--help` and current
+vendor documentation before using a route. In particular, Amp's legacy
+`mcp oauth login` requires a registered client ID; an arbitrary ID or another
+host's client identity is not a repair. Factory's unfiltered `mcp auth` can
+authenticate every configured server: isolate Clerk using supported management
+configuration rather than granting unrelated integrations. An installed plugin,
+configuration readback, successful OAuth callback, live tool inventory and an
+IDE's authenticated runtime remain separate evidence stages.
+
+### Immediate application-session revocation
+
+JWT signature/expiry validation alone can accept an already issued token until
+its short expiry after the provider session is revoked. Products requiring
+immediate revocation must check the verified token's session ID against current
+provider state before serving protected resources. Match the session ID and user
+subject, require active status, bound the actual network request, reject redirects
+and fail closed on provider errors. Do not reuse a positive session state across
+requests if immediate revocation is the contract. Record the additional provider
+request volume and availability dependency. Test the same unexpired token before
+and immediately after revoking only the harness-created session, then separately
+test refresh denial, role removal, organization membership removal and resource
+isolation. A mocked provider response is a regression test, not deployed proof.
+
 ## Acceptance matrix
 
 For each deployed application/revision record the exact URL, source SHA,
