@@ -48,7 +48,7 @@ Any later remediation report or changed head invalidates the old test attributio
 | AgentHub generic hosting routing | [PR #104](https://github.com/shmindmaster/agenthub/pull/104), MERGED at `a0717c6fd6699afb8c2520d5beaf70153a2d243a` per final coordinator closeout | Router-link finding fixed/resolved in `04260f9`; final docs-only relative link checked. Prior candidate Linux/macOS/Intel, four Doctor jobs and CodeRabbit passed; 18 targeted validator passes reported. Windows baseline had the same two failures (1,590 passes / two failures) | Merge used an explicit baseline exception, not a full Windows-green claim. Refresh merged main at entry; no unrelated Windows remediation is assigned here |
 | Revolva release guard | [PR #54](https://github.com/shmindmaster/revolva/pull/54), MERGED at `353314d2ed3e77a7bc54a1b2f1f15955d97e872c` | Guard refuses `--deploy` before evidence or provider access; coordinator reports 23 guard tests and PostgreSQL CI passed | This is a deployment prohibition, not a DigitalOcean backend or a voice release |
 | Revolva voice, SH-3720 | [Draft PR #53](https://github.com/shmindmaster/revolva/pull/53), `99b6220ad9c8da4c5430b557e97f8a3c038c8e84` | Exact parent is `b36410e` (SH-3714 candidate, 22 commits including PR #51 ancestry). Reported validation: 342 unit, 32 e2e, 12 mobility passes | No substantive approval; stacked scope unresolved; complete rehearsal evidence blocked by archive lacking `.git`; not merged/deployed |
-| CoLedger controller audio, SH-3722 | [PR #188](https://github.com/shmindmaster/coledger/pull/188), OPEN at `1ecff71eb89d224c791013746552690e2fe00d59` | Final remediation report: all ten threads resolved; exact-archive `pnpm verify`, security 14/14 and release eval 8/8 passed. Mocked e2e: five passes / 59 browser-launch failures because `libnspr4` was missing | Same remediation lane is correcting Daytona dependencies and rerunning full browser/PG capsule CI. Deployment verification pending; launch failures are not demonstrated application failures or a complete browser PASS |
+| CoLedger controller audio, SH-3722 | [PR #188](https://github.com/shmindmaster/coledger/pull/188), OPEN at `1ecff71eb89d224c791013746552690e2fe00d59` | All ten threads fixed/resolved; exact-archive `pnpm verify`, security 14/14 and release eval 8/8 passed. New sandbox with dependencies fixed: package build and full mocked Playwright **64 passed**, exit 0, 2.1 minutes; sandbox deleted | Browser gate completed. PostgreSQL/capsule CI still UNVERIFIED: no exact-SHA run and workflow has no `workflow_dispatch`; CodeRabbit neutral/skipped is not CI evidence. Full native exact-candidate release gate remains required before merge/deploy |
 | Empowera voice and illustrations, SH-3719 / SH-3721 | [PR #68](https://github.com/shmindmaster/empowera/pull/68), OPEN at `19f2cf7f40b07fbbe52336cec5d25132b9eca416` | Coordinator reports all 13 review threads resolved, 40 web tests, six focused readiness UI tests, formatting/typecheck/build passed in Daytona; CodeRabbit successful | PR explicitly prohibits merge/deploy before SH-3716 and SH-3524 acceptance; both remain UNKNOWN/open in this handoff |
 | CoLedger existing hosting | Coordinator reports existing DigitalOcean web/API run `305be214cd305fd33cd33dbe35c4be4fb86fc295` | Prior provider readback, not repeated here | Not PR #188. Refresh current spec, migrate component and all source hashes before release |
 | Empowera existing hosting | Coordinator reports existing authorized DigitalOcean systemd release `61b727b`, services active | Prior SSH/runtime readback, not repeated here | Not PR #68. Active services do not prove new feature behavior or satisfy acceptance gates |
@@ -158,7 +158,7 @@ release; P1 completes eligible releases; P2 closes optional acceptance/cleanup.
 | REV-05 | P1 Revolva implementer + reviewer / Git | Integrate reviewed parent then voice, reconcile guard changes, rerun changed-SHA checks | REV-03 | Reviewed final SHA and main lineage; default-off voice remains safe; in-main status distinct from deployment |
 | REV-06 | P1 coordinator + hosting operator / conditional release | Under existing scoped release authority, establish and review the missing DO readiness contract before any guard change/deploy; obtain additional authority only for actual missing target/rights/spend scope | REV-04, REV-05, HOST-02 for any legacy transfer | No implementation/deploy while applicable target contract or transfer rights remain unknown; approved synthetic-only release may remain separate from preserved legacy custody |
 | REV-07 | P2 acceptance owner / bounded synthetic evaluation | Freeze the 20-recording evaluation set and review date/number/conflict/timestamp/speaker/correction behavior | REV-05, ENTRY-02 | Owned evaluation criteria and observed outcomes; no arbitrary recording/paid transcription without explicit synthetic scope and spend admission |
-| COL-01 | P0 CoLedger implementer + reviewer / GitHub | Reconcile ten resolved threads and final Daytona browser/PG rerun after missing system-library correction | ENTRY-02 | Latest head attribution, each finding's disposition and complete browser/PG evidence; earlier launch failures not labeled application failures or passes |
+| COL-01 | P0 CoLedger implementer + reviewer / GitHub | Retain ten resolved findings and exact `1ecff71` 64-pass mocked browser receipt; reconcile remaining unverified PostgreSQL/capsule evidence | ENTRY-02 | Completed browser evidence attributed to exact head; missing exact-SHA PG/capsule run explicitly unresolved, not inferred from CodeRabbit; no new workflow implementation in closeout |
 | COL-02 | P0 CoLedger implementer / admitted remote gate | Verify the final candidate with the native full release procedure and disposable schema-ready PostgreSQL | COL-01, ENTRY-03 | Complete exact-SHA `verify-release.ps1` PASS, required DB suites unskipped, migration review/role-trigger evidence and mocked browser results |
 | COL-03 | P1 coordinator / Git + existing DO | Recheck remote-main containment, then fast-forward the exact verified SHA under release authority | COL-02, HOST-01 | `main` equals verified candidate; no unverified squash/merge SHA; automatic deployment treated as a production mutation |
 | COL-04 | P1 CoLedger operator + reviewer / deployed system | Observe ACTIVE deployment with exact web/API/migrate source, PRE_DEPLOY outcome and runtime grants | COL-03 | Provider source chain and migration/privilege proof, route/DNS preservation, before/after telemetry; old web/API SHA not mistaken for release |
@@ -432,10 +432,17 @@ or explicitly superseded, remove this active plan per `docs/plans/PLANS.md`.
   evidence. The approved disposable remote runners' temporary-directory usage
   is not a release blocker in the coordinator's applicable authority; no
   runner-path repair scope is assigned by this plan.
-- CoLedger closeout input received: exact `1ecff71` archive verification,
-  security 14/14 and release eval 8/8 passed; ten review threads resolved.
-  Browser dependency repair/full browser and PG capsule CI results remain
-  pending from the same lane. No merge/deployment inferred.
-- Pending closeout input: final CoLedger browser/PG results. PR #104's corrected
-  head/merge receipt is now reported; refresh remote main on entry.
+- Final CoLedger closeout received: exact `1ecff71` archive verification,
+  security 14/14 and release eval 8/8 passed; all ten review threads fixed/resolved.
+  A new dependency-corrected sandbox completed package build and full mocked
+  Playwright **64 passed**, exit 0, in 2.1 minutes; sandbox deleted. This
+  supersedes the earlier missing-`libnspr4` browser-launch failures.
+- CoLedger PostgreSQL/capsule CI remains UNVERIFIED: no workflow run at exact
+  SHA, no `workflow_dispatch` in the workflow; only CodeRabbit neutral/skipped.
+  Full native exact-candidate release evidence is still required before merge/
+  deploy. Nonfatal fixture `Clerk.invalid` and audit-query warnings are test
+  observations, not production telemetry. No new PG workflow implementation
+  belongs to this closing session.
+- Pending closeout input: coordinator's final Linear/Notion links for this plan.
+  PR #104's corrected head/merge receipt is reported; refresh remote main on entry.
 - No next-session action has been executed by preparing this plan.
