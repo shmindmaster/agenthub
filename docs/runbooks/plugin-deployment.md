@@ -46,7 +46,7 @@ Grok also loads plugins installed for Claude. Turn those off with the `disabled`
 
 Vendor RepoWise carries hooks and runs a server per session, so Devin, Factory, Qoder and Grok use `ah-repowise`, which has no hooks.
 
-A host that copies a plugin ignores a content change at the same version: `claude plugin update` says "already at the latest version" and leaves the cached copy stale. Bump the plugin version, or uninstall and install it again (Claude, Codex, Factory, Qoder, Grok, Devin and Antigravity all work that way). `ah-media-studio` stays at 2.1.2 because its kit and policy hard-code the version, so refresh it by reinstalling.
+A host that copies a plugin ignores a content change at the same version: `claude plugin update` says "already at the latest version" and leaves the cached copy stale. Bump the plugin version, or uninstall and install it again (Claude, Codex, Factory, Qoder, Grok, Devin and Antigravity all work that way). `ah-media-studio` keeps its version until a release changes it, because its kit and policy hard-code the number, so refresh it by reinstalling.
 
 ## Keeping hosts lean
 

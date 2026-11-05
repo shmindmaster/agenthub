@@ -134,6 +134,11 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   composition (`kit/src/MarketingAd.tsx`) crops the receipt-bound UI clip with
   a focus-follow camera inside the platform-safe area; audio is mixed and
   loudness-normalized with FFmpeg. Azure AI Speech is the fleet TTS route.
+  Media-studio 2.1.3 (2026-11-04, SH-3723) adds a bounded Runware training-still
+  adapter (`kit/cloud/runware-image.mjs`, `cloud-ai.mjs illustration`): synthetic
+  sources, one model, one paid request per job, a $1 per-job bound, resumable polling,
+  SME review and a content-hashed `jobs/runware/<id>/inventory.json` for consumers
+  (contract in `kit/cloud/README.md`).
   ElevenLabs speech returned in media-studio 2.1.2 (2026-11-04) as
   `packages/media-studio/scripts/elevenlabs_cli.py`, owner-authorized jobs only:
   an immutable project manifest must name the exact voice and job workspace,

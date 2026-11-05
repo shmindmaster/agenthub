@@ -34,7 +34,7 @@ Run the integrity check with this exact command; do not change it:
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '2.1.2') { throw 'Speech tools are stale. Deploy the current media-studio package first.' }
+if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '2.1.3') { throw 'Speech tools are stale. Deploy the current media-studio package first.' }
 pwsh -NoProfile -File "$tools/Test-SpeechIntegrity.ps1" -Path <take.wav> -Text '<locked line>' -JsonOut qa/integrity/<id>.json
 ```
 
