@@ -549,19 +549,31 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   hosts were not inspected. Snapshot guidance is version-sensitive; check
   the installed SDK and current runtime before selecting snapshot APIs.
 - **Open Dependabot alerts are upstream-blocked, not neglected (measured
-  2026-11-05)**: two medium `minimatch` alerts remain open on `main`, both in
-  lockfiles and both transitive. `packages/mobile-development/fixtures/smoke-app`
-  resolves minimatch 10.2.6 through `@expo/fingerprint` and `glob`, which declare
-  `^10.2.2`; `packages/media-studio/kit` resolves a nested 9.0.9 through
-  `@remotion/eslint-config-flat` 4.0.517's `@typescript-eslint/typescript-estree`,
-  which declares `^9.0.4`. The advisory's first patched version is 11.0.1, a major
-  bump no consumer's declared range admits, so an `overrides` pin to 11.x would
-  close the advisory by violating every dependent's semver contract and putting
-  Expo fingerprinting and ESLint at risk. That kit's own top-level minimatch 3.1.5
-  sits outside the vulnerable range `>= 7.0.0, < 11.0.1`, so ESLint's direct copies
-  are unaffected. Both alerts wait on an upstream release, and Dependabot pull
-  requests are this repository's established route. Do not close them with a forced
-  override.
+  2026-11-05, re-checked against the npm registry the same day)**: two medium
+  `minimatch` alerts remain open on `main`, both in lockfiles and both
+  transitive, for the vulnerable range `>= 7.0.0, < 11.0.1` against a first
+  patched version of 11.0.1. `packages/mobile-development/fixtures/smoke-app`
+  resolves minimatch 10.2.6 through `glob` 13.0.6 and `@expo/fingerprint`
+  0.20.14. `packages/media-studio/kit` resolves a nested 9.0.9 through
+  `@remotion/eslint-config-flat` 4.0.517, which pins `typescript-eslint` and so
+  `@typescript-eslint/typescript-estree`.
+
+  Only `glob` has moved: 14.0.3 declares `minimatch ^11.0.2`. The two parents
+  that actually gate each tree have not. `@expo/fingerprint` at its latest
+  0.21.9 still declares `^10.2.2`, so smoke-app keeps a vulnerable 10.x copy
+  however far `glob` is bumped. `@typescript-eslint/typescript-estree` at its
+  latest 8.72.1 also still declares `^10.2.2`, and
+  `@remotion/eslint-config-flat` 4.0.541 pins `typescript-eslint` 8.71.2, so
+  upgrading the whole Remotion set would move the nested copy from 9.0.9 to a
+  10.x that is still inside the vulnerable range and would risk the render
+  toolchain for nothing. The kit's own top-level minimatch 3.1.5 is outside the
+  range, so ESLint's direct copies were never affected.
+
+  An `overrides` pin to 11.0.1 would close both advisories by violating the
+  declared range of every dependent that has not moved, which is the obvious
+  fix and the wrong one. Both wait on an upstream release, and Dependabot pull
+  requests are this repository's established route. Do not close them with a
+  forced override, and do not bump Remotion for this.
 - **Shared-library YAML safety (2026-09-08):** Zed loads `~/.agents/skills`
   and refuses a skill whose frontmatter is invalid YAML (`Invalid YAML
   frontmatter`). Railway's `use-railway` (installed by `railway setup agent`,
