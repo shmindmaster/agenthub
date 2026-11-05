@@ -59,6 +59,29 @@ library, not an alternative hosted-server launcher. Use the official versioned
 [OpenAPI specifications](https://github.com/clerk/openapi-specs) for exact FAPI
 and BAPI request contracts.
 
+### Codex on-demand activation and connection checks
+
+Codex CLI 0.166 resolves the installed plugin server by the plain name `clerk`:
+use `codex mcp login clerk --no-browser` for management-only OAuth. Complete
+consent only for the authorized workspace and permissions; do not print tokens
+or raw callback URLs. This does not start a model session.
+
+For an authorized task, temporarily set the existing
+`[plugins."clerk@clerk".mcp_servers.clerk]` `enabled` field to `true`, preserving
+all other settings and grants. Restore its previous value afterward. In this
+version, `-c` for that nested plugin setting did not activate the server. Do not
+create a duplicate top-level MCP entry as a workaround. `codex mcp list --json`
+reports `o_auth` while enabled; a disabled server can report `unsupported`
+despite a completed OAuth grant.
+
+For a real connection check without a model or thread, the official app-server
+protocol supports `mcpServerStatus/list` with `serverName: "clerk"` and
+`detail: "toolsAndAuthOnly"`. Filter to that server rather than discovering
+every installed MCP. Verify its live tool inventory and `authStatus: "oAuth"`,
+then stop the owned management process and restore the default off setting.
+This proves authenticated discovery, not invocation of every tool, application
+role acceptance or OAuth on another host.
+
 ## Acceptance matrix
 
 For each deployed application/revision record the exact URL, source SHA,
