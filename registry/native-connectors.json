@@ -943,7 +943,7 @@
             "installedVersion": "1.0.0",
             "current": true,
             "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host qoder",
-            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. 2026-11-05 fresh-session readback inside a live Qoder session: all 20 official skills were discoverable by name, and the hosted MCP exposed zero tools, which is the off-by-default state activationPolicy.sessionStart requires rather than a discovery failure. OAuth was not attempted, so authenticated tool invocation and any application role acceptance remain unverified on this host."
           },
           {
             "hostId": "devin",
