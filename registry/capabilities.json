@@ -630,7 +630,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "DA15A1CC723FE8D7912DEDD1CCDC5F6653657E4D54B6594E67FF19E771B5DCB6",
+      "contentHash": "CBC8ED9EA2882D167943AD95A59FF6227A88A11BD12956F98E4038EFEA754AEE",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -784,7 +784,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "3AEA067AA1C06550CCD25AF0E65345540B3CF754468C5577F264A8EAE4592326",
+      "contentHash": "D6587CE6C2D75E2726ADBF44A6CEA96159DC25BD23341342D7950AC7ED60F4CE",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [

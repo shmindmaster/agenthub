@@ -50,50 +50,82 @@ function Write-JsonFile([string]$Path, $Object) {
     [IO.File]::WriteAllText($Path, ($json.TrimEnd() + "`n"))
 }
 
-# Build / update portable root first — it is the authority.
-if (Test-Path -LiteralPath $rootManifestPath) {
-    $rootManifest = Read-JsonFile -Path $rootManifestPath
-} else {
-    $rootManifest = [pscustomobject]@{ name = $Package }
+# An existing manifest is rewritten in place and only its top-level version line changes, so every projection
+# keeps its own indentation, key order and line endings. Write-JsonFile re-emits at four-space indent with two
+# spaces after each colon and CRLF endings, which turned a one-field bump into a whole-file diff on every
+# manifest in the package. Returns $false when the version line is absent or its nesting is ambiguous, and the
+# structured writer below takes over so a manifest can still be created from nothing.
+function Set-TopLevelVersionInPlace([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path)) { return $false }
+    $raw = [IO.File]::ReadAllText($Path)
+    $anchor = [regex]::Match($raw, '(?m)^([ \t]*)(?:"name"|"version")\s*:\s*"')
+    if (-not $anchor.Success) { return $false }
+    $indent = $anchor.Groups[1].Value
+    $pattern = '^' + [regex]::Escape($indent) + '"version"\s*:\s*"[^"]*"'
+    if ([regex]::Matches($raw, "(?m)$pattern").Count -ne 1) { return $false }
+    $next = [regex]::Replace($raw, "(?m)$pattern", ($indent + '"version": "' + $Version + '"'), 1)
+    if ($next -eq $raw) { return $false }
+    [IO.File]::WriteAllText($Path, $next, [Text.UTF8Encoding]::new($false))
+    # The file is re-read and parsed, so a rewrite that broke the JSON fails here rather than deploying.
+    if ([string](Read-JsonFile -Path $Path).version -ne $Version) { return $false }
+    return $true
 }
-$rootHash = @{}
-foreach ($p in $rootManifest.PSObject.Properties) { $rootHash[$p.Name] = $p.Value }
-$rootHash['$schema'] = $schema
-if (-not $rootHash.ContainsKey('name') -or [string]::IsNullOrWhiteSpace([string]$rootHash['name'])) {
-    $rootHash['name'] = $Package
-}
-$rootHash['version'] = $Version
-if (-not $rootHash.ContainsKey('description')) {
-    foreach ($hostDir in $hostDirs) {
-        $hostPath = Join-Path $packageRoot "$hostDir/plugin.json"
-        if (Test-Path -LiteralPath $hostPath) {
-            $hostObj = Read-JsonFile -Path $hostPath
-            if ($hostObj.description) { $rootHash['description'] = [string]$hostObj.description; break }
+
+# The structured build exists for a package that has no root manifest yet, or one whose layout is ambiguous.
+function Update-RootManifest {
+    if (Test-Path -LiteralPath $rootManifestPath) {
+        $rootManifest = Read-JsonFile -Path $rootManifestPath
+    } else {
+        $rootManifest = [pscustomobject]@{ name = $Package }
+    }
+    $rootHash = @{}
+    foreach ($p in $rootManifest.PSObject.Properties) { $rootHash[$p.Name] = $p.Value }
+    $rootHash['$schema'] = $schema
+    if (-not $rootHash.ContainsKey('name') -or [string]::IsNullOrWhiteSpace([string]$rootHash['name'])) {
+        $rootHash['name'] = $Package
+    }
+    $rootHash['version'] = $Version
+    if (-not $rootHash.ContainsKey('description')) {
+        foreach ($hostDir in $hostDirs) {
+            $hostPath = Join-Path $packageRoot "$hostDir/plugin.json"
+            if (Test-Path -LiteralPath $hostPath) {
+                $hostObj = Read-JsonFile -Path $hostPath
+                if ($hostObj.description) { $rootHash['description'] = [string]$hostObj.description; break }
+            }
         }
     }
-}
-# Ordered portable fields first.
-$portable = [ordered]@{
-    '$schema'   = $schema
-    name        = [string]$rootHash['name']
-    version     = $Version
-    description = [string]$rootHash['description']
-}
-foreach ($extra in @('author', 'license', 'keywords', 'homepage', 'repository')) {
-    if ($rootHash.ContainsKey($extra) -and $null -ne $rootHash[$extra]) {
-        $portable[$extra] = $rootHash[$extra]
+    # Ordered portable fields first.
+    $portable = [ordered]@{
+        '$schema'   = $schema
+        name        = [string]$rootHash['name']
+        version     = $Version
+        description = [string]$rootHash['description']
     }
+    foreach ($extra in @('author', 'license', 'keywords', 'homepage', 'repository')) {
+        if ($rootHash.ContainsKey($extra) -and $null -ne $rootHash[$extra]) {
+            $portable[$extra] = $rootHash[$extra]
+        }
+    }
+    Write-JsonFile -Path $rootManifestPath -Object ([pscustomobject]$portable)
 }
-Write-JsonFile -Path $rootManifestPath -Object ([pscustomobject]$portable)
-Write-Host "updated $Package/plugin.json -> $Version"
+
+# Build / update portable root first — it is the authority.
+if (Set-TopLevelVersionInPlace -Path $rootManifestPath) {
+    Write-Host "updated $Package/plugin.json -> $Version (in place)"
+} else {
+    Update-RootManifest
+    Write-Host "updated $Package/plugin.json -> $Version (rebuilt)"
+}
 
 $updated = @('plugin.json')
 foreach ($hostManifest in $hostManifests) {
     $hostPath = Join-Path $packageRoot $hostManifest
     if (-not (Test-Path -LiteralPath $hostPath)) { continue }
-    $hostObj = Read-JsonFile -Path $hostPath
-    $hostObj | Add-Member -NotePropertyName version -NotePropertyValue $Version -Force
-    Write-JsonFile -Path $hostPath -Object $hostObj
+    if (-not (Set-TopLevelVersionInPlace -Path $hostPath)) {
+        $hostObj = Read-JsonFile -Path $hostPath
+        $hostObj | Add-Member -NotePropertyName version -NotePropertyValue $Version -Force
+        Write-JsonFile -Path $hostPath -Object $hostObj
+    }
     $updated += $hostManifest
     Write-Host "updated $Package/$hostManifest -> $Version"
 }

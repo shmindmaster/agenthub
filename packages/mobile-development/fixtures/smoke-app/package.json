@@ -10,5 +10,8 @@
     "expo": "~57.0.12",
     "react": "19.2.3",
     "react-native": "0.86.2"
+  },
+  "overrides": {
+    "minimatch": "^11.0.4"
   }
 }

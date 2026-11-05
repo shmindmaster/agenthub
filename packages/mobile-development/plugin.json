@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-mobile-development",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "Canonical mobile development contract with loose platform and device-lab skills plus on-demand Appium activation for Claude and Codex."
 }

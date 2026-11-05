@@ -12,7 +12,7 @@ Check the runtime first; repair a stale one from `MEDIA_STUDIO_PACKAGE_ROOT`; ne
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/briefing-kit'
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '2.1.4') { throw "Stale runtime: $m" } }
+foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '2.1.5') { throw "Stale runtime: $m" } }
 ```
 
 ## Pick the tool
