@@ -744,7 +744,7 @@
             "installedVersion": "6.2.0",
             "current": false,
             "updateCommand": "grok plugin update superpowers",
-            "note": "Clone last observed at v6.2.0. Upstream latest is v6.3.0. A 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory — retry when no grok session is running."
+            "note": "Clone last observed at v6.2.0. Upstream latest is v6.3.0. A 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory \u2014 retry when no grok session is running."
           },
           {
             "hostId": "cursor",
@@ -892,50 +892,173 @@
         "upstream": "https://github.com/clerk/skills",
         "maintainer": "Clerk",
         "license": "MIT",
-        "capabilityKind": "skills",
-        "declaresMcpServers": false,
+        "capabilityKind": "skills-and-mcp",
+        "declaresMcpServers": true,
         "required": false,
         "provides": [
           "auth.clerk"
         ],
         "install": {
-          "command": "npx skills add clerk/skills",
+          "command": "python scripts/Install-ClerkFleet.py --apply",
           "docs": "https://github.com/clerk/skills"
         },
-        "note": "AgentHub previously republished a subset of these skills as clerk@agenthub. That package is gone. Install official clerk/skills (or clerk-skills on Codex).",
-        "observedAt": "2026-08-24",
+        "note": "Official clerk/skills now supplies clerk plus hosted MCP. Keep this stable registry ID; do not republish clerk@agenthub. Authorized targeted rollout: scripts/Install-ClerkFleet.py; docs/runbooks/clerk-auth.md. Installation is not fresh-session or OAuth acceptance.",
+        "observedAt": "2026-11-04",
         "hostChannels": [
           {
             "hostId": "claude",
-            "channel": "upstream-skills",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add clerk/skills"
+            "channel": "clerk@clerk-skills",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host claude",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
           },
           {
             "hostId": "codex",
-            "channel": "clerk-skills-marketplace",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "codex plugin marketplace add clerk/skills",
-            "note": "Then install clerk-skills from the Clerk Skills marketplace."
+            "channel": "clerk@clerk",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host codex",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "copilot",
+            "channel": "clerk@clerk-skills",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host copilot",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "factory",
+            "channel": "clerk@skills",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host factory",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "qoder",
+            "channel": "clerk@clerk-skills",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host qoder",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "devin",
+            "channel": "clerk/skills",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host devin",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "grok",
+            "channel": "upstream-local-plugin",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host grok",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "antigravity",
+            "channel": "upstream-local-plugin",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host antigravity",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
           },
           {
             "hostId": "cursor",
-            "channel": "upstream-plugin",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add clerk/skills",
-            "note": "Official Cursor plugin lives at https://github.com/clerk/cursor-plugin and vendors clerk/skills as a submodule."
+            "channel": "upstream-local-plugin",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host cursor",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
           },
           {
             "hostId": "cline",
-            "channel": null,
-            "installedVersion": null,
-            "current": false,
-            "note": "No verified Cline-native Clerk plugin; official skills install is the documented path."
+            "channel": "upstream-package-and-direct-extension-mcp",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host cline",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "amp",
+            "channel": "upstream-runtime-adapter",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host amp",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "opencode",
+            "channel": "upstream-skills-and-remote-mcp",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host opencode",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "warp",
+            "channel": "upstream-skills-and-remote-mcp",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host warp",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "gemini",
+            "channel": "upstream-skills-and-remote-mcp",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host gemini",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified. Gemini license remains a runtime blocker."
+          },
+          {
+            "hostId": "vscode-insiders",
+            "channel": "copilot-official-plugin-and-remote-mcp",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host vscode-insiders",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "cursor-agent",
+            "channel": "shared-cursor-plugin",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host cursor-agent",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "opencode-desktop",
+            "channel": "shared-opencode-config",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host opencode-desktop",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "antigravity-desktop",
+            "channel": "shared-antigravity-plugin",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host antigravity-desktop",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+          },
+          {
+            "hostId": "antigravity-ide",
+            "channel": "shared-antigravity-plugin",
+            "installedVersion": "1.0.0",
+            "current": true,
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host antigravity-ide",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
           }
-        ]
+        ],
+        "rolloutAuthorization": "Owner explicitly requested official Clerk skills/MCP/CLI installation across the coding fleet on 2026-11-04. This targeted authorization supersedes observation-only install preferences for Clerk; ownership remains upstream."
       },
       {
         "extensionId": "railway",
@@ -1165,36 +1288,36 @@
             "hostId": "claude",
             "channel": "native-plugin",
             "plugin": "daytona-skills@claude-community",
-          "current": true,
-          "updateCommand": "claude plugin update daytona-skills@claude-community"
+            "current": true,
+            "updateCommand": "claude plugin update daytona-skills@claude-community"
           },
           {
             "hostId": "factory",
             "channel": "native-plugin",
             "plugin": "daytona-skills@claude-plugins-community",
-          "current": true,
-          "updateCommand": "droid plugin update daytona-skills@claude-plugins-community"
+            "current": true,
+            "updateCommand": "droid plugin update daytona-skills@claude-plugins-community"
           },
           {
             "hostId": "devin",
             "channel": "native-plugin",
             "plugin": "daytona",
-          "current": true,
-          "updateCommand": "devin plugins update daytona"
+            "current": true,
+            "updateCommand": "devin plugins update daytona"
           },
           {
             "hostId": "grok",
             "channel": "imported-from-claude",
             "plugin": "daytona-skills",
-          "current": true,
-          "updateCommand": "Follows Claude: grok imports the plugin installed for Claude"
+            "current": true,
+            "updateCommand": "Follows Claude: grok imports the plugin installed for Claude"
           },
           {
             "hostId": "codex",
             "channel": "ah-plugin",
             "plugin": "ah-daytona@agenthub",
-          "current": true,
-          "updateCommand": "codex plugin add ah-daytona@agenthub",
+            "current": true,
+            "updateCommand": "codex plugin add ah-daytona@agenthub",
             "note": "Replaces the 2026-10-29 loose skill in ~/.agents/skills, which was checked absent on 2026-11-04."
           }
         ]

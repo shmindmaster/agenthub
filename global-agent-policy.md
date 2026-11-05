@@ -42,6 +42,8 @@ This is the public, portable global policy compiled into host-native instruction
 
 ## Capability ownership
 
+- Use Clerk as the personal application authentication and organization authorization standard; client systems remain separate. Preserve backend tenant, resource and domain permission enforcement. For setup and acceptance use the official Clerk plugin/CLI/MCP and `docs/runbooks/clerk-auth.md` in AgentHub: genuine deployed user sessions, positive and negative role checks, and citation/export denial are distinct from mocked or development-only auth checks. Keep credentials in runtime secret references; never invent inbox codes or globally weaken MFA/Device Trust to make QA pass.
+
 - Reuse the owner recorded in this repository's `registry/capabilities.json` before creating a skill, plugin, MCP server, role, hook, or wrapper.
 - Prefer a shared MCP/API contract over duplicated host logic.
 - Use official host formats. Record unsupported or undocumented packaging as discovery-required instead of inventing a format.

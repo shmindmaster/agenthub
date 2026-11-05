@@ -46,7 +46,8 @@
         },
         "copilot": {},
         "vscode-insiders": {
-          "github": "Copilot's own GitHub endpoint with OAuth. The catalog github plugin needs a personal access token instead."
+          "github": "Copilot's own GitHub endpoint with OAuth. The catalog github plugin needs a personal access token instead.",
+          "clerk": "Clerk CLI targets stable VS Code, so Insiders uses its own remote entry with Copilot official skills."
         },
         "cline": {
           "adobe-for-creativity": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
@@ -60,7 +61,8 @@
           "posthog": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "railway": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "sentry": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
-          "supabase": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share."
+          "supabase": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
+          "clerk": "Cline extension has no plugin MCP loader; official upstream plugin also serves the CLI. Remote only, off by default."
         },
         "opencode": {
           "descript": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
@@ -69,7 +71,8 @@
           "notion": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "railway": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "sentry": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
-          "aws-mcp": "OpenCode cannot load an ah-* plugin, and this local proxy is its only AWS route. Starts per session; remove it if AWS is not used there."
+          "aws-mcp": "OpenCode cannot load an ah-* plugin, and this local proxy is its only AWS route. Starts per session; remove it if AWS is not used there.",
+          "clerk": "No official Clerk OpenCode plugin format; vendor CLI configures the hosted remote MCP, no local process."
         },
         "amp": {},
         "devin": {},
@@ -80,7 +83,8 @@
           "firecrawl": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "linear": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "notion": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
-          "railway": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process."
+          "railway": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
+          "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
         }
       }
     },
@@ -656,6 +660,45 @@
         "qoder": "ah-assemblyai@agenthub"
       },
       "notes": "Plugin-gated with the assemblyai server; delivered only by packages/assemblyai. Free documentation lookup."
+    },
+    {
+      "id": "clerk",
+      "name": "Clerk",
+      "scope": "global-default",
+      "transport": "http",
+      "activationMode": "shared-remote",
+      "url": "https://mcp.clerk.com/mcp",
+      "credentialPolicy": "oauth",
+      "protocol": {
+        "revision": null,
+        "verifiedOn": "2026-11-04",
+        "verification": "Official plugin endpoint verified from clerk/skills. Protocol revision cannot be established without authenticated negotiation; OAuth account grant and fresh host discovery have not been performed."
+      },
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
+      "pluginOwnersByHost": {
+        "claude": "clerk@clerk-skills",
+        "codex": "clerk@clerk",
+        "copilot": "clerk@clerk-skills",
+        "factory": "clerk@skills",
+        "qoder": "clerk@clerk-skills",
+        "devin": "clerk@upstream",
+        "grok": "clerk@upstream",
+        "antigravity": "clerk@upstream",
+        "cursor": "clerk@local",
+        "amp": "clerk@upstream-runtime-adapter"
+      },
+      "notes": "Official Clerk vendor plugin owns native host delivery; scripts/Install-ClerkFleet.py installs vendor source or host runtime adapters, never an AgentHub publication. CLI auth stays in workstation keychain. Account MCP can mutate apps, so authorize exact operations. See docs/runbooks/clerk-auth.md.",
+      "hostConfigOverrides": {
+        "opencode": {
+          "enabled": false
+        },
+        "cline": {
+          "disabled": true
+        }
+      }
     }
   ]
 }

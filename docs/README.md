@@ -31,6 +31,9 @@ stranger-safe first run. For this private fleet checkout, also use
 
 ## Operations
 
+- [runbooks/clerk-auth.md](./runbooks/clerk-auth.md) — official Clerk fleet rollout,
+  host OAuth lifecycle, genuine user and tenant/resource authorization acceptance.
+
 - [runbooks/sync-and-validate.md](./runbooks/sync-and-validate.md) — drift
   audit, deploy, validate, and fleet standard sweep procedures.
 - [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md) — `ah-` plugin
