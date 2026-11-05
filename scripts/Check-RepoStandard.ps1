@@ -146,8 +146,11 @@ function Remove-MarkdownInlineCode([string]$Line) {
 
     # Precompute the next delimiter run of the same length. The forward render
     # then jumps across a matched span and never rescans its interior.
-    $nextSameLength = [int[]]::new($runs.Count)
-    [Array]::Fill($nextSameLength, -1)
+    # Array multiplication rather than [Array]::Fill: Fill is .NET 9 only, and this
+    # script is #Requires -Version 5.1, so under Windows PowerShell Fill threw
+    # "Method invocation failed because [System.Array] does not contain a method
+    # named 'Fill'" and the whole check aborted. Measured 2026-11-05.
+    [int[]]$nextSameLength = @(-1) * $runs.Count
     $nextByLength = @{}
     for ($runIndex = $runs.Count - 1; $runIndex -ge 0; $runIndex--) {
         $length = [int]$runs[$runIndex].Length
