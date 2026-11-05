@@ -61,8 +61,15 @@ class ClerkManagementTests(unittest.TestCase):
 
     def test_amp_commands_always_select_isolated_settings(self):
         plan = management.layout("C:/private", "amp")
+        self.assertIn("requires a vendor-supported client ID", plan["loginBlocker"])
         for command in plan["commands"]:
             self.assertEqual(command[1:3], ["--settings-file", plan["configPath"]])
+            self.assertNotIn("login", command)
+
+    def test_cursor_approves_only_clerk_before_native_login(self):
+        plan = management.layout("C:/private", "cursor")
+        self.assertEqual(plan["commands"][0], ["cursor-agent", "mcp", "enable", "clerk"])
+        self.assertEqual(plan["commands"][1], ["cursor-agent", "mcp", "login", "clerk"])
 
 
 if __name__ == "__main__":

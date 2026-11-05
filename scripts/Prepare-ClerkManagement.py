@@ -31,20 +31,24 @@ def layout(runtime, host):
         cwd = root / "cursor"
         path = cwd / ".cursor" / "mcp.json"
         config = {"mcpServers": {"clerk": {"url": url}}}
-        commands = [["cursor-agent", "mcp", "login", "clerk"],
+        commands = [["cursor-agent", "mcp", "enable", "clerk"],
+                    ["cursor-agent", "mcp", "login", "clerk"],
                     ["cursor-agent", "mcp", "list-tools", "clerk"]]
     elif host == "amp":
         cwd = root / "amp"
         path = cwd / "settings.json"
         config = {"amp.mcpServers": {"clerk": {"url": url}}}
         base = ["amp", "--settings-file", str(path)]
-        commands = [base + ["mcp", "oauth", "login", "clerk", "--server-url", url],
-                    base + ["mcp", "oauth", "status", "clerk"],
+        commands = [base + ["mcp", "oauth", "status", "clerk"],
                     base + ["mcp", "doctor", "clerk"]]
     else:
         raise ValueError("Only Cursor and Amp need this isolated management bridge")
     return {"host": host, "cwd": str(cwd), "configPath": str(path), "config": config,
             "commands": commands, "execution": "not-started", "oauth": "not-verified",
+            "loginBlocker": ("Installed Amp local oauth login requires a vendor-supported client ID; "
+                             "remote login is a different ampcode.com server ownership path. "
+                             "Do not invent a client ID or copy another host's token."
+                             if host == "amp" else None),
             "scope": "isolated CLI management; does not prove IDE plugin authentication"}
 
 
