@@ -502,7 +502,7 @@
         },
         {
           "hostId": "antigravity",
-          "deploymentStatus": "managed-observed-path"
+          "deploymentStatus": "native-local-plugin"
         },
         {
           "hostId": "grok",
@@ -514,7 +514,7 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-extension-junction"
         },
         {
           "hostId": "qoder",
@@ -572,7 +572,7 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-extension-junction"
         },
         {
           "hostId": "qoder",
@@ -612,7 +612,7 @@
         },
         {
           "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin"
         },
         {
           "hostId": "windsurf",
@@ -668,8 +668,7 @@
             "skills",
             "catalog",
             "mcp"
-          ],
-          "deploymentStatusNote": "Both skills stay loosely readable and route catalog/lifecycle commands through the AgentHub-managed runtime package. Appium remains absent from default host configuration and is enabled only for a new mobile task through that deployed mobile.ps1 entrypoint."
+          ]
         },
         {
           "hostId": "cline",
@@ -694,8 +693,7 @@
             "skills",
             "catalog",
             "mcp"
-          ],
-          "deploymentStatusNote": "Both skills stay loosely readable and route catalog/lifecycle commands through the AgentHub-managed runtime package. Appium remains absent from default host configuration and is installed only for a new mobile task through that deployed mobile.ps1 entrypoint."
+          ]
         },
         {
           "hostId": "copilot",
@@ -771,7 +769,8 @@
         }
       ],
       "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the source public contract at packages/mobile-development/mobile.ps1, the AgentHub-managed deployed runtime package, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",
-      "hostScopeNote": "All active coding hosts receive both loose skills and resolve the catalog through the fleet-managed package under %LOCALAPPDATA%/AgentHub/capabilities/mobile-development, independent of a repository checkout or native marketplace state. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration."
+      "hostScopeNote": "All active coding hosts receive both loose skills and resolve the catalog through the fleet-managed package under %LOCALAPPDATA%/AgentHub/capabilities/mobile-development, independent of a repository checkout or native marketplace state. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration.",
+      "hostMappingsNote": "Every active coding host maps the plugin skills and the catalog, and tests/Test-MobileDevelopment.ps1 enforces that, because reading the contract needs no device. The appium-mobile server is narrowed to claude and codex in registry/mcps.json (2026-10-13 pin, narrowed 2026-08-19 after measurement showed every host that opened it spawned a node process of roughly 93 MB with no mobile work in flight), so only those two rows carry the mcp component and only those two can run a session. Nothing is installed by default: deployLooseSkills is false, so these rows describe what a host may be given on demand, not what it currently holds."
     },
     {
       "id": "media-studio",
@@ -836,15 +835,15 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-extension-junction"
         },
         {
           "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin"
         },
         {
           "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin"
         },
         {
           "hostId": "factory",
@@ -1033,7 +1032,7 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-extension-junction",
           "components": [
             "skills"
           ]
@@ -1154,7 +1153,7 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-extension-junction",
           "components": [
             "skills"
           ]
@@ -1254,7 +1253,7 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-extension-junction",
           "components": [
             "skills"
           ]
@@ -1325,20 +1324,6 @@
       "status": "active-canonical",
       "hostMappings": [
         {
-          "hostId": "claude",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
           "hostId": "cursor",
           "deploymentStatus": "native-local-plugin",
           "components": [
@@ -1396,7 +1381,8 @@
       "notes": "One skill and a wrapper (skills/automate/scripts/browse.mjs) around agent-browser (vercel-labs, Apache-2.0), the default engine for hosts without a high-fidelity browser of their own; hosts with one use it instead. The wrapper names a session per directory, refuses a visible window, caps output and captures output through files because the engine's daemon holds a shell pipe open. It installs nothing; doctor prints the install command. No MCP server. Playwright CLI is the documented second engine.",
       "kind": "tool",
       "maturity": "beta",
-      "provenance": "agenthub-owned"
+      "provenance": "agenthub-owned",
+      "hostMappingsNote": "skills/automate/references/hosts.md is the authority on which hosts use their own browser and which need this wrapper. Claude Code, the Codex app, VS Code, Qoder, Antigravity, Factory and Cline have a high-fidelity browser or a native browser extension and are deliberately unmapped; owner direction 2026-11-05 confirmed Claude and Codex need nothing further. Cursor is mapped because Cursor IDE has @browser while the Cursor Agent CLI has none. Grok, Copilot, Amp and Devin are mapped because that table records no usable native browser there, and each carries its own install: Copilot loads this repository live, and Grok cannot inherit one from Claude, so it holds a local install of its own. OpenCode and Warp receive the skill as a junction from scripts/Install-WarpSkills.ps1 rather than a plugin, which is why their status is managed-loose-skills. Gemini CLI is unmapped even though that table says it needs the wrapper: dispatchPolicy.gemini is disabled with loginPending true, so the CLI cannot run agent work and a wrapper there would be unreachable. Map it once its Google OAuth is completed. Verified 2026-11-05 by reading the automate skill back from every mapped host's own path."
     },
     {
       "id": "firecrawl",

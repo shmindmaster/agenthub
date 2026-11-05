@@ -169,6 +169,11 @@ function Compare-DeployedTree {
 #                the host resolves.
 #   flat      -- <Root>\<name>\ holding the manifest directly.
 #   nested    -- manifests anywhere under Root, grouped by the name they declare.
+#                Factory nests by marketplace and Grok renames each folder to
+#                <package>-<hash>, so neither can be found by folder name; both
+#                declare the real ah-* name inside plugin.json, which is what
+#                this layout reads. Grok was invisible to every earlier version
+#                of this check and carried ah-product 2.0.2 against source 2.1.0.
 #
 # Copilot loads this repository live and Amp is rebuilt from source by
 # scripts/Install-AmpPlugins.py, so neither carries a version to compare;
@@ -177,9 +182,10 @@ $PluginCacheHosts = @(
     @{ Host = 'codex';       Layout = 'versioned'; Root = (Join-Path $HOME '.codex\plugins\cache\agenthub');  PrivateMarketplace = 'sarosh-private'; Remedy = 'codex plugin add {0}@{2}' },
     @{ Host = 'qoder';       Layout = 'versioned'; Root = (Join-Path $HOME '.qoder\plugins\cache\agenthub');  PrivateMarketplace = 'sarosh-private'; Remedy = 'qodercli plugins update {0}@{2}' },
     @{ Host = 'cursor';      Layout = 'flat';      Root = (Join-Path $HOME '.cursor\plugins\local');          PrivateMarketplace = 'sarosh-private'; Remedy = 'scripts\Install-CursorLocalPlugins.ps1' },
-    @{ Host = 'antigravity'; Layout = 'flat';      Root = (Join-Path $HOME '.gemini\config\plugins');         PrivateMarketplace = $null;            Remedy = 'agy plugin uninstall {0}, then agy plugin install {1}' },
-    @{ Host = 'cline';       Layout = 'flat';      Root = (Join-Path $HOME '.agents\plugins');                PrivateMarketplace = $null;            Remedy = 're-junction {0} to {1}' },
-    @{ Host = 'factory';     Layout = 'nested';    Root = (Join-Path $HOME '.factory\plugins\cache');         PrivateMarketplace = 'personal';       Remedy = 'droid plugin update {0}@{2}' }
+    @{ Host = 'antigravity'; Layout = 'flat';      Root = (Join-Path $HOME '.gemini\config\plugins');         PrivateMarketplace = $null;            Remedy = 'agy plugin uninstall {0}, then agy plugin install {3}' },
+    @{ Host = 'cline';       Layout = 'flat';      Root = (Join-Path $HOME '.agents\plugins');                PrivateMarketplace = $null;            Remedy = 're-junction {0} to {3}' },
+    @{ Host = 'factory';     Layout = 'nested';    Root = (Join-Path $HOME '.factory\plugins\cache');         PrivateMarketplace = 'personal';       Remedy = 'droid plugin update {0}@{2}' },
+    @{ Host = 'grok';        Layout = 'nested';    Root = (Join-Path $HOME '.grok\installed-plugins');        PrivateMarketplace = 'sarosh-private'; Remedy = 'grok plugin uninstall {0}, then grok plugin install {3} --trust' }
 )
 
 # Private capability packages live in the gitignored overlay, so a plugin whose
@@ -205,13 +211,17 @@ function New-CachePluginRow($Spec, [string]$Name, [string]$Version, [string]$Pat
     $relative = $sourcePackage.Substring($repoRoot.Length).TrimStart('\', '/')
     $isOverlay = $relative -like 'overlays*'
     $marketplace = if ($isOverlay) { $spec.PrivateMarketplace } else { 'agenthub' }
+    # Grok and Antigravity install from a path, and both reject the backslash
+    # form, so the remedy carries an absolute POSIX-style path rather than
+    # something the reader has to translate.
+    $absolute = $sourcePackage.Replace('\', '/')
     return [pscustomobject]@{
         Name             = $Name
         Host             = $Spec.Host
         InstalledVersion = $Version
         InstallPath      = $Path
         SourcePackage    = $sourcePackage
-        Remedy           = ($Spec.Remedy -f @($Name, $relative, $marketplace))
+        Remedy           = ($Spec.Remedy -f @($Name, $relative, $marketplace, $absolute))
     }
 }
 
