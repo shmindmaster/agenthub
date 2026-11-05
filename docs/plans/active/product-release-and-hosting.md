@@ -16,7 +16,10 @@ credential changes, destructive cleanup or a provider experiment.
 Planning-session changes are documentation only. No application implementation,
 cloud changes, provider calls, Linear changes or Notion changes are part of this
 plan preparation. The closing session's coordinator owns its tracker closeout.
-Next-session execution must re-establish current authority before any mutation.
+Prior owner authorization for ordinary scoped implementation, review, merge and
+deployment carries forward; a session change does not require generic renewed
+approval. Confirm the applicable scope and clear actual missing rights, target,
+acceptance or spend gates before the affected mutation.
 
 ### State vocabulary and evidence boundary
 
@@ -41,7 +44,7 @@ Any later remediation report or changed head invalidates the old test attributio
 
 | Lane | Public source pin / current rung | Verified or reported evidence | Next gate / not established |
 | --- | --- | --- | --- |
-| AgentHub Runware, SH-3723 | In `origin/main` at [`b5258c91`](https://github.com/shmindmaster/agenthub/commit/b5258c9167f4d7e65e820ca821199a44cff3462f), media-studio 2.1.3 | Coordinator reports 25 adapter tests and validation passed. Copilot `ah-media-studio@agenthub` 2.1.3 is ENABLED from local canonical source; Claude 2.1.3 is ENABLED and contains `runware-image.mjs` | Two surfaces checked on disk; hash comparison pending. Other surfaces UNKNOWN/not checked; fresh-session consumption and Empowera's own SME release remain separate; no paid still regeneration to prove installation |
+| AgentHub Runware, SH-3723 | In `origin/main` at [`b5258c91`](https://github.com/shmindmaster/agenthub/commit/b5258c9167f4d7e65e820ca821199a44cff3462f), media-studio 2.1.3 | Coordinator reports 25 adapter tests and validation passed. Copilot `ah-media-studio@agenthub` 2.1.3 is ENABLED from canonical source; Claude 2.1.3 is ENABLED, contains `runware-image.mjs`, and its SHA-256 matches canonical source (reported prefix `E4412C36…`) | Two surfaces checked on disk. Other surfaces UNKNOWN/not checked; fresh-session consumption and Empowera's own SME release remain separate; no paid still regeneration to prove installation |
 | AgentHub generic hosting routing | [PR #104](https://github.com/shmindmaster/agenthub/pull/104), MERGED at `a0717c6fd6699afb8c2520d5beaf70153a2d243a` per final coordinator closeout | Router-link finding fixed/resolved in `04260f9`; final docs-only relative link checked. Prior candidate Linux/macOS/Intel, four Doctor jobs and CodeRabbit passed; 18 targeted validator passes reported. Windows baseline had the same two failures (1,590 passes / two failures) | Merge used an explicit baseline exception, not a full Windows-green claim. Refresh merged main at entry; no unrelated Windows remediation is assigned here |
 | Revolva release guard | [PR #54](https://github.com/shmindmaster/revolva/pull/54), MERGED at `353314d2ed3e77a7bc54a1b2f1f15955d97e872c` | Guard refuses `--deploy` before evidence or provider access; coordinator reports 23 guard tests and PostgreSQL CI passed | This is a deployment prohibition, not a DigitalOcean backend or a voice release |
 | Revolva voice, SH-3720 | [Draft PR #53](https://github.com/shmindmaster/revolva/pull/53), `99b6220ad9c8da4c5430b557e97f8a3c038c8e84` | Exact parent is `b36410e` (SH-3714 candidate, 22 commits including PR #51 ancestry). Reported validation: 342 unit, 32 e2e, 12 mobility passes | No substantive approval; stacked scope unresolved; complete rehearsal evidence blocked by archive lacking `.git`; not merged/deployed |
@@ -118,7 +121,9 @@ external tracker as its control plane.
 Parallelize independent review, metadata proposals and synthetic remote checks
 only after assigning non-overlapping repositories/files. Do not start another
 coding host, local AI, macOS VM or Docker. Keep background helpers hidden.
-No new scheduled jobs or always-on services.
+No new unattended agent/lab/maintenance services, scheduled agent jobs or standing
+compute clusters. Explicitly authorized persistent product runtimes on reviewed
+DigitalOcean targets are permitted and are the migration goal.
 
 Use native read-only commands for entry. Prefer existing authorized DigitalOcean
 capacity for hosting; use an admitted remote validation lane for tests. Daytona
@@ -144,14 +149,14 @@ release; P1 completes eligible releases; P2 closes optional acceptance/cleanup.
 | HOST-02 | P0 owner + custody operator / decision | Classify legacy Revolva custody, transfer authority, retention obligations and required preservation | HOST-01 | Explicit signed-off disposition per retained service/volume; UNKNOWN means keep, do not dump/copy/delete |
 | AH-01 | P0 AgentHub implementer + reviewer / GitHub | Reconcile merged PR #104, final router-link correction and documented Windows baseline exception | ENTRY-02 | Merge `a0717c6`, correction `04260f9`, prior candidate checks and docs-only final-delta evidence attributed separately; no unrelated Windows fix or full-green claim |
 | AH-02 | P0 coordinator / isolated Git lane | Preserve all local-main owner commits (latest closeout: clean `5aa7c05`, ahead four); identify overlap with incoming work | ENTRY-01 | Clean reviewed integration lane based on remote main; no push of user-owned local history, no loss of concurrent edits |
-| AH-03 | P1 AgentHub operator / native sync | Validate package/registry, compare installed Copilot/Claude bytes with canonical source, audit remaining applicable surfaces; apply only demonstrated authorized gaps | AH-01, AH-02, ENTRY-03 | Affected validators and exact package/hash readback pass; audit receipt, plus apply/re-audit if needed; no unnecessary reinstall or paid request |
+| AH-03 | P1 AgentHub operator / native sync | Retain Claude canonical hash match and Copilot canonical-source installation evidence; audit remaining applicable surfaces and validate package/registry; apply only demonstrated authorized gaps | AH-01, AH-02, ENTRY-03 | Affected validators and exact package/hash readback pass; audit receipt, plus apply/re-audit if needed; no unnecessary reinstall, repeated hash proof or paid request |
 | AH-04 | P1 AgentHub reviewer / fresh-session read-only | Prove on-disk deployment and runtime consumption separately for the actual surface | AH-03 | Fresh-session discovery/entrypoint/version evidence; unsupported or unchecked hosts stay UNKNOWN; no second coding host launched concurrently |
 | REV-01 | P0 Revolva implementer + reviewer / Git | Review the SH-3714 parent and PR #51 ancestry; reconcile current main including guard PR #54 | ENTRY-02 | Complete commit-scope inventory and chosen ordered integration strategy; no blind 22-commit merge or unexplained dropped parent work |
 | REV-02 | P0 Revolva implementer / admitted remote validation | Repair source-bound rehearsal setup: use a clean real Git checkout, exact SHA, archive/lock/runner hashes and retained stage evidence | REV-01, ENTRY-03 | All native stages including rehearsal pass against the final candidate; missing `.git` no longer substitutes a source-only pass |
 | REV-03 | P0 Revolva reviewer / exact evidence | Validate complete Daytona and exact-SHA PostgreSQL receipts and retain deployment refusal | REV-02 | `scripts/release.mjs` evidence verification passes; `--deploy` still fails before provider access; tampered/wrong-source evidence fails |
 | REV-04 | P1 custody operator + Revolva owner / target design only | Propose isolated synthetic DO backend/database/runner placement using existing eligible capacity | HOST-01, REV-01 | Reviewed target contract, bootstrap/migration plan, capacity/isolation/cost/rollback evidence; static-only app is not accepted as backend |
 | REV-05 | P1 Revolva implementer + reviewer / Git | Integrate reviewed parent then voice, reconcile guard changes, rerun changed-SHA checks | REV-03 | Reviewed final SHA and main lineage; default-off voice remains safe; in-main status distinct from deployment |
-| REV-06 | P1 coordinator + hosting operator / conditional release | Only under renewed release authority, establish and review the missing DO readiness contract before any guard change/deploy | REV-04, REV-05, HOST-02 for any legacy transfer | No implementation/deploy while contract or data rights remain unknown; approved synthetic-only release may remain separate from preserved legacy custody |
+| REV-06 | P1 coordinator + hosting operator / conditional release | Under existing scoped release authority, establish and review the missing DO readiness contract before any guard change/deploy; obtain additional authority only for actual missing target/rights/spend scope | REV-04, REV-05, HOST-02 for any legacy transfer | No implementation/deploy while applicable target contract or transfer rights remain unknown; approved synthetic-only release may remain separate from preserved legacy custody |
 | REV-07 | P2 acceptance owner / bounded synthetic evaluation | Freeze the 20-recording evaluation set and review date/number/conflict/timestamp/speaker/correction behavior | REV-05, ENTRY-02 | Owned evaluation criteria and observed outcomes; no arbitrary recording/paid transcription without explicit synthetic scope and spend admission |
 | COL-01 | P0 CoLedger implementer + reviewer / GitHub | Reconcile ten resolved threads and final Daytona browser/PG rerun after missing system-library correction | ENTRY-02 | Latest head attribution, each finding's disposition and complete browser/PG evidence; earlier launch failures not labeled application failures or passes |
 | COL-02 | P0 CoLedger implementer / admitted remote gate | Verify the final candidate with the native full release procedure and disposable schema-ready PostgreSQL | COL-01, ENTRY-03 | Complete exact-SHA `verify-release.ps1` PASS, required DB suites unskipped, migration review/role-trigger evidence and mocked browser results |
@@ -215,20 +220,9 @@ typecheck, unit/build, migrations/drift, installed browser/version, e2e,
 **rehearsal**, mobility build/tests and final clean status. A plain source archive
 that cannot establish verified Git HEAD is insufficient.
 
-**Scratch-path blocker discovered during planning:** the inspected Revolva
-Daytona runner explicitly writes under `/tmp` via `mktemp`; the release verifier
-uses OS temporary paths. CoLedger's verifier also creates an OS-temp snapshot.
-Those scripts must **not** be run unchanged where the current no-temporary-path
-constraint applies. In REV-02 / COL-02, first establish a repository-relative
-scratch root through a supported process configuration, or make a narrowly
-reviewed runner-path repair in the owning engineering lane if configuration
-cannot control it. Do not weaken source binding, stage evidence or cleanup.
-Any runner repair changes hashes/SHA and requires fresh exact-candidate evidence.
-No runner has been edited or executed by this documentation task.
-
 **CoLedger.** Use
 `pwsh -File scripts\verify-release.ps1 -Commit <candidate-sha>` in the admitted
-remote environment after the scratch constraint is resolved. Source requires
+remote environment. Source requires
 candidate containment of latest remote main, Node 24.20+ and pnpm 11.x including
 lifecycle-runtime equality. All seven `COLEDGER_*_TEST_DATABASE_URL` variables
 named by that script must identify schema-ready disposable loopback test DBs,
@@ -381,8 +375,8 @@ retired vendor integrations.
 ## Expected changes and closeout contract
 
 Only this plan is changed by preparation. Next-session engineering, if authorized,
-belongs in the owning repository: release-runner path/setup repairs and exact
-regressions; outstanding review fixes; candidate/release runbook corrections;
+belongs in the owning repository: verified-checkout rehearsal setup and exact
+regressions where necessary; outstanding review fixes; candidate/release runbook corrections;
 reviewed hosting readiness contracts; AgentHub routing/managed sync receipts.
 Do not create another shared evidence kernel or provider wrapper. Media
 production inputs/outputs remain in the private media workspace, never product
@@ -428,13 +422,16 @@ or explicitly superseded, remove this active plan per `docs/plans/PLANS.md`.
 - Managed Runware readback: coordinator checked Copilot
   `ah-media-studio@agenthub` 2.1.3 ENABLED from the local canonical source, and
   Claude 2.1.3 ENABLED with `runware-image.mjs` present. Two on-disk surfaces
-  established; canonical byte/hash comparison pending. Other surfaces remain
-  UNKNOWN/not checked, and fresh-session consumption remains unproven.
+  established. Coordinator subsequently verified Claude versus canonical SHA-256
+  equality (reported prefix `E4412C36…`); Copilot is enabled from canonical source.
+  Other surfaces remain UNKNOWN/not checked, and fresh-session consumption
+  remains unproven. Retain this proof rather than recreating provider output.
 - Latest local-root closeout: `5aa7c05` clean, ahead four owner commits.
   Preserve that work; this plan branch contains none of those local-only commits.
 - Discovery: complete Revolva rehearsal needs verified Git checkout and bound
-  evidence; native temporary-path usage also requires a next-session repair/
-  supported configuration before constrained gate execution.
+  evidence. The approved disposable remote runners' temporary-directory usage
+  is not a release blocker in the coordinator's applicable authority; no
+  runner-path repair scope is assigned by this plan.
 - CoLedger closeout input received: exact `1ecff71` archive verification,
   security 14/14 and release eval 8/8 passed; ten review threads resolved.
   Browser dependency repair/full browser and PG capsule CI results remain
