@@ -54,6 +54,99 @@ node cloud-ai.mjs qa     --images <contact-sheet.jpg> [...] --prompt <context> -
   model and usage. Exit 0 means pass.
 * Keys are read by name from the environment, then the Windows user environment, and are never printed.
 
+### Synthetic Runware training stills
+
+`cloud-ai.mjs illustration --provider runware` is separate from product capture and produces
+one or more **illustrative** stills, never a published training asset. It supports only
+`runware:z-image@0` and synthetic source material. Product repositories remain read-only
+media inputs; put the private input JSON and synthetic source file in `MEDIA_STUDIO_ROOT`
+(or `%LOCALAPPDATA%\AgentHub\media-studio`). The adapter snapshots and hashes the source,
+records the source revision, objective, scope, prompt/config hashes and cost estimate, and
+stores downloaded PNGs by content hash in that workspace. New job directories are private
+to the local owner and SYSTEM on Windows, or mode `0700` on POSIX. If the Windows ACL
+cannot be restricted, preparation fails before copying the source. Maintain those OS
+permissions and a private workspace parent; the adapter cannot secure pre-existing
+parent directories or distinguish people using the same OS account. A local job
+identifier is not an authorization credential.
+Acceptance is blocked until every requested result has been safely retrieved or rejected;
+a batch with missing, unsafe, expired or failed results cannot produce an accepted asset.
+
+The private input for `--action prepare` supplies `provider`, `model`,
+`region: "provider-managed"`, `scope` (`tenant`,
+`project`), `source` (`id`, `version`, `sha256`, `objective`, `rights: "synthetic"`, and
+absolute `file`), `prompt`, `width`, `height`, `steps`, `numberResults`, `ttlSeconds`,
+`revision`, future `retainUntil`, and `estimate` (`usd`, `basis`). The SHA-256 must match
+the source file. The result gives the job `id` and `taskUUID`; preparing the same request
+reuses that job. The fixed Runware endpoint has no established geographic residency
+guarantee; the adapter does not switch regions or providers.
+
+For `submit`, another private JSON file supplies `id`, `scope`, the current source
+`version` and `sha256`, and an explicit `maxEstimatedUsd`. Set `RUNWARE_API_KEY` in the
+server environment; it is not accepted from the input file. The ceiling admits an
+**estimate**, not a guaranteed provider charge: this model is billed by compute time.
+The adapter records `includeCost` results when the provider supplies them, including
+unusable outputs. `reportedOutputCostSumUsd` sums those returned fields and
+`allOutputCostsReported` only indicates that each requested output had a cost; neither
+is a reconciliation against the provider's bill. Submit persists its task identity
+before the single paid request.
+After a timeout, use `resume` with `id` and `scope` to poll the same `taskUUID`; never
+resubmit automatically. `status` and `cancel` take the same fields. Local cancellation
+does not cancel the provider charge. Status distinguishes queued, generating,
+downloading and partial work from assets available for review.
+
+`review` takes those fields plus the current `source`, `imageSha256`, `reviewer`, and
+`decision`. Acceptance also requires `altText`, `textEquivalent`, and `checklist` values
+of `true` for `sequence`, `ppe`, `hazards`, `accessibility` and `contentSafe`. Rejection
+requires `reason`. Review is bound to the downloaded bytes and current selected source;
+it is not a product assignment, identity verification or safety certification. A newer
+job selection, changed source, missing file or modified hash prevents acceptance.
+The CLI omits review text and the estimate basis from status output; authorized callers
+can inspect the private job manifest when the full evidence is needed.
+The local scope check prevents accidental cross-job access; it is not an enterprise
+authorization service. Product systems must separately authenticate and authorize access
+and SME release.
+
+The job records a retention deadline and refuses submission, polling and review after it;
+its effective status becomes `retention-expired`. An operator can call
+`purge-expired` with `id`, `scope` and `confirmExpiredDeletion: true` after that deadline
+to remove the request, source snapshot and recorded owned output files; this is manual,
+not a scheduled job. It retains the job's audit metadata, and does not remove the
+operator-supplied source or CLI input files; the operator must manage their retention.
+Provider URLs are temporary and never stored in the job manifest; an expired URL remains
+an explicit failure.
+
+**Spend bound.** Both the prepared `estimate.usd` and the submit `maxEstimatedUsd` are capped
+at `$1` per job (`MAX_JOB_CEILING_USD`); a larger job requires a reviewed code change. Each
+job sends at most one paid `imageInference` request; recovery only polls `getResponse`.
+When provider-reported costs exceed the authorized ceiling, `cost.reportedExceedsCeiling`
+is `true` in status and inventory output.
+
+**Output inventory (consumer contract).** Every state change rewrites
+`<workspace>/jobs/runware/<id>/inventory.json` (schema
+`media-studio/runware-output-inventory/1`). `--action inventory` (input: `id`, `scope`)
+recomputes it live and prints it with review text redacted, plus `inventoryObject`.
+Fields:
+
+* `job`: `id`, `taskUUID`, `status`, `effectiveStatus`, `selected`, `scope`, `provider`,
+  `requestedModel`, `actualModel`, `region`, `promptSha256`, `configSha256`,
+  `numberResults`, `retainUntil`, `createdAt`, `submittedAt`.
+* `source`: `id`, `version`, `sha256`, `objective`, `rights`. `cost`: as in status.
+* `complete`: every requested result has been returned and none is still downloading.
+* `outputs[]`: one row per provider result, including unsafe, failed, expired, rejected
+  and purged ones: `index`, `imageUUID`, `status`, `sha256`, `bytes`, `mediaType`,
+  `width`, `height`, `storageObject` (path relative to the workspace, `/`-separated),
+  `costUsd`, `providerSafety`, `error`, `review`.
+* `approved[]`: only `accepted` outputs of a job that is still the current selection,
+  within retention and not canceled, failed or purged: `sha256`, `storageObject`, `bytes`,
+  `mediaType`, `width`, `height`, `altText`, `textEquivalent`, `reviewer`, `reviewedAt`.
+
+A consumer (for example Empowera SH-3721) imports only `approved[]`, re-hashes each
+`storageObject` and rejects any mismatch, checks `source.version`/`source.sha256` against
+the SOP revision it is attaching to, and still applies its own SME release. A superseding
+job rewrites the old job's inventory with `selected: false` and an empty `approved[]`;
+consumers should prefer the live `inventory` action over a cached file.
+No live Runware request or entitlement check is implied by installing this adapter.
+
 ## What to keep local
 
 Screen capture (Playwright WebM, mouse movement) stays local: it needs the signed-in browser and the real screen.

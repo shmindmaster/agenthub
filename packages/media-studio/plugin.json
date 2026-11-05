@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "media-studio",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "Creative studio for all video and audio. Infer the form from the ask: briefings, training, explainers, talking-heads, animation, and live-product screencasts. Writer, storyboard, art direction, director, Azure generate, Remotion archetype kit, Playwright/Recast capture, craft critic."
 }

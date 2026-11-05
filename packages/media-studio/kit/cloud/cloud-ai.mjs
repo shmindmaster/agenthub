@@ -5,6 +5,7 @@
 //   node cloud-ai.mjs review --files <script.md> [<more>...] [--rubric <text|file>] [--threshold 85] --out <review.json>
 //   node cloud-ai.mjs align  --take <take.wav> --script <locked-script.txt> --out <voice/align/<id>.json | qa/encoded-alignment.json>
 //                            [--provider azure|azure-s0|deepgram|assemblyai]   (default Azure F0 only; name another provider explicitly to use it)
+//   node cloud-ai.mjs illustration --provider runware --action prepare|submit|resume|status|inventory|cancel|review|purge-expired --input <private-job.json>
 //
 // opts: --provider anthropic|azure-openai|gemini|openai (default: anthropic only; name another provider explicitly to use it)
 //       --model <id>   --client (client material: never Anthropic; defaults to Azure OpenAI in the owner tenant)
@@ -535,6 +536,10 @@ Quote the exact line for each finding and give a rewritten line as the fix. ${RE
 
 async function main() {
   const { sub, opts } = parseArgs(process.argv.slice(2));
+  if (sub === 'illustration') {
+    const { runwareImageCli } = await import('./runware-image.mjs');
+    return runwareImageCli(opts);
+  }
   if (!['qa', 'review', 'align'].includes(sub) || !opts.out) {
     console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 14).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     return sub ? 2 : 0;

@@ -14,7 +14,7 @@ Live-product screencasts use Playwright WebM + Recast in this pack (`kit/screenc
 
 **Product picture** (`skills/video/references/product-picture.md`): when the subject is a running product, the encoded film is Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards. `scripts/validate-product-picture.mjs` fails closed. Host projections must match `plugin.json`.
 
-Version authority: root `plugin.json` (`2.1.0`). Host projections must match.
+Version authority: root `plugin.json` (`2.1.3`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `MEDIA_STUDIO_ROOT`, default `D:\Media-Studio`). Private show bibles and customer recordings stay outside this repository.
 
 Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` compositor tooling). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.
@@ -61,3 +61,11 @@ Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` require 
 Governed Sienna TTS: scripts/deepgram_cli.py quotes by default; explicit execution requires intact shared accounting or an independently reviewed owner-authorized bounded epoch. See skills/generate/references/content-controls.md. Offline tests: python -m unittest discover -s scripts -p test_governed_deepgram.py. No provider calls are required for tests.
 
 Cloud render: kit/cloud/cloud-render.mjs runs FFmpeg, Remotion and Recast jobs on a scale-to-zero Azure Container Apps job in the owner's own Azure tenant (upload -> render -> download). Provision with kit/cloud/Provision-CloudRender.ps1; see kit/cloud/README.md. Offline tests: node --test tests/cloud-render.test.mjs.
+
+Runware training stills: `kit/cloud/cloud-ai.mjs illustration` provides an explicitly selected,
+synthetic-only, single-model job with resumable polling, a $1 per-job spend bound, private
+hash-bound output, a content-hashed output inventory (`jobs/runware/<id>/inventory.json`) and
+human review.
+See `kit/cloud/README.md` for the job and retention contract. It does not publish an asset,
+authorize customer data or establish provider entitlement. Offline tests:
+`node --test tests/runware-image.test.mjs`.
