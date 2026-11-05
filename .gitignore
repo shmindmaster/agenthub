@@ -10,6 +10,7 @@ backups/
 Thumbs.db
 desktop.ini
 __pycache__/
+.pytest_cache/
 *.mp4
 *.webm
 *.wav
