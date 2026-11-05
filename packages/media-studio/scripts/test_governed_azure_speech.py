@@ -128,6 +128,89 @@ class AzureTests(unittest.TestCase):
             self.assertEqual(row["state"], "unknown")
             self.assertEqual(row["maximum"], self.plan["maximum_usd_micros"])
 
+    def test_missing_sdk_preflight_creates_no_request_or_unknown_reservation(self):
+        ledger = self.ledger()
+        with patch.dict("sys.modules", {"azure.cognitiveservices.speech": None}):
+            with self.assertRaises(ModuleNotFoundError):
+                az._generate(ledger, self.plan, "synthetic-job", "synthetic", az.sdk_transport)
+        namespace = ledger.namespace("azure-job:" + ledger.azure_authorization_hash, "synthetic-job")
+        self.assertIsNone(ledger.lookup(namespace, self.plan["cache_key"]))
+
+    def recovery_fixture(self):
+        ledger = self.ledger()
+        namespace = ledger.namespace("azure-job:" + ledger.azure_authorization_hash, "synthetic-job")
+        row = ledger.claim(namespace, self.plan["cache_key"], az.BUCKET, self.plan["maximum_usd_micros"])
+        ledger.submitted(row)
+        ledger.unknown(row)
+        directory = az.shared._evidence_directory(ledger, namespace, self.plan["cache_key"])
+        diagnostic = {"stage": "transport", "error_type": "ModuleNotFoundError", "cache_key": self.plan["cache_key"]}
+        az.shared._write_diagnostic(directory, diagnostic)
+        grant = {"kind": "azure-speech-pre-network-sdk-import-recovery-v1",
+            "owner_authorization": "Recover exact request proven never sent",
+            "workspace": "synthetic-job", "cache_key": self.plan["cache_key"],
+            "original_authorization_sha256": hashlib.sha256(self.manifest.read_bytes()).hexdigest(),
+            "diagnostic_sha256": hashlib.sha256((directory / "diagnostic.json").read_bytes()).hexdigest(),
+            "original_python": "synthetic-python", "review_evidence": "Synthetic independent review of original failed import before any SDK client or network call."}
+        for field in ("original_python", "original_script", "original_adapter"):
+            source = self.base / field
+            value = "Synthetic reviewed import-only evidence"
+            if field == "original_script": value = 'speech.generate("Synthetic", use_sdk=True)\n'
+            if field == "original_adapter":
+                value = ('def sdk_transport(request, credential, received, sdk=None):\n'
+                         ' if sdk is None:\n  import azure.cognitiveservices.speech as sdk\n'
+                         'def generate(text, use_sdk=False):\n'
+                         ' return _generate(ledger, planned, workspace, credential, sdk_transport if use_sdk else transport)\n')
+            source.write_text(value)
+            grant[field] = str(source)
+            grant[field + "_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+        grant["original_python_realpath"] = str(Path(grant["original_python"]).resolve())
+        grant["sdk_call_line"] = 1
+        path = self.base / "recovery.json"
+        path.write_text(json.dumps(grant))
+        return ledger, namespace, row, directory, path, grant
+
+    def test_exact_import_failure_recovery_preserves_budget_and_original_failure(self):
+        ledger, namespace, row, directory, path, grant = self.recovery_fixture()
+        with patch.object(az, "_missing_sdk_probe", return_value={"missing_module": "azure"}):
+            result = az.recover_pre_network_sdk_import(self.manifest, path, "synthetic-job", self.plan)
+        self.assertEqual(result["state"], "prepared")
+        recovered = ledger.lookup(namespace, self.plan["cache_key"])
+        self.assertEqual(recovered["maximum"], self.plan["maximum_usd_micros"])
+        self.assertEqual(json.loads((directory / "pre-network-recovery.json").read_text())["original_state"], "unknown")
+        self.assertTrue((directory / "pre-network-failure.json").exists())
+        with patch.object(az, "_missing_sdk_probe", return_value={"missing_module": "azure"}):
+            with self.assertRaises(RuntimeError):
+                az.recover_pre_network_sdk_import(self.manifest, path, "synthetic-job", self.plan)
+
+    def test_recovery_refuses_receipt_response_changed_request_and_ambiguous_failure(self):
+        scenarios = ("receipt", "response", "key", "timeout", "probe", "script", "python", "adapter", "callsite", "firstop")
+        plans = {name: az.quote("Synthetic recovery", workspace="synthetic-job", revision=name,
+                               dictionary_revision="v1") for name in scenarios}
+        self.policy["allowed_cache_keys"] = [p["cache_key"] for p in plans.values()]
+        self.save()
+        for scenario in scenarios:
+            with self.subTest(scenario=scenario):
+                self.plan = plans[scenario]
+                ledger, namespace, row, directory, path, grant = self.recovery_fixture()
+                if scenario == "receipt": ledger.bind_receipt(row, "synthetic-provider-id")
+                if scenario == "response": (directory / "response.bin").write_bytes(b"partial")
+                if scenario == "key": grant["cache_key"] = "0" * 64
+                if scenario in {"script", "python", "adapter"}: grant["original_" + scenario + "_sha256"] = "0" * 64
+                if scenario == "callsite": grant["sdk_call_line"] = 2
+                if scenario == "firstop":
+                    source = Path(grant["original_adapter"])
+                    source.write_text(source.read_text().replace(' if sdk is None:', ' print("before import")\n if sdk is None:'))
+                    grant["original_adapter_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+                if scenario == "timeout":
+                    az.shared._write_diagnostic(directory, {"stage": "transport", "error_type": "TimeoutError", "cache_key": self.plan["cache_key"]})
+                    grant["diagnostic_sha256"] = hashlib.sha256((directory / "diagnostic.json").read_bytes()).hexdigest()
+                path.write_text(json.dumps(grant))
+                with patch.object(az, "_missing_sdk_probe", side_effect=RuntimeError("not missing") if scenario == "probe" else None,
+                                  return_value={"missing_module": "azure"}):
+                    with self.assertRaises(RuntimeError):
+                        az.recover_pre_network_sdk_import(self.manifest, path, "synthetic-job", self.plan)
+                self.assertEqual(ledger.lookup(namespace, self.plan["cache_key"])["state"], "unknown")
+
     def test_no_receipt_or_invalid_audio_fenced(self):
         for i, headers in enumerate(({}, {"x-microsoft-requestid": "synthetic", "content-type": "audio/wav"})):
             plan = {**self.plan, "cache_key": hashlib.sha256(str(i).encode()).hexdigest()}

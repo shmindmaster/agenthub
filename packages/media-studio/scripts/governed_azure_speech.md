@@ -41,3 +41,27 @@ must check complete lexical coverage, monotonically bounded offsets and all
 expected paragraph bookmarks before using the actual audio clock. Caption
 timing remains bound to the exact WAV hash; ASR timestamps are not forced
 alignment. A valid clock does not establish warmth, pacing or listening QA.
+
+SDK/config preflight now runs before a request is claimed. A missing dependency
+therefore creates no unknown reservation. Legacy missing-SDK failures may use
+`recover_pre_network_sdk_import(original_manifest, recovery_manifest, workspace,
+planned)` after an independent review of the exact failed call. This is an
+offline recovery, not generation or a general unknown-submission retry.
+
+The coordinator-authored recovery manifest records kind
+`azure-speech-pre-network-sdk-import-recovery-v1`, exact authorization
+`Recover exact request proven never sent`, workspace, cache key, original
+authorization and diagnostic SHA-256, review evidence, hash-bound original
+Python/script/adapter paths, canonical Python realpath, and `sdk_call_line`.
+The adapter proves the historical SDK transport imported the missing module
+first, proves that call site selected `use_sdk=True`, and reproduces the missing
+SDK with networking disabled in the original interpreter. Receipts, response
+evidence, actual usage, changed inputs and ambiguous failures remain fenced.
+
+Recovery preserves the original failed diagnostic and an immutable recovery
+audit, keeps the same request key and maximum reservation, and changes only that
+never-sent unknown row to an expired prepared row. Generation then uses the same
+original immutable manifest and cache key with a working SDK interpreter. A
+second recovery is refused, including after a later network failure. Do not
+change revisions, reset accounting or infer recovery eligibility from the error
+class alone.

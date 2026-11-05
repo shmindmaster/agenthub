@@ -6,6 +6,7 @@ fallback. Generated WAVs remain pending substantive listening/identity QA.
 from __future__ import annotations
 
 import datetime
+import ast
 import hashlib
 import io
 import json
@@ -13,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import queue
+import subprocess
 import threading
 import urllib.error
 import urllib.request
@@ -156,6 +158,136 @@ def transport(request, credential, received):
         return headers, response.read(MAX_BYTES + 1)
 
 
+def sdk_preflight(request, credential):
+    """Resolve the SDK and local configuration before reserving or submitting."""
+    import azure.cognitiveservices.speech as sdk
+    config = sdk.SpeechConfig(subscription=credential, region=request["region"])
+    config.set_speech_synthesis_output_format(sdk.SpeechSynthesisOutputFormat.Riff48Khz16BitMonoPcm)
+    config.set_property(sdk.PropertyId.SpeechServiceResponse_RequestWordBoundary, "true")
+
+
+def _missing_sdk_probe(python):
+    """Offline reproduction in the original interpreter; never synthesize."""
+    code = '''import json,socket
+def deny(*a,**k): raise RuntimeError("Network forbidden in import probe")
+socket.socket=deny
+try:
+ import azure.cognitiveservices.speech
+except ModuleNotFoundError as e:
+ print(json.dumps({"missing_module":e.name}))
+else:
+ raise SystemExit(2)
+'''
+    result = subprocess.run([python, "-I", "-c", code], capture_output=True, text=True,
+                            timeout=20, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    try:
+        probe = json.loads(result.stdout)
+    except (ValueError, TypeError):
+        raise RuntimeError("Original missing-SDK import could not be reproduced") from None
+    if result.returncode or probe.get("missing_module") not in {
+        "azure", "azure.cognitiveservices", "azure.cognitiveservices.speech"
+    }:
+        raise RuntimeError("Original interpreter does not prove this pre-network import failure")
+    return probe
+
+
+def _prove_sdk_import_callsite(adapter, script, line):
+    tree = ast.parse(adapter.read_text(encoding="utf-8-sig"))
+    transport_node = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "sdk_transport"), None)
+    if transport_node is None:
+        raise RuntimeError("Original SDK transport implementation missing")
+    body = transport_node.body
+    if isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+        body = body[1:]
+    first = body[0] if body else None
+    expected = ast.parse("if sdk is None:\n import azure.cognitiveservices.speech as sdk").body[0]
+    if ast.dump(first, include_attributes=False) != ast.dump(expected, include_attributes=False):
+        raise RuntimeError("Original SDK transport did not import before any other operation")
+    generate_node = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "generate"), None)
+    dispatch = next((n for n in ast.walk(generate_node) if isinstance(n, ast.Call)
+                     and isinstance(n.func, ast.Name) and n.func.id == "_generate"), None) if generate_node else None
+    expected_dispatch = ast.parse("sdk_transport if use_sdk else transport", mode="eval").body
+    if (dispatch is None or not dispatch.args
+            or ast.dump(dispatch.args[-1], include_attributes=False) != ast.dump(expected_dispatch, include_attributes=False)):
+        raise RuntimeError("Original public call did not select the SDK transport")
+    call = next((n for n in ast.walk(ast.parse(script.read_text(encoding="utf-8-sig")))
+                 if isinstance(n, ast.Call) and n.lineno == line), None)
+    if (call is None or not isinstance(call.func, ast.Attribute) or call.func.attr != "generate"
+            or not any(k.arg == "use_sdk" and isinstance(k.value, ast.Constant) and k.value.value is True for k in call.keywords)):
+        raise RuntimeError("Failed call site did not explicitly select use_sdk=True")
+
+
+def recover_pre_network_sdk_import(authorization_manifest, recovery_manifest, workspace, planned):
+    """One reviewed, exact legacy import failure; preserve its reservation and audit.
+
+    This does not generate audio. Receipt-bearing or network-ambiguous failures
+    remain fenced. A second recovery of the same request is never permitted.
+    """
+    runtime = shared.runtime_module()
+    path = Path(recovery_manifest).absolute()
+    if any(runtime.linked_path(p) for p in (path, *path.parents)):
+        raise RuntimeError("Linked recovery authority refused")
+    raw = path.read_bytes()
+    grant = json.loads(raw)
+    authorization_sha = hashlib.sha256(Path(authorization_manifest).read_bytes()).hexdigest()
+    if (grant.get("kind") != "azure-speech-pre-network-sdk-import-recovery-v1"
+            or grant.get("owner_authorization") != "Recover exact request proven never sent"
+            or grant.get("workspace") != workspace or grant.get("cache_key") != planned["cache_key"]
+            or planned["cache_key"] != runtime.request_key(planned["request"])
+            or grant.get("original_authorization_sha256") != authorization_sha
+            or not isinstance(grant.get("review_evidence"), str) or not grant["review_evidence"].strip()
+            or not isinstance(grant.get("original_python"), str) or not grant["original_python"]):
+        raise RuntimeError("Exact reviewed pre-network recovery authority required")
+    sources = {}
+    for field in ("original_python", "original_script", "original_adapter"):
+        source = Path(grant.get(field, ""))
+        if not source.is_absolute():
+            raise RuntimeError("Original evidence needs absolute paths")
+        if field == "original_python":
+            source = source.resolve(strict=True)
+            if str(source) != grant.get("original_python_realpath"):
+                raise RuntimeError("Original interpreter canonical path changed")
+        if (any(runtime.linked_path(p) for p in (source, *source.parents)) or not source.is_file()
+                or hashlib.sha256(source.read_bytes()).hexdigest() != grant.get(field + "_sha256")):
+            raise RuntimeError("Original interpreter and call-site evidence must remain hash-bound")
+        sources[field] = source
+    _prove_sdk_import_callsite(sources["original_adapter"], sources["original_script"], grant.get("sdk_call_line"))
+    ledger = authorized_ledger(authorization_manifest, workspace, planned)
+    namespace = ledger.namespace("azure-job:" + ledger.azure_authorization_hash, workspace)
+    with ledger.session():
+        directory = shared._evidence_directory(ledger, namespace, planned["cache_key"])
+        diagnostic_raw = (directory / "diagnostic.json").read_bytes()
+        diagnostic = json.loads(diagnostic_raw)
+        if (hashlib.sha256(diagnostic_raw).hexdigest() != grant.get("diagnostic_sha256")
+                or diagnostic != {"stage": "transport", "error_type": "ModuleNotFoundError",
+                                  "cache_key": planned["cache_key"]}
+                or any((directory / name).exists() for name in
+                       ("response.bin", "word-boundaries.json", "bookmarks.json", "pre-network-recovery.json"))):
+            raise RuntimeError("Failure is not an untouched, receipt-free SDK import failure")
+        probe = _missing_sdk_probe(str(sources["original_python"]))
+        with ledger.connect(True) as con:
+            row = con.execute("SELECT * FROM requests WHERE namespace=? AND key=?",
+                              (namespace, planned["cache_key"])).fetchone()
+            if (not row or row["state"] != "unknown" or row["receipt"] is not None
+                    or row["sha256"] is not None or row["actual"] is not None
+                    or row["maximum"] != planned["maximum_usd_micros"]):
+                raise RuntimeError("Only the exact never-sent unknown reservation may recover")
+            audit = {"kind": grant["kind"], "original_state": row["state"],
+                     "cache_key": planned["cache_key"], "namespace": namespace,
+                     "maximum_usd_micros": row["maximum"], "probe": probe,
+                     "authorization_sha256": authorization_sha,
+                     "recovery_manifest_sha256": hashlib.sha256(raw).hexdigest(),
+                     "original_python_sha256": grant["original_python_sha256"],
+                     "original_script_sha256": grant["original_script_sha256"],
+                     "original_adapter_sha256": grant["original_adapter_sha256"],
+                     "recovered_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+            shared._durable_evidence(directory / "pre-network-failure.json", diagnostic_raw)
+            shared._durable_evidence(directory / "pre-network-recovery.json", json.dumps(audit, sort_keys=True).encode())
+            con.execute("UPDATE requests SET state='prepared',lease=0 WHERE namespace=? AND key=? AND state='unknown' AND receipt IS NULL",
+                        (namespace, planned["cache_key"]))
+    return {"state": "prepared", "cache_key": planned["cache_key"], "audit": str(directory / "pre-network-recovery.json")}
+
+
 def sdk_transport(request, credential, received, sdk=None):
     """One native SDK operation; SDK result ID precedes application audio access.
 
@@ -214,6 +346,8 @@ def sdk_transport(request, credential, received, sdk=None):
 
 
 def _generate(ledger, planned, workspace, credential, send=transport):
+    if send is sdk_transport:
+        sdk_preflight(planned["request"], credential)
     namespace = ledger.namespace("azure-job:" + ledger.azure_authorization_hash, workspace)
     row = ledger.claim(namespace, planned["cache_key"], BUCKET, planned["maximum_usd_micros"])
     reused = row["state"] != "leader"
