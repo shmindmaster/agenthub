@@ -109,7 +109,8 @@
       "subagents": "agents/*.md",
       "mcpPath": "~/.qoder/settings.json",
       "mcpKey": "mcpServers",
-      "verifiedAgainst": "https://docs.qoder.com/en/cli/Skills"
+      "verifiedAgainst": "https://docs.qoder.com/en/cli/Skills",
+      "note": ".qoder-plugin/plugin.json is the documented native manifest and Bump-PackageVersion.ps1 updates it when present, but no public package ships one and Qoder resolves them anyway. Measured 2026-11-05: the installed ah-product 2.1.0 cache under ~/.qoder/plugins/cache/agenthub carries .claude-plugin, .codex-plugin, .cursor-plugin and the root plugin.json, with no .qoder-plugin, and all 12 installed ah-* plugins load and refresh through `qodercli plugins update`. The only manifest of this kind in the fleet is the private overlays/personal/packages/linkedin. Adding one to all sixteen public packages would be sixteen more files to hold in version sync for a fallback Qoder already honours, so the Claude projection is the format in use and this row records the documented format rather than the observed one."
     },
     {
       "id": "devin",
