@@ -142,7 +142,7 @@ The sequence and the cases where the script refuses to run are in [docs/runbooks
 
 ## The personal overlay
 
-Some of what you give your agents should not be public: owner-specific policy, private skill packs, local paths. AgentHub keeps that in `overlays/personal/`, which is gitignored. `init` creates it from [`overlays/personal.example/`](./overlays/personal.example).
+Some of what you give your agents should not be public: owner-specific policy, private skill packs, local paths. AgentHub keeps that in `overlays/personal/`, which is gitignored. `init` creates it from [`overlays/personal.example/`](./overlays/personal.example/).
 
 - Core never imports an overlay package by default. A capability is private only if its registry row says so.
 - `AGENTHUB_OVERLAY=off` loads the public graph only.
