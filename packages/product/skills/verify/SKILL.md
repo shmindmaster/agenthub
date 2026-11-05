@@ -7,7 +7,7 @@ description: Produces an independent Pass, Fail or Blocked verdict with command 
 
 Step 4 of 4: ground, decide, build, prove. Start from the request, the diff and the running app; no earlier files are needed.
 
-The builder never issues the verdict. If this context wrote the change, start the `product:reviewer` agent, or a new session on a host without subagents.
+The builder never issues the verdict. If this context wrote the change, start `product:reviewer`, or a new session on a host without subagents.
 
 Use the repository's Playwright, axe and Lighthouse. If one is missing, mark its check Blocked.
 
@@ -17,11 +17,12 @@ Copy this list and tick each item. Report the command and its output for every c
 
 - [ ] Take the acceptance tests from the contract, or derive them from the request and label them Assumed.
 - [ ] Record the environment: revision, viewports, synthetic accounts, permissions.
+- [ ] Read when a journey needs a session: [authenticated acceptance](../../references/authenticated-acceptance.md). Prove sign-in, each role and denial backend-side.
 - [ ] Run the repository's type, lint, test and build commands.
 - [ ] Drive each in-scope journey with Playwright, using role locators and ARIA snapshots. Capture console and network output.
-- [ ] Run axe, then test by hand with keyboard, zoom and a screen reader. Axe finds only about 57% of issues.
+- [ ] Run axe, then test by hand with keyboard, zoom and a screen reader. Axe finds about 57% of issues.
 - [ ] Compare visuals with `toHaveScreenshot`: animations disabled, dynamic content masked, fixed viewports. A reviewer approves every baseline diff.
-- [ ] Measure with Lighthouse and a trace, plus field data: LCP 2.5 s or less, INP 200 ms or less, CLS 0.1 or less.
+- [ ] Measure with Lighthouse and a trace, plus field data: LCP 2.5 s, INP 200 ms, CLS 0.1 or below.
 - [ ] Compare outcome metrics with their thresholds.
 
 ## Verdict
@@ -56,6 +57,6 @@ Return these sections, in order:
 4. Outcome metrics
 5. Verdict
 
-Save to `_product-experience/05-verify.md` only when the user asks for a file. Then run `node ../../scripts/validate-artifact.mjs --type verify <file>`, fix what it reports, and repeat until it passes.
+Save to `_product-experience/05-verify.md` only when asked. Then run `node ../../scripts/validate-artifact.mjs --type verify <file>` and repeat until it passes.
 
 Next: `build` on Fail, `demo` when a Pass is headed for a recording.

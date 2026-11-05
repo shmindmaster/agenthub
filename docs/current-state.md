@@ -506,7 +506,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
     reappears in the API surface, so they are the enforcement.
   - Clean end state: `git ls-remote` shows `refs/heads/main` and nothing else.
 
-- **Third-party extension tracking (updated 2026-08-24)**: `registry/native-connectors.json`
+- **Third-party extension tracking (updated 2026-11-04)**: `registry/native-connectors.json`
   -> `thirdPartyExtensions` records plugins *and* non-plugin upstream
   distributions the fleet uses but does not own. Tracked today:
   **superpowers** (obra/superpowers; Claude observed at 6.3.0), **firecrawl**
@@ -518,7 +518,20 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `firecrawl@agenthub` and deploying vendored `use-railway` / Framer skills
   as managed loose skills, which pinned hosts and would have downgraded
   Railway from 1.3.7 to 1.3.6 on the next Apply. Those packages are gone
-  from the marketplace and `packages/`. `tests/Test-ThirdPartyPlugins.ps1`
+  from the marketplace and `packages/`, and `clerk@agenthub` stays gone.
+  Clerk is the fleet authentication and organization-authorization standard
+  and is delivered only from upstream: `scripts/Install-ClerkFleet.py`
+  installs the official `clerk/skills` plugin and the hosted MCP at
+  `https://mcp.clerk.com/mcp` on every active agent, through the vendor
+  marketplace where the host has one and a host-local adapter where it does
+  not. `registry/mcps.json` carries the `clerk` server with a plugin owner
+  per host, and `docs/runbooks/clerk-auth.md` holds the rollout and the
+  acceptance contract. Measured 2026-11-04 by filesystem readback: official
+  skill content is present on all 15 host routes, the 4 desktop/CLI aliases
+  share their primary host, and `~/.cursor/rules/agenthub-clerk-auth.mdc`
+  carries the bounded companion rule. Fresh-session tool discovery, per-host
+  OAuth and the installer's own `--audit` hash readback are not recorded, so
+  no host is accepted as functional yet. `tests/Test-ThirdPartyPlugins.ps1`
   fails if a lagging host names no fix, if an absent host explains no
   reason, or if a tracked extension is ever republished from AgentHub's own
   marketplace. `hostPrivateExtensionPolicy` withholds install authority for

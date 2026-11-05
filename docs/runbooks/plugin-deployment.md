@@ -54,6 +54,8 @@ A host that copies a plugin ignores a content change at the same version: `claud
 
 Daytona reaches every host. Claude and Factory use `daytona-skills` from their catalog, Devin installs `daytona/skills` with `devin plugins install daytona/skills --yes --local`, and Grok imports Claude's copy. The other hosts use `ah-daytona`, which has one skill, no server and no hook. `packages/daytona/NOTICE` names the upstream commit.
 
+Clerk also reaches every host, but only ever from its own upstream: there is no `ah-clerk` package and there must not be one. Run `python scripts/Install-ClerkFleet.py` for a read-only plan, add `--apply` to install, or pass `--host <id>` to repair one host. `--audit` reads back the official skill texts against the upstream checkout and checks that each host's entry names `https://mcp.clerk.com/mcp` exactly. Claude, Codex, Copilot, Factory, Qoder and Devin install the vendor's own plugin through the host's plugin command; Grok and Antigravity install the upstream checkout; Cursor, Cline, Amp, VS Code Insiders, OpenCode, Warp and Gemini get host-local adapters. Desktop and CLI aliases share their primary host's configuration, and nothing is written into `~/.agents/skills`. [clerk-auth.md](clerk-auth.md) carries the rollout detail and the acceptance contract.
+
 OpenCode has no plugin format here and `~/.agents/skills` holds no skills, so run `scripts/Install-WarpSkills.ps1 -WarpHome "$HOME\.config\opencode"` to link its skills.
 
 Codex uses the owner's own `~/.codex/AGENTS.md`, not the compiled policy, and Cursor has no global file route, so a repository `AGENTS.md` carries instructions there. `~/.cursor/rules/agenthub-global-policy.mdc` is not synced: refresh it by hand if anything is found to read it.

@@ -14,12 +14,13 @@ Copy this list and tick each item.
 - [ ] Read the repository's instructions. Stay on the demo path, plus defects that share a root cause with it.
 - [ ] For each workflow, name the user, the job, the outcome and one hero moment.
 - [ ] Run the real path with synthetic data: sparse, dense, loading, error, permission, recovery, narrow, zoomed, keyboard, return later.
+- [ ] Read when a workflow needs a session: [authenticated acceptance](../../references/authenticated-acceptance.md). Prove each role and denial.
 - [ ] Score the eleven criteria and record `beforeVerdict` before changing anything.
 - [ ] Classify each failed criterion as `product-fix-required` or `capture-fixable`.
 - [ ] For `REMEDIABLE`, fix within the authorised scope using `design` and `build`. For `DEFERRED`, stop and say why.
-- [ ] Make the product demo-runnable under the [demo harness](../../kits/demo-harness/README.md). Run `node ../../scripts/validate-demo-harness.mjs <repo>`, fix what it reports, and repeat until it passes.
+- [ ] Make the product demo-runnable under the [demo harness](../../kits/demo-harness/README.md). Run `node ../../scripts/validate-demo-harness.mjs <repo>` and repeat until it passes.
 - [ ] Start the stack in the background with `node ../../scripts/demo-stack.mjs up --repo <repo>`; stop it with `down`.
-- [ ] Have the `product:reviewer` agent re-score all eleven criteria from a fresh context. The builder never issues the verdict.
+- [ ] Have `product:reviewer` re-score all eleven criteria from a fresh context. The builder never issues the verdict.
 - [ ] Write the handoff and run its validators until both pass.
 
 Read when scoring or writing the handoff: [demo handoff](../../references/demo-handoff.md).
@@ -49,7 +50,7 @@ Read when scoring or writing the handoff: [demo handoff](../../references/demo-h
 
 ## Output
 
-Return the handoff in the response. A demo request is not consent to write files. Save to `_product-experience/07-demo-readiness-handoff.md` and `_product-experience/demo-readiness.json` only when the user asks. Then run these commands exactly, fix what they report, and repeat until both pass:
+Return the handoff in the response. A demo request is not consent to write files. Save to `_product-experience/07-demo-readiness-handoff.md` and `_product-experience/demo-readiness.json` only when asked. Then run these commands exactly and repeat until both pass:
 
 ```powershell
 node ../../scripts/validate-artifact.mjs --type demo-handoff _product-experience/07-demo-readiness-handoff.md
