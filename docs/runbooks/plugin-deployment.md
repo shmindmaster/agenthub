@@ -30,7 +30,7 @@ Run after a package or marketplace change. Version bumps matter only for hosts t
 | Grok | local path | `grok plugin uninstall <old>`, then `grok plugin install C:/Repos/shmindmaster/agenthub/packages/<folder> --trust`. Use forward slashes. `plugin update` does nothing for a local install. Uninstall takes the name the manifest declares (`ah-product`), not the `<folder>-<hash>` id that `grok plugin list` prints first; passing that id fails with "not found". Grok renames each installed folder that way, so a scan matching `ah-*` folder names sees none of them. |
 | Devin (formerly Windsurf) | local path, plus `CognitionAI/devin-marketplace` | `devin plugins update <name>` re-fetches and reinstalls at the latest HEAD and is the refresh; `devin plugins remove <old>` then `devin plugins install <path> --yes --local` is the first-install form. Desktop and the CLI it bundles share `%APPDATA%\devin\cli\plugins` and `%APPDATA%\devin\mcp_config.json`. `~/.config/devin` and `~/.codeium` are not read on Windows. Plugin manifests are read in the order `.devin-plugin`, `.claude-plugin`, root `plugin.json`. Do not run `devin mcp remove` on a signed-in server: it deletes the stored OAuth token. RepoWise here is `ah-repowise`. |
 | Antigravity | local path | `agy plugin uninstall <old>`, then `agy plugin install <path>`. Copies the folder. |
-| Cursor IDE, Cursor Agent | real folders in `~/.cursor/plugins/local` | Run `scripts/Install-CursorLocalPlugins.ps1`, and again after a package changes. Do not link: both surfaces share a loader that rejects a link whose target is outside that folder, and a Windows junction counts as a link. Cursor Agent also imports the plugins enabled in `~/.claude`. |
+| Cursor IDE, Cursor Agent | real folders in `~/.cursor/plugins/local` | Run `pwsh -NoProfile -File scripts/Install-CursorLocalPlugins.ps1`, and again after a package changes. The script is `#Requires -Version 7`, so launching it from the default `powershell.exe` aborts with `ScriptRequiresUnmatchedPSVersion`. Do not link: both surfaces share a loader that rejects a link whose target is outside that folder, and a Windows junction counts as a link. Cursor Agent also imports the plugins enabled in `~/.claude`. |
 | Cline | junctions in `~/.agents/plugins` | Junction `ah-<name>` to the package folder. Check with `loadAgentPluginPackages` from `@cline/core`, which reports each plugin, its servers and any rejected field. The loader needs root `mcp.json` with a `type` on every server, and it rejects Claude-only skill fields such as `argument-hint`. `cline plugin install` is a different format and needs a code entry file. |
 | VS Code Insiders | `chat.pluginLocations`, plus the Copilot catalog | Add the package path to `chat.pluginLocations` in `settings.json`. Native plugins come from `copilot plugin install`, which VS Code reads from `~/.copilot/installed-plugins`. |
 | OpenCode | npm or git plugins | `opencode plugin add <spec>` for vendor plugins. `ah-*` packages have no manifest format here, so OpenCode has no `ah-*` plugins. |
@@ -69,6 +69,18 @@ Host updates can rewrite these files, so run the audit after one. Cline's `disab
 Grok ships its user guide inside `grok.exe`. Read it there before guessing a key: `compat.claude.agents` gates `~/.claude/CLAUDE.md` and `compat.claude.rules` only gates rules directories. `grok inspect --json` then reports `compatibilityStatus: disabled` on the file. The file stays in the list, so read the status and not the count.
 
 After any change: `pwsh -NoProfile -File scripts/Validate-AgentHub.ps1`, then `tests/Test-InstalledPluginFreshness.ps1`, which also fails if an un-prefixed registration is left on Claude or Codex.
+
+`Sync-AgentHub.ps1 -Apply` does not deploy a capability runtime tree; it only
+writes host MCP configuration. A package with a `deployedCatalog` row in
+`registry/capabilities.json`, such as `mobile-development`, is refreshed solely
+by `scripts/Sync-Capabilities.ps1 -Apply`. Measured 2026-11-05: `-Apply` on
+`Sync-AgentHub.ps1` reported `Validation: OK` while the deployed catalog stayed
+one version behind, and `Test-MobileDevelopment.ps1` correctly failed. That
+deployer refuses a destination whose tree no longer matches the hash it recorded,
+and the recorded hash does not survive a deployment made by another route, so a
+legitimate refresh can need `-AdoptExisting`. Confirm first that the destination
+holds nothing the source does not, then scope the run:
+`pwsh -NoProfile -File scripts/Sync-Capabilities.ps1 -Apply -AdoptExisting -CapabilityId mobile-development`.
 
 Keeping every host on the latest version is enforced by that test rather than by a schedule, because no AgentHub script may register a recurring job. It reads Claude's `installed_plugins.json` plus every cache a host copies into: Codex and Qoder by version folder, Cursor, Antigravity and Cline as flat folders, and Factory by nested manifest. Private overlay packages resolve under `overlays/personal/packages`, so `ah-sarosh` and `ah-linkedin` are covered rather than silently skipped.
 

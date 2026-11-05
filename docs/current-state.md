@@ -545,12 +545,19 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   which is the off-by-default state `activationPolicy.sessionStart` requires
   rather than a discovery failure. Devin is confirmed configured from the
   official plugin, but `devin mcp get` reports no auth status, so its OAuth is
-  unproven. Cursor and Amp have their isolated management directories staged
-  by `scripts/Prepare-ClerkManagement.py` and stop at a human consent
-  decision: `cursor-agent mcp login` has no non-interactive flag, and Amp's
-  local OAuth needs a vendor-supported client ID that must not be invented.
-  No host has run authenticated tool invocation against a live application,
-  so no application role acceptance is claimed anywhere.
+  unproven. Amp is now verified through Amp's own first-party personal remote
+  server: `amp mcp remote check Clerk --personal` returns `ok, Clerk MCP Server
+  0.0.0, 29 tools` and the entry reads `enabled, oauth, connected`. It had been
+  recorded as blocked after testing only Amp's local `mcp oauth login`, which does
+  need a vendor-supported client ID that must still not be invented or borrowed.
+  Cursor's isolated CLI route is verified too, and the evidence is a stored Clerk
+  access token with a future expiry plus a refresh token in that project's
+  `mcp-auth.json` — not `cursor-agent mcp list-tools`, which was measured returning
+  all 29 tools, and `mcp list` reporting `clerk: ready`, while the server still
+  demanded authentication. The Cursor IDE plugin holds a separate entry with no
+  tokens, so IDE OAuth and plugin discovery inside a fresh session remain
+  unverified. No host has run authenticated tool invocation against a live
+  application, so no application role acceptance is claimed anywhere.
   `tests/Test-ThirdPartyPlugins.ps1`
   fails if a lagging host names no fix, if an absent host explains no
   reason, or if a tracked extension is ever republished from AgentHub's own
@@ -561,32 +568,47 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   material without adding a managed capability, CLI, or MCP server. Other
   hosts were not inspected. Snapshot guidance is version-sensitive; check
   the installed SDK and current runtime before selecting snapshot APIs.
-- **Open Dependabot alerts are upstream-blocked, not neglected (measured
-  2026-11-05, re-checked against the npm registry the same day)**: two medium
-  `minimatch` alerts remain open on `main`, both in lockfiles and both
-  transitive, for the vulnerable range `>= 7.0.0, < 11.0.1` against a first
-  patched version of 11.0.1. `packages/mobile-development/fixtures/smoke-app`
-  resolves minimatch 10.2.6 through `glob` 13.0.6 and `@expo/fingerprint`
-  0.20.14. `packages/media-studio/kit` resolves a nested 9.0.9 through
-  `@remotion/eslint-config-flat` 4.0.517, which pins `typescript-eslint` and so
-  `@typescript-eslint/typescript-estree`.
+- **Both `minimatch` Dependabot alerts are closed (measured 2026-11-05)**:
+  alerts #63 and #64, medium, "potential denial of service via globparts
+  amplification", vulnerable `>= 7.0.0, < 11.0.1`, first patched 11.0.1. Both
+  were transitive. `packages/mobile-development/fixtures/smoke-app` resolved
+  10.2.6 through `@expo/fingerprint` 0.20.14 and `glob` 13.0.6;
+  `packages/media-studio/kit` resolved a nested 9.0.9 through
+  `@remotion/eslint-config-flat` 4.0.517, which pins `typescript-eslint` 8.21.0.
+  No in-range fix existed for either, which is why both had been recorded as
+  upstream-blocked: `@expo/fingerprint` at its latest 0.21.9 still declares
+  `^10.2.2` and `@typescript-eslint/typescript-estree` at 8.72.1 declares
+  `^10.2.2`.
 
-  Only `glob` has moved: 14.0.3 declares `minimatch ^11.0.2`. The two parents
-  that actually gate each tree have not. `@expo/fingerprint` at its latest
-  0.21.9 still declares `^10.2.2`, so smoke-app keeps a vulnerable 10.x copy
-  however far `glob` is bumped. `@typescript-eslint/typescript-estree` at its
-  latest 8.72.1 also still declares `^10.2.2`, and
-  `@remotion/eslint-config-flat` 4.0.541 pins `typescript-eslint` 8.71.2, so
-  upgrading the whole Remotion set would move the nested copy from 9.0.9 to a
-  10.x that is still inside the vulnerable range and would risk the render
-  toolchain for nothing. The kit's own top-level minimatch 3.1.5 is outside the
-  range, so ESLint's direct copies were never affected.
+  The kit needed no override at all. Its ESLint leg was dead: no
+  `eslint.config.*` has ever been tracked in the kit,
+  `@remotion/eslint-config-flat` throws `ERR_MODULE_NOT_FOUND` for the
+  uninstalled `@remotion/eslint-plugin`, so the declared `lint` script
+  (`eslint src && tsc`) could never pass, and nothing anywhere in the
+  repository invoked it. Removing those two devDependencies deletes the
+  vulnerable copy outright, leaves zero `minimatch` entries in the kit tree, and
+  makes `lint` a strict `tsc` typecheck that now genuinely exits 0.
 
-  An `overrides` pin to 11.0.1 would close both advisories by violating the
-  declared range of every dependent that has not moved, which is the obvious
-  fix and the wrong one. Both wait on an upstream release, and Dependabot pull
-  requests are this repository's established route. Do not close them with a
-  forced override, and do not bump Remotion for this.
+  smoke-app cannot drop the dependency because `@expo/fingerprint` is part of
+  Expo itself, so it carries `"overrides": { "minimatch": "^11.0.4" }`, one
+  resolved copy at 11.0.4. That was tested rather than assumed:
+  `createFingerprintAsync` returns 25 sources and a hash, `glob.sync` matches,
+  `require('minimatch').Minimatch` is a function and `tsc --noEmit` is clean.
+  Glob semantics were checked in both directions, because only non-crashing is
+  not the same as correct: an ESLint `ignores` entry hides `Visuals.tsx` and the
+  identical run without it lists the file.
+
+  Two things worth recording about the attempt. `glob` 14.0.3 itself declares
+  `minimatch ^11.0.2`, so the wider ecosystem already runs on 11 and an override
+  is not the semver gamble it looked like. And a *scoped* override does not
+  isolate here: `"@remotion/eslint-config-flat": { "minimatch": "^11.0.4" }`
+  still hoisted a single 11.0.4 to the kit root where `@eslint/config-array`'s
+  `^3.1.5` resolved to it. Deleting dead weight beat forcing a version, and is
+  the reason the kit has no minimatch entry to override.
+
+  Bumping both packages to carry the fix exposed a separate defect in
+  `scripts/Bump-PackageVersion.ps1`, recorded under *Portable plugin version
+  authority* below.
 - **Shared-library YAML safety (2026-09-08):** Zed loads `~/.agents/skills`
   and refuses a skill whose frontmatter is invalid YAML (`Invalid YAML
   frontmatter`). Railway's `use-railway` (installed by `railway setup agent`,
@@ -603,6 +625,18 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - **Portable plugin version authority (2026-08-21)**: root `plugin.json` is the
   Agent Plugins floor and single version authority; host projections must match
   (`scripts/Bump-PackageVersion.ps1`, `tests/Test-PluginManifests.ps1`).
+  The bump script rewrote manifests through `ConvertTo-Json`, which emits
+  four-space indent, two spaces after every colon and CRLF. Measured 2026-11-05:
+  moving two packages one patch version turned a one-field edit into a
+  whole-file diff across all seven manifests of those packages and churned both
+  content hashes. It now edits only the top-level `version` line and keeps the
+  structured rebuild for a manifest that does not exist yet or whose layout is
+  ambiguous. `tests/Test-BumpPackageVersion.ps1` had eight checks and passed
+  throughout, because every one of them compared parsed values, none the text.
+  It now also compares newline style, line count and every line except the
+  version line, and is proved able to fail: against the old writer it reports
+  `LF -> CRLF` and `line count 12 -> 14`, and its guard rejects a re-indent and a
+  CRLF conversion supplied to it directly.
 - **Media consolidation (2026-10-21)**: `media-studio` was one skill for
   pre-production plus four crew skills; since 2.1.0 (2026-11-03) the five skills are `video`, `generate`, `capture`, `compose`, `review` and `commands/video.md` is gone. The
   writer, storyboard, visuals, director and story-experience-reviewer front
