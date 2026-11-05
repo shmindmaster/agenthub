@@ -7,8 +7,7 @@
       "title": "Technical series production",
       "summary": "Produce a fictionalized technical story series with evidence-bound capture, explanation, and optional Remotion composition.",
       "requires": [
-        "media-studio",
-        "browser-toolkit"
+        "media-studio"
       ],
       "recommends": [],
       "thirdParty": {
@@ -21,7 +20,8 @@
         ]
       },
       "notes": [
-        "Series methodology, truth ledgers and the technical explainer are media-studio references (references/series.md, story-craft.md, technical-story.md) since 2026-10-21; story-series-studio and technical-storytelling were retired into them.",
+        "Series methodology and the technical explainer are media-studio content under skills/video since 2026-10-21; story-series-studio and technical-storytelling were retired into it.",
+        "browser-toolkit was retired at owner direction on 2026-10-30 and is no longer a bundle input; capture lanes now live in each repository's own tooling, and film capture comes from media-studio skills/capture.",
         "media-studio is the public video pack, including live-product screencasts (Playwright WebM + Recast)."
       ]
     },
@@ -30,11 +30,9 @@
       "title": "Engaging learning",
       "summary": "Attention-friendly exam coaching with optional visual explainers.",
       "requires": [
-        "learning-studio"
-      ],
-      "recommends": [
         "media-studio"
       ],
+      "recommends": [],
       "thirdParty": {
         "recommends": [],
         "optional": [
@@ -42,7 +40,7 @@
         ]
       },
       "notes": [
-        "learning-studio is a registered AgentHub package; visual explainers come from media-studio (references/story-craft.md explainer path, references/direction.md).",
+        "learning-studio was a registered package until its retirement on 2026-10-30, so this recipe requires media-studio directly; visual explainers come from its skills/video references.",
         "Remotion/animations are optional enhancements, not required to answer a question."
       ]
     },
@@ -53,9 +51,7 @@
       "requires": [
         "media-studio"
       ],
-      "recommends": [
-        "browser-toolkit"
-      ],
+      "recommends": [],
       "thirdParty": {
         "recommends": [
           "remotion",

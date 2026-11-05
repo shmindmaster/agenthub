@@ -121,15 +121,36 @@ $unexplainedGap = foreach ($e in $extensions) {
 Report 'every host with no channel explains why it is a deliberate gap' `
     (@($unexplainedGap).Count -eq 0) ("unexplained: " + (@($unexplainedGap) -join ', '))
 
-$marketplacePath = Join-Path $repoRoot '.claude-plugin\marketplace.json'
-$vendored = @()
-if (Test-Path -LiteralPath $marketplacePath) {
-    $marketplace = Get-Content -LiteralPath $marketplacePath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $published = @($marketplace.plugins | ForEach-Object { $_.name })
-    $vendored = @($extensions | Where-Object { $published -contains $_.extensionId } | ForEach-Object { $_.extensionId })
+# A republished extension is one whose own upstream name shows up as an AgentHub
+# marketplace plugin, which is what clerk@agenthub was before 2026-08-24. A
+# separate rule already forces every entry to ah-<folder>, so this detector
+# cannot fire on the live catalogs today; it is the backstop for the day someone
+# adds one back. Both catalogs are read, because .agents/plugins/marketplace.json
+# is canonical and .claude-plugin/marketplace.json is only a projection. Proving
+# the detector can fail is what keeps it a check rather than a comment.
+function Get-RepublishedExtension([string[]]$Published, [string[]]$ExtensionIds) {
+    return @($ExtensionIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique | Where-Object { $Published -contains $_ })
 }
-Report 'no tracked third-party extension is republished from AgentHub own marketplace' `
-    (@($vendored).Count -eq 0) ("vendored: " + (@($vendored) -join ', '))
+
+$publishedNames = @()
+foreach ($catalog in @('.agents\plugins\marketplace.json', '.claude-plugin\marketplace.json')) {
+    $catalogPath = Join-Path $repoRoot $catalog
+    $exists = Test-Path -LiteralPath $catalogPath
+    Report "marketplace catalog $catalog exists" $exists "missing $catalog"
+    if (-not $exists) { continue }
+    $doc = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $publishedNames += @($doc.plugins | ForEach-Object { [string]$_.name })
+}
+$extensionIds = @($extensions | ForEach-Object { [string]$_.extensionId })
+$vendored = @(Get-RepublishedExtension $publishedNames $extensionIds)
+Report 'no tracked third-party extension is republished from either AgentHub marketplace' `
+    ($vendored.Count -eq 0) ("vendored: " + ($vendored -join ', '))
+Report 'both marketplace catalogs were read before claiming nothing is republished' `
+    ($publishedNames.Count -gt 0) 'no plugin names were read from either catalog'
+Report 'the republishing detector flags an upstream plugin published under its own name' `
+    (@(Get-RepublishedExtension @('ah-daytona', 'daytona') @('daytona', 'clerk-skills')).Count -eq 1) `
+    'detector did not flag a fixture catalog entry named daytona against the tracked daytona extension'
 
 $hpe = $connectors.hostPrivateExtensionPolicy
 $r6 = if ($block.policy.agentHubOwnership -ne 'none') {

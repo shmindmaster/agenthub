@@ -645,6 +645,15 @@ failure — and confirm by running the named file alone. Root cause unknown;
 a suite that hangs intermittently is nearly as useless as one that is red, so
 this is worth chasing when the machine is quiet.
 
+Re-measured 2026-11-04 against `ebbf67ad`: the full runner completed with
+**1739 passed, 0 failed across 116 files, exit 0** — and it did so under
+concurrent load rather than on a quiet machine, with two other coding-host
+sessions live at the time. So the hang is not deterministic and does not
+reproduce on every loaded run. That is one observation, not a fix: the root
+cause is still unknown, and a single clean run does not retire an intermittent
+block. Treat a future hang the same way and confirm by running the named file
+alone.
+
 ## Known pre-existing test failures (as of 2026-08-08, all now fixed — see above)
 
 Re-measured 2026-08-08 against a clean clone of `8ae18ff`: **163 passed / 4

@@ -108,10 +108,6 @@
       "file": "tests/Test-SyncRepoToGuest.ps1",
       "platforms": ["linux", "macos"],
       "reason": "Syncs a Windows-host checkout into the VMware macOS guest over the mobile lab's SSH configuration, using Windows tar.exe."
-    },
-    {
-      "file": "tests/Test-RegistryHostReferences.ps1",
-      "reason": "Fails on main since #70 (dispatch only to Cursor, Grok and Codex): its dispatch-policy case still expects Cursor Agent, Amp and OpenCode enabled and Codex disabled. Remove this entry once the test matches the new policy."
     }
   ]
 }
