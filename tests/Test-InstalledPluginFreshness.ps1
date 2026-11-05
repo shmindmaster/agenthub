@@ -181,7 +181,7 @@ function Compare-DeployedTree {
 $PluginCacheHosts = @(
     @{ Host = 'codex';       Layout = 'versioned'; Root = (Join-Path $HOME '.codex\plugins\cache\agenthub');  PrivateMarketplace = 'sarosh-private'; Remedy = 'codex plugin add {0}@{2}' },
     @{ Host = 'qoder';       Layout = 'versioned'; Root = (Join-Path $HOME '.qoder\plugins\cache\agenthub');  PrivateMarketplace = 'sarosh-private'; Remedy = 'qodercli plugins marketplace update {2}, then qodercli plugins update {0}@{2}' },
-    @{ Host = 'cursor';      Layout = 'flat';      Root = (Join-Path $HOME '.cursor\plugins\local');          PrivateMarketplace = 'sarosh-private'; Remedy = 'scripts\Install-CursorLocalPlugins.ps1' },
+    @{ Host = 'cursor';      Layout = 'flat';      Root = (Join-Path $HOME '.cursor\plugins\local');          PrivateMarketplace = 'sarosh-private'; Remedy = 'pwsh -NoProfile -File scripts\Install-CursorLocalPlugins.ps1' },
     @{ Host = 'antigravity'; Layout = 'flat';      Root = (Join-Path $HOME '.gemini\config\plugins');         PrivateMarketplace = $null;            Remedy = 'agy plugin uninstall {0}, then agy plugin install {3}' },
     @{ Host = 'cline';       Layout = 'flat';      Root = (Join-Path $HOME '.agents\plugins');                PrivateMarketplace = $null;            Remedy = 're-junction {0} to {3}' },
     @{ Host = 'factory';     Layout = 'nested';    Root = (Join-Path $HOME '.factory\plugins\cache');         PrivateMarketplace = 'personal';       Remedy = 'droid plugin update {0}@{2}' },
