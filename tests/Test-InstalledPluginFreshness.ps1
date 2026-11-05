@@ -28,6 +28,15 @@ Scope note: only plugins that are actually installed are checked. An
 uninstalled plugin is not drifting, and demanding installation here would make
 the suite fail on a machine that has deliberately not enabled one.
 
+Hosts covered: Claude, from ~/.claude/plugins/installed_plugins.json, plus Codex
+and Qoder, from the version folders under ~/.<host>/plugins/cache/agenthub. The
+two cache hosts record no active version in a manifest, so the newest version
+folder is the copy each resolves. Copilot loads this repository live and copies
+nothing, and Amp is built from source by scripts/Install-AmpPlugins.py, so
+neither has a cache to compare. Measured 2026-11-05: reading Claude alone let a
+stale ah-product sit on Codex and a two-versions-behind ah-media-studio sit on
+Qoder while this suite reported 7 passed, 0 failed.
+
 The comparison is against COMMITTED source, and the "left behind" arm is not
 academic. The agenthub marketplace is a Directory source pointed at this
 working tree, so `claude plugin update` copies whatever is on disk --
@@ -140,6 +149,47 @@ function Compare-DeployedTree {
     return $differences.ToArray()
 }
 
+# Codex and Qoder keep one folder per version under
+# ~/.<host>/plugins/cache/agenthub/<name>/<version>, and neither records the
+# active version in a manifest the way Claude's installed_plugins.json does, so
+# the newest version folder is the copy the host resolves. Reading only Claude
+# let a stale ah-product 2.0.2 sit on Codex against source 2.1.0, and
+# ah-media-studio 2.1.2 sit on Qoder against 2.1.4, while this suite reported
+# 7 passed, 0 failed. Parity with no UNDETECTED drift means the detector has to
+# look where the copies actually are.
+$VersionedCacheHosts = @(
+    @{ Host = 'codex'; Root = (Join-Path $HOME '.codex\plugins\cache\agenthub'); Remedy = 'codex plugin add {0}@agenthub' },
+    @{ Host = 'qoder'; Root = (Join-Path $HOME '.qoder\plugins\cache\agenthub'); Remedy = 'qodercli plugins update {0}@agenthub' }
+)
+
+function Get-VersionedCacheAgentHubPlugins {
+    param($Specs = $VersionedCacheHosts)
+    $result = [Collections.Generic.List[object]]::new()
+    foreach ($spec in $Specs) {
+        if (-not (Test-Path -LiteralPath $spec.Root -PathType Container)) { continue }
+        foreach ($pluginDir in @(Get-ChildItem -LiteralPath $spec.Root -Directory -ErrorAction SilentlyContinue)) {
+            $pluginName = $pluginDir.Name
+            if ($pluginName -notlike 'ah-*') { continue }
+            $sourcePackage = Join-Path $repoRoot ('packages\' + ($pluginName -replace '^ah-', ''))
+            if (-not (Test-Path -LiteralPath $sourcePackage -PathType Container)) { continue }
+            $versions = @(Get-ChildItem -LiteralPath $pluginDir.FullName -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+                Sort-Object { [version]$_.Name })
+            if ($versions.Count -eq 0) { continue }
+            $newest = $versions[-1]
+            $result.Add([pscustomobject]@{
+                Name             = $pluginName
+                Host             = $spec.Host
+                InstalledVersion = $newest.Name
+                InstallPath      = $newest.FullName
+                SourcePackage    = $sourcePackage
+                Remedy           = ($spec.Remedy -f $pluginName)
+            })
+        }
+    }
+    return $result.ToArray()
+}
+
 function Get-InstalledAgentHubPlugins {
     <#
     .SYNOPSIS
@@ -167,13 +217,15 @@ function Get-InstalledAgentHubPlugins {
 
         $result.Add([pscustomobject]@{
             Name             = $pluginName
+            Host             = 'claude'
             InstalledVersion = [string]$entry[0].version
             InstallPath      = [string]$entry[0].installPath
             SourcePackage    = $sourcePackage
+            Remedy           = "claude plugin update $pluginName@agenthub"
         })
     }
 
-    return $result.ToArray()
+    return @($result.ToArray()) + @(Get-VersionedCacheAgentHubPlugins)
 }
 
 # --- Behavior 1: the enumeration reaches something.
@@ -185,7 +237,7 @@ function Test-InstalledSetIsProvenNonEmpty {
     if ($plugins.Count -eq 0) {
         return @{ Passed = $false; Detail = 'No @agenthub plugins are installed, so every freshness check below would pass by examining nothing.' }
     }
-    return @{ Passed = $true; Detail = "$($plugins.Count) installed @agenthub plugin(s): $(($plugins | ForEach-Object Name) -join ', ')" }
+    return @{ Passed = $true; Detail = "$($plugins.Count) installed @agenthub plugin copy/copies: $(($plugins | ForEach-Object { "$($_.Name)@$($_.Host)" }) -join ', ')" }
 }
 
 # --- Behavior 2: the installed version matches the source manifest.
@@ -194,8 +246,9 @@ function Test-InstalledSetIsProvenNonEmpty {
 # and already missed the defect. It is kept because a version mismatch names
 # the remedy precisely (`claude plugin update <name>@agenthub`). ---
 function Test-InstalledVersionMatchesSource {
+    param($Plugins = (Get-InstalledAgentHubPlugins))
     $mismatches = [Collections.Generic.List[string]]::new()
-    foreach ($plugin in Get-InstalledAgentHubPlugins) {
+    foreach ($plugin in $Plugins) {
         $manifest = Join-Path $plugin.SourcePackage '.claude-plugin\plugin.json'
         if (-not (Test-Path -LiteralPath $manifest)) {
             $mismatches.Add("$($plugin.Name): no .claude-plugin/plugin.json in packages/")
@@ -203,7 +256,7 @@ function Test-InstalledVersionMatchesSource {
         }
         $sourceVersion = [string](Read-JsonFile -Path $manifest).version
         if ($sourceVersion -ne $plugin.InstalledVersion) {
-            $mismatches.Add("$($plugin.Name): installed $($plugin.InstalledVersion), source declares $sourceVersion -- run: claude plugin update $($plugin.Name)@agenthub")
+            $mismatches.Add("$($plugin.Name) on $($plugin.Host): installed $($plugin.InstalledVersion), source declares $sourceVersion -- run: $($plugin.Remedy)")
         }
     }
     if ($mismatches.Count -gt 0) {
@@ -220,7 +273,7 @@ function Test-InstalledContentMatchesSource {
     $drifted = [Collections.Generic.List[string]]::new()
     foreach ($plugin in Get-InstalledAgentHubPlugins) {
         if (-not (Test-Path -LiteralPath $plugin.InstallPath -PathType Container)) {
-            $drifted.Add("$($plugin.Name): installPath does not exist: $($plugin.InstallPath)")
+            $drifted.Add("$($plugin.Name) on $($plugin.Host): installPath does not exist: $($plugin.InstallPath)")
             continue
         }
         $sourceSkills = Join-Path $plugin.SourcePackage 'skills'
@@ -228,7 +281,7 @@ function Test-InstalledContentMatchesSource {
 
         $deployedSkills = Join-Path $plugin.InstallPath 'skills'
         if (-not (Test-Path -LiteralPath $deployedSkills -PathType Container)) {
-            $drifted.Add("$($plugin.Name): the installed copy exposes no skills/ directory at all")
+            $drifted.Add("$($plugin.Name) on $($plugin.Host): the installed copy exposes no skills/ directory at all")
             continue
         }
 
@@ -245,7 +298,7 @@ function Test-InstalledContentMatchesSource {
         if ($differences.Count -gt 0) {
             $shown = @($differences | Select-Object -First 5)
             $suffix = if ($differences.Count -gt $shown.Count) { " (+$($differences.Count - $shown.Count) more)" } else { '' }
-            $drifted.Add("$($plugin.Name): $($differences.Count) difference(s) -- $($shown -join '; ')$suffix -- run: claude plugin update $($plugin.Name)@agenthub")
+            $drifted.Add("$($plugin.Name) on $($plugin.Host): $($differences.Count) difference(s) -- $($shown -join '; ')$suffix -- run: $($plugin.Remedy)")
         }
     }
     if ($drifted.Count -gt 0) {
@@ -387,6 +440,71 @@ function Test-AppiumIsNotPersisted {
     return @{ Passed = $true; Detail = 'no appium-mobile entry exists in Claude or Codex persistent configuration' }
 }
 
+# --- Behavior 8: the versioned-cache scan reaches what it claims, and orders
+# versions by value.
+#
+# A cache root that exists but contributes nothing would silently drop that host
+# out of Behaviors 2 and 3, which is exactly how Codex went unobserved while it
+# carried a stale plugin. And a lexical sort would call 1.9.0 newer than 1.10.0,
+# so the fixture below fails on a string comparison. ---
+function Test-VersionedCacheScanIsProvenSound {
+    $problems = [Collections.Generic.List[string]]::new()
+    $scanned = @(Get-VersionedCacheAgentHubPlugins)
+    foreach ($spec in $VersionedCacheHosts) {
+        if (-not (Test-Path -LiteralPath $spec.Root -PathType Container)) { continue }
+        if (@($scanned | Where-Object { $_.Host -eq $spec.Host }).Count -eq 0) {
+            $problems.Add("$($spec.Host) cache root exists at $($spec.Root) but contributed no ah-* plugin, so the version and content checks observe nothing on that host")
+        }
+    }
+
+    $root = Join-Path ([IO.Path]::GetTempPath()) ("agenthub-cache-scan-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    try {
+        $pluginDir = Join-Path $root 'ah-aws'
+        foreach ($version in @('1.9.0', '1.10.0', '2.0.0')) {
+            $null = New-Item -ItemType Directory -Force -Path (Join-Path $pluginDir $version)
+        }
+        $picked = @(Get-VersionedCacheAgentHubPlugins -Specs @(@{ Host = 'fixture'; Root = $root; Remedy = 'not applicable' }))
+        if ($picked.Count -ne 1) {
+            $problems.Add("fixture cache produced $($picked.Count) entries, expected exactly 1")
+        } elseif ($picked[0].InstalledVersion -ne '2.0.0') {
+            $problems.Add("fixture cache picked $($picked[0].InstalledVersion) instead of 2.0.0, so version ordering is not numeric")
+        }
+    } finally {
+        if (Test-Path -LiteralPath $root) { [IO.Directory]::Delete($root, $true) }
+    }
+
+    if ($problems.Count -gt 0) { return @{ Passed = $false; Detail = ($problems -join '; ') } }
+    $hosts = @($scanned | ForEach-Object { $_.Host } | Select-Object -Unique)
+    return @{ Passed = $true; Detail = "versioned cache scan reached $(if ($hosts.Count) { $hosts -join ', ' } else { 'no installed host' }) and orders versions numerically" }
+}
+
+# --- Behavior 9: the version check rejects a stale copy.
+#
+# Every host being current is the expected state, so Behaviors 2 and 3 pass on a
+# machine that is simply fine. Without this, a scan that quietly returned nothing
+# would look identical to a fleet in perfect parity. A fabricated 0.0.1 copy of a
+# real package must be refused. ---
+function Test-VersionCheckRejectsStaleCopy {
+    $problems = [Collections.Generic.List[string]]::new()
+    $stale = [pscustomobject]@{
+        Name             = 'ah-aws'
+        Host             = 'fixture'
+        InstalledVersion = '0.0.1'
+        InstallPath      = ''
+        SourcePackage    = (Join-Path $repoRoot 'packages\aws')
+        Remedy           = 'not applicable'
+    }
+    $result = Test-InstalledVersionMatchesSource -Plugins @($stale)
+    if ($result.Passed) {
+        $problems.Add('the version check accepted a fabricated 0.0.1 copy of ah-aws, so it cannot detect a stale host')
+    }
+    if ($result.Detail -notmatch '0\.0\.1') {
+        $problems.Add("the version check failed without naming the stale version: $($result.Detail)")
+    }
+    if ($problems.Count -gt 0) { return @{ Passed = $false; Detail = ($problems -join '; ') } }
+    return @{ Passed = $true; Detail = 'a fabricated stale copy is refused and its version is named' }
+}
+
 $r1 = Test-InstalledSetIsProvenNonEmpty
 Report 'the installed @agenthub plugin set is proven non-empty before anything claims freshness' $r1.Passed $r1.Detail
 
@@ -407,6 +525,12 @@ Report "retired plugin registrations and cache residue ($($RetiredPluginNames -j
 
 $r7 = Test-AppiumIsNotPersisted
 Report 'Appium remains absent from Claude and Codex persistent configuration' $r7.Passed $r7.Detail
+
+$r8 = Test-VersionedCacheScanIsProvenSound
+Report 'the Codex and Qoder cache scan reaches every host it claims and orders versions numerically' $r8.Passed $r8.Detail
+
+$r9 = Test-VersionCheckRejectsStaleCopy
+Report 'the version check refuses a fabricated stale copy instead of passing on an unobserved fleet' $r9.Passed $r9.Detail
 
 Write-Host ''
 if ($failures.Count -gt 0) {
