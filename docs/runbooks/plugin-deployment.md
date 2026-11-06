@@ -70,6 +70,14 @@ Grok ships its user guide inside `grok.exe`. Read it there before guessing a key
 
 After any change: `pwsh -NoProfile -File scripts/Validate-AgentHub.ps1`, then `tests/Test-InstalledPluginFreshness.ps1`, which also fails if an un-prefixed registration is left on Claude or Codex.
 
+A green freshness run proves the installed **cache** matches source. It does not
+prove a host session loaded it. Several hosts say so out loud when refreshed:
+Claude reports `Restart to apply changes` and Qoder reports `Run /plugins reload
+to apply`. Until that restart happens the running session is still using the
+previous copy, so record cache parity and loaded-session state as two rungs. The
+one claim that follows from the test alone is that a fresh session will resolve
+the current version.
+
 `Sync-AgentHub.ps1 -Apply` does not deploy a capability runtime tree; it only
 writes host MCP configuration. A package with a `deployedCatalog` row in
 `registry/capabilities.json`, such as `mobile-development`, is refreshed solely
