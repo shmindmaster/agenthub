@@ -11,6 +11,7 @@ import {
   useVideoConfig,
 } from "remotion";
 import { VisualBody, type Visual } from "./Visuals";
+import { PhotoScene } from "./RichVisuals";
 
 export type { Visual } from "./Visuals";
 
@@ -705,6 +706,22 @@ const Slide: FC<{ scene: BriefingScene; sceneIndex: number }> = ({
           <Statement scene={scene} accent={accent} />
         </AbsoluteFill>
       </AbsoluteFill>
+    );
+  }
+
+  // A photograph that owns the frame: the picture carries the line, the title sits low on a gradient.
+  if (scene.visual?.kind === "still" && scene.visual.layout === "bleed") {
+    return (
+      <PhotoScene
+        src={scene.visual.src}
+        title={scene.title}
+        kicker={scene.kicker}
+        caption={scene.visual.caption}
+        accent={accent}
+        durationSeconds={scene.durationSeconds}
+        focus={scene.visual.focus}
+        index={sceneIndex}
+      />
     );
   }
 

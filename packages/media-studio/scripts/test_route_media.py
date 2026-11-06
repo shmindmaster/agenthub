@@ -26,18 +26,57 @@ class Routing(unittest.TestCase):
         lanes = r.route(POLICY, ["diagram"])
         self.assertTrue(lanes and r.is_free(lanes[0]))
 
-    def test_video_generation_is_frozen_so_nothing_usable(self):
-        self.assertEqual(r.route(POLICY, ["video-generation"]), [])
-        blocked = r.route(POLICY, ["video-generation"], include_blocked=True)
-        self.assertTrue(blocked and all(l["status"] == "frozen" for l in blocked))
-        self.assertEqual(r.main(["video-generation"]), 1)
+    def test_video_generation_has_funded_lanes_led_by_irukadark_and_the_paid_ones_stay_frozen(self):
+        usable = r.route(POLICY, ["video-generation"])
+        self.assertEqual(usable[0]["id"], "irukadark")
+        self.assertEqual({l["id"] for l in usable}, {"irukadark", "runware-video", "manus-browser"})
+        self.assertTrue(all(l["status"] == "conditional" for l in usable))
+        self.assertEqual(usable[0]["creditsPerClip"], 232)
+        frozen = {l["id"] for l in r.route(POLICY, ["video-generation"], include_blocked=True) if l["status"] == "frozen"}
+        self.assertEqual(frozen, {"higgsfield", "runway", "google-vertex"})
+        self.assertEqual(r.main(["video-generation"]), 0)
 
-    def test_abacare_credit_never_serves_a_personal_film(self):
-        personal = [l["id"] for l in r.route(POLICY, ["image"], identity="mahumtech")]
-        self.assertNotIn("runware-image", personal)
-        self.assertIn("azure-image", personal)
-        abacare = [l["id"] for l in r.route(POLICY, ["image"], identity="abacare")]
-        self.assertIn("runware-image", abacare)
+    def test_every_lane_has_a_known_mode_and_the_catalog_lists_every_lane(self):
+        for l in POLICY["lanes"]:
+            self.assertIn(r.mode_of(l), r.MODES, l["id"])
+        text = r.catalog(POLICY)
+        for l in POLICY["lanes"]:
+            self.assertIn(f"### {l['id']}  [{l['status']}, {r.mode_of(l)}", text)
+        self.assertEqual(r.mode_of(next(l for l in POLICY["lanes"] if l["id"] == "irukadark")), "browser")
+        self.assertIn("Frozen, skipped or disabled", text)
+        self.assertEqual(r.main(["--catalog"]), 0)
+
+    def test_frozen_music_and_sfx_is_listed_with_what_unfreezes_it(self):
+        lane = next(l for l in POLICY["lanes"] if l["id"] == "elevenlabs-music-sfx")
+        self.assertEqual(lane["status"], "frozen")
+        self.assertIn("lifts that rule", lane["notes"])
+        self.assertEqual(r.route(POLICY, ["music"]), [])
+
+    def test_irukadark_is_by_hand_and_never_outranks_the_scripted_image_lanes(self):
+        lane = next(l for l in POLICY["lanes"] if l["id"] == "irukadark")
+        self.assertIn("Chrome", lane["how"])
+        self.assertIn("irukadark.com/ai/video", lane["how"])
+        for identity in ("mahumtech", "abacare", "any"):
+            self.assertNotEqual(r.route(POLICY, ["image"], identity=identity)[0]["id"], "irukadark")
+        self.assertEqual(r.route(POLICY, ["image"], identity="mahumtech")[0]["id"], "azure-image")
+
+    def test_images_have_two_ready_lanes_and_azure_leads(self):
+        for identity in ("mahumtech", "abacare", "any"):
+            lanes = [l["id"] for l in r.route(POLICY, ["image"], identity=identity)]
+            self.assertIn("runware-image", lanes, identity)
+        mahumtech = r.route(POLICY, ["image"], identity="mahumtech")
+        self.assertEqual(mahumtech[0]["id"], "azure-image")
+        self.assertEqual(mahumtech[0]["status"], "ready")
+        self.assertEqual(next(l for l in POLICY["lanes"] if l["id"] == "runware-image")["status"], "ready")
+
+    def test_a_lane_tied_to_another_identity_is_not_offered(self):
+        stt = [l["id"] for l in r.route(POLICY, ["word-clock"], identity="mahumtech")]
+        self.assertNotIn("assemblyai-stt", stt)
+        self.assertIn("assemblyai-stt", [l["id"] for l in r.route(POLICY, ["word-clock"], identity="abacare")])
+
+    def test_image_generation_video_lanes_stay_frozen(self):
+        for lane_id in ("higgsfield", "runway"):
+            self.assertEqual(next(l for l in POLICY["lanes"] if l["id"] == lane_id)["status"], "frozen")
 
     def test_ready_before_conditional_and_azure_speech_first_for_voice(self):
         lanes = r.route(POLICY, ["voice"])

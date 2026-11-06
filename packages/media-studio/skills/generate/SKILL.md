@@ -37,4 +37,7 @@ Honour `refuse`: never product UI, metrics or testimonials. Never animate a prod
 - `references/azure.md`: Read when planning any generation: deployments, prices, voice cast and craft, take QA.
 - `references/content-controls.md`: Read when about to make any paid call, or a call is blocked or failed.
 - `references/provider-plugins.md`: Read when choosing a provider beyond Azure.
+- `scripts/route_media.py --catalog`: Run first when planning any generation; it prints every lane, scripted or by hand, with mode, cost and how.
+- `references/stills.md`: Read when a scene needs a generated photograph: quote, lanes, cache, ledger.
+- `references/irukadark.md`: Read when a scene needs a generated clip (approved hero shot) or a by-hand picture or track from IrukaDark.
 - `../capture/references/abacare-lexicon.json`: Read when pronouncing ABACare film names.

@@ -8,7 +8,7 @@
  */
 import type { FC } from "react";
 import { useEffect, useState } from "react";
-import { Easing, continueRender, delayRender, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Easing, Img, continueRender, delayRender, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { Lottie, type LottieAnimationData } from "@remotion/lottie";
 
 const SANS = 'Inter, "Segoe UI", system-ui, sans-serif';
@@ -177,5 +177,122 @@ export const LottieScene: FC<{ v: LottieVisual; accent: string }> = ({ v, accent
         {data ? <Lottie animationData={data} loop={v.loop ?? true} playbackRate={v.playbackRate ?? 1} style={{ width: "100%", height: "100%" }} /> : null}
       </div>
     </div>
+  );
+};
+
+/* ---------------------------------------------------------------- photo -- */
+
+export type PhotoFocus = "center" | "left" | "right" | "top" | "bottom";
+const FOCUS_POSITION: Record<PhotoFocus, string> = {
+  center: "50% 50%",
+  left: "30% 50%",
+  right: "70% 50%",
+  top: "50% 30%",
+  bottom: "50% 70%",
+};
+const FOCUS_DRIFT: Record<PhotoFocus, [number, number]> = {
+  center: [0, 0],
+  left: [-14, 0],
+  right: [14, 0],
+  top: [0, -10],
+  bottom: [0, 10],
+};
+
+/**
+ * A generated or captured photograph that owns the whole frame. The line is carried by the picture;
+ * the title sits low on a gradient so the subject stays clear. A slow push and a small drift keep
+ * the frame alive for as long as the voice is talking. Use for a place, an object or a mood that no
+ * diagram can carry (skills/generate/references/stills.md). Text goes here, never inside the image.
+ */
+export const PhotoScene: FC<{
+  src: string;
+  title: string;
+  kicker?: string;
+  caption?: string;
+  accent: string;
+  durationSeconds: number;
+  focus?: PhotoFocus;
+  index?: number;
+}> = ({ src, title, kicker, caption, accent, durationSeconds, focus = "center", index }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const span = Math.max(1, durationSeconds * fps);
+  const ease = Easing.bezier(0.16, 1, 0.3, 1);
+  const [dx, dy] = FOCUS_DRIFT[focus];
+  const push = interpolate(frame, [0, span], [1.0, 1.08], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.linear });
+  const drift = interpolate(frame, [0, span], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.linear });
+  const fade = (from: number, to: number) => interpolate(frame, [from * fps, to * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+  const rise = (from: number, to: number, px: number) => interpolate(frame, [from * fps, to * fps], [px, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#0B0B0B", fontFamily: 'Inter, "Segoe UI", system-ui, sans-serif' }}>
+      <AbsoluteFill style={{ overflow: "hidden" }}>
+        <Img
+          src={staticFile(src)}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: FOCUS_POSITION[focus],
+            opacity: fade(0, 0.5),
+            scale: String(push),
+            translate: `${dx * drift}px ${dy * drift}px`,
+          }}
+        />
+      </AbsoluteFill>
+      <AbsoluteFill
+        style={{ background: "linear-gradient(to top, rgba(8,8,8,0.9) 0%, rgba(8,8,8,0.6) 26%, rgba(8,8,8,0.0) 56%)" }}
+      />
+      <AbsoluteFill style={{ justifyContent: "flex-end", padding: "0 110px 96px" }}>
+        {kicker ? (
+          <div
+            style={{
+              color: accent,
+              letterSpacing: "0.28em",
+              fontSize: 22,
+              fontWeight: 700,
+              marginBottom: 14,
+              opacity: fade(0.2, 0.7),
+              translate: `0px ${rise(0.2, 0.7, 10)}px`,
+            }}
+          >
+            {kicker}
+            {typeof index === "number" ? <span style={{ color: "#9A9588", marginLeft: 18 }}>{String(index + 1).padStart(2, "0")}</span> : null}
+          </div>
+        ) : null}
+        <div
+          style={{
+            color: "#F3EFE4",
+            fontSize: 64,
+            fontWeight: 800,
+            lineHeight: 1.08,
+            maxWidth: "78%",
+            textShadow: "0 2px 24px rgba(0,0,0,0.55)",
+            opacity: fade(0.3, 0.9),
+            translate: `0px ${rise(0.3, 0.9, 16)}px`,
+          }}
+        >
+          {title}
+        </div>
+        {caption ? (
+          <div
+            style={{
+              color: "#D8D3C4",
+              fontSize: 28,
+              marginTop: 14,
+              maxWidth: "70%",
+              opacity: fade(0.6, 1.2),
+              translate: `0px ${rise(0.6, 1.2, 12)}px`,
+            }}
+          >
+            {caption}
+          </div>
+        ) : null}
+      </AbsoluteFill>
+      <AbsoluteFill style={{ justifyContent: "flex-end" }}>
+        <div style={{ height: 3, backgroundColor: "#FFFFFF10" }}>
+          <div style={{ height: 3, backgroundColor: `${accent}AA`, width: `${drift * 100}%` }} />
+        </div>
+      </AbsoluteFill>
+    </AbsoluteFill>
   );
 };

@@ -56,8 +56,8 @@ export type Visual = (
   | { kind: "timeline"; caption?: string; events: { at: string; label: string; sub?: string; mark?: MarkTone }[] }
   | { kind: "beforeafter"; caption?: string; before: StackSide; after: StackSide }
   | { kind: "map"; caption?: string; lanes: { name: string; mark?: MarkTone; nodes: { label: string; sub?: string }[] }[] }
-  | { kind: "still"; src: string; caption?: string }
-  | { kind: "broll"; src: string; caption?: string }
+  | { kind: "still"; src: string; caption?: string; layout?: "frame" | "bleed"; focus?: "center" | "left" | "right" | "top" | "bottom"; prompt?: string; lane?: string }
+  | { kind: "broll"; src: string; caption?: string; seconds?: number; prompt?: string }
   | { kind: "quote"; text: string; attribution?: string }
   | { kind: "proof"; kicker?: string; claim: string; evidence: string }
   | { kind: "checklist"; caption?: string; items: { text: string; at?: number }[] }

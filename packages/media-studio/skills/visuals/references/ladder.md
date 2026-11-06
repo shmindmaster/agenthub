@@ -12,7 +12,7 @@ Read this when choosing the picture for a beat. Start at the first row that matc
 | Code, a command, a config | Highlighted lines revealed in order | `code` | kit | free |
 | A real product screen | The captured screen | `screen-in-context` | skills/capture, Playwright plus Recast | free |
 | A place, an object, a mood no diagram can carry | A generated still, with text added in the kit | `still` | Azure image | Azure credit, priced first |
-| A cinematic moment | A generative video hero shot | `broll` | Higgsfield, Runway, Vertex: frozen | owner approval first |
+| A cinematic moment | A generative video hero shot | `broll` | IrukaDark (conditional, by hand in Chrome, 232 credits per 5 s clip); Higgsfield, Runway, Vertex: frozen | approved hero shots only; `../../generate/references/irukadark.md` |
 | What other sources say, a topic to learn from | A NotebookLM draft to read, not to ship | none (a draft) | notebooklm-py | free tier |
 | A name, a quote, an opening or a close | A card | `hero`, `quote`, `cta`, `chapter`, `lower-third` | kit | free |
 

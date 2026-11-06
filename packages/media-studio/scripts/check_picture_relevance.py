@@ -23,7 +23,7 @@ STOP = set("""a an and are as at be been but by can could did do does for from h
 just me my no not of on or our out she so than that the their them then there these they this those to up us was we were
 what when where which who why will with would you your yours am about also all any more most some such only own same too
 very how now one two once again here s t don should shall may might must let""".split())
-SKIP_KEYS = {"kind", "src", "mark", "revealFrom", "at", "lang", "viewBox", "form", "unit", "max", "loop", "playbackRate"}
+SKIP_KEYS = {"kind", "src", "mark", "revealFrom", "at", "lang", "viewBox", "form", "unit", "max", "loop", "playbackRate", "layout", "focus", "lane", "size", "quality", "seconds"}
 
 
 def tokens(text):

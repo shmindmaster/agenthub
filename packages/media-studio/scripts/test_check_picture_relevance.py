@@ -13,6 +13,12 @@ CARD_ONLY = {"id": "s4", "title": "Penske denial, plan", "kicker": "YOU", "bulle
 GENERIC = {"id": "s4", "title": "Trucks", "bullets": [], "visual": {"kind": "hero", "title": "Our plan", "sub": "going forward"}}
 
 
+PHOTO = {"id": "s4", "title": "Declined", "bullets": [], "visual": {"kind": "still", "layout": "bleed", "focus": "center", "src": "stills/x/s4.png",
+         "prompt": "Four empty 26-foot box trucks parked in a row outside a rental depot at dawn"}}
+PHOTO_OFF_TOPIC = {"id": "s4", "title": "Declined", "bullets": [], "visual": {"kind": "still", "layout": "bleed", "focus": "center", "src": "stills/x/s4.png",
+                   "prompt": "A calm mountain lake at sunrise with mist over the water"}}
+
+
 class RelevanceTests(unittest.TestCase):
     def test_a_visual_built_from_the_line_passes(self):
         r = gate.judge_scene(GOOD, LINE)
@@ -62,6 +68,19 @@ class RelevanceTests(unittest.TestCase):
             self.assertEqual(gate.main([str(props), str(cues)]), 1)
             cues.write_text(json.dumps({"cues": [{"id": "s4", "text": LINE}]}), encoding="utf-8")
             self.assertEqual(gate.main([str(props), str(cues)]), 0)
+
+    def test_a_photo_is_judged_by_its_prompt_against_the_line(self):
+        r = gate.judge_scene(PHOTO, LINE)
+        self.assertTrue(r["ok"], r)
+        self.assertIn("trucks", r["overlap"])
+
+    def test_a_photo_prompt_about_something_else_fails(self):
+        self.assertFalse(gate.judge_scene(PHOTO_OFF_TOPIC, LINE)["ok"])
+
+    def test_layout_and_lane_words_do_not_count_as_content(self):
+        scene = {"id": "s1", "title": "t", "bullets": [], "visual": {"kind": "still", "layout": "bleed", "focus": "center", "lane": "azure-image",
+                 "size": "1536x1024", "quality": "medium", "src": "bleed/center.png", "prompt": "A quiet harbour"}}
+        self.assertEqual(gate.judge_scene(scene, "The bleed center azure image medium quality.")["overlap"], [])
 
 
 if __name__ == "__main__":

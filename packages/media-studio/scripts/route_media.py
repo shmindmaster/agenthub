@@ -2,10 +2,12 @@
 """Pick the lane for a media need from policy/provider-routing.json.
 
     route_media.py <need> [<need> ...] [--identity mahumtech|abacare|any] [--all] [--json]
+    route_media.py --catalog          # every lane, with its mode (script, api, connector, browser), cost, how and notes
 
 Free and offline. Prints the lanes that can serve the need, best first: ready before conditional, free before
-paid. Frozen, skipped and disabled lanes are hidden unless --all, and are never returned as the pick. A lane tied
-to a different identity than --identity is not returned (an ABACare credit never serves a personal film).
+paid. Frozen, skipped and disabled lanes are hidden unless --all, and are never returned as the pick. A lane
+tied to one identity is not returned for a different --identity; lanes marked "any" serve every film, and the
+owner picks the entity per film, so ownership is named in the quote and is never a blocker.
 
 Exit 0 when at least one usable lane exists, 1 when none does (say so, do not improvise a provider).
 """
@@ -51,14 +53,46 @@ def route(policy, needs, identity=None, include_blocked=False):
     return lanes
 
 
+MODES = {"script": "a script or CLI in this plugin", "api": "a provider API called directly",
+         "connector": "a connector tool in the host", "browser": "an interactive browser session (Claude in Chrome)"}
+
+
+def mode_of(lane):
+    return lane.get("mode") or "script"
+
+
+def catalog(policy):
+    """Every lane in the policy as markdown, usable lanes first, so an agent sees the whole capability set."""
+    out = [f"# media-studio capability catalog (policy {policy['revision']}, as of {policy['asOf']})", "", policy["basis"], ""]
+    for title, wanted in (("Usable now", USABLE), ("Frozen, skipped or disabled (listed so nothing is hidden)", ("frozen", "skipped", "disabled"))):
+        out += [f"## {title}", ""]
+        for lane in sorted((l for l in policy["lanes"] if l["status"] in wanted), key=lambda l: (ORDER.get(l["status"], 9), l["id"])):
+            out.append(f"### {lane['id']}  [{lane['status']}, {mode_of(lane)}, identity {lane.get('identity', 'any')}]")
+            out.append(f"- Serves: {', '.join(lane.get('needs', [])) or 'nothing'}")
+            out.append(f"- Cost: {lane.get('cost')}")
+            out.append(f"- How: {lane.get('how')}")
+            if lane.get("notes"):
+                out.append(f"- Notes: {lane['notes']}")
+            out.append("")
+    out += ["## Modes", ""] + [f"- {k}: {v}" for k, v in MODES.items()] + [""]
+    out += ["## Rules", ""] + [f"- {r}" for r in policy["rules"]]
+    return "\n".join(out) + "\n"
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("needs", nargs="+")
+    ap.add_argument("needs", nargs="*")
     ap.add_argument("--identity", default="any")
     ap.add_argument("--all", action="store_true", help="also show frozen, skipped and disabled lanes")
+    ap.add_argument("--catalog", action="store_true", help="print every lane with its mode, cost, how and notes")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
     policy = load()
+    if args.catalog:
+        print(catalog(policy), end="")
+        return 0
+    if not args.needs:
+        ap.error("name a need, or use --catalog")
     lanes = route(policy, args.needs, args.identity, args.all)
     usable = [l for l in lanes if l["status"] in USABLE]
     if args.json:
