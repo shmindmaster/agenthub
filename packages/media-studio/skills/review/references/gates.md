@@ -28,7 +28,7 @@ It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-25
 
 ## Picture
 
-`scripts/check_picture_relevance.py <briefing-props.json> <cue-sheet.json>` exits 1 when any scene has no visual body or fewer than two content words or numbers in common with its spoken line. Titles and kickers do not count. It is the only mechanical check that the picture is about the words; frame integrity and word sync pass on a perfectly clean but irrelevant picture. It does not judge design, so also write the contact sheet (`build-contact-sheet.mjs`) and look at the frames before a picture is called good, filed or shared. Anything shown to the owner has been looked at first.
+`scripts/check_picture_relevance.py <props-or-picture-plan.json> <cue-sheet-or-screenplay.json>` (a picture plan and a screenplay work before any voice exists) exits 1 when any scene has no visual body or fewer than two content words or numbers in common with its spoken line. Titles and kickers do not count. It is the only mechanical check that the picture is about the words; frame integrity and word sync pass on a perfectly clean but irrelevant picture. It does not judge design, so also write the contact sheet (`build-contact-sheet.mjs`) and look at the frames before a picture is called good, filed or shared. Anything shown to the owner has been looked at first.
 
 ## Words only
 

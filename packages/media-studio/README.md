@@ -43,6 +43,8 @@ This package is the parent studio. Product Demo Studio remains the product-scree
 
 | Skill | Owns | Key references |
 | --- | --- | --- |
+| `studio` | Conductor: an idea in, a finished film out, through develop, pre-production, production, post and delivery, with state and approvals (`studio_init.py`, `production_status.py`) | `phases.md` |
+| `develop` | Case to logline, treatment, beat sheet and locked screenplay | none |
 | `brief` | Front door: turn a rough ask into an approved written brief, with what the viewer will SEE, before any script or spend | none |
 | `plan` | Beat-by-beat storyboard with the picture for every line, gates before spend, task ledger, fresh reviewer per task | none |
 | `visuals` | Choose and build the picture: charts, hand-drawn SVG, Lottie, stills, captured screens, NotebookLM drafts | `ladder.md`, `visual-bible.md`, `kit-visuals.md`, `lottie.md`, `notebooklm.md`, `browser-tools.md` |

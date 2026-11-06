@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Picture-relevance gate: every scene's on-screen content must come from what its line says.
 
-    check_picture_relevance.py <briefing-props.json> <cue-sheet.json> [--min-overlap 2] [--out PATH]
+    check_picture_relevance.py <props-or-picture-plan.json> <cue-sheet-or-screenplay.json> [--min-overlap 2] [--out PATH]
 
-Free and offline. Run it after the storyboard is turned into scenes and BEFORE rendering. For each scene it takes the
+Free and offline. Run it on the picture plan and the screenplay BEFORE any voice or image spend (a cue sheet and built props work too). For each scene it takes the
 words of the scene's visual body and bullets (the title and kicker do not count: a label is not content) and the words of
 the narration line with the same id, drops filler words, and counts the shared content words and numbers. A scene with
 fewer than --min-overlap shared terms fails, and so does a scene with no visual body at all. Exits 1 on any failure.
@@ -74,6 +74,14 @@ def judge_scene(scene, narration, min_overlap=2):
     return {"id": scene.get("id"), "ok": ok, "overlap": shared, "reasons": reasons}
 
 
+def load_lines(path):
+    """Narration by scene id from a cue sheet ({cues:[{id,text}]}) or a screenplay ({scenes:[{id,narration}]})."""
+    data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+    if data.get("cues"):
+        return {c["id"]: c.get("text", "") for c in data["cues"]}
+    return {s["id"]: s.get("narration", "") for s in data.get("scenes") or []}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("props")
@@ -82,7 +90,7 @@ def main(argv=None):
     ap.add_argument("--out")
     args = ap.parse_args(argv)
     scenes = json.loads(Path(args.props).read_text(encoding="utf-8")).get("scenes") or []
-    cues = {c["id"]: c.get("text", "") for c in json.loads(Path(args.cues).read_text(encoding="utf-8")).get("cues") or []}
+    cues = load_lines(Path(args.cues))
     results = []
     for sc in scenes:
         if sc.get("id") not in cues:

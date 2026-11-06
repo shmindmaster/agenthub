@@ -5,7 +5,7 @@ description: Produces a finished film, screencast, explainer, ad or voiceover fr
 
 # Video
 
-A rough ask starts with `brief` (approved written brief, picture plan, priced lanes) and `plan` (storyboard with a picture for every line) before anything below. From a short ask, infer kind, `programForm`, audience, voice and delivery; never make the user name skills or steps. Ask one question at most: only with no source, or an unknown destination for a product absent from `registry/product-video-delivery.json`.
+A whole film from an idea starts with `studio` (it runs every phase and keeps the state); a rough ask starts with `brief` (approved written brief, picture plan, priced lanes) and `plan` (storyboard with a picture for every line) before anything below. From a short ask, infer kind, `programForm`, audience, voice and delivery; never make the user name skills or steps. Ask one question at most: only with no source, or an unknown destination for a product absent from `registry/product-video-delivery.json`.
 
 - **Kind:** a running product is `product-screencast`, whatever the ask said, after a readiness check (`references/product-picture.md`). A product change told as a story is `programForm: technical-story`. Otherwise `references/forms.md`.
 - **Intent:** `intent: viewer-facing`, `craftScoreMin` 85. `intent: draft` only for scratch or proxy cuts.

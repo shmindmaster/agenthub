@@ -44,6 +44,15 @@ class RelevanceTests(unittest.TestCase):
         scene = {"id": "x", "visual": {"kind": "chart", "form": "bars", "unit": "%", "items": [{"label": "Heavy bulk volume", "value": 37}]}}
         self.assertTrue(gate.judge_scene(scene, "We handle 37 percent of the heavy bulk volume.")["ok"])
 
+    def test_runs_on_a_picture_plan_and_a_screenplay_before_any_voice_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = Path(tmp) / "plan.json"
+            sp = Path(tmp) / "screenplay.json"
+            scene = {"id": "s4", "visual": {"kind": "svg", "groups": [{"at": "@declined", "svg": "<text>Penske declined</text>"}, {"at": "@November+0.2", "svg": "<text>November 19</text>"}]}}
+            plan.write_text(json.dumps({"scenes": [scene]}), encoding="utf-8")
+            sp.write_text(json.dumps({"scenes": [{"id": "s4", "narration": LINE}]}), encoding="utf-8")
+            self.assertEqual(gate.main([str(plan), str(sp)]), 0)
+
     def test_whole_run_requires_every_line_to_have_a_scene(self):
         with tempfile.TemporaryDirectory() as tmp:
             props = Path(tmp) / "p.json"

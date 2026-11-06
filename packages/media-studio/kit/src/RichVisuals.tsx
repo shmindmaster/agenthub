@@ -35,6 +35,8 @@ export type ChartVisual = {
   unit?: string;
   max?: number;
   items: { label: string; value: number; at?: number; mark?: Tone }[];
+  /** waffle only: short lines that arrive beside the number on the words that name them. */
+  notes?: { text: string; at?: number }[];
 };
 
 export const Chart: FC<{ v: ChartVisual; accent: string; d: number }> = ({ v, accent, d }) => {
@@ -56,6 +58,19 @@ export const Chart: FC<{ v: ChartVisual; accent: string; d: number }> = ({ v, ac
           <Heading text={v.caption} accent={accent} />
           <div style={{ color, fontFamily: SANS, fontSize: 150, fontWeight: 900, lineHeight: 0.95 }}>{filled}%</div>
           <div style={{ color: "#EFEBE0", fontFamily: SANS, fontSize: 36, fontWeight: 700, marginTop: 10, maxWidth: 560 }}>{v.items[0]?.label}</div>
+          <div style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 12 }}>
+            {(v.notes ?? []).map((n, i) => {
+              const nat = n.at ?? at + 1.2 + i * 1.4;
+              const o = interpolate(frame, [nat * fps, (nat + 0.35) * fps], [0, 1], ease);
+              const y = interpolate(frame, [nat * fps, (nat + 0.45) * fps], [12, 0], ease);
+              return (
+                <div key={i} style={{ opacity: o, transform: `translateY(${y}px)`, color: "#EFEBE0", fontFamily: SANS, fontSize: 32, fontWeight: 600 }}>
+                  <span style={{ color }}>▸ </span>
+                  {n.text}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     );

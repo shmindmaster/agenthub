@@ -72,4 +72,4 @@ Self-review before showing it: no placeholder, no beat with only a title for a p
 
 ## Next
 
-Brief approved: use `plan`.
+In a whole-film job the brief is `case/case.md` (the `studio` skill scaffolds it with `studio_init.py`); write it there and record the owner's yes with `production_status.py <jobRoot> --approve case`. Then `develop` for the story and screenplay, and `plan`.
