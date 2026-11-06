@@ -10,7 +10,7 @@ From a short ask, infer kind, `programForm`, audience, voice and delivery; never
 - **Kind:** a running product is `product-screencast`, whatever the ask said, after a readiness check (`references/product-picture.md`). A product change told as a story is `programForm: technical-story`. Otherwise `references/forms.md`.
 - **Intent:** `intent: viewer-facing`, `craftScoreMin` 85. `intent: draft` only for scratch or proxy cuts.
 - **Voice:** a distinct, expressive Azure voice per character (`generate`).
-- **Picture:** a viewer-facing R kind (`references/forms.md`) requires Remotion; without it, stop; static slides are no fallback. `intent: draft` is exempt.
+- **Picture:** a viewer-facing R kind (`references/forms.md`) requires Remotion; without it, stop; static slides are no fallback. `intent: draft` is exempt from the render only, never from the picture work: show the topics, figures, dates and documents the lines name, run `scripts/check_picture_relevance.py` before rendering, and look at the contact sheet before calling a picture good or filing it. A film about someone's own call or meeting is judged on exactly this.
 - **Style:** cinematic storytelling: hook, stakes, characters, tension, payoff.
 
 ## Rules

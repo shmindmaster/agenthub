@@ -109,6 +109,11 @@ export type BriefingScene = {
    */
   visual?: Visual;
   /**
+   * Enlarge the visual body. The kit's visuals are sized for dense engineering content; a scene with three
+   * short items otherwise sits small in an empty frame. CSS zoom reflows layout, so wide visuals still fit.
+   */
+  visualScale?: number;
+  /**
    * Who is talking. Omit or `sarosh` = host narration (answer / diagram slide).
    * `ryan` | `vivian` | `aiden` = labeled stakeholder question card (stakeholder voice cast).
    * `joel` = legacy interviewer card (same visual family as Ryan).
@@ -832,11 +837,13 @@ const Slide: FC<{ scene: BriefingScene; sceneIndex: number }> = ({
           }}
         >
           {scene.visual ? (
-            <VisualBody
-              visual={scene.visual}
-              accent={accent}
-              durationSeconds={scene.durationSeconds}
-            />
+            <div style={{ zoom: scene.visualScale ?? 1 }}>
+              <VisualBody
+                visual={scene.visual}
+                accent={accent}
+                durationSeconds={scene.durationSeconds}
+              />
+            </div>
           ) : (
             scene.bullets.map((bullet, index) => (
               <Bullet

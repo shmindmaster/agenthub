@@ -26,6 +26,10 @@ Order 17 reads `qa/viewer-release-evidence.json`. It refuses a missing, stale or
 
 It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-256, the narration check to its script and pointer path to `capture/receipt.json`. A recut voids every candidate-bound report. An mvg job may file `media-studio/mvg-picture-gate` for order 11.
 
+## Picture
+
+`scripts/check_picture_relevance.py <briefing-props.json> <cue-sheet.json>` exits 1 when any scene has no visual body or fewer than two content words or numbers in common with its spoken line. Titles and kickers do not count. It is the only mechanical check that the picture is about the words; frame integrity and word sync pass on a perfectly clean but irrelevant picture. It does not judge design, so also write the contact sheet (`build-contact-sheet.mjs`) and look at the frames before a picture is called good, filed or shared. Anything shown to the owner has been looked at first.
+
 ## Pronunciation
 
 ASR cannot be its own reference. A proper noun or homophone it cannot confirm needs a verified lexicon entry or an owner listen. Otherwise report it unconfirmed and do not mark it release-eligible.

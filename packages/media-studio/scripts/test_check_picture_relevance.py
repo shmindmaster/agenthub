@@ -1,0 +1,48 @@
+"""Offline tests for the picture-relevance gate."""
+import json
+from pathlib import Path
+import tempfile
+import unittest
+
+import check_picture_relevance as gate
+
+LINE = "Penske declined our request for four 26-foot box trucks, with pickup on November 19."
+GOOD = {"id": "s4", "title": "Trucks", "kicker": "YOU", "bullets": [], "visual": {"kind": "table", "headers": ["Item", "Status"], "rows": [
+    {"cells": ["Four 26-foot box trucks", "Penske declined"], "mark": "risk"}, {"cells": ["Pickup requested", "November 19"]}]}}
+CARD_ONLY = {"id": "s4", "title": "Penske denial, plan", "kicker": "YOU", "bullets": []}
+GENERIC = {"id": "s4", "title": "Trucks", "bullets": [], "visual": {"kind": "hero", "title": "Our plan", "sub": "going forward"}}
+
+
+class RelevanceTests(unittest.TestCase):
+    def test_a_visual_built_from_the_line_passes(self):
+        r = gate.judge_scene(GOOD, LINE)
+        self.assertTrue(r["ok"], r)
+        self.assertIn("penske", r["overlap"])
+        self.assertIn("19", r["overlap"])
+
+    def test_a_title_card_fails_even_when_the_title_names_the_topic(self):
+        r = gate.judge_scene(CARD_ONLY, LINE)
+        self.assertFalse(r["ok"])
+        self.assertTrue(any("no visual body" in x for x in r["reasons"]))
+
+    def test_a_generic_visual_with_no_shared_content_fails(self):
+        self.assertFalse(gate.judge_scene(GENERIC, LINE)["ok"])
+
+    def test_numbers_and_percent_signs_count(self):
+        scene = {"id": "x", "visual": {"kind": "stat", "value": "37%", "label": "of the heavy bulk volume"}}
+        r = gate.judge_scene(scene, "We handle more than 37 percent of the heavy bulk volume in this building.")
+        self.assertTrue(r["ok"], r)
+
+    def test_whole_run_requires_every_line_to_have_a_scene(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            props = Path(tmp) / "p.json"
+            cues = Path(tmp) / "c.json"
+            props.write_text(json.dumps({"scenes": [GOOD]}), encoding="utf-8")
+            cues.write_text(json.dumps({"cues": [{"id": "s4", "text": LINE}, {"id": "s5", "text": "Another line."}]}), encoding="utf-8")
+            self.assertEqual(gate.main([str(props), str(cues)]), 1)
+            cues.write_text(json.dumps({"cues": [{"id": "s4", "text": LINE}]}), encoding="utf-8")
+            self.assertEqual(gate.main([str(props), str(cues)]), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

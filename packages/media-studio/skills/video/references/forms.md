@@ -4,7 +4,7 @@ Lookup for `programForm`, `kind`, `deliveryProfile`, series and campaigns in `jo
 
 ## Kinds
 
-Remotion is required for every kind marked R, unless `intent: draft`. Draft is TTS plus stills; record what was skipped.
+Remotion is required for every kind marked R, unless `intent: draft`. A draft may skip the Remotion render and nothing else: every beat still has a storyboard line naming what appears on screen, and `scripts/check_picture_relevance.py` must pass. Speaker cards or title cards with a headline are not a draft, they are the defect. The `Briefing` composition renders a two-minute film in about 90 seconds, so use it for drafts too. A draft is never filed in a video library or shared as a film until a contact-sheet review of the actual frames is recorded.
 
 | `kind` | Use | `deliveryProfile` | Make it |
 | --- | --- | --- | --- |

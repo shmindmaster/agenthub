@@ -121,6 +121,12 @@ Ids from `kit/scene-archetypes.json`, rendered by composition `Briefing`.
 | `lower-third` | Speaker identification |
 | `speaker-slide` | Face plus a slide |
 
+## Dialogue and simulated calls
+
+A two-party call, interview or rehearsal is one scene per turn on `Briefing`. The kicker names the speaker and the accent colour changes with the speaker. The body shows the thing under discussion, never the speaker alone: `timeline` for dates and deadlines, `stat` for one number, `table` for status, `checklist` for commitments, `flow` for who does what, `proof` for the named document. Give each item an `at` (seconds from scene start) from the synthesizer's own word clock so it appears as the word is spoken. Set `visualScale` (about 1.4 to 1.9) on short bodies so they fill the frame; keep `flow` near 1.4 so three nodes stay on one row. Run `scripts/check_picture_relevance.py <props> <cue-sheet>` before rendering.
+
+Remotion's mp4 carries a silent audio track, and ffmpeg prefers it. Mux with `-map 0:v:0 -map 1:a:0`, or the loudness finish measures silence and fails with `measured_I -inf`.
+
 ## Picking the renderer
 
 One per job. Remotion for typed React, parametrised templates and the archetype kit: use its official agent skills (`remotion-dev/skills`), do not restate their rules. HyperFrames for HTML with a paused GSAP timeline, when the job names it. Product UI is captured WebM, neither.
