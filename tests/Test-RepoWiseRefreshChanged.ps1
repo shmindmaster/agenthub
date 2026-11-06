@@ -24,7 +24,8 @@ try {
     @'
 param($Workspace, $RepositoryRoot, $LeasePath, $OutputDirectory, $Deadline, $TimeoutSeconds, $Python, [switch]$FactsOnly)
 Add-Content -LiteralPath $env:STUB_VISITS -Value "$(Split-Path -Leaf $RepositoryRoot) facts=$FactsOnly"
-if ($RepositoryRoot -like '*bad*' -or $env:STUB_FAIL_ALL) { throw 'Bounded indexing was not accepted.' }
+# Match the repo folder. A substring match also hits a temp path whose GUID contains "bad".
+if ((Split-Path -Leaf $RepositoryRoot) -eq 'bad' -or $env:STUB_FAIL_ALL) { throw 'Bounded indexing was not accepted.' }
 '@ | Set-Content -LiteralPath (Join-Path $scripts 'Invoke-RepoWiseBoundedIndex.ps1') -Encoding UTF8
     $env:STUB_VISITS = $visits
 
