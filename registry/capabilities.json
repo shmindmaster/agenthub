@@ -778,13 +778,16 @@
       "capabilityType": "plugin+skills",
       "canonicalSource": "packages/media-studio",
       "managedSkillNames": [
+        "brief",
+        "plan",
+        "visuals",
         "video",
         "generate",
         "capture",
         "compose",
         "review"
       ],
-      "contentHash": "E20A8077B52FF342F5DB46EDA3D2D9976505201DC0E6C206B6039AC9680478C6",
+      "contentHash": "5B0EA05F443AA37CD7599C631033FCA0D312D5BB2D44C5A870C983FD5D00F1F3",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [

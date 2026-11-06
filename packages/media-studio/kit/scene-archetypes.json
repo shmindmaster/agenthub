@@ -1,5 +1,5 @@
 {
-  "version": "2.1.8",
+  "version": "2.2.0",
   "composition": "Briefing",
   "nativeFrame": { "width": 1600, "height": 1000, "fps": 30 },
   "consecutiveRepeat": "forbidden-unless-intentional",
@@ -30,6 +30,9 @@
     { "id": "cta-end-frame", "kit": ["cta"], "roleHint": ["cta"] },
     { "id": "chapter-card", "kit": ["chapter"], "roleHint": ["bridge"] },
     { "id": "lower-third", "kit": ["lower-third"], "roleHint": ["hook", "trust"] },
-    { "id": "speaker-slide", "kit": ["sidecar"], "roleHint": ["proof", "reveal"] }
+    { "id": "speaker-slide", "kit": ["sidecar"], "roleHint": ["proof", "reveal"] },
+    { "id": "data-chart", "kit": ["chart"], "roleHint": ["proof", "hero"] },
+    { "id": "drawn-mechanism", "kit": ["svg"], "roleHint": ["reveal", "proof", "payoff"] },
+    { "id": "motion-sting", "kit": ["lottie"], "roleHint": ["payoff", "bridge", "cta"] }
   ]
 }

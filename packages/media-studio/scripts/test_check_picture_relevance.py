@@ -33,6 +33,17 @@ class RelevanceTests(unittest.TestCase):
         r = gate.judge_scene(scene, "We handle more than 37 percent of the heavy bulk volume in this building.")
         self.assertTrue(r["ok"], r)
 
+    def test_svg_counts_only_its_visible_text_not_tag_names(self):
+        scene = {"id": "x", "visual": {"kind": "svg", "groups": [{"at": 0.5, "svg": '<rect width="10" fill="red"/><text x="1">Penske declined</text>'}]}}
+        r = gate.judge_scene(scene, "Penske declined our request, then drew a line and a rect.")
+        self.assertEqual(r["overlap"], ["declined", "penske"])
+        only_shapes = {"id": "x", "visual": {"kind": "svg", "groups": [{"svg": '<rect width="10"/><line x1="0"/>'}]}}
+        self.assertFalse(gate.judge_scene(only_shapes, "A rect and a line.")["ok"])
+
+    def test_chart_labels_and_values_count(self):
+        scene = {"id": "x", "visual": {"kind": "chart", "form": "bars", "unit": "%", "items": [{"label": "Heavy bulk volume", "value": 37}]}}
+        self.assertTrue(gate.judge_scene(scene, "We handle 37 percent of the heavy bulk volume.")["ok"])
+
     def test_whole_run_requires_every_line_to_have_a_scene(self):
         with tempfile.TemporaryDirectory() as tmp:
             props = Path(tmp) / "p.json"

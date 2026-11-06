@@ -1,0 +1,182 @@
+{
+  "schema": "media-studio/provider-routing/1",
+  "revision": "provider-routing-2026-11-06-1",
+  "asOf": "2026-11-06",
+  "basis": "Balances and plan states are as recorded in the Linear credits ledger on 2026-11-04 to 2026-11-06. Not re-verified in any vendor console. Re-check a balance before a paid run that depends on it.",
+  "rules": [
+    "Credits are a temporary subsidy, not permission to raise spending caps.",
+    "Cheapest lane that passes QA wins. A free lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid lane for the same need.",
+    "Azure first (MahumTech resource mt-foundary-resource). Other providers are fallbacks or specialist lanes.",
+    "ElevenLabs only through governed_elevenlabs.py. Speech only. No voice clone of the owner.",
+    "Higgsfield and Runway spend stays frozen until the owner approves it in the current task.",
+    "Local AI is off on this PC: no local models, TTS, STT or embedders. Self-hosted models on cloud GPUs are allowed inside the compute caps.",
+    "A credit tied to the ABACare identity is for ABACare work only. Personal-capability work and product films use MahumTech Azure.",
+    "Do not introduce a provider merely because a key or a startup credit exists for it.",
+    "Anything marked draftOnly is research or a rough pass. It is never the delivered picture or voice."
+  ],
+  "lanes": [
+    {
+      "id": "remotion-kit",
+      "needs": ["motion", "diagram", "chart", "explainer", "title", "lower-third", "stat", "timeline", "flow", "code"],
+      "status": "ready",
+      "cost": "none (local non-AI render)",
+      "identity": "any",
+      "how": "Briefing composition in kit/, one visual kind per beat (skills/visuals/references/kit-visuals.md). Render with npx remotion render.",
+      "notes": "Remotion 4.0.517 pinned. Licence: free for individuals and for-profit companies of up to 3 people, otherwise a Company License is needed. Check headcount before client-facing use."
+    },
+    {
+      "id": "lottie-via-remotion",
+      "needs": ["motion", "sting", "icon", "callout", "checkmark", "loader"],
+      "status": "ready",
+      "cost": "none",
+      "identity": "any",
+      "how": "Author or fetch Lottie JSON into kit/public/lottie/, use the lottie visual kind. The diffusionstudio text-to-lottie skill writes the JSON.",
+      "notes": "Skottie preview and lottie-web render can differ. Judge the Remotion frame, never the preview."
+    },
+    {
+      "id": "hand-drawn-svg",
+      "needs": ["diagram", "mechanism", "architecture", "process", "map", "infographic"],
+      "status": "ready",
+      "cost": "none",
+      "identity": "any",
+      "how": "Author inline SVG with the visual-explainer rules (skills/visuals/references/visual-bible.md) and use the svg visual kind.",
+      "notes": "One claim per figure. Every arrow gets a verb."
+    },
+    {
+      "id": "playwright-recast",
+      "needs": ["screen", "product", "screencast", "ui-demo"],
+      "status": "ready",
+      "cost": "none",
+      "identity": "any",
+      "how": "skills/capture. Real captured WebM plus Recast finishing. Never Ken Burns or animated screenshots.",
+      "notes": "Hard boundary: never write into a product repository."
+    },
+    {
+      "id": "azure-speech",
+      "needs": ["voice", "narration", "dialogue", "audio"],
+      "status": "ready",
+      "cost": "Azure credit ($673.77 of $700 left on 2026-11-03, expires 2027-10-17; a separate $281 legacy credit expires 2026-11-12)",
+      "identity": "mahumtech",
+      "how": "scripts/governed_azure_speech.py with an authorization manifest and ledger. Pin names through pronunciation_lexicon.json first.",
+      "notes": "Distinct expressive voice per character."
+    },
+    {
+      "id": "azure-image",
+      "needs": ["image", "still", "illustration", "photo", "texture", "background"],
+      "status": "conditional",
+      "cost": "Azure credit",
+      "identity": "mahumtech",
+      "how": "Image deployment on mt-foundary-resource. Confirm the deployment name before the first call.",
+      "notes": "Generated stills must be product-safe: no logos or likenesses of real people, no text in the image, text goes in the kit."
+    },
+    {
+      "id": "elevenlabs-speech",
+      "needs": ["voice", "narration", "dialogue"],
+      "status": "conditional",
+      "cost": "Creator plan, about 116,400 characters left, resets 2026-11-13",
+      "identity": "mahumtech",
+      "how": "scripts/governed_elevenlabs.py only. Rehearsal audio and distinct character voices where Azure does not fit.",
+      "notes": "Music and sound effects are disabled in media-studio. Startup grant is requested, not granted."
+    },
+    {
+      "id": "runware-image",
+      "needs": ["image", "still", "illustration"],
+      "status": "conditional",
+      "cost": "Runware credit, $252.00 on 2026-11-04",
+      "identity": "abacare",
+      "how": "ABACare work only, and only when Azure images cannot do it.",
+      "notes": "Deferred by the 2026-11-04 minimum-friction rule. Not for personal or product films."
+    },
+    {
+      "id": "assemblyai-stt",
+      "needs": ["transcribe", "stt", "word-clock"],
+      "status": "conditional",
+      "cost": "AssemblyAI wallet, $310 recorded, autopay off",
+      "identity": "abacare",
+      "how": "Optional second opinion for word clocks. Azure speech word boundaries stay the clock for synthetic voices.",
+      "notes": "Do not introduce it merely because the wallet exists."
+    },
+    {
+      "id": "higgsfield",
+      "needs": ["video-generation", "hero-shot", "cinematic"],
+      "status": "frozen",
+      "cost": "315 credits recorded",
+      "identity": "personal-gmail",
+      "how": "Plugin installed. Spend only after the owner approves in the current task.",
+      "notes": "Generative video is approved hero shots only."
+    },
+    {
+      "id": "runway",
+      "needs": ["video-generation", "hero-shot", "cinematic"],
+      "status": "frozen",
+      "cost": "balance not stated",
+      "identity": "personal-gmail",
+      "how": "Plugin installed. Spend only after the owner approves in the current task.",
+      "notes": "Generative video is approved hero shots only."
+    },
+    {
+      "id": "google-vertex",
+      "needs": ["video-generation", "image", "hero-shot"],
+      "status": "frozen",
+      "cost": "Google Cloud $300 trial to 2027-02-03; restricted GenAI credit expires 2026-12-06",
+      "identity": "personal-gmail",
+      "how": "Project sh-docs-search-9863 only, with ADC, never keys, never re-link billing. Read guidance/google-cloud.md first.",
+      "notes": "Veo and Imagen are in reach but spend needs owner approval. Not for ABACare."
+    },
+    {
+      "id": "notebooklm-draft",
+      "needs": ["research", "overview", "slides-draft", "infographic-draft", "quiz", "briefing-source"],
+      "status": "ready",
+      "cost": "free tier (about 3 audio and 3 video overviews a day)",
+      "identity": "any",
+      "draftOnly": true,
+      "how": "notebooklm-py CLI with --json. Source material in, draft overview, deck or infographic out. Read skills/visuals/references/notebooklm.md.",
+      "notes": "Unofficial client of undocumented APIs, so it can break. Output is a draft to learn from, never the delivered picture or voice. Public and personal material only."
+    },
+    {
+      "id": "agent-browser-explore",
+      "needs": ["explore-page", "visual-diff", "contact-sheet"],
+      "status": "conditional",
+      "cost": "none",
+      "identity": "any",
+      "how": "Isolated session, no --profile, no --auto-connect, allowed-domains on the target. Look before scripting a take, and diff screenshots after a render.",
+      "notes": "Windows issue 2232 (a failed-logon event per Chrome launch) is not checked on the installed version. Do a single supervised launch first."
+    },
+    {
+      "id": "daytona-gpu",
+      "needs": ["self-hosted-model", "heavy-render"],
+      "status": "conditional",
+      "cost": "Daytona credit, $9,884.35 recorded",
+      "identity": "any",
+      "how": "Synthetic reproduction jobs and self-hosted models only. GPU sandboxes have been evicted within minutes.",
+      "notes": "Never put customer data in a sandbox."
+    },
+    {
+      "id": "canva-templates",
+      "needs": ["template", "social-variant", "brand-kit"],
+      "status": "conditional",
+      "cost": "Canva Business free to 2027-03-28",
+      "identity": "mahumtech",
+      "how": "Canva connector for static templates and social variants. Not a film lane.",
+      "notes": "Static pieces only."
+    },
+    {
+      "id": "webreel",
+      "needs": ["quick-gif"],
+      "status": "skipped",
+      "cost": "none",
+      "identity": "any",
+      "how": "Not used. Overlaps Playwright plus Recast without auth, hash binding or animated zoom.",
+      "notes": "Labs experiment, version 0.1.4, Windows unproven. Revisit only for a public-page GIF."
+    },
+    {
+      "id": "local-ai",
+      "needs": ["local-model"],
+      "status": "disabled",
+      "cost": "n/a",
+      "identity": "n/a",
+      "how": "Off on this PC by owner rule.",
+      "notes": "Lifting it for the RTX 5060 Ti is an open owner decision."
+    }
+  ]
+}

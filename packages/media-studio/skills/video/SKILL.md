@@ -5,7 +5,7 @@ description: Produces a finished film, screencast, explainer, ad or voiceover fr
 
 # Video
 
-From a short ask, infer kind, `programForm`, audience, voice and delivery; never make the user name skills or steps. Ask one question at most: only with no source, or an unknown destination for a product absent from `registry/product-video-delivery.json`.
+A rough ask starts with `brief` (approved written brief, picture plan, priced lanes) and `plan` (storyboard with a picture for every line) before anything below. From a short ask, infer kind, `programForm`, audience, voice and delivery; never make the user name skills or steps. Ask one question at most: only with no source, or an unknown destination for a product absent from `registry/product-video-delivery.json`.
 
 - **Kind:** a running product is `product-screencast`, whatever the ask said, after a readiness check (`references/product-picture.md`). A product change told as a story is `programForm: technical-story`. Otherwise `references/forms.md`.
 - **Intent:** `intent: viewer-facing`, `craftScoreMin` 85. `intent: draft` only for scratch or proxy cuts.
@@ -31,9 +31,9 @@ From a short ask, infer kind, `programForm`, audience, voice and delivery; never
 Copy into job notes; pass each gate before the next. A finished render proves nothing.
 
 ```text
-1. Brief: job.json, thesis, one promise (story.md)
+1. Brief: `brief` skill, approved brief.md; then job.json, thesis, one promise (story.md)
 2. Script: locked facts; validate-narration.mjs passes (story.md)
-3. Beat sheet, then storyboard, visual bible, direction (scenes.md)
+3. Beat sheet, then storyboard with a picture per line (`plan`, `visuals`), visual bible, direction (scenes.md); gates: check_picture_relevance and check_visual_variety pass
 4. Voice lock: ASR round trip passes (generate)
 5. Word clock (review)
 6. Capture or plates (capture, generate)

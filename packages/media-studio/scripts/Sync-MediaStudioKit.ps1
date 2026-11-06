@@ -53,6 +53,10 @@ if (-not $Force -and (Test-Path -LiteralPath $marketingTarget)) {
 New-Item -ItemType Directory -Force -Path (Join-Path $RuntimeKit 'src') | Out-Null
 $files = @(
     'src\Visuals.tsx',
+    'src\RichVisuals.tsx',
+    'public\lottie\check.json',
+    'public\lottie\pulse.json',
+    'public\lottie\arrow.json',
     'src\Briefing.tsx',
     'src\Root.tsx',
     'src\Composition.tsx',

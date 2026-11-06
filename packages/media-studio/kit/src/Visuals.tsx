@@ -17,6 +17,7 @@
  */
 import type { FC } from "react";
 import { Easing, Img, Interactive, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { Chart, LottieScene, SvgScene, type ChartVisual, type LottieVisual, type SvgVisual } from "./RichVisuals";
 
 const MONO = '"JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace';
 const SANS = 'Inter, "Segoe UI", system-ui, sans-serif';
@@ -66,6 +67,9 @@ export type Visual = (
   | { kind: "screen-in-context"; src: string; caption?: string }
   | { kind: "chapter"; kicker?: string; title: string }
   | { kind: "lower-third"; name: string; title?: string }
+  | ChartVisual
+  | SvgVisual
+  | LottieVisual
 ) & { revealFrom?: number };
 
 export type SeqStep = { frm: number; to: number; label: string; mark?: MarkTone };
@@ -1207,6 +1211,12 @@ export const VisualBody: FC<{
       return <ChapterCard v={visual} accent={accent} d={d} />;
     case "lower-third":
       return <LowerThird v={visual} accent={accent} d={d} />;
+    case "chart":
+      return <Chart v={visual} accent={accent} d={d} />;
+    case "svg":
+      return <SvgScene v={visual} accent={accent} d={d} />;
+    case "lottie":
+      return <LottieScene v={visual} accent={accent} />;
     default:
       return null;
   }

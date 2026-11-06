@@ -30,6 +30,10 @@ It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-25
 
 `scripts/check_picture_relevance.py <briefing-props.json> <cue-sheet.json>` exits 1 when any scene has no visual body or fewer than two content words or numbers in common with its spoken line. Titles and kickers do not count. It is the only mechanical check that the picture is about the words; frame integrity and word sync pass on a perfectly clean but irrelevant picture. It does not judge design, so also write the contact sheet (`build-contact-sheet.mjs`) and look at the frames before a picture is called good, filed or shared. Anything shown to the owner has been looked at first.
 
+## Words only
+
+`scripts/check_visual_variety.py <briefing-props.json>` exits 1 when fewer than 40% of scenes are pictures (chart, svg, lottie, flow, layers, sequence, timeline, beforeafter, map, still, broll, screen-in-context, code), more than 25% are text cards, three scenes in a row have no picture, or one kind fills over 40% of a run of five or more. It proves variety, not quality; relevance and the contact sheet still apply. Run it with `check_picture_relevance.py` before any voice or render spend.
+
 ## Pronunciation
 
 ASR cannot be its own reference. A proper noun or homophone it cannot confirm needs a verified lexicon entry or an owner listen. Otherwise report it unconfirmed and do not mark it release-eligible.

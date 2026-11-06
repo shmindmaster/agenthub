@@ -23,7 +23,7 @@ STOP = set("""a an and are as at be been but by can could did do does for from h
 just me my no not of on or our out she so than that the their them then there these they this those to up us was we were
 what when where which who why will with would you your yours am about also all any more most some such only own same too
 very how now one two once again here s t don should shall may might must let""".split())
-SKIP_KEYS = {"kind", "src", "mark", "revealFrom", "at", "lang"}
+SKIP_KEYS = {"kind", "src", "mark", "revealFrom", "at", "lang", "viewBox", "form", "unit", "max", "loop", "playbackRate"}
 
 
 def tokens(text):
@@ -38,12 +38,19 @@ def tokens(text):
     return out
 
 
+def svg_text(markup):
+    """Only the words a viewer can read in an SVG fragment: text between tags, never tag or attribute names."""
+    return " ".join(t.strip() for t in re.findall(r">([^<>]+)<", f">{markup}<") if t.strip())
+
+
 def _strings(node, skip=SKIP_KEYS):
     if isinstance(node, str):
         yield node
     elif isinstance(node, dict):
         for k, v in node.items():
-            if k not in skip:
+            if k == "svg" and isinstance(v, str):
+                yield svg_text(v)
+            elif k not in skip:
                 yield from _strings(v, skip)
     elif isinstance(node, list):
         for v in node:

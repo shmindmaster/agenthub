@@ -43,13 +43,16 @@ This package is the parent studio. Product Demo Studio remains the product-scree
 
 | Skill | Owns | Key references |
 | --- | --- | --- |
+| `brief` | Front door: turn a rough ask into an approved written brief, with what the viewer will SEE, before any script or spend | none |
+| `plan` | Beat-by-beat storyboard with the picture for every line, gates before spend, task ledger, fresh reviewer per task | none |
+| `visuals` | Choose and build the picture: charts, hand-drawn SVG, Lottie, stills, captured screens, NotebookLM drafts | `ladder.md`, `visual-bible.md`, `kit-visuals.md`, `lottie.md`, `notebooklm.md`, `browser-tools.md` |
 | `video` | Classify the job, write the script, storyboard, direct, run the pipeline | `story.md`, `forms.md`, `scenes.md`, `product-picture.md` |
 | `generate` | Azure-first voice, ASR and stills under spend controls; Deepgram as governed fallback; accepted music assets | `azure.md`, `content-controls.md`, `provider-plugins.md` |
 | `capture` | Playwright WebM + Recast | `recording.md`, `abacare-local.md` |
 | `compose` | Remotion, Recast, FFmpeg, `Finish-Media.ps1`, delivery, optional Descript finishing | `render-lanes.md`, `descript.md` |
 | `review` | Release gates, word clock, the 0-100 story-experience review (fail below 85) | `gates.md`, `word-clocks.md`, `story-review-rubric.md`, `marketing-readiness.md` |
 
-`video` is the entry point; the other four run single steps. The series and explanation schemas live in `schemas/series/` and `schemas/explanation.schema.json`.
+`brief` is the front door for any rough ask and `plan` follows it; `video` classifies and runs the pipeline; the others run single steps. `scripts/route_media.py` picks the funded lane for a need from `policy/provider-routing.json` (credits recorded in Linear, frozen lanes stay frozen). `scripts/check_visual_variety.py` fails a film that is words in boxes. The series and explanation schemas live in `schemas/series/` and `schemas/explanation.schema.json`.
 Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` require Remotion unless the user asked for a draft/basic cut. Do not vendor Remotion rules — resolve `video.programmatic-composition` to official `remotion-dev/skills`.
 
 ## Non-goals
