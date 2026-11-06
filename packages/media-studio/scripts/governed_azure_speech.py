@@ -395,8 +395,15 @@ def sdk_transport(request, credential, received, sdk=None):
     return headers, result.audio_data
 
 
+# The real SDK function. generate_manual_retake and generate() look up the
+# sdk_transport name at call time, so a test can substitute it. Preflight must
+# follow this object: under a substitute the name comparison would be true and
+# would import azure.cognitiveservices.speech before any reservation.
+_SDK_TRANSPORT = sdk_transport
+
+
 def _generate(ledger, planned, workspace, credential, send=transport):
-    if send is sdk_transport:
+    if send is _SDK_TRANSPORT:
         sdk_preflight(planned["request"], credential)
     namespace = ledger.namespace("azure-job:" + ledger.azure_authorization_hash, workspace)
     row = ledger.claim(namespace, planned["cache_key"], BUCKET, planned["maximum_usd_micros"])

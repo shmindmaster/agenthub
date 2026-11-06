@@ -25,7 +25,8 @@ def canonical_url():
 
 
 def layout(runtime, host):
-    root = Path(runtime).absolute() / "clerk" / "management"
+    runtime_root = Path(runtime).absolute()
+    root = runtime_root / "clerk" / "management"
     url = canonical_url()
     if host == "cursor":
         cwd = root / "cursor"
@@ -43,8 +44,9 @@ def layout(runtime, host):
                     base + ["mcp", "doctor", "clerk"]]
     else:
         raise ValueError("Only Cursor and Amp need this isolated management bridge")
-    return {"host": host, "cwd": str(cwd), "configPath": str(path), "config": config,
-            "commands": commands, "execution": "not-started", "oauth": "not-verified",
+    return {"host": host, "cwd": str(cwd), "runtimeRoot": str(runtime_root),
+            "configPath": str(path), "config": config, "commands": commands,
+            "execution": "not-started", "oauth": "not-verified",
             "loginBlocker": ("Amp's local mcp oauth login requires a vendor-supported client ID, "
                              "and an arbitrary ID or another host's token is not a repair. Use Amp's own "
                              "personal remote server instead: amp mcp remote check Clerk --personal. "
@@ -56,11 +58,15 @@ def layout(runtime, host):
 
 def prepare(plan):
     path = Path(plan["configPath"])
-    # Check every existing ancestor, including runtime roots; do not follow links
-    # into global settings, another owner's directory, or a credential store.
+    # Refuse a link at the runtime root or between it and the config file.
+    # Ancestors above that root are the machine's own temp and profile links
+    # (macOS /tmp, Windows profile junctions) and are not this destination.
+    boundary = Path(plan["runtimeRoot"]).absolute()
     for item in (path, *path.parents):
-        if item.is_symlink() or (hasattr(item, "is_junction") and item.is_junction()):
+        if item.exists() and (item.is_symlink() or (hasattr(item, "is_junction") and item.is_junction())):
             raise RuntimeError("Refusing linked management destination")
+        if os.path.normcase(str(item.absolute())) == os.path.normcase(str(boundary)):
+            break
     expected = plan["config"]
     if path.exists():
         if json.loads(path.read_text(encoding="utf-8-sig")) != expected:

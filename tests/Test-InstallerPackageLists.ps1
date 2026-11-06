@@ -94,7 +94,13 @@ Report 'the Warp list was proven non-empty' ($warpListed.Count -gt 0) 'no packag
 
 # Every exclusion must still be a live registry row. An exclusion left behind
 # after a capability is retired or unmapped would hide a future omission forever.
-$staleExclusions = @($WarpExcluded.Keys | Where-Object { $warpMapped -notcontains $_ })
+# linkedin is mapped only in the personal overlay. A public checkout has no
+# overlay file, so that exclusion is not a retired public row.
+$overlayPresent = Test-Path -LiteralPath (Join-Path $repoRoot 'overlays\personal\capabilities.json') -PathType Leaf
+$overlayOnlyExclusions = @('linkedin')
+$staleExclusions = @($WarpExcluded.Keys | Where-Object {
+    $warpMapped -notcontains $_ -and ($overlayPresent -or ($overlayOnlyExclusions -notcontains $_))
+})
 Report 'every Warp exclusion still names a capability the registry maps to warp' `
     ($staleExclusions.Count -eq 0) ("excluded but no longer mapped: " + ($staleExclusions -join ', '))
 

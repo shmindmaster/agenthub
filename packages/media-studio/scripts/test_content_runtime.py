@@ -864,7 +864,7 @@ class LedgerTests(unittest.TestCase):
     def test_lease_takeover_before_submission_fences_old_worker(self):
         original = self.claim(lease=.02)
         time.sleep(.04)
-        replacement = self.claim()
+        replacement = self.claim(lease=30)  # a 1s default can expire before submitted() on a slow runner
         self.assertEqual(replacement["state"], "leader")
         with self.assertRaisesRegex(RuntimeError, "lease"):
             self.ledger.submitted(original)
@@ -874,7 +874,7 @@ class LedgerTests(unittest.TestCase):
     def test_takeover_cannot_increase_reservation_or_replace_bound_receipt(self):
         original = self.claim(lease=.02)
         time.sleep(.04)
-        replacement = self.claim(maximum=9)
+        replacement = self.claim(maximum=9, lease=30)
         self.assertEqual(replacement["maximum"], 4)
         self.ledger.submitted(replacement)
         self.ledger.bind_receipt(replacement, "original-receipt")

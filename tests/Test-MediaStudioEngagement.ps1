@@ -86,7 +86,8 @@ Report 'producer pipeline ends in review of the encoded file' (
     $producer -match 'Review the encoded file'
 ) 'producer must review the encoded file'
 Report 'producer crew includes storyboard then visuals then critic' (
-    $producer -match 'storyboard, visual bible, direction' -and
+    $producer -match 'storyboard with a picture per line' -and
+    $producer -match 'visual bible, direction' -and
     $producer -match 'Review the encoded file'
 ) 'rapid path must insert storyboard, visuals, and craft critic'
 Report 'producer requires Remotion for viewer-facing briefing/training/explainer/series-episode' (
