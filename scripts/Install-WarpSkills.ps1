@@ -34,7 +34,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $packages = @(
     'packages/product', 'packages/media-studio', 'packages/brave-search', 'packages/daytona', 'packages/assemblyai',
-    'packages/railway', 'packages/descript', 'packages/exa', 'packages/notion', 'packages/firecrawl',
+    'packages/descript', 'packages/exa', 'packages/notion', 'packages/firecrawl',
     'packages/browser', 'overlays/personal/packages/sarosh'
 )
 

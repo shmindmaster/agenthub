@@ -60,11 +60,6 @@
       "source": "./packages/firecrawl"
     },
     {
-      "name": "ah-railway",
-      "displayName": "AH-Railway",
-      "source": "./packages/railway"
-    },
-    {
       "name": "ah-descript",
       "displayName": "AH-Descript",
       "source": "./packages/descript"

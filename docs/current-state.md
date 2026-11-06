@@ -1,3 +1,4 @@
+- **Railway removed (2026-11-06):** `ah-railway`, the Railway MCP server, and the official Railway plugin channels are retired. Do not register `railway` or install `railway@claude-plugins-official`. Browser capture, test, and automation for a host without its own browser is `ah-browser` (`packages/browser`, a headless wrapper around `vercel-labs/agent-browser`). Media Studio only cites that CLI before a film take. Webreel is unused.
 - **Plugin-only MCP (2026-11-04):** the sync used to write every registry server to every
   host unless marked plugin-owned, so removed entries came back. `activationPolicy.pluginOnly`
   in `registry/mcps.json` now lists fourteen coding hosts and the only direct entries allowed

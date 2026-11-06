@@ -49,7 +49,7 @@
         "repowise-workspace": "Resolved 2026-09-17. Measured: C:/Repos/.cursor/mcp.json persisted the stdio server as a workspace-open fallback and Cursor agent sessions each spawned a `repowise mcp C:/Repos` process tree (multiple hundred MB aggregate) with no plugin enable step. Correct shape matches browser-toolkit: plugin-gated .mcp.json on packages/repowise, never persisted in host or workspace MCP config. scope remains global-default for eligibility; activationMode stays on-demand-local; not in persistedOnDemandLocalMcpIds."
       },
       "notAdded": {
-        "railway": "Was on-demand-local stdio from 2026-08-19 to 2026-08-20. Moved to shared-remote https://mcp.railway.com (OAuth, no local process) on 2026-08-20 after Cursor's official plugin spawned two `railway mcp` process trees. No longer belongs in this on-demand-local coverage list."
+        "railway": "Removed from registry/mcps.json on 2026-11-06 at owner direction, including ah-railway and the official Railway plugins. It was on-demand-local stdio from 2026-08-19 to 2026-08-20, then the remote https://mcp.railway.com. Do not register it again and do not spawn railway mcp."
       },
       "nextStep": "Chrome DevTools MCP coverage question closed by owner-authorized retirement on 2026-10-24. Preserve Playwright and the other declared providers; never recreate the retired server.",
       "retired": {
@@ -60,7 +60,7 @@
     "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. The list stays empty.",
     "onDemandLocalMcpIdsNote": "Refreshed 2026-10-24. Chrome DevTools MCP is retired; do not register it. playwright is --extension attach for hosts without a native browser pane, plugin-gated and never persisted. the AgentHub slack bridge was retired with the slack capability on 2026-10-30 at owner direction. RepoWise is vendor-plugin-owned on Claude/Codex and AgentHub-plugin-owned on remaining hosts, never duplicated in host MCP configuration. appium-mobile and linkedin stay on-demand-local and unpersisted.",
     "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `ah-mobile-development@agenthub` when absent, then `claude plugin enable ah-mobile-development@agenthub`; cleanup is `claude plugin disable ah-mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add ah-mobile-development@agenthub` and `codex plugin remove ah-mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
-    "browserActivationRoute": "Codex, Cursor and Claude use their native browser surface. browser-toolkit was retired on 2026-10-30 at owner direction: no AgentHub browser plugin and no Playwright MCP lane remain. Repeatable browser regression stays in each repo's own Playwright tests; ad-hoc browser automation uses the host first-party browser surface or the agent-browser CLI. Chrome DevTools MCP is retired: never register or enable chrome-devtools or chrome-devtools-isolated.",
+    "browserActivationRoute": "Ask any host to capture, test, or automate a site. Claude Code, the Codex app, VS Code, Qoder, Antigravity, Factory, and Cline use their own browser. Every other active host uses ah-browser (packages/browser), a headless wrapper around agent-browser (vercel-labs/agent-browser) installed on Cursor, Grok, Copilot, Amp, Devin, OpenCode, and Warp. Cursor IDE has @browser, but Cursor Agent CLI does not, so Cursor keeps ah-browser. Media Studio's skills/visuals/references/browser-tools.md only cites that CLI for looking at a page before a film take; webreel is unused. browser-toolkit and the Playwright MCP lane stay retired. Chrome DevTools MCP stays retired: never register chrome-devtools or chrome-devtools-isolated. Gemini CLI stays unmapped while its license blocks the CLI.",
     "repowiseActivationRoute": "Owner migration 2026-11-03 supersedes the old vendor-plugin prohibition. Claude: repowise@repowise from repowise-dev/repowise. Codex: codex@repowise from the same vendor repository. Uninstall ah-repowise@agenthub on those hosts; never restore it as parity repair. Vendor plugins own MCP, hooks and skills; remove duplicate user hooks and MCP entries. Use the existing C:/Repos workspace. Other hosts keep the AgentHub bridge until migrated. Keep bounded indexing scripts and approved personal AgentHub plugins.",
     "optInDisabledLocalMcpIds": [],
     "optInDisabledLocalMcpIdsNote": "On-demand-local stdio servers that hosts with an enabled=false switch may write into config without starting them. OpenCode is the verified writer (opencode.ai/docs/mcp-servers). Claude/Codex/Grok still suppress these from host MCP config and use plugin enable/disable instead. A host without an enabled=false switch must not be added here.",
@@ -338,8 +338,7 @@
           "exa",
           "firecrawl",
           "linear",
-          "notion",
-          "railway"
+          "notion"
         ],
         "shared-gateway": [],
         "local-only": []
@@ -1079,64 +1078,6 @@
             "scope": "blocked: no documented local global-rule file; do not launch another coding host"
           }
         }
-      },
-      {
-        "extensionId": "railway",
-        "kind": "plugin",
-        "provenance": "official-upstream",
-        "maturity": "stable",
-        "upstream": "https://github.com/railwayapp/railway-skills",
-        "maintainer": "Railway",
-        "license": "MIT",
-        "capabilityKind": "skills-and-mcp",
-        "declaresMcpServers": true,
-        "required": false,
-        "provides": [
-          "deploy.railway"
-        ],
-        "install": {
-          "command": "railway setup agent",
-          "docs": "https://docs.railway.com/ai/agent-skills"
-        },
-        "note": "AgentHub previously vendored use-railway as managed-loose-skills and would have downgraded hosts from 1.3.7 to 1.3.6 on the next Apply. That package is gone. Keep the fleet remote MCP at https://mcp.railway.com; do not spawn railway mcp stdio.",
-        "observedAt": "2026-08-24",
-        "hostChannels": [
-          {
-            "hostId": "claude",
-            "channel": "claude-plugins-official",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "/plugin install railway@claude-plugins-official"
-          },
-          {
-            "hostId": "codex",
-            "channel": "openai-curated-remote",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "Codex app -> Plugins -> Railway"
-          },
-          {
-            "hostId": "cursor",
-            "channel": "cursor-public",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "/add-plugin railway"
-          },
-          {
-            "hostId": "grok",
-            "channel": "xai-plugin-marketplace",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "grok -> /plugins -> Marketplace -> railway"
-          },
-          {
-            "hostId": "cline",
-            "channel": null,
-            "installedVersion": null,
-            "current": false,
-            "note": "No verified Cline-native Railway plugin; railway setup agent covers documented agent targets."
-          }
-        ]
       },
       {
         "extensionId": "framer-agent",

@@ -84,7 +84,7 @@ Report 'remotion is tracked as an official skills-package extension' ($ids -cont
 Report 'firecrawl official catalog is tracked rather than republished' ($ids -contains 'firecrawl') 'firecrawl missing'
 Report 'coderabbit official catalog is tracked rather than republished' ($ids -contains 'coderabbit') 'coderabbit missing'
 Report 'clerk-skills official catalog is tracked rather than republished' ($ids -contains 'clerk-skills') 'clerk-skills missing'
-Report 'railway official plugin is tracked rather than vendored' ($ids -contains 'railway') 'railway missing'
+Report 'railway is neither tracked nor vendored' ($ids -notcontains 'railway') 'railway is still a tracked extension; owner removed it 2026-11-06'
 Report 'framer-agent official installer is tracked rather than vendored' ($ids -contains 'framer-agent') 'framer-agent missing'
 
 $remotion = @($extensions | Where-Object { $_.extensionId -eq 'remotion' })[0]

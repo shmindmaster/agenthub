@@ -1697,65 +1697,6 @@
       "kind": "provider",
       "maturity": "beta",
       "provenance": "agenthub-owned"
-    },
-    {
-      "id": "railway",
-      "owner": "packages/railway",
-      "capabilityType": "plugin+mcp+skills",
-      "canonicalSource": "packages/railway",
-      "managedSkillNames": [
-        "deploy"
-      ],
-      "contentHash": "F75F62CE08269E2DBFA55049969D14919EC669FC73504B61469872F838087947",
-      "hashBasis": "packages/railway",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "dependencies": {
-        "requires": [],
-        "recommends": [],
-        "optional": []
-      },
-      "notes": "Thin wrapper around Railway's hosted MCP server, with no hooks. railway@claude-plugins-official carries an auto-approve hook, so hosts that only have that route use this instead (owner direction 2026-11-04).",
-      "kind": "provider",
-      "maturity": "beta",
-      "provenance": "agenthub-owned"
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",

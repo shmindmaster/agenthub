@@ -8,13 +8,13 @@ Native-browser hosts do not get `ah-browser`; it serves the hosts listed as "Use
 
 ## Native first, no direct MCP
 
-Every coding host gets a capability from the first of these that exists: its own official marketplace, its official community marketplace, the vendor's plugin in a catalog the host can load, then an `ah-*` plugin. `ah-railway`, `ah-descript`, `ah-exa`, `ah-notion`, `ah-firecrawl` and `ah-aws` are thin wrappers for that last step: one skill, one server, no hooks.
+Every coding host gets a capability from the first of these that exists: its own official marketplace, its official community marketplace, the vendor's plugin in a catalog the host can load, then an `ah-*` plugin. `ah-descript`, `ah-exa`, `ah-notion`, `ah-firecrawl` and `ah-aws` are thin wrappers for that last step: one skill, one server, no hooks. Railway was removed on 2026-11-06: do not install `ah-railway` or any official Railway plugin.
 
 `activationPolicy.pluginOnly` in `registry/mcps.json` lists each plugin-only host and the only direct entries allowed there, each with a reason. The sync writes nothing else to those hosts and removes any registry server already there. `pluginOwnersByHost` on each server records which plugin carries it. To add a server, give it an owner on every host, or a reason in `pluginOnly` for the hosts that cannot have one. `tests/Test-PluginOnlyMcp.ps1` fails on any other direct entry, and on anything in the shared `~/.agents/skills` folder.
 
 Two hosts keep remote entries on purpose. Cline CLI can load `ah-*` servers, but the VS Code extension reads only `cline_mcp_settings.json`, so its official MCP Marketplace entries stay. OpenCode has no plugin catalog for those servers, and a remote entry is its documented route.
 
-Do not install `railway@claude-plugins-official` (a hook auto-approves Railway calls), or `aws-core` or `aws-data-analytics` (they run the proxy with `--skip-auth` and no profile).
+Do not install `aws-core` or `aws-data-analytics` (they run the proxy with `--skip-auth` and no profile).
 
 ## Per host
 

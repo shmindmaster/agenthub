@@ -21,7 +21,6 @@ PACKAGES = {
     "ah-assemblyai": "packages/assemblyai",
     "ah-brave-search": "packages/brave-search",
     "ah-daytona": "packages/daytona",
-    "ah-railway": "packages/railway",
     "ah-descript": "packages/descript",
     "ah-exa": "packages/exa",
     "ah-notion": "packages/notion",

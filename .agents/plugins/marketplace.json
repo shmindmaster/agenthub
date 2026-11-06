@@ -113,18 +113,6 @@
       "category": "Developer Tools"
     },
     {
-      "name": "ah-railway",
-      "source": {
-        "source": "local",
-        "path": "./packages/railway"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools"
-    },
-    {
       "name": "ah-descript",
       "source": {
         "source": "local",
