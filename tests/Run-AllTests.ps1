@@ -37,6 +37,25 @@ $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $testsDir = Join-Path $repoRoot 'tests'
 $packagesDir = Join-Path $repoRoot 'packages'
 $hostExe = (Get-Process -Id $PID).Path
+$hostMajor = [int]$PSVersionTable.PSVersion.Major
+
+# This suite documents both `pwsh -File tests/Run-AllTests.ps1` and
+# `powershell.exe -File tests/Run-AllTests.ps1`, yet it launched every test in the
+# interpreter already running the suite. Measured 2026-11-05: under Windows
+# PowerShell the five tests declaring `#Requires -Version 7` aborted with
+# ResourceUnavailable and were counted as failures, not as unsupported, so the
+# second documented invocation could never be green. A test is redirected only when
+# its own declaration cannot be met here; everything else runs exactly as before.
+function Resolve-TestExecutable([string]$Path) {
+    $firstLine = ''
+    try { $firstLine = [IO.File]::ReadAllLines($Path)[0] } catch { return $hostExe }
+    $declared = [regex]::Match($firstLine, '#Requires\s+-Version\s+(\d+)')
+    if (-not $declared.Success) { return $hostExe }
+    if ([int]$declared.Groups[1].Value -le $hostMajor) { return $hostExe }
+    $pwsh = Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($pwsh) { return [string]$pwsh.Source }
+    return $hostExe
+}
 
 $testFiles = @(
     Get-ChildItem -LiteralPath $testsDir -File -Filter 'Test-*.ps1' |
@@ -108,7 +127,7 @@ foreach ($file in $allFiles) {
         if ($file -like '*.test.mjs') {
             $output = & node --test $file 2>&1 | Out-String
         } else {
-            $output = & $hostExe -NoProfile -File $file 2>&1 | Out-String
+            $output = & (Resolve-TestExecutable $file) -NoProfile -File $file 2>&1 | Out-String
         }
     } finally {
         $ErrorActionPreference = $previousEap
