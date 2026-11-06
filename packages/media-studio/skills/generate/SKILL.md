@@ -23,7 +23,7 @@ Paid speech runs only through a governed adapter. A connector, SDK sample or raw
 
 ## Voice
 
-Cast one distinct, expressive voice per character, and honour each beat's `direction.register` with a style the voice supports. No Sarosh voice clone: the adapter's owner manifest is the only exception, and it exists per job, never by default. Every line passes the take loop; re-render a failure on the next tier. Speaker similarity is advisory; never fail, block or re-voice on it. Pauses are edit silence, not padded TTS. Never estimate word timing.
+Cast one distinct, expressive voice per character, and honour each beat's `direction.register` with a style the voice supports. The only speech lanes are governed Azure and, when that job's owner manifest names the voice, ElevenLabs. Windows Narrator, SAPI, System.Speech, OneCore (David, Zira, Mark, Eva), edge-tts, espeak, say, and HeyGen stock voices are forbidden for a delivery, a rehearsal, a draft and an audition. If neither governed route can run, deliver the cut silent with the lines on screen. Never substitute a robotic voice. No Sarosh voice clone: the adapter's owner manifest is the only exception, and it exists per job, never by default. Every line passes the take loop; re-render a failure on the next tier. Speaker similarity is advisory; never fail, block or re-voice on it. Pauses are edit silence, not padded TTS. Never estimate word timing.
 
 ## Music and pictures
 

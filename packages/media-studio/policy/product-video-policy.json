@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "media-studio",
-  "capabilityVersion": "2.4.2",
+  "capabilityVersion": "2.4.3",
   "canonicalOwner": "personal-media",
   "toolRouting": {
     "productReadiness": "product:demo",
@@ -13,7 +13,7 @@
     "experimentalComposition": "playwright-recast@0.21.0",
     "exceptionalComposition": "remotion:remotion-best-practices",
     "ownerVoiceProvider": "azure-ai-speech",
-    "ownerVoiceRoute": "scripts/governed_azure_speech.py (Azure Speech voice cast; Deepgram governed fallback; ElevenLabs scripts/elevenlabs_cli.py only for a job whose immutable owner manifest names the voice and workspace; no Sarosh voice clone in films by default)",
+    "ownerVoiceRoute": "scripts/governed_azure_speech.py (Azure Speech voice cast; Deepgram governed fallback; ElevenLabs scripts/elevenlabs_cli.py only for a job whose immutable owner manifest names the voice and workspace; no Sarosh voice clone in films by default; Windows Narrator, SAPI, System.Speech and OneCore voices are forbidden)",
     "ownerVoiceAdvisoryScore": null,
     "audioPerceptionRoute": "Azure STT ASR check (fast transcription, or kit/cloud/cloud-ai.mjs align coverage) of the exact encoded candidate against the authored script",
     "elevenLabsProvider": "elevenlabs",

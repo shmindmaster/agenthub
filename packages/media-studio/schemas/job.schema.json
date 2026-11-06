@@ -96,7 +96,7 @@
     "durationSeconds": { "type": "number", "minimum": 1 },
     "voice": {
       "type": "string",
-      "description": "Program narrator voice: an Azure Speech voice name from the generate skill voice cast (for example en-US-AriaNeural or en-US-Ava:DragonHDLatestNeural). No Sarosh voice clone in films. Historical jobs may carry a retired local voice id (sarosh, role-*, narrator-*); they stay read-only evidence."
+      "description": "Program narrator voice: an Azure Speech voice name from the generate skill voice cast (for example en-US-AriaNeural or en-US-Ava:DragonHDLatestNeural). No Sarosh voice clone in films. Windows Narrator, SAPI, System.Speech and OneCore voices are forbidden. Historical jobs may carry a retired local voice id (sarosh, role-*, narrator-*); they stay read-only evidence."
     },
     "workspace": {
       "type": "string",

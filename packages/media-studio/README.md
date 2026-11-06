@@ -61,7 +61,7 @@ Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` require 
 
 - Do not convert Product Demo Studio into a general filmmaking engine.
 - Do not centralize credentials, customer data, or private evidence here.
-- Do not start local models, TTS/STT servers or embedders: Local AI is off. Hosted providers only, through the governed adapters.
+- Do not start local models, TTS/STT servers or embedders: Local AI is off. Hosted providers only, through the governed adapters. Never use Windows Narrator, SAPI, System.Speech or any other desktop voice.
 
 Governed Sienna TTS: scripts/deepgram_cli.py quotes by default; explicit execution requires intact shared accounting or an independently reviewed owner-authorized bounded epoch. See skills/generate/references/content-controls.md. Offline tests: python -m unittest discover -s scripts -p test_governed_deepgram.py. No provider calls are required for tests.
 

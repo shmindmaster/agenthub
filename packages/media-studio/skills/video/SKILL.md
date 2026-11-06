@@ -9,7 +9,7 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 
 - **Kind:** a running product is `product-screencast`, whatever the ask said, after a readiness check (`references/product-picture.md`). A product change told as a story is `programForm: technical-story`. Otherwise `references/forms.md`.
 - **Intent:** `intent: viewer-facing`, `craftScoreMin` 85. `intent: draft` only for scratch or proxy cuts.
-- **Voice:** a distinct, expressive Azure voice per character (`generate`).
+- **Voice:** a distinct, expressive Azure voice per character (`generate`). Never a Windows Narrator, SAPI, OneCore or HeyGen stock voice, including for a rehearsal or a draft. If the governed route cannot run, the cut stays silent and the lines go on screen.
 - **Picture:** a viewer-facing R kind (`references/forms.md`) requires Remotion; without it, stop; static slides are no fallback. `intent: draft` is exempt from the render only, never from the picture work: show the topics, figures, dates and documents the lines name, run `scripts/check_picture_relevance.py` before rendering, and look at the contact sheet before calling a picture good or filing it. A film about someone's own call or meeting is judged on exactly this.
 - **Style:** cinematic storytelling: hook, stakes, characters, tension, payoff.
 
@@ -18,7 +18,7 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 **Hard repository boundary.** Treat every product repository as read-only. Before the first write, record `repositoryWritePolicy: read-only` and an absolute external workspace in `job.json`. Never create or change video code, Playwright specs, Remotion compositions, dependencies, configuration, fixtures, assets, evidence, media or Git state there, not even "one small helper". Product changes return as readiness feedback. No external workspace possible: stop with `PIPELINE_BLOCKED`.
 
 - Real user data on a live product: stop with `PIPELINE_BLOCKED`.
-- Azure first, cheapest option that passes QA. Local AI is off: never start local models, TTS, STT or embedders.
+- Azure first, cheapest option that passes QA. Local AI is off: never start local models, TTS, STT or embedders. Never use a Windows or other desktop voice.
 - No Sarosh voice clone. Speaker similarity is advisory; never fail or re-voice on it.
 - Reuse accepted assets. Repair order: recut, recapture, rewrite.
 - Screencasts are real captured WebM plus Recast. Never Ken Burns, auto-cards or animated screenshots, even when a clip is missing.

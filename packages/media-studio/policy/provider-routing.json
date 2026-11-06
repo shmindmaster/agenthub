@@ -1,11 +1,12 @@
 {
   "schema": "media-studio/provider-routing/1",
-  "revision": "provider-routing-2026-11-06-1",
+  "revision": "provider-routing-2026-11-06-2",
   "asOf": "2026-11-06",
   "basis": "Balances and plan states are as recorded in the Linear credits ledger on 2026-11-04 to 2026-11-06. Not re-verified in any vendor console. Re-check a balance before a paid run that depends on it.",
   "rules": [
     "Credits are a temporary subsidy, not permission to raise spending caps.",
-    "Cheapest lane that passes QA wins. A free lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid lane for the same need.",
+    "Cheapest lane that passes QA wins for a picture. A free picture lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid picture lane. Voice has no free lane.",
+    "Narration, dialogue, rehearsal, draft and audition speech use only governed Azure speech, or ElevenLabs when that job's owner manifest names the voice. Windows Narrator, SAPI, System.Speech, OneCore voices (David, Zira, Mark, Eva and the rest), edge-tts, espeak, say, and HeyGen stock voices are forbidden. If those governed routes cannot run, deliver the cut silent with the lines on screen.",
     "Azure first (MahumTech resource mt-foundary-resource). Other providers are fallbacks or specialist lanes.",
     "ElevenLabs only through governed_elevenlabs.py. Speech only. No voice clone of the owner.",
     "Higgsfield, Runway and Google Vertex spend stays frozen until the owner approves it in the current task. The funded generative-video lane is IrukaDark (approved hero shots only).",
@@ -60,7 +61,16 @@
       "cost": "Azure credit ($673.77 of $700 left on 2026-11-03, expires 2027-10-17; a separate $281 legacy credit expires 2026-11-12)",
       "identity": "mahumtech",
       "how": "scripts/governed_azure_speech.py with an authorization manifest and ledger. Pin names through pronunciation_lexicon.json first.",
-      "notes": "Distinct expressive voice per character."
+      "notes": "Distinct expressive voice per character. Never a desktop or stock voice."
+    },
+    {
+      "id": "windows-narrator",
+      "needs": ["voice", "narration", "dialogue", "audio"],
+      "status": "disabled",
+      "cost": "forbidden",
+      "identity": "any",
+      "how": "Do not call it. Windows Narrator, SAPI, System.Speech and OneCore voices are removed from the owner machine and forbidden in every film.",
+      "notes": "David, Zira, Mark and Eva are not a lane. A rehearsal uses governed Azure speech, or ElevenLabs only when that job's owner manifest names the voice. HeyGen stock voices are not speech. If neither governed route can run, deliver the cut silent with the lines on screen."
     },
     {
       "id": "azure-image",
@@ -77,7 +87,7 @@
       "status": "conditional",
       "cost": "Creator plan, about 116,400 characters left, resets 2026-11-13",
       "identity": "mahumtech",
-      "how": "scripts/governed_elevenlabs.py only. Rehearsal audio and distinct character voices where Azure does not fit.",
+      "how": "scripts/governed_elevenlabs.py only. Distinct character voices where Azure does not fit. A rehearsal uses this same path, never a desktop voice.",
       "notes": "Music and sound effects are disabled in media-studio. Startup grant is requested, not granted."
     },
     {

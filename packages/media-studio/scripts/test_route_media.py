@@ -74,6 +74,18 @@ class Routing(unittest.TestCase):
         self.assertNotIn("assemblyai-stt", stt)
         self.assertIn("assemblyai-stt", [l["id"] for l in r.route(POLICY, ["word-clock"], identity="abacare")])
 
+    def test_voice_has_no_desktop_or_free_lane(self):
+        usable = [l["id"] for l in r.route(POLICY, ["voice"])]
+        self.assertEqual(usable, ["azure-speech", "elevenlabs-speech"])
+        self.assertTrue(all(not r.is_free(l) for l in r.route(POLICY, ["narration"])))
+        desk = next(l for l in r.route(POLICY, ["voice"], include_blocked=True) if l["id"] == "windows-narrator")
+        self.assertEqual(desk["status"], "disabled")
+        self.assertNotIn("windows-narrator", usable)
+        rules = " ".join(POLICY["rules"])
+        self.assertIn("Voice has no free lane", rules)
+        self.assertIn("Windows Narrator", rules)
+        self.assertIn("silent", rules)
+
     def test_image_generation_video_lanes_stay_frozen(self):
         for lane_id in ("higgsfield", "runway"):
             self.assertEqual(next(l for l in POLICY["lanes"] if l["id"] == lane_id)["status"], "frozen")

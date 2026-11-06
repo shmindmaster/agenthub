@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-media-studio",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "Creative studio for all video and audio. Infer the form from the ask: briefings, training, explainers, talking-heads, animation, and live-product screencasts. Writer, storyboard, art direction, director, Azure generate, Remotion archetype kit, Playwright/Recast capture, craft critic.",
   "license": "MIT",
   "keywords": [

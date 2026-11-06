@@ -43,7 +43,7 @@ STT must call `/openai/deployments/{name}/audio/transcriptions?api-version=2025-
 
 ## Speech adapter
 
-`scripts/governed_azure_speech.py` is a module with no CLI. Read `scripts/governed_azure_speech.md` first. Call `quote()`, then `generate(..., use_sdk=True)`, with 1 to 6,000 characters and only these voices:
+`scripts/governed_azure_speech.py` is the only narration path in this plugin. Windows Narrator, SAPI, System.Speech, OneCore (David, Zira, Mark, Eva) and any other desktop voice are forbidden, including for a rehearsal or a draft. If this adapter cannot run, deliver the cut silent with the lines on screen. Read `scripts/governed_azure_speech.md` first. Call `quote()`, then `generate(..., use_sdk=True)`, with 1 to 6,000 characters and only these voices:
 
 - `en-US-Ava:DragonHDLatestNeural`, `en-US-Andrew:DragonHDLatestNeural`, no style.
 - `en-US-JennyNeural` and `en-US-GuyNeural` with `friendly`, `en-US-AriaNeural` with `narration-professional`.
