@@ -4,7 +4,7 @@ Use the host's own tool when the row says native. Otherwise use `scripts/browse.
 
 | Host | Native browser | Use |
 |---|---|---|
-| Claude Code | Claude in Chrome (your real Chrome, signed in) and the desktop browser pane | Native |
+| Claude Code, Claude Desktop, Cowork | Plan browser while that tool answers. A third-party gateway session has none. | Native when it answers; otherwise the client |
 | Codex app | `@Browser`, `@Chrome`, Computer Use | Native; the Codex CLI is unreliable, use the client |
 | Cursor IDE | `@browser` | Native; Cursor Agent CLI has none, use the client |
 | VS Code (Copilot chat) | Integrated browser tools | Native |

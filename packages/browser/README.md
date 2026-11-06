@@ -1,6 +1,6 @@
 # AH-Browser plugin
 
-Drive a hidden browser to automate a website task or test a web app as a user would. For hosts whose own browser is weak or missing (Grok, Copilot CLI, Amp, Cline, Devin and the other CLIs). Hosts with a high-fidelity native browser use that instead; `skills/automate/references/hosts.md` lists which.
+Drive a hidden browser to automate a website, capture a page, or test a web app as a user would. This is the browser for hosts with no browser of their own, and for Claude Code, Claude Desktop, and Cowork when a third-party gateway has removed the plan browser. A host whose native browser answers uses that. `skills/automate/references/hosts.md` lists which.
 
 ## Contents
 

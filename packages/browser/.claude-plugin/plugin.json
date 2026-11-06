@@ -1,7 +1,7 @@
 {
   "name": "ah-browser",
   "displayName": "AH-Browser",
-  "description": "Drive a hidden browser to automate a website task or test a web app as a user would, on hosts without a high-fidelity browser of their own. Wraps agent-browser with fleet defaults; installs nothing and stores no key.",
+  "description": "Drive a hidden browser to automate, capture, or test a site. Used by hosts with no browser of their own, and by Claude Code, Claude Desktop, and Cowork when a third-party gateway removes the plan browser. Wraps agent-browser with fleet defaults; installs nothing and stores no key.",
   "author": {
     "name": "MahumTech"
   },
@@ -14,5 +14,5 @@
     "headless"
   ],
   "skills": "./skills/",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

@@ -7,23 +7,27 @@ description: "Drives a hidden browser to finish a task on a website or test a we
 
 ## 1. Choose the browser
 
-If this host has a high-fidelity browser tool of its own, use it: Claude in Chrome or the Claude browser pane, Codex `@Browser`, Cursor `@browser`, the VS Code integrated browser, Qoder Browser Agent, Antigravity Browser Subagent, or droid-control. Otherwise use the bundled client below. `references/hosts.md` lists what each host has.
+Use the browser tool this session can actually call.
+
+Claude in Chrome, the Claude browser pane, Codex `@Browser`, Cursor `@browser`, the VS Code integrated browser, Qoder Browser Agent, Antigravity Browser Subagent, and droid-control are the native tools. Call one only when it is present in this session and it answers.
+
+Claude Code, Claude Desktop, and Cowork have no plan browser on a third-party gateway, including Runware. When the native tool is absent or says the browser is unavailable, use the client below. Every other host uses the client. `references/hosts.md` lists the default for each host.
 
 ## 2. Drive it
 
 Run every command through the wrapper. It names your session, hides the window, caps output and exits idle browsers.
 
 ```bash
-node scripts/browse.mjs doctor                      # first use: confirms the engine and Chrome
-node scripts/browse.mjs open <url>
-node scripts/browse.mjs snapshot -i                 # interactive elements, each with an @eN ref
-node scripts/browse.mjs click @e3
-node scripts/browse.mjs fill @e2 "text"
-node scripts/browse.mjs snapshot -i                 # refs go stale after navigation; look again
-node scripts/browse.mjs close                       # always finish with this
+node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" doctor
+node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" open <url>
+node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" snapshot -i
+node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" click @e3
+node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" fill @e2 "text"
+node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" snapshot -i
+node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" close
 ```
 
-Other commands: `press`, `select`, `check`, `upload`, `wait`, `screenshot <path>`, `console`, `network requests`, `set viewport <w> <h>`, `set device <name>`, `set media dark`, `find role button click --name "Save"`, `get text @e1`, `record start`. For any command or flag not listed, run `node scripts/browse.mjs skills get core --full`; that guide always matches the installed version.
+`CLAUDE_SKILL_DIR` is filled in when this skill loads. Use that path. Do not call `agent-browser` directly and do not pipe it. Other commands: `press`, `select`, `check`, `upload`, `wait`, `screenshot <path>`, `console`, `network requests`, `set viewport <w> <h>`, `set device <name>`, `set media dark`, `find role button click --name "Save"`, `get text @e1`, `record start`. For any command or flag not listed, run `node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" skills get core --full`.
 
 ## 3. Rules
 
@@ -32,7 +36,7 @@ Other commands: `press`, `select`, `check`, `upload`, `wait`, `screenshot <path>
 3. Do not ask for a visible window. The wrapper refuses `--headed`.
 4. Never type a password the user pasted into chat. Sign in with `auth save` (an encrypted vault the model cannot read) or, only when asked, `--profile <name>`, which copies a Chrome profile and needs Chrome closed.
 5. Save screenshots and recordings outside the repository unless the user names a place.
-6. If `doctor` says the engine is missing, tell the user the install command it prints. Do not install it yourself.
+6. If `doctor` says the engine is missing on Windows or macOS, tell the user the install command it prints. Do not install it yourself there. A Cowork Linux VM cannot see the Windows install. In that VM, run the install command it prints, then run `doctor` again.
 7. A step is done only when a snapshot, screenshot or `get` shows the result. Report what you saw, not what you clicked.
 
 ## 4. Reference files

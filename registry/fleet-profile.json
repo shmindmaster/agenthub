@@ -676,7 +676,7 @@
           "mobile.ios.simulated": null
         },
         "capabilityEvidence": {
-          "browser.isolated": "Measured live 2026-08-04: the in-app Browser pane opened and navigated. The isolated pane is independent of Claude in Chrome.",
+          "browser.isolated": "Measured live 2026-08-04: the in-app Browser pane opened and navigated. The isolated pane is independent of Claude in Chrome. Owner direction 2026-11-06: a third-party gateway session has no plan browser, so Claude Code, Desktop, and Cowork use ah-browser for that session. The August pane was not re-measured.",
           "computer.gui": "Available, with documented tier limits: browsers are read-only and terminals/IDEs reject typing, so it cannot substitute for either browser capability. 2026-08-04 live measurement; not re-probed 2026-09-02."
         },
         "capabilityNotEstablished": {
@@ -684,8 +684,8 @@
           "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. This surface reaches the mobile lab through the appium-mobile MCP, which is a provider in registry/mcps.json rather than a first-party surface capability; a true here would claim the surface offers Android device control itself, and that was never established.",
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. Same reason as mobile.android.local, and the iOS half is additionally a remote client to the VMware macOS guest rather than anything this surface provides."
         },
-        "verifiedOn": "2026-09-02",
-        "verification": "browser.isolated remains the 2026-08-04 live in-app pane measurement. browser.authenticated demoted from false to null: Claude in Chrome is installed on Chrome Default as of 2026-09-02, but a connected session was not re-measured. computer.gui remains the 2026-08-04 measurement with documented tier limits."
+        "verifiedOn": "2026-11-06",
+        "verification": "browser.isolated remains the 2026-08-04 live in-app pane measurement. On 2026-11-06 the owner directed that gateway sessions have no plan browser and use ah-browser; that pane was not re-opened. browser.authenticated stays null: Claude in Chrome is installed on Chrome Default as of 2026-09-02, but a connected session was not re-measured. computer.gui remains the 2026-08-04 measurement with documented tier limits."
       },
       {
         "hostId": "cursor",

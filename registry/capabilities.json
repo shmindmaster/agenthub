@@ -1324,10 +1324,17 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "D17F6EA3AD9BD27258BB8932DC86D1D6DF0FA6C9D572BC278D7EBC06BB1C16EE",
+      "contentHash": "4924CFF52C71A21C3F2BE5B875F278B031F366B78198D947C1C2868B71EC15B1",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        },
         {
           "hostId": "cursor",
           "deploymentStatus": "native-local-plugin",
@@ -1383,11 +1390,11 @@
         "recommends": [],
         "optional": []
       },
-      "notes": "One skill and a wrapper (skills/automate/scripts/browse.mjs) around agent-browser (vercel-labs, Apache-2.0), the default engine for hosts without a high-fidelity browser of their own; hosts with one use it instead. The wrapper names a session per directory, refuses a visible window, caps output and captures output through files because the engine's daemon holds a shell pipe open. It installs nothing; doctor prints the install command. No MCP server. Playwright CLI is the documented second engine.",
+      "notes": "One skill and a wrapper (skills/automate/scripts/browse.mjs) around agent-browser (vercel-labs, Apache-2.0). Default engine for hosts without a browser of their own, and for Claude Code, Claude Desktop, and Cowork when a third-party gateway removes the plan browser. A session whose native browser answers uses that. The wrapper names a session per directory, refuses a visible window, caps output and captures output through files because the engine's daemon holds a shell pipe open. It installs nothing; doctor prints the install command. No MCP server. Webreel is unused. Playwright CLI is the documented second engine.",
       "kind": "tool",
       "maturity": "beta",
       "provenance": "agenthub-owned",
-      "hostMappingsNote": "skills/automate/references/hosts.md is the authority on which hosts use their own browser and which need this wrapper. Claude Code, the Codex app, VS Code, Qoder, Antigravity, Factory and Cline have a high-fidelity browser or a native browser extension and are deliberately unmapped; owner direction 2026-11-05 confirmed Claude and Codex need nothing further. Cursor is mapped because Cursor IDE has @browser while the Cursor Agent CLI has none. Grok, Copilot, Amp and Devin are mapped because that table records no usable native browser there, and each carries its own install: Copilot loads this repository live, and Grok cannot inherit one from Claude, so it holds a local install of its own. OpenCode and Warp receive the skill as a junction from scripts/Install-WarpSkills.ps1 rather than a plugin, which is why their status is managed-loose-skills. Gemini CLI is unmapped even though that table says it needs the wrapper: dispatchPolicy.gemini is disabled with loginPending true, so the CLI cannot run agent work and a wrapper there would be unreachable. Map it once its Google OAuth is completed. Verified 2026-11-05 by reading the automate skill back from every mapped host's own path."
+      "hostMappingsNote": "skills/automate/references/hosts.md is the authority on which hosts use their own browser and which need this wrapper. Owner direction 2026-11-06: Claude Code, Claude Desktop, and Cowork install ah-browser because a third-party gateway removes the plan browser. The Codex app, VS Code, Qoder, Antigravity, Factory and Cline keep their own browser and stay unmapped. The 2026-11-05 note that Claude needed nothing further applied only while the plan browser was the session browser. Cursor is mapped because Cursor IDE has @browser while the Cursor Agent CLI has none. Grok, Copilot, Amp and Devin are mapped because that table records no usable native browser there, and each carries its own install: Copilot loads this repository live, and Grok cannot inherit one from Claude, so it holds a local install of its own. OpenCode and Warp receive the skill as a junction from scripts/Install-WarpSkills.ps1 rather than a plugin, which is why their status is managed-loose-skills. Gemini CLI is unmapped even though that table says it needs the wrapper: dispatchPolicy.gemini is disabled with loginPending true, so the CLI cannot run agent work and a wrapper there would be unreachable. Map it once its Google OAuth is completed. Verified 2026-11-05 by reading the automate skill back from every mapped host's own path."
     },
     {
       "id": "firecrawl",
