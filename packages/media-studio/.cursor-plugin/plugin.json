@@ -14,7 +14,9 @@
     "training",
     "remotion",
     "screenplay",
-    "director"
+    "director",
+    "explainer",
+    "lottie"
   ],
   "skills": "./skills/",
   "version": "2.2.0"

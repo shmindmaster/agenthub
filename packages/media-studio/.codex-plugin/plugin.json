@@ -13,7 +13,9 @@
     "training",
     "remotion",
     "screenplay",
-    "director"
+    "director",
+    "explainer",
+    "lottie"
   ],
   "skills": "./skills/",
   "interface": {
