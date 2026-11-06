@@ -94,12 +94,12 @@
       "mode": "browser",
       "needs": ["video-generation", "hero-shot", "cinematic", "image", "still", "photo", "illustration", "audio-generation", "screenplay-draft"],
       "status": "conditional",
-      "cost": "IrukaDark credit, 12,800 credits read from Settings > Plans & Billing on 2026-11-06 (the F6S 10k code is already redeemed, plan label still Free). A 5 s 720p Seedance 2.5 clip with audio costs 232 credits, so about 55 clips.",
+      "cost": "IrukaDark credit, 12,568 credits left after one test clip (12,800 read from Settings > Plans & Billing on 2026-11-06; the F6S 10k code is already redeemed, plan label still Free). A 5 s 720p Seedance 2.5 clip with audio costs 232 credits, so about 54 more clips.",
       "identity": "any",
       "creditsPerClip": 232,
       "clipSeconds": 5,
       "how": "Driven by hand through the signed-in Chrome (Claude in Chrome), never an API: nothing in the app exposes one. Pages: https://irukadark.com/ai/video (Seedance 2.5, 5s, 16:9, 720p, audio on), https://irukadark.com/ai/image, and the Audio and Screenplay entries in the sidebar. Write the prompt from the scene's visual.prompt, generate one clip, look at it, then download it into <jobRoot>/assets/clips/ (ask before each download) and set visual.src. Append the credits spent to qa/spend-ledger.jsonl. Read skills/generate/references/irukadark.md.",
-      "notes": "The credit sits on the abacare.ai Google login; the owner picks the entity per film, so name it in the quote and never stop on it. A free-plan balance can change without notice, so read the credit counter again before a run of clips. Approved hero shots only, one shot at a time, never a bulk run. Output is a generated clip: no real people, no logos, no claims about a real product. Quality is untested until the first clip is judged against a contact sheet, so the lane is conditional, not ready."
+      "notes": "The credit sits on the abacare.ai Google login; the owner picks the entity per film, so name it in the quote and never stop on it. A free-plan balance can change without notice, so read the credit counter again before a run of clips. Approved hero shots only, one shot at a time, never a bulk run. Output is a generated clip: no real people, no logos, no claims about a real product. Verified by one real clip on 2026-11-06: 232 credits charged exactly (12,800 to 12,568), about 4 minutes to render, a 5 s 720p clip of a truck at a dawn dock with the prompt followed. Only the thumbnail frame was inspected, not a playback, and the file was not downloaded, so judge motion and audio on the downloaded file before accepting any clip. It stays conditional because it is by hand and slow."
     },
     {
       "id": "runware-video",

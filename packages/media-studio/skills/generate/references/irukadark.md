@@ -5,8 +5,8 @@ IrukaDark (https://irukadark.com) is a web creative suite signed in through the 
 ## What was measured on 2026-11-06
 
 - Settings > Plans & Billing showed 12,800 credits on a plan labelled Free. The F6S code (10k credits) is already redeemed; entering it again says it cannot be used. That is expected, not a fault.
-- Video page: Seedance 2.5, 5 s, 16:9, 720p, audio on, 4 variations shown as `/4`, Generate costs 232 credits. About 55 clips.
-- No clip has been generated yet. The lane stays `conditional` until the first clip is judged against a contact sheet.
+- Video page: Seedance 2.5, 5 s, 16:9, 720p, audio on, 4 variations shown as `/4`, Generate costs 232 credits. About 54 clips left.
+- One test clip was generated (a loaded freight truck backing into a dock at dawn, no text, logos or people): 232 credits charged exactly, balance 12,568, about 4 minutes to render, a 5 s 720p clip with audio. Only the thumbnail frame was inspected and nothing was downloaded. Allow several minutes per clip and do not stack requests.
 
 ## When to use it
 
