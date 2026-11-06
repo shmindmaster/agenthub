@@ -33,10 +33,42 @@ STANDARD_STYLES = {STANDARD_VOICE: {"friendly"}, "en-US-AriaNeural": {"narration
                    "en-US-GuyNeural": {"friendly"}}
 STANDARD_PRICE_POLICY = "azure-eastus2-standard-neural-20261027-15-microusd-per-utf8-byte"
 APPROVAL = "Authorize Azure, $1 total"
+LEXICON_PATH = Path(__file__).with_name("pronunciation_lexicon.json")
+_LEXICON_NAME = re.compile(r"[A-Za-z][A-Za-z'-]{0,39}")
+_IPA_FORBIDDEN = set("<>&\"'\\\n\r\t")
+
+
+def load_lexicon(path=None):
+    """Return (revision, {name: ipa}) from the repo-owned allowlist; fail closed on anything unexpected.
+
+    The adapter, never the caller, writes <phoneme> markup, so the IPA string must be inert inside an XML attribute.
+    """
+    data = json.loads(Path(path or LEXICON_PATH).read_text(encoding="utf-8"))
+    revision, entries = data.get("revision"), data.get("entries")
+    if (not isinstance(revision, str) or not revision.strip() or data.get("alphabet") != "ipa"
+            or not isinstance(entries, dict) or not entries):
+        raise RuntimeError("Pronunciation lexicon malformed")
+    out = {}
+    for name, entry in entries.items():
+        ipa = entry.get("ipa") if isinstance(entry, dict) else None
+        if (not _LEXICON_NAME.fullmatch(name or "") or not isinstance(ipa, str) or not 1 <= len(ipa) <= 60
+                or any(c in _IPA_FORBIDDEN or ord(c) < 32 for c in ipa)):
+            raise RuntimeError(f"Pronunciation lexicon entry refused: {name!r}")
+        out[name] = ipa
+    return revision, out
+
+
+def _apply_pronunciations(escaped, picks, counts):
+    """Wrap whole-word, case-sensitive occurrences of each picked name. `escaped` is already XML-escaped text."""
+    for name, ipa in picks:
+        pattern = r"(?<![A-Za-z0-9'-])" + re.escape(name) + r"(?![A-Za-z0-9'-])"
+        escaped, n = re.subn(pattern, lambda m, ipa=ipa: f'<phoneme alphabet="ipa" ph="{ipa}">{m.group(0)}</phoneme>', escaped)
+        counts[name] = counts.get(name, 0) + n
+    return escaped
 
 
 def quote(text, *, workspace, revision, dictionary_revision, voice="en-US-Ava:DragonHDLatestNeural", style=None,
-          paragraphs=None, rate_percent=-5, pause_ms=400):
+          paragraphs=None, rate_percent=-5, pause_ms=400, pronunciations=None):
     if (not isinstance(text, str) or not text.strip() or len(text) > 6000
             or any(ord(c) < 32 and c not in "\n\r\t" for c in text)
             or not all(isinstance(v, str) and v.strip() for v in (workspace, revision, dictionary_revision))
@@ -44,6 +76,17 @@ def quote(text, *, workspace, revision, dictionary_revision, voice="en-US-Ava:Dr
             or (voice in STANDARD_STYLES and style not in STANDARD_STYLES[voice])
             or (voice in VOICES and style is not None)):
         raise ValueError("Explicit workspace/revisions, allowlisted GA voice and 1-6000 text characters required")
+    picks, counts, lexicon_revision = [], {}, None
+    if pronunciations is not None:
+        if (voice not in STANDARD_STYLES or not isinstance(pronunciations, list)
+                or not 1 <= len(pronunciations) <= 16 or any(not isinstance(k, str) for k in pronunciations)
+                or len(set(pronunciations)) != len(pronunciations)):
+            raise ValueError("Pronunciations need a standard neural voice and 1-16 distinct lexicon names")
+        lexicon_revision, entries = load_lexicon()
+        unknown = [k for k in pronunciations if k not in entries]
+        if unknown:
+            raise ValueError("Not in the pronunciation lexicon: " + ", ".join(unknown))
+        picks = [(k, entries[k]) for k in pronunciations]
     if datetime.datetime.now(datetime.timezone.utc).date() > VALID_THROUGH:
         raise RuntimeError("Price policy expired")
     ssml = ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">'
@@ -59,21 +102,28 @@ def quote(text, *, workspace, revision, dictionary_revision, voice="en-US-Ava:Dr
                     or type(pause_ms) is not int or not 250 <= pause_ms <= 700):
                 raise ValueError("Exact text paragraphs and bounded delivery controls required")
             content = (f'<break time="{pause_ms}ms"/>').join(
-                f'<bookmark mark="paragraph-{i + 1}"/><p><s>{escape(p)}</s></p>'
+                f'<bookmark mark="paragraph-{i + 1}"/><p><s>{_apply_pronunciations(escape(p), picks, counts)}</s></p>'
                 for i, p in enumerate(paragraphs))
             content = f'<prosody rate="{rate_percent:+d}%">{content}</prosody>'
+        else:
+            content = _apply_pronunciations(content, picks, counts)
         ssml = ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
                 'xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">'
                 '<voice name="' + voice + '"><mstts:express-as style="' + style + '">'
                 + content + '</mstts:express-as></voice></speak>')
     elif paragraphs is not None:
         raise ValueError("Structured delivery requires standard neural voices")
+    missing = [k for k, _ in picks if not counts.get(k)]
+    if missing:  # a silent no-op would hide a typo or a changed script; fail instead
+        raise ValueError("Requested pronunciation not found in the text as a whole word: " + ", ".join(missing))
     request = {"provider": "azure-speech", "region": "eastus2", "voice": voice,
                "endpoint": "https://eastus2.tts.speech.microsoft.com/cognitiveservices/v1",
                "format": "riff-48khz-16bit-mono-pcm", "ssml": ssml,
                "revision": revision, "dictionary_revision": dictionary_revision,
                "workspace": workspace, "price_policy": STANDARD_PRICE_POLICY if standard else PRICE_POLICY,
                "identity": "rehearsal-narrator-not-owner-voice"}
+    if picks:  # only when used, so every existing cache key stays byte-identical
+        request["pronunciation"] = {"revision": lexicon_revision, "alphabet": "ipa", "entries": dict(picks)}
     return {"request": request, "cache_key": shared.runtime_module().request_key(request),
             "maximum_usd_micros": len(ssml.encode("utf-8")) * (15 if standard else 22),
             "text_sha256": hashlib.sha256(text.encode()).hexdigest()}
@@ -425,9 +475,10 @@ def _generate(ledger, planned, workspace, credential, send=transport):
 
 def generate(text, *, authorization_manifest, workspace, revision, dictionary_revision,
              voice="en-US-Ava:DragonHDLatestNeural", use_sdk=False, style=None, paragraphs=None,
-             rate_percent=-5, pause_ms=400):
+             rate_percent=-5, pause_ms=400, pronunciations=None):
     planned = quote(text, workspace=workspace, revision=revision, dictionary_revision=dictionary_revision, voice=voice,
-                    style=style, paragraphs=paragraphs, rate_percent=rate_percent, pause_ms=pause_ms)
+                    style=style, paragraphs=paragraphs, rate_percent=rate_percent, pause_ms=pause_ms,
+                    pronunciations=pronunciations)
     credential = os.environ.get("AZURE_SPEECH_KEY")
     if not credential:
         raise RuntimeError("AZURE_SPEECH_KEY unset")

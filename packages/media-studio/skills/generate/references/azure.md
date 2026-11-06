@@ -68,7 +68,7 @@ A human audition decides. Reuse samples first: `$MEDIA_STUDIO_ROOT/voice-cast/az
 
 1. One distinct voice per character. No Sarosh clone.
 2. A style per line. Dragon HD Omni and Neural HD predict style from text and take style prompts: `[excited]` cues on HD, `<mstts:express-as>` on Omni, MAI and styled standard voices.
-3. Let the model infer prosody. Use SSML only for pronunciation, breaks and rate. HD has no `prosody`, `emphasis`, `bookmark` or `viseme`.
+3. Let the model infer prosody. Use SSML only for pronunciation, breaks and rate. Pronunciation comes from `scripts/pronunciation_lexicon.json` through `quote(..., pronunciations=[...])` (standard voices only; the adapter writes the `<phoneme>` markup, never the caller). Run `scripts/check_script_terms.py` on the locked script first and pass its `pin` list. HD has no `prosody`, `emphasis`, `bookmark` or `viseme`.
 4. Use HD speaking styles only on voices with English as the primary language.
 5. Check `StyleList` first. An unsupported style silently renders the whole element neutral.
 6. A/B voices on the real script.

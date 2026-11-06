@@ -29,3 +29,7 @@ It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-25
 ## Pronunciation
 
 ASR cannot be its own reference. A proper noun or homophone it cannot confirm needs a verified lexicon entry or an owner listen. Otherwise report it unconfirmed and do not mark it release-eligible.
+
+Decide pronunciation before synthesis, not after. `scripts/check_script_terms.py <locked-script.txt>` is free and offline: it exits 1 while any acronym, brand, name or stray capital has no `entries` (pinned IPA) or `plain` row in `scripts/pronunciation_lexicon.json`, and prints the `pin` list for `generate(..., pronunciations=[...])`. Pinning is the fix; the check below is the proof.
+
+After synthesis run `scripts/check_name_pronunciation.py <jobRoot> --names A,B --negative-control [--anchors DIR]`. It scores each whole line with Azure Pronunciation Assessment at phoneme level and reads the name's own word result in context, then writes `qa/name-pronunciation.json`. Never score one-word clips cut from a sentence: their edges drop sounds and gave false failures on Penske and Forman. Verdicts: `FAIL`, `CHECK_NOT_DISCRIMINATING` (the negative control did not fail, so the check proves nothing), `AUTOMATED_PASS_UNCONFIRMED`, `CONFIRMED`. Only `CONFIRMED` is release-eligible, and it needs an anchor clip said correctly plus a lexicon entry set to `confirmed` by the name's owner or a verified recording. The report lists what it did not run: a model-based phone recognizer (remote compute only; local AI is off) and a human listen.

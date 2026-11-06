@@ -24,7 +24,12 @@ immutable, parent-linked manual replacements in the original ledger. Both
 original unknown rows stay fenced and charged against the same ceiling. This
 does not enable automatic retry, a new budget, or resetting historical usage.
 
-Offline tests: `python -m unittest test_governed_azure_speech test_governed_deepgram`.
+Pronunciation: `pronunciations=[names]` on `quote` and `generate` wraps whole-word, case-sensitive
+matches in `<phoneme alphabet="ipa">` using the repo-owned `pronunciation_lexicon.json` (standard voices
+only, 1 to 16 distinct allowlisted names, fail closed on a hostile or missing entry). The pinned revision and
+IPA enter the request, so the cache key and cost change only when it is used; existing keys stay identical.
+
+Offline tests: `python -m unittest test_governed_azure_speech test_governed_deepgram test_pronunciation_lexicon test_check_name_pronunciation test_check_script_terms`.
 
 An explicitly authorized bounded standard-neural job uses the separate
 `azure-speech-bounded-standard-job` grant, exact cache keys, and a ceiling no

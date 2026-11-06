@@ -15,7 +15,7 @@ The thesis is one sentence: what the viewer can do or stop doing afterwards. It 
 - Exactly one `heroMoment: true`.
 - `product-screencast`: default `visualMode: screen`, `uiProof` on every product claim, scenes as a causal chain.
 
-`truth` defaults to `FACT` when the source is given; `DRAMATIZED` or `COMPOSITE` only where you heighten or merge. Omit unsourced numbers. Do not invent metrics, customer names or product behaviour. Pronunciation goes in a lexicon or SSML layer at synthesis; never respell the script.
+`truth` defaults to `FACT` when the source is given; `DRAMATIZED` or `COMPOSITE` only where you heighten or merge. Omit unsourced numbers. Do not invent metrics, customer names or product behaviour. Pronunciation goes in a lexicon or SSML layer at synthesis; never respell the script. Run `scripts/check_script_terms.py` on the locked script before any speech spend: it blocks on any undecided acronym, brand or name.
 
 Run in order:
 

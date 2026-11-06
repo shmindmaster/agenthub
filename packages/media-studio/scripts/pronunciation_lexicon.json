@@ -1,0 +1,33 @@
+{
+  "revision": "pronunciation-lexicon-2026-11-06-2",
+  "alphabet": "ipa",
+  "note": "Names the adapter may pin to an exact IPA pronunciation. Entries marked unconfirmed are best estimates; set status to confirmed only after the person who owns the name, or a verified recording of them, settles it. The checker (check_name_pronunciation.py) reports CONFIRMED only for confirmed entries. finalPhone is the sound that most often goes wrong and is checked on its own.",
+  "entries": {
+    "Sarosh": {
+      "ipa": "səˈroʊʃ",
+      "status": "unconfirmed",
+      "finalPhone": "ʃ",
+      "note": "Owner's given name. The risk is an ending like j or ge, which speech-to-text has produced (heard as saroj)."
+    },
+    "Penske": {
+      "ipa": "ˈpɛnski",
+      "status": "unconfirmed",
+      "finalPhone": "i"
+    },
+    "Forman": {
+      "ipa": "ˈfɔɹmən",
+      "status": "unconfirmed"
+    }
+  },
+  "plain": [
+    "Debbie",
+    "Sam",
+    "Rodney",
+    "Request",
+    "Assurances",
+    "Schedule",
+    "K",
+    "Parking"
+  ],
+  "plainNote": "Terms the term gate (check_script_terms.py) accepts without a pinned pronunciation: ordinary words and common first names a standard voice reads correctly by default. Adding a term here is a decision, not a verification; check_name_pronunciation.py is the verifier."
+}
