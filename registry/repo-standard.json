@@ -68,8 +68,8 @@
     "agenthub":       { "tracker": "none", "trackerNote": "Fleet policy repo; work tracked by drift/validation, no external backlog" },
     "coledger":       { "tracker": "linear", "trackerNote": "Linear" },
     "crewscore": {
-      "tracker": "github-issues",
-      "trackerNote": "OSS, archived 2026-10-15 (superseded by Heatlot): GitHub Issues/PRs public; Linear SH- IDs for internal items",
+      "tracker": "none",
+      "trackerNote": "GitHub repository deleted 2026-11-05; local checkout retained pending cleanup. Historical GitHub Issues/PRs are no longer available.",
       "agentsExemptions": ["examples/corpus/repo-config/AGENTS.md"],
       "docsExemptions": {
         "reason": "The small OSS CLI intentionally keeps its product, architecture, development, and runbook guidance in named flat documents linked from docs/README.md.",
@@ -78,31 +78,13 @@
     },
     "gentlenext":     { "tracker": "linear", "trackerNote": "Linear" },
     "heatlot":        { "tracker": "github-issues", "trackerNote": "OSS (renamed from assay 2026-10-15): GitHub Issues/PRs; verification pack in docs/verification" },
-    "gitpin":         { "tracker": "github-issues", "trackerNote": "OSS, archived 2026-10-15 (superseded by Heatlot): GitHub Issues/PRs", "agentsExemptions": [".demo\\runtime\\repositories\\atlas-api\\AGENTS.md", ".demo\\runtime\\repositories\\support-ops\\AGENTS.md", ".repocontext-index\\gitpin\\AGENTS.md"] },
+    "gitpin":         { "tracker": "none", "trackerNote": "GitHub repository deleted 2026-11-05; local checkout retained pending cleanup. Historical GitHub Issues/PRs are no longer available.", "agentsExemptions": [".demo\\runtime\\repositories\\atlas-api\\AGENTS.md", ".demo\\runtime\\repositories\\support-ops\\AGENTS.md", ".repocontext-index\\gitpin\\AGENTS.md"] },
     "lawli":          { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
     "lexalign":       { "tracker": "linear", "trackerNote": "Linear SH- IDs", "agentsExemptions": ["apps/web/AGENTS.md"] },
     "lienwise":       { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
-    "local-ai-platform": {
-      "tracker": "linear",
-      "trackerNote": "Linear SH- IDs; SH-2768 source/release boundary and SH-2702 job-record privacy",
-      "agentsExemptions": [
-        "src/runtime/AGENTS.md",
-        "src/runtime/apps/AGENTS.md",
-        "src/runtime/apps/tts-studio/AGENTS.md",
-        "src/runtime/apps/voice-api/AGENTS.md",
-        "src/runtime/apps/voice-lab/AGENTS.md",
-        "src/runtime/indexing/AGENTS.md",
-        "src/runtime/media/AGENTS.md",
-        "src/runtime/media/engines/AGENTS.md",
-        "src/runtime/media/qa/AGENTS.md",
-        "src/runtime/media/refinery/AGENTS.md",
-        "src/runtime/media/render/AGENTS.md"
-      ]
-    },
     "mahumtech":      { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
     "rexa":           { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
     "saroshhussain":  { "tracker": "none", "trackerNote": "No external tracker" },
-    "shtrial":        { "tracker": "none", "trackerNote": "No external tracker" },
     "subops":         { "tracker": "linear", "trackerNote": "Linear SH- IDs; DEBT.md registers accepted debt" },
     "tgiagency":      { "tracker": "none", "trackerNote": "No external tracker" },
     "verigence":      { "tracker": "linear", "trackerNote": "Linear SH- IDs" },

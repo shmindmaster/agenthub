@@ -3,7 +3,7 @@
   "recordedOn": "2026-08-08",
   "purpose": "Machine-readable authority for which fleet products may receive native mobile work, enforced by tests/Test-MobileScope.ps1. Mobile identifiers are effectively permanent: an Apple bundle identifier cannot be changed after the first build is uploaded to App Store Connect, and Android treats a changed applicationId as a different application. A product whose name is known to be temporary must therefore not have any long-lived mobile identity created for it, not even a placeholder.",
   "rosterSource": "registry/repo-standard.json",
-  "rosterNote": "Every repo in repo-standard.json -> repos must appear below, except the names in repo-standard.json -> excluded. Products not in that roster (not cloned to the fleet root) may also appear here; empowera and documed do, because a freeze has to bind whether or not the repo is checked out locally.",
+  "rosterNote": "Every repo in repo-standard.json -> repos must appear below, except the names in repo-standard.json -> excluded. Products not in that roster may also appear here; empowera and documed do, because a freeze has to bind whether or not the repo is checked out locally.",
   "scopePolicy": {
     "unclassifiedIsEligible": false,
     "unclassifiedNote": "Absence from this file never means allowed. An unlisted product is not eligible for mobile work; stop and ask the owner to classify it.",
@@ -37,16 +37,22 @@
       "note": "Owner Azure inference infrastructure and inference-budget gateway, as declared by README and service runtime configuration; no native mobile product surface. Classified from repository evidence 2026-10-24."
     },
     {
-      "productId": "desktop-solver",
-      "repository": "shmindmaster/desktop-solver",
+      "productId": "solver",
+      "repository": "shmindmaster/solver",
       "bucket": "noNative",
-      "note": "Windows desktop capture-and-solve tool, as declared by its README; no native mobile product surface. Local repository with no remote. Classified from repository evidence 2026-11-04."
+      "note": "Windows desktop capture-and-solve tool, as declared by its README; no native mobile product surface. Renamed from shmindmaster/desktop-solver to shmindmaster/solver on 2026-11-05. Classified from repository evidence 2026-11-04."
     },
     {
-      "productId": "agent-prompt-safeguards-2026",
-      "repository": "shmindmaster/agent-prompt-safeguards-2026",
+      "productId": "safeguards",
+      "repository": "shmindmaster/safeguards",
       "bucket": "noNative",
-      "note": "Standalone public research dataset and Python scoring scripts; README and scoring entry points establish a research artifact, with no native product surface. Classified from repository evidence 2026-10-24."
+      "note": "Standalone public research dataset and Python scoring scripts; README and scoring entry points establish a research artifact, with no native product surface. Renamed from shmindmaster/agent-prompt-safeguards-2026 to shmindmaster/safeguards on 2026-11-05. Classified from repository evidence 2026-10-24."
+    },
+    {
+      "productId": "duckie",
+      "repository": "shmindmaster/duckie",
+      "bucket": "noNative",
+      "note": "Web and service support-agent monorepo, as declared by its README (Next.js web app, Python workers, Supabase). No React Native, Expo, or eas.json. Classified from repository evidence 2026-11-06."
     },
     {
       "productId": "fakeplane",
@@ -68,7 +74,7 @@
     },
     {
       "productId": "rexa",
-      "repository": "shmindmaster/Rexa",
+      "repository": "shmindmaster/rexa",
       "bucket": "include",
       "priority": "P0",
       "note": "Reference implementation. Already Expo SDK 57 / RN 0.86 with an EAS project. Its slug carried the pre-rename product name 'recallforge', which is the exact failure this file exists to prevent.",
@@ -185,9 +191,9 @@
       "repository": "shmindmaster/documed",
       "bucket": "excludedPendingReposition",
       "frozen": true,
-      "clonedToFleetRoot": false,
+      "clonedToFleetRoot": true,
       "exitCondition": "Owner explicitly establishes a new product identity and architecture. Only the owner lifts this freeze.",
-      "note": "Dormant since 2026-07-18 and never cloned to the fleet root. Owner moved it from evaluate-later to frozen on 2026-08-08 so no identifier can be reserved for a product whose direction is unsettled."
+      "note": "Owner moved it from evaluate-later to frozen on 2026-08-08 so no identifier can be reserved for a product whose direction is unsettled. Its GitHub repository was deleted 2026-11-05; the local checkout and uncommitted changes remain."
     },
     {
       "productId": "coledger",
@@ -199,7 +205,7 @@
       "productId": "crewscore",
       "repository": "shmindmaster/crewscore",
       "bucket": "noNative",
-      "note": "Open-source CLI and service. Archived 2026-10-15; superseded by Heatlot."
+      "note": "Open-source CLI and service. GitHub repository deleted 2026-11-05; local checkout remains."
     },
     {
       "productId": "agenthub",
@@ -211,25 +217,25 @@
       "productId": "local-ai-platform",
       "repository": "shmindmaster/local-ai-platform",
       "bucket": "noNative",
-      "note": "Version-controlled source for the Local-AI runtime boundary release (SH-2768). Local infrastructure, no product surface. Runtime storage stays on D:\\Local-AI per the runtime-vs-source split."
+      "note": "Local infrastructure source for the retired Local-AI runtime boundary. GitHub repository deleted 2026-11-05. Local checkout removed 2026-11-05. No DNS zone was attached."
     },
     {
       "productId": "portfolio-records",
       "repository": "shmindmaster/portfolio-records",
       "bucket": "noNative",
-      "note": "Private evidence and opportunity-record repository. No product or native application surface."
+      "note": "Private evidence and opportunity-record repository. GitHub repository and local checkout removed 2026-11-05. No DNS zone of its own. No product or native application surface."
     },
     {
       "productId": "ufcedge",
       "repository": "shmindmaster/ufcedge",
       "bucket": "noNative",
-      "note": "Private forecasting pipeline and self-contained HTML artifact. Responsive web presentation is intentional; no native application surface is planned."
+      "note": "Private forecasting pipeline and self-contained HTML artifact. GitHub repository deleted 2026-11-05. Local checkout removed 2026-11-05. No DNS zone was attached."
     },
     {
       "productId": "gitpin",
       "repository": "shmindmaster/gitpin",
       "bucket": "noNative",
-      "note": "Open-source CLI. Archived 2026-10-15; superseded by Heatlot."
+      "note": "Open-source CLI. GitHub repository deleted 2026-11-05; local checkout remains."
     },
     {
       "productId": "ap-study",
@@ -277,7 +283,7 @@
       "productId": "shtrial",
       "repository": "shmindmaster/shtrial",
       "bucket": "noNative",
-      "note": "Trial and staging domain infrastructure."
+      "note": "GitHub repository deleted 2026-11-05. Local checkout removed 2026-11-05. shtrial.com DNS stays because mail, Clerk, shwiki, demo, and tablesage still use it."
     },
     {
       "productId": "tgiagency",
