@@ -1,14 +1,14 @@
 {
   "schema": "media-studio/provider-routing/1",
-  "revision": "provider-routing-2026-11-06-2",
+  "revision": "provider-routing-2026-11-06-6",
   "asOf": "2026-11-06",
   "basis": "Balances and plan states are as recorded in the Linear credits ledger on 2026-11-04 to 2026-11-06. Not re-verified in any vendor console. Re-check a balance before a paid run that depends on it.",
   "rules": [
     "Credits are a temporary subsidy, not permission to raise spending caps.",
     "Cheapest lane that passes QA wins for a picture. A free picture lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid picture lane. Voice has no free lane.",
-    "Narration, dialogue, rehearsal, draft and audition speech use only governed Azure speech, or ElevenLabs when that job's owner manifest names the voice. Windows Narrator, SAPI, System.Speech, OneCore voices (David, Zira, Mark, Eva and the rest), edge-tts, espeak, say, and HeyGen stock voices are forbidden. If those governed routes cannot run, deliver the cut silent with the lines on screen.",
+    "Narration, dialogue, rehearsal, draft and audition speech follow skills/generate/references/voice-recipes.md. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2. Deepgram Haley batch synthesis serves prepared support prompts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
     "Azure first (MahumTech resource mt-foundary-resource). Other providers are fallbacks or specialist lanes.",
-    "ElevenLabs only through governed_elevenlabs.py. Speech only. No voice clone of the owner.",
+    "The direct ElevenLabs account and API are excluded from recipe defaults. The governed adapter remains in the package and is not a film voice. No voice clone of the owner.",
     "Higgsfield, Runway and Google Vertex spend stays frozen until the owner approves it in the current task. The funded generative-video lane is IrukaDark (approved hero shots only).",
     "Local AI is off on this PC: no local models, TTS, STT or embedders. Self-hosted models on cloud GPUs are allowed inside the compute caps.",
     "The owner picks the entity each film is made for and uses whatever credit fits. Name the identity in the quote; never stop on ownership.",
@@ -61,7 +61,7 @@
       "cost": "Azure credit ($673.77 of $700 left on 2026-11-03, expires 2027-10-17; a separate $281 legacy credit expires 2026-11-12)",
       "identity": "mahumtech",
       "how": "scripts/governed_azure_speech.py with an authorization manifest and ledger. Pin names through pronunciation_lexicon.json first.",
-      "notes": "Distinct expressive voice per character. Never a desktop or stock voice."
+      "notes": "Governed GA DragonHD voices are Ava, Andrew, Emma2 and Andrew2. Choose Emma2 or Andrew2 for new conversational walkthroughs, with Ava as fallback. No style argument. See the voice recipes for gated options."
     },
     {
       "id": "windows-narrator",
@@ -70,7 +70,7 @@
       "cost": "forbidden",
       "identity": "any",
       "how": "Do not call it. Windows Narrator, SAPI, System.Speech and OneCore voices are removed from the owner machine and forbidden in every film.",
-      "notes": "David, Zira, Mark and Eva are not a lane. A rehearsal uses governed Azure speech, or ElevenLabs only when that job's owner manifest names the voice. HeyGen stock voices are not speech. If neither governed route can run, deliver the cut silent with the lines on screen."
+      "notes": "David, Zira, Mark and Eva are not a lane. A rehearsal uses the voice recipes. Callable speech is GA Azure DragonHD through governed_azure_speech.py, or Deepgram Flux for live support. HeyGen stock avatar voices are not speech. If those callable routes cannot run, deliver the cut silent with the lines on screen."
     },
     {
       "id": "azure-image",
@@ -84,11 +84,86 @@
     {
       "id": "elevenlabs-speech",
       "needs": ["voice", "narration", "dialogue"],
-      "status": "conditional",
+      "status": "frozen",
       "cost": "Creator plan, about 116,400 characters left, resets 2026-11-13",
       "identity": "mahumtech",
-      "how": "scripts/governed_elevenlabs.py only. Distinct character voices where Azure does not fit. A rehearsal uses this same path, never a desktop voice.",
-      "notes": "Music and sound effects are disabled in media-studio. Startup grant is requested, not granted."
+      "how": "Do not call it. The direct ElevenLabs account and API are excluded from recipe defaults.",
+      "notes": "Excluded 2026-11-06. Model eleven_v4 and scripts/governed_elevenlabs.py stay in the package for an already authorized historical job. They are not a film default. Music and sound effects stay disabled."
+    },
+    {
+      "id": "deepgram-flux",
+      "needs": ["voice", "narration", "dialogue", "audio"],
+      "status": "conditional",
+      "cost": "Deepgram, published $0.045 per 1,000 characters for Flux TTS (2026-11-06)",
+      "identity": "any",
+      "how": "Use scripts/deepgram_cli.py --voice flux-haley-en --expressivity 0 at normal speed for prepared support prompts. The CLI defaults to flux-sienna-en for existing callers.",
+      "notes": "The governed Flux route synthesizes batch audio for support prompts. Streaming and interruption require a separate integration."
+    },
+    {
+      "id": "runware-fish-s2",
+      "needs": ["voice", "narration", "dialogue", "audio"],
+      "status": "frozen",
+      "cost": "Runware, published $0.015 per 1,000 UTF-8 bytes for Fish Audio S2.1 Pro (2026-11-06)",
+      "identity": "any",
+      "how": "Do not call it. Everyday reels use Fish Audio S2.1 Pro, voice Laura e3cd384158934cc9a01029cd7d278634, model fishaudio:s2.1@pro, normal speed. This package has no governed speech adapter for it.",
+      "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. A raw Runware speech request is ungoverned. Until then use azure-speech, or deliver the cut silent with the lines on screen."
+    },
+    {
+      "id": "runware-heygen-voice",
+      "needs": ["voice", "narration", "dialogue", "audio"],
+      "status": "frozen",
+      "cost": "Runware, published $0.004 per 1,000 characters for HeyGen Voice 1.0 Turbo (2026-11-06)",
+      "identity": "any",
+      "how": "Do not call it. HeyGen Voice 1.0 Turbo is a frozen speech model. Presenter speech is Fish Laura into PVideo, not this lane. HeyGen stock avatar voices stay forbidden.",
+      "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. Not a recipe narrator and not a stock avatar voice."
+    },
+    {
+      "id": "assemblyai-tts",
+      "needs": ["voice", "narration", "dialogue", "audio"],
+      "status": "frozen",
+      "cost": "AssemblyAI, published $0.015 per 1,000 characters for AssemblyAI-TTS-1 (2026-11-06)",
+      "identity": "abacare",
+      "how": "Do not call it. FAQ and straightforward training use AssemblyAI-TTS-1, one stock US-English voice, and the returned voice ID saved for the series. This package has no governed speech adapter for it. assemblyai-stt stays the transcription lane.",
+      "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. No emotion tags, SSML or speed parameter. Not the campaign narrator."
+    },
+    {
+      "id": "azure-openai-tts",
+      "needs": ["voice", "narration", "dialogue", "audio"],
+      "status": "frozen",
+      "cost": "Azure OpenAI gpt-4o-mini-tts, token priced; deployment rate not recorded",
+      "identity": "mahumtech",
+      "how": "Frozen option for directed narration. Azure OpenAI gpt-4o-mini-tts version 2025-12-15 (GA, retires 2027-06-15, Global Standard East US 2), Marin, WAV, with delivery instructions separate from spoken text. Cedar is a second speaker only.",
+      "notes": "Requires a governed MahumTech adapter and current owner authorization. For conversational walkthroughs use governed DragonHD Emma2 or Andrew2 with Ava as fallback. See the voice recipes for other Azure options."
+    },
+    {
+      "id": "runware-seed-audio",
+      "needs": ["voice", "narration", "dialogue", "audio"],
+      "status": "frozen",
+      "mode": "api",
+      "cost": "Runware, about $0.158 per generated minute for Seed Audio 1.0 (2026-11-06)",
+      "identity": "any",
+      "how": "Do not call it. Cinematic films use bytedance:seed-audio@1.0 with speed, pitch and volume 0, and a prompt for one adult American female narrator in a clean studio with no music. This package has no governed speech adapter for it.",
+      "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. Reuse one generated narrator reference for a series. Runway Seed Audio is a separate frozen route."
+    },
+    {
+      "id": "runware-pvideo-avatar",
+      "needs": ["video-generation", "presenter"],
+      "status": "frozen",
+      "mode": "api",
+      "cost": "Runware, about $0.06 per second for PVideo 2 Pro Avatar (2026-11-06); a 30 second clip is about $1.80",
+      "identity": "any",
+      "how": "Do not call it. Talking presenters use Fish Laura audio, then prunaai:p-video@2-pro-avatar at 1080p for 20 to 40 seconds. Pass the exact clean speech file. No music in the speech input.",
+      "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. Not a voice lane and not a HeyGen stock avatar voice."
+    },
+    {
+      "id": "runware-minimax-music",
+      "needs": ["music"],
+      "status": "frozen",
+      "mode": "api",
+      "cost": "Runware, $0.15 per clip for MiniMax Music 2.6 (2026-11-06)",
+      "identity": "any",
+      "how": "Do not call it. Shared finishing uses one instrumental MiniMax Music 2.6 track and reuses it. Keep speech, music, effects and captions separate.",
+      "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. Speech stays prominent."
     },
     {
       "id": "runware-image",
@@ -186,7 +261,7 @@
       "cost": "balance not stated",
       "identity": "personal-gmail",
       "how": "Plugin installed. Spend only after the owner approves in the current task.",
-      "notes": "Generative video is approved hero shots only."
+      "notes": "Generative video is approved hero shots only. Runway Seed Audio 1.0 is only for a project already on a verified Runway route. The web-app wallet is not the API wallet, so this lane stays frozen. The cinematic default is Runware bytedance:seed-audio@1.0, and that lane is frozen too."
     },
     {
       "id": "google-vertex",

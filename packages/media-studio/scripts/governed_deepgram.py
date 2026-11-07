@@ -1,4 +1,4 @@
-"""Narrow Flux Sienna TTS adapter for Media Studio's shared paid ledger."""
+"""Allowlisted Flux batch TTS for Media Studio's shared paid ledger."""
 from __future__ import annotations
 
 import datetime
@@ -23,6 +23,8 @@ PRICE_POLICY = "flux-payg-2026-10-24-45-microusd-per-utf8-byte"
 PRICE_VALID_THROUGH = datetime.date(2026, 11, 24)
 ENDPOINT = "https://api.deepgram.com/v2/speak"
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
+DEFAULT_VOICE = "flux-sienna-en"
+VOICES = (DEFAULT_VOICE, "flux-haley-en")
 
 
 @lru_cache(maxsize=1)
@@ -34,16 +36,18 @@ def runtime_module():
     return module
 
 
-def quote(text, *, workspace, revision, dictionary_revision, expressivity):
+def quote(text, *, workspace, revision, dictionary_revision, expressivity, voice=DEFAULT_VOICE):
     if (not isinstance(text, str) or not text.strip() or len(text) > 2000
             or not all(isinstance(x, str) and x.strip() for x in
                        (workspace, revision, dictionary_revision))):
         raise ValueError("Explicit workspace, revision, dictionary revision and 1-2000 input characters required")
     if type(expressivity) not in (int, float) or not 0 <= expressivity <= 1:
         raise ValueError("Explicit finite expressivity in [0,1] required")
+    if voice not in VOICES:
+        raise ValueError("Allowlisted Deepgram Flux voice required")
     if datetime.datetime.now(datetime.timezone.utc).date() > PRICE_VALID_THROUGH:
         raise RuntimeError("TTS price policy expired; verify official pricing before updating it")
-    request = {"provider": "deepgram/rest/v2/speak", "model": "flux-sienna-en",
+    request = {"provider": "deepgram/rest/v2/speak", "model": voice,
                "encoding": "linear16", "container": "wav", "sample_rate": 48000,
                "expressivity": float(expressivity), "mip_opt_out": True,
                "text": text, "revision": revision, "dictionary_revision": dictionary_revision,
@@ -402,9 +406,10 @@ def recovery_epoch_ledger(manifest_path, workspace, planned):
     return ledger
 
 
-def generate(text, *, workspace, revision, dictionary_revision, expressivity, root=None, recovery_epoch_manifest=None):
+def generate(text, *, workspace, revision, dictionary_revision, expressivity, voice=DEFAULT_VOICE,
+             root=None, recovery_epoch_manifest=None):
     planned = quote(text, workspace=workspace, revision=revision,
-                    dictionary_revision=dictionary_revision, expressivity=expressivity)
+                    dictionary_revision=dictionary_revision, expressivity=expressivity, voice=voice)
     credential = os.environ.get("DEEPGRAM_API_KEY", "")
     if not credential:
         raise RuntimeError("DEEPGRAM_API_KEY is unset")
@@ -495,7 +500,7 @@ def _generate(ledger, planned, workspace, credential, send):
                 provenance = {k: evidence[k] for k in ("response_sha256", "response_bytes", "output_sha256", "normalization")}
         except (OSError, ValueError, KeyError, TypeError):
             pass
-    return raw, {"provider": "deepgram", "model": "flux-sienna-en", "namespace": namespace,
+    return raw, {"provider": "deepgram", "model": planned["request"]["model"], "namespace": namespace,
                  "cache_key": key, "request_id": row["receipt"], "reused": reused,
                  "output_sha256": hashlib.sha256(raw).hexdigest(), "content_type": row["content_type"],
                  "text_sha256": hashlib.sha256(planned["request"]["text"].encode()).hexdigest(),

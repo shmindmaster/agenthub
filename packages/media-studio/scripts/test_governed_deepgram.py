@@ -10,6 +10,7 @@ import threading
 import unittest
 import wave
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
 import governed_deepgram as adapter
 import deepgram_cli
@@ -97,6 +98,43 @@ class AdapterTests(unittest.TestCase):
         for value in (float("nan"), float("inf"), True, -1, 2):
             with self.assertRaises(ValueError):
                 plan(expressivity=value)
+
+    def test_sienna_keeps_the_existing_request_key(self):
+        expected = "cb0969c840bdeec2df12449fa59c100d67dc2905093a5bc798be7f0611eb7dae"
+        self.assertEqual(plan()["cache_key"], expected)
+        self.assertEqual(plan(voice="flux-sienna-en")["cache_key"], expected)
+        with self.assertRaises(ValueError):
+            plan(voice="flux-unknown-en")
+
+    def test_cli_haley_voice_is_bound_to_the_request_receipt_and_cache(self):
+        ledger = self.ledger()
+        text = self.root / "text.txt"
+        text.write_text("A new clinical observation.", encoding="utf-8")
+        output, receipt = self.root / "take.wav", self.root / "receipt.json"
+
+        with patch.dict(os.environ, {"DEEPGRAM_API_KEY": "synthetic-credential"}), \
+                patch.object(adapter.urllib.request, "build_opener") as factory:
+            response = factory.return_value.open.return_value.__enter__.return_value
+            response.headers = {"dg-request-id": "synthetic-haley", "content-type": "audio/wav"}
+            response.read.return_value = audio()
+            self.assertEqual(deepgram_cli.main(["--text-file", str(text), "--workspace", "synthetic-test",
+                "--revision", "test-1", "--dictionary-revision", "literal-1", "--expressivity", "0",
+                "--voice", "flux-haley-en", "--ledger-root", str(ledger.root), "--output", str(output),
+                "--receipt", str(receipt), "--execute"]), 0)
+            request = factory.return_value.open.call_args.args[0]
+        query = parse_qs(urlsplit(request.full_url).query)
+        self.assertEqual(query["model"], ["flux-haley-en"])
+        self.assertEqual(query["expressivity"], ["0.0"])
+        record = json.loads(receipt.read_text(encoding="utf-8"))
+        self.assertEqual(record["model"], "flux-haley-en")
+        self.assertEqual(record["request_id"], "synthetic-haley")
+        haley = plan(voice="flux-haley-en")
+        self.assertEqual(record["cache_key"], haley["cache_key"])
+        self.assertNotEqual(record["cache_key"], plan()["cache_key"])
+        _, reused = adapter._generate(ledger, haley, "synthetic-test", "synthetic-credential",
+                                      lambda *args: self.fail("Haley cache repurchased"))
+        self.assertTrue(reused["reused"])
+        self.assertEqual(reused["model"], "flux-haley-en")
 
     def test_success_then_exact_cache_requires_zero_post_and_all_acceptance_gates(self):
         ledger, p = self.ledger(), plan()

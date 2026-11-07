@@ -27,7 +27,13 @@ BUCKET = "azure-speech/usd-micros"
 PRICE_POLICY = "azure-eastus2-neural-hd-20261026-22-microusd-per-utf8-byte"
 VALID_THROUGH = datetime.date(2026, 11, 24)
 MAX_BYTES = 64 * 1024 * 1024
-VOICES = {"en-US-Ava:DragonHDLatestNeural", "en-US-Andrew:DragonHDLatestNeural"}
+# GA DragonHD only (catalog 2026-11-06). Public-preview MAI and podcast HD voices are refused.
+VOICES = {
+    "en-US-Ava:DragonHDLatestNeural",
+    "en-US-Andrew:DragonHDLatestNeural",
+    "en-US-Emma2:DragonHDLatestNeural",
+    "en-US-Andrew2:DragonHDLatestNeural",
+}
 STANDARD_VOICE = "en-US-JennyNeural"
 STANDARD_STYLES = {STANDARD_VOICE: {"friendly"}, "en-US-AriaNeural": {"narration-professional"},
                    "en-US-GuyNeural": {"friendly"}}

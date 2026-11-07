@@ -13,17 +13,19 @@ Hash each input (voice, style, SSML, format) and reuse an accepted take or plate
 
 Azure first, cheapest option that passes QA. Escalate only the item that failed. Default, then escape hatch:
 
-- Narration: Azure standard neural; Neural HD or Dragon HD Omni for principals, then Deepgram for a line that failed a gate.
+- Narration follows `references/voice-recipes.md`. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2.
 - Take ASR: `cloud-ai.mjs align` on Azure fast transcription; `--provider assemblyai` only when a job names it.
 - Stills: `gpt-image-2.5-flare`, low then medium; `gpt-image-2.5-sunburst` premium, Gemini Batch volume.
 - Hero video: approved shots only; Remotion or Recast composition.
 - Transcription, presenter clip, script review: routing table in `references/takes-and-plates.md`.
 
-Paid speech runs only through a governed adapter. A connector, SDK sample or raw REST call is ungoverned, even for one line. ElevenLabs speech runs only for an owner-authorized job, through `scripts/elevenlabs_cli.py` and an immutable manifest naming the exact voice and job workspace; without one it stays blocked. ElevenLabs sound effects, music and STT stay disabled. Higgsfield and Runway credits are frozen until the owner approves. Local AI is off. Use `AZURE_OPENAI_*` and `FOUNDRY_*` only while the endpoint host is `mt-foundary-resource` (MahumTech); never use `AZURE_OPENAI_PNDH_*`, `aif-pndh-*` or any `pndh` host (Pendoah client infrastructure).
+Paid speech runs only through a governed adapter. A connector, SDK sample or raw REST call is ungoverned, even for one line. The direct ElevenLabs account and API are excluded from these recipes. ElevenLabs sound effects, music and STT stay disabled. Higgsfield and Runway credits are frozen until the owner approves. Local AI is off. Use `AZURE_OPENAI_*` and `FOUNDRY_*` only while the endpoint host is `mt-foundary-resource` (MahumTech); never use `AZURE_OPENAI_PNDH_*`, `aif-pndh-*` or any `pndh` host (Pendoah client infrastructure).
 
 ## Voice
 
-Cast one distinct, expressive voice per character, and honour each beat's `direction.register` with a style the voice supports. The only speech lanes are governed Azure and, when that job's owner manifest names the voice, ElevenLabs. Windows Narrator, SAPI, System.Speech, OneCore (David, Zira, Mark, Eva), edge-tts, espeak, say, and HeyGen stock voices are forbidden for a delivery, a rehearsal, a draft and an audition. If neither governed route can run, deliver the cut silent with the lines on screen. Never substitute a robotic voice. No Sarosh voice clone: the adapter's owner manifest is the only exception, and it exists per job, never by default. Every line passes the take loop; re-render a failure on the next tier. Speaker similarity is advisory; never fail, block or re-voice on it. Pauses are edit silence, not padded TTS. Never estimate word timing.
+Use each beat's `direction.register` to guide the performance. Pass style controls only where the governed voice supports them, and shape the rest with script phrasing and edit silence.
+
+Use `references/voice-recipes.md` to select one voice per film or series. For new walkthroughs choose DragonHD Emma2 or Andrew2, with Ava as fallback. The Azure Speech adapter takes no style argument for these voices. Use governed Deepgram batch synthesis with Haley for prepared support prompts. The reference distinguishes callable choices from gated candidates, including Azure OpenAI Marin for directed narration. Reuse accepted takes. If the governed route cannot run, deliver the cut silent with the lines on screen. Desktop speech and HeyGen stock avatar voices are forbidden at every stage. No Sarosh voice clone. Each new line passes the take loop. Speaker similarity is advisory. Add pauses in the edit and use measured word timing.
 
 ## Music and pictures
 
@@ -34,7 +36,8 @@ Honour `refuse`: never product UI, metrics or testimonials. Never animate a prod
 ## References
 
 - `references/takes-and-plates.md`: Read when running the take loop or supplying a music cue or plate.
-- `references/azure.md`: Read when planning any generation: deployments, prices, voice cast and craft, take QA.
+- `references/voice-recipes.md`: Read when choosing a voice. It records the six recipes and the supported Microsoft voice and control pairs, with GA or preview where the page states it.
+- `references/azure.md`: Read when planning any generation: deployments, prices, the callable speech adapter, and take QA.
 - `references/content-controls.md`: Read when about to make any paid call, or a call is blocked or failed.
 - `references/provider-plugins.md`: Read when choosing a provider beyond Azure.
 - `scripts/route_media.py --catalog`: Run first when planning any generation; it prints every lane, scripted or by hand, with mode, cost and how.

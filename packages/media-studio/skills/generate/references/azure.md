@@ -27,9 +27,9 @@ STT must call `/openai/deployments/{name}/audio/transcriptions?api-version=2025-
 | Need | Route | Price | Run with |
 |---|---|---|---|
 | Voice list, `StyleList` | `GET https://eastus2.tts.speech.microsoft.com/cognitiveservices/voices/list` | free | REST |
-| Narration | Standard neural | $15 / 1M chars | adapter |
-| Cinematic principals | Neural HD, Dragon HD Omni | $22 / 1M chars | adapter, Ava and Andrew only |
-| Emotion per line | MAI-Voice 2.1 (preview) | no meter; budget at $22 | not in adapter |
+| Narration | Standard neural | $15 / 1M chars | adapter, already authorized standard job only |
+| Callable HD | DragonHD Ava, Andrew, Emma2 and Andrew2, GA | $22 / 1M chars | governed adapter, no style argument |
+| Directed narration | Azure OpenAI `gpt-4o-mini-tts` `2025-12-15`, Marin | token priced, frozen | requires a governed MahumTech adapter |
 | Take ASR, one file | Fast transcription | $0.36 / hr | `cloud-ai.mjs align` |
 | Backlog | Batch transcription; private blob URL with read SAS (public URLs fail `InvalidUri`) | $0.18 / hr | REST |
 | Model transcription | `gpt-4o-mini-transcribe`, `gpt-transcribe`; `gpt-4o-transcribe-diarize` for speakers, at `/openai/deployments/{name}/audio/transcriptions?api-version=2025-04-01-preview` | $0.18, $0.27 / hr | REST |
@@ -43,37 +43,29 @@ STT must call `/openai/deployments/{name}/audio/transcriptions?api-version=2025-
 
 ## Speech adapter
 
-`scripts/governed_azure_speech.py` is the only narration path in this plugin. Windows Narrator, SAPI, System.Speech, OneCore (David, Zira, Mark, Eva) and any other desktop voice are forbidden, including for a rehearsal or a draft. If this adapter cannot run, deliver the cut silent with the lines on screen. Read `scripts/governed_azure_speech.md` first. Call `quote()`, then `generate(..., use_sdk=True)`, with 1 to 6,000 characters and only these voices:
+`scripts/governed_azure_speech.py` is the callable Azure narration path. Windows Narrator, SAPI, System.Speech, OneCore (David, Zira, Mark, Eva) and any other desktop voice are forbidden, including for a rehearsal or a draft. If the callable governed routes cannot run, deliver the cut silent with the lines on screen. Read `scripts/governed_azure_speech.md` first. Call `quote()`, then `generate(..., use_sdk=True)`, with 1 to 6,000 characters and only these voices:
 
-- `en-US-Ava:DragonHDLatestNeural`, `en-US-Andrew:DragonHDLatestNeural`, no style.
-- `en-US-JennyNeural` and `en-US-GuyNeural` with `friendly`, `en-US-AriaNeural` with `narration-professional`.
+- GA DragonHD voices `en-US-Ava:DragonHDLatestNeural`, `en-US-Andrew:DragonHDLatestNeural`, `en-US-Emma2:DragonHDLatestNeural` and `en-US-Andrew2:DragonHDLatestNeural` use the existing governed route without a style argument.
+- `en-US-JennyNeural` and `en-US-GuyNeural` with `friendly`, `en-US-AriaNeural` with `narration-professional`, only for an already authorized standard job. A new film does not pick them.
 
-`paragraphs`, rate -10 to 0 percent and pauses of 250 to 700 ms work on standard voices only. It rejects caller XML and has no Omni, MAI, phoneme, multitalker or avatar route. Every other cast voice needs adapter support and an owner grant first. Direct REST for "just one line" is ungoverned paid speech.
+`paragraphs`, rate -10 to 0 percent and pauses of 250 to 700 ms work on standard voices only. It rejects caller XML and has no Omni, phoneme-from-caller, multitalker or avatar route. Direct REST for "just one line" is ungoverned paid speech.
 
-## Voice cast
+## Voice recipes
 
-A human audition decides. Reuse samples first: `$MEDIA_STUDIO_ROOT/voice-cast/azure-20261029/samples/`, index `voice-cast.json` one level up.
+Select the voice from `voice-recipes.md`. Use Emma2 or Andrew2 for new conversational walkthroughs, with Ava as fallback. Directed narration with Marin on Azure OpenAI `gpt-4o-mini-tts` version `2025-12-15` stays frozen.
 
-| Role | Voices (style) |
-|---|---|
-| Narrator | `en-US-Steffan:DragonHDLatestNeural`, `en-GB-Harry:MAI-Voice-2.1` (`narrator`), `en-GB-Emily:MAI-Voice-2.1` |
-| Hero | `en-US-Ethan:MAI-Voice-2.1` (`determined`), `en-US-Olivia:MAI-Voice-2.1` (`hopeful`) |
-| Mentor | `en-US-Andrew:DragonHDLatestNeural`, `en-GB-Ollie:DragonHDLatestNeural` |
-| Villain | `en-US-Ethan:MAI-Voice-2.1` (`whispering`), `en-GB-Harry:MAI-Voice-2.1` (`angry`) |
-| Youth | `en-US-AnaNeural`, `en-US-Harper:MAI-Voice-2.1` (`excited`) |
-| Explainer | `en-US-Ava:DragonHDLatestNeural`, `en-US-AriaNeural` (`narration-professional`) |
-| Warm, deep | `en-US-Serena:DragonHDLatestNeural`, `en-US-Vance:DragonHDLatestNeural` |
+The recipe reference records the gated Microsoft options and their lifecycle. MAI preview, Omni, HD Flash, Ava3, Andrew3 and multi-speaker voices stay outside this adapter. Realtime 2.1, GPT-Live and Azure Realtime use separate APIs. Caption timing uses measured word boundaries when available.
 
 ## Voice craft
 
 1. One distinct voice per character. No Sarosh clone.
-2. A style per line. Dragon HD Omni and Neural HD predict style from text and take style prompts: `[excited]` cues on HD, `<mstts:express-as>` on Omni, MAI and styled standard voices.
+2. Governed DragonHD voices take no style argument. Keep the existing allowlisted styles for already authorized standard Jenny, Guy and Aria jobs.
 3. Let the model infer prosody. Use SSML only for pronunciation, breaks and rate. Pronunciation comes from `scripts/pronunciation_lexicon.json` through `quote(..., pronunciations=[...])` (standard voices only; the adapter writes the `<phoneme>` markup, never the caller). Run `scripts/check_script_terms.py` on the locked script first and pass its `pin` list. HD has no `prosody`, `emphasis`, `bookmark` or `viseme`.
 4. Use HD speaking styles only on voices with English as the primary language.
 5. Check `StyleList` first. An unsupported style silently renders the whole element neutral.
-6. A/B voices on the real script.
+6. Use the recipe in `voice-recipes.md`. Do not audition another provider for the same line. Do not raw-call a frozen lane.
 7. Respell names and brand terms in the synthesis input only, under a versioned `dictionary_revision`. The locked script stays the ASR reference.
-8. If MAI drops an opening word or interjection, re-render that line on HD.
+8. Public-preview MAI is not in the adapter. If a preview take drops an opening word, re-render that line on GA DragonHD.
 
 ## Take QA
 

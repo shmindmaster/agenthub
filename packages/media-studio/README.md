@@ -63,7 +63,7 @@ Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` require 
 - Do not centralize credentials, customer data, or private evidence here.
 - Do not start local models, TTS/STT servers or embedders: Local AI is off. Hosted providers only, through the governed adapters. Never use Windows Narrator, SAPI, System.Speech or any other desktop voice.
 
-Governed Sienna TTS: scripts/deepgram_cli.py quotes by default; explicit execution requires intact shared accounting or an independently reviewed owner-authorized bounded epoch. See skills/generate/references/content-controls.md. Offline tests: python -m unittest discover -s scripts -p test_governed_deepgram.py. No provider calls are required for tests.
+Governed Deepgram Flux batch TTS uses `scripts/deepgram_cli.py`. Select `--voice flux-haley-en` for prepared support prompts. Existing calls default to Sienna. The CLI quotes by default. Execution requires intact shared accounting or a reviewed owner-authorized bounded epoch. See `skills/generate/references/content-controls.md`.
 
 Cloud render: kit/cloud/cloud-render.mjs runs FFmpeg, Remotion and Recast jobs on a scale-to-zero Azure Container Apps job in the owner's own Azure tenant (upload -> render -> download). Provision with kit/cloud/Provision-CloudRender.ps1; see kit/cloud/README.md. Offline tests: node --test tests/cloud-render.test.mjs.
 

@@ -62,7 +62,7 @@ A single-beat clip runs question → reveal → takeaway.
 - Do not narrate visible chrome. Name the result after it appears.
 - If the voice names a config or integration, a scene shows it.
 - A line names only what the cursor will move to: one target per beat.
-- Write characters who sound different: each gets a distinct Azure voice in the `generate` skill. No Sarosh voice clone.
+- One voice per film or series, from the recipes in the `generate` skill. No Sarosh voice clone.
 - Stakeholder Q&A: `speaker` `ryan`, `vivian` or `aiden` on a labeled question card. The host carries most lines.
 
 ## No fluff

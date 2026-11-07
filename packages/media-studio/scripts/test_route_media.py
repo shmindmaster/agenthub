@@ -33,7 +33,7 @@ class Routing(unittest.TestCase):
         self.assertTrue(all(l["status"] == "conditional" for l in usable))
         self.assertEqual(usable[0]["creditsPerClip"], 232)
         frozen = {l["id"] for l in r.route(POLICY, ["video-generation"], include_blocked=True) if l["status"] == "frozen"}
-        self.assertEqual(frozen, {"higgsfield", "runway", "google-vertex"})
+        self.assertEqual(frozen, {"higgsfield", "runway", "google-vertex", "runware-pvideo-avatar"})
         self.assertEqual(r.main(["video-generation"]), 0)
 
     def test_every_lane_has_a_known_mode_and_the_catalog_lists_every_lane(self):
@@ -76,19 +76,27 @@ class Routing(unittest.TestCase):
 
     def test_voice_has_no_desktop_or_free_lane(self):
         usable = [l["id"] for l in r.route(POLICY, ["voice"])]
-        self.assertEqual(usable, ["azure-speech", "elevenlabs-speech"])
+        self.assertEqual(usable, ["azure-speech", "deepgram-flux"])
         self.assertTrue(all(not r.is_free(l) for l in r.route(POLICY, ["narration"])))
-        desk = next(l for l in r.route(POLICY, ["voice"], include_blocked=True) if l["id"] == "windows-narrator")
-        self.assertEqual(desk["status"], "disabled")
+        blocked = {l["id"]: l["status"] for l in r.route(POLICY, ["voice"], include_blocked=True)}
+        self.assertEqual(blocked["windows-narrator"], "disabled")
         self.assertNotIn("windows-narrator", usable)
+        for frozen_id in ("elevenlabs-speech", "runware-fish-s2", "runware-heygen-voice",
+                          "assemblyai-tts", "azure-openai-tts", "runware-seed-audio"):
+            self.assertEqual(blocked[frozen_id], "frozen")
+            self.assertNotIn(frozen_id, usable)
         rules = " ".join(POLICY["rules"])
         self.assertIn("Voice has no free lane", rules)
         self.assertIn("Windows Narrator", rules)
+        self.assertIn("excluded", rules)
+        self.assertIn("public preview", rules)
+        self.assertIn("Marin", rules)
         self.assertIn("silent", rules)
 
     def test_image_generation_video_lanes_stay_frozen(self):
-        for lane_id in ("higgsfield", "runway"):
+        for lane_id in ("higgsfield", "runway", "runware-pvideo-avatar", "runware-minimax-music"):
             self.assertEqual(next(l for l in POLICY["lanes"] if l["id"] == lane_id)["status"], "frozen")
+            self.assertNotIn(lane_id, [l["id"] for l in r.route(POLICY, ["video-generation", "music"])])
 
     def test_ready_before_conditional_and_azure_speech_first_for_voice(self):
         lanes = r.route(POLICY, ["voice"])

@@ -54,6 +54,26 @@ class AzureTests(unittest.TestCase):
         self.assertEqual(self.plan["maximum_usd_micros"], len(self.plan["request"]["ssml"].encode()) * 22)
         with self.assertRaises(ValueError):
             az.quote("x", workspace="j", revision="1", dictionary_revision="1", voice="unknown")
+        with self.assertRaises(ValueError):
+            az.quote("Warm line.", workspace="j", revision="1", dictionary_revision="1",
+                     voice="en-US-Olivia:MAI-Voice-2.1")
+        with self.assertRaises(ValueError):
+            az.quote("Warm line.", workspace="j", revision="1", dictionary_revision="1",
+                     voice="en-US-Ava3:DragonHDLatestNeural")
+
+    def test_conversational_voices_use_existing_hd_policy_without_styles(self):
+        options = dict(workspace="synthetic-job", revision="v1", dictionary_revision="v1")
+        keys = {az.quote("Synthetic line.", **options)["cache_key"]}
+        for name in ("Emma2", "Andrew2"):
+            voice = f"en-US-{name}:DragonHDLatestNeural"
+            with self.subTest(voice=voice):
+                planned = az.quote("Synthetic line.", voice=voice, **options)
+                self.assertEqual(planned["request"]["voice"], voice)
+                self.assertIn(f'<voice name="{voice}">', planned["request"]["ssml"])
+                self.assertNotIn(planned["cache_key"], keys)
+                keys.add(planned["cache_key"])
+                with self.assertRaises(ValueError):
+                    az.quote("Synthetic line.", voice=voice, style="reassuring", **options)
 
     def test_no_approval_no_ledger(self):
         self.policy["owner_authorization"] = "pending"

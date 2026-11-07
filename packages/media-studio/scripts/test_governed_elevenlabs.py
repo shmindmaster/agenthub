@@ -342,6 +342,7 @@ def worker(root, number, text, known_folder="fixture"):
             patch.object(content_runtime, "running_on_windows", return_value=True), \
             patch.object(content_runtime, "runtime_pin", return_value=str(pathlib.Path(root) / "AgentHub/runtime")), \
             patch.object(content_runtime, "local_app_data", known), \
+            patch.object(content_runtime, "legacy_epoch_parents", return_value=[]), \
             patch.object(cli, "_request_full", side_effect=provider), \
             patch.object(cli, "_get_json", side_effect=lambda path: metadata[path]):
         return cli.main(argv)

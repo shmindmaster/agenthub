@@ -5,7 +5,7 @@ Paid speech runs only through a governed adapter, which reserves the maximum in 
 | Provider | Adapter | Bucket | Caps |
 |---|---|---|---|
 | Azure TTS | `scripts/governed_azure_speech.py` | `azure-speech/usd-micros`, per workspace under `%LOCALAPPDATA%/AgentHub/runtime/azure-speech-jobs` | `azure-speech-new-provider-job` $1. `azure-speech-bounded-standard-job` at most 150,000 microdollars. Extension at most $0.69 inside the $1 |
-| Deepgram Flux Sienna TTS | `scripts/deepgram_cli.py` | `deepgram/usd-micros` under `%LOCALAPPDATA%/AgentHub/runtime/content-controls` | No budget row means disabled. Recovery epoch at most $3 |
+| Deepgram Flux batch TTS | `scripts/deepgram_cli.py` | `deepgram/usd-micros` under `%LOCALAPPDATA%/AgentHub/runtime/content-controls` | No budget row means disabled. Recovery epoch at most $3 |
 | ElevenLabs speech | `scripts/elevenlabs_cli.py` | `elevenlabs/credits`, per job under `<RuntimeRoot>/content-recovery-epochs/<epoch_id>` | Owner-authorized jobs only. With no manifest it refuses before any network call. The manifest sets the ceiling inside the limit below |
 
 Disabled: speech-to-text adapters, sound effects, music, avatar submission, voice fallback, automatic retry. `kit/marketing/lib/providers/elevenlabs.mjs` throws on sound effects and music, and the adapter has no such command. `cloud-ai.mjs align` is outside the spend record, so report it. On Codex, `scripts/content_host_controls.py --apply` blocks the ElevenLabs app; it needs a new session.
@@ -14,7 +14,9 @@ Disabled: speech-to-text adapters, sound effects, music, avatar submission, voic
 
 Deepgram, up to 2,000 characters at 45 microdollars per UTF-8 byte. Offline quote:
 
-`python scripts/deepgram_cli.py --text-file <f> --workspace <w> --revision <r> --dictionary-revision <d> --expressivity <0-1>`
+`python scripts/deepgram_cli.py --text-file <f> --workspace <w> --revision <r> --dictionary-revision <d> --voice flux-haley-en --expressivity 0`
+
+Omitting `--voice` preserves `flux-sienna-en` and its existing cache keys. The selected model is included in the quote and receipt.
 
 Add `--execute --output <absent.wav> --receipt <absent.json>` after approval.
 

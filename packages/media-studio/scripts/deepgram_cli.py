@@ -1,4 +1,4 @@
-"""Quote by default; explicit execution uses only the shared governed Sienna adapter."""
+"""Quote by default. Explicit execution uses the governed Flux batch adapter."""
 import argparse
 import json
 import os
@@ -14,6 +14,7 @@ def main(argv=None):
     p.add_argument("--revision", required=True)
     p.add_argument("--dictionary-revision", required=True)
     p.add_argument("--expressivity", required=True, type=float)
+    p.add_argument("--voice", choices=adapter.VOICES, default=adapter.DEFAULT_VOICE)
     p.add_argument("--ledger-root", type=pathlib.Path)
     p.add_argument("--recovery-epoch-manifest", type=pathlib.Path)
     p.add_argument("--output", type=pathlib.Path)
@@ -22,10 +23,11 @@ def main(argv=None):
     args = p.parse_args(argv)
     text = args.text_file.read_text(encoding="utf-8")
     options = dict(workspace=args.workspace, revision=args.revision,
-                   dictionary_revision=args.dictionary_revision, expressivity=args.expressivity)
+                   dictionary_revision=args.dictionary_revision, expressivity=args.expressivity, voice=args.voice)
     quote = adapter.quote(text, **options)
     if not args.execute:
-        print(json.dumps({k: v for k, v in quote.items() if k != "request"}, indent=2))
+        print(json.dumps({**{k: v for k, v in quote.items() if k != "request"},
+                          "model": quote["request"]["model"]}, indent=2))
         return 0
     if not args.output or not args.receipt or args.output.absolute() == args.receipt.absolute():
         p.error("--execute requires distinct --output and --receipt paths")
@@ -47,4 +49,4 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (RuntimeError, ValueError, OSError):
-        raise SystemExit("Governed Sienna request failed; inspect shared receipt/state before retrying. No provider details logged.") from None
+        raise SystemExit("Governed Flux request failed. Inspect shared receipt/state before retrying.") from None

@@ -96,7 +96,7 @@
     "durationSeconds": { "type": "number", "minimum": 1 },
     "voice": {
       "type": "string",
-      "description": "Program narrator voice: an Azure Speech voice name from the generate skill voice cast (for example en-US-AriaNeural or en-US-Ava:DragonHDLatestNeural). No Sarosh voice clone in films. Windows Narrator, SAPI, System.Speech and OneCore voices are forbidden. Historical jobs may carry a retired local voice id (sarosh, role-*, narrator-*); they stay read-only evidence."
+      "description": "Program narrator voice selected using skills/generate/references/voice-recipes.md. Governed Azure DragonHD voices are Ava, Andrew, Emma2 and Andrew2. New recipes exclude direct ElevenLabs. Public-preview MAI, desktop speech and owner voice cloning are forbidden. Historical voice IDs remain readable."
     },
     "workspace": {
       "type": "string",
