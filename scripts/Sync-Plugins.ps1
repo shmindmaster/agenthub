@@ -13,6 +13,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/CapabilityGraph.ps1')
 . (Join-Path $PSScriptRoot 'RegistryContentHash.ps1')
 . (Join-Path $PSScriptRoot 'lib/PathBinding.ps1')
+. (Join-Path $PSScriptRoot 'lib/PluginTransaction.ps1')
 $liveProfile = [IO.Path]::GetFullPath((Get-AgentHubDefaultHome))
 $live = $UserProfile.TrimEnd('\', '/') -eq $liveProfile.TrimEnd('\', '/')
 $root = $RepositoryRoot.Replace('\', '/')
@@ -197,7 +198,9 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
 
 function Test-SkillCopy([string]$Source, [string]$Destination) {
     if (-not (Test-Path -LiteralPath (Join-Path $Destination 'skills'))) { return $false }
-    $gitFiles = @(Get-AgentHubGitTrackedRelativeFiles -Path $Source)
+    $gitFiles = if ($Source.Replace('\','/') -match '/overlays/personal/') {
+        @(Get-AgentHubFilesystemRelativeFiles -Path $Source)
+    } else { @(Get-AgentHubGitTrackedRelativeFiles -Path $Source) }
     $managed = @($gitFiles | Where-Object { $_ -match '^(skills|scripts|references|assets|kits|schemas|policy|kit)/' })
     if (-not $managed.Count) { return $false }
     foreach ($relative in $managed) {
@@ -245,6 +248,11 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     $Row.observed = if ($observation.version) { $observation.version } elseif ($observation.status -eq 'current') { $Row.expected } else { $null }
     $Row.previousPath = $observation.path
     $Row.detail = $observation.detail
+    if (-not $observation -and $Row.host -notin 'cursor','amp','cline','opencode','warp') {
+        $Row.status = 'blocked'
+        $Row.detail = 'Native registration is absent. First install requires verified host activation and ownership.'
+        return
+    }
     if ($observation.status -and $observation.status -ne 'current') { $Row.status = $observation.status; return }
     if ($observation.status -eq 'current' -and $observation.path -eq $Row.source) { $Row.status = 'current'; return }
     if (-not $observation) { $Row.status = 'missing'; return }
@@ -271,7 +279,7 @@ $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument
         $row = [pscustomobject]@{
             host=$target; plugin=$manifest.name; capability=$cap.id; route=$route
             expected=$manifest.version; observed=$null; status=$null; detail=$null
-            source=$source; relative=[string]$cap.canonicalSource; marketplace=$market
+            source=$source; sourceHash=$cap.contentHash; relative=[string]$cap.canonicalSource; marketplace=$market
             previousPath=$null; catalog=$cap.deployedCatalog
         }
         Set-PluginStatus $row
@@ -388,6 +396,9 @@ if ($Apply) {
     $stamp = [guid]::NewGuid().ToString('N')
     [void][IO.Directory]::CreateDirectory($receiptRoot)
     $receiptPath = Join-Path $receiptRoot "$stamp.json"
+    $deploymentLock = [IO.File]::Open((Join-Path $receiptRoot 'deployment.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+    try {
+    [IO.File]::WriteAllText($receiptPath, (@{ release=$release; changes=@() } | ConvertTo-Json))
     foreach ($row in $rows) {
         if ($row.status -notin 'missing', 'drift') { continue }
         if ($row.host -eq 'vscode-insiders') {
@@ -395,11 +406,39 @@ if ($Apply) {
             $row.detail = 'Register the package through chat.pluginLocations or its approved Copilot catalog.'
             continue
         }
-        $entry = [pscustomobject]@{ host=$row.host; plugin=$row.plugin; previous=$row.observed; desired=$row.expected; status='started' }
+        $entry = [pscustomobject]@{ host=$row.host; plugin=$row.plugin; previous=$row.observed; previousPath=$row.previousPath; desired=$row.expected; sourceHash=$row.sourceHash; backup=$null; status='started' }
         $changes.Add($entry)
         [IO.File]::WriteAllText($receiptPath, (@{ release=$release; changes=@($changes.ToArray()) } | ConvertTo-Json -Depth 5))
+        $backup = $null
+        if ($row.previousPath -and (Test-Path -LiteralPath $row.previousPath -PathType Container) -and
+            -not $row.previousPath.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) {
+            $backup = Join-Path $receiptRoot "$stamp-$($row.host)-$($row.plugin)"
+            Copy-Item -LiteralPath $row.previousPath -Destination $backup -Recurse -Force
+            $entry.backup = $backup
+        }
         try {
-            Invoke-PluginInstall $row
+            $entry.status = Invoke-AgentHubPluginChange -Install { Invoke-PluginInstall $row } -Verify {
+                Set-PluginStatus $row -Fresh
+                return $row.status -eq 'current'
+            } -Rollback {
+                if ($backup -and $row.host -in 'cursor','amp') {
+                    $destination = [IO.Path]::GetFullPath($entry.previousPath)
+                    $prefix = $liveProfile.TrimEnd('\\','/') + [IO.Path]::DirectorySeparatorChar
+                    if (-not $destination.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Rollback destination is outside the invoking profile.' }
+                    $item = Get-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+                    if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Rollback refused a reparse point.' }
+                    if ($item) { Remove-Item -LiteralPath $destination -Recurse -Force }
+                    Copy-Item -LiteralPath $backup -Destination $destination -Recurse
+                } elseif ($backup -and $row.host -in 'grok','antigravity') {
+                    $client = if ($row.host -eq 'grok') { 'grok' } else { 'agy' }
+                    $null = Invoke-Client $client @('plugin','uninstall',$row.plugin)
+                    $arguments = @('plugin','install',$backup.Replace('\\','/'))
+                    if ($row.host -eq 'grok') { $arguments += '--trust' }
+                    $null = Invoke-Client $client $arguments
+                } else {
+                    throw "Native registration requires host-specific recovery. Previous=$($entry.previous); backup=$backup"
+                }
+            }
             foreach ($peer in @($rows | Where-Object { $_.plugin -eq $row.plugin -and $_.route -eq 'runtime' })) { Set-PluginStatus $peer -Fresh }
             Set-PluginStatus $row -Fresh
             if ($row.status -ne 'current') { throw "Installer readback is $($row.status)." }
@@ -414,6 +453,7 @@ if ($Apply) {
         }
         if ($failed) { break }
     }
+    } finally { $deploymentLock.Dispose() }
 }
 $report = [ordered]@{
     mode = if ($Apply) { 'apply' } else { 'audit' }

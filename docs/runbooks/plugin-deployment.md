@@ -103,3 +103,19 @@ The test reads the live profile, so `tests/ci-skip.json` skips it on CI runners 
 ## Instructions
 
 `scripts/Sync-Instructions.ps1` compiles the host instruction files from the overlay policy. Audit does not restage, so diff a real render before applying: run `-Apply -UserProfile <empty temp dir>` and compare its output with the deployed file.
+
+## Fleet plugin command
+
+Run a read-only plan with optional filters.
+
+~~~powershell
+pwsh -NoProfile -File scripts/AgentHub.ps1 plugins -Json
+pwsh -NoProfile -File scripts/AgentHub.ps1 plugins -HostId cursor -PluginId ah-browser -Json
+~~~
+
+Add `-Apply` to repair managed drift. Apply requires the clean primary `main` checkout, matching published `origin/main`, successful CI on that exact commit, and registry validation. Alternate user profiles are audit-only. The planner distinguishes source/cache parity from session load. Native activation, account entitlement and provider acceptance remain separate checks.
+
+The command records version and source-hash evidence under the local AgentHub runtime before invoking an installer. It holds an exclusive deployment lock and stops on failed readback. Cursor and Amp package copies restore from the prior package backup. Grok and Antigravity can reinstall the backed-up package through their native CLI. Other native registration failures retain the prior cache evidence and stop with a host-specific recovery requirement. Review the receipt before resuming that wave.
+
+An absent native registration stays blocked until its approved ownership and activation are established. The audit reports direct Claude MCP entries and loose shared skills as unmanaged conflicts. It preserves them. Unsupported legacy mappings stay blocked. Vendor RepoWise remains authoritative on Claude and Codex.
+

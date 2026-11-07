@@ -20,5 +20,4 @@ Record licenses from package provenance. Existing MIT declarations that differ f
 
 ## Environment blockers
 
-At the baseline, the Windows AgentHub runtime directory can be probed but cannot reliably create or enumerate children. Mobile runtime staging and the shared RepoWise refresh lease are affected. Diagnose through their normal entry points and preserve runtime dependencies. Do not replace or redirect a shared lease to bypass the failure.
-
+At the baseline, the Windows AgentHub runtime directory can be probed but cannot reliably create or enumerate children. Mobile runtime staging and the shared RepoWise refresh lease are affected. Diagnose through their normal entry points and preserve runtime dependencies. Do not replace or redirect a shared lease to bypass the failure.\n
