@@ -5,6 +5,13 @@ description: Drives an Android emulator and iOS Simulator through Appium MCP to 
 
 # Mobile device lab
 
+## Workflow contract
+
+1. Resolve the registered product, target OS, device, and smoke scenario.
+2. Run preflight, obtain an exclusive lease, start Appium on demand and execute the smoke scenario. Release only this task's session and lease.
+3. Return the device, app identity, smoke verdict, evidence path, and cleanup result.
+4. If preflight, lease, or app identity fails, stop before driving the device and record the blocker.
+
 Android runs on this Windows host; iOS runs in the macOS VM, driven remotely. Both use the `appium-mobile` MCP server. Report results as "verified on simulator", never "on device".
 
 ```powershell
@@ -39,19 +46,10 @@ The check stops at the first broken layer; fix only that layer. Nothing restarts
 
 Hold the lease around anything that mutates a shared emulator or Simulator: build, install, session. An idle probe alone is not permission. Stop if the lease or idle check fails. If Maestro, Xcode or another Appium session is active, wait; never kill another run. Commands: `references/lab-operations.md`.
 
-## 4. Drive
-
-- Android: `appium-mobile:select_device` (android), then `appium-mobile:appium_session_management` create with `remoteServerUrl` omitted (selects the embedded driver).
-- iOS: create with `remoteServerUrl` from the `start ios -Json` output; the guest address changes. Capabilities and device name come from `$mobile catalog device.ios-simulator -Json`. Do not set `appium:usePrebuiltWDA` on a first session.
-- Prefer `appium-mobile:appium_get_page_source` and accessibility ids over screenshots and XPath.
-- Web app in mobile browsers: `$mobile web <productId> -Url <url>`; the dev server must listen on `0.0.0.0`.
-
-## 5. Build, reload and troubleshoot
-
-Reload JavaScript with Metro instead of rebuilding; rebuild only for native changes. Read `references/inner-loop.md` for the app under test. If a guest looks down, check SSH before `vmrun`. Read `references/lab-operations.md` for repair steps.
-
 ## References
 
 - `references/inner-loop.md`. Read when choosing rebuild vs reload, building or syncing the app under test, build speed, test tools, or web targets.
 - `references/lab-operations.md`. Read for the lease and idle-check commands, a guest that will not start, Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
 - `references/physical-iphone.md`. Read when driving the iPhone attached to Windows.
+
+Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

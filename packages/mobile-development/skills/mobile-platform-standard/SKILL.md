@@ -5,6 +5,13 @@ description: Sets the eligibility gate and platform baseline for native iOS and 
 
 # Mobile platform standard
 
+## Workflow contract
+
+1. Resolve product eligibility, target platform, and identity before selecting tooling.
+2. Choose the approved baseline and build route, then hand device execution to `mobile-device-lab` with an explicit platform and smoke scenario.
+3. Return the platform decision, build command and evidence needed for device verification.
+4. If the product or bundle identity is unregistered, stop before provisioning or installing anything.
+
 Read before writing mobile code or touching any Apple, Google, Expo, EAS or Firebase surface.
 
 ```powershell
@@ -29,24 +36,6 @@ Only an exact `include` record authorizes product-targeted mobile work. A reposi
 
 For a frozen product, every class in `scopePolicy.frozenIdentifierClasses` is prohibited, and a placeholder identifier is one of them. Only the owner lifts a freeze, through the product's `exitCondition`. A bundle identifier is permanent after the first App Store Connect upload.
 
-## 2. Baseline
-
-| Layer | Standard |
-| --- | --- |
-| Framework | Expo SDK 57, React Native 0.86, TypeScript, Expo Router |
-| Native | Continuous Native Generation, config plugins, `expo-dev-client` (not Expo Go) |
-| Builds | Local; EAS cloud only when the macOS guest is unavailable |
-| Release | EAS Submit, Update, Workflows, Metadata (`store.config.json`), Environment Variables, Credentials |
-| Quality | Maestro E2E, Sentry per product, EAS Observe, `expo-doctor` and `expo install --check` in CI |
-| Push, links | `expo-notifications` (APNs, FCM v1); Universal Links, Android App Links |
-| Versioning | EAS remote versions, `autoIncrement`, `runtimeVersion: { "policy": "fingerprint" }` |
-
-Unchanged native state ships as EAS Update; changed native state builds and submits. Track npm `latest` of `expo`, never prereleases, and pin the EAS CLI version. Target Android 16 / API 36. The macOS guest is x86_64, so Xcode stops at 26.x (`registry/mobile-development.json` `expectations.xcode`).
-
-## 3. Local builds
-
-Android builds with `gradlew` on Windows. iOS builds in the macOS guest: `xcodebuild` for a Simulator `.app`, `eas build --platform ios --profile <p> --local` for a signed `.ipa`. Commands, signing checks and installing an `.ipa` on a phone: `references/release-infrastructure.md`.
-
 ## 4. Identity
 
 - `registry/mobile-scope.json` is the sole product identity authority. Use the product's `mobileIdentity` exactly; never derive, normalize or improve it from this skill, another product, an old build or a dashboard.
@@ -61,3 +50,5 @@ Where `healthSensitive` is true, enable no screenshot collection, session replay
 
 - `references/store-compliance.md`. Read when preparing a store submission.
 - `references/release-infrastructure.md`. Read when running a local build, checking signing, setting up Apple or Google accounts, API keys, beta lanes or EAS variables, installing an `.ipa`, or adding an identifier variant or EAS project.
+
+Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

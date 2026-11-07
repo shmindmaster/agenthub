@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-media-studio",
-  "version": "2.4.6",
+  "version": "2.5.0",
   "description": "Develop a creative brief, storyboard and narration, then capture, compose and review video or audio deliverables.",
   "license": "MIT",
   "keywords": [

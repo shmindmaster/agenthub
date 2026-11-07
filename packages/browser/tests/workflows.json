@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "automate",
+      "kind": "workflow",
+      "input": "Open Example Domain using the intended Edge profile.",
+      "expected": "Return the observed outcome, route, browser identity when applicable, and only the evidence requested.",
+      "evidence": [
+        "For an existing profile, verify the selected browser identity before navigation and scope every action to the selected session. For isolated work, use the wrapper below.",
+        "Return the observed outcome, route, browser identity when applicable, and only the evidence requested."
+      ]
+    },
+    {
+      "skill": "automate",
+      "kind": "recovery",
+      "input": "Two available browser identities match the requested label.",
+      "expected": "If identity differs or is ambiguous, stop before acting. Close only the session you opened.",
+      "evidence": [
+        "Resolve the target URL, requested browser identity, and whether the workflow needs signed-in state or clean state.",
+        "If identity differs or is ambiguous, stop before acting. Close only the session you opened."
+      ]
+    }
+  ]
+}

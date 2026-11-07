@@ -5,6 +5,13 @@ description: "Chooses and builds each beat's picture: charts, hand-drawn diagram
 
 # Visuals
 
+## Workflow contract
+
+1. Use the approved beat, picture plan, source evidence and allowed visual lane.
+2. Build the simplest visual that proves the beat, verify it against the claim and record it in the visual bible.
+3. Hand the asset, provenance and visual bible entry to `compose` or `plan` as appropriate.
+4. If an asset cannot substantiate the beat, revise the picture plan before accepting it.
+
 Show the thing the line is about. A beat that shows a title, or the sentence again, has no picture.
 
 ## Choose from the ladder

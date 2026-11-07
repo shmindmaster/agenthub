@@ -5,6 +5,13 @@ description: Produces a testable acceptance contract with states, keyboard behav
 
 # Design
 
+## Workflow contract
+
+1. Use the scoped finding or request, constraints, and observed evidence.
+2. Choose the smallest usable flow, spell out states and acceptance tests, then hand the contract to `build`.
+3. Return the design contract and observable acceptance criteria for `verify`.
+4. If role, state, or scope is unknown, record the assumption or block the affected acceptance test.
+
 Step 2 of 4: ground, decide, build, prove. Turn one finding or idea into a contract someone else can test. Start from the request and the repository; no earlier files are needed.
 
 ## Checklist
@@ -22,12 +29,6 @@ Copy this list and tick each item.
 - [ ] Name one outcome metric, its baseline and its threshold, before anyone sees results.
 
 Read when the feature uses AI, tools or autonomy: [agentic](../../references/agentic.md). Add its risk rating and failure behaviour to the contract.
-
-## Example
-
-Input: "Improve the invite form."
-
-Output: "Email field validates on blur. A failed send keeps the typed email, moves focus to the error and announces it. Success returns focus to the Invite button. Acceptance: with an invalid email, pressing Send shows the error and focus lands on the field."
 
 ## Rules
 
@@ -52,3 +53,5 @@ Return these sections, in order:
 Save to `_product-experience/02-design.md` only when the user asks for a file. Then run `node ../../scripts/validate-artifact.mjs --type design <file>`, fix what it reports, and repeat until it passes.
 
 Next: `build`.
+
+Read when applying the detailed example. [Workflow detail](references/workflow-detail.md)

@@ -5,6 +5,13 @@ description: Produces a tested implementation of a scoped product or UI change i
 
 # Build
 
+## Workflow contract
+
+1. Use the scoped design contract or an explicit small fix and the repository instructions.
+2. Implement the smallest change, run the local checks, and hand the exact revision and evidence to `verify`.
+3. Return the changed behavior, files, tests, and any remaining blockers.
+4. If a requirement is blocked, preserve the current working path and record the missing dependency.
+
 Step 3 of 4: ground, decide, build, prove. Start from a direct instruction or a contract; no earlier files are needed. For a one-line fix, decide and build are one step: write the test, make the fix, go to `verify`.
 
 ## Checklist
@@ -20,26 +27,6 @@ Copy this list and tick each item.
 - [ ] Run the focused test, then the broader checks.
 - [ ] Report changed files, commands with their output, and remaining risks.
 
-## Patterns
-
-Use the repository's working pattern. If it has none, use these.
-
-| Need | Use |
-|---|---|
-| Colour, spacing, type | Design tokens, no one-off values |
-| Page data | Server-first rendering |
-| Slow writes | Optimistic UI with rollback on failure |
-| Slow reads | Skeletons matching the final layout |
-| Late content | Reserved space, so nothing shifts |
-| Overlays | Native `popover` and `<dialog>` |
-| Layout by component width | Container queries |
-| State and page changes | View Transitions, honouring `prefers-reduced-motion` |
-| Release | Preview deployments and instant rollback |
-
-## Accessibility
-
-Meet WCAG 2.2 AA. Targets are at least 24px. Sticky UI never hides focus. Every drag has a non-drag alternative. Login never requires a cognitive test.
-
 ## Rules
 
 - Do not write production code before the failing test because the change is small.
@@ -49,3 +36,5 @@ Meet WCAG 2.2 AA. Targets are at least 24px. Sticky UI never hides focus. Every 
 - Do not say "verified" or "done" because your tests passed. You built it, so the verdict belongs to someone else.
 
 Next: `verify`, from a fresh context.
+
+Read when applying the detailed patterns, accessibility. [Workflow detail](references/workflow-detail.md)

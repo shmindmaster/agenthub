@@ -447,7 +447,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+skills",
       "canonicalSource": "packages/product",
-      "contentHash": "B4D41B5D180D5BAA47E2EDD063BE47DA1259C8EAABA0EA7ECBB8A5C60FE0BBFC",
+      "contentHash": "59C01E83290C58A86DAB235C2F3954AA7EA723EC19DB8B1FFDC825891EB02B90",
       "hashBasis": "packages/product",
       "status": "active-canonical",
       "notes": "Owns the product skills audit, design, build, verify and demo and the reviewer agent (2.1.2, no hooks). verify and demo load references/authenticated-acceptance.md, which carries the session, role, denial and data-boundary evidence an authenticated journey needs; the fleet's provider-specific contract stays in docs/runbooks/clerk-auth.md. Also owns the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
@@ -530,7 +530,7 @@
       "managedSkillNames": [
         "repowise"
       ],
-      "contentHash": "C7CBC5D2CB8E07A2C31237598B70A0B830448C4A30AC3E1BC02079DC02618802",
+      "contentHash": "D848F61672859D68C32B9C86B37F929BA0720684B99C625CB7FA05E1FBC9D946",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -630,7 +630,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "912A09D942AD1EEC7A7DC9B3C516D71CED3B07FFC73A8E8CEC3CF44DD842BE30",
+      "contentHash": "DDD1174B36B195287CE4D05E94DAE88640D0B6D3787258557C92E15B8318DEF0",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -789,7 +789,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "97F503802CA031591E523D3A16C8E56A2287ECEE801CCAE237C41DB864DC2BDC",
+      "contentHash": "4ADA919908C459571F9C91A9BFA9818992A2A029C67ECFE489D0DDAF89364BE5",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1324,7 +1324,7 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "DC59D3BF4B05F289FB3149B2EFF10E4B13E22B0648A88D7E3AC386B6B3D7476C",
+      "contentHash": "0AA2030A7FF01F96AA399031DE22A06F039265F01B46D958960F5BE2851FF727",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [

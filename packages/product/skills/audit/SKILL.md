@@ -5,6 +5,13 @@ description: Produces a prioritised, evidence-labelled assessment of an existing
 
 # Audit
 
+## Workflow contract
+
+1. Use the requested product surface, target journey, and available evidence.
+2. Trace the journey and rank observed issues, then hand the highest-impact issue and evidence to `design`.
+3. Return prioritized findings with evidence labels and the next decision.
+4. If a surface is inaccessible, record it as blocked and separate assumptions from observations.
+
 Step 1 of 4: ground, decide, build, prove. Change nothing. Start from the bare repository; no earlier files are needed. Requires Node.
 
 ## Checklist
@@ -20,27 +27,6 @@ Copy this list and tick each item.
 - [ ] Sort findings into Now, Next, Later and Do not pursue, by user value, reach, severity and confidence.
 
 Read when the audit covers more than a few journeys: [surfaces](../../references/surfaces.md).
-
-## Evidence labels
-
-Label every claim.
-
-| Label | Meaning |
-|---|---|
-| Observed | Reproduced in the running app |
-| Implemented | Confirmed in code or configuration |
-| Reported | Stated in documentation or by a person |
-| Assumed | Plausible but unverified |
-| Unknown | Evidence is unavailable |
-
-## Severity
-
-| Level | Meaning |
-|---|---|
-| Critical | Blocks a core outcome, causes harm or loss, or destroys trust |
-| High | Major failure, exclusion, rework or abandonment |
-| Medium | Recurring friction or ambiguity with a workaround |
-| Low | Polish that does not block the task |
 
 ## Rules
 
@@ -64,3 +50,5 @@ Return these sections, in order:
 Save to `_product-experience/01-audit.md` only when the user asks for a file. Then run `node ../../scripts/validate-artifact.mjs --type audit <file>`, fix what it reports, and repeat until it passes.
 
 Next: `design`, for the finding you pick.
+
+Read when applying the detailed evidence labels, severity. [Workflow detail](references/workflow-detail.md)

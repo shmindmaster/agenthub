@@ -5,6 +5,13 @@ description: Produces a validated demo-readiness handoff for a real workflow. Us
 
 # Demo
 
+## Workflow contract
+
+1. Use the verified revision, demo journey and approved synthetic data.
+2. Prove the launch, reset and observed demo actions, then hand the validated demo-readiness package to Media Studio for capture if requested.
+3. Return the demo-readiness handoff, artifact paths and open risks.
+4. If a role, revision or journey fails, block capture and route the issue back to `verify` or `build`.
+
 Fix the product, not the recording. Start from one repository and the workflows to show; no earlier files are needed. Requires Node.
 
 ## Checklist
@@ -25,21 +32,6 @@ Copy this list and tick each item.
 
 Read when scoring or writing the handoff: [demo handoff](../../references/demo-handoff.md).
 
-## Final mapping
-
-`afterVerdict` is the gate. `beforeVerdict` never authorises recording.
-
-| `afterVerdict` | `verdict` | `handoffDecision` |
-|---|---|---|
-| `DEMO-READY`, all eleven pass | `PASS` | `PROCEED` |
-| `REMEDIABLE`, including when every residual is capture-fixable | `FAIL` | `DO-NOT-RECORD` |
-| `DEFERRED` | `FAIL` | `DO-NOT-RECORD` |
-
-## Product fix or capture fix
-
-- `product-fix-required`: behaviour, accessibility, truth, responsiveness or performance.
-- `capture-fixable`: a rough edge the camera or edit can treat, with the exact treatment written down.
-
 ## Rules
 
 - Do not downgrade a product defect to capture-fixable to keep a schedule.
@@ -58,3 +50,5 @@ node ../../scripts/validate-demo-readiness-handoff.mjs _product-experience/demo-
 ```
 
 Next: `media-studio` (kind `product-screencast`), on `DEMO-READY` only.
+
+Read when applying the detailed final mapping, product fix or capture fix. [Workflow detail](references/workflow-detail.md)

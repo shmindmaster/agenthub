@@ -20,6 +20,15 @@ function Read-Text([string]$Path) {
     return Get-Content -LiteralPath $Path -Raw -Encoding UTF8
 }
 
+function Read-WorkflowText([string]$Path) {
+    $text = Read-Text $Path
+    $detail = Join-Path (Split-Path -Parent $Path) 'references/workflow-detail.md'
+    if ($text -match '\(references/workflow-detail\.md\)' -and (Test-Path -LiteralPath $detail)) {
+        $text += [Environment]::NewLine + (Read-Text $detail)
+    }
+    return $text
+}
+
 Assert-True (Test-Path -LiteralPath $manifestPath) 'Missing Codex plugin manifest.'
 Assert-True (Test-Path -LiteralPath $claudeManifestPath) 'Missing Claude plugin manifest.'
 Assert-True (Test-Path -LiteralPath $cursorManifestPath) 'Missing Cursor plugin manifest.'
@@ -133,14 +142,14 @@ $actualSkills = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot 'skills') -D
 Assert-True (($actualSkills -join '|') -eq (($expectedSkills | Sort-Object) -join '|')) 'Skill set does not match the five-skill contract.'
 
 # Rules that must survive any edit to these skills.
-$auditText = Read-Text (Join-Path $pluginRoot 'skills\audit\SKILL.md')
+$auditText = Read-WorkflowText (Join-Path $pluginRoot 'skills\audit\SKILL.md')
 foreach ($label in @('Observed', 'Implemented', 'Reported', 'Assumed', 'Unknown')) {
     Assert-True ($auditText -match "(?m)^\| $label \|") "Audit is missing the evidence label: $label."
 }
 foreach ($skillName in @('verify', 'demo')) {
-    Assert-True ((Read-Text (Join-Path $pluginRoot "skills\$skillName\SKILL.md")) -match 'builder never issues the verdict') "Skill must keep the builder-never-verdicts rule: $skillName."
+    Assert-True ((Read-WorkflowText (Join-Path $pluginRoot "skills\$skillName\SKILL.md")) -match 'builder never issues the verdict') "Skill must keep the builder-never-verdicts rule: $skillName."
 }
-$demoText = Read-Text (Join-Path $pluginRoot 'skills\demo\SKILL.md')
+$demoText = Read-WorkflowText (Join-Path $pluginRoot 'skills\demo\SKILL.md')
 Assert-True ($demoText -match 'product-fix-required' -and $demoText -match 'capture-fixable') 'Demo must keep the product-fix and capture-fix split.'
 
 $actualReferences = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot 'references') -File | Select-Object -ExpandProperty Name | Sort-Object)

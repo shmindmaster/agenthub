@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-repowise",
-  "version": "1.4.5",
+  "version": "1.5.0",
   "description": "Use the legacy RepoWise bridge to inspect code, symbols, history and risk, or refresh the index through its bounded entry point."
 }

@@ -1,0 +1,104 @@
+{
+  "scenarios": [
+    {
+      "skill": "audit",
+      "kind": "workflow",
+      "input": "Audit a synthetic invitation journey.",
+      "expected": "Return prioritized findings with evidence labels and the next decision.",
+      "evidence": [
+        "Trace the journey and rank observed issues, then hand the highest-impact issue and evidence to `design`.",
+        "Return prioritized findings with evidence labels and the next decision."
+      ]
+    },
+    {
+      "skill": "audit",
+      "kind": "recovery",
+      "input": "The authenticated view cannot be reached.",
+      "expected": "If a surface is inaccessible, record it as blocked and separate assumptions from observations.",
+      "evidence": [
+        "Use the requested product surface, target journey, and available evidence.",
+        "If a surface is inaccessible, record it as blocked and separate assumptions from observations."
+      ]
+    },
+    {
+      "skill": "design",
+      "kind": "workflow",
+      "input": "Design recovery for a synthetic failed invitation.",
+      "expected": "Return the design contract and observable acceptance criteria for `verify`.",
+      "evidence": [
+        "Choose the smallest usable flow, spell out states and acceptance tests, then hand the contract to `build`.",
+        "Return the design contract and observable acceptance criteria for `verify`."
+      ]
+    },
+    {
+      "skill": "design",
+      "kind": "recovery",
+      "input": "The role allowed to retry has not been established.",
+      "expected": "If role, state, or scope is unknown, record the assumption or block the affected acceptance test.",
+      "evidence": [
+        "Use the scoped finding or request, constraints, and observed evidence.",
+        "If role, state, or scope is unknown, record the assumption or block the affected acceptance test."
+      ]
+    },
+    {
+      "skill": "build",
+      "kind": "workflow",
+      "input": "Build the agreed validation for a synthetic invitation.",
+      "expected": "Return the changed behavior, files, tests, and any remaining blockers.",
+      "evidence": [
+        "Implement the smallest change, run the local checks, and hand the exact revision and evidence to `verify`.",
+        "Return the changed behavior, files, tests, and any remaining blockers."
+      ]
+    },
+    {
+      "skill": "build",
+      "kind": "recovery",
+      "input": "The required test environment is unavailable.",
+      "expected": "If a requirement is blocked, preserve the current working path and record the missing dependency.",
+      "evidence": [
+        "Use the scoped design contract or an explicit small fix and the repository instructions.",
+        "If a requirement is blocked, preserve the current working path and record the missing dependency."
+      ]
+    },
+    {
+      "skill": "verify",
+      "kind": "workflow",
+      "input": "Verify a synthetic invitation fix against its acceptance contract.",
+      "expected": "Return a Pass, Fail or Blocked verdict with evidence for each criterion.",
+      "evidence": [
+        "Exercise normal, failure and permission paths against the candidate, then hand a passing journey to `demo` if requested.",
+        "Return a Pass, Fail or Blocked verdict with evidence for each criterion."
+      ]
+    },
+    {
+      "skill": "verify",
+      "kind": "recovery",
+      "input": "The test environment serves a different revision.",
+      "expected": "If the candidate revision, role or environment is unproven, mark the affected criterion Blocked.",
+      "evidence": [
+        "Use the acceptance contract, candidate revision and independent evidence source.",
+        "If the candidate revision, role or environment is unproven, mark the affected criterion Blocked."
+      ]
+    },
+    {
+      "skill": "demo",
+      "kind": "workflow",
+      "input": "Prepare a verified synthetic invitation demo.",
+      "expected": "Return the demo-readiness handoff, artifact paths and open risks.",
+      "evidence": [
+        "Prove the launch, reset and observed demo actions, then hand the validated demo-readiness package to Media Studio for capture if requested.",
+        "Return the demo-readiness handoff, artifact paths and open risks."
+      ]
+    },
+    {
+      "skill": "demo",
+      "kind": "recovery",
+      "input": "The demo target cannot prove the required role.",
+      "expected": "If a role, revision or journey fails, block capture and route the issue back to `verify` or `build`.",
+      "evidence": [
+        "Use the verified revision, demo journey and approved synthetic data.",
+        "If a role, revision or journey fails, block capture and route the issue back to `verify` or `build`."
+      ]
+    }
+  ]
+}

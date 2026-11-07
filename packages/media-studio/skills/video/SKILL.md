@@ -5,6 +5,13 @@ description: Produces a finished film, screencast, explainer, ad or voiceover fr
 
 # Video
 
+## Workflow contract
+
+1. Use the brief or existing job, intended viewer and delivery target.
+2. Choose the production form, route to the appropriate stage, and carry evidence from capture or generation through review.
+3. Return the encoded deliverable and verified disposition, or a stage-specific blocker.
+4. If the source or destination cannot be established, resolve it before production or publishing.
+
 A whole film from an idea starts with `studio` (it runs every phase and keeps the state); a rough ask starts with `brief` (approved written brief, picture plan, priced lanes) and `plan` (storyboard with a picture for every line) before anything below. From a short ask, infer kind, `programForm`, audience, voice and delivery; never make the user name skills or steps. Ask one question at most: only with no source, or an unknown destination for a product absent from `registry/product-video-delivery.json`.
 
 - **Kind:** a running product is `product-screencast`, whatever the ask said, after a readiness check (`references/product-picture.md`). A product change told as a story is `programForm: technical-story`. Otherwise `references/forms.md`.
@@ -26,24 +33,6 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 - Never invent metrics, customers or product behaviour. Never ship an addendum clip; re-record the section and re-cut the master.
 - Higgsfield and Runway credits stay frozen until the owner approves spend. The direct ElevenLabs account is excluded. Generative video: approved hero shots only.
 
-## Pipeline
-
-Copy into job notes; pass each gate before the next. A finished render proves nothing.
-
-```text
-1. Brief: `brief` skill, approved brief.md; then job.json, thesis, one promise (story.md)
-2. Script: locked facts; validate-narration.mjs passes (story.md)
-3. Beat sheet, then storyboard with a picture per line (`plan`, `visuals`), visual bible, direction (scenes.md); gates: check_picture_relevance and check_visual_variety pass
-4. Voice lock: ASR round trip passes (generate)
-5. Word clock (review)
-6. Capture or plates (capture, generate)
-7. Cue sheet from the word clock (compose)
-8. Compose the candidate (compose)
-9. Two-pass loudness master, ducked from stems (compose)
-10. Review the encoded file (review); loop on failures
-11. Deliver (compose)
-```
-
 ## References
 
 - `references/story.md`: Read when writing the brief or script, or diagnosing a weak cut.
@@ -51,3 +40,5 @@ Copy into job notes; pass each gate before the next. A finished render proves no
 - `references/scenes.md`: Read when storyboarding, directing, picking a renderer or hero shots.
 - `references/product-picture.md`: Read when the subject is a running product.
 - `references/operations.md`: Read when needing workspace or tool paths, paid spend, review repairs or a short ad.
+
+Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

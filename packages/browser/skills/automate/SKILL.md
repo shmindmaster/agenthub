@@ -5,27 +5,18 @@ description: "Automates websites in an existing Chrome or Edge profile or an iso
 
 # Browser automation
 
+## Workflow contract
+
+1. Resolve the target URL, requested browser identity, and whether the workflow needs signed-in state or clean state.
+2. For an existing profile, verify the selected browser identity before navigation and scope every action to the selected session. For isolated work, use the wrapper below.
+3. Return the observed outcome, route, browser identity when applicable, and only the evidence requested.
+4. If identity differs or is ambiguous, stop before acting. Close only the session you opened.
+
 ## 1. Choose the browser
 
 For work that needs an existing browser, use the user's intended profile. Use a callable native tool if it can reach that exact profile. Otherwise, use Tencent BrowserSkill in the selected profile as described in [hosts.md](references/hosts.md). Resolve ambiguous profiles before acting. If that profile is unavailable, report the blocker.
 
 Use an isolated browser for clean-state QA and capture. For other browsing, prefer a callable native tool that meets the task's requirements, then use the isolated client below.
-
-## 2. Drive the isolated browser
-
-Run every command through the wrapper. It names your session, hides the window, caps output and exits idle browsers.
-
-```bash
-node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" doctor
-node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" open <url>
-node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" snapshot -i
-node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" click @e3
-node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" fill @e2 "text"
-node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" snapshot -i
-node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" close
-```
-
-`CLAUDE_SKILL_DIR` is filled in when this skill loads. Use that path. Do not call `agent-browser` directly and do not pipe it. Other commands: `press`, `select`, `check`, `upload`, `wait`, `screenshot <path>`, `console`, `network requests`, `set viewport <w> <h>`, `set device <name>`, `set media dark`, `find role button click --name "Save"`, `get text @e1`, `record start`. For any command or flag not listed, run `node "${CLAUDE_SKILL_DIR}/scripts/browse.mjs" skills get core --full`.
 
 ## 3. Rules
 
@@ -43,3 +34,5 @@ Read when:
 
 - `references/testing.md`: you are testing an application, not completing a task.
 - `references/hosts.md`: you need an existing Chrome or Edge profile, a native browser, or a Playwright fallback.
+
+Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

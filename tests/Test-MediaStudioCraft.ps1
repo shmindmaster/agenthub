@@ -124,6 +124,7 @@ finally {
 # The explainer path and technical-story beat map live in story.md; direction and archetypes in scenes.md;
 # forms, delivery profiles and series methodology in forms.md.
 $producer = Get-Content -LiteralPath (Join-Path $pkg 'skills\video\SKILL.md') -Raw -Encoding UTF8
+$producer += [Environment]::NewLine + [IO.File]::ReadAllText((Join-Path $pkg 'skills\video\references\workflow-detail.md'))
 $explainer = Get-Content -LiteralPath (Join-Path $pkg 'skills\video\references\story.md') -Raw -Encoding UTF8
 $visualizer = Get-Content -LiteralPath (Join-Path $pkg 'skills\video\references\scenes.md') -Raw -Encoding UTF8
 $series = Get-Content -LiteralPath (Join-Path $pkg 'skills\video\references\forms.md') -Raw -Encoding UTF8
@@ -192,12 +193,14 @@ Report 'kit package.json declares playwright for the screencast renderers' (
     $null -ne $kitPackage.dependencies.playwright
 ) 'runtime kit cannot resolve playwright for render-*.mjs'
 $compose = Get-Content -LiteralPath (Join-Path $pkg 'skills\compose\SKILL.md') -Raw -Encoding UTF8
+$compose += [Environment]::NewLine + [IO.File]::ReadAllText((Join-Path $pkg 'skills\compose\references\workflow-detail.md'))
 Report 'compose skill documents the hints and the delivery naming rule' (
     $compose -match 'fit: cut\|hold\|fit\|fitpad' -and
     $compose -match 'NN - Title\.mp4' -and
     $compose -match 'archive folders'
 ) 'compose skill does not carry the compositor contract or delivery rules'
 $capture = Get-Content -LiteralPath (Join-Path $pkg 'skills\capture\SKILL.md') -Raw -Encoding UTF8
+$capture += [Environment]::NewLine + [IO.File]::ReadAllText((Join-Path $pkg 'skills\capture\references\workflow-detail.md'))
 Report 'capture skill resolves the browser provider from hostSurfaces and records the Recast limits' (
     $capture -match 'hostSurfaces' -and
     $capture -match '\.recast-tmp' -and $capture -match 'autoZoom'

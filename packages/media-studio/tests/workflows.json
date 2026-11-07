@@ -1,0 +1,204 @@
+{
+  "scenarios": [
+    {
+      "skill": "brief",
+      "kind": "workflow",
+      "input": "Brief a synthetic product onboarding video.",
+      "expected": "Hand `develop` the approved case or brief and its recorded approval.",
+      "evidence": [
+        "Resolve the planned screen and eligible lanes, then seek approval on the exact brief before downstream work.",
+        "Hand `develop` the approved case or brief and its recorded approval."
+      ]
+    },
+    {
+      "skill": "brief",
+      "kind": "recovery",
+      "input": "The owner approved a different version of the brief.",
+      "expected": "If approval is absent, leave the brief in draft and pause downstream work.",
+      "evidence": [
+        "Use the requested audience, intended outcome and available source material.",
+        "If approval is absent, leave the brief in draft and pause downstream work."
+      ]
+    },
+    {
+      "skill": "develop",
+      "kind": "workflow",
+      "input": "Develop a story from an approved synthetic case.",
+      "expected": "Hand `plan` the locked screenplay, beat sheet and approved story decision.",
+      "evidence": [
+        "Draft the logline, treatment, beat sheet and screenplay in order, then run the gates and record approval.",
+        "Hand `plan` the locked screenplay, beat sheet and approved story decision."
+      ]
+    },
+    {
+      "skill": "develop",
+      "kind": "recovery",
+      "input": "A beat has no picture that supports the promised result.",
+      "expected": "If a beat lacks a defensible picture or approval, revise the beat before planning.",
+      "evidence": [
+        "Use the approved case, stated promise and source material.",
+        "If a beat lacks a defensible picture or approval, revise the beat before planning."
+      ]
+    },
+    {
+      "skill": "plan",
+      "kind": "workflow",
+      "input": "Plan assets for a synthetic three-beat walkthrough.",
+      "expected": "Hand `capture`, `visuals` and `generate` the approved storyboard, picture plan, breakdown and work list.",
+      "evidence": [
+        "Map each line to a picture, price eligible lanes, run picture gates and record approval before spending.",
+        "Hand `capture`, `visuals` and `generate` the approved storyboard, picture plan, breakdown and work list."
+      ]
+    },
+    {
+      "skill": "plan",
+      "kind": "recovery",
+      "input": "A required picture is assigned to a frozen lane.",
+      "expected": "If a required asset depends on a frozen lane or the plan fails, resolve the blocker before releasing tasks.",
+      "evidence": [
+        "Use the approved brief and locked story, or the approved brief for a job without a separate screenplay.",
+        "If a required asset depends on a frozen lane or the plan fails, resolve the blocker before releasing tasks."
+      ]
+    },
+    {
+      "skill": "capture",
+      "kind": "workflow",
+      "input": "Capture a synthetic save action with evidence.",
+      "expected": "Hand `compose` the clips, per-beat evidence, recordings manifest and hash-bound receipt.",
+      "evidence": [
+        "Run browser and capture preflight, then record each approved beat and verify the observed action against the planned result.",
+        "Hand `compose` the clips, per-beat evidence, recordings manifest and hash-bound receipt."
+      ]
+    },
+    {
+      "skill": "capture",
+      "kind": "recovery",
+      "input": "Preflight detects an unapproved tenant.",
+      "expected": "If preflight or evidence fails, keep the previous accepted take and record a new candidate only for the failed beat.",
+      "evidence": [
+        "Use the approved picture plan, authorized synthetic target, and locked lines or voice timing when required.",
+        "If preflight or evidence fails, keep the previous accepted take and record a new candidate only for the failed beat."
+      ]
+    },
+    {
+      "skill": "generate",
+      "kind": "workflow",
+      "input": "Generate a mocked narration take for a synthetic walkthrough.",
+      "expected": "Hand `compose` accepted assets, receipts and required timing or alignment evidence.",
+      "evidence": [
+        "Resume from accepted takes, select the governed voice recipe or eligible asset lane, and validate the receipt before accepting a new take.",
+        "Hand `compose` accepted assets, receipts and required timing or alignment evidence."
+      ]
+    },
+    {
+      "skill": "generate",
+      "kind": "recovery",
+      "input": "A provider receipt binds a different voice than the accepted quote.",
+      "expected": "If the route is frozen, the quote is unapproved or the receipt mismatches, stop before accepting or retrying.",
+      "evidence": [
+        "Use the approved storyboard, locked lines, asset register and budget.",
+        "If the route is frozen, the quote is unapproved or the receipt mismatches, stop before accepting or retrying."
+      ]
+    },
+    {
+      "skill": "compose",
+      "kind": "workflow",
+      "input": "Compose an offline candidate from approved synthetic assets.",
+      "expected": "Hand `review` the encoded candidate, compose map and matching QA evidence.",
+      "evidence": [
+        "Build the candidate from the accepted sources, regenerate dependent cues after picture changes and run the delivery gates.",
+        "Hand `review` the encoded candidate, compose map and matching QA evidence."
+      ]
+    },
+    {
+      "skill": "compose",
+      "kind": "recovery",
+      "input": "The cue sheet belongs to an older picture revision.",
+      "expected": "If a cue, take or receipt is invalid, return that beat to its owning stage and preserve the last accepted candidate.",
+      "evidence": [
+        "Use the accepted assets and receipts, approved plan and valid timing evidence.",
+        "If a cue, take or receipt is invalid, return that beat to its owning stage and preserve the last accepted candidate."
+      ]
+    },
+    {
+      "skill": "review",
+      "kind": "workflow",
+      "input": "Review a synthetic encoded candidate with matching evidence.",
+      "expected": "Return the ship verdict, defects, repair target and candidate identity.",
+      "evidence": [
+        "Inspect the candidate and evidence, grade it, and name the earliest stage that owns any defect.",
+        "Return the ship verdict, defects, repair target and candidate identity."
+      ]
+    },
+    {
+      "skill": "review",
+      "kind": "recovery",
+      "input": "The evidence hash identifies a different candidate.",
+      "expected": "If evidence is missing or bound to another candidate, block delivery and request a fresh review after repair.",
+      "evidence": [
+        "Use the exact encoded candidate, associated plan, receipts and audience goal.",
+        "If evidence is missing or bound to another candidate, block delivery and request a fresh review after repair."
+      ]
+    },
+    {
+      "skill": "studio",
+      "kind": "workflow",
+      "input": "Resume a synthetic job after accepted voice assets.",
+      "expected": "Return the final candidate and review verdict, or the last completed stage and exact next input.",
+      "evidence": [
+        "Read the job status first, reuse passed artifacts, and resume at the earliest missing or invalid stage.",
+        "Return the final candidate and review verdict, or the last completed stage and exact next input."
+      ]
+    },
+    {
+      "skill": "studio",
+      "kind": "recovery",
+      "input": "The storyboard changed after its approval.",
+      "expected": "If approval or a dependency is missing, preserve accepted assets and stop at that stage.",
+      "evidence": [
+        "Use the media request and the job root if one exists.",
+        "If approval or a dependency is missing, preserve accepted assets and stop at that stage."
+      ]
+    },
+    {
+      "skill": "video",
+      "kind": "workflow",
+      "input": "Complete a synthetic product walkthrough from an approved brief.",
+      "expected": "Return the encoded deliverable and verified disposition, or a stage-specific blocker.",
+      "evidence": [
+        "Choose the production form, route to the appropriate stage, and carry evidence from capture or generation through review.",
+        "Return the encoded deliverable and verified disposition, or a stage-specific blocker."
+      ]
+    },
+    {
+      "skill": "video",
+      "kind": "recovery",
+      "input": "The product delivery target cannot be established.",
+      "expected": "If the source or destination cannot be established, resolve it before production or publishing.",
+      "evidence": [
+        "Use the brief or existing job, intended viewer and delivery target.",
+        "If the source or destination cannot be established, resolve it before production or publishing."
+      ]
+    },
+    {
+      "skill": "visuals",
+      "kind": "workflow",
+      "input": "Create a chart from a synthetic product metric.",
+      "expected": "Hand the asset, provenance and visual bible entry to `compose` or `plan` as appropriate.",
+      "evidence": [
+        "Build the simplest visual that proves the beat, verify it against the claim and record it in the visual bible.",
+        "Hand the asset, provenance and visual bible entry to `compose` or `plan` as appropriate."
+      ]
+    },
+    {
+      "skill": "visuals",
+      "kind": "recovery",
+      "input": "The source data does not support the chart's claim.",
+      "expected": "If an asset cannot substantiate the beat, revise the picture plan before accepting it.",
+      "evidence": [
+        "Use the approved beat, picture plan, source evidence and allowed visual lane.",
+        "If an asset cannot substantiate the beat, revise the picture plan before accepting it."
+      ]
+    }
+  ]
+}

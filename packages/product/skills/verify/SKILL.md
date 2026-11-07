@@ -5,6 +5,13 @@ description: Produces an independent Pass, Fail or Blocked verdict with command 
 
 # Verify
 
+## Workflow contract
+
+1. Use the acceptance contract, candidate revision and independent evidence source.
+2. Exercise normal, failure and permission paths against the candidate, then hand a passing journey to `demo` if requested.
+3. Return a Pass, Fail or Blocked verdict with evidence for each criterion.
+4. If the candidate revision, role or environment is unproven, mark the affected criterion Blocked.
+
 Step 4 of 4: ground, decide, build, prove. Start from the request, the diff and the running app; no earlier files are needed.
 
 The builder never issues the verdict. If this context wrote the change, start `product:reviewer`, or a new session on a host without subagents.
@@ -25,22 +32,6 @@ Copy this list and tick each item. Report the command and its output for every c
 - [ ] Measure with Lighthouse and a trace, plus field data: LCP 2.5 s, INP 200 ms, CLS 0.1 or below.
 - [ ] Compare outcome metrics with their thresholds.
 
-## Verdict
-
-| Verdict | Issue it when |
-|---|---|
-| Pass | Every required check ran and met its criterion |
-| Fail | Any check ran and missed its criterion |
-| Blocked | Nothing failed, and a required check did not run |
-
-Anything not run is Blocked. Fail outranks Blocked.
-
-## Outcome metrics
-
-- Set the metric, baseline, threshold and action on a miss before seeing results.
-- Use completion without help, median and high-percentile time, error recovery, and retention by cohort. Page views and clicks do not count alone.
-- For a shipped change, compare production telemetry before and after the deploy.
-
 ## Rules
 
 - Do not fix what you find because it is small. Report it with reproduction steps.
@@ -60,3 +51,5 @@ Return these sections, in order:
 Save to `_product-experience/05-verify.md` only when asked. Then run `node ../../scripts/validate-artifact.mjs --type verify <file>` and repeat until it passes.
 
 Next: `build` on Fail, `demo` when a Pass is headed for a recording.
+
+Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

@@ -5,23 +5,14 @@ description: Answers code questions from the shared RepoWise workspace index (sy
 
 # RepoWise
 
+## Workflow contract
+
+1. Resolve the repository and revision, then pick symbol, history or risk evidence for the question.
+2. Read the cited source at the intended revision. Check index freshness and use the bounded refresh only when needed and allowed.
+3. Return repository, revision, source locations and retrieval mode. Report stale or degraded retrieval explicitly.
+4. If the refresh lease is held or the index is stale, verify with live source and report the bounded refresh result separately.
+
 One workspace at `C:/Repos` indexes every repo under it. Per-repo indexes live in `.repowise/` (gitignored, never committed). Code, tests, schemas and CI outrank curated docs, and both outrank RepoWise; when they disagree, fix the stale artifact. An empty result means unknown: try another query or `rg`.
-
-## Query
-
-Read the exact file you are editing; use the index for orientation and impact.
-
-| Situation | First | Then |
-| --- | --- | --- |
-| Unfamiliar repo | `get_overview` | `search_codebase`, `get_context` |
-| Code question | `search_codebase` | `get_context`; `get_answer` only for a how/why question search cannot settle (paid model call) |
-| Before editing | `get_context` | hotspot: `get_risk` |
-| Working tree or PR | `get_risk` with `changed_files` | read `directive` |
-| Commit range | `get_change_risk` | `risk_percentile` |
-| Why it is shaped this way | `get_why` | |
-| Cleanup | `get_dead_code` with `safe_only=true` | |
-
-Pass `repo=<alias>` or `repo=all`. Wrap noisy commands in `repowise distill <cmd>`; recover omitted output with `repowise expand`.
 
 ## Hosts
 
@@ -47,3 +38,5 @@ Report the receipt result and real retrieval quality (run actual queries) separa
 
 - `references/setup.md`: read when configuring embeddings, the CLI, the dashboard or hosted mode.
 - `references/refresh.md`: read when running the bounded refresh or reviewing Codex vendor hooks.
+
+Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "repowise",
+      "kind": "workflow",
+      "input": "Trace a synthetic symbol and its call sites in one repository.",
+      "expected": "Return repository, revision, source locations and retrieval mode. Report stale or degraded retrieval explicitly.",
+      "evidence": [
+        "Read the cited source at the intended revision. Check index freshness and use the bounded refresh only when needed and allowed.",
+        "Return repository, revision, source locations and retrieval mode. Report stale or degraded retrieval explicitly."
+      ]
+    },
+    {
+      "skill": "repowise",
+      "kind": "recovery",
+      "input": "The index revision predates the symbol change.",
+      "expected": "If the refresh lease is held or the index is stale, verify with live source and report the bounded refresh result separately.",
+      "evidence": [
+        "Resolve the repository and revision, then pick symbol, history or risk evidence for the question.",
+        "If the refresh lease is held or the index is stale, verify with live source and report the bounded refresh result separately."
+      ]
+    }
+  ]
+}

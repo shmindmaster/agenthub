@@ -5,6 +5,13 @@ description: Produces accepted narration, character takes, stills and presenter 
 
 # Generate
 
+## Workflow contract
+
+1. Use the approved storyboard, locked lines, asset register and budget.
+2. Resume from accepted takes, select the governed voice recipe or eligible asset lane, and validate the receipt before accepting a new take.
+3. Hand `compose` accepted assets, receipts and required timing or alignment evidence.
+4. If the route is frozen, the quote is unapproved or the receipt mismatches, stop before accepting or retrying.
+
 Work from locked inputs. Viewer-facing jobs need `narration.md` or the screenplay, `storyboard.json`, `visual-bible.json` and `direction.json`; a missing file goes back to `video`. Do not invent a plate the director did not call.
 
 Hash each input (voice, style, SSML, format) and reuse an accepted take or plate on a match. Never re-voice audio that passed, and do not rerun a job for one scene. Write only to the external job workspace. Never copy generated plates, audio, prompts or helpers into a product repository.
@@ -27,12 +34,6 @@ Use each beat's `direction.register` to guide the performance. Pass style contro
 
 Use `references/voice-recipes.md` to select one voice per film or series. For new walkthroughs choose DragonHD Emma2 or Andrew2, with Ava as fallback. The Azure Speech adapter takes no style argument for these voices. Use governed Deepgram batch synthesis with Haley for prepared support prompts. The reference distinguishes callable choices from gated candidates, including Azure OpenAI Marin for directed narration. Reuse accepted takes. If the governed route cannot run, deliver the cut silent with the lines on screen. Desktop speech and HeyGen stock avatar voices are forbidden at every stage. No Sarosh voice clone. Each new line passes the take loop. Speaker similarity is advisory. Add pauses in the edit and use measured word timing.
 
-## Music and pictures
-
-Viewer-facing jobs supply the directed `musicCue: bed` unless `intent: draft` or `music: none`. Music and sound effects come only from accepted, licensed assets; a missing one is a blocker to report, not a gap to fill.
-
-Honour `refuse`: never product UI, metrics or testimonials. Never animate a product screenshot. Bind each plate, with its price basis, in the generation record, and report tier, rate, quantity and source.
-
 ## References
 
 - `references/takes-and-plates.md`: Read when running the take loop or supplying a music cue or plate.
@@ -44,3 +45,5 @@ Honour `refuse`: never product UI, metrics or testimonials. Never animate a prod
 - `references/stills.md`: Read when a scene needs a generated photograph: quote, lanes, cache, ledger.
 - `references/irukadark.md`: Read when a scene needs a generated clip (approved hero shot) or a by-hand picture or track from IrukaDark.
 - `../capture/references/abacare-lexicon.json`: Read when pronouncing ABACare film names.
+
+Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

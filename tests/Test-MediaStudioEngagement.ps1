@@ -32,7 +32,11 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 function Read-Pkg([string]$Relative) {
     $path = Join-Path $pkg $Relative
     if (-not (Test-Path -LiteralPath $path)) { return $null }
-    return [IO.File]::ReadAllText($path)
+    $text = [IO.File]::ReadAllText($path)
+    if ([IO.Path]::GetFileName($path) -eq 'SKILL.md' -and $text -match '\(references/workflow-detail\.md\)') {
+        $text += [Environment]::NewLine + [IO.File]::ReadAllText((Join-Path (Split-Path -Parent $path) 'references/workflow-detail.md'))
+    }
+    return $text
 }
 
 $engagement = Read-Pkg 'skills\video\references\story.md'

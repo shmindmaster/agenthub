@@ -1,0 +1,44 @@
+{
+  "scenarios": [
+    {
+      "skill": "mobile-platform-standard",
+      "kind": "workflow",
+      "input": "Choose Android tooling for a registered synthetic product.",
+      "expected": "Return the platform decision, build command and evidence needed for device verification.",
+      "evidence": [
+        "Choose the approved baseline and build route, then hand device execution to `mobile-device-lab` with an explicit platform and smoke scenario.",
+        "Return the platform decision, build command and evidence needed for device verification."
+      ]
+    },
+    {
+      "skill": "mobile-platform-standard",
+      "kind": "recovery",
+      "input": "The iOS bundle ID is missing from the product mapping.",
+      "expected": "If the product or bundle identity is unregistered, stop before provisioning or installing anything.",
+      "evidence": [
+        "Resolve product eligibility, target platform, and identity before selecting tooling.",
+        "If the product or bundle identity is unregistered, stop before provisioning or installing anything."
+      ]
+    },
+    {
+      "skill": "mobile-device-lab",
+      "kind": "workflow",
+      "input": "Launch a synthetic Android app on a verified test device.",
+      "expected": "Return the device, app identity, smoke verdict, evidence path, and cleanup result.",
+      "evidence": [
+        "Run preflight, obtain an exclusive lease, start Appium on demand and execute the smoke scenario. Release only this task's session and lease.",
+        "Return the device, app identity, smoke verdict, evidence path, and cleanup result."
+      ]
+    },
+    {
+      "skill": "mobile-device-lab",
+      "kind": "recovery",
+      "input": "The only matching device is already leased.",
+      "expected": "If preflight, lease, or app identity fails, stop before driving the device and record the blocker.",
+      "evidence": [
+        "Resolve the registered product, target OS, device, and smoke scenario.",
+        "If preflight, lease, or app identity fails, stop before driving the device and record the blocker."
+      ]
+    }
+  ]
+}
