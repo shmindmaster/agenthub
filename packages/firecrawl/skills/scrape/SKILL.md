@@ -5,6 +5,13 @@ description: Reads, crawls and searches websites through Firecrawl's hosted serv
 
 # Scrape with Firecrawl
 
+## Workflow contract
+
+1. Resolve the allowed public URL or paths, extraction fields, and page budget.
+2. Scrape a single known URL first. Map the allowed subtree before crawling and set its page limit explicitly.
+3. Return the source URLs, extracted fields, page count, and failed or skipped pages.
+4. If access is denied or a page falls outside the allowed paths, record it and leave that page unfetched.
+
 The plugin connects to Firecrawl's hosted MCP server. It runs no local process and stores no key; the host asks you to sign in once.
 
 ## Pick the smallest call

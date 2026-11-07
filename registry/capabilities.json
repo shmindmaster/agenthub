@@ -999,7 +999,7 @@
       "managedSkillNames": [
         "assemblyai"
       ],
-      "contentHash": "82FC487BAED9F9B28A4775231D52D100B4A0B6FC29D80444BD696545233069A3",
+      "contentHash": "54D4E2034FB70F0B2D221E665334D64D944E2A34274FB298909C981ED3076FE0",
       "hashBasis": "packages/assemblyai",
       "status": "active-canonical",
       "hostMappings": [
@@ -1124,7 +1124,7 @@
       "managedSkillNames": [
         "search"
       ],
-      "contentHash": "065645CB87E6C5BE7F9C34C98C5BE51F1F38C9CFBB4FA2BECE6FAB4F37613118",
+      "contentHash": "32473E30C05DEEC45F4D0E4B0E598C56E8060039D04AD6DA555A9827816FA935",
       "hashBasis": "packages/brave-search",
       "status": "active-canonical",
       "hostMappings": [
@@ -1238,7 +1238,7 @@
       "managedSkillNames": [
         "daytona"
       ],
-      "contentHash": "3B594A06579E513A1C04FBA9B3FF6E7C4E33217E63BA2C962DC44E51AF735AFF",
+      "contentHash": "14A1705DC03856CA7D5FB815AA8D7E7BF36AF0C6AE0E9E0E3DEA6BDAFC9CF935",
       "hashBasis": "packages/daytona",
       "status": "active-canonical",
       "hostMappings": [
@@ -1429,7 +1429,7 @@
       "managedSkillNames": [
         "scrape"
       ],
-      "contentHash": "8EC2C2EF1B0C574B3AB80B8D012DFAB4D7F602A3AB97785C1CA31ABF02F97DA7",
+      "contentHash": "2BD9640E690608E8836FB2A128C7B9AFF3D686F6F175DE16AC42FE367FD5FB79",
       "hashBasis": "packages/firecrawl",
       "status": "active-canonical",
       "hostMappings": [
@@ -1476,7 +1476,7 @@
       "managedSkillNames": [
         "docs"
       ],
-      "contentHash": "35B0AEFDA8A08B715C6E8F32E91679A9E05F34970C9E487D3B1C7907CAED9236",
+      "contentHash": "D24E4E132FD4FF0D1EE7801A369C4365BE953AACA09FEC1066395F34FDEE03E9",
       "hashBasis": "packages/context7",
       "status": "active-canonical",
       "hostMappings": [
@@ -1503,7 +1503,7 @@
       "managedSkillNames": [
         "issues"
       ],
-      "contentHash": "17CFF399B19208A22B92FB8B73B1B53DFFD42335B5BB06364381250BA566A562",
+      "contentHash": "8634874CE0E6EB04898744E1AE0DEB2F00B5E2AF3D06C9B9A0578D9FC09A77DA",
       "hashBasis": "packages/linear",
       "status": "active-canonical",
       "hostMappings": [
@@ -1530,7 +1530,7 @@
       "managedSkillNames": [
         "cloud"
       ],
-      "contentHash": "074EB76D2F45A5DB4A43595ADE8EE022210E5F168B9BEC9891CBEEBCB9EAE91D",
+      "contentHash": "BC5A6AA1B624D70B26C0644CB3197758361BE2764544EDE962233E5B9EB9BA5B",
       "hashBasis": "packages/aws",
       "status": "active-canonical",
       "hostMappings": [
@@ -1601,7 +1601,7 @@
       "managedSkillNames": [
         "workspace"
       ],
-      "contentHash": "E5BBCA452C98A798EFB108FD656B108B5C6318ED7F3776691A143446DDA2AC2E",
+      "contentHash": "F0D27A8F0BCF023858BC9445A6CC2F10CF23F421EE89EA481FEE582DE41C5081",
       "hashBasis": "packages/notion",
       "status": "active-canonical",
       "hostMappings": [
@@ -1640,7 +1640,7 @@
       "managedSkillNames": [
         "research"
       ],
-      "contentHash": "9389940ABF735D773ED67FB1E855BD8F0C4B197AA6B762F9901ABE248FDE01C1",
+      "contentHash": "C6715CB50999FE1B2CEBBC6CD7212325B804912D5C4BBFBE34D5886B62C56BC2",
       "hashBasis": "packages/exa",
       "status": "active-canonical",
       "hostMappings": [
@@ -1679,7 +1679,7 @@
       "managedSkillNames": [
         "edit"
       ],
-      "contentHash": "C9F9D164CB905B9EB38D7FDF7D13CA85C07CAD791CF58DB966CA7C42B3BE02E7",
+      "contentHash": "CF787A277F69251287C0775857FE208D6CF5B0B055796BEA63CE9DDC7B35776F",
       "hashBasis": "packages/descript",
       "status": "active-canonical",
       "hostMappings": [

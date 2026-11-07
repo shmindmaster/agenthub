@@ -5,6 +5,13 @@ description: Searches the web and reads pages through Exa's hosted server. Use w
 
 # Exa
 
+## Workflow contract
+
+1. Resolve the research question, inclusion criteria, and which public sources may be sent to Exa.
+2. Describe the desired source, shortlist candidates and open only the pages needed to verify each claim.
+3. Return claims with the supporting URLs and distinguish discovery hits from sources you read.
+4. If the results are thin, adjust the query once and mark unsupported claims as unknown. Stop on exhausted credits.
+
 The plugin connects to Exa's hosted MCP server. It stores no key.
 
 ## Pick the smallest call

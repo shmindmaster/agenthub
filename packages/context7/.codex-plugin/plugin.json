@@ -1,6 +1,6 @@
 {
   "name": "ah-context7",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Look up current library and framework documentation, including version-specific API examples, through hosted Context7.",
   "author": {
     "name": "MahumTech"

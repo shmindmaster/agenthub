@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-aws",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Use the official AWS MCP server to inspect AWS resources and answer documentation questions with your configured AWS profile.",
   "license": "MIT",
   "keywords": [

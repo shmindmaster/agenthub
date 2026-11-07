@@ -5,6 +5,13 @@ description: Reads and updates Linear issues, projects and comments through Line
 
 # Linear
 
+## Workflow contract
+
+1. Resolve the intended workspace, team, issue or project, and authorized change.
+2. Search for the exact item or an existing duplicate, then read its current state and apply only the requested change.
+3. Return the issue identifier, URL and verified state after an authorized write.
+4. If workspace or issue identity is ambiguous, stop before writing. If a request times out, reread the issue before retrying.
+
 The plugin connects to Linear's hosted MCP server. The host asks you to sign in once.
 
 ## Order of work

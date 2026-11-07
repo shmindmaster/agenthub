@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-aws",
   "displayName": "AH-AWS",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Use the official AWS MCP server to inspect AWS resources and answer documentation questions with your configured AWS profile.",
   "suggestedPrompts": [
     "List the regions this service runs in.",

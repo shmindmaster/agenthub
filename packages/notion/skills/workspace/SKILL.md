@@ -5,6 +5,13 @@ description: Reads and writes Notion pages and databases through Notion's hosted
 
 # Notion
 
+## Workflow contract
+
+1. Resolve the workspace, parent page or database, and the durable content to capture.
+2. Search for the record and confirm its parent. Update an exact match or create one record in the authorized destination, then read it back.
+3. Return the page or database item link and summarize the content verified there.
+4. If the parent is ambiguous, stage a private draft and stop before writing to a shared destination.
+
 The plugin connects to Notion's hosted MCP server. The host asks you to sign in once. A host with Notion's own plugin should use that instead.
 
 ## Order of work

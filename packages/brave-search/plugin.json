@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-brave-search",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Search the live web, news, images and places with Brave Search, then open relevant sources and cite your findings.",
   "license": "MIT",
   "keywords": [

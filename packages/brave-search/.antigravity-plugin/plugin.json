@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-brave-search",
   "displayName": "AH-Brave-Search",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Search the live web, news, images and places with Brave Search, then open relevant sources and cite your findings.",
   "suggestedPrompts": [
     "Look up the current docs for this error",

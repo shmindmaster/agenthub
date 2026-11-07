@@ -5,6 +5,13 @@ description: Looks up current library, framework and API documentation through C
 
 # Context7
 
+## Workflow contract
+
+1. Resolve the exact library, version, and API question.
+2. Match the library ID to its official project, then query the requested version and verify the relevant signature or migration step.
+3. Return the library ID, version actually verified, a cited example, and the source link.
+4. If the exact version is absent or rate limited, use its official versioned docs or report the gap.
+
 The plugin connects to Context7's hosted MCP server.
 
 ## Order of work

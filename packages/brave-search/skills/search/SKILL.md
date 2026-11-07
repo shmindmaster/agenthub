@@ -5,6 +5,13 @@ description: "Searches the live web with the Brave Search API: page content size
 
 # Brave Search
 
+## Workflow contract
+
+1. Resolve the question, freshness window and any trusted domain constraints.
+2. Start with `context` for facts or `news` for recent events, then open the primary source behind each material claim.
+3. Return dated findings with source URLs and separate publication dates from event dates.
+4. If no source supports the claim, widen the query once within the requested scope and label any remaining gap.
+
 Run every query through the bundled client. It adds the key header, trims the response and caps the output.
 
 ```bash

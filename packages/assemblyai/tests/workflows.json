@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "assemblyai",
+      "kind": "workflow",
+      "input": "Transcribe a synthetic two-speaker WAV with labels.",
+      "expected": "Return the transcript ID, selected speaker labels and timestamps, and any unprocessed span.",
+      "evidence": [
+        "Resolve the supported API fields, submit the authorized asset once, then poll the same transcript ID to a terminal status.",
+        "Return the transcript ID, selected speaker labels and timestamps, and any unprocessed span."
+      ]
+    },
+    {
+      "skill": "assemblyai",
+      "kind": "recovery",
+      "input": "The audio URL is private and processing consent is missing.",
+      "expected": "If the asset is ambiguous, private without consent, or the status is unknown, stop before resubmitting. Terminate streaming sessions you opened.",
+      "evidence": [
+        "Identify the exact audio source, consent to process it, and whether speaker labels, redaction or streaming are required.",
+        "If the asset is ambiguous, private without consent, or the status is unknown, stop before resubmitting. Terminate streaming sessions you opened."
+      ]
+    }
+  ]
+}

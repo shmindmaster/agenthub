@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-daytona",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Create isolated Daytona cloud sandboxes and run code or tests using the Daytona SDK, API or CLI.",
   "license": "Apache-2.0",
   "keywords": [

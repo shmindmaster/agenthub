@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-firecrawl",
   "displayName": "AH-Firecrawl",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Extract page content and crawl or search websites through hosted Firecrawl tools.",
   "suggestedPrompts": [
     "Read this page and summarize it",

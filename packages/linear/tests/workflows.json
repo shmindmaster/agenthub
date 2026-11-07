@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "issues",
+      "kind": "workflow",
+      "input": "Update a synthetic issue after verifying its team.",
+      "expected": "Return the issue identifier, URL and verified state after an authorized write.",
+      "evidence": [
+        "Search for the exact item or an existing duplicate, then read its current state and apply only the requested change.",
+        "Return the issue identifier, URL and verified state after an authorized write."
+      ]
+    },
+    {
+      "skill": "issues",
+      "kind": "recovery",
+      "input": "Two teams have issues with the same title.",
+      "expected": "If workspace or issue identity is ambiguous, stop before writing. If a request times out, reread the issue before retrying.",
+      "evidence": [
+        "Resolve the intended workspace, team, issue or project, and authorized change.",
+        "If workspace or issue identity is ambiguous, stop before writing. If a request times out, reread the issue before retrying."
+      ]
+    }
+  ]
+}

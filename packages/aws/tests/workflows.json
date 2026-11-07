@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "cloud",
+      "kind": "workflow",
+      "input": "Inspect a synthetic bucket in its declared region.",
+      "expected": "Return account, region, resource ID, observed state and the read operation used.",
+      "evidence": [
+        "Check the caller identity and compare the account and region with the request before reading the resource.",
+        "Return account, region, resource ID, observed state and the read operation used."
+      ]
+    },
+    {
+      "skill": "cloud",
+      "kind": "recovery",
+      "input": "The approved profile resolves to a different AWS account.",
+      "expected": "If the account or region mismatches, stop before querying the resource or switching profiles.",
+      "evidence": [
+        "Resolve the AWS resource, approved profile, and intended region.",
+        "If the account or region mismatches, stop before querying the resource or switching profiles."
+      ]
+    }
+  ]
+}

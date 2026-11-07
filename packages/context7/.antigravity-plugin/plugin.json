@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-context7",
   "displayName": "AH-Context7",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Look up current library and framework documentation, including version-specific API examples, through hosted Context7.",
   "suggestedPrompts": [
     "Find the current docs for this library.",

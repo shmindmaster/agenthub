@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-firecrawl",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Extract page content and crawl or search websites through hosted Firecrawl tools.",
   "license": "MIT",
   "keywords": [

@@ -1,6 +1,6 @@
 {
   "name": "ah-notion",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Search, read and update pages and databases through Notion’s hosted tools.",
   "author": {
     "name": "MahumTech"

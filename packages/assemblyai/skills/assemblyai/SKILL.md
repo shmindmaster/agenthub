@@ -5,6 +5,13 @@ description: "Builds AssemblyAI calls and code for speech-to-text and audio anal
 
 # AssemblyAI
 
+## Workflow contract
+
+1. Identify the exact audio source, consent to process it, and whether speaker labels, redaction or streaming are required.
+2. Resolve the supported API fields, submit the authorized asset once, then poll the same transcript ID to a terminal status.
+3. Return the transcript ID, selected speaker labels and timestamps, and any unprocessed span.
+4. If the asset is ambiguous, private without consent, or the status is unknown, stop before resubmitting. Terminate streaming sessions you opened.
+
 Thin routing skill. The vendor docs are the source of truth.
 
 ## Before writing code

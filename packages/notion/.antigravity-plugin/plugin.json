@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-notion",
   "displayName": "AH-Notion",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Search, read and update pages and databases through Notion’s hosted tools.",
   "suggestedPrompts": [
     "Find my notes on this topic in Notion.",

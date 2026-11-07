@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "edit",
+      "kind": "workflow",
+      "input": "Trim a pause from a synthetic composition and export it for review.",
+      "expected": "Return the project and composition IDs, job status, review findings and the authorized export link.",
+      "evidence": [
+        "Read the composition, submit one bounded edit, wait on its job ID, then review the result before export or publication.",
+        "Return the project and composition IDs, job status, review findings and the authorized export link."
+      ]
+    },
+    {
+      "skill": "edit",
+      "kind": "recovery",
+      "input": "Two compositions have the same title and no ID was supplied.",
+      "expected": "If the project is ambiguous or the job is pending, stop before editing another composition or submitting a duplicate. Publishing needs its own authorization.",
+      "evidence": [
+        "Resolve the exact project, composition, edit and export destination.",
+        "If the project is ambiguous or the job is pending, stop before editing another composition or submitting a duplicate. Publishing needs its own authorization."
+      ]
+    }
+  ]
+}

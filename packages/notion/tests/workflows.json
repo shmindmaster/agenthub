@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "workspace",
+      "kind": "workflow",
+      "input": "Update a synthetic decision under its approved project page.",
+      "expected": "Return the page or database item link and summarize the content verified there.",
+      "evidence": [
+        "Search for the record and confirm its parent. Update an exact match or create one record in the authorized destination, then read it back.",
+        "Return the page or database item link and summarize the content verified there."
+      ]
+    },
+    {
+      "skill": "workspace",
+      "kind": "recovery",
+      "input": "Two shared pages have the same title.",
+      "expected": "If the parent is ambiguous, stage a private draft and stop before writing to a shared destination.",
+      "evidence": [
+        "Resolve the workspace, parent page or database, and the durable content to capture.",
+        "If the parent is ambiguous, stage a private draft and stop before writing to a shared destination."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "docs",
+      "kind": "workflow",
+      "input": "Check a synthetic library's v2 configuration API.",
+      "expected": "Return the library ID, version actually verified, a cited example, and the source link.",
+      "evidence": [
+        "Match the library ID to its official project, then query the requested version and verify the relevant signature or migration step.",
+        "Return the library ID, version actually verified, a cited example, and the source link."
+      ]
+    },
+    {
+      "skill": "docs",
+      "kind": "recovery",
+      "input": "The lookup returns only v3 documentation for a v2 request.",
+      "expected": "If the exact version is absent or rate limited, use its official versioned docs or report the gap.",
+      "evidence": [
+        "Resolve the exact library, version, and API question.",
+        "If the exact version is absent or rate limited, use its official versioned docs or report the gap."
+      ]
+    }
+  ]
+}

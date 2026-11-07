@@ -5,6 +5,13 @@ description: Edits, transcribes and publishes Descript video and audio projects 
 
 # Descript
 
+## Workflow contract
+
+1. Resolve the exact project, composition, edit and export destination.
+2. Read the composition, submit one bounded edit, wait on its job ID, then review the result before export or publication.
+3. Return the project and composition IDs, job status, review findings and the authorized export link.
+4. If the project is ambiguous or the job is pending, stop before editing another composition or submitting a duplicate. Publishing needs its own authorization.
+
 The plugin connects to Descript's hosted MCP server. The host asks you to sign in once.
 
 ## Order of work

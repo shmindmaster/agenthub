@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "search",
+      "kind": "workflow",
+      "input": "Find reports about a synthetic release in the past week.",
+      "expected": "Return dated findings with source URLs and separate publication dates from event dates.",
+      "evidence": [
+        "Start with `context` for facts or `news` for recent events, then open the primary source behind each material claim.",
+        "Return dated findings with source URLs and separate publication dates from event dates."
+      ]
+    },
+    {
+      "skill": "search",
+      "kind": "recovery",
+      "input": "Search snippets mention the release but no accessible source confirms it.",
+      "expected": "If no source supports the claim, widen the query once within the requested scope and label any remaining gap.",
+      "evidence": [
+        "Resolve the question, freshness window and any trusted domain constraints.",
+        "If no source supports the claim, widen the query once within the requested scope and label any remaining gap."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "research",
+      "kind": "workflow",
+      "input": "Find comparable public methods for a synthetic benchmark.",
+      "expected": "Return claims with the supporting URLs and distinguish discovery hits from sources you read.",
+      "evidence": [
+        "Describe the desired source, shortlist candidates and open only the pages needed to verify each claim.",
+        "Return claims with the supporting URLs and distinguish discovery hits from sources you read."
+      ]
+    },
+    {
+      "skill": "research",
+      "kind": "recovery",
+      "input": "The source list is empty after one refined search.",
+      "expected": "If the results are thin, adjust the query once and mark unsupported claims as unknown. Stop on exhausted credits.",
+      "evidence": [
+        "Resolve the research question, inclusion criteria, and which public sources may be sent to Exa.",
+        "If the results are thin, adjust the query once and mark unsupported claims as unknown. Stop on exhausted credits."
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-assemblyai",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools.",
   "author": {
     "name": "Sarosh Hussain"
