@@ -31,6 +31,9 @@ stranger-safe first run. For this private fleet checkout, also use
 
 ## Operations
 
+- [runbooks/claude-gateway-tools.md](./runbooks/claude-gateway-tools.md) — deferred
+  tool loading, offline Chat translation checks and local schema-size refusal.
+
 - [runbooks/clerk-auth.md](./runbooks/clerk-auth.md) — official Clerk fleet rollout,
   host OAuth lifecycle, genuine user and tenant/resource authorization acceptance.
 

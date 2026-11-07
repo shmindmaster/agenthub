@@ -22,6 +22,14 @@ Record licenses from package provenance. Existing MIT declarations that differ f
 
 At the baseline, the Windows AgentHub runtime directory can be probed but cannot reliably create or enumerate children. Mobile runtime staging and the shared RepoWise refresh lease are affected. Diagnose through their normal entry points and preserve runtime dependencies. Do not replace or redirect a shared lease to bypass the failure.
 
+The local Claude Desktop gateway is stopped after eager tool loading caused
+repeated compaction. Client tool-search compatibility and a local schema-size
+refusal are verified offline against the deployed LiteLLM image. Configuration
+is staged, but the native `toolSearchEnabled` property is administrator-owned
+and remains unapplied. Fresh Desktop loading and live acceptance are pending;
+do not restart paid traffic as part of fleet rollout. See
+[the gateway runbook](../../runbooks/claude-gateway-tools.md).
+
 ## Provider removal and presentation
 
 Owner direction on 2026-11-06 removes Firecrawl and Supabase plugins, loose skills and MCP routes. Supabase credits do not imply current activation. The rollout now contains 14 public and three private plugins.
