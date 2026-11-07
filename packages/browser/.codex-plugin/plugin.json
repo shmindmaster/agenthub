@@ -1,7 +1,7 @@
 {
   "name": "ah-browser",
-  "version": "1.2.0",
-  "description": "Automate websites in an existing Chrome or Edge profile with Tencent BrowserSkill, or use agent-browser for isolated testing and capture.",
+  "version": "1.2.1",
+  "description": "Use an existing Chrome or Edge profile for signed-in work. Run clean-state testing and capture in an isolated browser.",
   "author": {
     "name": "MahumTech"
   },
@@ -16,8 +16,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "AH-Browser",
-    "shortDescription": "Automate websites in an existing or isolated browser.",
-    "longDescription": "Automate websites in an existing Chrome or Edge profile with Tencent BrowserSkill, or use agent-browser for isolated testing and capture.",
+    "shortDescription": "Automate websites in your existing browser or an isolated session.",
+    "longDescription": "Use an existing Chrome or Edge profile for signed-in work. Run clean-state testing and capture in an isolated browser.",
     "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
@@ -25,9 +25,11 @@
       "Read"
     ],
     "defaultPrompt": [
-      "Test this web app as a user would and report what breaks.",
-      "Open this page, fill the form and show me the result.",
-      "Check the signup flow on mobile and desktop widths."
-    ]
+      "Use my existing Edge profile to verify this workflow."
+    ],
+    "brandColor": "#305C9B",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   }
 }

@@ -2,8 +2,8 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-exa",
   "displayName": "AH-Exa",
-  "version": "1.0.0",
-  "description": "Search the web and read pages through Exa's hosted server, for hosts whose catalog has no Exa plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Discover relevant web sources with hosted Exa search and read the pages needed to answer a question.",
   "suggestedPrompts": [
     "Find recent sources on this topic.",
     "Read this page and summarize it."
@@ -18,5 +18,6 @@
     "research",
     "web",
     "mcp"
-  ]
+  ],
+  "logo": "assets/icon.svg"
 }

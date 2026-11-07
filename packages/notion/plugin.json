@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-notion",
-  "version": "1.0.0",
-  "description": "Read and write Notion pages and databases through Notion's hosted server, for hosts that cannot load Notion's own plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Search, read and update pages and databases through Notion’s hosted tools.",
   "license": "MIT",
   "keywords": [
     "notion",

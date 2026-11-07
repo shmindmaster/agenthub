@@ -2,8 +2,8 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-linear",
   "displayName": "AH-Linear",
-  "version": "1.0.0",
-  "description": "Read and update Linear issues and projects through Linear's hosted server, for hosts whose catalog has no Linear plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Find, review and update issues and projects through Linear’s hosted tools.",
   "suggestedPrompts": [
     "List my open Linear issues.",
     "Summarize this Linear project."
@@ -17,5 +17,6 @@
     "issues",
     "tracker",
     "mcp"
-  ]
+  ],
+  "logo": "assets/icon.svg"
 }

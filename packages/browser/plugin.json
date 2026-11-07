@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-browser",
-  "version": "1.2.0",
-  "description": "Automate websites in an existing Chrome or Edge profile with Tencent BrowserSkill, or use agent-browser for isolated testing and capture.",
+  "version": "1.2.1",
+  "description": "Use an existing Chrome or Edge profile for signed-in work. Run clean-state testing and capture in an isolated browser.",
   "license": "MIT",
   "keywords": [
     "browser",

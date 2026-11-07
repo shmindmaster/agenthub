@@ -1,7 +1,7 @@
 {
   "name": "ah-browser",
   "displayName": "AH-Browser",
-  "description": "Automate websites in an existing Chrome or Edge profile with Tencent BrowserSkill, or use agent-browser for isolated testing and capture.",
+  "description": "Use an existing Chrome or Edge profile for signed-in work. Run clean-state testing and capture in an isolated browser.",
   "author": {
     "name": "MahumTech"
   },
@@ -14,5 +14,6 @@
     "headless"
   ],
   "skills": "./skills/",
-  "version": "1.2.0"
+  "version": "1.2.1",
+  "icon": "./assets/icon.svg"
 }

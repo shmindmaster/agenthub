@@ -1,9 +1,10 @@
 {
   "name": "ah-repowise",
-  "displayName": "AH-Repowise",
-  "description": "Fleet RepoWise workspace MCP pinned at C:/Repos. Enable only when code-intelligence tools are needed; disable when done.",
+  "displayName": "AH-RepoWise",
+  "description": "Use the legacy RepoWise bridge to inspect code, symbols, history and risk, or refresh the index through its bounded entry point.",
   "author": {
     "name": "Sarosh Hussain"
   },
-  "version": "1.4.4"
+  "version": "1.4.5",
+  "logo": "assets/icon.svg"
 }

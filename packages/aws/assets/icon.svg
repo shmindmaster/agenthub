@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">AH-AWS</title>
+  <desc id="desc">Cloud infrastructure</desc>
+  <rect x="6" y="6" width="52" height="52" rx="14" fill="#352413"/>
+  <rect x="6.75" y="6.75" width="50.5" height="50.5" rx="13.25" fill="none" stroke="#FFC277" stroke-opacity=".28" stroke-width="1.5"/>
+  <g fill="none" stroke="#FFC277" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 42a7 7 0 0 1-1-14 11 11 0 0 1 21-5 9 9 0 1 1 5 17H18"/>
+    <path d="M27 48h12m-6-8v8"/>
+  </g>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">AH-Daytona</title>
+  <desc id="desc">Sandbox cube</desc>
+  <rect x="6" y="6" width="52" height="52" rx="14" fill="#153528"/>
+  <rect x="6.75" y="6.75" width="50.5" height="50.5" rx="13.25" fill="none" stroke="#91F3AE" stroke-opacity=".28" stroke-width="1.5"/>
+  <g fill="none" stroke="#91F3AE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m32 13 17 10v18L32 51 15 41V23l17-10Zm-17 10 17 10 17-10M32 33v18m-8-33 16 9"/>
+  </g>
+</svg>

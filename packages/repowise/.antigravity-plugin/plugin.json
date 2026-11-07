@@ -1,0 +1,8 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ah-repowise",
+  "version": "1.4.5",
+  "description": "Use the legacy RepoWise bridge to inspect code, symbols, history and risk, or refresh the index through its bounded entry point.",
+  "displayName": "AH-RepoWise",
+  "logo": "assets/icon.svg"
+}

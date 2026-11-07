@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-assemblyai",
-  "version": "1.1.1",
-  "description": "Thin AssemblyAI capability: one routing skill plus the hosted AssemblyAI and docs MCP servers. No key in config.",
+  "version": "1.1.2",
+  "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools.",
   "author": {
     "name": "Sarosh Hussain"
   },

@@ -1,0 +1,8 @@
+{
+  "name": "ah-media-studio",
+  "version": "2.4.6",
+  "description": "Develop a creative brief, storyboard and narration, then capture, compose and review video or audio deliverables.",
+  "displayName": "AH-Media-Studio",
+  "shortDescription": "Plan and produce videos, screencasts and audio.",
+  "logo": "assets/icon.svg"
+}

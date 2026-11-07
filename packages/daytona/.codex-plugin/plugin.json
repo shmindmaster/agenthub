@@ -1,7 +1,7 @@
 {
   "name": "ah-daytona",
-  "version": "1.0.1",
-  "description": "Create and run isolated Daytona cloud sandboxes for heavy, parallel or untrusted work: Python and TypeScript SDKs, API and CLI references, plus an index of runnable guides. Needs DAYTONA_API_KEY in the environment; none is stored.",
+  "version": "1.0.2",
+  "description": "Create isolated Daytona cloud sandboxes and run code or tests using the Daytona SDK, API or CLI.",
   "author": {
     "name": "MahumTech"
   },
@@ -16,8 +16,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "AH-Daytona",
-    "shortDescription": "Run heavy, parallel or untrusted work in Daytona sandboxes.",
-    "longDescription": "Create and run isolated Daytona cloud sandboxes for heavy, parallel or untrusted work: Python and TypeScript SDKs, API and CLI references, plus an index of runnable guides. Needs DAYTONA_API_KEY in the environment; none is stored.",
+    "shortDescription": "Run code and tests in isolated cloud sandboxes.",
+    "longDescription": "Create isolated Daytona cloud sandboxes and run code or tests using the Daytona SDK, API or CLI.",
     "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
@@ -25,9 +25,11 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Run this test suite in a Daytona sandbox.",
-      "Split this job across several sandboxes.",
-      "Build this project in an isolated sandbox."
-    ]
+      "Run this test in an isolated sandbox and report the result."
+    ],
+    "brandColor": "#2B714A",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   }
 }

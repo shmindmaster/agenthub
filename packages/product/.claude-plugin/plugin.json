@@ -1,7 +1,7 @@
 {
   "name": "ah-product",
   "displayName": "AH-Product",
-  "description": "Audit, design, build, verify and demo product experiences on evidence.",
+  "description": "Audit product experiences, turn findings into designs, build and verify scoped changes, and prepare reliable demos.",
   "author": {
     "name": "MahumTech"
   },
@@ -18,5 +18,6 @@
   "agents": [
     "./agents/reviewer.agent.md"
   ],
-  "version": "2.1.0"
+  "version": "2.1.1",
+  "icon": "./assets/product-logo.svg"
 }

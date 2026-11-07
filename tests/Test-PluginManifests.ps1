@@ -330,6 +330,21 @@ if ($overlayRoot) {
 }
 $packageDirs = $packageTrees | ForEach-Object { Get-ChildItem -LiteralPath $_ -Directory }
 $hostManifestDirs = @('.antigravity-plugin', '.claude-plugin', '.codex-plugin', '.cursor-plugin', '.devin-plugin', '.qoder-plugin')
+$iconFieldsByHost = @{
+    '.antigravity-plugin' = @('logo')
+    '.claude-plugin' = @('icon')
+    '.codex-plugin' = @('composerIcon', 'logo')
+    '.cursor-plugin' = @('logo')
+    '.devin-plugin' = @('logo')
+}
+$catalogLabels = @{}
+foreach ($catalogPath in '.agents/plugins/marketplace.json', '.claude-plugin/marketplace.json') {
+    $catalog = Get-Content -LiteralPath (Join-Path $repoRoot $catalogPath) -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($entry in $catalog.plugins) {
+        $label = if ($entry.interface) { $entry.interface.displayName } else { $entry.displayName }
+        $catalogLabels[$entry.name] = @($catalogLabels[$entry.name] | Where-Object { $_ }) + [string]$label
+    }
+}
 $packagesWithHostVersion = 0
 foreach ($pkgDir in $packageDirs) {
     $rootManifest = Join-Path $pkgDir.FullName 'plugin.json'
@@ -357,11 +372,23 @@ foreach ($pkgDir in $packageDirs) {
             "Expected '$($root.name)' version '$rootVersion'. Found '$($hostManifest.name)' version '$($hostManifest.version)'."
         $hostDisplayName = [string]$hostManifest.displayName
         if (-not $hostDisplayName) { $hostDisplayName = [string]$hostManifest.interface.displayName }
-        if (-not $hostDisplayName) { continue }
+        if (-not $hostDisplayName -and -not $iconFieldsByHost.ContainsKey($hostDir)) { continue }
         if (-not $displayName) { $displayName = $hostDisplayName }
         Report "$($pkgDir.Name) $hostDir/plugin.json uses the package display name" `
             ($hostDisplayName -clike 'AH-*' -and $hostDisplayName -ceq $displayName) `
             "Expected a consistent display name with the AH- prefix. Found '$hostDisplayName' and '$displayName'."
+        foreach ($field in $iconFieldsByHost[$hostDir]) {
+            $asset = if ($hostDir -eq '.codex-plugin') { $hostManifest.interface.$field } else { $hostManifest.$field }
+            $bundled = $asset -cmatch '^(\./)?assets/[a-z0-9-]+\.(svg|png)$' -and
+                (Test-Path -LiteralPath (Join-Path $pkgDir.FullName $asset) -PathType Leaf)
+            Report "$($pkgDir.Name) $hostDir $field points to bundled artwork" $bundled `
+                "Expected a package-local SVG or PNG under assets. Found '$asset'."
+        }
+    }
+    if ($pkgDir.Parent.FullName -eq $publicPackages -and $catalogLabels.ContainsKey($expectedName)) {
+        $matchingCatalogs = @($catalogLabels[$expectedName] | Where-Object { $_ -ceq $displayName })
+        Report "$($pkgDir.Name) has the same display name in both marketplaces" ($matchingCatalogs.Count -eq 2) `
+            "Expected both public marketplaces to use '$displayName'."
     }
 }
 Report 'at least one package participates in portable root version authority' ($packagesWithHostVersion -gt 0) `

@@ -1,7 +1,7 @@
 {
   "name": "ah-notion",
-  "version": "1.0.0",
-  "description": "Read and write Notion pages and databases through Notion's hosted server, for hosts that cannot load Notion's own plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Search, read and update pages and databases through Notion’s hosted tools.",
   "author": {
     "name": "MahumTech"
   },
@@ -16,17 +16,19 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "AH-Notion",
-    "shortDescription": "Read and write Notion pages.",
-    "longDescription": "Read and write Notion pages and databases through Notion's hosted server, for hosts that cannot load Notion's own plugin. Remote only: no local process and no stored key.",
+    "shortDescription": "Find and edit Notion pages and databases.",
+    "longDescription": "Search, read and update pages and databases through Notion’s hosted tools.",
     "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
       "Read"
     ],
     "defaultPrompt": [
-      "Find my notes on this topic in Notion.",
-      "Summarize this Notion page.",
-      "Add this to my Notion database."
-    ]
+      "Find the project decision in Notion and summarize it with a link."
+    ],
+    "brandColor": "#46546D",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   }
 }

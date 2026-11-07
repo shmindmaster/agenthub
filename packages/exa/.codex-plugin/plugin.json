@@ -1,7 +1,7 @@
 {
   "name": "ah-exa",
-  "version": "1.0.0",
-  "description": "Search the web and read pages through Exa's hosted server, for hosts whose catalog has no Exa plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Discover relevant web sources with hosted Exa search and read the pages needed to answer a question.",
   "author": {
     "name": "MahumTech"
   },
@@ -17,17 +17,19 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "AH-Exa",
-    "shortDescription": "Search the web with Exa.",
-    "longDescription": "Search the web and read pages through Exa's hosted server, for hosts whose catalog has no Exa plugin. Remote only: no local process and no stored key.",
+    "shortDescription": "Search the web and read source pages with Exa.",
+    "longDescription": "Discover relevant web sources with hosted Exa search and read the pages needed to answer a question.",
     "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
       "Read"
     ],
     "defaultPrompt": [
-      "Find recent sources on this topic.",
-      "Read this page and summarize it.",
-      "Find companies that match this description."
-    ]
+      "Find and read primary sources on this topic."
+    ],
+    "brandColor": "#315BA1",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   }
 }

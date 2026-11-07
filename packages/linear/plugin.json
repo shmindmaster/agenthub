@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-linear",
-  "version": "1.0.0",
-  "description": "Read and update Linear issues and projects through Linear's hosted server, for hosts whose catalog has no Linear plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Find, review and update issues and projects through Linear’s hosted tools.",
   "license": "MIT",
   "keywords": [
     "linear",

@@ -1,6 +1,6 @@
 {
   "name": "ah-assemblyai",
-  "description": "Thin AssemblyAI capability: one routing skill plus the hosted AssemblyAI and docs MCP servers. No key in config.",
+  "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -15,17 +15,20 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "AH-AssemblyAI",
-    "shortDescription": "Look up and call AssemblyAI speech-to-text.",
-    "longDescription": "Thin AssemblyAI capability: one routing skill that points at the current vendor docs. The hosted MCP servers are registered through AgentHub's MCP sync.",
+    "shortDescription": "Transcribe and analyze audio with AssemblyAI.",
+    "longDescription": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools.",
     "developerName": "Sarosh Hussain",
     "category": "Developer Tools",
     "capabilities": [
       "Read"
     ],
     "defaultPrompt": [
-      "Look up the current AssemblyAI transcript parameters.",
-      "Transcribe this public audio URL with AssemblyAI."
-    ]
+      "Transcribe this recording and label the speakers."
+    ],
+    "brandColor": "#17666A",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   },
-  "version": "1.1.1"
+  "version": "1.1.2"
 }

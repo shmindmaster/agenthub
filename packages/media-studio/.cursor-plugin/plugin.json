@@ -1,7 +1,7 @@
 {
   "name": "ah-media-studio",
   "displayName": "AH-Media-Studio",
-  "description": "Creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Azure AI Services for voice, transcription and images.",
+  "description": "Develop a creative brief, storyboard and narration, then capture, compose and review video or audio deliverables.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -19,5 +19,6 @@
     "lottie"
   ],
   "skills": "./skills/",
-  "version": "2.4.5"
+  "version": "2.4.6",
+  "logo": "assets/icon.svg"
 }

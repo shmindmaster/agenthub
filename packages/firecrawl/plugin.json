@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-firecrawl",
-  "version": "1.0.1",
-  "description": "Read, crawl and search websites through Firecrawl's hosted server, for hosts whose own catalog has no Firecrawl plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.2",
+  "description": "Extract page content and crawl or search websites through hosted Firecrawl tools.",
   "license": "MIT",
   "keywords": [
     "firecrawl",

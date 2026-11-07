@@ -1,7 +1,7 @@
 {
   "name": "ah-mobile-development",
   "displayName": "AH-Mobile-Development",
-  "description": "Canonical mobile development guidance with explicitly enabled, on-demand Appium tooling.",
+  "description": "Plan mobile development, test platform behavior, and activate the device lab and Appium when a task requires them.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -13,5 +13,6 @@
     "ios-simulator",
     "expo"
   ],
-  "version": "2.1.3"
+  "version": "2.1.4",
+  "icon": "./assets/icon.svg"
 }

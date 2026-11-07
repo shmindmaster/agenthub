@@ -1,7 +1,7 @@
 {
   "name": "ah-notion",
   "displayName": "AH-Notion",
-  "description": "Read and write Notion pages and databases through Notion's hosted server, for hosts that cannot load Notion's own plugin. Remote only: no local process and no stored key.",
+  "description": "Search, read and update pages and databases through Notion’s hosted tools.",
   "author": {
     "name": "MahumTech"
   },
@@ -14,5 +14,6 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./mcp.json",
-  "version": "1.0.0"
+  "version": "1.0.1",
+  "logo": "assets/icon.svg"
 }

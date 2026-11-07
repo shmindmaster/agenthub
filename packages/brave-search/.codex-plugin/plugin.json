@@ -1,7 +1,7 @@
 {
   "name": "ah-brave-search",
-  "version": "1.0.1",
-  "description": "Search the live web with the Brave Search API: page content for grounding, web, news, images, videos, places and cited answers. Needs a key in the environment; none is stored.",
+  "version": "1.0.2",
+  "description": "Search the live web, news, images and places with Brave Search, then open relevant sources and cite your findings.",
   "author": {
     "name": "MahumTech"
   },
@@ -17,17 +17,19 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "AH-Brave-Search",
-    "shortDescription": "Search the live web, news, images, videos and places with Brave.",
-    "longDescription": "Search the live web with the Brave Search API: page content for grounding, web, news, images, videos, places and cited answers. Needs a key in the environment; none is stored.",
+    "shortDescription": "Search the live web and ground answers in sources.",
+    "longDescription": "Search the live web, news, images and places with Brave Search, then open relevant sources and cite your findings.",
     "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
       "Read"
     ],
     "defaultPrompt": [
-      "Look up the current docs for this error.",
-      "What happened in this news story in the last day?",
-      "Find well-reviewed coffee shops near this address."
-    ]
+      "Find recent primary sources and cite the strongest evidence."
+    ],
+    "brandColor": "#9D432E",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   }
 }

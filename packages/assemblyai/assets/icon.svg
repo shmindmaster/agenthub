@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">AH-AssemblyAI</title>
+  <desc id="desc">Audio waveform</desc>
+  <rect x="6" y="6" width="52" height="52" rx="14" fill="#0D303A"/>
+  <rect x="6.75" y="6.75" width="50.5" height="50.5" rx="13.25" fill="none" stroke="#55E3DB" stroke-opacity=".28" stroke-width="1.5"/>
+  <g fill="none" stroke="#55E3DB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13 32h5l4-10 5 22 5-29 5 32 5-25 4 10h5"/>
+  </g>
+</svg>

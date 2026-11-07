@@ -1,0 +1,8 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ah-product",
+  "version": "2.1.1",
+  "displayName": "AH-Product",
+  "description": "Audit product experiences, turn findings into designs, build and verify scoped changes, and prepare reliable demos.",
+  "logo": "assets/product-logo.svg"
+}

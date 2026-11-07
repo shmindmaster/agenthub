@@ -1,7 +1,7 @@
 {
   "name": "ah-descript",
-  "version": "1.0.0",
-  "description": "Edit, transcribe and publish video and audio projects through Descript's hosted server, for hosts whose catalog has no Descript plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Edit and transcribe audio and video projects through hosted Descript tools, then prepare them for publishing.",
   "author": {
     "name": "MahumTech"
   },
@@ -17,17 +17,19 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "AH-Descript",
-    "shortDescription": "Edit and publish Descript projects.",
-    "longDescription": "Edit, transcribe and publish video and audio projects through Descript's hosted server, for hosts whose catalog has no Descript plugin. Remote only: no local process and no stored key.",
+    "shortDescription": "Edit and transcribe audio and video projects.",
+    "longDescription": "Edit and transcribe audio and video projects through hosted Descript tools, then prepare them for publishing.",
     "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
       "Read"
     ],
     "defaultPrompt": [
-      "List my Descript projects.",
-      "Remove filler words from this project.",
-      "Publish this project and give me the link."
-    ]
+      "Review this recording and prepare an edit plan."
+    ],
+    "brandColor": "#803D82",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   }
 }

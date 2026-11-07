@@ -1,7 +1,7 @@
 {
   "name": "ah-linear",
-  "version": "1.0.0",
-  "description": "Read and update Linear issues and projects through Linear's hosted server, for hosts whose catalog has no Linear plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Find, review and update issues and projects through Linear’s hosted tools.",
   "author": {
     "name": "MahumTech"
   },
@@ -16,17 +16,19 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "AH-Linear",
-    "shortDescription": "Read and update Linear issues.",
-    "longDescription": "Read and update Linear issues and projects through Linear's hosted server, for hosts whose catalog has no Linear plugin. Remote only: no local process and no stored key.",
+    "shortDescription": "Track work in Linear issues and projects.",
+    "longDescription": "Find, review and update issues and projects through Linear’s hosted tools.",
     "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
       "Read"
     ],
     "defaultPrompt": [
-      "List my open Linear issues.",
-      "Summarize this Linear project.",
-      "Add a comment to this issue."
-    ]
+      "Find the open issues blocking this release."
+    ],
+    "brandColor": "#5D4EAD",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   }
 }

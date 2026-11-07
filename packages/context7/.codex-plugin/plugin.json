@@ -1,7 +1,7 @@
 {
   "name": "ah-context7",
-  "version": "1.0.0",
-  "description": "Look up current library and framework documentation through Context7's hosted server, for hosts whose catalog has no Context7 plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Look up current library and framework documentation, including version-specific API examples, through hosted Context7.",
   "author": {
     "name": "MahumTech"
   },
@@ -16,17 +16,19 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "AH-Context7",
-    "shortDescription": "Look up current library docs.",
-    "longDescription": "Look up current library and framework documentation through Context7's hosted server, for hosts whose catalog has no Context7 plugin. Remote only: no local process and no stored key.",
+    "shortDescription": "Find version-specific library and framework documentation.",
+    "longDescription": "Look up current library and framework documentation, including version-specific API examples, through hosted Context7.",
     "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
       "Read"
     ],
     "defaultPrompt": [
-      "Find the current docs for this library.",
-      "Show the migration guide for this version.",
-      "How do I configure this framework option?"
-    ]
+      "Check the current documentation for this library API."
+    ],
+    "brandColor": "#5849A3",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   }
 }

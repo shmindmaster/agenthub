@@ -31,7 +31,7 @@
     },
     {
       "name": "ah-repowise",
-      "displayName": "AH-Repowise",
+      "displayName": "AH-RepoWise",
       "source": "./packages/repowise"
     },
     {

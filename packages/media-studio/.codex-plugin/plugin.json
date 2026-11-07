@@ -1,6 +1,6 @@
 {
   "name": "ah-media-studio",
-  "description": "Creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Azure AI Services for voice, transcription and images.",
+  "description": "Develop a creative brief, storyboard and narration, then capture, compose and review video or audio deliverables.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -20,8 +20,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "AH-Media-Studio",
-    "shortDescription": "Video, audio, and animation from a concept, including live-product screencasts.",
-    "longDescription": "Single public video/audio studio. Writes a screenplay, directs the picture, casts narration and character voices through Azure AI Services (Deepgram as governed fallback), captures live product with Playwright when needed, and composes with Remotion, Recast, or FFmpeg. Live-product screencasts invoke the internal screencast engine; everything else stays here.",
+    "shortDescription": "Plan and produce videos, screencasts and audio.",
+    "longDescription": "Develop a creative brief, storyboard and narration, then capture, compose and review video or audio deliverables.",
     "developerName": "Sarosh Hussain",
     "category": "Productivity",
     "capabilities": [
@@ -29,10 +29,12 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Turn this outline into a briefing video with a cast narrator.",
-      "Produce a short training clip from these bullets.",
-      "Capture this product workflow as a screencast, then narrate it."
-    ]
+      "Plan a product walkthrough from this brief and identify the evidence it needs."
+    ],
+    "brandColor": "#A1456F",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   },
-  "version": "2.4.5"
+  "version": "2.4.6"
 }

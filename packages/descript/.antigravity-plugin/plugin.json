@@ -2,8 +2,8 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-descript",
   "displayName": "AH-Descript",
-  "version": "1.0.0",
-  "description": "Edit, transcribe and publish video and audio projects through Descript's hosted server, for hosts whose catalog has no Descript plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Edit and transcribe audio and video projects through hosted Descript tools, then prepare them for publishing.",
   "suggestedPrompts": [
     "List my Descript projects.",
     "Remove filler words from this project."
@@ -18,5 +18,6 @@
     "audio",
     "transcript",
     "mcp"
-  ]
+  ],
+  "logo": "assets/icon.svg"
 }

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">AH-Context7</title>
+  <desc id="desc">Open reference book</desc>
+  <rect x="6" y="6" width="52" height="52" rx="14" fill="#292645"/>
+  <rect x="6.75" y="6.75" width="50.5" height="50.5" rx="13.25" fill="none" stroke="#BFADFF" stroke-opacity=".28" stroke-width="1.5"/>
+  <g fill="none" stroke="#BFADFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 18h11a7 7 0 0 1 7 7v22a7 7 0 0 0-7-7H14V18Zm36 0H39a7 7 0 0 0-7 7v22a7 7 0 0 1 7-7h11V18Z"/>
+    <path d="M20 26h5m-5 6h5m14-6h5m-5 6h5"/>
+  </g>
+</svg>

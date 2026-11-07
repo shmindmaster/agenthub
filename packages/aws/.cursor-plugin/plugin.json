@@ -1,7 +1,7 @@
 {
   "name": "ah-aws",
   "displayName": "AH-AWS",
-  "description": "Run AWS commands and read AWS documentation through the official AWS MCP server, using the fleet's approved AWS profile. Starts one local proxy for a session, so install it only on hosts that do AWS work.",
+  "description": "Use the official AWS MCP server to inspect AWS resources and answer documentation questions with your configured AWS profile.",
   "author": {
     "name": "MahumTech"
   },
@@ -13,5 +13,6 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./mcp.json",
-  "version": "1.0.1"
+  "version": "1.0.2",
+  "logo": "assets/icon.svg"
 }

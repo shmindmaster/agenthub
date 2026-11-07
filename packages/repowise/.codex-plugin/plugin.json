@@ -1,6 +1,6 @@
 {
   "name": "ah-repowise",
-  "description": "Retired Codex compatibility wrapper. Use vendor codex@repowise from repowise-dev/repowise; never install both routes.",
+  "description": "Use the legacy RepoWise bridge to inspect code, symbols, history and risk, or refresh the index through its bounded entry point.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -13,19 +13,21 @@
   "skills": "./skills/",
   "mcpServers": "./mcp.codex.json",
   "interface": {
-    "displayName": "AH-Repowise",
-    "shortDescription": "Federated code intelligence for every git repo under C:/Repos.",
-    "longDescription": "Owner migration 2026-11-03: Codex uses vendor codex@repowise from repowise-dev/repowise, which owns MCP, hooks and skills. This package remains only for other hosts' compatibility and bounded indexing tools. Uninstall repowise@agenthub on Codex; never restore it as parity repair or run both MCP registrations.",
+    "displayName": "AH-RepoWise",
+    "shortDescription": "Query the shared repository index on legacy hosts.",
+    "longDescription": "Use the legacy RepoWise bridge to inspect code, symbols, history and risk, or refresh the index through its bounded entry point.",
     "developerName": "Sarosh Hussain",
     "category": "Developer Tools",
     "capabilities": [
       "Read"
     ],
     "defaultPrompt": [
-      "How does this module work across the fleet?",
-      "What breaks if I change this shared contract?",
-      "Where is this symbol defined and who owns it?"
-    ]
+      "Find the code that owns this behavior and explain the change risk."
+    ],
+    "brandColor": "#286C82",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
   },
-  "version": "1.4.4"
+  "version": "1.4.5"
 }

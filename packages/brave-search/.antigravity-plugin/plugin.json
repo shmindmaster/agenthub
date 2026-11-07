@@ -2,8 +2,8 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-brave-search",
   "displayName": "AH-Brave-Search",
-  "version": "1.0.1",
-  "description": "Search the live web with the Brave Search API: page content for grounding, web, news, images, videos, places and cited answers. Needs a key in the environment; none is stored.",
+  "version": "1.0.2",
+  "description": "Search the live web, news, images and places with Brave Search, then open relevant sources and cite your findings.",
   "suggestedPrompts": [
     "Look up the current docs for this error",
     "What happened in this news story today?"
@@ -19,5 +19,6 @@
     "grounding",
     "news",
     "places"
-  ]
+  ],
+  "logo": "assets/icon.svg"
 }

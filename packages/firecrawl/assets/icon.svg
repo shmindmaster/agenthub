@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">AH-Firecrawl</title>
+  <desc id="desc">Web nodes along a crawl path</desc>
+  <rect x="6" y="6" width="52" height="52" rx="14" fill="#402521"/>
+  <rect x="6.75" y="6.75" width="50.5" height="50.5" rx="13.25" fill="none" stroke="#FFAA87" stroke-opacity=".28" stroke-width="1.5"/>
+  <g fill="none" stroke="#FFAA87" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="14" y="15" width="15" height="12" rx="3"/>
+    <rect x="35" y="25" width="15" height="12" rx="3"/>
+    <rect x="14" y="39" width="15" height="12" rx="3"/>
+    <path d="M29 21h7a6 6 0 0 1 6 4m0 12v2a6 6 0 0 1-6 6h-7"/>
+  </g>
+</svg>

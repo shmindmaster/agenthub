@@ -1,7 +1,7 @@
 {
   "name": "ah-assemblyai",
   "displayName": "AH-AssemblyAI",
-  "description": "Thin AssemblyAI capability: one routing skill plus the hosted AssemblyAI and docs MCP servers. No key in config.",
+  "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -15,5 +15,6 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./mcp.json",
-  "version": "1.1.1"
+  "version": "1.1.2",
+  "logo": "assets/icon.svg"
 }

@@ -1,6 +1,6 @@
 {
   "name": "ah-product",
-  "description": "Audit, design, build, verify and demo product experiences on evidence.",
+  "description": "Audit product experiences, turn findings into designs, build and verify scoped changes, and prepare reliable demos.",
   "author": {
     "name": "MahumTech"
   },
@@ -17,8 +17,8 @@
   "agents": "./agents/",
   "interface": {
     "displayName": "AH-Product",
-    "shortDescription": "Audit, design, build, verify and demo apps.",
-    "longDescription": "Audit, design, build, verify and demo product experiences on evidence.",
+    "shortDescription": "Audit, design, build and verify product experiences.",
+    "longDescription": "Audit product experiences, turn findings into designs, build and verify scoped changes, and prepare reliable demos.",
     "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
@@ -27,9 +27,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Audit this application and tell me what to fix first.",
-      "Design, build and verify the highest-impact fix.",
-      "Make this product ready for a demo before recording."
+      "Audit this workflow and identify the most important fixes."
     ],
     "brandColor": "#4F7CFF",
     "composerIcon": "./assets/product-small.svg",
@@ -37,5 +35,5 @@
     "logoDark": "./assets/product-dark.png",
     "screenshots": []
   },
-  "version": "2.1.0"
+  "version": "2.1.1"
 }

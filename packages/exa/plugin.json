@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-exa",
-  "version": "1.0.0",
-  "description": "Search the web and read pages through Exa's hosted server, for hosts whose catalog has no Exa plugin. Remote only: no local process and no stored key.",
+  "version": "1.0.1",
+  "description": "Discover relevant web sources with hosted Exa search and read the pages needed to answer a question.",
   "license": "MIT",
   "keywords": [
     "exa",

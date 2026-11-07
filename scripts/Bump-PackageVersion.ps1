@@ -6,7 +6,7 @@
 .DESCRIPTION
   AgentHub treats packages/<id>/plugin.json as the portable Agent Plugins floor
   and the version authority. Host projections (.claude-plugin, .codex-plugin,
-  .cursor-plugin, .qoder-plugin, .antigravity-plugin, gemini-extension.json) must
+  .cursor-plugin, .qoder-plugin, .antigravity-plugin, .devin-plugin, gemini-extension.json) must
   carry the same version string.
 
   This script updates those manifests together. It does not recompute
@@ -36,7 +36,7 @@ if ($Version -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
     throw "Version '$Version' is not a simple semver-like string (expected N.N.N)."
 }
 
-$hostDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin', '.qoder-plugin', '.antigravity-plugin')
+$hostDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin', '.qoder-plugin', '.antigravity-plugin', '.devin-plugin')
 $hostManifests = @($hostDirs | ForEach-Object { "$_/plugin.json" }) + 'gemini-extension.json'
 $schema = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 $rootManifestPath = Join-Path $packageRoot 'plugin.json'

@@ -1,7 +1,7 @@
 {
   "name": "ah-firecrawl",
   "displayName": "AH-Firecrawl",
-  "description": "Read, crawl and search websites through Firecrawl's hosted server, for hosts whose own catalog has no Firecrawl plugin. Remote only: no local process and no stored key.",
+  "description": "Extract page content and crawl or search websites through hosted Firecrawl tools.",
   "author": {
     "name": "MahumTech"
   },
@@ -14,5 +14,6 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./mcp.json",
-  "version": "1.0.1"
+  "version": "1.0.2",
+  "logo": "assets/icon.svg"
 }
