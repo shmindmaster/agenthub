@@ -124,3 +124,28 @@ loaded. It has not been checked whether a running session applies a
 fresh `claude -p "/context"` (in Git Bash, set
 `MSYS_NO_PATHCONV=1`). Count the entries as well as the tokens: the listing is
 capped near 1% of the window.
+
+## Distinguish context size, repeated input and billing
+
+For Codex, check the current chat's actual provider and model, then compare its
+first input, current input, cache reads and compactions over time. Cumulative
+input counts the same history repeatedly; it is neither unique context size nor
+a dollar charge. Account-wide usage limits cannot be attributed to one chat.
+`tool_output_token_limit` is capped at 6,000 in the context registry to reduce
+stored output growth; existing history is not retroactively trimmed. Measure a
+new session before claiming that a setting changed its active behavior.
+
+For Antigravity, check each installed surface separately. `agy mcp list` reports
+CLI server activation; Desktop's `mcp_config.json` does not establish CLI or IDE
+state. Its [documented MCP loading](https://antigravity.google/docs/mcp) is lazy
+by default. In an authorized active session, use
+[`/context`](https://antigravity.google/docs/cli/commands/context/) to inspect
+system tools, MCP tools, customizations, history and checkpoint counts, and
+`/usage` for usage. Disabled servers and an empty Desktop config reduce known
+overhead but do not establish historical tokens, charges or fresh-session load.
+Do not launch another coding host merely to manufacture an acceptance result
+while the current host is active.
+
+Keep raw session evidence and account usage privately. Report provider billing,
+local gateway estimates and subscription usage separately. A cheaper model does
+not repair eager tool loading; retain the independent gateway loading guard.

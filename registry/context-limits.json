@@ -53,8 +53,8 @@
       "file": "~/.codex/config.toml",
       "format": "toml",
       "key": ["tool_output_token_limit"],
-      "value": 12000,
-      "why": "Caps each tool output stored in history, the main source of growth per step. 12000 is the vendor sample value.",
+      "value": 6000,
+      "why": "Caps each stored tool result at 6000 tokens. Long-running sessions accumulated oversized outputs; retain full results on disk and retrieve only relevant excerpts. This does not change the running model or its provider.",
       "source": "https://learn.chatgpt.com/docs/config-file/config-sample"
     },
     {

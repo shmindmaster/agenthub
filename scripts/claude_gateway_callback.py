@@ -9,6 +9,7 @@ class DeferredTools(CustomLogger):
         model = data.get('model', '').removeprefix('claude-compatible/')
         if call_type != 'anthropic_messages' or model not in {
             'runware-terra', 'runware-sol', 'runware-deepseek', 'runware-v4.1-flash-1017',
+            'runware-deepseek-flash', 'runware-deepseek-pro',
         }:
             return data
         try:

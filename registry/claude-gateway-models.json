@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "default": "runware-deepseek-flash",
+  "models": [
+    {
+      "alias": "runware-deepseek-flash",
+      "upstream": "deepseek:v4.1@flash-1017",
+      "label": "DeepSeek V4.1 Flash 1017 via Runware",
+      "inputCost": 0.00000015,
+      "outputCost": 0.0000006,
+      "cacheReadCost": 0.00000001,
+      "source": "https://runware.ai/models/deepseek-v4-1-flash-1017"
+    },
+    {
+      "alias": "runware-deepseek-pro",
+      "upstream": "deepseek:v4@pro",
+      "label": "DeepSeek V4 Pro via Runware",
+      "inputCost": 0.000000961,
+      "outputCost": 0.000001922,
+      "cacheReadCost": 0.000000079,
+      "source": "https://runware.ai/models/deepseek-v4-pro"
+    }
+  ],
+  "compatibilityAliases": {
+    "runware-terra": "runware-deepseek-flash",
+    "runware-sol": "runware-deepseek-pro",
+    "runware-deepseek": "runware-deepseek-flash",
+    "runware-v4.1-flash-1017": "runware-deepseek-flash"
+  }
+}

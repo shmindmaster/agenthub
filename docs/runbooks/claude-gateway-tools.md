@@ -31,7 +31,7 @@ litellm_settings:
 ```
 
 Both files must be importable by the gateway process. Keep the original model
-routes, credential references and unrelated settings. Back up only the affected
+credential references and unrelated settings. Back up only the affected
 configuration and the selected native property before changing them. Never
 export a complete managed-policy registry branch: it may contain credentials.
 
@@ -41,6 +41,46 @@ currency spending cap. Repeated discovery can reach it; reduce the active
 integrations rather than disabling the guard. Unsupported server tools and
 missing discovered tools also fail locally. HTTP 402 prevents an eager-loading
 retry; it does not indicate that the upstream account ran out of credit.
+
+## DeepSeek routing
+
+`registry/claude-gateway-models.json` owns the two Runware routes. Flash 1017 is
+the routine default; Pro is explicitly selectable for harder work.
+`scripts/claude_gateway_models.py::render` projects those routes into an existing
+parsed LiteLLM configuration without changing unrelated routes or settings.
+The existing gateway environment supplies credentials; the registry contains
+references only. The local gateway's existing YAML parser can serialize the result.
+
+Legacy Terra, Sol and DeepSeek aliases resolve to these DeepSeek routes so old
+Desktop selections cannot call GPT through those aliases. They are compatibility
+names, not truthful model labels. Replace the native Desktop picker with:
+
+```powershell
+pwsh -NoProfile -File scripts/Set-ClaudeGatewayModels.ps1          # read-only plan
+pwsh -NoProfile -File scripts/Set-ClaudeGatewayModels.ps1 -Apply   # selected properties only
+```
+
+An administrator-owned policy key requires an administrator shell for the same
+Windows user. The script preserves selected prior properties, checks each write
+and restores successful writes if a later write fails; it never changes ACLs or
+exports the credential-bearing policy branch. It neither starts the gateway nor
+makes inference calls. A second apply makes zero property changes.
+
+Use `runware-deepseek-flash` for Claude Code's Sonnet/Haiku defaults and
+`runware-deepseek-pro` for its Opus default. Do not add automatic GPT fallback.
+Costs in the registry are per token, verified with the account's read-only
+`GET /v1/models` catalog. Pro uses the documented `deepseek:v4@pro` alias; no
+unpublished `pro-0813` identifier is invented. Vision, reasoning-mode translation,
+provider acceptance and the actual provider charge still require live acceptance.
+
+Codex remains a separate provider. Its current configuration uses Responses;
+Runware documents DeepSeek under Chat Completions and its Responses passthrough
+under OpenAI. Do not relabel an active Codex chat as DeepSeek or switch its
+authentication based solely on Chat compatibility.
+
+Sources: [Runware compatible APIs](https://runware.ai/docs/tools/compatible-apis),
+[Flash 1017](https://runware.ai/models/deepseek-v4-1-flash-1017),
+[Pro](https://runware.ai/models/deepseek-v4-pro).
 
 ## Verify before resuming paid traffic
 

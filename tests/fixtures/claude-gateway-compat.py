@@ -24,6 +24,19 @@ request = {
 
 
 async def main():
+    for alias in ('runware-deepseek-flash', 'runware-deepseek-pro', 'runware-terra',
+                  'runware-sol', 'runware-deepseek', 'runware-v4.1-flash-1017'):
+        guarded = dict(request, model='claude-compatible/' + alias)
+        prepared = await deferred_tools.async_pre_call_hook(None, None, guarded, 'anthropic_messages')
+        assert len(prepared['tools']) == 1, alias
+        eager_route = copy.deepcopy(guarded)
+        for tool in eager_route['tools']:
+            tool.pop('defer_loading', None)
+        try:
+            await deferred_tools.async_pre_call_hook(None, None, eager_route, 'anthropic_messages')
+            raise AssertionError('Eager route bypassed guard: ' + alias)
+        except HTTPException as exc:
+            assert exc.status_code == 402
     initial = await deferred_tools.async_pre_call_hook(None, None, request, 'anthropic_messages')
     translated, _ = adapter.translate_anthropic_to_openai(initial)
     assert [t['function']['name'] for t in translated['tools']] == ['ToolSearch']
