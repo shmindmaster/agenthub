@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param([switch]$Apply)
 $ErrorActionPreference = 'Stop'
-$policy = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../registry/claude-gateway-models.json') -Raw | ConvertFrom-Json
+$policy = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../registry/claude-gateway-models.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $path = 'HKCU:\Software\Policies\Claude'
 $models = @($policy.models | ForEach-Object { @{ name = "claude-compatible/$($_.alias)"; labelOverride = $_.label } })
 $desired = @{ inferenceModels = ($models | ConvertTo-Json -Compress); toolSearchEnabled = 'true' }
@@ -19,7 +19,7 @@ foreach ($name in $desired.Keys) {
 $backupDir = Join-Path $HOME 'AI/claude-runware/backups'
 New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
 $backup = Join-Path $backupDir ("native-models-" + [guid]::NewGuid().ToString('N') + '.json')
-$prior | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $backup -Encoding utf8
+[IO.File]::WriteAllText($backup, ($prior | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
 $changed = [System.Collections.Generic.List[string]]::new()
 try {
     foreach ($name in $desired.Keys) {
