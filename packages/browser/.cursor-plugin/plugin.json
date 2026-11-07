@@ -1,7 +1,7 @@
 {
   "name": "ah-browser",
   "displayName": "AH-Browser",
-  "description": "Drive a hidden browser to automate a website task or test a web app as a user would, on hosts without a high-fidelity browser of their own. Wraps agent-browser with fleet defaults; installs nothing and stores no key.",
+  "description": "Automate websites in an existing Chrome or Edge profile with Tencent BrowserSkill, or use agent-browser for isolated testing and capture.",
   "author": {
     "name": "MahumTech"
   },
@@ -14,5 +14,5 @@
     "headless"
   ],
   "skills": "./skills/",
-  "version": "1.0.0"
+  "version": "1.2.0"
 }

@@ -4,7 +4,7 @@ Every AgentHub plugin is named `ah-<package folder>` (for example `ah-product`, 
 
 Plugins come from one marketplace, `agenthub` (`C:/Repos/shmindmaster/agenthub`), plus the private `sarosh-private` marketplace for `ah-sarosh`. Validation requires a marketplace entry named `ah-<folder>` that points at `./packages/<folder>`.
 
-Claude installs `ah-browser` so Code, Desktop, and Cowork can browse, capture, and test on a third-party gateway, where the plan browser is absent. Other native-browser hosts do not get it. It serves the hosts listed as "Use the client" in `packages/browser/skills/automate/references/hosts.md`. `ah-mobile-development` is installed disabled or on demand, because the Appium server runs only for mobile work. Claude and Codex use the vendor RepoWise plugins, so they do not install `ah-repowise`.
+`ah-browser` gives local agents a shared routing skill. It can select the intended existing Chrome or Edge profile through a native tool or Tencent BrowserSkill and use agent-browser for isolated work. BrowserSkill needs a local `bsk` CLI and the user-enabled extension in each intended profile. See [browser routing and verification](../../packages/browser/skills/automate/references/hosts.md). `ah-mobile-development` is installed disabled or on demand, because the Appium server runs only for mobile work. Claude and Codex use the vendor RepoWise plugins.
 
 ## Native first, no direct MCP
 

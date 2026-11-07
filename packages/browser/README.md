@@ -1,6 +1,6 @@
 # AH-Browser plugin
 
-Drive a hidden browser to automate a website, capture a page, or test a web app as a user would. This is the browser for hosts with no browser of their own, and for Claude Code, Claude Desktop, and Cowork when a third-party gateway has removed the plan browser. A host whose native browser answers uses that. `skills/automate/references/hosts.md` lists which.
+Automate a website in an existing Chrome or Edge profile, or use an isolated browser for clean-state testing and capture. The skill selects a native browser, Tencent BrowserSkill, or the bundled agent-browser wrapper according to the task and the host. See [browser routing](skills/automate/references/hosts.md).
 
 ## Contents
 
@@ -12,11 +12,11 @@ Drive a hidden browser to automate a website, capture a page, or test a web app 
 | `skills/automate/references/hosts.md` | Native browser per host, engines, signed-in sites |
 | `tests/browse.test.mjs` | Offline tests, including the daemon-holds-the-pipe hang |
 
-## Engine
+## Engines
 
-agent-browser (vercel-labs, Apache-2.0) is the default: a CLI with a Rust daemon that drives Chrome over CDP, needs no LLM key, and returns accessibility snapshots with element refs. Install once with `npm i -g agent-browser && agent-browser install`. The wrapper never installs anything. Playwright CLI is the documented second engine; this package ships no copy of either.
+For existing Chrome and Edge profiles, install the [BrowserSkill CLI and extension](https://github.com/Tencent/BrowserSkill/blob/cli-v0.4.2/AGENT_INSTALL.md). Enable the extension in each intended profile. Run `bsk doctor`, then verify each chosen connection using a public page and close the test session.
 
-Why not a browser MCP server: a server costs a process and several times the context per task, and shell-only hosts cannot use one.
+For isolated sessions, install agent-browser with `npm i -g agent-browser && agent-browser install`. The wrapper starts the engine on demand and provides accessibility snapshots with element refs. Playwright CLI is the fallback. The plugin ships guidance and the wrapper. Each engine is installed separately.
 
 ## Test
 

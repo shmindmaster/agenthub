@@ -318,40 +318,54 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-# Root plugin.json is the portable Agent Plugins floor and the version
-# authority. Host projections may add host-native fields but must not diverge
-# on version. On 2026-08-19 only .claude-plugin was bumped for one package, so
-# hosts disagreed; requiring root authority prevents that split.
-$hostManifestDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin', '.qoder-plugin')
+# The portable manifest owns package identity and version. Host projections
+# may add host-specific fields, but must agree on these values and any display name.
+. (Join-Path $repoRoot 'scripts/lib/CapabilityGraph.ps1')
+$publicPackages = Join-Path $repoRoot 'packages'
+$packageTrees = @($publicPackages)
+$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $repoRoot
+if ($overlayRoot) {
+    $overlayPackages = Join-Path $overlayRoot 'packages'
+    if (Test-Path -LiteralPath $overlayPackages -PathType Container) { $packageTrees += $overlayPackages }
+}
+$packageDirs = $packageTrees | ForEach-Object { Get-ChildItem -LiteralPath $_ -Directory }
+$hostManifestDirs = @('.antigravity-plugin', '.claude-plugin', '.codex-plugin', '.cursor-plugin', '.devin-plugin', '.qoder-plugin')
 $packagesWithHostVersion = 0
-foreach ($pkgDir in Get-ChildItem -LiteralPath (Join-Path $repoRoot 'packages') -Directory) {
+foreach ($pkgDir in $packageDirs) {
     $rootManifest = Join-Path $pkgDir.FullName 'plugin.json'
-    $hostVersions = [ordered]@{}
-    foreach ($hostDir in $hostManifestDirs) {
-        $hostManifest = Join-Path $pkgDir.FullName "$hostDir\plugin.json"
-        if (-not (Test-Path -LiteralPath $hostManifest)) { continue }
-        $hv = (Get-Content -LiteralPath $hostManifest -Raw -Encoding UTF8 | ConvertFrom-Json).version
-        if ($hv) { $hostVersions[$hostDir] = [string]$hv }
-    }
-    if ($hostVersions.Count -eq 0) { continue }
-    $packagesWithHostVersion++
-    if (-not (Test-Path -LiteralPath $rootManifest)) {
-        Report "$($pkgDir.Name) has portable root plugin.json as version authority" $false `
-            "host manifests declare version(s) ($(($hostVersions.GetEnumerator() | ForEach-Object { '$($_.Key)=$($_.Value)' }) -join ', ')) but packages/$($pkgDir.Name)/plugin.json is missing."
+    $hasRootManifest = Test-Path -LiteralPath $rootManifest -PathType Leaf
+    $hostManifests = @($hostManifestDirs | Where-Object {
+        Test-Path -LiteralPath (Join-Path $pkgDir.FullName "$_/plugin.json") -PathType Leaf
+    })
+    if (-not $hasRootManifest -and $hostManifests.Count -eq 0) { continue }
+    if (-not $hasRootManifest) {
+        Report "$($pkgDir.Name) has portable root plugin.json" $false 'A host manifest exists but the portable manifest is missing.'
         continue
     }
+    if ($hostManifests.Count -gt 0 -and $pkgDir.Parent.FullName -eq $publicPackages) { $packagesWithHostVersion++ }
     $root = Get-Content -LiteralPath $rootManifest -Raw -Encoding UTF8 | ConvertFrom-Json
-    $rv = [string]$root.version
-    Report "$($pkgDir.Name) root plugin.json declares the package version" (-not [string]::IsNullOrWhiteSpace($rv)) `
-        "packages/$($pkgDir.Name)/plugin.json must carry version; it is the Agent Plugins portable authority."
-    if ([string]::IsNullOrWhiteSpace($rv)) { continue }
-    foreach ($entry in $hostVersions.GetEnumerator()) {
-        Report "$($pkgDir.Name) $($entry.Key)/plugin.json matches root version" ($entry.Value -eq $rv) `
-            "root plugin.json says '$rv' but $($entry.Key)/plugin.json says '$($entry.Value)'."
+    $expectedName = "ah-$($pkgDir.Name)"
+    $rootVersion = [string]$root.version
+    $displayName = [string]$root.displayName
+    Report "$($pkgDir.Name) root plugin.json declares the package name and version" `
+        ($root.name -ceq $expectedName -and -not [string]::IsNullOrWhiteSpace($rootVersion)) `
+        "Expected '$expectedName' and a version. Found name '$($root.name)' and version '$rootVersion'."
+    foreach ($hostDir in $hostManifests) {
+        $hostManifest = Get-Content -LiteralPath (Join-Path $pkgDir.FullName "$hostDir/plugin.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+        Report "$($pkgDir.Name) $hostDir/plugin.json matches root name and version" `
+            ($hostManifest.name -ceq $root.name -and [string]$hostManifest.version -ceq $rootVersion) `
+            "Expected '$($root.name)' version '$rootVersion'. Found '$($hostManifest.name)' version '$($hostManifest.version)'."
+        $hostDisplayName = [string]$hostManifest.displayName
+        if (-not $hostDisplayName) { $hostDisplayName = [string]$hostManifest.interface.displayName }
+        if (-not $hostDisplayName) { continue }
+        if (-not $displayName) { $displayName = $hostDisplayName }
+        Report "$($pkgDir.Name) $hostDir/plugin.json uses the package display name" `
+            ($hostDisplayName -clike 'AH-*' -and $hostDisplayName -ceq $displayName) `
+            "Expected a consistent display name with the AH- prefix. Found '$hostDisplayName' and '$displayName'."
     }
 }
 Report 'at least one package participates in portable root version authority' ($packagesWithHostVersion -gt 0) `
-    'found no packages with host plugin manifests declaring version; the authority check would be vacuously true.'
+    'Found no public packages with host plugin manifests.'
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

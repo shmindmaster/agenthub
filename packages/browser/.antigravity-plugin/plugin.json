@@ -2,8 +2,8 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-browser",
   "displayName": "AH-Browser",
-  "version": "1.0.0",
-  "description": "Drive a hidden browser to automate a website task or test a web app as a user would, on hosts without a high-fidelity browser of their own. Wraps agent-browser with fleet defaults; installs nothing and stores no key.",
+  "version": "1.2.0",
+  "description": "Automate websites in an existing Chrome or Edge profile with Tencent BrowserSkill, or use agent-browser for isolated testing and capture.",
   "suggestedPrompts": [
     "Test this web app as a user would",
     "Fill this form and show me the confirmation"
