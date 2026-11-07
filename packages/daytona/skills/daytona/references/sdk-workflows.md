@@ -8,7 +8,7 @@ These come before the vendor guidance below.
 - Label every sandbox `owner=<project>` and `purpose=<what>`, set an auto-stop or TTL, and delete it when the job ends. Nothing idles.
 - Never touch a sandbox you did not create.
 - Reach for a sandbox when the job is heavy for this PC: long test suites, builds, renders, fan-out, or untrusted code. Check free RAM first.
-- For runnable examples, see [references/guides.md](./references/guides.md).
+- For runnable examples, see [references/guides.md](./guides.md).
 ## What is Daytona
 
 Daytona provides **full composable computers** — **sandboxes** — for AI agents. Each sandbox is an isolated runtime environment with its own kernel, filesystem, network stack, and dedicated vCPU, RAM, and disk. Agents can install packages, run servers, compile code, and manage processes inside sandboxes.
@@ -22,7 +22,7 @@ Sandboxes are built from OCI-compliant images or snapshots. Any language or tool
 Before writing any Daytona code, verify setup:
 
 1. **SDK installed?** Check that the Daytona SDK is installed for the user's language (e.g. `pip show daytona` or check `package.json` for `@daytona/sdk`). If not, install it.
-2. **API key set?** Check `DAYTONA_API_KEY` in the shell environment or in environment files. If not set, tell the user they need an API key and point them to [Daytona Dashboard > API Keys](https://app.daytona.io/dashboard/keys) to create one.
+2. **API key selected?** Follow [credential selection](./credentials.md) for `DAYTONA_API_KEY` or the explicitly selected `DAYTONA_API_KEY1`. Check presence without printing values and verify the intended organization before creating resources.
 
 ## SDK Essentials — Python
 
@@ -113,13 +113,13 @@ sandbox.start()
 sandbox.delete()
 ```
 
-Wrap Daytona calls with `DaytonaError` for error handling. For async, use `AsyncDaytona` (async context manager). For full Python SDK reference, see [python-sdk/README.md](./references/python-sdk/README.md).
+Wrap Daytona calls with `DaytonaError` for error handling. For async, use `AsyncDaytona` (async context manager). For full Python SDK reference, see [python-sdk/README.md](./python-sdk/README.md).
 
 ## SDK Essentials — TypeScript
 
 The TypeScript SDK (`@daytona/sdk`) mirrors the Python API. Key differences: `executeCommand` instead of `exec`, `codeRun` instead of `code_run`, `uploadFile`/`downloadFile`/`listFiles` for file ops, `DaytonaError` for error handling. Install with `npm install @daytona/sdk`.
 
-For full TypeScript SDK reference and examples, see [typescript-sdk/README.md](./references/typescript-sdk/README.md).
+For full TypeScript SDK reference and examples, see [typescript-sdk/README.md](./typescript-sdk/README.md).
 
 ## Common Patterns
 
@@ -211,7 +211,7 @@ const snapshot = await daytona.snapshot.create({
 const sandbox = await daytona.create({ snapshot: snapshot.name })
 ```
 
-For the full `Image` builder API, see `./references/<lang>-sdk/declarative-builder.md`. For snapshot management, see `./references/<lang>-sdk/snapshots.md`.
+For the full `Image` builder API, see `./<lang>-sdk/declarative-builder.md`. For snapshot management, see `./<lang>-sdk/snapshots.md`.
 
 ### Long-running task pattern
 
@@ -243,7 +243,7 @@ Sandboxes expose HTTP services via preview URLs. Previews are token-authenticate
 - **Signed URL (shareable)** — token embedded in URL, no headers needed
   - Python: `sandbox.create_signed_preview_url(port, expires_in_seconds=3600)` | TypeScript: `sandbox.getSignedPreviewUrl(port, 3600)` | Go: `sandbox.GetSignedPreviewLink(port, 3600)` | Ruby: `sandbox.create_signed_preview_url(port, expires_in_seconds: 3600)`
 
-For details, see `./references/<lang>-sdk/preview.md`.
+For details, see `./<lang>-sdk/preview.md`.
 
 ## Sandbox Limits & Constraints
 
@@ -275,30 +275,30 @@ Aggregate limits (total vCPU/RAM/disk across all sandboxes) depend on your organ
 
 If your code needs to reach arbitrary URLs (external APIs, custom services, etc.), you need **Tier 3+**. Check your tier at [Daytona Dashboard > Limits](https://app.daytona.io/dashboard/limits).
 
-Essential services available on all tiers include: npm/PyPI/apt registries, GitHub/GitLab/Bitbucket, Docker registries, major AI APIs (Anthropic, OpenAI, Google AI, etc.), S3, Google Cloud Storage, and common dev tools (Vercel, Supabase, Clerk, Sentry, etc.). For the full list, see [network-limits.md](./references/python-sdk/network-limits.md#essential-services). Missing a service? Submit a request at [daytonaio/sandbox-network-whitelist](https://github.com/daytonaio/sandbox-network-whitelist).
+Essential services available on all tiers include: npm/PyPI/apt registries, GitHub/GitLab/Bitbucket, Docker registries, major AI APIs (Anthropic, OpenAI, Google AI, etc.), S3, Google Cloud Storage, and common dev tools (Vercel, Supabase, Clerk, Sentry, etc.). For the full list, see [network-limits.md](./python-sdk/network-limits.md#essential-services). Missing a service? Submit a request at [daytonaio/sandbox-network-whitelist](https://github.com/daytonaio/sandbox-network-whitelist).
 
-View your usage at [Daytona Dashboard > Limits](https://app.daytona.io/dashboard/limits). For full details, see [limits.md](./references/platform/limits.md).
+View your usage at [Daytona Dashboard > Limits](https://app.daytona.io/dashboard/limits). For full details, see [limits.md](./platform/limits.md).
 
 ## Quick Decision Tree
 
 | I need to... | Start here |
 |---|---|
-| Run code/commands in an isolated environment | SDK Essentials above, then `./references/<lang>-sdk/process-code-execution.md` |
-| Make sandboxes start faster | `./references/<lang>-sdk/snapshots.md` — build a snapshot from an image definition, create new sandboxes from it |
-| Persist data across sandbox runs | `./references/<lang>-sdk/volumes.md` — attach persistent storage that survives sandbox deletion |
-| Build a custom environment (specific OS, packages, deps) | `./references/<lang>-sdk/declarative-builder.md` — use the `Image` builder to define custom sandbox images |
-| Control what a sandbox can access on the network | `./references/<lang>-sdk/network-limits.md` — per-sandbox firewall rules (Tier 3+ for unrestricted) |
-| Interact with a browser or GUI in the sandbox | `./references/<lang>-sdk/computer-use-guide.md` + `./references/<lang>-sdk/vnc-access.md` |
-| Run a stateful Python interpreter (persistent variables between calls) | `./references/python-sdk/sync/code-interpreter.md` or `./references/typescript-sdk/code-interpreter.md` |
-| Store and retrieve objects (S3-compatible) | `./references/<lang>-sdk/object-storage.md` (Python sync/async, TypeScript, Ruby) |
-| SSH into a running sandbox | `./references/<lang>-sdk/ssh-access.md` |
-| Run a Windows, Linux VM, or GPU sandbox | `./references/<lang>-sdk/windows-sandboxes.md`, `linux-sandboxes.md`, or `gpu-sandboxes.md` |
-| Give sandbox code access to credentials without exposing them | `./references/<lang>-sdk/secrets.md` |
-| Mount an S3 bucket or other external storage | `./references/<lang>-sdk/mount-external-storage.md` |
-| Reduce sandbox startup latency with pre-created sandboxes | `./references/<lang>-sdk/warm-pools.md` |
-| Debug a failing sandbox or API call | `./references/<lang>-sdk/troubleshooting.md` |
+| Run code/commands in an isolated environment | SDK Essentials above, then `./<lang>-sdk/process-code-execution.md` |
+| Make sandboxes start faster | `./<lang>-sdk/snapshots.md` — build a snapshot from an image definition, create new sandboxes from it |
+| Persist data across sandbox runs | `./<lang>-sdk/volumes.md` — attach persistent storage that survives sandbox deletion |
+| Build a custom environment (specific OS, packages, deps) | `./<lang>-sdk/declarative-builder.md` — use the `Image` builder to define custom sandbox images |
+| Control what a sandbox can access on the network | `./<lang>-sdk/network-limits.md` — per-sandbox firewall rules (Tier 3+ for unrestricted) |
+| Interact with a browser or GUI in the sandbox | `./<lang>-sdk/computer-use-guide.md` + `./<lang>-sdk/vnc-access.md` |
+| Run a stateful Python interpreter (persistent variables between calls) | `./python-sdk/sync/code-interpreter.md` or `./typescript-sdk/code-interpreter.md` |
+| Store and retrieve objects (S3-compatible) | `./<lang>-sdk/object-storage.md` (Python sync/async, TypeScript, Ruby) |
+| SSH into a running sandbox | `./<lang>-sdk/ssh-access.md` |
+| Run a Windows, Linux VM, or GPU sandbox | `./<lang>-sdk/windows-sandboxes.md`, `linux-sandboxes.md`, or `gpu-sandboxes.md` |
+| Give sandbox code access to credentials without exposing them | `./<lang>-sdk/secrets.md` |
+| Mount an S3 bucket or other external storage | `./<lang>-sdk/mount-external-storage.md` |
+| Reduce sandbox startup latency with pre-created sandboxes | `./<lang>-sdk/warm-pools.md` |
+| Debug a failing sandbox or API call | `./<lang>-sdk/troubleshooting.md` |
 
-Replace `<lang>-sdk` with `python-sdk` or `typescript-sdk`. Go, Java and Ruby references are at https://github.com/daytona/skills.
+Replace `<lang>-sdk` with `python-sdk`, `typescript-sdk`, `go-sdk`, `java-sdk` or `ruby-sdk`, according to the language in use.
 
 ## SDK Index
 
@@ -306,33 +306,35 @@ Replace `<lang>-sdk` with `python-sdk` or `typescript-sdk`. Go, Java and Ruby re
 
 | File | Description |
 |------|-------------|
-| [python-sdk/README.md](./references/python-sdk/README.md) | Installation, quickstart, configuration |
-| [python-sdk/sync/daytona.md](./references/python-sdk/sync/daytona.md) | Daytona client — create, list, delete sandboxes |
-| [python-sdk/sync/sandbox.md](./references/python-sdk/sync/sandbox.md) | Sandbox instance — lifecycle, resources, labels |
-| [python-sdk/sync/process.md](./references/python-sdk/sync/process.md) | Execute commands, run code |
-| [python-sdk/sync/file-system.md](./references/python-sdk/sync/file-system.md) | File operations — read, write, upload, download |
-| [python-sdk/sync/git.md](./references/python-sdk/sync/git.md) | Git operations — clone, commit, push, status |
-| [python-sdk/sync/snapshot.md](./references/python-sdk/sync/snapshot.md) | Snapshot management |
-| [python-sdk/sync/volume.md](./references/python-sdk/sync/volume.md) | Volume management |
-| [python-sdk/sync/code-interpreter.md](./references/python-sdk/sync/code-interpreter.md) | Stateful Python interpreter |
-| [python-sdk/sync/computer-use.md](./references/python-sdk/sync/computer-use.md) | Desktop automation (mouse/keyboard/screen) |
-| [python-sdk/sync/lsp-server.md](./references/python-sdk/sync/lsp-server.md) | Language Server Protocol |
-| [python-sdk/sync/object-storage.md](./references/python-sdk/sync/object-storage.md) | S3-compatible object storage |
-| [python-sdk/errors.md](./references/python-sdk/errors.md) | Error types |
-| [python-sdk/image.md](./references/python-sdk/image.md) | Custom image definitions |
+| [python-sdk/README.md](./python-sdk/README.md) | Installation, quickstart, configuration |
+| [python-sdk/sync/daytona.md](./python-sdk/sync/daytona.md) | Daytona client — create, list, delete sandboxes |
+| [python-sdk/sync/sandbox.md](./python-sdk/sync/sandbox.md) | Sandbox instance — lifecycle, resources, labels |
+| [python-sdk/sync/process.md](./python-sdk/sync/process.md) | Execute commands, run code |
+| [python-sdk/sync/file-system.md](./python-sdk/sync/file-system.md) | File operations — read, write, upload, download |
+| [python-sdk/sync/git.md](./python-sdk/sync/git.md) | Git operations — clone, commit, push, status |
+| [python-sdk/sync/snapshot.md](./python-sdk/sync/snapshot.md) | Snapshot management |
+| [python-sdk/sync/volume.md](./python-sdk/sync/volume.md) | Volume management |
+| [python-sdk/sync/code-interpreter.md](./python-sdk/sync/code-interpreter.md) | Stateful Python interpreter |
+| [python-sdk/sync/computer-use.md](./python-sdk/sync/computer-use.md) | Desktop automation (mouse/keyboard/screen) |
+| [python-sdk/sync/lsp-server.md](./python-sdk/sync/lsp-server.md) | Language Server Protocol |
+| [python-sdk/sync/object-storage.md](./python-sdk/sync/object-storage.md) | S3-compatible object storage |
+| [python-sdk/errors.md](./python-sdk/errors.md) | Error types |
+| [python-sdk/image.md](./python-sdk/image.md) | Custom image definitions |
 
-Async versions mirror the sync API: [python-sdk/async/](./references/python-sdk/async/).
+Async versions mirror the sync API: [python-sdk/async/](./python-sdk/async/).
 
 ### TypeScript SDK
 
-Flat structure (no sync/async split like Python): [typescript-sdk/README.md](./references/typescript-sdk/README.md). Files: `daytona.md`, `sandbox.md`, `process.md`, `file-system.md`, `git.md`, `snapshot.md`, `volume.md`, `code-interpreter.md`, `computer-use.md`, `lsp-server.md`, `object-storage.md`, `execute-response.md`, `pty-handle.md`, `errors.md`, `image.md`.
+Flat structure (no sync/async split like Python): [typescript-sdk/README.md](./typescript-sdk/README.md). Files: `daytona.md`, `sandbox.md`, `process.md`, `file-system.md`, `git.md`, `snapshot.md`, `volume.md`, `code-interpreter.md`, `computer-use.md`, `lsp-server.md`, `object-storage.md`, `execute-response.md`, `pty-handle.md`, `errors.md`, `image.md`.
 
 ### Java SDK, Go SDK & Ruby SDK
 
+Load only the selected language: [Java SDK](./java-sdk/README.md),
+[Go SDK](./go-sdk/README.md), or [Ruby SDK](./ruby-sdk/README.md).
 
 ## Feature Guides (per-SDK)
 
-Each SDK folder contains the same set of feature guides with language-specific examples. To find a guide, use `./references/<lang>-sdk/<filename>` (e.g., `./references/python-sdk/sandboxes.md`, `./references/typescript-sdk/snapshots.md`).
+Each SDK folder contains the same set of feature guides with language-specific examples. To find a guide, use `./<lang>-sdk/<filename>` (e.g., `./python-sdk/sandboxes.md`, `./typescript-sdk/snapshots.md`).
 
 | Filename | Topic |
 |----------|-------|
@@ -370,26 +372,26 @@ Each SDK folder contains the same set of feature guides with language-specific e
 
 | File | Description |
 |------|-------------|
-| [limits.md](./references/platform/limits.md) | Resource limits, rate limits, tier requirements |
-| [organizations.md](./references/platform/organizations.md) | Team management, member roles |
-| [billing.md](./references/platform/billing.md) | Usage tracking, pricing |
-| [audit-logs.md](./references/platform/audit-logs.md) | Audit logging |
-| [linked-accounts.md](./references/platform/linked-accounts.md) | GitHub/GitLab account linking |
-| [web-terminal.md](./references/platform/web-terminal.md) | Browser-based terminal access |
-| [webhooks.md](./references/platform/webhooks.md) | Webhook events |
-| [mcp.md](./references/platform/mcp.md) | MCP integration |
-| [api-keys.md](./references/platform/api-keys.md) | Create and manage organization API keys |
-| [sso.md](./references/platform/sso.md) | SSO and SCIM directory sync |
-| [architecture.md](./references/platform/architecture.md) | Platform architecture overview |
-| [persistence.md](./references/platform/persistence.md) | Sandbox filesystem and memory persistence |
-| [bring-your-own-compute.md](./references/platform/bring-your-own-compute.md) | Run your own runner machines (BYOC) |
-| [custom-preview-proxy.md](./references/platform/custom-preview-proxy.md) | Self-hosted preview proxy with custom domains |
-| [otel-collection.md](./references/platform/otel-collection.md) | Export traces, logs, and metrics to an OTLP backend |
-| [agent-skills.md](./references/platform/agent-skills.md) | Installing this agent skill |
-| [playground.md](./references/platform/playground.md) | Browser-based playground |
-| [acceptable-use.md](./references/platform/acceptable-use.md) | Acceptable use guidelines |
-| [cli.md](./references/cli.md) | CLI command reference |
+| [limits.md](./platform/limits.md) | Resource limits, rate limits, tier requirements |
+| [organizations.md](./platform/organizations.md) | Team management, member roles |
+| [billing.md](./platform/billing.md) | Usage tracking, pricing |
+| [audit-logs.md](./platform/audit-logs.md) | Audit logging |
+| [linked-accounts.md](./platform/linked-accounts.md) | GitHub/GitLab account linking |
+| [web-terminal.md](./platform/web-terminal.md) | Browser-based terminal access |
+| [webhooks.md](./platform/webhooks.md) | Webhook events |
+| [mcp.md](./platform/mcp.md) | MCP integration |
+| [api-keys.md](./platform/api-keys.md) | Create and manage organization API keys |
+| [sso.md](./platform/sso.md) | SSO and SCIM directory sync |
+| [architecture.md](./platform/architecture.md) | Platform architecture overview |
+| [persistence.md](./platform/persistence.md) | Sandbox filesystem and memory persistence |
+| [bring-your-own-compute.md](./platform/bring-your-own-compute.md) | Run your own runner machines (BYOC) |
+| [custom-preview-proxy.md](./platform/custom-preview-proxy.md) | Self-hosted preview proxy with custom domains |
+| [otel-collection.md](./platform/otel-collection.md) | Export traces, logs, and metrics to an OTLP backend |
+| [agent-skills.md](./platform/agent-skills.md) | Installing this agent skill |
+| [playground.md](./platform/playground.md) | Browser-based playground |
+| [acceptable-use.md](./platform/acceptable-use.md) | Acceptable use guidelines |
+| [cli.md](./cli.md) | CLI command reference |
 
 ## API Reference
 
-Raw REST API documentation for all Daytona endpoints (sandboxes, snapshots, volumes, toolbox operations, etc.): [api/README.md](./references/api/README.md).
+Raw REST API documentation for all Daytona endpoints (sandboxes, snapshots, volumes, toolbox operations, etc.): [api/README.md](./api/README.md).

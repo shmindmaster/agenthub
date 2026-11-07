@@ -2,12 +2,14 @@ This package contains the Daytona agent skill from daytona/skills
 (https://github.com/daytona/skills), Apache License 2.0, at commit
 1d33f46d16a10f5c510d20c480c53315866ce675.
 
-Changes made for AgentHub: the Go, Java and Ruby SDK references are left out and
-their links removed from SKILL.md; a Fleet rules section and references/guides.md
-are added; vendor contact addresses are replaced by "Daytona support" and
-"Daytona sales", and PEM markers around a placeholder key and one proxy host are
-changed so the public repository scan stays strict. Everything else is unmodified.
-See LICENSE.
+Changes made for AgentHub: the main entrypoint is a bounded fleet workflow;
+upstream SDK workflows are moved to references/sdk-workflows.md and their
+relative links adjusted. All upstream SDK reference directories are bundled,
+including Go, Java and Ruby. Fleet guidance, credential-selection documentation,
+a child-process key selector and synthetic offline tests are added. Vendor
+contact addresses are replaced by "Daytona support" and "Daytona sales", and
+PEM markers around placeholder keys and example proxy hosts are changed so the
+public repository scan stays strict. See LICENSE.
 
 Upstream NOTICE follows.
 

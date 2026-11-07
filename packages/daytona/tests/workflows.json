@@ -16,7 +16,7 @@
       "input": "A sandbox with the requested name already exists and its ownership is unknown.",
       "expected": "If cost or scope is unclear, stop before creating resources. If execution fails, save allowed diagnostics and clean up only the sandbox this run created.",
       "evidence": [
-        "Resolve the approved project, image, resource limits, time budget, and artifacts before requesting a sandbox.",
+        "Resolve the approved project, credential reference, organization, image, resource limits, time budget, and artifacts before requesting a sandbox.",
         "If cost or scope is unclear, stop before creating resources. If execution fails, save allowed diagnostics and clean up only the sandbox this run created."
       ]
     }

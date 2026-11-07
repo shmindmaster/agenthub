@@ -7,7 +7,7 @@ description: Creates and manages isolated cloud sandboxes (secure code execution
 
 ## Workflow contract
 
-1. Resolve the approved project, image, resource limits, time budget, and artifacts before requesting a sandbox.
+1. Resolve the approved project, credential reference, organization, image, resource limits, time budget, and artifacts before requesting a sandbox. Read [credential selection](references/credentials.md) when using either Daytona key or a cloud agent.
 2. Create an isolated sandbox with the approved limits, run the requested code, retrieve only the agreed artifacts, then stop or remove the sandbox this run created as authorized.
 3. Return the sandbox ID, command exit status, artifact paths and final lifecycle state.
 4. If cost or scope is unclear, stop before creating resources. If execution fails, save allowed diagnostics and clean up only the sandbox this run created.

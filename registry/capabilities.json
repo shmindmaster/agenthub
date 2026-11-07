@@ -1238,7 +1238,7 @@
       "managedSkillNames": [
         "daytona"
       ],
-      "contentHash": "14A1705DC03856CA7D5FB815AA8D7E7BF36AF0C6AE0E9E0E3DEA6BDAFC9CF935",
+      "contentHash": "82B52B0A8A2ECD88A592FE886FB884215E9BBF25D930035F014D1BEB0A41A2B2",
       "hashBasis": "packages/daytona",
       "status": "active-canonical",
       "hostMappings": [
@@ -1311,7 +1311,7 @@
         "recommends": [],
         "optional": []
       },
-      "notes": "Daytona cloud sandboxes through one skill, with no MCP server or hook, so nothing runs until a sandbox is needed. Copied from the Apache-2.0 daytona/skills with Go, Java and Ruby references left out; see NOTICE. The key comes from DAYTONA_API_KEY. Claude, Factory, Devin and Grok use the vendor plugin from their own catalog; registry/native-connectors.json records those channels.",
+      "notes": "Daytona cloud sandboxes through one skill, with no MCP server or hook, so nothing runs until a sandbox is needed. Copied from Apache-2.0 daytona/skills with all SDK reference directories bundled; see NOTICE. Defaults to DAYTONA_API_KEY; explicit DAYTONA_API_KEY1 selection is scoped to the child process, with no automatic account failover. Claude, Factory, Devin and Grok use the vendor plugin from their own catalog; registry/native-connectors.json records those channels.",
       "kind": "provider",
       "maturity": "beta",
       "provenance": "agenthub-owned"
