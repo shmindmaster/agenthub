@@ -37,6 +37,6 @@ Shapes that work: problem, stakes, mechanism, proof, call to action (explainer);
 
 `story/screenplay.json` per `schemas/screenplay.schema.json`: `title`, `kind`, `hook`, `audience`, `viewerPromise`, and `scenes` each with `id`, `speaker`, `narration`, and `sceneRole`, `wiifm`, `emphasis` where useful. One scene per beat or per turn of a conversation.
 
-Write for the ear (`../video/references/story.md`): short sentences, concrete nouns, one idea per line, numbers said once. No fluff: no greeting, no recap, no talk about how the film was made. For a dialogue or simulated call, one scene per turn, one voice per character, the spoken thing in the picture and not the speakers (`../video/references/scenes.md`).
+Write for the ear (`../../video/references/story.md`): short sentences, concrete nouns, one idea per line, numbers said once. No fluff: no greeting, no recap, no talk about how the film was made. For a dialogue or simulated call, one scene per turn, one voice per character, the spoken thing in the picture and not the speakers (`../../video/references/scenes.md`).
 
 Facts are locked: each number, date and name traces to the case's sources. Never invent a metric, a customer or a product behaviour.

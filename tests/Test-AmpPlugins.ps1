@@ -24,7 +24,7 @@ function Assert-True([bool]$Condition, [string]$Message) {
 
 $target = Join-Path ([IO.Path]::GetTempPath()) "amp-plugins-$PID"
 try {
-    $names = 'ah-linear', 'ah-context7', 'ah-firecrawl', 'ah-brave-search', 'ah-aws', 'ah-repowise'
+    $names = 'ah-linear', 'ah-context7', 'ah-brave-search', 'ah-aws', 'ah-repowise'
     $output = & python $installer --target $target @names 2>&1
     Assert-True ($LASTEXITCODE -eq 0) "installer failed: $output"
 
@@ -39,7 +39,7 @@ try {
     }
 
     $carriers = @(Get-ChildItem -LiteralPath $target -Recurse -Filter 'mcp.json')
-    Assert-True ($carriers.Count -ge 3) "expected a server carrier for linear, context7 and firecrawl, found $($carriers.Count)"
+    Assert-True ($carriers.Count -ge 2) "expected a server carrier for linear and context7, found $($carriers.Count)"
     foreach ($carrier in $carriers) {
         $text = Get-Content -LiteralPath $carrier.FullName -Raw -Encoding utf8
         Assert-True ($text -notmatch '\$\{env:') "$($carrier.FullName) uses `${env:VAR}, which Amp sends literally"
@@ -52,8 +52,6 @@ try {
 
     $context7 = Get-Content -LiteralPath (Join-Path $target 'ah-context7/skills/docs/mcp.json') -Raw -Encoding utf8 | ConvertFrom-Json
     Assert-True ($null -ne $context7.context7.headers.CONTEXT7_API_KEY) 'context7 lost its key header'
-    $firecrawl = Get-Content -LiteralPath (Join-Path $target 'ah-firecrawl/skills/scrape/mcp.json') -Raw -Encoding utf8 | ConvertFrom-Json
-    Assert-True ($firecrawl.firecrawl.url -like '*/v2/mcp') 'firecrawl must use the key endpoint, not the OAuth one'
 } finally {
     if (Test-Path -LiteralPath $target) { [IO.Directory]::Delete($target, $true) }
 }

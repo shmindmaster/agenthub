@@ -8,7 +8,8 @@ The Claude and Codex plugins start vendor_mcp.py, which bridges each session to
 one shared vendor server on Azure embeddings instead of running a server per
 session. A plugin update restores the vendor file, so run this
 again after updating. Audit is the default; only -Apply writes. Other fields in
-each server entry are kept.
+each server entry are kept. Supported display fields receive the owner's
+AH-RepoWise alias while vendor IDs, hooks, attribution and artwork are retained.
 #>
 [CmdletBinding()]
 param(
@@ -49,6 +50,28 @@ foreach ($hostEntry in $hosts) {
         $json = $config | ConvertTo-Json -Depth 10
         [IO.File]::WriteAllText($file.FullName, $json + "`n", [Text.UTF8Encoding]::new($false))
         Write-Output "updated: $($hostEntry.Name) $($file.FullName)"
+    }
+    $manifestGlob = if ($hostEntry.Nested) {
+        '.claude/plugins/cache/repowise/repowise/*/.claude-plugin/plugin.json'
+    } else {
+        '.codex/plugins/cache/repowise/codex/*/.codex-plugin/plugin.json'
+    }
+    foreach ($file in @(Get-ChildItem -Path (Join-Path $UserProfile $manifestGlob) -File -Force -ErrorAction SilentlyContinue)) {
+        $manifest = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+        $expectedId = if ($hostEntry.Nested) { 'repowise' } else { 'codex' }
+        if ($manifest.name -ne $expectedId) { throw "Unexpected vendor identity in $($file.FullName)" }
+        $presentation = if ($hostEntry.Nested) { $manifest } else { $manifest.interface }
+        if (-not $presentation) { throw "Missing native presentation in $($file.FullName)" }
+        if ($presentation.PSObject.Properties['displayName'] -and $presentation.displayName -eq 'AH-RepoWise') { continue }
+        $stale++
+        if (-not $Apply) {
+            Write-Output "stale presentation: $($hostEntry.Name) $($file.FullName)"
+            continue
+        }
+        $presentation | Add-Member -NotePropertyName displayName -NotePropertyValue 'AH-RepoWise' -Force
+        $json = $manifest | ConvertTo-Json -Depth 20
+        [IO.File]::WriteAllText($file.FullName, $json + "`n", [Text.UTF8Encoding]::new($false))
+        Write-Output "updated: $($hostEntry.Name) presentation $($file.FullName)"
     }
 }
 if ($found -eq 0) { throw 'No vendor RepoWise plugin found.' }

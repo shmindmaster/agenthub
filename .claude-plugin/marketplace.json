@@ -55,11 +55,6 @@
       "source": "./packages/browser"
     },
     {
-      "name": "ah-firecrawl",
-      "displayName": "AH-Firecrawl",
-      "source": "./packages/firecrawl"
-    },
-    {
       "name": "ah-descript",
       "displayName": "AH-Descript",
       "source": "./packages/descript"

@@ -46,7 +46,7 @@ One row per beat, written into `plan/storyboard.md`:
 Rules for the table:
 
 - **On screen** is nouns and shapes, not the sentence again. If the cell could be the line, the beat has no picture.
-- **Visual kind** comes from the ladder in `../visuals/references/ladder.md`. Prefer a picture kind: chart, svg, lottie, flow, layers, sequence, timeline, beforeafter, map, still, broll, screen-in-context, code. A text card needs a reason (opening, close, a quoted line).
+- **Visual kind** comes from the ladder in `../../visuals/references/ladder.md`. Prefer a picture kind: chart, svg, lottie, flow, layers, sequence, timeline, beforeafter, map, still, broll, screen-in-context, code. A text card needs a reason (opening, close, a quoted line).
 - **Source** is the lane from `scripts/route_media.py`: kit, lottie, hand-drawn svg, captured screen, Azure image. Anything paid is priced here.
 - **Reveal timing** pins each part to the spoken word that names it (`at`, seconds from scene start, taken from the word boundaries).
 - The visual changes with every sentence; no scene holds one picture for more than about eight seconds.

@@ -18,16 +18,16 @@ $liveProfile = [IO.Path]::GetFullPath((Get-AgentHubDefaultHome))
 $live = $UserProfile.TrimEnd('\', '/') -eq $liveProfile.TrimEnd('\', '/')
 $root = $RepositoryRoot.Replace('\', '/')
 $overlay = Get-AgentHubOverlayRoot -RepositoryRoot $root
-$agents = Get-Content (Join-Path $root 'registry/agents.json') -Raw | ConvertFrom-Json
-$capabilities = Get-Content (Join-Path $root 'registry/capabilities.json') -Raw | ConvertFrom-Json
-$mcpRegistry = Get-Content (Join-Path $root 'registry/mcps.json') -Raw | ConvertFrom-Json
+$agents = Get-Content (Join-Path $root 'registry/agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$capabilities = Get-Content (Join-Path $root 'registry/capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$mcpRegistry = Get-Content (Join-Path $root 'registry/mcps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $hostCatalog = @{}
 foreach ($agent in $agents.activeAgents) { $hostCatalog[$agent.id] = $agent }
 if ($HostId -and -not $hostCatalog.ContainsKey($HostId)) { throw "Unknown active host: $HostId" }
 
 function Read-Document([string]$Path) {
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
-        return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+        return Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
     }
 }
 
@@ -43,16 +43,20 @@ function New-Observation([string]$Version, [string]$Path, [string]$Status, [stri
     return @{ version = $Version; path = $Path; status = $Status; detail = $Detail }
 }
 
-function Get-ManifestObservation([string]$Path, [string]$Manifest = 'plugin.json') {
+function Get-ManifestObservation([string]$Path, [string]$Manifest = 'plugin.json', [string]$ExpectedName) {
     if (-not $Path) { return }
     $doc = Read-Document (Join-Path $Path $Manifest)
-    if ($doc.version) { return New-Observation $doc.version $Path }
+    if ($doc.version) {
+        if ($ExpectedName -and $doc.name -ne $ExpectedName) { return New-Observation '' '' 'unmanaged' 'Installed package identity differs from the registered owner.' }
+        return New-Observation $doc.version $Path
+    }
+    if (Test-Path -LiteralPath $Path) { return New-Observation '' '' 'unmanaged' 'Existing package has no recognizable manifest.' }
 }
 
 function Get-VersionedObservation([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return }
     $dirs = @(Get-ChildItem -LiteralPath $Path -Directory | Where-Object Name -Match '^\d+\.\d+\.\d+$' | Sort-Object { [version]$_.Name } -Descending)
-    if ($dirs.Count) { return Get-ManifestObservation $dirs[0].FullName }
+    if ($dirs.Count) { return Get-ManifestObservation $dirs[0].FullName 'plugin.json' (Split-Path -Leaf $Path) }
 }
 
 function Get-LinkedObservation([string]$Path, [string]$Source) {
@@ -72,6 +76,35 @@ function Get-ListedPlugin([string]$Command, [string]$Name, [switch]$Fresh) {
         $clientLists[$Command] = @(Invoke-Client $Command @('plugin','list','--json') | ConvertFrom-Json)
     }
     return $clientLists[$Command] | Where-Object name -eq $Name | Select-Object -First 1
+}
+
+function Get-PluginSnapshotHash([string]$Path) {
+    $base = [IO.Path]::GetFullPath($Path)
+    $entries = @(Get-ChildItem -LiteralPath $base -Recurse -Force -ErrorAction Stop)
+    if (@($entries | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count) {
+        throw 'Package backup contains a link. Snapshot ownership cannot be established.'
+    }
+    $records = foreach ($file in @($entries | Where-Object { -not $_.PSIsContainer } | Sort-Object FullName)) {
+        [ordered]@{
+            path=[IO.Path]::GetRelativePath($base, $file.FullName).Replace('\\','/')
+            hash=Get-AgentHubStableFileHash $file.FullName
+        }
+    }
+    if (-not @($records).Count) { throw 'Package backup is empty.' }
+    $bytes = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject @($records) -Compress))
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return [Convert]::ToHexString($sha.ComputeHash($bytes)) }
+    finally { $sha.Dispose() }
+}
+
+function Test-PluginRollbackSource([string]$Candidate, [string]$OriginalSource, [string]$Name, [string]$Version) {
+    if (-not $Candidate) { return $false }
+    $allowedRoot = [IO.Path]::GetFullPath((Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub/runtime/plugin-deployment')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    $full = [IO.Path]::GetFullPath($Candidate)
+    if (-not $full.StartsWith($allowedRoot, [StringComparison]::OrdinalIgnoreCase)) { return $false }
+    $record = Read-Document "$full.json"
+    if ($record.originalSource -ne $OriginalSource -or $record.plugin -ne $Name -or $record.version -ne $Version) { return $false }
+    return $record.contentHash -eq (Get-PluginSnapshotHash $full)
 }
 
 function Get-PluginObservation($Row, [switch]$Fresh) {
@@ -110,7 +143,7 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
         }
         'codex' { return Get-VersionedObservation (Join-Path $UserProfile ".codex/plugins/cache/$market/$name") }
         'qoder' { return Get-VersionedObservation (Join-Path $UserProfile ".qoder/plugins/cache/$market/$name") }
-        'cursor' { return Get-ManifestObservation (Join-Path $UserProfile ".cursor/plugins/local/$name") }
+        'cursor' { return Get-ManifestObservation (Join-Path $UserProfile ".cursor/plugins/local/$name") 'plugin.json' $name }
         'amp' {
             $path = Join-Path $UserProfile ".config/amp/plugins/$name"
             $metadata = Read-Document (Join-Path $path '.source.json')
@@ -129,7 +162,9 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
         'grok' {
             $entry = Get-ListedPlugin grok $name -Fresh:$Fresh
             if ($entry) {
-                if ($entry.source -ne $source.Replace('\', '/')) { return New-Observation '' '' 'unmanaged' 'Grok registration uses a different source.' }
+                if ($entry.source -ne $source.Replace('\', '/') -and -not (Test-PluginRollbackSource $entry.source $source $name $entry.version)) {
+                    return New-Observation '' '' 'unmanaged' 'Grok registration uses a different source.'
+                }
                 return New-Observation $entry.version $entry.path
             }
         }
@@ -155,7 +190,7 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
             $candidates = foreach ($marketDir in @(Get-ChildItem -Path (Join-Path $cache "$market-*") -Directory -ErrorAction SilentlyContinue)) {
                 foreach ($pluginDir in @(Get-ChildItem -Path (Join-Path $marketDir.FullName "$name-*") -Directory -ErrorAction SilentlyContinue)) {
                     foreach ($revision in Get-ChildItem -LiteralPath $pluginDir.FullName -Directory) {
-                        Get-ManifestObservation $revision.FullName
+                        Get-ManifestObservation $revision.FullName 'plugin.json' $name
                     }
                 }
             }
@@ -183,7 +218,7 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
             $settingsPath = Join-Path $UserProfile 'AppData/Roaming/Code - Insiders/User/settings.json'
             # VS Code uses JSONC. Match just the path entry in chat.pluginLocations.
             if (Test-Path -LiteralPath $settingsPath) {
-                $settings = Get-Content -LiteralPath $settingsPath -Raw
+                $settings = Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8
                 if ($settings -match '(?s)"chat\.pluginLocations"\s*:\s*\{([^}]+)\}') {
                     $locations = $Matches[1]
                     foreach ($path in $source, $source.Replace('\', '/')) {
@@ -196,12 +231,16 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
     }
 }
 
-function Test-SkillCopy([string]$Source, [string]$Destination) {
+function Test-SkillCopy([string]$Source, [string]$Destination, [string]$Client) {
     if (-not (Test-Path -LiteralPath (Join-Path $Destination 'skills'))) { return $false }
     $gitFiles = if ($Source.Replace('\','/') -match '/overlays/personal/') {
         @(Get-AgentHubFilesystemRelativeFiles -Path $Source)
     } else { @(Get-AgentHubGitTrackedRelativeFiles -Path $Source) }
-    $managed = @($gitFiles | Where-Object { $_ -match '^(skills|scripts|references|assets|kits|schemas|policy|kit)/' })
+    $managed = @($gitFiles | Where-Object {
+        $_ -match '^(skills|scripts|references|assets|kits|schemas|policy|kit)/' -or
+        ($Client -ne 'amp' -and $_ -in 'mcp.json','.mcp.json') -or
+        ($Client -ne 'amp' -and -not ($Client -eq 'antigravity' -and (Split-Path -Leaf $Source) -eq 'product') -and $_ -match '^agents/')
+    })
     if (-not $managed.Count) { return $false }
     foreach ($relative in $managed) {
         $file = Join-Path $Source $relative
@@ -256,7 +295,7 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     if ($observation.status -and $observation.status -ne 'current') { $Row.status = $observation.status; return }
     if ($observation.status -eq 'current' -and $observation.path -eq $Row.source) { $Row.status = 'current'; return }
     if (-not $observation) { $Row.status = 'missing'; return }
-    if ($observation.version -ne $Row.expected -or ($observation.path -and -not (Test-SkillCopy $Row.source $observation.path))) {
+    if ($observation.version -ne $Row.expected -or ($observation.path -and -not (Test-SkillCopy $Row.source $observation.path $Row.host))) {
         $Row.status = 'drift'
     } else { $Row.status = 'current' }
 }
@@ -304,7 +343,7 @@ function Assert-PublishedPluginSource {
 }
 
 function Get-GreenCiRun([string]$Head) {
-    $runs = @(Invoke-Client gh @('run','list','--repo','shmindmaster/agenthub','--workflow','CI','--branch','main','--commit',$Head,'--limit','5','--json','conclusion,databaseId') | ConvertFrom-Json)
+    $runs = @(Invoke-Client gh @('run','list','--repo','shmindmaster/agenthub','--workflow','CI','--commit',$Head,'--limit','5','--json','conclusion,databaseId') | ConvertFrom-Json)
     $run = $runs | Where-Object conclusion -EQ 'success' | Select-Object -First 1
     if (-not $run) { throw 'Apply requires successful CI for the exact published commit.' }
     return [string]$run.databaseId
@@ -415,6 +454,11 @@ if ($Apply) {
             $backup = Join-Path $receiptRoot "$stamp-$($row.host)-$($row.plugin)"
             Copy-Item -LiteralPath $row.previousPath -Destination $backup -Recurse -Force
             $entry.backup = $backup
+            $backupRecord = @{
+                originalSource=$row.source; plugin=$row.plugin; version=$row.observed
+                contentHash=(Get-PluginSnapshotHash $backup)
+            }
+            [IO.File]::WriteAllText("$backup.json", ($backupRecord | ConvertTo-Json))
         }
         try {
             $entry.status = Invoke-AgentHubPluginChange -Install { Invoke-PluginInstall $row } -Verify {
@@ -423,7 +467,7 @@ if ($Apply) {
             } -Rollback {
                 if ($backup -and $row.host -in 'cursor','amp') {
                     $destination = [IO.Path]::GetFullPath($entry.previousPath)
-                    $prefix = $liveProfile.TrimEnd('\\','/') + [IO.Path]::DirectorySeparatorChar
+                    $prefix = $liveProfile.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
                     if (-not $destination.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Rollback destination is outside the invoking profile.' }
                     $item = Get-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
                     if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Rollback refused a reparse point.' }
@@ -432,7 +476,7 @@ if ($Apply) {
                 } elseif ($backup -and $row.host -in 'grok','antigravity') {
                     $client = if ($row.host -eq 'grok') { 'grok' } else { 'agy' }
                     $null = Invoke-Client $client @('plugin','uninstall',$row.plugin)
-                    $arguments = @('plugin','install',$backup.Replace('\\','/'))
+                    $arguments = @('plugin','install',$backup.Replace('\','/'))
                     if ($row.host -eq 'grok') { $arguments += '--trust' }
                     $null = Invoke-Client $client $arguments
                 } else {

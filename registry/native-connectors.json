@@ -49,7 +49,9 @@
         "repowise-workspace": "Resolved 2026-09-17. Measured: C:/Repos/.cursor/mcp.json persisted the stdio server as a workspace-open fallback and Cursor agent sessions each spawned a `repowise mcp C:/Repos` process tree (multiple hundred MB aggregate) with no plugin enable step. Correct shape matches browser-toolkit: plugin-gated .mcp.json on packages/repowise, never persisted in host or workspace MCP config. scope remains global-default for eligibility; activationMode stays on-demand-local; not in persistedOnDemandLocalMcpIds."
       },
       "notAdded": {
-        "railway": "Removed from registry/mcps.json on 2026-11-06 at owner direction, including ah-railway and the official Railway plugins. It was on-demand-local stdio from 2026-08-19 to 2026-08-20, then the remote https://mcp.railway.com. Do not register it again and do not spawn railway mcp."
+        "railway": "Removed from registry/mcps.json on 2026-11-06 at owner direction, including ah-railway and the official Railway plugins. It was on-demand-local stdio from 2026-08-19 to 2026-08-20, then the remote https://mcp.railway.com. Do not register it again and do not spawn railway mcp.",
+        "firecrawl": "Owner removed the package, vendor plugins, skills and MCP registrations on 2026-11-06. Do not reinstall without a new request.",
+        "supabase": "Owner removed plugins, skills and MCP registrations on 2026-11-06. Startup credits exist but there is no current usage need. Do not reinstall without a new request."
       },
       "nextStep": "Chrome DevTools MCP coverage question closed by owner-authorized retirement on 2026-10-24. Preserve Playwright and the other declared providers; never recreate the retired server.",
       "retired": {
@@ -272,7 +274,7 @@
   },
   "bundledServerSuppressions": [],
   "skillsOnlyPlugins": [],
-  "skillsOnlyPluginsNote": "Emptied 2026-08-24. firecrawl@agenthub was an AgentHub republish of official Firecrawl skills with the MCP stripped so registry/mcps.json kept ownership. AgentHub no longer publishes that plugin. Codex may still have a leftover firecrawl@agenthub install; hostPrivateExtensionPolicy withholds AgentHub from removing it. Replace it with official firecrawl/skills (npx skills add firecrawl/skills) or the Firecrawl Codex plugin. The fleet Firecrawl MCP remains https://mcp.firecrawl.dev/v2/mcp.",
+  "skillsOnlyPluginsNote": "Superseded 2026-11-06. Firecrawl and Supabase integrations are removed by owner direction. Do not reinstall them without a new request.",
   "exposureModes": [
     "plugin-owned",
     "native-connector",
@@ -306,7 +308,6 @@
         "shared-gateway": [
           "context7",
           "exa",
-          "firecrawl",
           "github"
         ],
         "local-only": [
@@ -315,7 +316,7 @@
       },
       "evidence": [
         "Codex uses its native browser surface. Chrome DevTools MCP was retired on 2026-10-24; remaining plugin MCP ownership includes Descript, Linear, and Notion.",
-        "The installed Firecrawl plugin is skills-only and contains no MCP manifest; registry/mcps.json retains the Firecrawl service contract.",
+        "Historical POC observation, superseded 2026-11-06 by Firecrawl removal.",
         "Installed Codex app connectors own GitHub.",
         "Tavily was retired from the fleet on 2026-08-03. Adobe and Canva were retired the same day and un-retired 2026-10-21 as claude.ai account connectors with single media roles (mediaConnectorRoles); neither is registered in registry/mcps.json or delivered to Codex."
       ],
@@ -336,7 +337,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "linear",
           "notion"
         ],
@@ -364,7 +364,6 @@
         "shared-gateway": [
           "context7",
           "exa",
-          "firecrawl",
           "linear",
           "notion"
         ],
@@ -383,7 +382,6 @@
         "shared-gateway": [
           "context7",
           "exa",
-          "firecrawl",
           "linear",
           "notion"
         ],
@@ -405,7 +403,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "linear",
           "notion"
         ],
@@ -423,7 +420,6 @@
         "shared-gateway": [
           "context7",
           "exa",
-          "firecrawl",
           "linear",
           "notion"
         ],
@@ -440,7 +436,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "github",
           "linear",
           "notion"
@@ -463,7 +458,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "github",
           "linear",
           "notion"
@@ -483,7 +477,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "linear",
           "notion"
         ],
@@ -500,7 +493,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "github",
           "linear",
           "notion"
@@ -527,7 +519,6 @@
         "shared-gateway": [
           "context7",
           "exa",
-          "firecrawl",
           "github",
           "linear",
           "notion",
@@ -549,7 +540,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "github",
           "linear",
           "notion"
@@ -567,7 +557,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "github",
           "linear",
           "notion"
@@ -585,7 +574,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "linear",
           "notion"
         ],
@@ -602,7 +590,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "linear",
           "notion"
         ],
@@ -619,7 +606,6 @@
           "context7",
           "descript",
           "exa",
-          "firecrawl",
           "linear",
           "notion"
         ],
@@ -766,60 +752,6 @@
           "note": "The manifest in obra/superpowers self-describes as a development marketplace. Upstream's README points Claude Code at Anthropic's official marketplace first and at obra/superpowers-marketplace second; the development marketplace is not the distribution channel."
         },
         "note": "Tracked, not installed anywhere. Removed from every host on 2026-11-04 under registry/context-limits.json removedPlugins; every hostChannel below therefore records installedVersion null and current false, and the version each one names is the last copy observed before removal. Verified absent from all plugin caches and settings files on 2026-11-05."
-      },
-      {
-        "extensionId": "firecrawl",
-        "kind": "plugin",
-        "provenance": "official-upstream",
-        "maturity": "stable",
-        "upstream": "https://github.com/firecrawl/skills",
-        "maintainer": "Firecrawl",
-        "license": "ISC",
-        "capabilityKind": "skills-and-mcp",
-        "declaresMcpServers": true,
-        "required": false,
-        "provides": [
-          "web.firecrawl"
-        ],
-        "install": {
-          "command": "npx skills add firecrawl/skills",
-          "docs": "https://github.com/firecrawl/skills"
-        },
-        "note": "Official core/build/workflow skills plus Claude/Cursor/Codex plugin packaging. AgentHub ships no Firecrawl package (the firecrawl-web-ingestion overlay was deleted 2026-11-03); the vendor plugin firecrawl@claude-plugins-official owns the skills, and the shared-remote MCP at https://mcp.firecrawl.dev/v2/mcp stays registry-owned. Do not republish firecrawl-scrape or firecrawl-crawl from AgentHub.",
-        "observedAt": "2026-08-24",
-        "hostChannels": [
-          {
-            "hostId": "claude",
-            "channel": "upstream-skills",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add firecrawl/skills",
-            "note": "Official plugin also ships .claude-plugin/; prefer that or npx skills add over any AgentHub marketplace copy."
-          },
-          {
-            "hostId": "codex",
-            "channel": "upstream-plugin",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add firecrawl/skills",
-            "note": "A leftover firecrawl@agenthub skills-only install may still be present. Replace it with official firecrawl/skills. MCP stays registry-owned (shared-remote)."
-          },
-          {
-            "hostId": "cursor",
-            "channel": "upstream-plugin",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add firecrawl/skills",
-            "note": "Official repo ships .cursor-plugin/."
-          },
-          {
-            "hostId": "cline",
-            "channel": null,
-            "installedVersion": null,
-            "current": false,
-            "note": "No verified Cline-native Firecrawl plugin channel; use official skills install if the host gains Agent Skills support."
-          }
-        ]
       },
       {
         "extensionId": "coderabbit",

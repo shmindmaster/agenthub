@@ -18,13 +18,13 @@ PACKAGES = {
     "ah-product": "packages/product",
     "ah-media-studio": "packages/media-studio",
     "ah-sarosh": "overlays/personal/packages/sarosh",
+    "ah-docwise": "overlays/personal/packages/docwise",
     "ah-assemblyai": "packages/assemblyai",
     "ah-brave-search": "packages/brave-search",
     "ah-daytona": "packages/daytona",
     "ah-descript": "packages/descript",
     "ah-exa": "packages/exa",
     "ah-notion": "packages/notion",
-    "ah-firecrawl": "packages/firecrawl",
     "ah-aws": "packages/aws",
     "ah-repowise": "packages/repowise",
     "ah-browser": "packages/browser",
@@ -40,11 +40,9 @@ SKIP_TOP = {
 # Amp expands ${VAR}. It sends ${env:VAR} literally (loopback test, 2026-11-04).
 HEADERS = {
     "exa": {"x-api-key": "${EXA_API_KEY}"},
-    "firecrawl": {"Authorization": "Bearer ${FIRECRAWL_API_KEY}"},
     "context7": {"CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}", "Authorization": "Bearer ${CONTEXT7_API_KEY}"},
 }
-# The package URL is Firecrawl's OAuth endpoint, which Amp cannot complete. /v2/mcp takes the key.
-URLS = {"firecrawl": "https://mcp.firecrawl.dev/v2/mcp"}
+URLS = {}
 # Amp has no per-server off switch, so a local server is left out of the plugin: nothing here may start
 # a process with a session. Remote servers start no process and stay.
 LOCAL_SERVERS_LEFT_OUT = {"aws-mcp", "repowise-workspace"}

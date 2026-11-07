@@ -20,4 +20,16 @@ Record licenses from package provenance. Existing MIT declarations that differ f
 
 ## Environment blockers
 
-At the baseline, the Windows AgentHub runtime directory can be probed but cannot reliably create or enumerate children. Mobile runtime staging and the shared RepoWise refresh lease are affected. Diagnose through their normal entry points and preserve runtime dependencies. Do not replace or redirect a shared lease to bypass the failure.\n
+At the baseline, the Windows AgentHub runtime directory can be probed but cannot reliably create or enumerate children. Mobile runtime staging and the shared RepoWise refresh lease are affected. Diagnose through their normal entry points and preserve runtime dependencies. Do not replace or redirect a shared lease to bypass the failure.
+
+## Provider removal and presentation
+
+Owner direction on 2026-11-06 removes Firecrawl and Supabase plugins, loose skills and MCP routes. Supabase credits do not imply current activation. The rollout now contains 14 public and three private plugins.
+
+AgentHub packages retain stable `ah-*` IDs and `AH-*` display names with distinct icons. Clerk is an official upstream plugin and retains vendor identity. RepoWise retains its vendor IDs and hooks on Claude and Codex, with an `AH-RepoWise` local display alias applied by the existing vendor launcher installer. Reapply after vendor updates.
+
+## Added Docwise and Anthropic catalogs
+
+AH-Docwise packages the existing local application in the private overlay with an on-demand CLI, citations, dry-run cleanup and protected-path recovery. Public CI uses synthetic package fixtures only.
+
+The Claude user marketplace list now includes anthropics/claude-plugins-official, anthropics/claude-plugins-community, anthropics/knowledge-work-plugins and anthropics/claude-code. The duplicate official URL is one registration. This establishes Claude Code catalog discovery. Separate Cowork UI catalog visibility requires a UI readback. Existing marketplace plugins retain their vendor identity and update path.

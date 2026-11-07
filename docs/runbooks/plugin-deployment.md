@@ -10,7 +10,7 @@ Plugins come from one marketplace, `agenthub` (`C:/Repos/shmindmaster/agenthub`)
 
 ## Native first, no direct MCP
 
-Every coding host gets a capability from the first of these that exists: its own official marketplace, its official community marketplace, the vendor's plugin in a catalog the host can load, then an `ah-*` plugin. `ah-descript`, `ah-exa`, `ah-notion`, `ah-firecrawl` and `ah-aws` are thin wrappers for that last step: one skill, one server, no hooks. Railway was removed on 2026-11-06: do not install `ah-railway` or any official Railway plugin.
+Every coding host gets a capability from the first of these that exists: its own official marketplace, its official community marketplace, the vendor's plugin in a catalog the host can load, then an `ah-*` plugin. `ah-descript`, `ah-exa`, `ah-notion` and `ah-aws` are thin wrappers for that last step: one skill, one server, no hooks. Railway was removed on 2026-11-06: do not install `ah-railway` or any official Railway plugin.
 
 `activationPolicy.pluginOnly` in `registry/mcps.json` lists each plugin-only host and the only direct entries allowed there, each with a reason. The sync writes nothing else to those hosts and removes any registry server already there. `pluginOwnersByHost` on each server records which plugin carries it. To add a server, give it an owner on every host, or a reason in `pluginOnly` for the hosts that cannot have one. `tests/Test-PluginOnlyMcp.ps1` fails on any other direct entry, and on anything in the shared `~/.agents/skills` folder.
 
@@ -119,3 +119,8 @@ The command records version and source-hash evidence under the local AgentHub ru
 
 An absent native registration stays blocked until its approved ownership and activation are established. The audit reports direct Claude MCP entries and loose shared skills as unmanaged conflicts. It preserves them. Unsupported legacy mappings stay blocked. Vendor RepoWise remains authoritative on Claude and Codex.
 
+## Provider removal and presentation
+
+Owner direction on 2026-11-06 removes Firecrawl and Supabase plugins, loose skills and MCP routes. Supabase credits do not imply current activation. The rollout now contains 14 public and three private plugins.
+
+AgentHub packages retain stable `ah-*` IDs and `AH-*` display names with distinct icons. Clerk is an official upstream plugin and retains vendor identity. RepoWise retains its vendor IDs and hooks on Claude and Codex, with an `AH-RepoWise` local display alias applied by the existing vendor launcher installer. Reapply after vendor updates.

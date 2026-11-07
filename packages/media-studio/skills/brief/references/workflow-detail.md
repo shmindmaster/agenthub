@@ -27,7 +27,7 @@ Films shipped as words presented well: clean cards, correct facts, nothing to lo
 - [ ] 7. Hand to plan
 ```
 
-**1. Triage.** Infer kind, `programForm`, audience, voice and destination from the ask (`../video/references/forms.md`). A running product is `product-screencast`. Say what you inferred in one line; do not make the owner name skills or steps.
+**1. Triage.** Infer kind, `programForm`, audience, voice and destination from the ask (`../../video/references/forms.md`). A running product is `product-screencast`. Say what you inferred in one line; do not make the owner name skills or steps.
 
 **2. Look before asking.** Read the source material, the job folder, the library index, and the delivery registry first. Retrieve from documents with `ah-sarosh:search-docs` when the ask refers to past work. Never ask a question a file can answer.
 

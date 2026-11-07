@@ -27,6 +27,9 @@ try {
     $codexFile = Join-Path $codexDir '.mcp.json'
     '{"mcpServers":{"repowise":{"command":"repowise","args":["mcp"]}}}' | Set-Content -LiteralPath $claudeFile
     '{"repowise":{"command":"repowise","args":["mcp"],"startup_timeout_sec":20}}' | Set-Content -LiteralPath $codexFile
+    $null = New-Item -ItemType Directory -Path "$claudeDir/.claude-plugin", "$codexDir/.codex-plugin" -Force
+    '{"name":"repowise","displayName":"Repowise","author":{"name":"Repowise"}}' | Set-Content "$claudeDir/.claude-plugin/plugin.json"
+    '{"name":"codex","interface":{"displayName":"Repowise","brandColor":"#2563EB"}}' | Set-Content "$codexDir/.codex-plugin/plugin.json"
     $vendorBytes = (Get-FileHash -LiteralPath $claudeFile).Hash
 
     $audit = Invoke-Installer @()
@@ -41,6 +44,10 @@ try {
     Report 'Claude shape starts the launcher through py' ($claude.mcpServers.repowise.command -eq 'py' -and $claude.mcpServers.repowise.args[1] -like '*/packages/repowise/scripts/vendor_mcp.py')
     Report 'Codex shape starts the launcher through py' ($codex.repowise.command -eq 'py' -and $codex.repowise.args[1] -like '*/packages/repowise/scripts/vendor_mcp.py')
     Report 'other server fields are kept' ($codex.repowise.startup_timeout_sec -eq 20)
+    $claudeManifest = Get-Content "$claudeDir/.claude-plugin/plugin.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+    $codexManifest = Get-Content "$codexDir/.codex-plugin/plugin.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+    Report 'Claude display alias keeps vendor identity' ($claudeManifest.displayName -eq 'AH-RepoWise' -and $claudeManifest.name -eq 'repowise' -and $claudeManifest.author.name -eq 'Repowise')
+    Report 'Codex display alias keeps vendor identity and artwork' ($codexManifest.interface.displayName -eq 'AH-RepoWise' -and $codexManifest.name -eq 'codex' -and $codexManifest.interface.brandColor -eq '#2563EB')
 
     $second = Invoke-Installer @('-Apply')
     Report 'a second apply changes nothing' ($second.ExitCode -eq 0 -and ($second.Output -match '^updated:').Count -eq 0)

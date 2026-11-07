@@ -35,8 +35,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $packages = @(
     'packages/product', 'packages/media-studio', 'packages/brave-search', 'packages/daytona', 'packages/assemblyai',
-    'packages/descript', 'packages/exa', 'packages/notion', 'packages/firecrawl',
-    'packages/browser', 'overlays/personal/packages/sarosh'
+    'packages/descript', 'packages/exa', 'packages/notion',
+    'packages/browser', 'overlays/personal/packages/sarosh', 'overlays/personal/packages/docwise'
 )
 
 if ($PluginId) {

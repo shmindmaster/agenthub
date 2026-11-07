@@ -81,7 +81,7 @@ Report 'every tracked extension carries extensionId, upstream, ISO observedAt, h
 $ids = @($extensions | ForEach-Object { [string]$_.extensionId })
 Report 'superpowers remains tracked after generalization' ($ids -contains 'superpowers') 'superpowers missing'
 Report 'remotion is tracked as an official skills-package extension' ($ids -contains 'remotion') 'remotion missing'
-Report 'firecrawl official catalog is tracked rather than republished' ($ids -contains 'firecrawl') 'firecrawl missing'
+Report 'retired Firecrawl catalog is absent' ($ids -notcontains 'firecrawl') 'Firecrawl was removed by owner direction'
 Report 'coderabbit official catalog is tracked rather than republished' ($ids -contains 'coderabbit') 'coderabbit missing'
 Report 'clerk-skills official catalog is tracked rather than republished' ($ids -contains 'clerk-skills') 'clerk-skills missing'
 Report 'railway is neither tracked nor vendored' ($ids -notcontains 'railway') 'railway is still a tracked extension; owner removed it 2026-11-06'

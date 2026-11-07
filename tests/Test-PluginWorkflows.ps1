@@ -13,7 +13,18 @@ foreach ($package in $packages) {
     $private = $package.Parent.Name -eq 'packages' -and $package.Parent.FullName -ne (Join-Path $root 'packages')
     $label = if ($private) { 'personal overlay plugin' } else { $package.Name }
     try {
-        $fixture = Get-Content (Join-Path $package.FullName 'tests/workflows.json') -Raw | ConvertFrom-Json
+        if (-not $private) {
+            foreach ($link in Get-ChildItem -LiteralPath (Join-Path $package.FullName 'skills') -Recurse -File -Filter 'SKILL.md') {
+                $text = Get-Content -LiteralPath $link.FullName -Raw -Encoding UTF8
+                foreach ($match in [regex]::Matches($text, '\]\((references/[^)]+)\)')) {
+                    $target = Join-Path $link.DirectoryName $match.Groups[1].Value
+                    if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { throw 'Missing linked reference' }
+                    & git -C $root ls-files --error-unmatch -- $target *> $null
+                    if ($LASTEXITCODE) { throw 'Linked reference is missing from the release' }
+                }
+            }
+        }
+        $fixture = Get-Content (Join-Path $package.FullName 'tests/workflows.json') -Raw -Encoding UTF8 | ConvertFrom-Json
         $skills = @(Get-ChildItem (Join-Path $package.FullName 'skills') -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'SKILL.md') })
         $seen = @{}
         foreach ($scenario in $fixture.scenarios) {
@@ -22,7 +33,7 @@ foreach ($package in $packages) {
             $key = "$($scenario.skill)/$($scenario.kind)"
             if ($seen[$key]) { throw 'Duplicate scenario' }
             $seen[$key] = $true
-            $skill = Get-Content (Join-Path $package.FullName "skills/$($scenario.skill)/SKILL.md") -Raw
+            $skill = Get-Content (Join-Path $package.FullName "skills/$($scenario.skill)/SKILL.md") -Raw -Encoding UTF8
             foreach ($marker in @($scenario.evidence)) {
                 if (-not $marker -or -not $skill.Contains($marker)) { throw "Missing documented evidence for $key" }
             }

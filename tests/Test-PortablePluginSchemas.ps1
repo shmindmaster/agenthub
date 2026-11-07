@@ -54,7 +54,7 @@ foreach ($package in Get-ChildItem -LiteralPath $packageTrees -Directory) {
                     }
                 }
             } else {
-                $document = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+                $document = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
                 foreach ($server in $document.mcpServers.PSObject.Properties.Value) {
                     if ($server.type -eq 'stdio' -and $server.command.StartsWith('./')) {
                         Assert-AgentHubPluginPath -Root $package.FullName -Relative $server.command

@@ -10,13 +10,15 @@
     "chrome-devtools-isolated",
     "playwright",
     "mcp-playwright",
-    "railway"
+    "railway",
+    "firecrawl",
+    "supabase"
   ],
   "retiredMcpPackages": [
     "chrome-devtools-mcp",
     "@playwright/mcp"
   ],
-  "retiredMcpIdsNote": "Owner-authorized retirement 2026-10-29 for the browser servers, and 2026-11-06 for railway. Never register chrome-devtools-mcp, @playwright/mcp, or https://mcp.railway.com, and never alias mcp-playwright back to a server. These IDs are cleanup targets. Hosts use their own browser. Do not install ah-railway or railway@claude-plugins-official.",
+  "retiredMcpIdsNote": "Owner-authorized retirement 2026-10-29 for the browser servers, and 2026-11-06 for railway. Never register chrome-devtools-mcp, @playwright/mcp, or https://mcp.railway.com, and never alias mcp-playwright back to a server. These IDs are cleanup targets. Hosts use their own browser. Do not install ah-railway or railway@claude-plugins-official. Owner direction 2026-11-06 also removes Firecrawl and Supabase plugins, skills and MCP routes from the fleet. Credits do not activate a provider.",
   "activationPolicy": {
     "recordedOn": "2026-08-04",
     "preferenceOrder": [
@@ -55,13 +57,11 @@
           "context7": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "descript": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "exa": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
-          "firecrawl": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "github": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "linear": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "notion": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "posthog": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "sentry": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
-          "supabase": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "clerk": "Cline extension has no plugin MCP loader; official upstream plugin also serves the CLI. Remote only, off by default."
         },
         "opencode": {
@@ -79,7 +79,6 @@
           "context7": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "descript": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "exa": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
-          "firecrawl": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "linear": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "notion": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
@@ -279,40 +278,6 @@
         "opencode": {
           "enabled": false
         }
-      }
-    },
-    {
-      "id": "firecrawl",
-      "name": "Firecrawl Research",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "pluginOwnersByHost": {
-        "amp": "ah-firecrawl@agenthub",
-        "antigravity": "ah-firecrawl@agenthub",
-        "codex": "ah-firecrawl@agenthub",
-        "copilot": "firecrawl@claude-plugins-official",
-        "cursor": "ah-firecrawl@agenthub",
-        "devin": "firecrawl@devin-marketplace",
-        "factory": "firecrawl@claude-plugins-official",
-        "grok": "firecrawl@xai-official",
-        "opencode": "@firecrawl/opencode",
-        "qoder": "ah-firecrawl@agenthub",
-        "vscode-insiders": "firecrawl@claude-plugins-official"
-      },
-      "url": "https://mcp.firecrawl.dev/v2/mcp",
-      "headers": {
-        "Authorization": "Bearer ${env:FIRECRAWL_API_KEY}"
-      },
-      "credentialPolicy": "environment-bearer-token",
-      "protocol": {
-        "revision": "2025-11-25",
-        "verifiedOn": "2026-08-04",
-        "verification": "initialize returned protocolVersion 2025-11-25. server/discover returned JSON-RPC -32601 'Method not found', which the 2026-07-28 revision requires servers to implement."
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
       }
     },
     {

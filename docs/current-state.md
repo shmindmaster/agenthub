@@ -683,6 +683,10 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `managed-loose-skills` on skill-only hosts (including Grok) so Sync copies
   into those skill dirs.
 
+## Provider removal
+
+Owner direction 2026-11-06 removes Firecrawl and Supabase plugins, skills and MCP routes. Firecrawl is absent from the AgentHub catalogs and active registries. Supabase startup credits do not require an active integration. RepoWise keeps vendor IDs on Claude and Codex and uses the local AH-RepoWise display alias. Clerk remains vendor-owned.
+
 ## In progress
 
 - Fleet-wide repository standardization to the

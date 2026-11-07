@@ -530,7 +530,7 @@
       "managedSkillNames": [
         "repowise"
       ],
-      "contentHash": "D848F61672859D68C32B9C86B37F929BA0720684B99C625CB7FA05E1FBC9D946",
+      "contentHash": "178E34C7C66B779F97BAF535B014069302F8531B95F75D3D655DBEE4BF2B21DC",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -789,7 +789,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "4ADA919908C459571F9C91A9BFA9818992A2A029C67ECFE489D0DDAF89364BE5",
+      "contentHash": "C71186BF4F49AC2F5D877487B912E3CC5E33C292FF14A714BF5EACF8640AEA89",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1331,27 +1331,37 @@
         {
           "hostId": "codex",
           "deploymentStatus": "native-plugin-installed",
-          "components": ["skills"]
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "factory",
           "deploymentStatus": "native-plugin-installed",
-          "components": ["skills"]
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "antigravity",
           "deploymentStatus": "native-local-plugin",
-          "components": ["skills"]
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "vscode-insiders",
           "deploymentStatus": "native-local-plugin",
-          "components": ["skills"]
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "cline",
           "deploymentStatus": "native-extension-junction",
-          "components": ["skills"]
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "claude",
@@ -1420,53 +1430,6 @@
       "maturity": "beta",
       "provenance": "agenthub-owned",
       "hostMappingsNote": "Deploy the same routing skill on local agent hosts, including those with native browser tools. OpenCode and Warp consume the skill through scripts/Install-WarpSkills.ps1. Qoder requires an available local client, and Gemini requires an enabled dispatch route and account access before rollout there. BrowserSkill requires access to the desktop user's local daemon and selected browser profile."
-    },
-    {
-      "id": "firecrawl",
-      "owner": "packages/firecrawl",
-      "capabilityType": "plugin+mcp+skills",
-      "canonicalSource": "packages/firecrawl",
-      "managedSkillNames": [
-        "scrape"
-      ],
-      "contentHash": "2BD9640E690608E8836FB2A128C7B9AFF3D686F6F175DE16AC42FE367FD5FB79",
-      "hashBasis": "packages/firecrawl",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "codex",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "dependencies": {
-        "requires": [],
-        "recommends": [],
-        "optional": []
-      },
-      "notes": "Thin wrapper around Firecrawl's hosted MCP server for hosts whose Firecrawl plugin is missing or carries no server: Codex, Qoder and Antigravity have none, and Cursor's is CLI and skills only (owner direction 2026-11-04). Stores no key and starts no local process.",
-      "kind": "provider",
-      "maturity": "beta",
-      "provenance": "agenthub-owned"
     },
     {
       "id": "context7",
