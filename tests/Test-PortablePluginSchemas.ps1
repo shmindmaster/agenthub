@@ -12,6 +12,7 @@ $publicPluginCount = 0
 $privateFileCount = 0
 
 . (Join-Path $repoRoot 'scripts/lib/CapabilityGraph.ps1')
+. (Join-Path $repoRoot 'scripts/lib/PluginPaths.ps1')
 $packageTrees = @($publicPackages)
 $overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $repoRoot
 if ($overlayRoot) {
@@ -40,6 +41,38 @@ foreach ($package in Get-ChildItem -LiteralPath $packageTrees -Directory) {
         try {
             if (-not (Test-Json -LiteralPath $path -SchemaFile $schema)) {
                 throw 'The document did not match the schema.'
+            }
+            Assert-AgentHubPluginPath -Root $package.FullName -Relative "./$name.json"
+            if ($name -eq 'plugin') {
+                $skillsPath = Join-Path $package.FullName 'skills'
+                if (Test-Path -LiteralPath $skillsPath) {
+                    Assert-AgentHubPluginPath -Root $package.FullName -Relative './skills'
+                    foreach ($skill in Get-ChildItem -LiteralPath $skillsPath -Directory) {
+                        if (Test-Path -LiteralPath (Join-Path $skill.FullName 'SKILL.md')) {
+                            Assert-AgentHubPluginPath -Root $package.FullName -Relative "./skills/$($skill.Name)/SKILL.md"
+                        }
+                    }
+                }
+            } else {
+                $document = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+                foreach ($server in $document.mcpServers.PSObject.Properties.Value) {
+                    if ($server.type -eq 'stdio' -and $server.command.StartsWith('./')) {
+                        Assert-AgentHubPluginPath -Root $package.FullName -Relative $server.command
+                    }
+                    if ($server.cwd -and $server.cwd.StartsWith('./')) {
+                        Assert-AgentHubPluginPath -Root $package.FullName -Relative $server.cwd
+                    }
+                    if ($server.cwd -and $server.cwd.StartsWith('${PLUGIN_ROOT}/')) {
+                        Assert-AgentHubPluginPath -Root $package.FullName -Relative ('./' + $server.cwd.Substring(15))
+                    }
+                    if ($server.type -in 'streamable-http','sse') {
+                        $uri = $null
+                        if (-not [uri]::TryCreate($server.url, [UriKind]::Absolute, [ref]$uri) -or
+                            $uri.Scheme -notin 'http','https' -or $uri.UserInfo -or $uri.Fragment) {
+                            throw 'Invalid remote MCP URL.'
+                        }
+                    }
+                }
             }
             if (-not $privatePackage) { Write-Host "PASS: $label conforms to the Agent Plugins 1.0.0 schema" }
             $passed++

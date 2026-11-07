@@ -28,6 +28,7 @@ pwsh -NoProfile -File scripts/Install-WarpSkills.ps1 -Audit
 param(
     [string]$Root = (Split-Path -Parent $PSScriptRoot),
     [string]$WarpHome = (Join-Path $HOME '.warp'),
+    [string]$PluginId,
     [switch]$Audit
 )
 
@@ -38,6 +39,10 @@ $packages = @(
     'packages/browser', 'overlays/personal/packages/sarosh'
 )
 
+if ($PluginId) {
+    $packages = @($packages | Where-Object { (Split-Path -Leaf $_) -eq $PluginId })
+    if (-not $packages.Count) { throw "No supported skill links for '$PluginId'." }
+}
 $links = [System.Collections.Generic.List[object]]::new()
 foreach ($package in $packages) {
     $skills = Join-Path $Root "$package/skills"
@@ -47,8 +52,10 @@ foreach ($package in $packages) {
         $links.Add([pscustomobject]@{ Path = Join-Path $WarpHome "skills/$($skill.Name)"; Target = $skill.FullName })
     }
 }
-foreach ($folder in 'scripts', 'references', 'kits') {
-    $links.Add([pscustomobject]@{ Path = Join-Path $WarpHome $folder; Target = Join-Path $Root "packages/product/$folder" })
+if (-not $PluginId -or $PluginId -eq 'product') {
+    foreach ($folder in 'scripts', 'references', 'kits') {
+        $links.Add([pscustomobject]@{ Path = Join-Path $WarpHome $folder; Target = Join-Path $Root "packages/product/$folder" })
+    }
 }
 
 $problems = 0

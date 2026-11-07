@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Single lifecycle entry point for AgentHub: inventory, validate, sync, drift.
+    Single lifecycle entry point for AgentHub: inventory, validate, sync, drift, plugins.
 
 .DESCRIPTION
     Replaces the deleted scripts/agentctl.ps1 (git show
@@ -42,7 +42,7 @@
     replacement logic here.
 
 .PARAMETER Command
-    One of: init, inventory, validate, sync, drift.
+    One of: init, inventory, validate, sync, drift, plugins.
 
 .PARAMETER Apply
     Only meaningful for 'sync'. Without it, 'sync' audits (the default,
@@ -71,12 +71,15 @@ param(
     [string]$Command,
     [switch]$Apply,
     [string]$RepositoryRoot,
-    [string]$UserProfile
+    [string]$UserProfile,
+    [string]$HostId,
+    [string]$PluginId,
+    [switch]$Json
 )
 
 $ErrorActionPreference = 'Stop'
 
-$ValidCommands = @('init', 'inventory', 'validate', 'sync', 'drift')
+$ValidCommands = @('init', 'inventory', 'validate', 'sync', 'drift', 'plugins')
 
 # Self-derive from this script's own on-disk location -- same idiom as
 # Validate-AgentHub.ps1 / Sync-AgentHub.ps1 / Sync-Instructions.ps1. Never
@@ -105,6 +108,9 @@ $ScriptsDir = Join-Path $RepositoryRoot 'scripts'
 . (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
 $hostExe = (Get-Process -Id $PID).Path
 
+if ($Command -ne 'plugins' -and ($HostId -or $PluginId -or $Json)) {
+    throw 'Plugin filters and -Json are only supported by the plugins command.'
+}
 if ([string]::IsNullOrWhiteSpace($Command) -or $Command -notin $ValidCommands) {
     Write-Host "FAIL: unknown subcommand '$Command'. Valid subcommands: $($ValidCommands -join ', ')." -ForegroundColor Red
     Write-Host "Dropped deliberately, not a gap: evaluate, generate, cleanup -- see this script's own help (Get-Help $($MyInvocation.MyCommand.Path) -Full) for why."
@@ -333,6 +339,15 @@ function Invoke-Inventory {
 # Dispatch
 # ---------------------------------------------------------------------------
 switch ($Command) {
+    'plugins' {
+        $argsForPlugins = @('-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile)
+        if ($HostId) { $argsForPlugins += @('-HostId', $HostId) }
+        if ($PluginId) { $argsForPlugins += @('-PluginId', $PluginId) }
+        if ($Json) { $argsForPlugins += '-Json' }
+        if ($Apply) { $argsForPlugins += '-Apply' }
+        & pwsh -NoProfile -File (Join-Path $ScriptsDir 'Sync-Plugins.ps1') @argsForPlugins
+        exit $LASTEXITCODE
+    }
     'init' {
         if ($Apply) {
             throw "'init' does not accept -Apply. It only scaffolds local overlay/profile files."

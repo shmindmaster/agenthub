@@ -111,8 +111,10 @@ def build(target, plugin, rel):
     lines.append("}")
     with open(os.path.join(dest, "index.ts"), "w", encoding="utf-8", newline="\n") as handle:
         handle.write("\n".join(lines) + "\n")
+    with open(os.path.join(pkg, "plugin.json"), encoding="utf-8") as handle:
+        version = json.load(handle)["version"]
     with open(os.path.join(dest, ".source.json"), "w", encoding="utf-8", newline="\n") as handle:
-        json.dump({"package": rel, "head": head(REPO)}, handle, indent=2)
+        json.dump({"package": rel, "head": head(REPO), "version": version}, handle, indent=2)
         handle.write("\n")
     print(f"{plugin}: {len(skills)} skills, servers {sorted(carried)}")
 
