@@ -153,7 +153,7 @@ An outbound proxy sends a sandbox's HTTP(S) egress through a proxy you control. 
 
 Platform telemetry to the Daytona-managed collector is not routed through your outbound proxy.
 
-The URL may use `http` or `https` and may include credentials in the userinfo, for example `http://user:pass@proxy.example.com:3128`. Implement [domain allow listing](#domain-allow-list-format) on your own proxy to control which destinations the sandbox can reach.
+The URL may use `http` or `https` and may include credentials in the userinfo, for example `http://user:pass@example.com:3128`. Implement [domain allow listing](#domain-allow-list-format) on your own proxy to control which destinations the sandbox can reach.
 
 | **Constraint** | **Value**                                                                    |
 | -------------- | ---------------------------------------------------------------------------- |
@@ -180,7 +180,7 @@ func main() {
 	}
 	ctx := context.Background()
 
-	proxyURL := "http://user:pass@proxy.example.com:3128"
+	proxyURL := "http://user:pass@example.com:3128"
 	sandbox, err := client.Create(ctx, types.SnapshotParams{
 		SandboxBaseParams: types.SandboxBaseParams{
 			OutboundProxyUrl: &proxyURL,

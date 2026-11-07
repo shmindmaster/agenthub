@@ -1,6 +1,6 @@
 {
   "name": "ah-daytona",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Create isolated Daytona cloud sandboxes and run code or tests using the Daytona SDK, API or CLI.",
   "author": {
     "name": "MahumTech"

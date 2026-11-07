@@ -1238,7 +1238,7 @@
       "managedSkillNames": [
         "daytona"
       ],
-      "contentHash": "82B52B0A8A2ECD88A592FE886FB884215E9BBF25D930035F014D1BEB0A41A2B2",
+      "contentHash": "09235B10A78A7F0B8BC3125F9AC1108049C7EE9AD9DE538B849BC910660C6CB5",
       "hashBasis": "packages/daytona",
       "status": "active-canonical",
       "hostMappings": [

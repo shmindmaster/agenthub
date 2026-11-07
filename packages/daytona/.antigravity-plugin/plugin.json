@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-daytona",
   "displayName": "AH-Daytona",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Create isolated Daytona cloud sandboxes and run code or tests using the Daytona SDK, API or CLI.",
   "suggestedPrompts": [
     "Look up the current docs for this error",

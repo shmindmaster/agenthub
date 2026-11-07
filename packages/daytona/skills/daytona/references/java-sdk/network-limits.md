@@ -110,7 +110,7 @@ An outbound proxy sends a sandbox's HTTP(S) egress through a proxy you control. 
 
 Platform telemetry to the Daytona-managed collector is not routed through your outbound proxy.
 
-The URL may use `http` or `https` and may include credentials in the userinfo, for example `http://user:pass@proxy.example.com:3128`. Implement [domain allow listing](#domain-allow-list-format) on your own proxy to control which destinations the sandbox can reach.
+The URL may use `http` or `https` and may include credentials in the userinfo, for example `http://user:pass@example.com:3128`. Implement [domain allow listing](#domain-allow-list-format) on your own proxy to control which destinations the sandbox can reach.
 
 | **Constraint** | **Value**                                                                    |
 | -------------- | ---------------------------------------------------------------------------- |
@@ -127,7 +127,7 @@ public class App {
     public static void main(String[] args) {
         try (Daytona daytona = new Daytona()) {
             CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
-            params.setOutboundProxyUrl("http://user:pass@proxy.example.com:3128");
+            params.setOutboundProxyUrl("http://user:pass@example.com:3128");
             Sandbox sandbox = daytona.create(params);
 
             // Returned on single-sandbox reads
