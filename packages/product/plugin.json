@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-product",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Audit product experiences, turn findings into designs, build and verify scoped changes, and prepare reliable demos."
 }

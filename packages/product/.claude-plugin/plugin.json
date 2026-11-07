@@ -18,6 +18,6 @@
   "agents": [
     "./agents/reviewer.agent.md"
   ],
-  "version": "2.1.1",
+  "version": "2.1.2",
   "icon": "./assets/product-logo.svg"
 }

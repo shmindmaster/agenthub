@@ -27,7 +27,9 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Audit this workflow and identify the most important fixes."
+      "Audit this workflow and identify the most important fixes.",
+      "Design, build, and verify the highest-impact fix.",
+      "Check this product for demo readiness before recording."
     ],
     "brandColor": "#4F7CFF",
     "composerIcon": "./assets/product-small.svg",
@@ -35,5 +37,5 @@
     "logoDark": "./assets/product-dark.png",
     "screenshots": []
   },
-  "version": "2.1.1"
+  "version": "2.1.2"
 }
