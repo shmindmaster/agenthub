@@ -53,10 +53,10 @@ function Get-ManifestObservation([string]$Path, [string]$Manifest = 'plugin.json
     if (Test-Path -LiteralPath $Path) { return New-Observation '' '' 'unmanaged' 'Existing package has no recognizable manifest.' }
 }
 
-function Get-VersionedObservation([string]$Path) {
+function Get-VersionedObservation([string]$Path, [string]$Manifest = 'plugin.json') {
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return }
     $dirs = @(Get-ChildItem -LiteralPath $Path -Directory | Where-Object Name -Match '^\d+\.\d+\.\d+$' | Sort-Object { [version]$_.Name } -Descending)
-    if ($dirs.Count) { return Get-ManifestObservation $dirs[0].FullName 'plugin.json' (Split-Path -Leaf $Path) }
+    if ($dirs.Count) { return Get-ManifestObservation $dirs[0].FullName $Manifest (Split-Path -Leaf $Path) }
 }
 
 function Get-LinkedObservation([string]$Path, [string]$Source) {
@@ -117,8 +117,8 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
             $entry = @($reg.plugins.'repowise@repowise') | Select-Object -Last 1
             if ($entry.version) { return New-Observation $entry.version $entry.installPath 'vendor-managed' }
         } elseif ($Row.host -eq 'codex') {
-            $entry = Get-VersionedObservation (Join-Path $UserProfile '.codex/plugins/cache/repowise/codex')
-            if ($entry) { $entry.status = 'vendor-managed'; return $entry }
+            $entry = Get-VersionedObservation (Join-Path $UserProfile '.codex/plugins/cache/repowise/codex') '.codex-plugin/plugin.json'
+            if ($entry.version) { $entry.status = 'vendor-managed'; return $entry }
         }
         return New-Observation '' '' 'blocked' 'Verify the approved vendor plugin with its own installer.'
     }
@@ -317,7 +317,7 @@ $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument
             else { $mapping.deploymentStatus }
         $row = [pscustomobject]@{
             host=$target; plugin=$manifest.name; capability=$cap.id; route=$route
-            expected=$manifest.version; observed=$null; status=$null; detail=$null
+            expected=$(if ($route -eq 'vendor') { $null } else { $manifest.version }); observed=$null; status=$null; detail=$null
             source=$source; sourceHash=$cap.contentHash; relative=[string]$cap.canonicalSource; marketplace=$market
             previousPath=$null; catalog=$cap.deployedCatalog
         }
