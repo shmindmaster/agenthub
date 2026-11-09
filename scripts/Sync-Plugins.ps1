@@ -508,6 +508,10 @@ if ($Apply) {
             Set-PluginStatus $row -Fresh
             if ($row.status -ne 'current') { throw "Installer readback is $($row.status)." }
             $entry.status = 'verified'
+            # A verified install needs no rollback copy; only a failed one keeps its backup.
+            if ($backup -and (Test-Path -LiteralPath $backup)) { [IO.Directory]::Delete($backup, $true) }
+            if ($backup -and (Test-Path -LiteralPath "$backup.json")) { [IO.File]::Delete("$backup.json") }
+            $entry.backup = $null
         } catch {
             $entry.status = 'failed'
             $row.status = 'failed'
@@ -518,6 +522,8 @@ if ($Apply) {
         }
         if ($failed) { break }
     }
+    # A run whose every change verified leaves no receipt; a failed run keeps it for recovery.
+    if (-not $failed -and (Test-Path -LiteralPath $receiptPath)) { [IO.File]::Delete($receiptPath) }
     } finally { $deploymentLock.Dispose() }
 }
 $report = [ordered]@{
