@@ -49,6 +49,29 @@ try {
     [IO.File]::Delete((Join-Path $installed 'agents/reviewer.md'))
     if (Test-SkillCopy $source $installed) { throw 'Missing shared reviewer was ignored' }
     [IO.File]::WriteAllText((Join-Path $installed 'agents/reviewer.md'), '# Synthetic reviewer')
+    function Get-AgentHubGitTrackedRelativeFiles([string]$Path) { return @('skills/example/SKILL.md', '.mcp.json', 'mcp_config.json', 'agents/reviewer.md') }
+    [IO.File]::WriteAllText((Join-Path $source '.mcp.json'), "{`n  `"mcpServers`": {`n    `"synthetic`": { `"command`": `"pyw`" }`n  }`n}")
+    [IO.File]::WriteAllText((Join-Path $source 'mcp_config.json'), '{"mcpServers":{"synthetic":{}}}')
+    $droid = Join-Path $testRoot.FullName 'droid'
+    [void][IO.Directory]::CreateDirectory((Join-Path $droid 'skills/example'))
+    [void][IO.Directory]::CreateDirectory((Join-Path $droid 'droids'))
+    [IO.File]::WriteAllText((Join-Path $droid 'skills/example/SKILL.md'), '# Synthetic workflow')
+    [IO.File]::WriteAllText((Join-Path $droid 'droids/reviewer.md'), '# Synthetic reviewer')
+    [IO.File]::WriteAllText((Join-Path $droid 'mcp.json'), '{"mcpServers":{"synthetic":{"command":"pyw"}}}')
+    if (-not (Test-SkillCopy $source $droid 'factory')) { throw 'Droid renamed install was marked stale' }
+    [IO.File]::WriteAllText((Join-Path $droid 'mcp.json'), '{"mcpServers":{"synthetic":{"command":"python"}}}')
+    if (Test-SkillCopy $source $droid 'factory') { throw 'Droid MCP drift was ignored' }
+    if (Test-SkillCopy $source $droid 'claude') { throw 'Droid renames were accepted for another host' }
+    $agy = Join-Path $testRoot.FullName 'agy'
+    [void][IO.Directory]::CreateDirectory((Join-Path $agy 'skills/example'))
+    [void][IO.Directory]::CreateDirectory((Join-Path $agy 'agents'))
+    [IO.File]::WriteAllText((Join-Path $agy 'skills/example/SKILL.md'), '# Synthetic workflow')
+    [IO.File]::WriteAllText((Join-Path $agy 'agents/reviewer.md'), '# Synthetic reviewer')
+    [IO.File]::WriteAllText((Join-Path $agy 'mcp_config.json'), '{"mcpServers":{"synthetic":{}}}')
+    if (-not (Test-SkillCopy $source $agy 'antigravity')) { throw 'Antigravity projection without other hosts MCP files was marked stale' }
+    [IO.File]::WriteAllText((Join-Path $agy 'mcp_config.json'), '{"mcpServers":{"foreign":{}}}')
+    if (Test-SkillCopy $source $agy 'antigravity') { throw 'Antigravity MCP config drift was ignored' }
+    function Get-AgentHubGitTrackedRelativeFiles([string]$Path) { return @('skills/example/SKILL.md', 'scripts/example.ps1', 'mcp.json', 'agents/reviewer.md') }
     foreach ($name in 'Read-Document','New-Observation','Get-ManifestObservation','Get-PluginSnapshotHash','Test-PluginRollbackSource') {
         $node = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
         Invoke-Expression $node.Extent.Text
@@ -67,7 +90,7 @@ try {
     if (-not (Test-PluginRollbackSource $backup $source 'ah-browser' '1.0.0')) { throw 'Intact rollback source lost ownership' }
     [IO.File]::WriteAllText((Join-Path $backup 'scripts/example.ps1'), 'Write-Output 999')
     if (Test-PluginRollbackSource $backup $source 'ah-browser' '1.0.0') { throw 'Modified rollback source retained ownership' }
-    Write-Host 'RESULT: 12 passed, 0 failed'
+    Write-Host 'RESULT: 17 passed, 0 failed'
 } finally {
     $resolved = (Get-Item -LiteralPath $testRoot.FullName).FullName
     if ($resolved -eq $testRoot.FullName -and (Split-Path -Parent $resolved) -eq $testRoot.Parent.FullName) {

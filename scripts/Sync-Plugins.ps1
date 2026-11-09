@@ -235,17 +235,31 @@ function Test-SkillCopy([string]$Source, [string]$Destination, [string]$Client) 
     $gitFiles = if ($Source.Replace('\','/') -match '/overlays/personal/') {
         @(Get-AgentHubFilesystemRelativeFiles -Path $Source)
     } else { @(Get-AgentHubGitTrackedRelativeFiles -Path $Source) }
+    # Antigravity installs a projection without other hosts' MCP files (see Invoke-PluginInstall),
+    # so its MCP surface is mcp_config.json. Droid renames .mcp.json to mcp.json and agents/ to
+    # droids/ on install, re-serializing the JSON.
     $managed = @($gitFiles | Where-Object {
         $_ -match '^(skills|scripts|references|assets|kits|schemas|policy|kit)/' -or
-        ($Client -ne 'amp' -and $_ -in 'mcp.json','.mcp.json') -or
+        ($Client -notin 'amp','antigravity' -and $_ -in 'mcp.json','.mcp.json') -or
+        ($Client -eq 'antigravity' -and $_ -eq 'mcp_config.json') -or
         ($Client -ne 'amp' -and -not ($Client -eq 'antigravity' -and (Split-Path -Leaf $Source) -eq 'product') -and $_ -match '^agents/')
     })
+    if ($Client -eq 'factory' -and 'mcp.json' -in $gitFiles) { $managed = @($managed | Where-Object { $_ -ne '.mcp.json' }) }
     if (-not $managed.Count) { return $false }
     foreach ($relative in $managed) {
         $file = Join-Path $Source $relative
         $copy = Join-Path $Destination $relative
+        $renamed = $false
+        if ($Client -eq 'factory' -and -not (Test-Path -LiteralPath $copy -PathType Leaf)) {
+            $alternate = if ($relative -eq '.mcp.json') { 'mcp.json' } elseif ($relative -match '^agents/(.+)$') { "droids/$($Matches[1])" }
+            if ($alternate) { $copy = Join-Path $Destination $alternate; $renamed = $relative -eq '.mcp.json' }
+        }
         if (-not (Test-Path -LiteralPath $copy -PathType Leaf)) { return $false }
-        if ((Get-AgentHubStableFileHash $file) -ne (Get-AgentHubStableFileHash $copy)) { return $false }
+        if ($renamed) {
+            $expected = [IO.File]::ReadAllText($file, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json | ConvertTo-Json -Depth 64 -Compress
+            $actual = [IO.File]::ReadAllText($copy, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json | ConvertTo-Json -Depth 64 -Compress
+            if ($expected -ne $actual) { return $false }
+        } elseif ((Get-AgentHubStableFileHash $file) -ne (Get-AgentHubStableFileHash $copy)) { return $false }
     }
     $sourceSkills = @(Get-ChildItem -LiteralPath (Join-Path $Source 'skills') -Recurse -File -Filter 'SKILL.md' |
         ForEach-Object { [IO.Path]::GetRelativePath($Source, $_.FullName) })
@@ -382,9 +396,22 @@ function Invoke-PluginInstall($Row) {
             if ($name -eq 'ah-product') {
                 Invoke-Client pwsh @('-NoProfile','-File',(Join-Path $PSScriptRoot 'Install-AntigravityProductPlugin.ps1')) | Out-Null
             } else {
-                Invoke-Client agy @('plugin','validate',$source,'--strict') | Out-Null
-                if ($present) { Invoke-Client agy @('plugin','uninstall',$name) | Out-Null }
-                Invoke-Client agy @('plugin','install',$source) | Out-Null
+                # Strict validation rejects other hosts' root manifest and MCP files, so install
+                # a projection of the tracked package without them.
+                $projection = [IO.Directory]::CreateTempSubdirectory('agenthub-antigravity-').FullName
+                try {
+                    $files = if ($source.Replace('\','/') -match '/overlays/personal/') {
+                        @(Get-AgentHubFilesystemRelativeFiles -Path $source)
+                    } else { @(Get-AgentHubGitTrackedRelativeFiles -Path $source) }
+                    foreach ($relative in $files | Where-Object { $_ -notin 'plugin.json','mcp.json','.mcp.json' }) {
+                        $target = Join-Path $projection $relative
+                        [void][IO.Directory]::CreateDirectory((Split-Path -Parent $target))
+                        Copy-Item -LiteralPath (Join-Path $source $relative) -Destination $target
+                    }
+                    Invoke-Client agy @('plugin','validate',$projection,'--strict') | Out-Null
+                    if ($present) { Invoke-Client agy @('plugin','uninstall',$name) | Out-Null }
+                    Invoke-Client agy @('plugin','install',$projection) | Out-Null
+                } finally { [IO.Directory]::Delete($projection, $true) }
             }
         }
         'grok' {
