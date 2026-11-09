@@ -93,7 +93,8 @@ try {
     $servers = (Get-Content -LiteralPath $mcp -Raw -Encoding utf8 | ConvertFrom-Json).mcpServers
     Assert-True ($servers.one.disabled -eq $true -and $servers.two.disabled -eq $true) "'*' did not reach every server"
     Assert-True ($servers.one.token -eq $secret) 'a server lost its token'
-    Assert-True (@(Get-ChildItem -LiteralPath (Join-Path $fixture 'backups')).Count -eq 4) 'each changed file needs one backup'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $fixture 'backups'))) 'apply must not leave backup copies'
+    Assert-True (@($apply | Where-Object { $_ -match '^changed .+ sha256 [0-9a-f]{12} -> [0-9a-f]{12}$' }).Count -eq 4) 'each changed file needs its before and after hash'
     Assert-True (($apply -join ' ') -match 'file missing') 'a missing file should be reported'
     Assert-True (($apply -join ' ') -match '\[e\] FIXTURE_ONLY: skipped') 'a fixture run must not touch the user environment'
 

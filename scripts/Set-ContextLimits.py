@@ -5,11 +5,10 @@ Audit is the default; --apply writes. Host config files can hold keys, so this p
 values named in the registry and booleans or numbers read from those same keys.
 """
 import argparse
-import datetime
+import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tomllib
@@ -23,8 +22,6 @@ args = parser.parse_args()
 
 HOME = args.home or os.path.expanduser('~')
 APPDATA = os.path.join(HOME, 'AppData', 'Roaming') if args.home else os.environ.get('APPDATA', '')
-BACKUPS = os.path.join(HOME, 'backups') if args.home else os.path.join(
-    os.environ.get('LOCALAPPDATA', HOME), 'AgentHub', 'backups', f'context-limits-{datetime.date.today():%Y%m%d}')
 
 
 def resolve(template):
@@ -170,10 +167,10 @@ if args.apply:
         original = read(path)
         if out == original:
             continue
-        os.makedirs(BACKUPS, exist_ok=True)
-        target = os.path.join(BACKUPS, re.sub(r'[\\/:]+', '_', os.path.relpath(path, HOME)))
-        if not os.path.exists(target):
-            shutil.copy2(path, target)
+        # No backup copy (owner direction 2026-11-09): report the before and after hashes instead.
+        before = hashlib.sha256((original or '').encode('utf-8')).hexdigest()[:12]
+        after = hashlib.sha256(out.encode('utf-8')).hexdigest()[:12]
+        print(f'changed {os.path.relpath(path, HOME)} sha256 {before} -> {after}')
         with open(path, 'w', encoding='utf-8', newline='') as handle:
             handle.write(out)
         written += 1

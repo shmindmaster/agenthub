@@ -63,7 +63,7 @@ Codex uses the owner's own `~/.codex/AGENTS.md`, not the compiled policy, and Cu
 
 ## Context limits
 
-`registry/context-limits.json` holds the context settings for every host, or the reason a host has none. `tests/Test-ContextLimits.ps1` fails if a plugin-only host is missing. Audit with `python scripts/Set-ContextLimits.py` and write with `--apply`. It backs up each changed file to `%LOCALAPPDATA%\AgentHub\backups`, and running sessions keep their old values until they restart.
+`registry/context-limits.json` holds the context settings for every host, or the reason a host has none. `tests/Test-ContextLimits.ps1` fails if a plugin-only host is missing. Audit with `python scripts/Set-ContextLimits.py` and write with `--apply`. It keeps no backup copy and prints each changed file with its before and after hash, and running sessions keep their old values until they restart.
 
 Host updates can rewrite these files, so run the audit after one. Cline's `disabled` key is written over every server in `cline_mcp_settings.json`, so turn a server on in Cline's MCP panel when a task needs it.
 

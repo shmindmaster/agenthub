@@ -16,10 +16,6 @@ foreach ($name in $desired.Keys) {
     $exists = $key.GetValueNames() -contains $name
     $prior[$name] = @{ exists = $exists; value = $(if ($exists) { $key.GetValue($name) } else { $null }); kind = $(if ($exists) { $key.GetValueKind($name).ToString() } else { 'String' }) }
 }
-$backupDir = Join-Path $HOME 'AI/claude-runware/backups'
-New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-$backup = Join-Path $backupDir ("native-models-" + [guid]::NewGuid().ToString('N') + '.json')
-[IO.File]::WriteAllText($backup, ($prior | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
 $changed = [System.Collections.Generic.List[string]]::new()
 try {
     foreach ($name in $desired.Keys) {
@@ -34,6 +30,6 @@ try {
             New-ItemProperty -LiteralPath $path -Name $name -Value $prior[$name].value -PropertyType $prior[$name].kind -Force | Out-Null
         } else { Remove-ItemProperty -LiteralPath $path -Name $name }
     }
-    throw "Native policy update failed; prior selected values recorded at $backup. Run from an administrator PowerShell for the same Windows user. $($_.Exception.Message)"
+    throw "Native policy update failed; prior values were restored. Run from an administrator PowerShell for the same Windows user. $($_.Exception.Message)"
 }
-[pscustomobject]@{ Verified = $true; Changed = $changed.Count; Backup = $backup; Default = $policy.default } | ConvertTo-Json
+[pscustomobject]@{ Verified = $true; Changed = $changed.Count; Default = $policy.default } | ConvertTo-Json
