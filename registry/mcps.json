@@ -44,9 +44,6 @@
         "grok": {},
         "factory": {},
         "antigravity": {},
-        "qoder": {
-          "microsoft_outlook": "Qoder-hosted connector that belongs to the host runtime."
-        },
         "copilot": {},
         "vscode-insiders": {
           "github": "Copilot's own GitHub endpoint with OAuth. The catalog github plugin needs a personal access token instead.",
@@ -101,31 +98,36 @@
         "cursor": "IDE toggle only; not applied",
         "factory": "no documented switch for a plugin server; not applied",
         "cline": "disabled: true per server in cline_mcp_settings.json, which the sync keeps; turn one on in the MCP panel",
-        "qoder": "its own mcp list reports only microsoft_outlook",
         "warp": "no plugin format; seven remote servers and no local process"
       }
     }
   },
   "hostInventory": {
-    "recordedOn": "2026-08-19",
+    "recordedOn": "2026-11-09",
     "hosts": [
       "amp",
       "antigravity",
       "claude",
       "cline",
       "codex",
+      "coderabbit",
       "copilot",
       "cursor",
       "devin",
       "factory",
       "gemini",
       "grok",
+      "kilo",
+      "kiro",
+      "kirocrew",
+      "mimo-code",
+      "mimo-desktop",
       "opencode",
-      "qoder",
       "vscode-insiders",
       "warp"
     ],
     "notInstalled": [
+      "qoder",
       "windsurf"
     ],
     "note": "The machine-scoped host inventory was established by bounded filesystem and package-manager surveys, most recently reconciled 2026-10-21. The field named 'hosts' is validated against agents.json; notInstalled records only checked-and-absent entries. Historical probes are not whole-disk absence claims and must not be read as current fleet-wide evidence. Recheck the documented locations before changing host eligibility."
@@ -200,7 +202,6 @@
         "devin": "linear@devin-marketplace",
         "factory": "linear@claude-plugins-official",
         "grok": "linear@claude-plugins-official",
-        "qoder": "linear@qoder-marketplace",
         "vscode-insiders": "linear@claude-plugins-official"
       },
       "hostConfigOverrides": {
@@ -225,7 +226,6 @@
         "factory": "context7@claude-plugins-official",
         "grok": "context7@claude-plugins-official",
         "opencode": "@upstash/context7-opencode",
-        "qoder": "context7@qoder-marketplace",
         "vscode-insiders": "context7@claude-plugins-official"
       },
       "url": "https://mcp.context7.com/mcp",
@@ -271,7 +271,6 @@
         "devin": "notion@devin-marketplace",
         "factory": "notion@claude-plugins-official",
         "grok": "ah-notion@agenthub",
-        "qoder": "ah-notion@agenthub",
         "vscode-insiders": "notion@claude-plugins-official"
       },
       "hostConfigOverrides": {
@@ -295,7 +294,6 @@
         "devin": "exa@devin-marketplace",
         "factory": "exa@claude-plugins-official",
         "grok": "exa@xai-official",
-        "qoder": "ah-exa@agenthub",
         "vscode-insiders": "exa@claude-plugins-official"
       },
       "url": "https://mcp.exa.ai/mcp",
@@ -392,7 +390,6 @@
         "devin": "ah-descript@agenthub",
         "factory": "ah-descript@agenthub",
         "grok": "ah-descript@agenthub",
-        "qoder": "ah-descript@agenthub",
         "vscode-insiders": "ah-descript@agenthub"
       },
       "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Public finishing guidance is ah-media-studio:compose references/descript.md (media-studio-descript was folded into it on 2026-10-21). Claude uses its native Descript account connector (media-studio Claude mapping sets mcpOwnership shared-registry so the plugin does not also offer Descript). Codex uses the media-studio plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509",
@@ -411,7 +408,6 @@
         "cline",
         "cursor",
         "cursor-agent",
-        "qoder",
         "devin",
         "factory",
         "vscode-insiders"
@@ -456,10 +452,9 @@
         "cline": "ah-repowise@agenthub",
         "codex": "codex@repowise",
         "cursor": "ah-repowise@agenthub",
-        "devin": "repowise@repowise",
-        "factory": "repowise@repowise",
-        "grok": "repowise@repowise",
-        "qoder": "repowise@repowise",
+        "devin": "ah-repowise@agenthub",
+        "factory": "ah-repowise@agenthub",
+        "grok": "ah-repowise@agenthub",
         "vscode-insiders": "ah-repowise@agenthub"
       },
       "pluginOwnersByHostNote": "Owner migration 2026-11-03: Claude uses repowise@repowise; Codex uses codex@repowise. Other host owners retain their existing AgentHub bridge. Do not reinstall the retired Claude/Codex wrapper.",
@@ -470,7 +465,6 @@
         "grok",
         "factory",
         "cline",
-        "qoder",
         "opencode",
         "vscode-insiders"
       ],
@@ -547,8 +541,7 @@
         "claude": "ah-assemblyai@agenthub",
         "codex": "ah-assemblyai@agenthub",
         "devin": "ah-assemblyai@agenthub",
-        "factory": "ah-assemblyai@agenthub",
-        "qoder": "ah-assemblyai@agenthub"
+        "factory": "ah-assemblyai@agenthub"
       },
       "notes": "Plugin-gated and off by default: delivered only by packages/assemblyai. scope on-demand-desktop keeps it out of the default sync, and pluginOwnersByHost stops the global writer from persisting it on Claude and Codex. Hosted usage is billed. Needs audio at a public URL or an upload_url. No key in config."
     },
@@ -579,8 +572,7 @@
         "claude": "ah-assemblyai@agenthub",
         "codex": "ah-assemblyai@agenthub",
         "devin": "ah-assemblyai@agenthub",
-        "factory": "ah-assemblyai@agenthub",
-        "qoder": "ah-assemblyai@agenthub"
+        "factory": "ah-assemblyai@agenthub"
       },
       "notes": "Plugin-gated with the assemblyai server; delivered only by packages/assemblyai. Free documentation lookup."
     },
@@ -606,7 +598,6 @@
         "codex": "clerk@clerk",
         "copilot": "clerk@clerk-skills",
         "factory": "clerk@skills",
-        "qoder": "clerk@clerk-skills",
         "devin": "clerk@upstream",
         "grok": "clerk@upstream",
         "antigravity": "clerk@upstream",

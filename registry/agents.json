@@ -5,7 +5,7 @@
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.318",
+      "version": "2.1.319",
       "executable": "{userHome}/.local/bin/claude.exe",
       "platformPaths": {
         "darwin": {
@@ -77,7 +77,7 @@
     {
       "id": "codex",
       "name": "OpenAI Codex",
-      "version": "0.166.0",
+      "version": "0.167.0",
       "executable": "{userHome}/bin/codex.cmd",
       "executableNote": "Stable launcher prefers the installed Codex CLI junction, then the Desktop bundled CLI. CLI and Desktop versions are independent.",
       "nativePaths": {
@@ -107,7 +107,7 @@
     {
       "id": "opencode",
       "name": "OpenCode",
-      "version": "2.2.5",
+      "version": "2.2.6",
       "versionObserved": "2026-10-23: bare opencode and the registered wrapper both returned opencode v2.1.4. The wrapper selects the newest installed Desktop-bundled 2.x x64 CLI numerically.",
       "executable": "{userHome}/.local/bin/opencode.cmd",
       "nativePaths": {
@@ -140,7 +140,7 @@
     {
       "id": "opencode-desktop",
       "name": "OpenCode Desktop",
-      "version": "2.2.5",
+      "version": "2.2.6",
       "executable": "{userHome}/AppData/Local/Programs/ai.opencode.desktop/OpenCode.exe",
       "executableNote": "2026-11-03: installed executable and ProductVersion 2.2.5.0 verified on disk without launching the GUI.",
       "versionProbe": "file-version",
@@ -193,7 +193,7 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.105",
+      "version": "1.0.108",
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
@@ -222,7 +222,7 @@
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.5.1",
+      "version": "1.5.3",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
@@ -314,7 +314,7 @@
     {
       "id": "grok",
       "name": "Grok CLI",
-      "version": "1.0.70",
+      "version": "1.0.77",
       "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run.",
       "versionNote": "Corrected 2026-08-19. This is NOT a version bump: the previously recorded 0.2.114 belongs to a different product line entirely and was never an observation of this install. Every artifact this install owns agrees on the 1.0.x scheme of xai-org/grok-build -- the binary's own `grok --version` (returned `grok 1.0.5 (5115b46bc9) [stable]`), the previous binary grok.exe.old at 1.0.4, ~/.grok/version.json, and ~/.grok/CHANGELOG.json. Nothing on this machine contains the string 0.2.114. What product 0.2.114 actually named was NOT determined and is recorded here as unresolved rather than guessed at.",
       "executable": "{userHome}/.grok/bin/grok.exe",
@@ -347,7 +347,7 @@
     {
       "id": "warp",
       "name": "Warp / Oz",
-      "version": "0.2026.10.14.08.27.stable_03",
+      "version": "0.2026.11.04.08.17.stable_01",
       "executable": "{userHome}/AppData/Local/Programs/Warp/warp.exe",
       "platformPaths": {
         "windows": {
@@ -440,7 +440,7 @@
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.27.22",
+      "version": "3.29.9",
       "executable": "{userHome}/bin/cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
@@ -474,7 +474,7 @@
     {
       "id": "cursor-agent",
       "name": "Cursor Agent CLI",
-      "version": "2026.10.19-6bbf2c4",
+      "version": "2026.11.05-86047df",
       "executable": "{userHome}/bin/cursor-agent.cmd",
       "platformPaths": {
         "darwin": {
@@ -516,55 +516,9 @@
       "headlessDispatchNote": "2026-10-14: native headless contract verified; prior smoke failed authentication. Owner action: run agent login in the owner terminal; dispatcher alias cursor-agent login is equivalent. Do not authenticate automatically."
     },
     {
-      "id": "qoder",
-      "name": "Qoder CLI / Desktop / JetBrains / QoderWork",
-      "version": "1.1.81",
-      "versionProbe": "cli",
-      "versionObserved": "Observed 2026-10-30 by tests/Test-AgentVersionAccuracy.ps1: `qodercli.exe --version` printed 1.1.81; Qoder Desktop IDE at %LOCALAPPDATA%\\Programs\\Qoder\\Qoder.exe reports FileVersion 1.24.2.",
-      "versionNote": "Restored 2026-10-30 per owner direction. Installed native Qoder CLI at ~/.qoder/bin/qodercli/qodercli.exe (shimmed at ~/bin/qodercli.cmd) reports 1.1.81; Qoder Desktop IDE at %LOCALAPPDATA%/Programs/Qoder/Qoder.exe reports 1.24.2.",
-      "executable": "{userHome}/.qoder/bin/qodercli/qodercli.exe",
-      "executableNote": "Restored 2026-10-30: native Qoder CLI binary is installed at %USERPROFILE%\\.qoder\\bin\\qodercli\\qodercli.exe (v1.1.81), with user shim %USERPROFILE%\\bin\\qodercli.cmd forwarding to it and Qoder Desktop IDE installed at %LOCALAPPDATA%\\Programs\\Qoder\\Qoder.exe (v1.24.2).",
-      "nativePaths": {
-        "configHome": "{userHome}/.qoder",
-        "settings": "{userHome}/.qoder/settings.json",
-        "mcp": "{userHome}/.qoder/settings.json",
-        "skillsDir": "{userHome}/.qoder/skills",
-        "sharedSkillsDir": "{userHome}/.agents/skills",
-        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Qoder documents ~/.qoder/skills, not ~/.agents/skills. AgentHub deploys once to the master library; ~/.qoder/skills is a directory junction to that library.",
-        "agentsDir": "{userHome}/.qoder/agents",
-        "pluginsDir": "{userHome}/.qoder/plugins",
-        "canvasDir": "{userHome}/.qoder/canvas",
-        "instructions": "{userHome}/.qoder/AGENTS.md",
-        "instructionHeader": "# Qoder Global Instructions",
-        "instructionFormat": "markdown",
-        "verification": "documented-feature-inferred-windows-path",
-        "instructionsNote": "Added 2026-08-04 from docs.qoder.com/cli/using-cli, Memory section (subject confirmed: memory and context files, not MCP or plugins). Qoder CLI documents a three-tier hierarchy whose user level is ~/.qoder/AGENTS.md, explicitly applying to all projects. The Windows form is inferred from this host's existing configHome, which already resolves ~/.qoder to that directory and demonstrably exists. Distinct from .qoder/rules, which is project-scoped only. HTML-comment survival is not vendor-documented; the agenthub:managed marker is standard Markdown and inert in prompt context.",
-        "agentsDirNote": "Verified 2026-08-11 against docs.qoder.com/en/cli/subagent: subagent configuration is saved to the user-level path ~/.qoder/agents/<agentName>.md, and project-level subagents take precedence over user-level ones when names collide. Path correct. Created when the first user-level subagent is generated, so an empty or absent agents directory is the documented default state. Re-verified 2026-10-30 with Qoder CLI 1.1.81 installed at ~/.qoder/bin/qodercli/qodercli.exe.",
-        "pluginsDirNote": "Observed 2026-10-30 on disk at ~/.qoder/plugins with installed_plugins_v2.json and cache/qoder-marketplace/Presentations/0.1.4 alongside cache/qoderapp-bundler. Managed local plugins remain unadopted unless explicitly installed through Qoder.",
-        "canvasDirNote": "Probably WRONG, checked 2026-08-11 -- recorded as a correction rather than as a gap, because the two are different findings and only one of them is someone's next task. docs.qoder.com places Canvas under Desktop > Extensions, making it a Desktop application feature rather than a CLI one, and describes /canvas as producing a .canvas.tsx file rendered in a Canvas preview: a project artifact, not user-level state. No Qoder page names a ~/.qoder/canvas directory, and none of the pages that do enumerate ~/.qoder contents (using-cli, plugins, subagent) list it. So unlike pluginsDir this is not merely unverified -- the documented design points away from a user-level canvas directory existing at all. Kept rather than deleted, because deleting a declared path on the mistaken basis that a directory absent from disk must be wrong is the exact error gemini.agentsDirNote exists to record."
-      },
-      "supportedCapabilities": [
-        "rules",
-        "skills",
-        "subagents",
-        "mcp",
-        "plugins",
-        "hooks",
-        "connectors",
-        "computer-use",
-        "acp",
-        "canvas",
-        "qoderwork",
-        "headless"
-      ],
-      "status": "active",
-      "notes": "Qoder CLI 1.1.81 at ~/.qoder/bin/qodercli/qodercli.exe (shimmed at ~/bin/qodercli.cmd) and Qoder Desktop IDE 1.24.2 at %LOCALAPPDATA%/Programs/Qoder/Qoder.exe. Restored to active fleet 2026-10-30 per owner direction. Full autonomy flags remain controlled by dispatch policy; authentication, included allowance and useful worker smoke are separate readiness checks.",
-      "headlessDispatchNote": "qodercli 1.1.81 -p --dangerously-skip-permissions --tools default -w <dir> -o text <prompt> is headless. qodercli status currently reports Account: Not logged in; follow fleet readiness gates before live execution."
-    },
-    {
       "id": "amp",
       "name": "Sourcegraph Amp",
-      "version": "0.0.1792022479-ge66e24",
+      "version": "0.0.1794240032-ga42e06",
       "versionObserved": "2026-10-14: verified installed launcher/file version 0.0.1792022479-ge66e24. Manual forward update and launcher reconciliation; active sessions preserved.",
       "executable": "{userHome}/.amp/bin/amp.exe",
       "executableNote": "Corrected 2026-08-11: the declaration read the WinGet shim path %LOCALAPPDATA%/Microsoft/WinGet/Links/amp.exe, which does not exist. Amp is installed at %USERPROFILE%/.amp/bin/amp.exe and that is what `amp` resolves to on PATH. A WinGet Links shim is written only for packages installed through WinGet, so the old path recorded an installation method this host never used rather than a path that later moved.",
@@ -597,7 +551,7 @@
     {
       "id": "devin",
       "name": "Devin Desktop / CLI",
-      "version": "3000.11.234",
+      "version": "3000.12.32",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
       "platformPaths": {
         "darwin": {
@@ -647,7 +601,7 @@
     {
       "id": "factory",
       "name": "Factory Droid",
-      "version": "0.245.1",
+      "version": "1.6.0",
       "versionNote": "Corrected 2026-10-14. The 2026-08-19 observation of 0.195.0 from app-0.152.0 is historical. The live binary is %USERPROFILE%\\bin\\droid.exe and `droid --version` returned 0.241.1. `droid update` reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/bin/droid.exe",
       "executableNote": "Corrected 2026-10-14. The versioned Factory\\app-0.152.0\\resources\\bin\\droid.exe path is absent. The installed CLI is %USERPROFILE%\\bin\\droid.exe. `droid --version` returned 0.241.1.",
@@ -683,7 +637,7 @@
     {
       "id": "vscode-insiders",
       "name": "VS Code Insiders",
-      "version": "1.145.0-insider",
+      "version": "1.146.0-insider",
       "executable": "{userHome}/AppData/Local/Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd",
       "nativePaths": {
         "mcp": "{roamingConfig}/Code - Insiders/User/mcp.json",
@@ -753,6 +707,146 @@
       "headlessDispatchNote": "Windsurf routes to the installed Devin CLI; dispatch and autonomy restrictions on Devin also apply.",
       "inactiveNote": "Moved to inactiveAgents 2026-10-22: no windsurf executable on PATH or under %LOCALAPPDATA%/Programs and no ~/.codeium directory (hostInventory.notInstalled already recorded this). An active entry made Sync-AgentHub report drift and create ~/.codeium/windsurf/mcp_config.json for a host that is not installed. Dispatch of `windsurf` still routes to Devin per the dispatcher. Reactivate after an install is verified.",
       "renamedNote": "Checked 2026-11-04: Windsurf is now Devin Desktop. Version 3.11.238 is installed at %LOCALAPPDATA%/Programs/Devin/Devin.exe with its own CLI, and both read %APPDATA%/devin. Do not reactivate this row; the `devin` row is the host."
+    },
+    {
+      "id": "kilo",
+      "name": "Kilo CLI",
+      "version": "7.8.27",
+      "versionObserved": "2026-11-09: read-only `kilo --version` printed 7.8.27 (npm global shim). No agent run.",
+      "executable": "{userHome}/AppData/Roaming/npm/kilo.cmd",
+      "nativePaths": {
+        "config": "{userHome}/.config/kilo/config.json",
+        "configNote": "Vendor docs name kilo.jsonc as the global file. On this machine only config.json exists, and it carries the MiMo provider (credential by env name MIMO_API_KEY, value not recorded).",
+        "mcp": "{userHome}/.config/kilo/config.json",
+        "mcpKey": "mcp",
+        "mcpNote": "Kilo MCP entries live under the mcp object (type local or remote, command[], environment, enabled). No MCP servers recorded on 2026-11-09 (`kilo mcp list` read-only).",
+        "skillsDir": "{userHome}/.kilo/skills",
+        "instructions": null,
+        "instructionsNote": "Not established for AgentHub deployment. Sync-Instructions reaches inactive hosts, so no global instruction file is written here until the owner approves this host."
+      },
+      "supportedCapabilities": [
+        "skills",
+        "mcp",
+        "plugins"
+      ],
+      "status": "inactive",
+      "notes": "Installed on 2026-11-09, OpenCode-compatible fork. Not a dispatch target and no capability is mapped to it. Plugins install with `kilo plugin <npm>` (npm array in config); plugin format is PLUGIN.yaml. Loads ~/.agents/skills natively by default. No Kilo VS Code extension installed."
+    },
+    {
+      "id": "mimo-code",
+      "name": "MiMo Code CLI",
+      "version": "0.1.16",
+      "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. No agent run.",
+      "executable": "{userHome}/AppData/Roaming/npm/mimo.cmd",
+      "nativePaths": {
+        "config": "{userHome}/.config/mimocode/config.json",
+        "configNote": "Carries the MiMo provider. The same directory also holds mimocode.jsonc, which is where the MCP key is recorded.",
+        "mcp": "{userHome}/.config/mimocode/mimocode.jsonc",
+        "mcpKey": "mcp",
+        "mcpNote": "Same shape as OpenCode. OAuth tokens go to ~/.local/share/mimocode/mcp-auth.json. No MCP servers recorded on 2026-11-09.",
+        "skillsDir": "{userHome}/.config/mimocode/skills",
+        "instructions": null,
+        "instructionsNote": "Not established for AgentHub deployment. Sync-Instructions reaches inactive hosts, so no global instruction file is written here until the owner approves this host."
+      },
+      "supportedCapabilities": [
+        "skills",
+        "mcp",
+        "plugins"
+      ],
+      "status": "inactive",
+      "notes": "Installed on 2026-11-09, OpenCode fork. Not a dispatch target. Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories."
+    },
+    {
+      "id": "mimo-desktop",
+      "name": "Xiaomi MiMo Desktop",
+      "version": "26.1106",
+      "versionProbe": "none",
+      "versionProbeNote": "GUI desktop app. Probing it would open a window, so no version command was run. The version comes from the 2026-11-09 audit.",
+      "executable": "{userHome}/AppData/Local/Programs/Xiaomi MiMo AI/Xiaomi MiMo AI.exe",
+      "nativePaths": {
+        "extensionsRegistry": "{roamingConfig}/Xiaomi MiMo AI/extensions.json",
+        "extensionsRegistryNote": "Schema 1 with a generation counter. 32 entries on 2026-11-09, all kind skill, origin local. Written by the in-app store only; do not hand-edit.",
+        "engineConfig": "{roamingConfig}/Xiaomi MiMo AI/engine-config/mimocode.json",
+        "instructions": null,
+        "instructionsNote": "Not established for AgentHub deployment. Sync-Instructions reaches inactive hosts, so no global instruction file is written here until the owner approves this host."
+      },
+      "supportedCapabilities": [
+        "skills",
+        "mcp",
+        "plugins"
+      ],
+      "status": "inactive",
+      "notes": "Installed on 2026-11-09. Sign-in is by Xiaomi account. Plugins install only through the in-app store, and the store catalog could not be listed because the console is JavaScript-rendered. No MCP servers configured. Bundled remotion and hyperframes plugin sources are Codex-marketplace repackages per the audit. Not a dispatch target."
+    },
+    {
+      "id": "kiro",
+      "name": "Kiro IDE and Kiro CLI",
+      "version": "3.1.0",
+      "versionObserved": "2026-11-09: read-only `kiro-cli --version` printed kiro-cli 3.1.0. Kiro IDE 1.4.121 recorded from the same audit. No agent run.",
+      "executable": "{userHome}/AppData/Local/Kiro-Cli/kiro-cli.exe",
+      "nativePaths": {
+        "configHome": "{userHome}/.kiro",
+        "skillsDir": "{userHome}/.kiro/skills",
+        "agentsDir": "{userHome}/.kiro/agents",
+        "powersDir": "{userHome}/.kiro/powers",
+        "rulesDir": "{userHome}/.kiro/steering",
+        "mcp": "{userHome}/.kiro/settings/mcp.json",
+        "mcpKey": "mcpServers",
+        "mcpNote": "Remote entries take url and headers, and ${VAR} is supported. The file holds owner-authored entries (a linear remote and an aws-mcp proxy). An auth header value is present and is not recorded here.",
+        "instructions": null,
+        "instructionsNote": "steering/AGENTS.md is hand-written owner content, not AgentHub-managed and not in the AgentHub header format. Deployment is withheld until the owner approves."
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins",
+        "hooks"
+      ],
+      "status": "inactive",
+      "notes": "Kiro IDE (1.4.121, no user extensions; IDE executable %LOCALAPPDATA%\\Programs\\Kiro\\bin\\kiro) and Kiro CLI (3.1.0, Builder ID login) are recorded as one row because they share ~/.kiro. Shared state on 2026-11-09: 28 skills, 8 powers, 2 steering files, 1 workflow. 24 AWS skills are duplicated in ~/.agents/skills. Powers are the plugin form and the native catalog was not listed. KiroCrew is a separate row. Not a dispatch target."
+    },
+    {
+      "id": "kirocrew",
+      "name": "KiroCrew",
+      "version": "0.12.0",
+      "versionProbe": "none",
+      "versionProbeNote": "GUI desktop app. Probing it would open a window, so no version command was run. The version comes from the 2026-11-09 audit.",
+      "executable": "{userHome}/AppData/Local/Programs/KiroCrew/KiroCrew.exe",
+      "nativePaths": {
+        "configHome": "{userHome}/.kiro/crew",
+        "skillsDir": "{userHome}/.kiro/crew/skills",
+        "appsDir": "{userHome}/.kiro/crew/apps",
+        "mcp": "{userHome}/.kiro/crew/mcp.json",
+        "mcpKey": "mcpServers",
+        "mcpNote": "KiroCrew's own MCP file holds one entry, tavily-vault, with an env key. Its value is not recorded here.",
+        "instructions": null,
+        "instructionsNote": "KiroCrew documents no global instruction file. Nothing is written here."
+      },
+      "supportedCapabilities": [
+        "skills",
+        "mcp",
+        "subagents"
+      ],
+      "status": "inactive",
+      "notes": "Installed on 2026-11-09. 26 apps (15 enabled), 52 skills under crew/skills. All 4 crons are disabled, which keeps it clear of the no-scheduled-jobs rule. auto_update is true, which the owner should review. A stale leftover app source (personal-shopper.stale-26434066) is recorded and not removed. Not a dispatch target."
+    },
+    {
+      "id": "coderabbit",
+      "name": "CodeRabbit CLI",
+      "version": "0.9.2",
+      "versionObserved": "2026-11-09: read-only `coderabbit --version` printed 0.9.2. `doctor` passed 9 of 9 and the account is signed in. `usage` was unavailable. No agent run.",
+      "executable": "{userHome}/AppData/Local/Programs/coderabbit/coderabbit.exe",
+      "nativePaths": {
+        "repoConfig": ".coderabbit.yaml",
+        "repoConfigNote": "Per-repository file at the repo root. There is no user-level config path, and AgentHub has none.",
+        "instructions": null,
+        "instructionsNote": "CodeRabbit is not an instructions host."
+      },
+      "supportedCapabilities": [],
+      "status": "inactive",
+      "notes": "Installed on 2026-11-09. Not a skills host: it installs the code-review and autofix skills into other agents with `npx skills add coderabbitai/skills`. Those skills were removed from every host on 2026-11-04 and are absent. No MCP surface is documented. Cloud review service. Not a dispatch target and no capability is mapped to it."
     }
   ]
 }

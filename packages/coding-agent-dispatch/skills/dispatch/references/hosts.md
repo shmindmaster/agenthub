@@ -6,7 +6,7 @@ Contents: Account hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installer
 
 ## Account hosts
 
-- Cursor Agent, Amp, Qoder, OpenCode: account login; confirm with the host's own status command before the first dispatch.
+- Cursor Agent, Amp, OpenCode: account login; confirm with the host's own status command before the first dispatch.
 - Gemini: the dispatcher passes `--approval-mode yolo`; the registered shim skips its own yolo default for that invocation and adds `--skip-trust`. Complete Google OAuth interactively with `gemini` before use. Temporary task files are admitted with `--include-directories`.
 - Copilot: runs on the `sh-pendoah` GitHub account; the dispatcher reads that token from gh's keyring into the child environment only.
 - Codex reads the task from stdin (`exec --skip-git-repo-check -`) and does not initialize Git. Antigravity gets `--print=<prompt>` after its permissions flag.

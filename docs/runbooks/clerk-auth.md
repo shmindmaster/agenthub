@@ -17,7 +17,7 @@ only after verifying that exact retired installation exists.
 
 Run `python scripts/Install-ClerkFleet.py` for a read-only plan, then add
 `--apply` to install, or `--host <id>` for a targeted repair. The script uses
-official native marketplaces on Claude, Codex, Copilot, Factory, Qoder and
+official native marketplaces on Claude, Codex, Copilot, Factory and
 Devin; Grok and Antigravity install the official upstream checkout. Cursor
 loads a real local plugin folder. Cline CLI loads the official plugin through
 its package loader; its separate extension needs its documented direct entry.

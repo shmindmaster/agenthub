@@ -14,7 +14,6 @@ $manifests = @(
     '.claude-plugin/plugin.json',
     '.codex-plugin/plugin.json',
     '.cursor-plugin/plugin.json',
-    '.qoder-plugin/plugin.json',
     '.antigravity-plugin/plugin.json',
     'gemini-extension.json'
 )

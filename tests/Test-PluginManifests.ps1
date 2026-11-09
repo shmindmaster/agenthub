@@ -329,7 +329,7 @@ if ($overlayRoot) {
     if (Test-Path -LiteralPath $overlayPackages -PathType Container) { $packageTrees += $overlayPackages }
 }
 $packageDirs = $packageTrees | ForEach-Object { Get-ChildItem -LiteralPath $_ -Directory }
-$hostManifestDirs = @('.antigravity-plugin', '.claude-plugin', '.codex-plugin', '.cursor-plugin', '.devin-plugin', '.qoder-plugin')
+$hostManifestDirs = @('.antigravity-plugin', '.claude-plugin', '.codex-plugin', '.cursor-plugin', '.devin-plugin')
 $iconFieldsByHost = @{
     '.antigravity-plugin' = @('logo')
     '.claude-plugin' = @('icon')

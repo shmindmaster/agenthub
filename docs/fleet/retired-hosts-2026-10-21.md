@@ -33,3 +33,9 @@ in-scope install was found at those locations.
 ## 2026-10-30 Update — Qoder un-retired
 
 Owner direction on 2026-10-30 restored Qoder (`qoder`) to the active AgentHub fleet after verifying Qoder CLI 1.1.81 at `~/.qoder/bin/qodercli/qodercli.exe` (shimmed at `~/bin/qodercli.cmd`) and Qoder Desktop IDE 1.24.2 at `%LOCALAPPDATA%\Programs\Qoder\Qoder.exe`. Qwen Code and Hermes remain retired.
+
+## 2026-11-09 Update — Qoder retired again
+
+Owner direction on 2026-11-09 retired Qoder (`qoder`) from the AgentHub fleet again, and asked for it to be removed and uninstalled. No install was present to uninstall. Read-only checks on that date found `~/.qoder/bin/qodercli/qodercli.exe` and `%LOCALAPPDATA%\Programs\Qoder\Qoder.exe` absent (`Test-Path`), no Qoder entry in the Windows uninstall registry (HKLM and HKCU), and no `qodercli` or Qoder directory on `PATH`. The registry still listed Qoder as an active host, so the sync had created a stray `~/.qoder/settings.json` (17 bytes); that file and its empty folder were deleted.
+
+Removed: the `qoder` agent record, its capability mappings, native-connector and gateway rows, plugin-format row, per-host MCP and plugin-owner entries, the dispatcher contract and its tests, the Sync-AgentHub and Sync-Plugins host code, and the Clerk fleet installer entry. `registry/mcps.json` `hostInventory.notInstalled` now records `qoder` beside `windsurf`. Qwen Code and Hermes remain retired. The 2026-10-30 section above is kept as the historical record.

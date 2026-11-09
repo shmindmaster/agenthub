@@ -29,10 +29,10 @@ uninstalled plugin is not drifting, and demanding installation here would make
 the suite fail on a machine that has deliberately not enabled one.
 
 Hosts covered: Claude, from ~/.claude/plugins/installed_plugins.json, plus every
-host that copies a plugin into its own cache -- Codex and Qoder by version
+host that copies a plugin into its own cache -- Codex by version
 folder, Cursor, Antigravity and Cline as flat folders, and Factory by nested
 manifest. Where a host keeps several version folders, the newest is the copy it
-resolves, because neither Codex nor Qoder records the active one in a manifest.
+resolves, because Codex does not record the active one in a manifest.
 Private overlay packages resolve under overlays/personal/packages, so ah-sarosh
 and ah-linkedin are covered rather than silently skipped. Copilot loads this
 repository live and copies nothing, and Amp is built from source by
@@ -164,7 +164,7 @@ function Compare-DeployedTree {
 # look where every copy actually is.
 #
 # Layouts:
-#   versioned -- <Root>\<name>\<version>\. Neither Codex nor Qoder records the
+#   versioned -- <Root>\<name>\<version>\. Codex does not record the
 #                active version in a manifest, so the newest folder is the copy
 #                the host resolves.
 #   flat      -- <Root>\<name>\ holding the manifest directly.
@@ -180,7 +180,6 @@ function Compare-DeployedTree {
 # Test-AmpPlugins.ps1 covers Amp's shape instead.
 $PluginCacheHosts = @(
     @{ Host = 'codex';       Layout = 'versioned'; Root = (Join-Path $HOME '.codex\plugins\cache\agenthub');  PrivateMarketplace = 'sarosh-private'; Remedy = 'codex plugin add {0}@{2}' },
-    @{ Host = 'qoder';       Layout = 'versioned'; Root = (Join-Path $HOME '.qoder\plugins\cache\agenthub');  PrivateMarketplace = 'sarosh-private'; Remedy = 'qodercli plugins marketplace update {2}, then qodercli plugins update {0}@{2}' },
     @{ Host = 'cursor';      Layout = 'flat';      Root = (Join-Path $HOME '.cursor\plugins\local');          PrivateMarketplace = 'sarosh-private'; Remedy = 'pwsh -NoProfile -File scripts\Install-CursorLocalPlugins.ps1' },
     @{ Host = 'antigravity'; Layout = 'flat';      Root = (Join-Path $HOME '.gemini\config\plugins');         PrivateMarketplace = $null;            Remedy = 'agy plugin uninstall {0}, then agy plugin install {3}' },
     @{ Host = 'cline';       Layout = 'flat';      Root = (Join-Path $HOME '.agents\plugins');                PrivateMarketplace = $null;            Remedy = 're-junction {0} to {3}' },

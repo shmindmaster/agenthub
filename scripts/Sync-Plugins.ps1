@@ -142,7 +142,6 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
             if ($entry.version) { return New-Observation $entry.version $entry.installPath }
         }
         'codex' { return Get-VersionedObservation (Join-Path $UserProfile ".codex/plugins/cache/$market/$name") }
-        'qoder' { return Get-VersionedObservation (Join-Path $UserProfile ".qoder/plugins/cache/$market/$name") }
         'cursor' { return Get-ManifestObservation (Join-Path $UserProfile ".cursor/plugins/local/$name") 'plugin.json' $name }
         'amp' {
             $path = Join-Path $UserProfile ".config/amp/plugins/$name"
@@ -255,7 +254,7 @@ function Test-SkillCopy([string]$Source, [string]$Destination, [string]$Client) 
     return -not @(Compare-Object $sourceSkills $installedSkills).Count
 }
 
-$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; qoder='qodercli'; copilot='copilot'; gemini='gemini'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders' }
+$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; gemini='gemini'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders' }
 # These compatibility routes are documented exceptions to a registry's generic
 # loose-skill or native mapping. They must never trigger a second install.
 $blockedRoutes = @{
@@ -365,11 +364,6 @@ function Invoke-PluginInstall($Row) {
             Invoke-Client claude @('plugin',$verb,$qualified,'--scope','user') | Out-Null
         }
         'codex' { Invoke-Client codex @('plugin','add',$qualified) | Out-Null }
-        'qoder' {
-            Invoke-Client qodercli @('plugins','marketplace','update',$Row.marketplace) | Out-Null
-            $verb = if ($present) { 'update' } else { 'install' }
-            Invoke-Client qodercli @('plugins',$verb,$qualified) | Out-Null
-        }
         'factory' {
             Invoke-Client droid @('plugin','marketplace','update',$Row.marketplace) | Out-Null
             if ($present) { Invoke-Client droid @('plugin','update',$qualified) | Out-Null }

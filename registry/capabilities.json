@@ -515,10 +515,6 @@
         {
           "hostId": "cline",
           "deploymentStatus": "native-extension-junction"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
@@ -573,11 +569,6 @@
         {
           "hostId": "cline",
           "deploymentStatus": "native-extension-junction"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "native-plugin-installed",
-          "deploymentStatusNote": "Owner cleanup 2026-11-04: ah-repowise, which has no hooks, replaces the vendor plugin here. Its server is absent from qodercli mcp list; what a session starts is not established."
         },
         {
           "hostId": "grok",
@@ -672,14 +663,6 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills",
-            "catalog"
-          ]
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills",
@@ -843,10 +826,6 @@
           "deploymentStatus": "native-extension-junction"
         },
         {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
           "hostId": "antigravity",
           "deploymentStatus": "native-local-plugin"
         },
@@ -907,7 +886,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "70A84C85EF9FCBAF2713F06677599F3F1175738987A419240FA325FBFAA02934",
+      "contentHash": "EC4036FB71FF1B8CAE32AD3593AE26CA99D04B234EF3B4E7C7E80DC6FD89F3A3",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -945,10 +924,6 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1040,14 +1015,6 @@
           "deploymentStatus": "native-extension-junction",
           "components": [
             "skills"
-          ]
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills",
-            "mcp"
           ]
         },
         {
@@ -1164,13 +1131,6 @@
           ]
         },
         {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
           "hostId": "amp",
           "deploymentStatus": "native-local-plugin",
           "components": [
@@ -1264,13 +1224,6 @@
           ]
         },
         {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
           "hostId": "amp",
           "deploymentStatus": "native-local-plugin",
           "components": [
@@ -1324,7 +1277,7 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "0AA2030A7FF01F96AA399031DE22A06F039265F01B46D958960F5BE2851FF727",
+      "contentHash": "4E349F8486AC55F79B49A3FDBE706DAB2E1D35A8554D82E75F28E41E1A16277A",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [
@@ -1429,7 +1382,7 @@
       "kind": "tool",
       "maturity": "beta",
       "provenance": "agenthub-owned",
-      "hostMappingsNote": "Deploy the same routing skill on local agent hosts, including those with native browser tools. OpenCode and Warp consume the skill through scripts/Install-WarpSkills.ps1. Qoder requires an available local client, and Gemini requires an enabled dispatch route and account access before rollout there. BrowserSkill requires access to the desktop user's local daemon and selected browser profile."
+      "hostMappingsNote": "Deploy the same routing skill on local agent hosts, including those with native browser tools. OpenCode and Warp consume the skill through scripts/Install-WarpSkills.ps1. Gemini requires an enabled dispatch route and account access before rollout there. BrowserSkill requires access to the desktop user's local daemon and selected browser profile."
     },
     {
       "id": "context7",
@@ -1518,10 +1471,6 @@
           "deploymentStatus": "native-local-plugin"
         },
         {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
           "hostId": "antigravity",
           "deploymentStatus": "native-local-plugin"
         },
@@ -1569,10 +1518,6 @@
       "status": "active-canonical",
       "hostMappings": [
         {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
           "hostId": "grok",
           "deploymentStatus": "native-local-plugin"
         },
@@ -1590,7 +1535,7 @@
         "recommends": [],
         "optional": []
       },
-      "notes": "Thin wrapper around Notion's hosted MCP server. Qoder has no Notion plugin, and Grok rejects Notion's own plugin because its manifest name is mixed case (owner direction 2026-11-04).",
+      "notes": "Thin wrapper around Notion's hosted MCP server. Grok rejects Notion's own plugin because its manifest name is mixed case (owner direction 2026-11-04).",
       "kind": "provider",
       "maturity": "beta",
       "provenance": "agenthub-owned"
@@ -1607,10 +1552,6 @@
       "hashBasis": "packages/exa",
       "status": "active-canonical",
       "hostMappings": [
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
-        },
         {
           "hostId": "antigravity",
           "deploymentStatus": "native-local-plugin"
@@ -1648,10 +1589,6 @@
       "hostMappings": [
         {
           "hostId": "factory",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "native-local-plugin"
         },
         {

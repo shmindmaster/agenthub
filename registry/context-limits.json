@@ -121,15 +121,6 @@
       "source": "https://docs.cline.bot/cline-cli/configuration"
     },
     {
-      "host": "qoder",
-      "file": "~/.qoder/settings.json",
-      "format": "json",
-      "key": ["mcp", "lazyLoad"],
-      "value": true,
-      "why": "Defers MCP tool schemas until they are needed.",
-      "source": "https://docs.qoder.com/cli/settings-reference"
-    },
-    {
       "host": "fleet",
       "format": "user-env",
       "key": ["REPOWISE_SKIP_EDITOR_SETUP"],
@@ -144,8 +135,7 @@
     "configs": [
       { "host": "claude", "file": "~/.claude/settings.json", "format": "json", "key": "enabledPlugins" },
       { "host": "codex", "file": "~/.codex/config.toml", "format": "toml", "key": "plugins" },
-      { "host": "factory", "file": "~/.factory/settings.json", "format": "json", "key": "enabledPlugins" },
-      { "host": "qoder", "file": "~/.qoder/settings.json", "format": "json", "key": "enabledPlugins" }
+      { "host": "factory", "file": "~/.factory/settings.json", "format": "json", "key": "enabledPlugins" }
     ]
   },
   "noDocumentedSetting": {

@@ -1,10 +1,11 @@
+- **Fleet refresh and native-first audit (2026-11-09):** MiMo Token Plan (sgp cluster) is wired through the User env vars `MIMO_API_KEY` and `MIMO_BASE_URL` into OpenCode, Cline, Kilo CLI and MiMo Code, each proven by a live completion; MiMo Desktop signs in by Xiaomi account. Four read-only audits found native or vendor plugins already carry linear, notion, sentry, context7, exa, clerk, daytona, remotion and canva on most hosts; only `ah-sarosh`, `ah-media-studio`, `ah-product`, `ah-browser`, `ah-assemblyai` and `ah-descript` have no vendor equivalent. Kilo, MiMo Code, MiMo Desktop, Kiro (IDE and CLI), KiroCrew and CodeRabbit are now recorded as inactive (non-dispatch) hosts in `agents.json` and `mcps.json` `hostInventory`, with no capability deployments. Owner rule (2026-11-09): custom models such as MiMo are added as extra selectable options and never replace a host's default (Cline keeps Cline Pass, OpenCode and Droid keep their defaults); MiMo Code and MiMo Desktop use the built-in `xiaomi-token-plan-sgp` provider through `~/.local/share/mimocode/auth.json`. Recorded host versions were refreshed after the fleet update round. Cleanup removed disabled direct MCP entries from Devin, Antigravity and Factory (pluginOnly allows none there), retired firecrawl/railway/supabase leftovers from Cline, Qwen, Grok and the Cursor cache, and four superseded Copilot wrappers were disabled. By owner decision the 32 unmanaged AWS, Remotion, agent-browser and lottie skills in `~/.agents/skills` were removed (backup `%LOCALAPPDATA%\AgentHub\backups\agents-skills-20261109`), so the folder is empty as policy requires and `Test-PluginOnlyMcp` passes 80/0. Hosts that read it through a junction (Claude, Grok, Devin, Cursor, Antigravity) no longer see those skills; Kiro keeps its own copies.
 - **Media Studio 2.4.5 voice recipes (2026-11-06)** use governed DragonHD Emma2 or Andrew2 for new conversational walkthroughs, with Ava as fallback. Prepared support prompts can select Deepgram Haley batch synthesis. Existing Deepgram callers retain Sienna and its cache keys. MAI Harper, DragonHD Omni, Azure OpenAI directed narration and GPT-Live client delegation are documented as gated options. Direct ElevenLabs is excluded from new recipes. See `packages/media-studio/skills/generate/references/voice-recipes.md`.
 - **Desktop voices forbidden (2026-11-06):** narration, rehearsal, draft and audition speech use the voice recipes. Windows Narrator, SAPI, System.Speech and OneCore voices (David, Zira, Mark, Eva) are not a lane. If the callable governed route cannot run, the cut stays silent and the lines go on screen.
 - **AH-Browser 1.2.1** selects the intended existing Chrome or Edge profile through a native tool or Tencent BrowserSkill. Isolated QA and capture use the agent-browser wrapper. See [browser routing](../packages/browser/skills/automate/references/hosts.md).
 - **Railway removed (2026-11-06)**. The `ah-railway` plugin, Railway MCP server, and official Railway plugin channels are retired. Do not register `railway` or install `railway@claude-plugins-official`.
 - **Plugin-only MCP (2026-11-04):** the sync used to write every registry server to every
   host unless marked plugin-owned, so removed entries came back. `activationPolicy.pluginOnly`
-  in `registry/mcps.json` now lists fourteen coding hosts and the only direct entries allowed
+  in `registry/mcps.json` now lists thirteen coding hosts and the only direct entries allowed
   on each, with a reason. The sync writes nothing else there, and
   `tests/Test-PluginOnlyMcp.ps1` fails on any other entry in the real host configs. Gemini was
   not migrated and keeps the older behaviour. Native plugins were installed on every host,
@@ -383,8 +384,9 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   XCUITest 12.18.1 and appium-mcp 1.97.1, and records the x86_64 guest's
   Xcode 26.6 ceiling. Implemented and tested in source; the guest doctor run
   against the new pins and fleet deployment are still pending.
-- **Retired coding hosts (2026-10-21, updated 2026-10-30):** Owner direction retired Qwen
-  Code and Hermes from the managed fleet; Qoder was un-retired on 2026-10-30. See
+- **Retired coding hosts (2026-10-21, updated 2026-11-09):** Owner direction retired Qwen
+  Code and Hermes from the managed fleet. Qoder was un-retired on 2026-10-30 and retired
+  again on 2026-11-09; its registry rows, sync code and checks are gone. See
   [retired-hosts](./fleet/retired-hosts-2026-10-21.md) and the pending
   [account-login checklist](./fleet/account-logins-2026-10-21.md).
 - **Host readiness:** `registry/fleet-profile.json` is the source of truth for

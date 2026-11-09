@@ -42,7 +42,7 @@ foreach ($hostEntry in $policy.hosts.PSObject.Properties) {
         Assert-True (-not [string]::IsNullOrWhiteSpace([string]$allowed.Value)) "$($hostEntry.Name)/$($allowed.Name) has no reason"
     }
 }
-foreach ($named in 'claude', 'codex', 'cursor', 'grok', 'factory', 'antigravity', 'qoder', 'copilot', 'vscode-insiders', 'cline', 'opencode', 'amp', 'devin', 'warp') {
+foreach ($named in 'claude', 'codex', 'cursor', 'grok', 'factory', 'antigravity', 'copilot', 'vscode-insiders', 'cline', 'opencode', 'amp', 'devin', 'warp') {
     Assert-True ($null -ne $policy.hosts.PSObject.Properties[$named]) "coding host '$named' is not plugin-only"
 }
 
@@ -124,7 +124,6 @@ $targets = @(
     @{ HostId = 'antigravity'; Path = (Join-Path $userHome '.gemini/config/mcp_config.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'antigravity'; Path = (Join-Path $userHome '.gemini/antigravity/mcp_config.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'copilot'; Path = (Join-Path $userHome '.copilot/mcp-config.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
-    @{ HostId = 'qoder'; Path = (Join-Path $userHome '.qoder/settings.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'cline'; Path = (Join-Path $userHome '.cline/data/settings/cline_mcp_settings.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'opencode'; Path = (Join-Path $userHome '.config/opencode/opencode.json'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
     @{ HostId = 'vscode-insiders'; Path = (Join-Path $roaming 'Code - Insiders/User/mcp.json'); Reader = { param($p) Get-JsonKeys $p 'servers' } }

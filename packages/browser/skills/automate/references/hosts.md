@@ -8,7 +8,6 @@ For general browsing, use the host's own tool when the row says native. Otherwis
 | Codex app | `@Browser`, `@Chrome`, Computer Use | Native; the Codex CLI is unreliable, use the client |
 | Cursor IDE | `@browser` | Native; Cursor Agent CLI has none, use the client |
 | VS Code (Copilot chat) | Integrated browser tools | Native |
-| Qoder IDE | Browser Agent | Native; `qodercli` uses its `agent-browser` catalog plugin |
 | Antigravity | Browser Subagent | Native |
 | Factory Droid | droid-control, which runs agent-browser | Native |
 | Gemini CLI | `browser_agent`, off by default | Use the client |
