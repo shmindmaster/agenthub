@@ -50,30 +50,37 @@ Any `block` finding; missing or failing no-fluff, or `cursor-flow` with screen b
 
 Fail when the score is under `craftScoreMin` (default 85), on any `block` finding, or when the hook is missing, the hero count is not exactly one, the opening is a feature tour, the bed is unducked, the narration reads the slide, anything is said twice, or the cursor moves with nothing named. Marketing cuts also need `qa/marketing-readiness-check.json` PASS on this candidate.
 
-## Context and software-orientation ship blockers
+## Scope the review to the declared creative form
 
-An engaging cold open is allowed; a context-free montage is not. On any
-buyer-facing software film, review the actual picture and audio from 0:00
-through the first solution and payoff. Record a timestamped `block` finding
-and send it to `develop` / `video` when any of these occurs:
+Use `creative-formats.md` to classify the film before judging it.
+For a **verified current-product demonstration**, the movie must
+explain the audience's task, establish context, introduce the product,
+show genuine captured action and a real result, and close with a
+meaningful next step. A current-feature claim without evidence is a
+blocking defect.
 
-- The viewer never learns the persona, situation, triggering event or
-  specific problem. The first shots simply cycle among unrelated screens.
-- The product is not identified by name in its solution beat; the viewer
-  cannot tell what software is solving the issue until the closing logo.
-- There is no visible cause-and-effect: one screen is followed by another,
-  without showing what was done, what the system returned and why that
-  result addresses the original stakes.
-- The film exits directly after a screen tour instead of revisiting the
-  original problem, holding the result and supplying one relevant next step.
+For **future-vision, conceptual, fictional, abstract, documentary,
+educational or hybrid** films, do **not** require present-day product
+screens, a current-feature result, a linear problem-solution story,
+mandatory product name at a fixed timestamp or a UI-containing hero.
+Photorealistic patients, children, families, real-looking synthetic
+interfaces and clear generated medical charts are all permissible
+creative material. Review their narrative effectiveness, believable
+world, visual quality, performance, emotional consistency, purpose
+and legibility. Do not penalize synthetic media for not being blurred
+or labeled as synthetic on every scene.
 
-For >=25s marketing cuts, verify the `narrative`/ `storyRole` preflight
-and then independently assess whether the **encoded footage** truly conveys
-that outline. Metadata, scene-role tags and a passing `lint` report cannot
-prove that the audience understands the story. A silent watch-through is
-mandatory: the outcome must remain comprehensible without narration, aided
-by screen evidence and available captions. Never manufacture a product
-capability or an outcome to close a narrative gap.
+A future-capability visualization must be contextually identified
+as envisioned/fictional rather than presented as a verified deployed
+feature. A documentary's factual assertions still need reliable
+sources; its reenactments may be dramatized. In a hybrid film,
+review current-function claims and proposed scenes separately.
+
+The exact encoded candidate remains the authority. Assess its
+story arc against **its selected form**, not a one-template rubric.
+A fast ad hook is a technique, not a mandate for a reflective
+documentary or visual poem. The same applies to mid-film reversals,
+music cues and CTAs.
 
 ## Creative experience check: evidence on the finished movie
 
