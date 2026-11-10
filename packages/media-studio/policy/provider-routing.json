@@ -1,10 +1,14 @@
 {
   "schema": "media-studio/provider-routing/1",
-  "revision": "provider-routing-2026-11-10-2",
-  "asOf": "2026-11-06",
-  "basis": "Balances and plan states are as recorded in the Linear credits ledger on 2026-11-04 to 2026-11-06. Not re-verified in any vendor console. Re-check a balance before a paid run that depends on it.",
+  "revision": "provider-routing-2026-11-10-3",
+  "asOf": "2026-11-10",
+  "basis": "Provider capabilities and public pricing docs reviewed 2026-11-10; balances and plans remain as recorded in the Linear credits ledger 2026-11-04 to 2026-11-06 and were not reverified in any vendor console. Re-check a balance before a paid run that depends on it.",
   "rules": [
     "Credits are a temporary subsidy, not permission to raise spending caps.",
+    "Do not interpret route_media.py sorting by status/free as an actual numerical lowest-cost model ranking. It discovers usable lanes; model selection also requires current per-model price, actual task/configuration, truth/quality verification and consent. Read skills/generate/references/provider-cost-quality-routing.md.",
+    "For Runware model research, use scripts/quote-runware-models.mjs against the canonical live model index and schemas with no key/spend; if pricing needs configuration or GPU-time measurements, report manual-quote instead of guessing. A quote does not authorize generation.",
+    "AssemblyAI analyzes speech and can act as a second transcript or timestamp opinion when explicitly requested; it does not generate images/video. ElevenLabs offers premium voice and music/effects/ASR candidates, but frozen direct-account lanes remain frozen until governed adapter and owner authorization in that task.",
+    "For every missing creative asset: reuse already accepted footage, diagrams and audio first; then compare authorized candidates on equal settings. Genuine product screens remain captured evidence; generated media may be only a disclosed supplemental non-claim shot. 3D is optional and not the default for SaaS explainers.",
     "Cheapest lane that passes QA wins for a picture. A free picture lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid picture lane. Voice has no free lane.",
     "Narration, dialogue, rehearsal, draft and audition speech follow skills/generate/references/voice-recipes.md. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2. Deepgram Haley batch synthesis serves prepared support prompts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
     "Azure first (MahumTech resource mt-foundary-resource). Other providers are fallbacks or specialist lanes.",
@@ -174,6 +178,26 @@
       "identity": "any",
       "how": "Do not call it. Shared finishing uses one instrumental MiniMax Music 2.6 track and reuses it. Keep speech, music, effects and captions separate.",
       "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. Speech stays prominent."
+    },
+    {
+      "id": "runware-model-quote",
+      "needs": ["model-research", "provider-selection", "price-quote", "cost-comparison", "3d-model-search"],
+      "status": "ready",
+      "mode": "script",
+      "cost": "none (public Runware model catalogue and schema reads only)",
+      "identity": "any",
+      "how": "node scripts/quote-runware-models.mjs --capability image-to-video --list; then --models minimax-h3-max-turbo,prunaai-p-video-2-pro --capability image-to-video --seconds 5 --label 480p. Read the no-spend report; compare model quality and entitlement separately.",
+      "notes": "Live ids, AIR, modes and rate schema discovered from runware.ai/docs/models/index.json and schema.json. No inference call, account query, entitlement check, spend approval or quality verdict. Frozen/unknown generation lanes remain frozen/unknown."
+    },
+    {
+      "id": "runware-3d-research",
+      "needs": ["3d", "3d-model", "image-to-3d", "text-to-3d"],
+      "status": "frozen",
+      "mode": "api",
+      "cost": "Runware dynamic; TRELLIS.2 published from $0.0077 for a 512-setting example as of 2026-11-10; re-quote current model schema",
+      "identity": "any",
+      "how": "Do not call. Only propose an optional 3D illustrative metaphor when free SVG/Remotion cannot express the idea; quote public schema with quote-runware-models.mjs before requesting explicit adapter/spend approval.",
+      "notes": "No governed 3D adapter in Media Studio. 3D is not a product demo and does not replace real UI or create unverified software results."
     },
     {
       "id": "runware-image",
