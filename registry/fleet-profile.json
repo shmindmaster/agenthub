@@ -441,9 +441,9 @@
     },
     "gemini": {
       "enabled": false,
-      "reason": "2026-10-22 dispatcher smoke timed out at the Google OAuth browser-confirmation prompt: \"Opening authentication page in your browser. Do you want to continue? [Y/n]:\"",
-      "ownerAction": "Run gemini in an interactive terminal, select Sign in with Google, and complete browser OAuth; then rerun one account-mode smoke.",
-      "verifiedOn": "2026-10-22"
+      "reason": "2026-11-10 headless probe with the stored Google sign-in: with GOOGLE_CLOUD_PROJECT set the CLI answered 'You do not have a valid license of this product'; with it unset the CLI answered 'This client is no longer supported for Gemini Code Assist for individuals. To continue using Gemini, please migrate to the Antigravity suite of products'. Gemini CLI 0.67.0 therefore has no usable account route here. Antigravity CLI is the Google route: `agy --dangerously-skip-permissions --print=<prompt>` returned READY, exit 0, the same day.",
+      "ownerAction": "None that sign-in can fix. Use the antigravity host. Decide separately whether to retire the gemini host row or to authorize paid API-key use for it.",
+      "verifiedOn": "2026-11-10"
     },
     "warp": {
       "enabled": true,
@@ -580,26 +580,32 @@
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     },
     "kilo": {
-      "enabled": false,
+      "enabled": true,
       "model": "mimo/mimo-v2.6-pro",
+      "agent": "peer",
+      "agentNote": "~/.config/kilo/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, kilo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --auto approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
       "allowedModels": [
         "mimo/mimo-v2.6-pro"
       ],
-      "allowedModelsNote": "Only mimo/mimo-v2.6-pro has been smoke-verified on the MiMo provider (2026-11-10, bare default run). Widen only with a captured response per model.",
-      "reason": "original default-model smoke passed but exact governed command and unattended permission restrictions are not verified; no paid availability probes; needs authorized task validation before enabling",
+      "allowedModelsNote": "Only mimo/mimo-v2.6-pro has been smoke-verified on the MiMo provider (2026-11-10, governed command). Widen only with a captured response per model.",
+      "reason": "2026-11-10: the exact governed command (`kilo run --auto --format json --dir <cwd> --model mimo/mimo-v2.6-pro --agent peer`) returned READY, exit 0. A second run under the same command asked for `doctl version` and `echo ALLOWED_OK`: the first was blocked by the agent's bash deny rule before execution and the second ran, so --auto does not override an explicit deny. `kilo debug agent peer` listed the deny rules as resolved. Only the listed model was exercised.",
+      "ownerAction": null,
       "verifiedOn": "2026-11-10",
-      "ownerDirection": "2026-11-10: owner directed onboarding the newer unmanaged CLIs into the managed fleet."
+      "ownerDirection": "2026-11-10: owner directed that Kilo and MiMo Code be researched and made to work rather than left gated, after directing their onboarding into the managed fleet earlier the same day."
     },
     "mimo-code": {
-      "enabled": false,
+      "enabled": true,
       "model": "xiaomi-token-plan-sgp/mimo-v2.6-pro",
+      "agent": "peer",
+      "agentNote": "~/.config/mimocode/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, mimo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --yolo approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
       "allowedModels": [
         "xiaomi-token-plan-sgp/mimo-v2.6-pro"
       ],
-      "allowedModelsNote": "Only xiaomi-token-plan-sgp/mimo-v2.6-pro has been smoke-verified on the stored Xiaomi Token Plan credential (2026-11-10, bare default run). Widen only with a captured response per model.",
-      "reason": "original default-model smoke passed but exact governed command and unattended permission restrictions are not verified; no paid availability probes; needs authorized task validation before enabling",
+      "allowedModelsNote": "Only xiaomi-token-plan-sgp/mimo-v2.6-pro has been smoke-verified on the stored Xiaomi Token Plan credential (2026-11-10, governed command). Widen only with a captured response per model.",
+      "reason": "2026-11-10: the exact governed command (`mimo run --yolo --format json --dir <cwd> --model xiaomi-token-plan-sgp/mimo-v2.6-pro --agent peer`) returned READY, exit 0. A second run under the same command asked for `doctl version` and `echo ALLOWED_OK`: the first was blocked by the agent's bash deny rule before execution and the second ran, so --yolo does not override an explicit deny. `mimo debug agent peer` listed the deny rules as resolved. Only the listed model was exercised.",
+      "ownerAction": null,
       "verifiedOn": "2026-11-10",
-      "ownerDirection": "2026-11-10: owner directed onboarding the newer unmanaged CLIs into the managed fleet."
+      "ownerDirection": "2026-11-10: owner directed that Kilo and MiMo Code be researched and made to work rather than left gated, after directing their onboarding into the managed fleet earlier the same day."
     }
   },
   "hostSurfaces": {

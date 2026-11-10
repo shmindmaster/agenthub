@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.4.1 (the root `plugin.json` is the single version authority; `SKILL.md`
+Version 0.4.2 (the root `plugin.json` is the single version authority; `SKILL.md`
 metadata and every host projection carry the same number and
 `tests/validate-dispatch.ps1` enforces parity). The package is a full plugin:
 `.claude-plugin`, `.codex-plugin`, `.cursor-plugin`, `.devin-plugin` and
@@ -132,7 +132,7 @@ and install onto hosts with the same command plus `-Apply` once the audit is
 clean; `-Apply` deploys the published source into host caches and requires
 the clean published main checkout and green CI (pushing the commit is what
 publishes). Kilo and
-MiMo Code receive only the `dispatch` skill as a host-local junction under
+MiMo Code receive skills as host-local junctions under
 `~/.kilocode/skills` and `~/.mimocode/skills` -- a native skill projection,
 not an `ah-*` plugin. `cursor-agent` and `vscode-insiders` declare
 `nativeOwnerHost`, so their rows observe the Cursor local plugin and the

@@ -249,6 +249,14 @@ function Get-DispatchTable {
                     Write-Refusal 3 "refused kilo: model '$kiloModel' is not a provider/model id in dispatchPolicy.kilo.allowedModels"
                 }
                 $args += @('--model', $kiloModel)
+                # --auto approves every action no rule denies, so an unattended run
+                # is refused unless policy names the agent whose rules deny
+                # outward and destructive actions.
+                $kiloAgent = [string]$kiloPolicy.agent
+                if ($kiloAgent -notmatch '^[A-Za-z0-9_-]+$') {
+                    Write-Refusal 3 "refused kilo: dispatchPolicy.kilo.agent must name the guarded agent for unattended runs"
+                }
+                $args += @('--agent', $kiloAgent)
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
             }
@@ -268,6 +276,14 @@ function Get-DispatchTable {
                     Write-Refusal 3 "refused mimo-code: model '$mimoModel' is not a provider/model id in dispatchPolicy.mimo-code.allowedModels"
                 }
                 $args += @('--model', $mimoModel)
+                # --yolo approves every action no rule denies, so an unattended run
+                # is refused unless policy names the agent whose rules deny
+                # outward and destructive actions.
+                $mimoAgent = [string]$mimoPolicy.agent
+                if ($mimoAgent -notmatch '^[A-Za-z0-9_-]+$') {
+                    Write-Refusal 3 "refused mimo-code: dispatchPolicy.mimo-code.agent must name the guarded agent for unattended runs"
+                }
+                $args += @('--agent', $mimoAgent)
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
             }

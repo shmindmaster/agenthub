@@ -886,7 +886,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "FD0972220E889F21C6490BB2F49C7E62484FEC728472AF7281F2BD952B134C6C",
+      "contentHash": "B2C9BA1305F7561A593542CE2DFA83E4A24CE9A55B515EE62F08EB5179C637DE",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1769,9 +1769,23 @@
           "components": [
             "skills"
           ]
+        },
+        {
+          "hostId": "kilo",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "mimo-code",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
         }
       ],
-      "hostMappingsNote": "The mapping names each host's packaging route. No host has the plugin installed until the plugin deployment runbook is run after merge. Cursor Agent reads the Cursor copy, and the desktop and IDE aliases share their primary host's configuration. Gemini CLI is unlicensed on this account, and skill loading on Kilo and MiMo Code is not established, so none of the three is mapped.",
+      "hostMappingsNote": "The mapping names each host's packaging route. No host has the plugin installed until the plugin deployment runbook is run after merge. Cursor Agent reads the Cursor copy, and the desktop and IDE aliases share their primary host's configuration. Kilo and MiMo Code get host-local skill links under ~/.kilocode/skills and ~/.mimocode/skills, which works because this package has no MCP server. Gemini CLI is not mapped: Google ended that client for individual accounts and Antigravity carries the Google route.",
       "dependencies": {
         "requires": [],
         "recommends": [

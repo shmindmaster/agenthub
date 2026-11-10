@@ -7,7 +7,7 @@ Contents: Account hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installer
 ## Account hosts
 
 - Cursor Agent, Amp, OpenCode: account login; confirm with the host's own status command before the first dispatch.
-- Gemini: the dispatcher passes `--approval-mode yolo`; the registered shim skips its own yolo default for that invocation and adds `--skip-trust`. Complete Google OAuth interactively with `gemini` before use. Temporary task files are admitted with `--include-directories`.
+- Gemini: the dispatcher passes `--approval-mode yolo`; the registered shim skips its own yolo default for that invocation and adds `--skip-trust`. Google ended this client for individual accounts, so it stays disabled; dispatch Google work to Antigravity. Temporary task files are admitted with `--include-directories`.
 - Copilot: runs on the `sh-pendoah` GitHub account; the dispatcher reads that token from gh's keyring into the child environment only.
 - Codex reads the task from stdin (`exec --skip-git-repo-check -`) and does not initialize Git. Antigravity gets `--print=<prompt>` after its permissions flag.
 - Long, quoted or multiline argument prompts go through a temporary UTF-8 file and a short pointer; the file is removed on completion.
@@ -18,10 +18,13 @@ Contents: Account hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installer
 
 ## New plan hosts
 
-Kilo and MiMo Code are installed inventory, but the initial default-model
-replies did not verify the exact governed commands or unattended permission
-restrictions. They remain refused until those gates are established during an
-authorized task. Do not turn `--auto` or `--yolo` into an implicit peer guard.
+Kilo and MiMo Code are dispatchable. `--auto` and `--yolo` approve every action
+no rule denies, so each runs only under the policy-named `peer` agent
+(`~/.config/kilo/agent/peer.md`, `~/.config/mimocode/agent/peer.md`), whose
+rules deny pushes, pull requests, publishing, cloud CLIs and credential reads.
+The dispatcher refuses either host when `dispatchPolicy.<host>.agent` is
+missing. If a peer file is absent on a machine, recreate it from the rules in
+`agentNote` before dispatching; do not run without it.
 
 - Kilo's configured provider/model is `mimo/mimo-v2.6-pro`. Its separately
   authorized Token Plan uses the existing `MIMO_API_KEY` reference, not an
