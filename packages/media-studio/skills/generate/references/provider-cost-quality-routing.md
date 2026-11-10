@@ -155,42 +155,47 @@ narrator across episodes. All these new Runware voice lanes remain
 frozen pending a governed, budgeted adapter and a voice audition.
 The existing approved Azure narration route remains the safe default.
 
-### Audience-specific composition and human context (critical)
+### Audience-specific composition and creative scope
 
-**Default edit for a 40–45 second ABACare film:** roughly 70–85%
-real, receipt-bound product screen and meaningful UI action; 10–20%
-non-claim context/problem footage or verified generic adult-office
-illustration (optional); the remainder hand-authored typography,
-diagram/sound/CTA. These percentages are **creative targets, not
-release thresholds**. Use generated visuals only when they make a
-specific story point clearer, e.g. a fictional adult coordinator
-recognizes a next-day scheduling risk before the real software demo.
-No invented clinic results, client identities or simulated patient scenes.
+**There is no universal ABACare screen-percentage quota.** For a
+verified product demo, authentic receipt-bound screens will usually
+be the core of its functional proof. For a product vision, fictional
+day-in-the-life film, educational dramatization, abstract animation,
+future clinic, children's story or conceptual documentary, the movie
+may be **100% generated**. Human scenes and synthetically composed
+interfaces are not automatically "filler"; they may carry the
+whole narrative. Realism, age and industry are artistic choices.
 
-For fictional adults, scenes should be identifiable as dramatization,
-not testimonials. Create a consistent adult actor/profile if a series
-requires it, with explicit provenance, no real person's likeness, no
-patient/child, no identifiable health information. Generated images,
-GIFs and footage are **supplemental to** rather than substitutes for
-actual ABACare product recordings and the stored product-claim evidence.
-Native 9:16, 4:5 and 16:9 framing should be authored for their
-respective delivery formats; do not crop away the product result.
+Photoreal synthetic people may include fictional adults, minors,
+patients, clinicians, workers or families; characters and interfaces
+may be fully legible. Do not blur or constrain them merely because
+they were generated. For a sequence, choose a consistent character
+design, visual bible, camera language, motion and world logic.
+A speculative product UI is an *envisioned design*, not evidence
+that the current shipping software performs that action; classify it
+as proposed/fictional and disclose the concept status naturally at
+film level when needed.
 
-**Selection scorecard for candidate comparison** (evaluate the same
-shot and resolution; do not invent benchmark numbers):
-1. Does it advance the exact storyboard beat and preserve truth?
-2. Is the subject/background/lighting consistent with prior shots?
-3. Is the output legible, anatomically plausible and brand-correct?
-4. Can the viewer follow it on mute without mistaking generated UI for real?
-5. Is first-pass acceptance high, and is generation latency acceptable?
-6. What is total *accepted* asset cost, including failed takes, inputs,
-   reference assets, upscales, retries, license, and editing time?
-7. Does the alternative add value over free Remotion/SVG/captured UI?
+A synthetic patient is not real PHI. If the source includes real
+patient/customer/employee data, require the proper permission and
+provider handling independently. Real-person likenesses require
+rights/consent. Character creativity is not carte blanche to make
+false documentary testimonials or real-world healthcare claims.
 
-**Do not override the selection scorecard based on discounts** or
-automatically spend the owner account's credits. Conditional/frozen
-provider lanes require the existing authorization and accounting.
-Keep promotion deadlines in dated research, not the permanent router.
+**Model comparison scorecard** (same task, quality and output size):
+1. Does the output fulfill the scene's real or envisioned creative goal?
+2. Is character, setting and invented-UI continuity convincing?
+3. Are typography, anatomy, interactions and framing legible and coherent?
+4. Does it maintain the chosen truth/representation status?
+5. What are actual rejection/retry rates and generation latency?
+6. What is total accepted asset cost, including input references,
+   upscales, retries, commercial rights and editing time?
+7. Does a free illustration, licensed source, model-generated scene
+   or current-product capture best serve *this* film's requirements?
+
+No automatic model spend. Respect the configured provider statuses,
+cost caps and permissions. Do not convert a temporary discount
+into a permanent default.
 
 ### Repeatable A/B test (requires explicit paid authorization)
 
