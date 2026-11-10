@@ -122,6 +122,7 @@ const loadJson = (p, label) => { try { return readJson(p); } catch (e) { errors.
 const screenplay = existsSync(screenplayPath) ? loadJson(screenplayPath, 'screenplay') : null;
 const timeline = existsSync(timelinePath) ? loadJson(timelinePath, 'timeline') : null;
 const job = existsSync(jobPath) ? loadJson(jobPath, 'job') : null;
+const flexibleCreativeForm = !!job?.creativeMode && job.creativeMode !== 'verified-demo';
 let lines = [];
 let source = null;
 // The locked timeline is what the voice actually speaks, so it is the text checked whenever it exists; the screenplay
@@ -191,7 +192,7 @@ const seenPool = [];      // every content word spoken so far
 for (const { sceneId, line } of lines) {
   const text = line.replace(/[’‘]/g, "'");
   const lineHits = [];
-  for (const [cls, list] of Object.entries(BANNED)) {
+  for (const [cls, list] of (flexibleCreativeForm ? [] : Object.entries(BANNED))) {
     for (const re of list) {
       re.lastIndex = 0;
       for (const m of text.matchAll(re)) lineHits.push({ index: m.index, sceneId, class: cls, match: m[0], line });
@@ -208,10 +209,10 @@ for (const { sceneId, line } of lines) {
     else hits.push({ sceneId, class: h.class, match: h.match, line });
   }
   const cw = contentWords(line);
-  const redundantWith = cw.length >= REDUNDANT_MIN_WORDS ? seen.findIndex((prev) => overlap(cw, prev) >= REDUNDANT_OVERLAP) : -1;
+  const redundantWith = !flexibleCreativeForm && cw.length >= REDUNDANT_MIN_WORDS ? seen.findIndex((prev) => overlap(cw, prev) >= REDUNDANT_OVERLAP) : -1;
   if (redundantWith >= 0) {
     hits.push({ sceneId, class: 'redundant', match: `${Math.round(overlap(cw, seen[redundantWith]) * 100)}% of its content words repeat ${lines[redundantWith].sceneId}`, line });
-  } else if (cw.length >= NO_NEW_INFO_MIN_WORDS && cw.every((w) => seenPool.some((p) => L.wordMatches(w, p)))) {
+  } else if (!flexibleCreativeForm && cw.length >= NO_NEW_INFO_MIN_WORDS && cw.every((w) => seenPool.some((p) => L.wordMatches(w, p)))) {
     const adjudication = scopeQualifications.get(`${sceneId}\u0000${line}`);
     const repeatedSentence = lines.slice(0, seen.length).some((previous) => phraseKey(previous.line) === phraseKey(line));
     if (adjudication && !repeatedSentence) scopeAdjudications.push({ ...adjudication, class: 'no-new-information', finding: 'lexical reuse; reviewed truthful scope qualification' });
@@ -233,12 +234,16 @@ const firstSentence = lines[0]?.line ?? '';
 const hookWords = L.textWords(firstSentence).length;
 const hookSeconds = round((hookWords / wpm) * 60);
 let hookOk = !!firstSentence && hookWords <= hookMaxWords;
-if (firstSentence && !hookOk) {
+if (!flexibleCreativeForm && firstSentence && !hookOk) {
   errors.push(`hook-5s: the first sentence is ${hookWords} words (${hookSeconds} s at ${wpm} wpm); the hook must fit ${HOOK_SECONDS} s, at most ${hookMaxWords} words: "${firstSentence}"`);
 }
 const promiseText = flat(screenplay?.viewerPromise) || flat(screenplay?.scenes?.[0]?.wiifm);
 let promiseNamed = null;
-if (!promiseText) {
+if (flexibleCreativeForm) {
+  // No arbitrary first-five-seconds spoken promise for a slow documentary,
+  // silent animation, non-linear drama, abstract film or future vision.
+  promiseNamed = null;
+} else if (!promiseText) {
   if (source) warnings.push('promise-5s skipped: no viewerPromise and no first-scene wiifm to check the opening against');
 } else {
   const windowWords = L.textWords(lines.map((l) => l.line).join(' ')).slice(0, hookMaxWords);
@@ -255,7 +260,7 @@ const storyboard = existsSync(storyboardPath) ? loadJson(storyboardPath, 'storyb
 if (storyboard?.syntheticDisclosure) inputs.storyboard = ref(storyboardPath);
 const disclosure = screenplay?.syntheticDisclosure ?? storyboard?.syntheticDisclosure ?? job?.syntheticDisclosure ?? null;
 const declaredSynthetic = job?.syntheticData === true || /synthetic/i.test(String(job?.dataClass ?? ''));
-const disclosureRequired = declaredSynthetic || !!disclosure;
+const disclosureRequired = (!flexibleCreativeForm && declaredSynthetic) || !!disclosure;
 const mode = disclosure?.mode ?? null;
 const disclosureText = flat(disclosure?.text);
 const disclosureOk = !disclosureRequired || ((mode === 'caption' || mode === 'end-card') && !!disclosureText);
@@ -304,6 +309,7 @@ const report = {
   warnings,
   inputs,
   thresholds: { wpm, hookSeconds: HOOK_SECONDS, hookMaxWords, redundantOverlap: REDUNDANT_OVERLAP, redundantMinContentWords: REDUNDANT_MIN_WORDS, noNewInformationMinContentWords: NO_NEW_INFO_MIN_WORDS },
+  creativeMode: job?.creativeMode || 'verified-demo',
   source,
   wpm,
   runtimeSeconds,
