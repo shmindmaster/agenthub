@@ -26,11 +26,12 @@ plan/model-specs/cache/<requestSha256>.json and appends one line per request to 
 covers the whole request (model, system prefix, schema, beat data, effort, max_tokens), so an identical request never pays
 twice. A refusal is recorded and never resent unchanged. Truncation or an invalid answer gets one automatic retry (with the
 validation error included); after that the layer is listed in plan/model-specs/fallback-needed.json and the exit is
-non-zero: a person writes a simpler kit visual. Never a silent fallback, and the same request is not paid for again unless
-the request changes or --retry-fallbacks is given. --max-usd is checked before every attempt. A --run holds
+non-zero: a person writes a simpler kit visual. Never a silent fallback. A request that was sent and failed is marked in
+its cache entry and not paid for again unless the request changes or --retry-fallbacks is given (a cap fallback that was
+never sent goes out once --max-usd allows it). --max-usd is checked before every attempt. A --run holds
 qa/generate-specs.lock (pid and start time inside) and refuses to start while another run holds it; it never deletes a
 lock it did not create. An approved moments layer (approvedBy set by a person) is never overwritten. A prompt estimated
-above 90,000 tokens is refused.
+above 90,000 tokens (2.5 characters per token) is refused before every attempt, the retry included.
 
 The key is read by NAME from ANTHROPIC_API_KEY_BACKUP (or --key-env) and passed explicitly in the request header. It is
 never printed or stored. ANTHROPIC_ADMIN_KEY only reports cost and is refused here; ANTHROPIC_API_KEY (the SDK default) is
@@ -82,7 +83,8 @@ MAX_TOKENS_FACTOR = 4          # adaptive thinking is on by default and counts t
 MAX_TOKENS_FLOOR = 1024
 MAX_TOKENS_CAP = 32000
 RETRY_MAX_TOKENS_CAP = 64000
-CHARS_PER_TOKEN = 3            # deliberately pessimistic; an estimate meant to sit above the real count, not a guarantee
+CHARS_PER_TOKEN = 2.5          # cautious: more tokens than English JSON usually needs; used by the quote and the 90K guard
+ECHO_MAX_CHARS = 2000          # how much of an invalid answer is echoed back in the one retry
 TEXT_LIMITS = {"overlays": 48, "captions": 84, "diagram": 160}   # ranges live in code, not in the model-facing schema
 
 SYSTEM_PREFIX = """You write layer data for a film that is built on a real screen recording, its real narration and its cue sheet.
@@ -382,8 +384,9 @@ def record_fallback(job, entries, cleared):
 
 def check_key_name(name):
     # Windows looks environment names up without regard to case, so anthropic_api_key would read ANTHROPIC_API_KEY.
-    if str(name).upper() in REFUSED_KEY_ENVS:
-        raise SpecsError(f"--key-env {name} is refused: {REFUSED_KEY_ENVS[str(name).upper()]}. Use {DEFAULT_KEY_ENV}.")
+    canonical_name = str(name).strip().upper()
+    if canonical_name in REFUSED_KEY_ENVS:
+        raise SpecsError(f"--key-env {name!r} is refused: {REFUSED_KEY_ENVS[canonical_name]}. Use {DEFAULT_KEY_ENV}.")
 
 
 def pid_alive(pid):
@@ -426,9 +429,22 @@ def acquire_lock(job, now):
             raise SpecsError(f"another generate_specs.py --run holds qa/{LOCK_NAME} (pid {pid}, started {started}) and is still running; wait for it to finish") from None
         raise SpecsError(f"qa/{LOCK_NAME} is held by pid {pid} (started {started}), which is not running, so the lock looks stale; "
                          f"check that no run is active, then delete qa/{LOCK_NAME} by hand. It is never removed automatically.") from None
+    owner = {"pid": os.getpid(), "startedAt": now}
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        fh.write(json.dumps({"pid": os.getpid(), "startedAt": now}))
-    return path
+        fh.write(json.dumps(owner))
+    return path, owner
+
+
+def release_lock(path, owner):
+    """Remove the lock only while it is still this run's (same pid and start time); anything else is left in place."""
+    try:
+        held = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        held = None
+    if held and held.get("pid") == owner["pid"] and held.get("startedAt") == owner["startedAt"]:
+        path.unlink(missing_ok=True)
+    elif path.exists():
+        print(f"WARNING: qa/{LOCK_NAME} no longer belongs to this run (pid {owner['pid']}); left in place", file=sys.stderr)
 
 
 def lane_status(policy):
@@ -459,7 +475,6 @@ def plan_work(job, args, policy):
         beats = [b for b in beats if b["beat"] in only]
     brief = load_json(job / "story" / "model-specs-brief.json", {}) or {}
     approved = approved_moments(job)
-    pending = {e.get("layer"): e for e in (load_json(specs_dir(job) / "fallback-needed.json", {}) or {}).get("entries", [])}
     rows, problems = [], []
     for layer in layers:
         body = build_body(layer, beats, brief, args.model, args.effort, approved if layer in VISUAL_LAYERS else None)
@@ -467,9 +482,9 @@ def plan_work(job, args, policy):
         cached = load_json(specs_dir(job) / "cache" / f"{key}.json")
         if cached and cached.get("refused"):
             problems.append(f"{layer}: this exact request was refused before (request {key[:12]}); change the input or the brief before sending it again")
-        fallback = pending.get(layer)
-        if fallback and fallback.get("requestSha256") == key and not getattr(args, "retry_fallbacks", False):
-            problems.append(f"{layer}: this exact request already needs a fallback ({fallback.get('reason')}, request {key[:12]}); change the request, or pass --retry-fallbacks to pay for it again")
+        if cached and cached.get("failed") and not getattr(args, "retry_fallbacks", False):
+            # A durable marker beside the cache, so removing the fallback entry or a different successful run never re-arms it.
+            problems.append(f"{layer}: this exact request was sent and failed before ({cached['failed']}, request {key[:12]}); it is not resent unless the request changes or --retry-fallbacks is given, which pays for it again")
         tokens = sum(prompt_tokens(body))
         if tokens > MAX_PROMPT_TOKENS:
             problems.append(f"{layer}: the prompt is about {tokens:,} tokens, over the 90,000-token limit this lane keeps (prompts above 100,000 tokens cost five times as much); send fewer beats with --beats or a shorter brief")
@@ -512,17 +527,23 @@ def send(job, row, beats, post, headers, budget, stamp):
     spent = 0.0
     prompt_sha = sha256_text(body_text(body))
     for attempt in (1, 2):
+        sent = attempt > 1
+        tokens = sum(prompt_tokens(body))
+        if tokens > MAX_PROMPT_TOKENS:
+            return None, {"reason": "too-long", "sent": sent, "detail": f"attempt {attempt} would send about {tokens:,} prompt tokens, over the 90,000-token limit; nothing more was sent"}, spent
         quote = request_quote(body)
         if budget["spent"] + quote > budget["cap"]:
-            return None, {"reason": "cap", "detail": f"attempt {attempt} (~${quote:.6f}) after ${budget['spent']:.6f} spent would pass --max-usd {budget['cap']}"}, spent
+            more = "attempt 1 was paid for, so resending it needs --retry-fallbacks" if sent else "it was never sent; a higher --max-usd sends it"
+            return None, {"reason": "cap", "sent": sent, "detail": f"attempt {attempt} (~${quote:.6f}) after ${budget['spent']:.6f} spent would pass --max-usd {budget['cap']}; {more}"}, spent
         try:
             resp = post(MESSAGES_URL, headers, body)
         except SpecsError as e:
+            budget["spent"] += quote          # the real cost is unknown and it may have been billed: charge the quote
             append_ledger(job, {"at": stamp, "kind": "spec", "lane": LANE, "layer": row["layer"], "model": row["model"], "effort": row["effort"],
                                 "attempt": attempt, "stopReason": None, "maxTokens": body["max_tokens"], "usd": None,
                                 "usdBasis": "unknown: the response could not be read; the request may have been billed", "usage": None,
                                 "error": str(e), "requestSha256": row["key"], "promptSha256": prompt_sha, "fileSha256": None})
-            return None, {"reason": "error", "detail": str(e)}, spent
+            return None, {"reason": "error", "sent": True, "detail": str(e)}, spent
         usage = resp.get("usage") or {}
         usd = actual_usd(usage)
         spent += usd
@@ -537,16 +558,16 @@ def send(job, row, beats, post, headers, budget, stamp):
             # HTTP 200 with stop_details; this model has no server-side refusal fallback, so nothing else was produced.
             append_ledger(job, line)
             write_json(specs_dir(job) / "cache" / f"{row['key']}.json", {"refused": True, "at": stamp, "layer": row["layer"], "stopDetails": resp.get("stop_details")})
-            return None, {"reason": "refusal", "detail": "the model refused; the request is not resent unchanged"}, spent
+            return None, {"reason": "refusal", "sent": True, "detail": "the model refused; the request is not resent unchanged"}, spent
         if stop == "max_tokens":
             append_ledger(job, line)
             if attempt == 1:
                 body = {**body, "max_tokens": min(RETRY_MAX_TOKENS_CAP, body["max_tokens"] * 2)}
                 continue
-            return None, {"reason": "truncated", "detail": f"truncated at max_tokens {body['max_tokens']} twice"}, spent
+            return None, {"reason": "truncated", "sent": True, "detail": f"truncated at max_tokens {body['max_tokens']} twice"}, spent
         if stop not in ("end_turn", "stop_sequence"):
             append_ledger(job, line)
-            return None, {"reason": "unexpected", "detail": f"stop_reason {stop}"}, spent
+            return None, {"reason": "unexpected", "sent": True, "detail": f"stop_reason {stop}"}, spent
         text = answer_text(resp)
         try:
             output = json.loads(text)
@@ -559,10 +580,11 @@ def send(job, row, beats, post, headers, budget, stamp):
             append_ledger(job, line)
             if attempt == 1:
                 feedback = "That answer failed validation:\n- " + "\n- ".join(errs[:20]) + "\nReturn the whole corrected object."
-                body = {**body, "messages": body["messages"] + [{"role": "assistant", "content": text or "{}"},
+                excerpt = (text or "{}") if len(text or "") <= ECHO_MAX_CHARS else text[:ECHO_MAX_CHARS] + " [answer truncated]"
+                body = {**body, "messages": body["messages"] + [{"role": "assistant", "content": excerpt},
                                                                  {"role": "user", "content": feedback}]}
                 continue
-            return None, {"reason": "invalid", "detail": "; ".join(errs[:5])}, spent
+            return None, {"reason": "invalid", "sent": True, "detail": "; ".join(errs[:5])}, spent
         # Paid result first: the ledger line, then the cache, then the layer file, so a crash never loses it silently.
         doc = layer_document(job, row, output, stamp)
         line["fileSha256"] = hashlib.sha256(dump_json(doc)).hexdigest()
@@ -570,7 +592,7 @@ def send(job, row, beats, post, headers, budget, stamp):
         write_json(specs_dir(job) / "cache" / f"{row['key']}.json", {"layer": row["layer"], "at": stamp, "output": output})
         write_json(specs_dir(job) / f"{row['layer']}.json", doc)
         return output, None, spent
-    return None, {"reason": "invalid", "detail": "no answer"}, spent
+    return None, {"reason": "invalid", "sent": True, "detail": "no answer"}, spent
 
 
 def run(job, args, env=None, post=None, now=None, policy=None):
@@ -580,11 +602,13 @@ def run(job, args, env=None, post=None, now=None, policy=None):
     if not args.run:
         return run_locked(job, args, env, post, stamp, policy)
     check_key_name(args.key_env)
-    lock = acquire_lock(job, stamp)
+    if not (job / "plan" / "cue-sheet.json").is_file():
+        raise SpecsError(f"{job}: plan/cue-sheet.json is missing; check the job path. Nothing was created.")
+    lock, owner = acquire_lock(job, stamp)
     try:
         return run_locked(job, args, env, post, stamp, policy)
     finally:
-        lock.unlink(missing_ok=True)
+        release_lock(lock, owner)
 
 
 def rebind(job, row, output, stamp):
@@ -608,7 +632,8 @@ def run_locked(job, args, env, post, stamp, policy):
     report = {"schema": SCHEMA, "job": str(job), "lane": LANE, "laneStatus": status, "mode": "run" if args.run else "quote",
               "key": {"env": args.key_env, "set": key_set},
               "requests": [{k: v for k, v in r.items() if k != "body"} for r in rows], "problems": problems,
-              "estimateUsd": total, "capUsd": args.max_usd, "generated": [], "fallbackNeeded": [], "actualUsd": 0.0}
+              "estimateUsd": total, "capUsd": args.max_usd, "generated": [], "fallbackNeeded": [], "actualUsd": 0.0,
+              "budgetChargedUsd": 0.0}
     if problems or not args.run:
         report["ok"] = not problems
         return report
@@ -637,6 +662,8 @@ def run_locked(job, args, env, post, stamp, policy):
         if fallback:
             entry = {"layer": row["layer"], "requestSha256": row["key"], "at": stamp, **fallback}
             fallbacks.append(entry)
+            if fallback["sent"] and fallback["reason"] != "refusal":
+                write_json(specs_dir(job) / "cache" / f"{row['key']}.json", {"failed": fallback["reason"], "at": stamp, "layer": row["layer"]})
             # Recorded as it happens, so a later crash cannot lose it.
             append_ledger(job, {"at": stamp, "kind": "fallback-needed", "lane": LANE, **{k: entry[k] for k in ("layer", "reason", "detail", "requestSha256")}})
             record_fallback(job, [entry], set())
@@ -645,6 +672,7 @@ def run_locked(job, args, env, post, stamp, policy):
                 record_fallback(job, [], {row["layer"]})
             report["generated"].append({"layer": row["layer"], "file": f"plan/model-specs/{row['layer']}.json",
                                         "items": len(output.get(LIST_FIELD[row["layer"]], []))})
+    report["budgetChargedUsd"] = round(budget["spent"], 10)
     report["ok"] = not fallbacks
     return report
 
@@ -683,7 +711,7 @@ def build_parser():
     ap.add_argument("--max-usd", type=float, default=0.5)
     ap.add_argument("--max-requests", type=int, default=12)
     ap.add_argument("--key-env", default=DEFAULT_KEY_ENV, help="NAME of the variable holding the key; never the value")
-    ap.add_argument("--retry-fallbacks", action="store_true", help="pay again for a request already listed in fallback-needed.json")
+    ap.add_argument("--retry-fallbacks", action="store_true", help="pay again for an identical request that was sent and failed before")
     ap.add_argument("--run", action="store_true", help="spend: send the requests that have not been paid for")
     ap.add_argument("--json", action="store_true")
     return ap

@@ -756,7 +756,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "76DA8C5071289167C63089F94FD2949881506DAF3293E6A650E3D509DFFF6732",
+      "contentHash": "B6D304386F8596E131D174CA9766FDFA0F8D6EDD360A7B43DB2DDE559B9F960F",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [

@@ -265,3 +265,11 @@ test('two diagrams at once, or a diagram under an overlay, fail', () => {
   const under = job('diagram-under-overlay', { layers: (l) => { l.overlays.output.overlays[1].region = 'bottom-left'; } });
   assert.ok(run(under).report.errors.some((e) => /diagram\[0\]/.test(e) && /overlays\[1\]/.test(e) && /overlap/.test(e)));
 });
+
+test('a result on screen without a box counts as missing geometry, so the item is partial', () => {
+  const root = job('result-no-box', { receipt: (r) => { r.clips.C1.expectations[0].targetBox = null; } });
+  const { code, out, report } = run(root);
+  assert.equal(code, 0, out);
+  assert.equal(item(report, 'overlays[1]').geometry, 'partial');
+  assert.ok(report.checks.notPerformed.some((n) => n.item === 'overlays[1]' && /Status reads Approved/.test(n.reason)));
+});

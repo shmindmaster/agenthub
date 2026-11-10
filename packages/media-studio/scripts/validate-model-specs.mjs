@@ -162,7 +162,9 @@ function timelineFor(clips) {
     }
     const res = beat.result;
     const exp = Number.isInteger(res?.receipt_expectation_index) ? rec?.expectations?.[res.receipt_expectation_index] : null;
-    if (map && Number.isFinite(res?.visible_at) && exp?.targetBox && Number.isFinite(exp.targetBox.w)) out.push({ t: res.visible_at, name: res.label, beat: beat.beat, clip, shapes: [{ what: 'the result', box: map.box(exp.targetBox) }], kind: 'result' });
+    // A result on screen with no box is missing geometry (the item becomes partial), never silently dropped.
+    if (Number.isFinite(res?.visible_at)) out.push({ t: res.visible_at, name: res.label, beat: beat.beat, clip, kind: 'result',
+      shapes: map && exp?.targetBox && Number.isFinite(exp.targetBox.w) ? [{ what: 'the result', box: map.box(exp.targetBox) }] : [] });
   }
   return out.sort((a, b) => a.t - b.t);
 }

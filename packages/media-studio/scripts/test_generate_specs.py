@@ -600,7 +600,7 @@ class ReviewFixes(unittest.TestCase):
     def test_key_names_are_refused_in_any_case(self):
         with tempfile.TemporaryDirectory() as d:
             job = make_job(d)
-            for name in ("anthropic_api_key", "Anthropic_Admin_Key"):
+            for name in ("anthropic_api_key", "Anthropic_Admin_Key", " ANTHROPIC_API_KEY", "ANTHROPIC_ADMIN_KEY "):
                 with self.assertRaises(g.SpecsError):
                     g.run(job, args(key_env=name), env={name: KEY}, post=FakeMessages())
 
@@ -730,6 +730,117 @@ class ReviewFixes(unittest.TestCase):
 
     def test_the_api_shape_is_no_longer_marked_unverified(self):
         self.assertNotIn("UNVERIFIED", Path(g.__file__).read_text(encoding="utf-8"))
+
+
+class SecondReviewFixes(unittest.TestCase):
+    """Fixes from the second review (of 500cf186)."""
+
+    def test_a_failed_request_stays_marked_after_the_person_removes_its_fallback_entry(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            cut = message('{"moments": [', stop="max_tokens")
+            fake = FakeMessages(cut, cut)
+            g.run(job, args(run=True), env=ENV, post=fake)
+            (job / "plan" / "model-specs" / "fallback-needed.json").unlink()   # a person wrote a kit visual
+            fake.responses = [cut, cut]
+            again = g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertEqual(len(fake.calls), 2)
+            self.assertFalse(again["ok"])
+            self.assertIn("--retry-fallbacks", " ".join(again["problems"]))
+
+    def test_a_successful_subset_run_does_not_unmark_the_failed_full_request(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            cut = message('{"moments": [', stop="max_tokens")
+            fake = FakeMessages(cut, cut)
+            g.run(job, args(run=True), env=ENV, post=fake)
+            g.run(job, args(run=True, beats="S01"), env=ENV, post=fake)
+            fake.responses = [cut, cut]
+            g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertEqual(len(fake.calls), 3)
+
+    def test_a_cap_fallback_was_never_sent_so_a_higher_cap_alone_sends_it(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            quote = g.run(job, args(layers="moments,captions"), env=ENV, post=FakeMessages())
+            costly = message({"moments": []}, usage={"input_tokens": 99_000, "output_tokens": 10})
+            fake = FakeMessages(costly)
+            first = g.run(job, args(run=True, layers="moments,captions", max_usd=quote["estimateUsd"] * 1.05), env=ENV, post=fake)
+            self.assertEqual(first["fallbackNeeded"][0]["reason"], "cap")
+            self.assertNotIn("pay for it again", first["fallbackNeeded"][0]["detail"])
+            again = g.run(job, args(run=True, layers="captions", max_usd=0.5), env=ENV, post=fake)
+            self.assertTrue(again["ok"], again)
+            self.assertEqual(len(fake.calls), 2)
+
+    def test_the_prompt_limit_holds_for_the_retry_and_the_echoed_answer_is_capped(self):
+        with tempfile.TemporaryDirectory() as d:
+            sheet = cue_sheet()
+            sheet["beats"][0]["expected_ui_state"] = "x" * 1000
+            job = make_job(d, sheet)
+            sent = []
+
+            def post(url, headers, body):
+                sent.append(body)
+                if len(sent) == 1:
+                    return message('{"moments": "' + "y" * 90_000 + '"}')
+                return empty_for(body)
+            g.run(job, args(run=True), env=ENV, post=post)
+            self.assertEqual(len(sent), 2)
+            echoed = sent[1]["messages"][1]["content"]
+            self.assertLessEqual(len(echoed), g.ECHO_MAX_CHARS + 40)
+            self.assertIn("truncated", echoed)
+        with tempfile.TemporaryDirectory() as d:
+            base = g.run(make_job(d), args(), env=ENV, post=FakeMessages())
+            del base
+            sheet = cue_sheet()
+            body = g.build_body("moments", sheet["beats"], {}, g.DEFAULT_MODEL, "low")
+            room = g.MAX_PROMPT_TOKENS - sum(g.prompt_tokens(body))
+            sheet["beats"][0]["expected_ui_state"] = "x" * int((room - 50) * g.CHARS_PER_TOKEN)
+            job = make_job(Path(d) / "near", sheet)
+            sent = []
+
+            def post2(url, headers, body):
+                sent.append(sum(g.prompt_tokens(body)))
+                return message({"moments": [{"beatId": "S01"}]})
+            rep = g.run(job, args(run=True), env=ENV, post=post2)
+            self.assertEqual(len(sent), 1, sent)
+            self.assertLessEqual(sent[0], g.MAX_PROMPT_TOKENS)
+            self.assertEqual(rep["fallbackNeeded"][0]["reason"], "too-long")
+
+    def test_an_unreadable_response_is_charged_its_quote(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+
+            def post(url, headers, body):
+                raise g.SpecsError("Messages API response could not be read: ValueError")
+            quote = g.run(job, args(), env=ENV, post=FakeMessages())["estimateUsd"]
+            rep = g.run(job, args(run=True), env=ENV, post=post)
+            self.assertEqual(rep["actualUsd"], 0.0)
+            self.assertAlmostEqual(rep["budgetChargedUsd"], quote, places=9)
+
+    def test_the_lock_is_released_only_when_this_run_still_owns_it(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            lock = job / "qa" / "generate-specs.lock"
+
+            def post(url, headers, body):
+                lock.unlink()
+                lock.write_text(json.dumps({"pid": 99999, "startedAt": "another run"}), encoding="utf-8")
+                return empty_for(body)
+            g.run(job, args(run=True), env=ENV, post=post)
+            self.assertTrue(lock.exists())
+            self.assertEqual(json.loads(lock.read_text(encoding="utf-8"))["startedAt"], "another run")
+
+    def test_a_mistyped_job_path_creates_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            missing = Path(d) / "film-typo"
+            with self.assertRaises(g.SpecsError):
+                g.run(missing, args(run=True), env=ENV, post=FakeMessages())
+            self.assertFalse(missing.exists())
+
+    def test_the_token_estimate_is_cautious(self):
+        self.assertEqual(g.CHARS_PER_TOKEN, 2.5)
+        self.assertEqual(g.estimate_tokens("x" * 25), 10)
 
 
 if __name__ == "__main__":
