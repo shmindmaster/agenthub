@@ -188,13 +188,13 @@ Report 'canonical contract has stable top-level ownership and authorities' (
     $contract.authorities.vmx -eq 'D:/VMs/macOS-Tahoe-AMD/macos.vmx'
 ) 'Top-level identity or sole-authority references drifted.'
 
-$expectedPrimary = @('scope.resolve','platform.expo-baseline','development.metro','build.android-apk','build.ios-simulator','device.android-emulator','device.ios-simulator','inspect.appium','test.unit-component','test.maestro','test.mobile-web','evidence.capture','guest.sync','health.check')
+$expectedPrimary = @('scope.resolve','platform.expo-baseline','development.metro','build.android-apk','build.ios-simulator','device.android-emulator','device.ios-simulator','inspect.appium','test.unit-component','test.maestro','test.mobile-web','evidence.capture','guest.sync','health.check','device.android-remote')
 $expectedSpecialty = @('build.ios-signed','device.physical','delivery.eas-store','integration.push','integration.deep-links','observability.mobile')
-$expectedResources = @('mobile-scope-registry','windows-mobile-toolchain','windows-hypervisor-platform','vmware-workstation','macos-guest-vm','macos-guest-known-good-backup','android-avd','ios-simulator')
+$expectedResources = @('mobile-scope-registry','windows-mobile-toolchain','windows-hypervisor-platform','vmware-workstation','macos-guest-vm','macos-guest-known-good-backup','android-avd','ios-simulator','linux-android-worker')
 $expectedServices = @('adb','metro','ssh','guest-appium','appium-mcp')
 $expectedOutOfScope = @('detox','maestro-mcp','wsl-android-e2e','android-studio','nested-virtualization','second-vm-nic','routine-cloud-builds','cloud-device-farms')
 
-Report 'primary agent surface exactly matches the approved 14 jobs' (Test-Sequence @($contract.agentSurface.primary.id) $expectedPrimary) "actual=$(@($contract.agentSurface.primary.id) -join ',')"
+Report 'primary agent surface exactly matches the approved 15 jobs' (Test-Sequence @($contract.agentSurface.primary.id) $expectedPrimary) "actual=$(@($contract.agentSurface.primary.id) -join ',')"
 Report 'specialty agent surface exactly matches the approved 6 gated jobs' (Test-Sequence @($contract.agentSurface.specialty.id) $expectedSpecialty) "actual=$(@($contract.agentSurface.specialty.id) -join ',')"
 Report 'resource catalog exactly covers the approved providers' (Test-Sequence @($contract.resources.id) $expectedResources) "actual=$(@($contract.resources.id) -join ',')"
 Report 'service catalog exactly covers five lifecycle services' (Test-Sequence @($contract.services.id) $expectedServices) "actual=$(@($contract.services.id) -join ',')"
@@ -220,7 +220,7 @@ foreach ($surface in @($contract.agentSurface.primary) + @($contract.agentSurfac
         $filePart = ([string]$ref -split '#')[0]
         if (-not (Test-Path -LiteralPath (Join-Path $repoRoot ($filePart -replace '/', '\')) -PathType Leaf)) { $badFileRefs += "$($surface.id):$ref" }
     }
-    if ($surface.command -and [string]$surface.command -notmatch '^mobile\.ps1\s+(catalog|scope|check|mcp|start|test|sync|metro|web)\b') { $badCommands += "$($surface.id):$($surface.command)" }
+    if ($surface.command -and [string]$surface.command -notmatch '^mobile\.ps1\s+(catalog|scope|check|mcp|start|test|sync|metro|web|remote)\b') { $badCommands += "$($surface.id):$($surface.command)" }
 }
 foreach ($resource in @($contract.resources)) {
     if ($resource.providerId -and [string]$resource.providerId -notin $resourceIds) { $badProviderRefs += "$($resource.id):$($resource.providerId)" }
@@ -249,6 +249,7 @@ $delegateMap = [ordered]@{
     sync = 'skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1'
     metro = 'skills\mobile-device-lab\scripts\Start-MobileLabMetro.ps1'
     web = 'skills\mobile-device-lab\scripts\Open-MobileLabWebTarget.ps1'
+    remote = 'skills\mobile-device-lab\scripts\Invoke-MobileLabRemote.ps1'
 }
 $badDelegates = @($delegateMap.GetEnumerator() | Where-Object {
     -not (Test-Path -LiteralPath (Join-Path $packageRoot $_.Value) -PathType Leaf) -or
@@ -263,7 +264,7 @@ Report 'public wrapper preserves named options for every delegated PowerShell ro
     $entrypointText -match 'function\s+Invoke-MobileDelegate' -and `
     $entrypointText -match '&\s+\$hostExe\s+-NoProfile\s+-File\s+\$Script\s+@Arguments' -and `
     $entrypointText -notmatch '&\s+\$script\s+@forward' -and `
-    $delegateInvocationCount -eq 6
+    $delegateInvocationCount -eq 7
 ) "delegateInvocationCount=$delegateInvocationCount"
 Report 'every service declares activation, invocation, and readiness metadata' (@($contract.services | Where-Object { -not $_.activationMode -or -not $_.invocation -or -not $_.readiness }).Count -eq 0) 'A lifecycle field is missing.'
 

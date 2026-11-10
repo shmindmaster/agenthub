@@ -12,7 +12,7 @@ description: Drives an Android emulator and iOS Simulator through Appium MCP to 
 3. Return the device, app identity, smoke verdict, evidence path, and cleanup result.
 4. If preflight, lease, or app identity fails, stop before driving the device and record the blocker.
 
-Android runs on this Windows host; iOS runs in the macOS VM, driven remotely. Both use the `appium-mobile` MCP server. Report results as "verified on simulator", never "on device".
+Android builds and Maestro runs go to the remote Linux worker by default (`mobile.ps1 remote run <productId>`); it keeps Gradle and the emulator off this PC. The Windows emulator remains for interactive Appium sessions. iOS runs in the macOS VM, driven remotely. Report results as "verified on simulator" or "verified on emulator", never "on device".
 
 ```powershell
 $mobile = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1"
@@ -51,5 +51,6 @@ Hold the lease around anything that mutates a shared emulator or Simulator: buil
 - `references/inner-loop.md`. Read when choosing rebuild vs reload, building or syncing the app under test, build speed, test tools, or web targets.
 - `references/lab-operations.md`. Read for the lease and idle-check commands, a guest that will not start, Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
 - `references/physical-iphone.md`. Read when driving the iPhone attached to Windows.
+- `references/remote-android.md`. Read when building, running or testing Android without loading this PC, registering another app, or letting the owner view the emulator.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

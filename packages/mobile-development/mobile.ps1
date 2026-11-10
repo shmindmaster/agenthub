@@ -33,6 +33,9 @@ mobile.ps1 test deep [-Json]
 mobile.ps1 sync <productId> -RepoPath <path> -GuestPath <path> [Sync-RepoToGuest options] [-Json]
 mobile.ps1 metro <productId> -ProjectPath <path> [Start-MobileLabMetro options] [-Json]
 mobile.ps1 web <productId> -ProjectPath <path> -Url <url> [Open-MobileLabWebTarget options] [-Json]
+mobile.ps1 remote status|start|stop|view [-Check] [-Json]
+mobile.ps1 remote run|sync|clean <productId> [-Profile <name>] [-Ref <commit>] [-WorkingTree] [-Json]
+mobile.ps1 remote provision [-HostName <address> -IdentityFile <key path>]
 
 Use `catalog` to discover the closed primary/specialty surface. Physical
 devices, signing, push, deep links, observability, EAS, and stores remain
@@ -320,6 +323,14 @@ try {
             $url = [Uri](Get-NamedTokenValue -Name '-Url')
             if (-not $url.IsAbsoluteUri) { throw '-Url must be absolute.' }
             $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Open-MobileLabWebTarget.ps1'
+            $forward = @($tokens)
+            if ($Json) { $forward += '-Json' }
+            Invoke-MobileDelegate -Script $script -Arguments $forward
+        }
+        'remote' {
+            # The remote Linux Android worker. Scope and the per-app lab profile
+            # are resolved inside the delegate from the registries.
+            $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Invoke-MobileLabRemote.ps1'
             $forward = @($tokens)
             if ($Json) { $forward += '-Json' }
             Invoke-MobileDelegate -Script $script -Arguments $forward
