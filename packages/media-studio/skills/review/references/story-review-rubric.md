@@ -75,6 +75,44 @@ mandatory: the outcome must remain comprehensible without narration, aided
 by screen evidence and available captions. Never manufacture a product
 capability or an outcome to close a narrative gap.
 
+## Creative experience check: evidence on the finished movie
+
+On the encoded candidate, the reviewer must explicitly assess the following
+with timestamps (do not accept `hookPlan`, `narrative` or `storyRole` labels
+as proof that the movie actually works):
+
+1. **Layered first seconds:** does the actual first frame say who this is for
+   or what is at stake, and do the visible/native words and narration work
+   together without contradicting or merely repeating one another?
+   Does the opening earn attention *without* hiding essential context?
+2. **Human relevance:** can a viewer recognize the actor's task, source of
+   friction and plausible emotional cost? Is the emotional change credible
+   and proportionate, not manufactured fear or a miracle claim?
+3. **Progression:** does each middle beat introduce a genuine action, obstacle,
+   insight, state change or result? Would swapping these beats change
+   the logic? If not, the cut is likely an unconnected feature montage.
+4. **Open-loop closure:** identify the first viewer question and cite where
+   the film answers it. An unexplained cliffhanger or sudden exit is a
+   failure, not a retention tactic.
+5. **Value and evidence:** does the film deliver its original useful insight
+   before asking for a click? Is the named product shown causing a
+   source-verified response/result, with human review and limits for AI?
+6. **Editing for meaning:** do transitions, text, music and silence follow
+   meaning and preserve legibility? Do **not** fail an otherwise clear
+   film for lacking arbitrary cuts or a surprise every three seconds.
+7. **Audience/channel fit:** judge mobile legibility and muted viewing for
+   feed cuts; demand a complete usable workflow for product demos. Avoid
+   treating identical edits at different aspect ratios as automatically
+   audience-appropriate.
+
+A missing scenario, unexplained solution, unearned claim, incoherent
+mechanism, missing payoff or missing viewer value is a **block** finding
+even if the structural lint and numerical craft score pass. A pattern
+interrupt is never mandatory; making the plot confusing in order to
+increase curiosity is itself a defect. The reviewer should state what
+a first-time viewer would actually understand by 0:03, 0:10, the
+solution introduction and the payoff, citing frames.
+
 ## Judge the encoded file
 
 The story-experience review reads the picture. Cite a timestamp or frame for every finding and ignore generator self-assessment. Required inputs: encoded candidate, contact sheet, screenplay, storyboard, visual bible, captions, `job.json`, `qa/narration-check.json`, and `qa/pointer-path.json` with screen beats. A `product-screencast` also needs a passing `validate-product-picture.mjs`. A missing or mutable input is `status: MALFORMED_INPUT`, never a pass.
