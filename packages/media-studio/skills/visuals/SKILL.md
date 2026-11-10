@@ -26,6 +26,7 @@ py -3 scripts/route_media.py diagram motion
 ## Build
 
 - **Kit visuals, including chart, svg and lottie:** `references/kit-visuals.md`.
+- **Many diagrams, staged explainers or animated words, or pictures drawn from a codebase, transcript or recording:** a small model writes the specs and the kit draws them, around real capture and never in place of it. `references/model-written-specs.md`.
 - **Design rules, anti-slop list, sizes for video:** `references/visual-bible.md`.
 - **Lottie:** `references/lottie.md`.
 - **NotebookLM as a research and draft lane:** `references/notebooklm.md`.

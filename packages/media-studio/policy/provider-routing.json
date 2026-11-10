@@ -1,6 +1,6 @@
 {
   "schema": "media-studio/provider-routing/1",
-  "revision": "provider-routing-2026-11-06-6",
+  "revision": "provider-routing-2026-11-10-1",
   "asOf": "2026-11-06",
   "basis": "Balances and plan states are as recorded in the Linear credits ledger on 2026-11-04 to 2026-11-06. Not re-verified in any vendor console. Re-check a balance before a paid run that depends on it.",
   "rules": [
@@ -44,6 +44,16 @@
       "identity": "any",
       "how": "Author inline SVG with the visual-explainer rules (skills/visuals/references/visual-bible.md) and use the svg visual kind.",
       "notes": "One claim per figure. Every arrow gets a verb."
+    },
+    {
+      "id": "claude-haiku-specs",
+      "needs": ["diagram-spec", "scene-spec", "caption-chunks", "animated-words", "explainer", "architecture", "mechanism", "codebase-explainer", "recording-annotations"],
+      "status": "conditional",
+      "mode": "api",
+      "cost": "Anthropic API, Claude Haiku 5.5: $0.10 input and $0.50 output per million tokens (half in batch), read from the Claude Platform docs on 2026-11-10. A 2,000-token spec is about a tenth of a cent. Account balance not checked.",
+      "identity": "any",
+      "how": "The model writes text only and the kit draws it: Mermaid or D2 source, a staged scene spec, caption chunks by word index, callout data. The producing agent sets the style and three to five worked examples first; Haiku fills them for many beats; kit code does layout and timing. Structured outputs with a JSON schema, validated before any render. Key ANTHROPIC_API_KEY_BACKUP by name, passed explicitly. Read skills/visuals/references/model-written-specs.md.",
+      "notes": "Conditional: worth it when there are many pictures or a large context (a codebase, a transcript, a screen recording). A handful of pictures is quicker written straight into the kit, which stays the free default. It adds to captured screens, narration and the cue sheet and never replaces them: use it to set the scene, explain, label and summarise around real capture. Never a picture lane on its own: no photographs or illustrations, and no product claim or product screen (those come from capture). ANTHROPIC_ADMIN_KEY is never used for generation, only to report what a run cost. Send synthetic or redacted frames only."
     },
     {
       "id": "playwright-recast",

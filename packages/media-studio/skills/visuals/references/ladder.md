@@ -24,6 +24,14 @@ Read this when choosing the picture for a beat. Start at the first row that matc
 4. **Is it a real thing you cannot draw?** A captured screen if it is a product; a generated still if it is a scene. Priced and shown first.
 5. **Is the beat only a label?** Then it has no picture. Rewrite the beat.
 
+## Who writes the spec
+
+The rows above say what to show. Who writes each kit spec is a separate choice.
+
+- **A few pictures:** write them straight into the kit.
+- **Many pictures, or pictures drawn from a large context** (a codebase, a transcript, a screen recording): design the style and a few worked examples once, then let a small text model fill the rest as specs the kit renders. Read `model-written-specs.md`. `py -3 scripts/route_media.py diagram-spec` says whether the lane is usable.
+- This adds to captured screens, narration and the cue sheet; it never replaces them. The model never draws and never supplies a product claim. A captured screen is still captured.
+
 ## Mix
 
 Aim for a run that alternates: a picture, a number, a mechanism, a state change. Three text cards in a row is a failure. `check_visual_variety.py` enforces it.

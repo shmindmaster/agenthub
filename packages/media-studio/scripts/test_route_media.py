@@ -36,6 +36,21 @@ class Routing(unittest.TestCase):
         self.assertEqual(frozen, {"higgsfield", "runway", "google-vertex", "runware-pvideo-avatar"})
         self.assertEqual(r.main(["video-generation"]), 0)
 
+    def test_model_written_specs_are_offered_for_spec_needs_and_never_ahead_of_the_free_kit(self):
+        lane = next(l for l in POLICY["lanes"] if l["id"] == "claude-haiku-specs")
+        self.assertEqual((lane["status"], r.mode_of(lane)), ("conditional", "api"))
+        self.assertEqual(r.route(POLICY, ["diagram-spec"])[0]["id"], "claude-haiku-specs")
+        for need in ("explainer", "architecture", "mechanism"):
+            lanes = r.route(POLICY, [need])
+            self.assertIn("claude-haiku-specs", [l["id"] for l in lanes], need)
+            self.assertTrue(r.is_free(lanes[0]), need)
+        self.assertNotIn("claude-haiku-specs", [l["id"] for l in r.route(POLICY, ["diagram"])])
+        self.assertIn("ANTHROPIC_API_KEY_BACKUP by name", lane["how"])
+        self.assertIn("ANTHROPIC_ADMIN_KEY is never used for generation", lane["notes"])
+        self.assertIn("model-written-specs.md", lane["how"])
+        self.assertIn("never replaces them", lane["notes"])
+        self.assertNotIn("claude-haiku-specs", [l["id"] for l in r.route(POLICY, ["screen", "product", "screencast"])])
+
     def test_every_lane_has_a_known_mode_and_the_catalog_lists_every_lane(self):
         for l in POLICY["lanes"]:
             self.assertIn(r.mode_of(l), r.MODES, l["id"])
