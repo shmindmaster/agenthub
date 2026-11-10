@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/creative-storyboard.json",
+  "title": "Media Studio creative storyboard (fiction/vision/documentary/abstract)",
+  "description": "Flexible alternative to the verified-product storyboard. No mandatory hook, hero, six-beat arc or current UI proof.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "beats"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "creativeMode": {
+      "enum": [
+        "hybrid",
+        "future-vision",
+        "concept-film",
+        "fictional-story",
+        "explainer",
+        "documentary",
+        "educational",
+        "abstract"
+      ]
+    },
+    "audience": {
+      "type": "string"
+    },
+    "conceptDisclosure": {
+      "type": "string"
+    },
+    "beats": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "picture"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "description": "Free-form dramatic purpose (hook, atmosphere, inquiry, juxtaposition, discovery, payoff, etc.)."
+          },
+          "picture": {
+            "type": "string",
+            "minLength": 3,
+            "description": "What viewers actually see, including realistic people/children/patients and fully invented readable UI."
+          },
+          "narration": {
+            "type": "string"
+          },
+          "dialogue": {
+            "type": "string"
+          },
+          "visualMode": {
+            "enum": [
+              "screen",
+              "generated-image",
+              "generated-video",
+              "animation",
+              "diagram",
+              "talking-head",
+              "3d",
+              "stock",
+              "live-action",
+              "abstract",
+              "none"
+            ]
+          },
+          "truthStatus": {
+            "enum": [
+              "verified",
+              "proposed",
+              "fictional",
+              "illustrative"
+            ]
+          },
+          "sceneSource": {
+            "type": "string",
+            "description": "Optional source/evidence receipt for verified facts or configured generated asset."
+          },
+          "durationSeconds": {
+            "type": "number",
+            "minimum": 0.1
+          },
+          "camera": {
+            "type": "string"
+          },
+          "sound": {
+            "type": "string"
+          },
+          "transition": {
+            "type": "string"
+          },
+          "characterContinuity": {
+            "type": "string"
+          },
+          "visualBrief": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
