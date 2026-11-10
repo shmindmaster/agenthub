@@ -673,7 +673,7 @@
       "id": "kilo",
       "name": "Kilo CLI",
       "version": "7.8.27",
-      "versionObserved": "2026-11-09: read-only `kilo --version` printed 7.8.27 (npm global shim). `kilo run` default-model smoke 2026-11-10 returned READY (agent code, model mimo-v2.6-pro); the governed dispatch command was not exercised.",
+      "versionObserved": "2026-11-09: read-only `kilo --version` printed 7.8.27 (npm global shim). `kilo run` default-model smoke 2026-11-10 returned READY (agent code, model mimo-v2.6-pro); the governed dispatch command returned READY under agent peer the same day.",
       "executable": "{userHome}/AppData/Roaming/npm/kilo.cmd",
       "nativePaths": {
         "config": "{userHome}/.config/kilo/config.json",
@@ -693,15 +693,15 @@
         "acp"
       ],
       "status": "active",
-      "notes": "Installed on 2026-11-09, OpenCode-compatible fork. Promoted to active 2026-11-10 on owner direction; dispatch stays disabled until the governed command and unattended permission restrictions are verified. `kilo` and `kilocode` are two shims for the same install (identical version and help). Plugins install with `kilo plugin <npm>` (npm array in config); plugin format is PLUGIN.yaml. Loads ~/.agents/skills natively by default, which the plugin-only policy keeps empty. No Kilo VS Code extension installed. Subagents and rules support are not established.",
+      "notes": "Installed on 2026-11-09, OpenCode-compatible fork. Promoted to active 2026-11-10 on owner direction; dispatch enabled the same day after the governed command and the guarded peer agent were verified (fleet-profile dispatchPolicy.kilo). `kilo` and `kilocode` are two shims for the same install (identical version and help). Plugins install with `kilo plugin <npm>` (npm array in config); plugin format is PLUGIN.yaml. Loads ~/.agents/skills natively by default, which the plugin-only policy keeps empty. No Kilo VS Code extension installed. Subagents and rules support are not established.",
       "acpNote": "`kilo acp` and `kilo serve` are help-discovered entry points (2026-11-10); ACP protocol initialization, session handoff and authenticated inference are not established.",
-      "headlessDispatchNote": "`kilo run --auto --format json --dir <cwd> <prompt>` appears in `kilo run --help` (2026-11-10) but was not exercised; the verified smoke ran the bare default `kilo run`. Auth is the MiMo provider through MIMO_API_KEY in config.json -- a separately authorized Token Plan key, not an account login."
+      "headlessDispatchNote": "`kilo run --auto --format json --dir <cwd> --model mimo/mimo-v2.6-pro --agent peer <prompt>` verified 2026-11-10: returned READY, exit 0, and a denied command stayed denied under --auto. Auth is the MiMo provider through MIMO_API_KEY in config.json -- a separately authorized Token Plan key, not an account login."
     },
     {
       "id": "mimo-code",
       "name": "MiMo Code CLI",
       "version": "0.1.16",
-      "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. `mimo run` default-model smoke 2026-11-10 returned READY (agent build, model mimo-v2.6-pro); the governed dispatch command was not exercised.",
+      "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. `mimo run` default-model smoke 2026-11-10 returned READY (agent build, model mimo-v2.6-pro); the governed dispatch command returned READY under agent peer the same day.",
       "executable": "{userHome}/AppData/Roaming/npm/mimo.cmd",
       "nativePaths": {
         "config": "{userHome}/.config/mimocode/config.json",
@@ -721,9 +721,9 @@
         "acp"
       ],
       "status": "active",
-      "notes": "Installed on 2026-11-09, OpenCode fork. Promoted to active 2026-11-10 on owner direction; dispatch stays disabled until the governed command and unattended permission restrictions are verified. Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories; ~/.agents/skills stays empty under the plugin-only policy. Subagents and rules support are not established.",
+      "notes": "Installed on 2026-11-09, OpenCode fork. Promoted to active 2026-11-10 on owner direction; dispatch enabled the same day after the governed command and the guarded peer agent were verified (fleet-profile dispatchPolicy.mimo-code). Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories; ~/.agents/skills stays empty under the plugin-only policy. Subagents and rules support are not established.",
       "acpNote": "`mimo acp` and `mimo serve` are help-discovered entry points (2026-11-10); ACP protocol initialization, session handoff and authenticated inference are not established.",
-      "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> <prompt>` appears in `mimo run --help` (2026-11-10) but was not exercised; the verified smoke ran the bare default `mimo run`. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan key credential (a stored key, not an OAuth account login)."
+      "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> --model xiaomi-token-plan-sgp/mimo-v2.6-pro --agent peer <prompt>` verified 2026-11-10: returned READY, exit 0, and a denied command stayed denied under --yolo. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan key credential (a stored key, not an OAuth account login)."
     }
   ],
   "inactiveAgents": [

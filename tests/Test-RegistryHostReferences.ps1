@@ -252,7 +252,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # an inactive host, or one with an uncaptured response; those stay out and are pinned
     # below, because "nothing should be disabled" is not a budget authorization.
     $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin',
-        'amp', 'antigravity', 'copilot', 'claude')
+        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -391,6 +391,9 @@ function Test-LiveHostAuthenticationMetadata {
             [string]$planPolicy.model -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$' -or
             @($planPolicy.allowedModels | ForEach-Object { [string]$_ }) -notcontains $planPolicy.model)) {
             $violations.Add("$id dispatch must keep a provider/model default inside allowedModels")
+        }
+        if ($planPolicy.enabled -eq $true -and [string]$planPolicy.agent -notmatch '^[A-Za-z0-9_-]+$') {
+            $violations.Add("$id dispatch is enabled without a guarded agent; its auto-approve flag approves every action no rule denies")
         }
     }
     foreach ($violation in @(Get-CodexDispatchEvidenceViolations $profile.dispatchPolicy.codex)) { $violations.Add($violation) }

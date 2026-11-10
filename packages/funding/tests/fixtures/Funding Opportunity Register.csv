@@ -1,0 +1,4 @@
+id,program,organizer,category,cash_or_noncash,amount,deadline,deadline_status,best_product,runner_up,eligibility,fit_score,priority_score,band,decision,decision_date,reopen_if,official_url,verified
+EX-GRANT-01,Example Innovation Grant,Example Agency,grant,cash,"Up to $100,000",2027-03-01,confirmed,Product A,Product B,eligible,62,66,P3,apply,2026-01-10,,https://example.org/grant,2026-01-10
+EX-ACC-02,Example Accelerator,Example Ventures,equity,cash,$50000 for 5%,Rolling,open,Product A,,eligible,,,,skip,2026-01-10,A paying customer exists,https://example.com/accelerator,2026-01-10
+EX-PRIZE-03,Example Pitch Prize,Example Foundation,competition,cash,$10000,Expected spring 2027,expected,Product B,,unverified (entity type),48,50,P4,monitor,2025-10-01,,https://example.net/prize,2025-10-01

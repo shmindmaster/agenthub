@@ -228,6 +228,21 @@
       "interface": {
         "displayName": "AH-Coding-Agent-Dispatch"
       }
+    },
+    {
+      "name": "ah-funding",
+      "source": {
+        "source": "local",
+        "path": "./packages/funding"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "interface": {
+        "displayName": "AH-Funding"
+      }
     }
   ]
 }

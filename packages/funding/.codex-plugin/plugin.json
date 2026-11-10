@@ -1,0 +1,36 @@
+{
+  "name": "ah-funding",
+  "version": "1.0.0",
+  "description": "Find, verify, rank and plan funding opportunities for a product portfolio, keeping one register of decisions.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "funding",
+    "grants",
+    "sbir",
+    "accelerators",
+    "competitions",
+    "credits"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AH-Funding",
+    "shortDescription": "Find, verify and rank funding for your products.",
+    "longDescription": "Find, verify, rank and plan funding opportunities for a product portfolio, keeping one register of decisions.",
+    "developerName": "MahumTech",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Find funding that fits my products and rank it."
+    ],
+    "brandColor": "#2E5F9D",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
+  }
+}

@@ -154,6 +154,36 @@ class ClerkFleetTests(unittest.TestCase):
                              {"clerk": {"url": fleet.URL}})
             self.assertFalse((target / "skills/clerk-testing/mcp.json").exists())
 
+    def test_skills_only_hosts_get_official_skills_and_no_mcp_entry(self):
+        policy = json.loads((ROOT / "registry/mcps.json").read_text(encoding="utf-8-sig"))["activationPolicy"]["pluginOnly"]["hosts"]
+        for host, root in fleet.SKILLS_ONLY.items():
+            self.assertNotIn("clerk", policy[host], host)
+            with tempfile.TemporaryDirectory() as temp, patch.object(fleet, "run") as run:
+                home = Path(temp) / "home"
+                upstream = Path(temp) / "upstream"
+                skill = upstream / "skills" / "clerk"
+                skill.mkdir(parents=True)
+                (skill / "SKILL.md").write_text("---\nname: clerk\n---\n")
+                fleet.bridge(host, upstream, home)
+                run.assert_not_called()
+                self.assertTrue((home / root / "skills/clerk/SKILL.md").is_file())
+                self.assertEqual([p.name for p in (home / root).iterdir()], ["skills"])
+
+    @unittest.skipUnless(fleet.os.name == "nt", "Windows fleet audit")
+    def test_audit_accepts_a_missing_remote_only_under_the_skills_only_policy(self):
+        policy = {"remotePolicy": "skills only: pluginOnly permits no direct MCP entry on this host"}
+        good = {"kilo": {"matchingOfficialSkills": 20, "remoteConfigured": None, **policy}}
+        missing = {"kilo": {"matchingOfficialSkills": 0, "remoteConfigured": None, **policy}}
+        other = {"warp": {"matchingOfficialSkills": 20, "remoteConfigured": None}}
+        for rows, code in ((good, 0), (missing, 1), (other, 1)):
+            with contextlib.ExitStack() as stack:
+                stack.enter_context(patch("sys.argv", ["installer", "--audit"]))
+                stack.enter_context(patch.object(fleet, "audit", return_value=rows))
+                stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+                with self.assertRaises(SystemExit) as result:
+                    fleet.main()
+                self.assertEqual(result.exception.code, code, rows)
+
     def test_every_active_surface_has_a_rollout_route(self):
         agents = json.loads((ROOT / "registry/agents.json").read_text(encoding="utf-8-sig"))
         supported = set(fleet.NATIVE) | fleet.BRIDGES | set(fleet.ALIASES) | set(fleet.BLOCKED)
@@ -161,23 +191,26 @@ class ClerkFleetTests(unittest.TestCase):
         # A blocked disposition must carry a reason and never claim a
         # supported surface.
         self.assertTrue(all(fleet.BLOCKED.values()))
+        self.assertTrue(set(fleet.SKILLS_ONLY) <= fleet.BRIDGES)
         self.assertFalse(set(fleet.BLOCKED) & (set(fleet.NATIVE) | fleet.BRIDGES | set(fleet.ALIASES)))
 
     def test_blocked_host_plan_reports_reason_without_side_effects(self):
-        with patch("sys.argv", ["installer", "--host", "kilo"]), patch.object(fleet, "run") as run:
+        with patch.dict(fleet.BLOCKED, {"pending-host": "discovery-required: no approved route"}), \
+                patch("sys.argv", ["installer", "--host", "pending-host"]), patch.object(fleet, "run") as run:
             with contextlib.redirect_stdout(io.StringIO()) as output:
                 fleet.main()
             plan = json.loads(output.getvalue())
             self.assertEqual(plan["hosts"], [])
-            self.assertIn("discovery-required", plan["blocked"]["kilo"])
+            self.assertIn("discovery-required", plan["blocked"]["pending-host"])
             run.assert_not_called()
 
     def test_blocked_host_apply_refuses_before_any_runtime_write(self):
-        for host in ("kilo", "mimo-code"):
+        for host in ("pending-host", "other-pending-host"):
             with tempfile.TemporaryDirectory() as temp:
                 runtime = Path(temp) / "runtime"
                 argv = ["installer", "--host", host, "--apply", "--runtime", str(runtime)]
-                with patch("sys.argv", argv), patch.object(fleet, "run") as run:
+                with patch.dict(fleet.BLOCKED, {host: "discovery-required: no approved route"}), \
+                        patch("sys.argv", argv), patch.object(fleet, "run") as run:
                     with contextlib.redirect_stdout(io.StringIO()) as output:
                         with self.assertRaises(SystemExit) as caught:
                             fleet.main()

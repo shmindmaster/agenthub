@@ -886,7 +886,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "FD0972220E889F21C6490BB2F49C7E62484FEC728472AF7281F2BD952B134C6C",
+      "contentHash": "B2C9BA1305F7561A593542CE2DFA83E4A24CE9A55B515EE62F08EB5179C637DE",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1669,6 +1669,132 @@
       },
       "notes": "Thin wrapper around Descript's hosted MCP server for hosts whose catalog has no Descript plugin (owner direction 2026-11-04).",
       "kind": "provider",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "funding",
+      "owner": "packages/funding",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/funding",
+      "managedSkillNames": [
+        "scout",
+        "prioritize",
+        "plan-application"
+      ],
+      "contentHash": "CE7CFC2DC941B271836DDFAC22BD39615F03B433AE360F0ECF20395A37389E45",
+      "hashBasis": "packages/funding",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "native-extension-junction",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "kilo",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "mimo-code",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        }
+      ],
+      "hostMappingsNote": "The mapping names each host's packaging route. No host has the plugin installed until the plugin deployment runbook is run after merge. Cursor Agent reads the Cursor copy, and the desktop and IDE aliases share their primary host's configuration. Kilo and MiMo Code get host-local skill links under ~/.kilocode/skills and ~/.mimocode/skills, which works because this package has no MCP server. Gemini CLI is not mapped: Google ended that client for individual accounts and Antigravity carries the Google route.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [
+          "exa"
+        ],
+        "optional": []
+      },
+      "notes": "Funding research through three skills (scout, prioritize, plan-application) and a dependency-free Node reader for the register (skills/scout/scripts/register.mjs); no MCP server and no hook, so nothing connects until a skill is used. Discovery calls keyless public APIs (Grants.gov, NIH RePORTER, NSF Award Search, USAspending, Devpost) with plain HTTP, so every host gets the same result without a search plugin. The skills read and update the records folder named by FUNDING_RECORDS_ROOT and create no second store. Paid databases and sources that need a new account are owner decisions and are not wired. A single gateway MCP server is a recorded future option, not built.",
+      "kind": "workflow",
       "maturity": "beta",
       "provenance": "agenthub-owned"
     }
