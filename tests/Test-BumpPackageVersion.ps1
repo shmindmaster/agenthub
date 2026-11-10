@@ -14,8 +14,7 @@ $manifests = @(
     '.claude-plugin/plugin.json',
     '.codex-plugin/plugin.json',
     '.cursor-plugin/plugin.json',
-    '.antigravity-plugin/plugin.json',
-    'gemini-extension.json'
+    '.antigravity-plugin/plugin.json'
 )
 
 $passed = 0
@@ -42,8 +41,8 @@ try {
     $stale = @($manifests | Where-Object { (Read-Version (Join-Path $package $_)) -ne '1.0.1' })
     Report 'the bump moves every versioned manifest' ($stale.Count -eq 0) ($stale -join ', ')
 
-    $gemini = Get-Content -LiteralPath (Join-Path $package 'gemini-extension.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-    Report 'the bump keeps the other fields of an extension manifest' ($gemini.description -eq 'synthetic') 'description lost'
+    $projection = Get-Content -LiteralPath (Join-Path $package '.antigravity-plugin/plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    Report 'the bump keeps the other fields of a host manifest' ($projection.description -eq 'synthetic') 'description lost'
 
     $checked = 0
     $skew = [Collections.Generic.List[string]]::new()

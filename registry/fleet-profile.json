@@ -13,7 +13,6 @@
     "devin",
     "factory",
     "windsurf",
-    "gemini",
     "copilot",
     "grok",
     "antigravity",
@@ -24,11 +23,6 @@
     "mimo-code"
   ],
   "launchDefaults": {
-    "gemini": [
-      "--approval-mode",
-      "yolo",
-      "--skip-trust"
-    ],
     "copilot": [
       "--allow-all",
       "--autopilot",
@@ -103,17 +97,6 @@
           ]
         },
         "note": "registry/host-capability-contracts.json (deleted, fc1bda6) additionally listed a '--auto' flag not present here. Retained host-autonomy-mappings.json's value as the source of record; flagged for owner review since opencode is active."
-      },
-      {
-        "hostId": "gemini",
-        "defaultProfile": "repo-autonomous",
-        "launchDefaultsKey": "gemini",
-        "native": {
-          "acpFlags": [
-            "--acp"
-          ],
-          "sandbox": false
-        }
       },
       {
         "hostId": "copilot",
@@ -345,14 +328,6 @@
       "authMode": "account",
       "loginCommand": "cursor-agent login"
     },
-    "gemini": {
-      "authMode": "account",
-      "loginCommand": "gemini",
-      "settingsFile": "~/.gemini/settings.json",
-      "settingsPath": "security.auth.selectedType",
-      "settingsValue": "oauth-personal",
-      "loginPending": true
-    },
     "grok": {
       "authMode": "account",
       "loginCommand": "grok login --oauth"
@@ -443,12 +418,6 @@
       "verifiedOn": "2026-11-10",
       "knownIssue": "RESOLVED 2026-11-10 by the smoke above. History: 2026-10-21 smoke captured no response text; ChatGPT-plan quota was exhausted at 22:00 CT."
     },
-    "gemini": {
-      "enabled": false,
-      "reason": "2026-11-10 headless probe with the stored Google sign-in: with GOOGLE_CLOUD_PROJECT set the CLI answered 'You do not have a valid license of this product'; with it unset the CLI answered 'This client is no longer supported for Gemini Code Assist for individuals. To continue using Gemini, please migrate to the Antigravity suite of products'. Gemini CLI 0.67.0 therefore has no usable account route here. Antigravity CLI is the Google route: `agy --dangerously-skip-permissions --print=<prompt>` returned READY, exit 0, the same day.",
-      "ownerAction": "None that sign-in can fix. Use the antigravity host. Decide separately whether to retire the gemini host row or to authorize paid API-key use for it.",
-      "verifiedOn": "2026-11-10"
-    },
     "warp": {
       "enabled": true,
       "scope": "local-only: oz agent run with --no-snapshot. run-cloud, cloud environments, schedules, handoff and Factories stay prohibited.",
@@ -503,7 +472,7 @@
       "allowedModelsNote": "devin models list --format json 2026-10-26 (CLI 3000.11.205, Devin Pro): swe-2-medium, swe-2-high and swe-2-max are cost_tier Free. adaptive is $0.5/$0.1/$2 per 1M input/cached/output; fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium is Med cost, $2/$0.1/$10 for the lead with a Free sidekick. Paid usage draws the Pro daily/weekly quota, then on-demand credits (docs.devin.ai/admin/billing/self-serve). The former default swe-2-medium-lightning is High cost ($1/$0.1/$5) and is excluded, as are Opus/Fable/GPT Fusion leads.",
       "permissionMode": "dangerous",
       "permissionNote": "Owner direction 2026-10-26: leave permissions as they are (user env DEVIN_PERMISSION_MODE=dangerous, launchDefaults.devin). Devin's OS sandbox and the autonomous mode that needs it are not supported on Windows (docs.devin.ai/cli/sandbox), and no deny rules are configured, so nothing blocks git push or gh calls from a dispatched run. Run Devin only in C:\\wt worktrees and review before integrating.",
-      "reason": "2026-11-10 (later the same day): `devin auth status` reports 'Logged in (via Devin)' with DEVIN_API_KEY, DEVIN_API_TOKEN, DEVIN_SERVICE_USER_TOKEN and DEVIN_ORG_ID removed from the environment, and the governed command (`devin --permission-mode dangerous --respect-workspace-trust false -p --prompt-file <file> --model swe-2-medium`) returned READY, exit 0, with those variables removed. An earlier check that day had read 'Not logged in'; the owner had signed in through the account login since. A DEVIN_API_KEY still exists in the User environment and is never used: the dispatcher strips it so the stored account login authenticates. Earlier evidence: 2026-10-26 account login verified (devin auth status: Devin Pro, team membership approved). The dispatcher strips DEVIN_API_KEY/DEVIN_API_TOKEN/DEVIN_ORG_ID so the stored login authenticates. read_config_from already disables claude, cursor, windsurf, copilot, opencode and zed imports (only agents_standard), so AgentHub-deployed MCP, skills and AGENTS.md are the only shared capability source. Headless dispatch smoke 2026-10-26 (swe-2-medium, Free): the first dispatcher run at 20:30 CT exited 0 after 17 s with empty stdout and stderr; three later runs (two direct, one through the dispatcher at about 20:32) returned READY, the dispatcher run in 4 s. Treat exit 0 without the expected output or report file as a failed run.",
+      "reason": "2026-11-10 (later the same day): `devin auth status` reports 'Logged in (via Devin)' with DEVIN_API_KEY, DEVIN_API_TOKEN, DEVIN_SERVICE_USER_TOKEN and DEVIN_ORG_ID removed from the environment, and the governed command (`devin --permission-mode dangerous --respect-workspace-trust false -p --prompt-file <file> --model swe-2-medium`) returned READY, exit 0, with those variables removed. An earlier check that day had read 'Not logged in'; the owner had signed in through the account login since. The owner removed DEVIN_API_KEY and WARP_API_KEY from the User environment on 2026-11-10; the dispatcher still strips the Devin key variables so a reintroduced key cannot override the stored account login. Earlier evidence: 2026-10-26 account login verified (devin auth status: Devin Pro, team membership approved). The dispatcher strips DEVIN_API_KEY/DEVIN_API_TOKEN/DEVIN_ORG_ID so the stored login authenticates. read_config_from already disables claude, cursor, windsurf, copilot, opencode and zed imports (only agents_standard), so AgentHub-deployed MCP, skills and AGENTS.md are the only shared capability source. Headless dispatch smoke 2026-10-26 (swe-2-medium, Free): the first dispatcher run at 20:30 CT exited 0 after 17 s with empty stdout and stderr; three later runs (two direct, one through the dispatcher at about 20:32) returned READY, the dispatcher run in 4 s. Treat exit 0 without the expected output or report file as a failed run.",
       "verifiedOn": "2026-11-10",
       "ownerDirection": "2026-10-26: owner asked in the Claude session to make Devin a first-class execution peer (local and cloud), with no cloud budget for this batch, local tasks run one at a time once free RAM allows, and permissions left as they are. This supersedes, for Devin local runs only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
@@ -917,28 +886,6 @@
         },
         "verifiedOn": "2026-09-02",
         "verification": "Live Grok CLI session has Playwright MCP and no in-app headed browser. Playwright is the fleet fallback on this host."
-      },
-      {
-        "hostId": "gemini",
-        "surfaceId": "gemini-cli",
-        "capabilities": {
-          "browser.isolated": false,
-          "browser.authenticated": false,
-          "computer.gui": null,
-          "mobile.android.local": null,
-          "mobile.ios.simulated": null
-        },
-        "capabilityEvidence": {
-          "browser.isolated": "geminicli.com/docs/reference/tools/: default Web tools are google_web_search and web_fetch only. Optional browser_agent (geminicli.com/docs/core/subagents/) is disabled by default and launches bundled chrome-devtools-mcp against Chrome 144+, which this fleet retired on 2026-08-19. It is not a first-party headed browser and is not enabled here.",
-          "browser.authenticated": "The default CLI has no first-party browser. Optional browser_agent persistent mode would be a chrome-devtools profile, not an established fleet capability."
-        },
-        "capabilityNotEstablished": {
-          "computer.gui": "First-party native desktop control was not probed on Gemini CLI.",
-          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
-          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
-        },
-        "verifiedOn": "2026-09-02",
-        "verification": "Official Gemini CLI tools: web_fetch and google_web_search, no headed browser. Optional browser_agent is retired chrome-devtools-mcp and stays disabled. Playwright MCP is retired from the fleet, so Gemini has no Playwright provider here and its browser capability is not established."
       },
       {
         "hostId": "devin",

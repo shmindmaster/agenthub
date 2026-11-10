@@ -29,7 +29,7 @@ NATIVE = {
     "grok": [["grok", "plugin", "install", "{upstream}", "--trust"]],
     "antigravity": [["agy", "plugin", "install", "{upstream}"]],
 }
-BRIDGES = {"cursor", "cline", "amp", "opencode", "warp", "gemini", "vscode-insiders", "kilo", "mimo-code"}
+BRIDGES = {"cursor", "cline", "amp", "opencode", "warp", "vscode-insiders", "kilo", "mimo-code"}
 # Plugin-only hosts whose pluginOnly allowlist in registry/mcps.json permits no direct
 # MCP entry. They get the official skills in their native skill root and no Clerk server.
 SKILLS_ONLY = {"kilo": ".kilocode", "mimo-code": ".mimocode"}
@@ -98,7 +98,7 @@ def audit(upstream, home):
         elif host in patterns:
             roots = list(home.glob(patterns[host]))
         else:
-            roots = [home / {"opencode": ".config/opencode", "warp": ".warp", "gemini": ".gemini",
+            roots = [home / {"opencode": ".config/opencode", "warp": ".warp",
                              **SKILLS_ONLY}[host]]
         matches = []
         for root in roots:
@@ -116,7 +116,6 @@ def audit(upstream, home):
             "cline": home / ".cline/data/settings/cline_mcp_settings.json",
             "opencode": home / ".config/opencode/opencode.json",
             "warp": home / ".warp/.mcp.json",
-            "gemini": home / ".gemini/settings.json",
             "vscode-insiders": Path(os.environ["APPDATA"]) / "Code - Insiders/User/mcp.json",
         }.get(host)
         if direct and direct.is_file():
@@ -230,38 +229,25 @@ def bridge(host, upstream, home):
         # own documented MCP config (the Clerk CLI's vscode target is stable VS Code).
         merge_mcp(Path(os.environ["APPDATA"]) / "Code - Insiders/User/mcp.json", "servers", disabled=False)
     else:
-        folders = {"opencode": ".config/opencode/skills", "warp": ".warp/skills", "gemini": ".gemini/skills",
+        folders = {"opencode": ".config/opencode/skills", "warp": ".warp/skills",
                    **{name: root + "/skills" for name, root in SKILLS_ONLY.items()}}
         for skill in (upstream / "skills").iterdir():
             if (skill / "SKILL.md").exists():
                 copy_official(skill, home / folders[host] / skill.name)
         if host in SKILLS_ONLY:
             return
-        if host == "gemini":
-            # The CLI installer declines undetected/unlicensed Gemini clients.
-            # Settings can still be prepared; this does not establish a usable CLI.
-            path = home / ".gemini/settings.json"
-            data = json.loads(path.read_text(encoding="utf-8-sig")) if path.exists() else {}
-            entry = data.setdefault("mcpServers", {}).setdefault("clerk", {})
-            if (entry.get("httpUrl", URL) != URL or entry.get("url", URL) != URL
-                    or any(k in entry for k in ("command", "args"))):
-                raise RuntimeError("Conflicting Gemini Clerk endpoint")
-            entry.update({"httpUrl": URL})
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-        else:
-            run(["clerk", "mcp", "install", "--client", host, "--json"])
-            if host == "opencode":
-                # Official CLI uses APPDATA on Windows; this fleet also retains
-                # the documented XDG path. Converge only Clerk in both files.
-                paths = [home / ".config/opencode/opencode.json"]
-                if os.name == "nt":
-                    paths.append(Path(os.environ["APPDATA"]) / "opencode/opencode.json")
-                for path in paths:
-                    merge_mcp(path, "mcp", "remote", disabled=False)
-                    data = json.loads(path.read_text(encoding="utf-8"))
-                    data["mcp"]["clerk"].setdefault("enabled", False)
-                    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        run(["clerk", "mcp", "install", "--client", host, "--json"])
+        if host == "opencode":
+            # Official CLI uses APPDATA on Windows; this fleet also retains
+            # the documented XDG path. Converge only Clerk in both files.
+            paths = [home / ".config/opencode/opencode.json"]
+            if os.name == "nt":
+                paths.append(Path(os.environ["APPDATA"]) / "opencode/opencode.json")
+            for path in paths:
+                merge_mcp(path, "mcp", "remote", disabled=False)
+                data = json.loads(path.read_text(encoding="utf-8"))
+                data["mcp"]["clerk"].setdefault("enabled", False)
+                path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 def main():

@@ -182,19 +182,6 @@ function Get-DispatchTable {
                 @{ Args = @('--print', '--output-format', 'text', '--mode', 'ask', '--trust', '--workspace', $Work, $PromptText); Stdin = $null; PromptFile = $null }
             }
         }
-        'gemini' = @{
-            Mode = 'argument'
-            Build = {
-                param($PromptText, $Work, $File)
-                # The registered shim applies its yolo default only when this
-                # explicit approval-mode flag is absent.
-                $args = @('--approval-mode', 'yolo', '--prompt', $PromptText)
-                # Gemini restricts read_file to workspace roots. A pointer
-                # prompt must explicitly admit its runtime prompt directory.
-                if ($File) { $args += @('--include-directories', (Split-Path -Parent $File)) }
-                @{ Args = $args; Stdin = $null; PromptFile = $null }
-            }
-        }
         'grok' = @{
             Mode = 'file'
             Build = {
@@ -699,7 +686,6 @@ $accountScrub = @{
     'codex'        = @('OPENAI_API_KEY')
     'cline'        = @('CLINE_API_KEY', 'OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY')
     'devin'        = @('DEVIN_API_KEY', 'DEVIN_API_TOKEN', 'DEVIN_SERVICE_USER_TOKEN', 'DEVIN_ORG_ID')
-    'gemini'       = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'warp'         = @('WARP_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'grok'         = @('XAI_API_KEY')

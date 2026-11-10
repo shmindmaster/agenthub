@@ -37,7 +37,7 @@ PACKAGES = {
 SKIP_TOP = {
     ".claude-plugin", ".codex-plugin", ".cursor-plugin", ".antigravity-plugin", ".pytest_cache",
     "tests", "agents", ".mcp.json", "mcp.json", "mcp.codex.json", "mcp_config.json",
-    "plugin.json", "gemini-extension.json",
+    "plugin.json",
     "logs", "dist", "coverage",
 }
 # Amp expands ${VAR}. It sends ${env:VAR} literally (loopback test, 2026-11-04).

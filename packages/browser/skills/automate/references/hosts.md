@@ -10,7 +10,6 @@ For general browsing, use the host's own tool when the row says native. Otherwis
 | VS Code (Copilot chat) | Integrated browser tools | Native |
 | Antigravity | Browser Subagent | Native |
 | Factory Droid | droid-control, which runs agent-browser | Native |
-| Gemini CLI | `browser_agent`, off by default | Use the client |
 | Grok CLI | none | Use the client |
 | Copilot CLI | screen-level computer use only | Use the client |
 | Amp | none | Use the client |

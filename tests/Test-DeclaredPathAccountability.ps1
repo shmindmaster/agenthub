@@ -10,9 +10,10 @@ This test materializes them against the invoking profile, then requires a
 note for every declared path that is absent on this machine.
 
 That ambiguity has already cost this repo once, in the opposite direction.
-gemini.agentsDirNote records it: an earlier edit changed that path "on the
+The agentsDirNote of the gemini entry (retired 2026-11-10; antigravity's
+agentsDirNote records the same lesson) recorded it: an earlier edit changed that path "on the
 mistaken basis that a directory absent from disk must be wrong", and had to
-be reverted the same day. Gemini CLI does document ~/.gemini/agents; the
+be reverted the same day. Gemini CLI did document ~/.gemini/agents; the
 directory was simply empty because AgentHub's own subagents ship as
 extension bundles instead. Absence proved nothing, and treating it as
 evidence broke a correct entry.

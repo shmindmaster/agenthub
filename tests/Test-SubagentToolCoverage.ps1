@@ -15,8 +15,8 @@ tools is a console line that scrolls away.
 
 Measured on 2026-08-05 before this file existed: three
 roles of the plugin now named product -- experience-auditor,
-experience-designer, experience-validator -- deployed to BOTH gemini and
-antigravity with WebSearch and WebFetch stripped. An auditor whose declared
+experience-designer, experience-validator -- deployed to BOTH gemini (retired
+2026-11-10) and antigravity with WebSearch and WebFetch stripped. An auditor whose declared
 job is gathering external evidence arrived on two hosts with no way to
 reach the web, and `Sync-Subagents -Audit` reported current=72 drift=0.
 
@@ -28,8 +28,8 @@ value that costs a sentence to assert, and nothing to leave honest.
 
 WHAT THIS FILE DELIBERATELY DOES NOT DO
 
-It does not require that a host be able to map every tool. Neither Gemini
-nor Antigravity is obliged to have a web-search tool, and AGENTS.md forbids
+It does not require that a host be able to map every tool. Antigravity is
+not obliged to have a web-search tool, and AGENTS.md forbids
 inventing an unverified host-native tool name to close the gap. The
 requirement is only that the gap be written down where an auditor can find
 it, rather than inferred from a console note nobody kept.

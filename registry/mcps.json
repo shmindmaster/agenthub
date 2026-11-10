@@ -105,7 +105,7 @@
     }
   },
   "hostInventory": {
-    "recordedOn": "2026-11-09",
+    "recordedOn": "2026-11-10",
     "hosts": [
       "amp",
       "antigravity",
@@ -117,7 +117,6 @@
       "cursor",
       "devin",
       "factory",
-      "gemini",
       "grok",
       "kilo",
       "kiro",
@@ -133,7 +132,7 @@
       "qoder",
       "windsurf"
     ],
-    "note": "The machine-scoped host inventory was established by bounded filesystem and package-manager surveys, most recently reconciled 2026-10-21. The field named 'hosts' is validated against agents.json; notInstalled records only checked-and-absent entries. Historical probes are not whole-disk absence claims and must not be read as current fleet-wide evidence. Recheck the documented locations before changing host eligibility."
+    "note": "The machine-scoped host inventory was established by bounded filesystem and package-manager surveys, most recently reconciled 2026-10-21. The field named 'hosts' is validated against agents.json; notInstalled records only checked-and-absent entries. Historical probes are not whole-disk absence claims and must not be read as current fleet-wide evidence. Recheck the documented locations before changing host eligibility. 2026-11-10: gemini (Gemini CLI) was retired and removed from hosts. Its npm package @google/gemini-cli was still installed when the host was retired, so it is not listed under notInstalled; add it there only after the uninstall is checked."
   },
   "protocolRevisionNote": "Every server carries a `protocol` block establishing which MCP revision it actually speaks, probed rather than assumed. This exists because `transport: \"http\"` stopped being informative once the 2026-07-28 revision made the core stateless: a 2025-11-25 server and a 2026-07-28 server are both 'http' and are not wire-compatible. `revision: null` is a legitimate recorded state meaning 'could not be established', and it must say why -- it is never a placeholder for an unchecked entry. Known revisions are listed in knownProtocolRevisions.",
   "knownProtocolRevisions": [
@@ -346,7 +345,6 @@
         "copilot",
         "cursor",
         "devin",
-        "gemini",
         "grok",
         "opencode",
         "warp"
@@ -401,7 +399,6 @@
         "codex",
         "opencode",
         "opencode-desktop",
-        "gemini",
         "copilot",
         "antigravity",
         "antigravity-desktop",

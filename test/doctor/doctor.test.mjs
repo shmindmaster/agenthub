@@ -90,7 +90,6 @@ test('reads the MCP config of every host from its native location and format', a
     codex: () => h.write('.codex/config.toml', '[mcp_servers.shared]\ncommand = "node"\nargs = ["server.js"]\n'),
     grok: () => h.write('.grok/config.toml', '[mcp_servers.shared]\ncommand = "node"\nargs = ["server.js"]\n'),
     opencode: () => h.write('.config/opencode/opencode.json', { mcp: { shared: { type: 'local', command: ['node', 'server.js'] } } }),
-    gemini: () => h.write('.gemini/settings.json', { mcpServers: { shared: stdio } }),
     copilot: () => h.write('.copilot/mcp-config.json', { mcpServers: { shared: stdio } }),
     antigravity: () => h.write('.gemini/config/mcp_config.json', { mcpServers: { shared: stdio } }),
     warp: () => h.write('.warp/.mcp.json', { mcpServers: { shared: stdio } }),
@@ -217,13 +216,13 @@ test('reports a server defined differently across hosts, but treats an mcp-remot
     },
   });
   h.write('.codex/config.toml', '[mcp_servers.db]\ncommand = "node"\nargs = ["db.js"]\n\n[mcp_servers.docs]\nurl = "https://docs.example.test/mcp"\n');
-  h.write('.gemini/settings.json', { mcpServers: {} });
+  h.write('.gemini/config/mcp_config.json', { mcpServers: {} });
   const report = await runDoctor({ home: h.home, env: h.env(), registry: false });
   const differs = find(report, 'DRIFT_SERVER_DIFFERS');
   assert.deepEqual(differs.map((f) => f.subject), ['db']);
   assert.deepEqual(differs[0].hosts.sort(), ['claude', 'codex']);
   const partial = find(report, 'DRIFT_SERVER_PARTIAL');
-  assert.ok(partial.some((f) => f.subject === 'db' && f.hosts.includes('gemini')));
+  assert.ok(partial.some((f) => f.subject === 'db' && f.hosts.includes('antigravity')));
 });
 
 test('skills: lists them, flags missing frontmatter and shadowed copies, and merges shared-library findings', async () => {

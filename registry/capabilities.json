@@ -493,10 +493,6 @@
           "deploymentStatus": "preprovisioned-loose-skills"
         },
         {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "copilot",
           "deploymentStatus": "native-local-plugin"
         },
@@ -583,10 +579,6 @@
           "hostId": "amp",
           "deploymentStatus": "native-local-plugin",
           "deploymentStatusNote": "Skills only: Install-AmpPlugins.py leaves local servers out, because Amp has no per-server off switch."
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
         },
         {
           "hostId": "copilot",
@@ -711,14 +703,6 @@
           ]
         },
         {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills",
-            "catalog"
-          ]
-        },
-        {
           "hostId": "grok",
           "deploymentStatus": "managed-loose-skills",
           "components": [
@@ -814,10 +798,6 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "copilot",
           "deploymentStatus": "managed-loose-skills"
         },
@@ -886,7 +866,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "B2C9BA1305F7561A593542CE2DFA83E4A24CE9A55B515EE62F08EB5179C637DE",
+      "contentHash": "EA603984CB5344A9AAB2891FED4E758506796DCE70A8A4AEFD50AAE0D51A2A9A",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -908,10 +888,6 @@
         },
         {
           "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "gemini",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1016,7 +992,7 @@
       "managedSkillNames": [
         "assemblyai"
       ],
-      "contentHash": "54D4E2034FB70F0B2D221E665334D64D944E2A34274FB298909C981ED3076FE0",
+      "contentHash": "74BB30A9B1C0D7AF0A28DDEC271D5FBDAA61D1D1952DB3342CBA888AB7862FB8",
       "hashBasis": "packages/assemblyai",
       "status": "active-canonical",
       "hostMappings": [
@@ -1319,7 +1295,7 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "4E349F8486AC55F79B49A3FDBE706DAB2E1D35A8554D82E75F28E41E1A16277A",
+      "contentHash": "A3CFA6321837D9ADF2F60E2C22E8D6DB830077C1A1183EDDF552ECB4BA0DEEE3",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [
@@ -1424,7 +1400,7 @@
       "kind": "tool",
       "maturity": "beta",
       "provenance": "agenthub-owned",
-      "hostMappingsNote": "Deploy the same routing skill on local agent hosts, including those with native browser tools. OpenCode and Warp consume the skill through scripts/Install-WarpSkills.ps1. Gemini requires an enabled dispatch route and account access before rollout there. BrowserSkill requires access to the desktop user's local daemon and selected browser profile."
+      "hostMappingsNote": "Deploy the same routing skill on local agent hosts, including those with native browser tools. OpenCode and Warp consume the skill through scripts/Install-WarpSkills.ps1. BrowserSkill requires access to the desktop user's local daemon and selected browser profile."
     },
     {
       "id": "context7",
@@ -1434,7 +1410,7 @@
       "managedSkillNames": [
         "docs"
       ],
-      "contentHash": "D24E4E132FD4FF0D1EE7801A369C4365BE953AACA09FEC1066395F34FDEE03E9",
+      "contentHash": "24927481175B6B478E242762D31153CE1EBEEC36F5F90636A1E1950BA701C2FD",
       "hashBasis": "packages/context7",
       "status": "active-canonical",
       "hostMappings": [
@@ -1461,7 +1437,7 @@
       "managedSkillNames": [
         "issues"
       ],
-      "contentHash": "8634874CE0E6EB04898744E1AE0DEB2F00B5E2AF3D06C9B9A0578D9FC09A77DA",
+      "contentHash": "FC8278E6AEE9C47168C54FF7569E50B9815CDE1149B7CE19742C09B6FA223058",
       "hashBasis": "packages/linear",
       "status": "active-canonical",
       "hostMappings": [
@@ -1488,7 +1464,7 @@
       "managedSkillNames": [
         "cloud"
       ],
-      "contentHash": "BC5A6AA1B624D70B26C0644CB3197758361BE2764544EDE962233E5B9EB9BA5B",
+      "contentHash": "C04CE96EFE4B1EB1386CB239C90F6E40DD460E9EC00956691B157659B243E65E",
       "hashBasis": "packages/aws",
       "status": "active-canonical",
       "hostMappings": [
@@ -1555,7 +1531,7 @@
       "managedSkillNames": [
         "workspace"
       ],
-      "contentHash": "F0D27A8F0BCF023858BC9445A6CC2F10CF23F421EE89EA481FEE582DE41C5081",
+      "contentHash": "B2E8C8D306135220D202AE6D8BAF20A9A6BC1250BCA1DE78AB6E8168AECFACA3",
       "hashBasis": "packages/notion",
       "status": "active-canonical",
       "hostMappings": [
@@ -1590,7 +1566,7 @@
       "managedSkillNames": [
         "research"
       ],
-      "contentHash": "C6715CB50999FE1B2CEBBC6CD7212325B804912D5C4BBFBE34D5886B62C56BC2",
+      "contentHash": "22505E9203FB438C59AD40A899D01EF59B46502ADC7FB08DDB34CD17E338CB53",
       "hashBasis": "packages/exa",
       "status": "active-canonical",
       "hostMappings": [
@@ -1625,7 +1601,7 @@
       "managedSkillNames": [
         "edit"
       ],
-      "contentHash": "CF787A277F69251287C0775857FE208D6CF5B0B055796BEA63CE9DDC7B35776F",
+      "contentHash": "76963D89A7F5A7D411A4FB712568FF7AE694A12D615A954967F05ED8DD61D0BA",
       "hashBasis": "packages/descript",
       "status": "active-canonical",
       "hostMappings": [
@@ -1785,7 +1761,7 @@
           ]
         }
       ],
-      "hostMappingsNote": "The mapping names each host's packaging route. No host has the plugin installed until the plugin deployment runbook is run after merge. Cursor Agent reads the Cursor copy, and the desktop and IDE aliases share their primary host's configuration. Kilo and MiMo Code get host-local skill links under ~/.kilocode/skills and ~/.mimocode/skills, which works because this package has no MCP server. Gemini CLI is not mapped: Google ended that client for individual accounts and Antigravity carries the Google route.",
+      "hostMappingsNote": "The mapping names each host's packaging route. No host has the plugin installed until the plugin deployment runbook is run after merge. Cursor Agent reads the Cursor copy, and the desktop and IDE aliases share their primary host's configuration. Kilo and MiMo Code get host-local skill links under ~/.kilocode/skills and ~/.mimocode/skills, which works because this package has no MCP server. Gemini CLI was retired from the fleet on 2026-11-10; Antigravity carries the Google route.",
       "dependencies": {
         "requires": [],
         "recommends": [

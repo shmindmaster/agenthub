@@ -22,7 +22,7 @@ Devin; Grok and Antigravity install the official upstream checkout. Cursor
 loads a real local plugin folder. Cline CLI loads the official plugin through
 its package loader; its separate extension needs its documented direct entry.
 Amp gets a runtime registration adapter pointing at upstream skills, with the
-remote MCP attached only to the routing skill. OpenCode, Warp and Gemini get
+remote MCP attached only to the routing skill. OpenCode and Warp get
 host-local upstream skills and a direct remote entry; VS Code Insiders uses the
 Copilot plugin catalog and its own MCP configuration. Desktop/CLI aliases share
 their primary host configuration. Nothing is copied into `~/.agents/skills`.
@@ -36,8 +36,7 @@ The upstream checkout and timestamped commit receipt live under
 `%LOCALAPPDATA%/AgentHub/clerk`, outside Git. The installer never starts a coding
 session or signs in. A completed installation means files/host management
 commands succeeded, not that a fresh host session discovered tools, that OAuth
-finished, or that a licensed host can execute. Gemini's known unavailable
-license is still a runtime blocker after preparing settings. Restart/reload
+finished, or that a licensed host can execute. Restart/reload
 each affected host and verify its skill list and MCP tool discovery before
 claiming parity. Keep remote servers off by default where the host supports
 it, using the switches in [plugin-deployment.md](plugin-deployment.md). Do not

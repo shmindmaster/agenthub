@@ -181,7 +181,7 @@ if ((@($claudeMarketplace.plugins.name | Sort-Object) -join '|') -ne ($catalogNa
 }
 foreach ($hostId in @(
   'claude','codex','cursor','factory','vscode-insiders','copilot',
-  'antigravity','devin','grok','opencode','amp','cline','gemini',
+  'antigravity','devin','grok','opencode','amp','cline',
   'warp','windsurf'
 )) {
   if ($hostId -notin @($pluginFormats.hosts.id)) { Fail "plugin format registry is missing host: $hostId" }
@@ -427,7 +427,7 @@ foreach ($activeAgent in @($agents.activeAgents)) {
 # capability-bundled subagents are written. It is deliberately NOT compared
 # against agents.json's nativePaths.agentsDir: those are two different
 # documented mechanisms. agentsDir records a host's native user-level agent
-# directory (gemini: ~/.gemini/agents; antigravity: ~/.gemini/config/agents),
+# directory (antigravity: ~/.gemini/config/agents),
 # while this registry records extension/plugin-bundled agents. An earlier
 # version of this rule required them to agree, which forced two correct,
 # separately-documented values to be rewritten into one wrong one. What is

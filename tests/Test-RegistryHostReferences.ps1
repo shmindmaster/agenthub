@@ -314,17 +314,16 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add("$($entry.Name) has no loginCommand")
         }
     }
-    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'gemini', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code')
+    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code')
     foreach ($id in $dispatchHosts) {
         if ($profile.hostSettings.PSObject.Properties.Name -notcontains $id) {
             $violations.Add("$id has no hostSettings authentication record")
         }
     }
-    if ($profile.hostSettings.gemini.authMode -ne 'account' -or
-        $profile.hostSettings.gemini.settingsPath -ne 'security.auth.selectedType' -or
-        $profile.hostSettings.gemini.settingsValue -ne 'oauth-personal' -or
-        $profile.dispatchPolicy.gemini.enabled -ne $false) {
-        $violations.Add('Gemini must retain account OAuth settings and remain disabled')
+    # Gemini CLI was retired on 2026-11-10 (docs/fleet/retired-hosts-2026-10-21.md).
+    if ($profile.hostSettings.PSObject.Properties.Name -contains 'gemini' -or
+        $profile.dispatchPolicy.PSObject.Properties.Name -contains 'gemini') {
+        $violations.Add('Gemini CLI is retired and must have no hostSettings or dispatchPolicy record')
     }
     foreach ($violation in @(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy)) { $violations.Add($violation) }
     $openCode = $profile.dispatchPolicy.opencode

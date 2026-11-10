@@ -1,13 +1,13 @@
 # Host details
 
-Read when: dispatching to Cline, OpenCode, Factory, Devin, Gemini, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
+Read when: dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
 
 Contents: Account hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
 
 ## Account hosts
 
 - Cursor Agent, Amp, OpenCode: account login; confirm with the host's own status command before the first dispatch.
-- Gemini: the dispatcher passes `--approval-mode yolo`; the registered shim skips its own yolo default for that invocation and adds `--skip-trust`. Google ended this client for individual accounts, so it stays disabled; dispatch Google work to Antigravity. Temporary task files are admitted with `--include-directories`.
+- Gemini CLI is retired (2026-11-10) and has no dispatch contract. Dispatch Google work to Antigravity.
 - Copilot: runs on the `sh-pendoah` GitHub account; the dispatcher reads that token from gh's keyring into the child environment only.
 - Codex reads the task from stdin (`exec --skip-git-repo-check -`) and does not initialize Git. Antigravity gets `--print=<prompt>` after its permissions flag.
 - Long, quoted or multiline argument prompts go through a temporary UTF-8 file and a short pointer; the file is removed on completion.
