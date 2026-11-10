@@ -54,10 +54,10 @@
       "skill": "plan-application",
       "kind": "recovery",
       "input": "The requested program is in the register with decision skip and an unmet reopen condition.",
-      "expected": "If the register row is closed, blocked or missing, stop and send the request to `scout` or `prioritize` before planning.",
+      "expected": "If the register row is closed, blocked, unverified or missing, stop and send the request to `scout` or `prioritize` before planning.",
       "evidence": [
-        "If the register row is closed, blocked or missing, stop and send the request to `scout` or `prioritize` before planning.",
-        "Plan only a row whose decision is apply, prepare or in-flight and whose eligibility is not blocked."
+        "If the register row is closed, blocked, unverified or missing, stop and send the request to `scout` or `prioritize` before planning.",
+        "Plan only a row whose decision is apply, prepare or in-flight and whose eligibility is `eligible`."
       ]
     }
   ]

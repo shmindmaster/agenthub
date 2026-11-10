@@ -10,19 +10,19 @@ description: Produces a funder profile and an application strategy for one chose
 1. Resolve the records root, the one opportunity and product to plan for, and the register row that holds its decision.
 2. Research the funder from its own material and prior awards, then build the strategy from the product's recorded evidence.
 3. Return the funder profile, the strategy, the artifact list with gaps, a dated plan and the owner actions.
-4. If the register row is closed, blocked or missing, stop and send the request to `scout` or `prioritize` before planning.
+4. If the register row is closed, blocked, unverified or missing, stop and send the request to `scout` or `prioritize` before planning.
 
 The records root is `$FUNDING_RECORDS_ROOT`, otherwise `D:/OneDrive - MahumTech/Documents/03_Products_and_Startups/Funding Intelligence`. If neither exists, stop and ask.
 
 ## Checklist
 
-- [ ] Run `node ../scout/scripts/register.mjs seen "<root>" "<program>"`. Plan only a row whose decision is apply, prepare or in-flight and whose eligibility is not blocked.
-- [ ] Reopen the official page today. Confirm the deadline, amount, eligibility text, required artifacts and review criteria, and update `verified` in the register. If a term changed, say so first.
+- [ ] Run `node ../scout/scripts/register.mjs seen "<root>" "<program>"`. Plan only a row whose decision is apply, prepare or in-flight and whose eligibility is `eligible`. A row whose eligibility is unverified goes back to `scout` to settle the missing fact first.
+- [ ] Reopen the official page today. Confirm the deadline, amount, eligibility text, required artifacts and review criteria. If a term changed, correct the affected register fields first and say what changed; only then set `verified` to today, so the date never sits beside an outdated term.
 - [ ] Profile the funder: what it states it funds, its published review criteria and weights, who decides, and its recent awards or portfolio. For federal programs pull comparable awards with the keyless award APIs listed in `../scout/references/sources.md`.
 - [ ] Read section D of `Existing Pipeline and Eligibility Facts.md` for drafts and assets that can be reused, and the product's profile for its evidence.
 - [ ] Map each review criterion to the evidence that answers it. Mark every criterion with no evidence as a gap, with the smallest piece of work that would close it.
 - [ ] List the required artifacts and registrations with their lead times, working back from the deadline.
-- [ ] Add the strategy to the newest `Portfolio Funding Strategy` file under application strategies, and the funder facts to the matching `Opportunities` file.
+- [ ] Write the plan to a new `Application Plan - <register id> - <YYYY-MM-DD>.md` in the records root, and add the funder facts to the matching `Opportunities` file. Leave every `Portfolio Funding Strategy` file as written; each is a dated snapshot.
 
 ## Output
 

@@ -17,10 +17,10 @@ The records root is `$FUNDING_RECORDS_ROOT`, otherwise `D:/OneDrive - MahumTech/
 ## Checklist
 
 - [ ] Run `node ../scout/scripts/register.mjs check "<root>"`.
-- [ ] Drop every row whose `eligibility` starts with `blocked`. A blocked row gets a decision and a reopen condition, never a score.
-- [ ] For each remaining row pick the best product and one runner-up from the portfolio profiles. Judge a product by its recorded evidence (customers, pilots, working code), not by its description.
+- [ ] Score only rows whose `eligibility` is `eligible`. A blocked row gets a decision and a reopen condition, never a score. An unverified row keeps its scores empty, names the missing fact and ranks below every scored row.
+- [ ] For each eligible row pick the best product and one runner-up from the portfolio profiles. Judge a product by its recorded evidence (customers, pilots, working code), not by its description.
 - [ ] Compute the three scores with [scoring](references/scoring.md).
-- [ ] Before recommending apply or prepare, run `node ../scout/scripts/register.mjs seen "<root>" "<program>"`. A program already rejected, declined or dropped is recommended again only when its reopen condition is now true, with the new fact cited.
+- [ ] Before changing any row's decision, run `node ../scout/scripts/register.mjs seen "<root>" "<program>"`. A row marked `closed` keeps its decision and reopen condition, whatever the new decision would be, unless its reopen condition is now true and you cite the new fact.
 - [ ] Set `best_product`, `runner_up`, `fit_score`, `priority_score`, `band`, `decision`, `decision_date` and `reopen_if` in the register. Rerun `check`.
 - [ ] Write the ranked matrix, the engineering changes and the limits of the run to a new `Portfolio Funding Strategy - <YYYY-MM-DD>.md`. Leave earlier strategy files as written.
 
