@@ -673,7 +673,7 @@
       "id": "kilo",
       "name": "Kilo CLI",
       "version": "7.8.27",
-      "versionObserved": "2026-11-09: read-only `kilo --version` printed 7.8.27 (npm global shim). `kilo run` smoke 2026-11-10 returned READY (agent code, model mimo-v2.6-pro).",
+      "versionObserved": "2026-11-09: read-only `kilo --version` printed 7.8.27 (npm global shim). `kilo run` default-model smoke 2026-11-10 returned READY (agent code, model mimo-v2.6-pro); the governed dispatch command was not exercised.",
       "executable": "{userHome}/AppData/Roaming/npm/kilo.cmd",
       "nativePaths": {
         "config": "{userHome}/.config/kilo/config.json",
@@ -681,28 +681,27 @@
         "mcp": "{userHome}/.config/kilo/config.json",
         "mcpKey": "mcp",
         "mcpNote": "Kilo MCP entries live under the mcp object (type local or remote, command[], environment, enabled). No MCP servers recorded on 2026-11-09 (`kilo mcp list` read-only).",
-        "skillsDir": "{userHome}/.kilo/skills",
+        "skillsDir": "{userHome}/.kilocode/skills",
+        "skillsDirNote": "Native Kilo skill root per the vendor migration doc https://github.com/kilo-org/kilo/blob/main/packages/opencode/src/kilocode/docs/migration.md (2026-11-10). Host-local skill links only; this is not an ah-* plugin format.",
         "instructions": null,
-        "instructionsNote": "Not established for AgentHub deployment. Sync-Instructions reaches inactive hosts; promoting to active does not deploy global instructions until a file contract is verified."
+        "instructionsNote": "Not established for AgentHub deployment; discovery required before any instruction file is written. Sync-Instructions reaches inactive hosts; promoting to active does not deploy global instructions until a file contract is verified."
       },
       "supportedCapabilities": [
-        "rules",
         "skills",
-        "subagents",
         "mcp",
         "plugins",
         "acp"
       ],
       "status": "active",
-      "notes": "Installed on 2026-11-09, OpenCode-compatible fork. Promoted to active and dispatchable 2026-11-10 on owner direction. `kilo` and `kilocode` are two shims for the same install (identical version and help). Plugins install with `kilo plugin <npm>` (npm array in config); plugin format is PLUGIN.yaml. Loads ~/.agents/skills natively by default. No Kilo VS Code extension installed.",
-      "acpNote": "Verified 2026-11-10 on installed 7.8.27: `kilo acp` starts a native ACP stdio server; `kilo serve` starts a headless HTTP server.",
-      "headlessDispatchNote": "`kilo run --auto --format json --dir <cwd> <prompt>` verified 2026-11-10 (OpenCode-fork contract; --dir is honoured, unlike OpenCode 2). Auth is the MiMo provider through MIMO_API_KEY in config.json."
+      "notes": "Installed on 2026-11-09, OpenCode-compatible fork. Promoted to active 2026-11-10 on owner direction; dispatch stays disabled until the governed command and unattended permission restrictions are verified. `kilo` and `kilocode` are two shims for the same install (identical version and help). Plugins install with `kilo plugin <npm>` (npm array in config); plugin format is PLUGIN.yaml. Loads ~/.agents/skills natively by default, which the plugin-only policy keeps empty. No Kilo VS Code extension installed. Subagents and rules support are not established.",
+      "acpNote": "`kilo acp` and `kilo serve` are help-discovered entry points (2026-11-10); ACP protocol initialization, session handoff and authenticated inference are not established.",
+      "headlessDispatchNote": "`kilo run --auto --format json --dir <cwd> <prompt>` appears in `kilo run --help` (2026-11-10) but was not exercised; the verified smoke ran the bare default `kilo run`. Auth is the MiMo provider through MIMO_API_KEY in config.json -- a separately authorized Token Plan key, not an account login."
     },
     {
       "id": "mimo-code",
       "name": "MiMo Code CLI",
       "version": "0.1.16",
-      "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. `mimo run` smoke 2026-11-10 returned READY (agent build, model mimo-v2.6-pro).",
+      "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. `mimo run` default-model smoke 2026-11-10 returned READY (agent build, model mimo-v2.6-pro); the governed dispatch command was not exercised.",
       "executable": "{userHome}/AppData/Roaming/npm/mimo.cmd",
       "nativePaths": {
         "config": "{userHome}/.config/mimocode/config.json",
@@ -710,22 +709,21 @@
         "mcp": "{userHome}/.config/mimocode/mimocode.jsonc",
         "mcpKey": "mcp",
         "mcpNote": "Same shape as OpenCode. OAuth tokens go to ~/.local/share/mimocode/mcp-auth.json. `mimo providers list` 2026-11-10 shows one credential (Xiaomi Token Plan Singapore). No MCP servers recorded on 2026-11-09.",
-        "skillsDir": "{userHome}/.config/mimocode/skills",
+        "skillsDir": "{userHome}/.mimocode/skills",
+        "skillsDirNote": "Native MiMo skill root per https://github.com/xiaomimimo/mimo-code/blob/main/README.md and docs/compose/spec/skill-external-root-defaults.md (2026-11-10). Host-local skill links only; this is not an ah-* plugin format.",
         "instructions": null,
-        "instructionsNote": "Not established for AgentHub deployment. Sync-Instructions reaches inactive hosts; promoting to active does not deploy global instructions until a file contract is verified."
+        "instructionsNote": "Not established for AgentHub deployment; discovery required before any instruction file is written. Sync-Instructions reaches inactive hosts; promoting to active does not deploy global instructions until a file contract is verified."
       },
       "supportedCapabilities": [
-        "rules",
         "skills",
-        "subagents",
         "mcp",
         "plugins",
         "acp"
       ],
       "status": "active",
-      "notes": "Installed on 2026-11-09, OpenCode fork. Promoted to active and dispatchable 2026-11-10 on owner direction. Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories.",
-      "acpNote": "Verified 2026-11-10 on installed 0.1.16: `mimo acp` starts a native ACP stdio server; `mimo serve` starts a headless HTTP server.",
-      "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> <prompt>` verified 2026-11-10. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan credential."
+      "notes": "Installed on 2026-11-09, OpenCode fork. Promoted to active 2026-11-10 on owner direction; dispatch stays disabled until the governed command and unattended permission restrictions are verified. Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories; ~/.agents/skills stays empty under the plugin-only policy. Subagents and rules support are not established.",
+      "acpNote": "`mimo acp` and `mimo serve` are help-discovered entry points (2026-11-10); ACP protocol initialization, session handoff and authenticated inference are not established.",
+      "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> <prompt>` appears in `mimo run --help` (2026-11-10) but was not exercised; the verified smoke ran the bare default `mimo run`. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan key credential (a stored key, not an OAuth account login)."
     }
   ],
   "inactiveAgents": [
@@ -819,7 +817,7 @@
         "hooks"
       ],
       "status": "inactive",
-      "notes": "Kiro IDE (1.4.121, no user extensions; IDE executable %LOCALAPPDATA%\\Programs\\Kiro\\bin\\kiro) and Kiro CLI (3.1.0, Builder ID login) are recorded as one row because they share ~/.kiro. Shared state on 2026-11-09: 28 skills, 8 powers, 2 steering files, 1 workflow. 24 AWS skills are duplicated in ~/.agents/skills. Powers are the plugin form and the native catalog was not listed. KiroCrew is a separate row. Not a dispatch target."
+      "notes": "Kiro IDE (1.4.121, no user extensions; IDE executable %LOCALAPPDATA%\\Programs\\Kiro\\bin\\kiro) and Kiro CLI (3.1.0, Builder ID login) are recorded as one row because they share ~/.kiro. `kiro-cli chat --help` 2026-11-10 lists --no-interactive and --output-format stream-json (ACP events); unattended permission policy, inference and model allowance are not established and no automatic login is attempted. Shared state on 2026-11-09: 28 skills, 8 powers, 2 steering files, 1 workflow. 24 AWS skills are duplicated in ~/.agents/skills. Powers are the plugin form and the native catalog was not listed. KiroCrew is a separate row. Not a dispatch target."
     },
     {
       "id": "kirocrew",
@@ -850,7 +848,7 @@
       "id": "qwen",
       "name": "Qwen Code",
       "version": "0.27.1",
-      "versionObserved": "2026-11-10: `qwen --version` printed 0.27.1 (npm global shim). `qwen -p` smoke the same day failed in resolveModelConfig -- no usable auth/model configuration.",
+      "versionObserved": "2026-11-10: `qwen --version` printed 0.27.1 (npm global shim). `qwen -p` smoke the same day failed in resolveModelConfig although settings carry selectedType nvidia and a configured model; inference is unverified.",
       "executable": "{userHome}/AppData/Roaming/npm/qwen.cmd",
       "nativePaths": {
         "config": "{userHome}/.qwen/settings.json",
@@ -864,7 +862,7 @@
         "acp"
       ],
       "status": "inactive",
-      "notes": "Installed (npm @qwen-code/qwen-code 0.27.1). Gemini-CLI-family fork: -p/--prompt headless and --acp both verified in --help 2026-11-10, but a `qwen -p` smoke crashed in resolveModelConfig, so no auth or model configuration exists yet. `qwen auth` is a removed command; setup likely needs a provider key or settings.json auth block. Not a dispatch target until the owner establishes auth and a smoke returns a response."
+      "notes": "Installed (npm @qwen-code/qwen-code 0.27.1). Gemini-CLI-family fork: -p/--prompt headless and --acp both verified in --help 2026-11-10. A `qwen -p` smoke crashed in resolveModelConfig even though ~/.qwen/settings.json exists with selectedType nvidia and a configured model, so auth/model resolution is not established rather than absent. `qwen auth` is a removed command. Not a dispatch target until the owner establishes auth and a smoke returns a response; no automatic login."
     },
     {
       "id": "coderabbit",

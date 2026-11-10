@@ -238,8 +238,8 @@ function Test-LiveCapabilitiesCanonicalSourcesAllExistOnDisk {
 }
 
 # --- Behavior 6: every host configuration carries an explicit auth mode and
-# owner login command. Unverified account smokes remain gated; Codex stays
-# disabled until the dispatcher captures a standalone response. ---
+# owner login command. Unverified account smokes remain gated; Codex dispatch
+# is gated on recorded response-capture evidence rather than a fixed state. ---
 function Get-OwnerDispatchPolicyViolations($Policy) {
     $violations = [Collections.Generic.List[string]]::new()
     # 2026-10-23 restricted dispatch to Cursor, Grok and Codex; 2026-10-26 the
@@ -286,6 +286,23 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     return $violations
 }
 
+# Codex is the evidence-gated host: an enabled policy must record a successful
+# response capture (verifiedOn plus a reason naming it); a disabled one stays
+# valid while it carries a reason. Neither state is assumed from a stale rule.
+function Get-CodexDispatchEvidenceViolations($CodexPolicy) {
+    $violations = [Collections.Generic.List[string]]::new()
+    if ($null -eq $CodexPolicy) { $violations.Add('codex has no dispatch policy'); return $violations }
+    if ($CodexPolicy.enabled -eq $true) {
+        if ([string]::IsNullOrWhiteSpace([string]$CodexPolicy.verifiedOn) -or
+            [string]$CodexPolicy.reason -notmatch 'captured a response') {
+            $violations.Add('Enabled Codex dispatch must record response-capture evidence: a verifiedOn date plus a reason naming the captured response')
+        }
+    } elseif ([string]::IsNullOrWhiteSpace([string]$CodexPolicy.reason)) {
+        $violations.Add('Disabled Codex dispatch must record its reason')
+    }
+    return $violations
+}
+
 function Test-LiveHostAuthenticationMetadata {
     $profile = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $violations = [Collections.Generic.List[string]]::new()
@@ -297,7 +314,7 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add("$($entry.Name) has no loginCommand")
         }
     }
-    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'gemini', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf')
+    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'gemini', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code')
     foreach ($id in $dispatchHosts) {
         if ($profile.hostSettings.PSObject.Properties.Name -notcontains $id) {
             $violations.Add("$id has no hostSettings authentication record")
@@ -368,11 +385,15 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add('Cline dispatch must list provider:model allowedModels including its default, with only :free models on the usage-billed cline provider')
         }
     }
-    if ($profile.dispatchPolicy.codex.enabled -ne $false -or
-        $profile.dispatchPolicy.codex.knownIssue -notmatch 'no response text' -or
-        $profile.dispatchPolicy.codex.knownIssue -notmatch 'quota was exhausted') {
-        $violations.Add('Codex must remain disabled until response capture works and record its exhausted quota')
+    foreach ($id in @('kilo', 'mimo-code')) {
+        $planPolicy = $profile.dispatchPolicy.$id
+        if ($planPolicy.enabled -eq $true -and (
+            [string]$planPolicy.model -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$' -or
+            @($planPolicy.allowedModels | ForEach-Object { [string]$_ }) -notcontains $planPolicy.model)) {
+            $violations.Add("$id dispatch must keep a provider/model default inside allowedModels")
+        }
     }
+    foreach ($violation in @(Get-CodexDispatchEvidenceViolations $profile.dispatchPolicy.codex)) { $violations.Add($violation) }
     if ($profile.managedHosts -notcontains 'cursor-agent') {
         $violations.Add('Cursor Agent CLI must be present in managedHosts')
     }
@@ -465,8 +486,31 @@ Report 'every live capability canonicalSource exists on disk' $r5.Passed $r5.Det
 $r6 = Test-LiveHostAuthenticationMetadata
 Report 'dispatch hosts have auth records; retired ids are absent and unverified paid routes remain gated' $r6.Passed $r6.Detail
 
+function Test-CodexEvidenceGateRejectsStrippedEvidence {
+    $profile = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (@(Get-CodexDispatchEvidenceViolations $profile.dispatchPolicy.codex).Count -ne 0) {
+        return @{ Passed = $false; Detail = 'the live Codex policy failed its own evidence gate' }
+    }
+    $stripped = $profile.dispatchPolicy.codex | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $stripped.PSObject.Properties.Remove('verifiedOn')
+    $stripped.PSObject.Properties.Remove('reason')
+    if (@(Get-CodexDispatchEvidenceViolations $stripped).Count -eq 0) {
+        return @{ Passed = $false; Detail = 'an enabled Codex policy with its response-capture evidence removed was accepted' }
+    }
+    if (@(Get-CodexDispatchEvidenceViolations ([pscustomobject]@{ enabled = $false; reason = 'response capture is not verified' })).Count -ne 0) {
+        return @{ Passed = $false; Detail = 'a disabled Codex policy with a recorded reason was rejected' }
+    }
+    if (@(Get-CodexDispatchEvidenceViolations ([pscustomobject]@{ enabled = $false })).Count -eq 0) {
+        return @{ Passed = $false; Detail = 'a disabled Codex policy with no reason was accepted' }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r7 = Test-OwnerDispatchPolicyRejectsUnauthorizedChanges
 Report 'owner dispatch whitelist rejects unauthorized hosts and missing or invalid policy entries' $r7.Passed $r7.Detail
+
+$r8 = Test-CodexEvidenceGateRejectsStrippedEvidence
+Report 'codex dispatch is gated on recorded response-capture evidence, enabled or disabled' $r8.Passed $r8.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

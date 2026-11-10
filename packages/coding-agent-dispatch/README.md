@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.4.0 (the root `plugin.json` is the single version authority; `SKILL.md`
+Version 0.4.1 (the root `plugin.json` is the single version authority; `SKILL.md`
 metadata and every host projection carry the same number and
 `tests/validate-dispatch.ps1` enforces parity). The package is a full plugin:
 `.claude-plugin`, `.codex-plugin`, `.cursor-plugin`, `.devin-plugin` and
@@ -37,8 +37,9 @@ Cline history, pass `-HostId cline -SessionId <id> -Prompt <task>`; this
 uses ACP `session/load` and awaits the new reply. Cline 3.0.73's `--id` is
 interactive-only. ACP loading and Desktop attachment previously passed a
 synthetic history check. An ACP client launches
-`cline --acp` on demand. No A2A bridge, background listener or concurrent writer
-is enabled by this capability. The owner's authorized Alibaba Coding Plan
+`cline --acp` on demand. No A2A bridge or background listener is enabled by this
+capability; concurrent hosts run under separate claims with non-overlapping write
+scopes. The owner's authorized Alibaba Coding Plan
 settings stay in the private Cline profile, never in the registry. OpenCode
 2.1.4 also passed native ACP initialization and synthetic session creation,
 listing and loading. Its on-demand private backend shares persisted account
@@ -125,13 +126,23 @@ created. Hosted cloud aliases are explicitly refused.
 pwsh -NoProfile -File .\packages\coding-agent-dispatch\skills\dispatch\Invoke-CodingAgent.ps1 -List
 ```
 
-Deployment is a separate gate. The skill's targeted command is
-`Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`; a full
-AgentHub deployment uses `Sync-AgentHub.ps1 -Apply -Validate`.
+Deployment is a separate gate. Audit the fleet rows with
+`Sync-Plugins.ps1 -RepositoryRoot <repo> -UserProfile <profile> -PluginId coding-agent-dispatch -Json`
+and install onto hosts with the same command plus `-Apply` once the audit is
+clean; `-Apply` deploys the published source into host caches and requires
+the clean published main checkout and green CI (pushing the commit is what
+publishes). Kilo and
+MiMo Code receive only the `dispatch` skill as a host-local junction under
+`~/.kilocode/skills` and `~/.mimocode/skills` -- a native skill projection,
+not an `ah-*` plugin. `cursor-agent` and `vscode-insiders` declare
+`nativeOwnerHost`, so their rows observe the Cursor local plugin and the
+Copilot marketplace install instead of installing twice. The shared
+`~/.agents/skills` library stays empty.
 
 `agents/claude/coding-agent.md` and `agents/codex/coding-agent.toml` are the
-orchestrator agent definitions. Copy them into `~/.claude/agents` and
-`~/.codex/agents`. Sync-Subagents does not own those two files.
+orchestrator agent definitions, referenced by each host manifest. Installing
+the plugin places them; no manual copy is needed. Sync-Subagents does not
+own those two files.
 
 `tests/Test-CodingAgentDispatch.ps1` uses synthetic native argument recorders
 and never consumes a model run. It covers the command fixes, new hosts,

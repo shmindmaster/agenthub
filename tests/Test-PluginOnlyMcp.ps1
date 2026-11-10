@@ -42,7 +42,7 @@ foreach ($hostEntry in $policy.hosts.PSObject.Properties) {
         Assert-True (-not [string]::IsNullOrWhiteSpace([string]$allowed.Value)) "$($hostEntry.Name)/$($allowed.Name) has no reason"
     }
 }
-foreach ($named in 'claude', 'codex', 'cursor', 'grok', 'factory', 'antigravity', 'copilot', 'vscode-insiders', 'cline', 'opencode', 'amp', 'devin', 'warp') {
+foreach ($named in 'claude', 'codex', 'cursor', 'grok', 'factory', 'antigravity', 'copilot', 'vscode-insiders', 'cline', 'opencode', 'amp', 'devin', 'warp', 'kilo', 'mimo-code') {
     Assert-True ($null -ne $policy.hosts.PSObject.Properties[$named]) "coding host '$named' is not plugin-only"
 }
 
@@ -130,6 +130,9 @@ $targets = @(
     @{ HostId = 'amp'; Path = (Join-Path $userHome '.config/amp/settings.json'); Reader = { param($p) Get-JsonKeys $p 'amp.mcpServers' } }
     @{ HostId = 'devin'; Path = (Join-Path $roaming 'devin/mcp_config.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'warp'; Path = (Join-Path $userHome '.warp/.mcp.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
+    @{ HostId = 'kilo'; Path = (Join-Path $userHome '.config/kilo/config.json'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
+    @{ HostId = 'mimo-code'; Path = (Join-Path $userHome '.config/mimocode/mimocode.jsonc'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
+    @{ HostId = 'mimo-code'; Path = (Join-Path $userHome '.config/mimocode/config.json'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
 )
 
 $checked = 0
@@ -137,7 +140,7 @@ foreach ($target in $targets) {
     if (-not (Test-Path -LiteralPath $target.Path)) { continue }
     $checked++
     $allowed = @($policy.hosts.PSObject.Properties[$target.HostId].Value.PSObject.Properties.Name)
-    $actual = @(& $target.Reader $target.Path)
+    try { $actual = @(& $target.Reader $target.Path) } catch { Assert-True $false "$($target.HostId): MCP config at $($target.Path) failed to parse"; continue }
     $stray = @(Get-Disallowed -Actual $actual -Allowed $allowed)
     Assert-True ($stray.Count -eq 0) "$($target.HostId): direct MCP entries outside the policy in $($target.Path): $($stray -join ', ')"
 }

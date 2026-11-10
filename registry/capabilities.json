@@ -886,7 +886,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "85156801AC73F298B345269D6450A7243541C9BA9AC28B654C36907DED5C870A",
+      "contentHash": "FD0972220E889F21C6490BB2F49C7E62484FEC728472AF7281F2BD952B134C6C",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -949,7 +949,8 @@
         },
         {
           "hostId": "cursor-agent",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin",
+          "nativeOwnerHost": "cursor"
         },
         {
           "hostId": "amp",
@@ -974,14 +975,29 @@
         },
         {
           "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "copilot"
         },
         {
           "hostId": "windsurf",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "kilo",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "mimo-code",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
         }
       ],
-      "hostMappingsNote": "2026-11-10: packaging upgraded to the media-studio pattern -- root plugin.json is the version authority, with .claude-plugin, .codex-plugin, .cursor-plugin, .devin-plugin and .antigravity-plugin projections plus an empty .mcp.json. Native plugin install on claude and codex (the primary orchestrators, through the agenthub marketplace), native local plugin on cursor, devin, factory, antigravity and amp, extension junction on cline; every other host still receives the shared loose skill library, which is the contract the skill documents. The callable set is Invoke-CodingAgent.ps1 -List, not this host list. GUI and unverified hosts stay refused inside the script.",
+      "hostMappingsNote": "2026-11-10: packaging upgraded to the media-studio pattern -- root plugin.json is the version authority, with .claude-plugin, .codex-plugin, .cursor-plugin, .devin-plugin and .antigravity-plugin projections plus an empty .mcp.json. Native plugin install on claude and codex (the primary orchestrators, through the agenthub marketplace), native local plugin on cursor, devin, factory, antigravity and amp, extension junction on cline; the shared loose skill library is disabled; other mapped surfaces require an explicitly supported host-local route or remain blocked. 0.4.1: cursor-agent observes cursor's native-local-plugin install and vscode-insiders observes the Copilot marketplace install through the nativeOwnerHost alias, so each owner installs once for its surface. kilo and mimo-code receive only the dispatch skill as a host-local junction under ~/.kilocode/skills and ~/.mimocode/skills (native skill projection, not an ah-* plugin; installed by Sync-Plugins through Install-WarpSkills.ps1). The callable set is Invoke-CodingAgent.ps1 -List, not this host list. GUI and unverified hosts stay refused inside the script.",
       "dependencies": {
         "requires": [],
         "recommends": [],

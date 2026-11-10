@@ -31,7 +31,7 @@ function Run([string[]]$Arguments) {
 $oldRoot = $env:AGENTHUB_ROOT; $oldLocal = $env:LOCALAPPDATA
 $oldWindowsHome = $env:USERPROFILE; $oldPosixHome = $env:HOME
 $oldApiKeyVars = @{}
-foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','GH_TOKEN')) {
+foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN')) {
     $oldApiKeyVars[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     [Environment]::SetEnvironmentVariable($name, 'synthetic-dispatch-fixture', 'Process')
 }
@@ -56,7 +56,7 @@ for (const arg of args) {
 }
 const settingsIndex = args.indexOf('--settings-file');
 if (settingsIndex >= 0 && fs.existsSync(args[settingsIndex + 1])) ampSettings = JSON.parse(fs.readFileSync(args[settingsIndex + 1], 'utf8'));
-console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
+console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
 if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
     $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
@@ -72,7 +72,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $ids = @('claude','codex','cursor','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode/glm-5.3-flash' }; kilo = @{ model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; 'mimo-code' = @{ model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
+    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode/glm-5.3-flash' }; kilo = @{ enabled = $true; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; 'mimo-code' = @{ enabled = $true; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -157,10 +157,13 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         if ($id -eq 'warp') { Check 'Warp account auth uses no API key override' (-not $d.ApiKeyVars.WARP_API_KEY) }
         if ($id -eq 'kilo') {
             Check 'Kilo runs with auto approval, JSON events and explicit dir' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--auto' -and $d.Arguments -contains '--format' -and $d.Arguments -contains '--dir' -and $d.Arguments -contains $scratch -and $d.Arguments[-1] -eq 'ok')
-            Check 'Kilo receives the policy model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'mimo-v2.6-pro')
+            Check 'Kilo receives the full provider/model policy id' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'mimo/mimo-v2.6-pro')
+            Check 'Kilo keeps its separately authorized plan key' ($d.ApiKeyVars.MIMO_API_KEY)
         }
         if ($id -eq 'mimo-code') {
             Check 'MiMo runs with yolo approval, JSON events and explicit dir' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--yolo' -and $d.Arguments -contains '--format' -and $d.Arguments -contains '--dir' -and $d.Arguments -contains $scratch -and $d.Arguments[-1] -eq 'ok')
+            Check 'MiMo receives the full provider/model policy id' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'xiaomi-token-plan-sgp/mimo-v2.6-pro')
+            Check 'MiMo runs on its stored plan credential without the env key' (-not $d.ApiKeyVars.MIMO_API_KEY)
         }
         if ($id -eq 'amp') {
             $settingsIndex = [Array]::IndexOf($d.Arguments, '--settings-file')
@@ -169,6 +172,46 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'Amp dispatch-only settings file is removed' ($settingsPath -and -not (Test-Path -LiteralPath $settingsPath))
         }
     }
+    # Kilo and MiMo take provider/model ids only, from the policy allowlist, for
+    # the recorded default and for an explicit -Model alike; a bare id or an
+    # unlisted default must be refused before launch.
+    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','mimo/mimo-v2.5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Kilo routes an allowed explicit provider/model' ($null -ne $d -and $d.Arguments -contains 'mimo/mimo-v2.5' -and $d.Arguments -notcontains 'mimo/mimo-v2.6-pro') $r.Err
+    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-Model','mimo/other-model')
+    Check 'Kilo refuses a provider/model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy\.kilo\.allowedModels')
+    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-Model','mimo-v2.6-pro')
+    Check 'Kilo refuses a bare model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-Model','mimo/x&echo')
+    Check 'Kilo refuses a shell-unsafe model even when allowlisted' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    $fleet.dispatchPolicy.kilo.model = 'mimo/x&echo'; Save-Fixture
+    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'Kilo refuses a shell-unsafe default even when allowlisted' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    $fleet.dispatchPolicy.kilo.model = 'mimo/mimo-v2.6-pro'; Save-Fixture
+    $fleet.dispatchPolicy.kilo.model = 'mimo-v2.6-pro'; Save-Fixture
+    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'Kilo refuses a bare default model' ($r.Exit -eq 3 -and $r.Err -match 'provider/model') $r.Err
+    $fleet.dispatchPolicy.kilo.model = 'mimo/mimo-v2.6-flash'; Save-Fixture
+    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'Kilo refuses a default outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'allowedModels') $r.Err
+    $fleet.dispatchPolicy.kilo.model = 'mimo/mimo-v2.6-pro'; Save-Fixture
+    $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','xiaomi-token-plan-sgp/mimo-v2.6-pro')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'MiMo honours the allowed explicit provider/model' ($null -ne $d -and $d.Arguments -contains 'xiaomi-token-plan-sgp/mimo-v2.6-pro') $r.Err
+    $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-Model','xiaomi-token-plan-sgp/other')
+    Check 'MiMo refuses a provider/model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy\.mimo-code\.allowedModels')
+    $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-Model','mimo-v2.6-pro')
+    Check 'MiMo refuses a bare model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    $fleet.dispatchPolicy.'mimo-code'.allowedModels += 'xiaomi-token-plan-sgp/x&echo'
+    $fleet.dispatchPolicy.'mimo-code'.model = 'xiaomi-token-plan-sgp/x&echo'; Save-Fixture
+    $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'MiMo refuses a shell-unsafe default even when allowlisted' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    $fleet.dispatchPolicy.'mimo-code'.allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro')
+    $fleet.dispatchPolicy.'mimo-code'.model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; Save-Fixture
+    $fleet.dispatchPolicy.'mimo-code'.model = 'xiaomi-token-plan-sgp/other'; Save-Fixture
+    $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'MiMo refuses a default outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'allowedModels') $r.Err
+    $fleet.dispatchPolicy.'mimo-code'.model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; Save-Fixture
     $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','gpt-6-sol')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     Check 'Factory honours an allowed explicit model' ($null -ne $d -and $d.Arguments -contains 'gpt-6-sol' -and $d.Arguments -notcontains 'gpt-6-luna') $r.Err

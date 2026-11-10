@@ -79,7 +79,9 @@
           "linear": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "notion": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
-        }
+        },
+        "kilo": {},
+        "mimo-code": {}
       }
     },
     "sessionStart": {
@@ -123,6 +125,7 @@
       "mimo-code",
       "mimo-desktop",
       "opencode",
+      "qwen",
       "vscode-insiders",
       "warp"
     ],
