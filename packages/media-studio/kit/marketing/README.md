@@ -127,9 +127,11 @@ the stated business CTA outcome rather than assuming viral view counts
 are product success. Capture the result as campaign evidence for the
 next brief. Never fabricate engagement or claim guaranteed virality.
 
-For a 10–24s bumper, compress the same idea to **hook → proof → next step**;
-the deterministic six-beat gate does not run for these deliberately short
-cuts, but evidence and exact-encoded-candidate review still apply. Do not
+For a 10–24s bumper, compress the same idea to **hook → genuine UI proof
+→ next step**. The short-form narrative lint requires a first `hook` beat,
+real UI before the last `cta` beat, early product identification, and the
+approved CTA. The full six-beat gate does not run for these deliberately
+short cuts; claim evidence and exact-encoded-candidate review still apply. Do not
 claim that a 15-second montage is a full product explainer.
 
 Example cut outline (replace every line with product-verified claims and
