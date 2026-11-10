@@ -1,7 +1,9 @@
 """Offline tests for the model-written specs adapter. No provider is called: every request goes through a fake."""
 import argparse
+import contextlib
 import copy
 import hashlib
+import io
 import json
 import os
 import subprocess
@@ -841,6 +843,146 @@ class SecondReviewFixes(unittest.TestCase):
     def test_the_token_estimate_is_cautious(self):
         self.assertEqual(g.CHARS_PER_TOKEN, 2.5)
         self.assertEqual(g.estimate_tokens("x" * 25), 10)
+
+
+def http_error(status, body=b'{"type": "error"}'):
+    return g.urllib.error.HTTPError("https://example.invalid", status, "error", {}, io.BytesIO(body))
+
+
+@contextlib.contextmanager
+def transport_raising(exc):
+    """The real transport, with urlopen replaced so nothing leaves the machine."""
+    real = g.urllib.request.urlopen
+
+    def urlopen(req, timeout):
+        raise exc
+    g.urllib.request.urlopen = urlopen
+    try:
+        yield lambda url, headers, body: g.http_post_json("https://example.invalid", headers, body)
+    finally:
+        g.urllib.request.urlopen = real
+
+
+def main_output(argv):
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = g.main(argv)
+    return code, out.getvalue() + err.getvalue()
+
+
+class ThirdReviewFixes(unittest.TestCase):
+    """Fixes from the third review (of 57cf7da8)."""
+
+    def test_a_paid_first_attempt_is_marked_before_the_retry_so_an_interrupted_run_never_pays_it_again(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            cut = message('{"moments": [', stop="max_tokens")
+
+            def interrupt(body):
+                raise KeyboardInterrupt
+            fake = FakeMessages(cut, interrupt)
+            with self.assertRaises(KeyboardInterrupt):
+                g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertFalse((job / "qa" / "generate-specs.lock").exists())
+            again = g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertEqual(len(fake.calls), 2)
+            self.assertFalse(again["ok"])
+            self.assertIn("--retry-fallbacks", " ".join(again["problems"]))
+
+    def test_an_invalid_first_answer_is_marked_before_the_retry(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+
+            def interrupt(body):
+                raise KeyboardInterrupt
+            fake = FakeMessages(message("not json"), interrupt)
+            with self.assertRaises(KeyboardInterrupt):
+                g.run(job, args(run=True), env=ENV, post=fake)
+            again = g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertEqual(len(fake.calls), 2)
+            self.assertIn("--retry-fallbacks", " ".join(again["problems"]))
+
+    def test_a_timeout_is_charged_and_marked_inside_send(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            _, beats, rows, _, _ = g.plan_work(job, args(run=True), g.route_media.load())
+            budget = {"spent": 0.0, "cap": 0.5}
+            with transport_raising(TimeoutError()) as post:
+                out, fallback, _ = g.send(job, rows[0], beats, post, {}, budget, "2026-11-10T00:00:00+00:00")
+            self.assertIsNone(out)
+            self.assertEqual(fallback["reason"], "error")
+            self.assertAlmostEqual(budget["spent"], rows[0]["estimateUsd"], places=9)
+            marker = json.loads((job / "plan" / "model-specs" / "cache" / f"{rows[0]['key']}.json").read_text(encoding="utf-8"))
+            self.assertEqual(marker["failed"], "error")
+
+    def test_a_pasted_key_value_is_refused_and_never_echoed(self):
+        pasted = "sk" + "-ant-api03-FAKE"
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            fake = FakeMessages()
+            with self.assertRaises(g.SpecsError) as cm:
+                g.run(job, args(key_env=pasted), env={pasted: KEY}, post=fake)
+            self.assertNotIn(pasted, str(cm.exception))
+            self.assertNotIn("FAKE", str(cm.exception))
+            self.assertEqual(fake.calls, [])
+            for extra in ([], ["--json"], ["--run"]):
+                code, text = main_output([str(job), "--key-env", pasted, *extra])
+                self.assertNotEqual(code, 0)
+                self.assertNotIn(pasted, text)
+                self.assertNotIn("FAKE", text)
+            for name in ("MY KEY", "1KEY", "A-B", "", "KEY\n"):
+                with self.assertRaises(g.SpecsError):
+                    g.run(job, args(key_env=name), env={name: KEY}, post=fake)
+            self.assertFalse((job / "qa").exists())
+            ok = g.run(job, args(key_env="MY_SPECS_KEY_2"), env={"MY_SPECS_KEY_2": KEY}, post=fake)
+            self.assertEqual(ok["key"], {"env": "MY_SPECS_KEY_2", "set": True})
+
+    def test_any_admin_key_name_is_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            for name in ("ANTHROPIC_ADMIN_API_KEY", "my_admin_key", "XADMINX"):
+                with self.assertRaises(g.SpecsError):
+                    g.run(job, args(key_env=name), env={name: KEY}, post=FakeMessages())
+
+    def test_an_admin_key_value_is_refused_at_run_time_without_printing_it(self):
+        admin = "sk" + "-ant-admin01-FAKE"
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            fake = FakeMessages()
+            with self.assertRaises(g.SpecsError) as cm:
+                g.run(job, args(run=True), env={"ANTHROPIC_API_KEY_BACKUP": admin}, post=fake)
+            self.assertEqual(fake.calls, [])
+            for part in (admin, "admin01", "FAKE", "sk" + "-ant"):
+                self.assertNotIn(part, str(cm.exception))
+            self.assertFalse((job / "qa" / "generate-specs.lock").exists())
+            self.assertEqual(ledger(job), [])
+
+    def test_the_transport_reports_the_http_status(self):
+        with transport_raising(http_error(529)) as post:
+            with self.assertRaises(g.SpecsError) as cm:
+                post("u", {}, {})
+        self.assertEqual(getattr(cm.exception, "status", None), 529)
+        with transport_raising(TimeoutError()) as post:
+            with self.assertRaises(g.SpecsError) as cm:
+                post("u", {}, {})
+        self.assertIsNone(getattr(cm.exception, "status", None))
+
+    def test_an_http_error_status_is_not_billed_and_a_plain_rerun_retries_it(self):
+        for status in (401, 403, 429, 500, 529):
+            with tempfile.TemporaryDirectory() as d:
+                job = make_job(d)
+                with transport_raising(http_error(status)) as post:
+                    rep = g.run(job, args(run=True), env=ENV, post=post)
+                self.assertEqual(rep["budgetChargedUsd"], 0.0, status)
+                self.assertEqual(rep["fallbackNeeded"][0]["reason"], "http-status", status)
+                self.assertIn(str(status), rep["fallbackNeeded"][0]["detail"])
+                line = [l for l in ledger(job) if l["kind"] == "spec"][0]
+                self.assertEqual(line["usd"], 0.0)
+                self.assertIn("not billed", line["usdBasis"])
+                fake = FakeMessages()
+                again = g.run(job, args(run=True), env=ENV, post=fake)
+                self.assertEqual(len(fake.calls), 1, status)
+                self.assertTrue(again["ok"], again)
 
 
 if __name__ == "__main__":

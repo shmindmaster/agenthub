@@ -26,16 +26,17 @@ plan/model-specs/cache/<requestSha256>.json and appends one line per request to 
 covers the whole request (model, system prefix, schema, beat data, effort, max_tokens), so an identical request never pays
 twice. A refusal is recorded and never resent unchanged. Truncation or an invalid answer gets one automatic retry (with the
 validation error included); after that the layer is listed in plan/model-specs/fallback-needed.json and the exit is
-non-zero: a person writes a simpler kit visual. Never a silent fallback. A request that was sent and failed is marked in
-its cache entry and not paid for again unless the request changes or --retry-fallbacks is given (a cap fallback that was
-never sent goes out once --max-usd allows it). --max-usd is checked before every attempt. A --run holds
+non-zero: a person writes a simpler kit visual. Never a silent fallback. A request that was paid for and failed is marked in
+its cache entry (right after the failed attempt's ledger line, before any retry) and not paid for again unless the request changes or --retry-fallbacks is given (a cap fallback that was
+never sent goes out once --max-usd allows it; an HTTP error status is not billed, charged or marked, so a plain rerun
+sends it again). --max-usd is checked before every attempt. A --run holds
 qa/generate-specs.lock (pid and start time inside) and refuses to start while another run holds it; it never deletes a
 lock it did not create. An approved moments layer (approvedBy set by a person) is never overwritten. A prompt estimated
 above 90,000 tokens (2.5 characters per token) is refused before every attempt, the retry included.
 
 The key is read by NAME from ANTHROPIC_API_KEY_BACKUP (or --key-env) and passed explicitly in the request header. It is
-never printed or stored. ANTHROPIC_ADMIN_KEY only reports cost and is refused here; ANTHROPIC_API_KEY (the SDK default) is
-refused too. Direct HTTPS to the Messages API with the standard library; no SDK and no CLI.
+never printed or stored. ANTHROPIC_ADMIN_KEY only reports cost and is refused here, as is any name containing ADMIN, anything that is not a
+variable name (never echoed back) and, at --run, an Admin key value; ANTHROPIC_API_KEY (the SDK default) is refused too. Direct HTTPS to the Messages API with the standard library; no SDK and no CLI.
 """
 from __future__ import annotations
 
@@ -45,6 +46,7 @@ import http.client
 import json
 import math
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -64,6 +66,8 @@ REFUSED_KEY_ENVS = {
     "ANTHROPIC_ADMIN_KEY": "the Admin key only reports what a run cost and never generates",
     "ANTHROPIC_API_KEY": "SDKs read it by default; this lane uses its own key, passed explicitly",
 }
+KEY_ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+ADMIN_KEY_PREFIX = "sk" + "-ant-admin"   # an Admin key's value; such a key reports cost and never generates
 LAYERS = ("moments", "overlays", "captions", "diagram")
 LIST_FIELD = {"moments": "moments", "overlays": "overlays", "captions": "chunks", "diagram": "diagrams"}
 EFFORTS = ("low", "medium")
@@ -110,6 +114,14 @@ LAYER_RULES = {
 
 class SpecsError(Exception):
     pass
+
+
+class HttpStatusError(SpecsError):
+    """The API answered with an error status (401, 403, 429, 5xx): nothing was generated, so nothing was billed."""
+
+    def __init__(self, status, message):
+        super().__init__(message)
+        self.status = status
 
 
 # ---- money and size
@@ -231,7 +243,7 @@ def http_post_json(url, headers, body, timeout=240):
             detail = e.read()[:300].decode("utf-8", "replace")
         except (OSError, http.client.HTTPException):
             detail = "(body unreadable)"
-        raise SpecsError(f"Messages API returned HTTP {e.code}: {detail}") from None
+        raise HttpStatusError(e.code, f"Messages API returned HTTP {e.code}: {detail}") from None
     except (urllib.error.URLError, TimeoutError) as e:
         raise SpecsError(f"Messages API request failed: {type(e).__name__}") from None
     except (ValueError, OSError, http.client.HTTPException) as e:
@@ -383,10 +395,16 @@ def record_fallback(job, entries, cleared):
 # ---- the run
 
 def check_key_name(name):
+    # Never echo a refused value back: it may be a pasted key rather than a name.
+    if not isinstance(name, str) or not KEY_ENV_NAME.fullmatch(name):
+        raise SpecsError("--key-env is refused: it is not a variable name (letters, digits and underscores, not starting with a digit). "
+                         f"Pass the NAME of the variable that holds the key, never the key itself. Use {DEFAULT_KEY_ENV}.")
     # Windows looks environment names up without regard to case, so anthropic_api_key would read ANTHROPIC_API_KEY.
-    canonical_name = str(name).strip().upper()
+    canonical_name = name.upper()
     if canonical_name in REFUSED_KEY_ENVS:
-        raise SpecsError(f"--key-env {name!r} is refused: {REFUSED_KEY_ENVS[canonical_name]}. Use {DEFAULT_KEY_ENV}.")
+        raise SpecsError(f"--key-env {canonical_name} is refused: {REFUSED_KEY_ENVS[canonical_name]}. Use {DEFAULT_KEY_ENV}.")
+    if "ADMIN" in canonical_name:
+        raise SpecsError(f"--key-env is refused: a name containing ADMIN points at an Admin key, which only reports cost. Use {DEFAULT_KEY_ENV}.")
 
 
 def pid_alive(pid):
@@ -520,6 +538,11 @@ def layer_document(job, row, output, now):
             "effort": row["effort"], "requestSha256": row["key"], "createdAt": now, "inputs": inputs, "output": output}
 
 
+def mark_failed(job, row, reason, stamp):
+    """The durable marker for a request that was paid for and did not produce an answer; a success overwrites it."""
+    write_json(specs_dir(job) / "cache" / f"{row['key']}.json", {"failed": reason, "at": stamp, "layer": row["layer"]})
+
+
 def send(job, row, beats, post, headers, budget, stamp):
     """One request and at most one automatic retry. Returns (output or None, fallback entry or None, spent)."""
     body = row["body"]
@@ -537,12 +560,20 @@ def send(job, row, beats, post, headers, budget, stamp):
             return None, {"reason": "cap", "sent": sent, "detail": f"attempt {attempt} (~${quote:.6f}) after ${budget['spent']:.6f} spent would pass --max-usd {budget['cap']}; {more}"}, spent
         try:
             resp = post(MESSAGES_URL, headers, body)
+        except HttpStatusError as e:
+            # An error status means nothing was generated: not billed, not charged and not marked, so a plain rerun retries it.
+            append_ledger(job, {"at": stamp, "kind": "spec", "lane": LANE, "layer": row["layer"], "model": row["model"], "effort": row["effort"],
+                                "attempt": attempt, "stopReason": None, "maxTokens": body["max_tokens"], "usd": 0.0,
+                                "usdBasis": f"not billed: the API answered HTTP {e.status}", "usage": None, "httpStatus": e.status,
+                                "error": str(e), "requestSha256": row["key"], "promptSha256": prompt_sha, "fileSha256": None})
+            return None, {"reason": "http-status", "sent": True, "detail": f"{e}; a plain rerun sends it again"}, spent
         except SpecsError as e:
             budget["spent"] += quote          # the real cost is unknown and it may have been billed: charge the quote
             append_ledger(job, {"at": stamp, "kind": "spec", "lane": LANE, "layer": row["layer"], "model": row["model"], "effort": row["effort"],
                                 "attempt": attempt, "stopReason": None, "maxTokens": body["max_tokens"], "usd": None,
                                 "usdBasis": "unknown: the response could not be read; the request may have been billed", "usage": None,
                                 "error": str(e), "requestSha256": row["key"], "promptSha256": prompt_sha, "fileSha256": None})
+            mark_failed(job, row, "error", stamp)
             return None, {"reason": "error", "sent": True, "detail": str(e)}, spent
         usage = resp.get("usage") or {}
         usd = actual_usd(usage)
@@ -562,6 +593,7 @@ def send(job, row, beats, post, headers, budget, stamp):
         if stop == "max_tokens":
             append_ledger(job, line)
             if attempt == 1:
+                mark_failed(job, row, "truncated", stamp)      # paid: marked now, so an interrupted retry never pays it again
                 body = {**body, "max_tokens": min(RETRY_MAX_TOKENS_CAP, body["max_tokens"] * 2)}
                 continue
             return None, {"reason": "truncated", "sent": True, "detail": f"truncated at max_tokens {body['max_tokens']} twice"}, spent
@@ -579,6 +611,7 @@ def send(job, row, beats, post, headers, budget, stamp):
         if errs:
             append_ledger(job, line)
             if attempt == 1:
+                mark_failed(job, row, "invalid", stamp)
                 feedback = "That answer failed validation:\n- " + "\n- ".join(errs[:20]) + "\nReturn the whole corrected object."
                 excerpt = (text or "{}") if len(text or "") <= ECHO_MAX_CHARS else text[:ECHO_MAX_CHARS] + " [answer truncated]"
                 body = {**body, "messages": body["messages"] + [{"role": "assistant", "content": excerpt},
@@ -604,6 +637,8 @@ def run(job, args, env=None, post=None, now=None, policy=None):
     check_key_name(args.key_env)
     if not (job / "plan" / "cue-sheet.json").is_file():
         raise SpecsError(f"{job}: plan/cue-sheet.json is missing; check the job path. Nothing was created.")
+    if (env.get(args.key_env) or "").strip().lower().startswith(ADMIN_KEY_PREFIX):
+        raise SpecsError(f"{args.key_env} holds an Admin key, which only reports cost and never generates; nothing was sent or created")
     lock, owner = acquire_lock(job, stamp)
     try:
         return run_locked(job, args, env, post, stamp, policy)
@@ -662,8 +697,8 @@ def run_locked(job, args, env, post, stamp, policy):
         if fallback:
             entry = {"layer": row["layer"], "requestSha256": row["key"], "at": stamp, **fallback}
             fallbacks.append(entry)
-            if fallback["sent"] and fallback["reason"] != "refusal":
-                write_json(specs_dir(job) / "cache" / f"{row['key']}.json", {"failed": fallback["reason"], "at": stamp, "layer": row["layer"]})
+            if fallback["sent"] and fallback["reason"] not in ("refusal", "http-status"):
+                mark_failed(job, row, fallback["reason"], stamp)
             # Recorded as it happens, so a later crash cannot lose it.
             append_ledger(job, {"at": stamp, "kind": "fallback-needed", "lane": LANE, **{k: entry[k] for k in ("layer", "reason", "detail", "requestSha256")}})
             record_fallback(job, [entry], set())
