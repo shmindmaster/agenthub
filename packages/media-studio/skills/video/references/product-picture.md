@@ -1,14 +1,14 @@
 # Product picture
 
-The contract for any film about a running product. It applies when `job.kind` is `product-screencast`, when `programForm` is a product form, or when a beat is `visualMode: screen`. A running product wins over "briefing", "tutorial" or "walkthrough". If nothing on screen can act, the job is a `briefing`. For `programForm: technical-story`, take the story shape from the technical-story beat map; this file still owns capture and gates.
+The contract for films or beats **claiming to demonstrate existing product functionality**. Apply this to verified `product-screencast` work, current-product `programForm` proof and explicitly verified screen beats. Having an existing product does not force a future-vision film, speculative UI, fictional day-in-the-life or concept documentary into this contract. Those modes can show wholly invented, photorealistic, readable synthetic interfaces with no mandatory blur. In a hybrid film, current-function proof uses real capture and proposed interactions are identified as concepts. See `creative-formats.md`.
 
 ## The contract
 
 A muted viewer follows start, configure, act, response, result. Voice is not proof; the picture is.
 
 - Screens are real captured WebM plus Recast (`capture` skill). No Ken Burns stills, no auto-cards, no animated screenshots, even when a clip is missing: record it.
-- Generative video never replaces product UI.
-- Missing `visualMode` on a `product-screencast` beat defaults to `screen`, not `slide`.
+- Generative video never replaces **evidence of an actual current product feature**. It may depict proposed/futuristic UI or an illustrative fictional interaction when that is the film's explicitly identified representation.
+- Missing `visualMode` on a **verified** `product-screencast` beat defaults to `screen`, not `slide`. Concept/vision videos are classified separately.
 - **End-to-end demonstration.** Never cut start to result. If a model, connector, permission, trigger or flag drives later behavior, show it set in this session, then the run, then the result.
 
 | Beat | Picture | Forbidden |
