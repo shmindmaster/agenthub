@@ -154,6 +154,35 @@ class ClerkFleetTests(unittest.TestCase):
                              {"clerk": {"url": fleet.URL}})
             self.assertFalse((target / "skills/clerk-testing/mcp.json").exists())
 
+    def test_skills_only_hosts_get_official_skills_and_no_mcp_entry(self):
+        policy = json.loads((ROOT / "registry/mcps.json").read_text(encoding="utf-8-sig"))["activationPolicy"]["pluginOnly"]["hosts"]
+        for host, root in fleet.SKILLS_ONLY.items():
+            self.assertNotIn("clerk", policy[host], host)
+            with tempfile.TemporaryDirectory() as temp, patch.object(fleet, "run") as run:
+                home = Path(temp) / "home"
+                upstream = Path(temp) / "upstream"
+                skill = upstream / "skills" / "clerk"
+                skill.mkdir(parents=True)
+                (skill / "SKILL.md").write_text("---\nname: clerk\n---\n")
+                fleet.bridge(host, upstream, home)
+                run.assert_not_called()
+                self.assertTrue((home / root / "skills/clerk/SKILL.md").is_file())
+                self.assertEqual([p.name for p in (home / root).iterdir()], ["skills"])
+
+    def test_audit_accepts_a_skills_only_host_without_a_remote_and_still_requires_its_skills(self):
+        good = {"kilo": {"matchingOfficialSkills": 20, "remoteConfigured": None}}
+        missing = {"kilo": {"matchingOfficialSkills": 0, "remoteConfigured": None}}
+        other = {"warp": {"matchingOfficialSkills": 20, "remoteConfigured": None}}
+        for rows, code in ((good, 0), (missing, 1), (other, 1)):
+            with contextlib.ExitStack() as stack:
+                stack.enter_context(patch("sys.argv", ["installer", "--audit"]))
+                stack.enter_context(patch.object(fleet, "audit", return_value=rows))
+                stack.enter_context(patch.object(fleet.os, "name", "nt"))
+                stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+                with self.assertRaises(SystemExit) as result:
+                    fleet.main()
+                self.assertEqual(result.exception.code, code, rows)
+
     def test_every_active_surface_has_a_rollout_route(self):
         agents = json.loads((ROOT / "registry/agents.json").read_text(encoding="utf-8-sig"))
         supported = set(fleet.NATIVE) | fleet.BRIDGES | set(fleet.ALIASES)
