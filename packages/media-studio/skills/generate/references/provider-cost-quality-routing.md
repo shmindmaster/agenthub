@@ -69,26 +69,142 @@ Always honor `skills/generate/references/content-controls.md`.
    claims or failed sync => reject/recut; a completed inference task does
    not constitute an accepted media asset.
 
-## 2026-11-10 candidate shortlist (discovery hints, NOT permanent defaults)
+## Runware shootout: target media, full cost and actual status (2026-11-10)
 
-Current public docs and example base prices (always re-quote exact settings):
+The **live model index** is the availability authority, not a marketing page,
+example price or discount banner. Every listed figure below is a published
+base rate or illustrative measured run, **not** a controlled side-by-side
+quality/speed test. Never assert one model wins image fidelity without
+sampling the same prompts at equal output size and comparing accepted results.
 
-| Need | Candidate/AIR | Indicative price | Use after approval |
+### Images and editable scene setting
+
+| Candidate (public model ID) | Published cost and time | Best role | Limitation |
 | --- | --- | --- | --- |
-| Fast illustrative design | Recraft V4.1 Flash `recraft:v4.1@flash` | ~$0.007/image | Cheap visual concepts and environmental plates. |
-| Better image detail/edits | Qwen-Image-3.0 `alibaba:qwen-image@3.0` | ~$0.03/image | Branded story stills when capture/kit cannot express them. |
-| Cheap 5s motion draft | MiniMax H3 Max Turbo `minimax:h3@max-turbo` | ~$0.025/s (480p); ~$0.04/s (768p) | B-roll only; grade motion, artifacts, consistency. |
-| Reference-rich motion | P-Video-2-Pro `prunaai:p-video@2-pro` | ~$0.01/s in a published cost tier | Use reference inputs/last frames when needed; quote actual recipe. |
-| Long/reference-heavy hero video | Wan3.0 `alibaba:wan@3.0` | ~$0.05/s (480p) or higher for more resolution | Only when the story needs the extra controls. |
-| Speech voice candidate | Fish Audio S2.1 Pro `fishaudio:s2.1@pro` | ~$0.015/1,000 UTF-8 bytes | Candidate, frozen until governed adapter. |
-| Reusable instrumental bed | MiniMax Music 2.6 `minimax:music@2.6` | ~$0.15/generation | Candidate, frozen; reuse accepted track. |
-| Optional concept 3D | TRELLIS.2 `microsoft:trellis-2@4b` | ~$0.0077 at published 512 setting | Image-to-3D only; normally unnecessary for SaaS reels. |
+| `bfl-flux-3-image-klein` | ~$0.006 for 1024², ~3s measured; compute billed, not flat price | First-pass adult-office/environment stills and rapid low-cost variants | Actual runtime, resolution, steps and hardware determine cost; examine faces and hands. |
+| `alibaba-qwen-image-2-1-turbo` | $0.0141/image, ~17–31s examples | Prompt-based edits, multi-reference image composition, controlled graphic ideation | Up to 10 references; not SVG/GIF output. Keep for a same-prompt quality comparator. |
+| `minimax-h3-image` | ~$0.0311 typical; sample text-to-image $0.0176–$0.0189 at ~16s | Detailed cinematic still or high-resolution scene | Per-token priced; 50%-off promotion is **4K images only**, through Nov 17, 2026. Do not apply 50% to every request. |
+| `minimax-h3-image-highspeed` | ~$0.0573 typical; samples ~$0.0418–$0.0743, 13–21s | When generation turnaround has measurable value | Premium image-token rates for speed; test whether the savings in edit time exceed charges. Same core parameters as H3 Image. |
+| `openai-gpt-image-2-6-sunburst` | ~$0.0703 typical; examples $0.0374 GIF, $0.0431 image, $0.0634 SVG | Complex hero artwork, precise edits, specialist SVG or small GIF assets | Token billed; SVG incurs **second language-authoring charge**; GIF uses a spritesheet, up to 16 frames; neither SVG nor GIF supports referenceImages. Not normal cheap batch image. |
+| `bytedance-seedream-5-5` | Advertised $0.02 up to 1.5K, $0.027 at 2K, input images and individual layers extra | Future layer-separated poster/context scene creation | **Status coming-soon** in official live index as of Nov 10; NEVER route/generate yet. Inspect `bytedance-seedream-5-0-pro` or `-flash` as separate live alternatives, without assuming identical layers/features. |
+| `alibaba-qwen-image-3-0` | ~$0.03/image in published example | Higher-tier comparator, useful where another model fails typography/consistency | Not automatically better than cheaper Qwen 2.1 Turbo or Klein for the task. |
 
-These example rates are **not** guarantees of pricing, output quality, or
-feature availability. The live `index.json` and each `schema.json` take
-precedence; inspect reference restrictions, output types and any model
-deprecation before proposing it. Higher fidelity may cost more. A 3D model
-is not a replacement for a clear SVG architecture diagram.
+**Recommended default candidate** for *illustrative story imagery*: FLUX 3
+Klein when fast/cost-effective results are accepted, with Qwen 2.1 Turbo
+as a more controlled editing comparator. H3 Image and GPT-Image
+Sunburst should be escalation/specialist choices. Seedream 5.5 remains
+in discovery-only until Runware marks it live and its actual execution
+is verified. Preserve source proofs and render all real UI via Playwright.
+
+### SVG, GIF, layering and branded animation
+
+- First use **hand-drawn safe SVG / Lottie / Remotion** for exact diagrams,
+  icons, recurring logos, UI-adjacent typography and brand motion. This
+  ensures predictable edits and is free of per-image inference charges.
+- Sunburst SVG: `outputFormat: SVG` triggers an image-generation pass
+  followed by a **separate SVG authoring model**, billed at that model's
+  input/output rates; quote the whole two-stage recipe. It is useful only
+  when a complex illustration genuinely reduces manual design time.
+  Validate SVG for layout, legibility, paths, text, licensing and safety:
+  remove scripts, event handlers, external fetches, embedded active
+  content and untrusted references before Remotion/FFmpeg composition.
+- Sunburst GIF: `outputFormat: GIF`; 2–16 frames generated as a
+  spritesheet, sliced and looped. More frames reduce available per-frame
+  resolution. Use for tiny non-claim motion marks or concepts, **not**
+  full-screen human-video, precise product interface, or long reels.
+- Sunburst SVG/GIF **cannot accept reference images** in the current
+  schema. Do not promise brand-photo editing/identity consistency in
+  these output modes. Output limits and cost vary with SVG author model
+  and GIF frameCount/size.
+- Seedream 5.5's advertised layer decomposition can add up to 99
+  individually billed output layers; it is not production-ready yet.
+  Editable layouts are better assembled locally with known geometry.
+
+### Video, image-to-video and video editing
+
+| Candidate | Published cost and run examples | Best use | Exclusion |
+| --- | --- | --- | --- |
+| `minimax-h3-lite` | **50% off through Dec 31, 2026:** $0.0125/s at 480p; $0.02/s at 768p; ~41s request average | First 4–8s synthetic context shots, low-cost proof of a storyboard idea | Not product UI. Audio/reference input options must be matched to the model schema. |
+| `minimax-h3-highspeed` | **50% off through Dec 31, 2026:** $0.02/s at 480p, $0.03/s at 768p; ~41s mean with variable examples | Faster/better candidate for approved hero beats | Try same scene vs Lite; price alone does not establish quality. |
+| `minimax-h3-max-turbo` | Published from $0.025/s (480p) | Additional visual-quality challenger for action-heavy scenes | Compare with H3 Lite/Highspeed at equal 768p and referenced input. |
+| `google-gemini-omni-flash-1-2` | $0.02/s at 360p, $0.07/s at 720p, $0.10/s at 1080p; ~1m26s/request | Reference-based character/setting consistency, synced audio, edits/extension; up to 15s clips | More expensive than H3 Lite at useful resolution; no invented UI. |
+| `prunaai-p-video-2-pro-replace` | **50% off through Nov 19, 2026:** $0.025/s at 480p, $0.05/s 768p, $0.06/s 1080p; ~1m52s/request | Specialist **person replacement in an existing, licensed clip**, source sound/motion maintained | NOT a text-to-video/hero generator. Human likeness/consent required, no deceptive real-customer/clinician impersonation. |
+| `klingai-video-4-0-flash` | **15% off through Nov 10, 2026:** $0.0799/s at 720p without video input, $0.107/s with video input | Higher-cost motion/reference edit challenger if H3 fails | Promotion expires **today**, not a durable price. Re-quote after midnight. |
+| `alibaba-wan3-0` | Published from $0.05/s (480p) | Specific advanced control where tested alternatives fail | Generally unnecessary for a 30–45s SaaS product reel. |
+
+**Do not substitute `prunaai-p-video-2-pro-replace` for the ordinary
+`prunaai-p-video-2-pro` video generator:** replacement requires existing
+source footage and photo(s) of the substitute subject. Gemini Omni Flash
+1.2 is a **video** generator/editor, not a still-image model or general
+multimodal thinking provider.
+
+### Very low-cost voice alternatives
+
+| Model | Published rate | Suitable use |
+| --- | --- | --- |
+| `heygen-voice-1-0-turbo-free` | Free/shared limited capacity; timing and availability **not guaranteed** | Optional rehearsal and non-deadline drafts; no production SLA, never the only reliable path. |
+| `heygen-voice-1-0-turbo` | $0.000004 per character ($0.004/1,000), ~11s/request example | Budget scripted short-form narration challenger if it passes audition and a governed adapter is approved. |
+| `heygen-voice-1-0` | $0.00003 per character ($0.03/1,000), ~13s/request example | Voice quality/control challenger, not economical vs Turbo until audible gain is shown. |
+| `fishaudio:s2.1@pro` | ~$0.015 per 1,000 UTF-8 bytes | Expressive alternative to compare with authorized Azure/ElevenLabs. |
+
+A 400-character Turbo voice request would list at ~$0.0016 before
+extras; the public/free variant is suitable only for disposable drafts.
+These models support optional voice cloning; **do not clone any real
+person without explicit rights and consent**. Keep the same approved
+narrator across episodes. All these new Runware voice lanes remain
+frozen pending a governed, budgeted adapter and a voice audition.
+The existing approved Azure narration route remains the safe default.
+
+### Audience-specific composition and human context (critical)
+
+**Default edit for a 40–45 second ABACare film:** roughly 70–85%
+real, receipt-bound product screen and meaningful UI action; 10–20%
+non-claim context/problem footage or verified generic adult-office
+illustration (optional); the remainder hand-authored typography,
+diagram/sound/CTA. These percentages are **creative targets, not
+release thresholds**. Use generated visuals only when they make a
+specific story point clearer, e.g. a fictional adult coordinator
+recognizes a next-day scheduling risk before the real software demo.
+No invented clinic results, client identities or simulated patient scenes.
+
+For fictional adults, scenes should be identifiable as dramatization,
+not testimonials. Create a consistent adult actor/profile if a series
+requires it, with explicit provenance, no real person's likeness, no
+patient/child, no identifiable health information. Generated images,
+GIFs and footage are **supplemental to** rather than substitutes for
+actual ABACare product recordings and the stored product-claim evidence.
+Native 9:16, 4:5 and 16:9 framing should be authored for their
+respective delivery formats; do not crop away the product result.
+
+**Selection scorecard for candidate comparison** (evaluate the same
+shot and resolution; do not invent benchmark numbers):
+1. Does it advance the exact storyboard beat and preserve truth?
+2. Is the subject/background/lighting consistent with prior shots?
+3. Is the output legible, anatomically plausible and brand-correct?
+4. Can the viewer follow it on mute without mistaking generated UI for real?
+5. Is first-pass acceptance high, and is generation latency acceptable?
+6. What is total *accepted* asset cost, including failed takes, inputs,
+   reference assets, upscales, retries, license, and editing time?
+7. Does the alternative add value over free Remotion/SVG/captured UI?
+
+**Do not override the selection scorecard based on discounts** or
+automatically spend the owner account's credits. Conditional/frozen
+provider lanes require the existing authorization and accounting.
+Keep promotion deadlines in dated research, not the permanent router.
+
+### Repeatable A/B test (requires explicit paid authorization)
+
+Using the **same three approved prompts**: (1) generic adult coordinator
+at a desk noticing a work problem; (2) minimal high-contrast background
+matching brand colors; (3) non-claim transition/motion scene, compare
+Klein, Qwen 2.1 Turbo, H3 Image and optionally Sunburst on equal 9:16
+outputs. For video, compare H3 Lite and Highspeed on the **same
+accepted still** at the same resolution and duration; consider Gemini
+only if continuity/native audio is needed. Measure actual provider
+cost receipts, generation latency, reject/retry count and a human
+storyboard/quality score. Reuse winning assets and their model/input
+hashes, not a blanket provider preference. This task is research and
+PR guidance only: **no inference or paid generation performed**.
 
 ## AssemblyAI: intelligibility and timing review
 
@@ -143,9 +259,10 @@ authorization exists.
 
 - An ABACare authorization reel: **real UI** for the flagged schedule,
   authorization details and resolution; free Remotion/SVG for context
-  and transitions; approved narration; if a *non-claim* emotional still is
-  truly needed, first quote Runware Recraft, then optionally a higher-grade
-  image model. No need for video or 3D generation by default.
+  and transitions; approved narration; if a *non-claim* emotional
+  still is truly needed, compare Runware FLUX 3 Klein and Qwen 2.1
+  Turbo on the identical brief before escalation to H3 Image/Sunburst.
+  A 4–6s H3 Lite context shot can be justified, but no need for 3D.
 - A fictionalized clinic-opening hero with a presenter: a governed voice
   candidate (Azure first; ElevenLabs if authorized and auditioned); synthetic
   reference still from Runware; an optional short generated presenter/hero
@@ -161,6 +278,16 @@ authorization exists.
 - Runware live index: https://runware.ai/docs/models/index.json
 - Runware model schema: https://runware.ai/docs/models-api/model-schemas
 - Runware dynamic prices: https://runware.ai/docs/models-api/pricing
+- FLUX 3 Klein: https://runware.ai/docs/models/bfl-flux-3-image-klein
+- Qwen Image 2.1 Turbo: https://runware.ai/docs/models/alibaba-qwen-image-2-1-turbo
+- GPT Image 2.6 Sunburst SVG/GIF: https://runware.ai/docs/models/openai-gpt-image-2-6-sunburst
+- Seedream 5.5 (coming-soon): https://runware.ai/docs/models/bytedance-seedream-5-5
+- MiniMax H3 Lite: https://runware.ai/docs/models/minimax-h3-lite
+- MiniMax H3 Highspeed: https://runware.ai/docs/models/minimax-h3-highspeed
+- Gemini Omni Flash 1.2: https://runware.ai/docs/models/google-gemini-omni-flash-1-2
+- P-Video Replace: https://runware.ai/docs/models/prunaai-p-video-2-pro-replace
+- Kling 4.0 Flash: https://runware.ai/docs/models/klingai-video-4-0-flash
+- HeyGen Turbo Free: https://runware.ai/docs/models/heygen-voice-1-0-turbo-free
 - AssemblyAI rates: https://www.assemblyai.com/pricing/
 - AssemblyAI Universal-3.5 Pro: https://www.assemblyai.com/docs/pre-recorded-audio/universal-3-5-pro
 - ElevenLabs models: https://elevenlabs.io/docs/overview/intro
