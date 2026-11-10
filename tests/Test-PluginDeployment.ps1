@@ -223,7 +223,26 @@ try {
         $script:ownerInstalled = $true
     }
     if ($installs -ne 1) { throw "two rows sharing an owner triggered $installs installs" }
-    Write-Host 'RESULT: 32 passed, 0 failed'
+
+    # --- A Copilot plugin installed but disabled is reported blocked, never
+    # current; wrong-marketplace handling is preserved. ---
+    foreach ($name in 'Get-RowNativeHost','New-Observation','Get-PluginObservation') {
+        $function = $ast.FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name }, $true) | Select-Object -First 1
+        Invoke-Expression $function.Extent.Text
+    }
+    function Get-ListedPlugin([string]$Command, [string]$Name, [switch]$Fresh) { return $script:listedEntry }
+    $copilotRow = [pscustomobject]@{ host = 'vscode-insiders'; nativeOwnerHost = 'copilot'; plugin = 'ah-x'; capability = 'x'
+                                    route = 'managed-loose-skills'; expected = '1.0.0'; source = 'x'; marketplace = 'agenthub' }
+    $script:listedEntry = [pscustomobject]@{ version = '1.0.0'; marketplace = 'agenthub'; enabled = $false }
+    $obs = Get-PluginObservation $copilotRow
+    if ($obs.status -ne 'blocked' -or $obs.detail -notmatch 'disabled') { throw "disabled copilot plugin was not reported blocked: $($obs.status)" }
+    $script:listedEntry = [pscustomobject]@{ version = '1.0.0'; marketplace = 'agenthub'; enabled = $true }
+    $obs = Get-PluginObservation $copilotRow
+    if ($obs.status -eq 'blocked' -or $obs.version -ne '1.0.0') { throw "enabled copilot plugin was not observed normally: $($obs.status) $($obs.version)" }
+    $script:listedEntry = [pscustomobject]@{ version = '1.0.0'; marketplace = 'other-market' }
+    $obs = Get-PluginObservation $copilotRow
+    if ($obs.status -ne 'unmanaged') { throw "wrong marketplace was not preserved as unmanaged: $($obs.status)" }
+    Write-Host 'RESULT: 35 passed, 0 failed'
 } finally {
     $resolved = (Get-Item -LiteralPath $testRoot.FullName).FullName
     if ($resolved -eq $testRoot.FullName -and (Split-Path -Parent $resolved) -eq $testRoot.Parent.FullName) {
