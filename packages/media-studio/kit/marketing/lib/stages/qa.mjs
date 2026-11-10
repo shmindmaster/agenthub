@@ -12,6 +12,7 @@ import { measureLoudness, gateScript, runSyncGates } from '../gate-runners.mjs';
 import { loudnessTarget, run } from '../mix.mjs';
 import { runPictureGate } from '../picture-gate.mjs';
 import { normalizeCuts } from '../lint.mjs';
+import { creativeMode } from '../creative-modes.mjs';
 import { LOCAL_AI_OFF, fileSha, readJson, writeJson } from '../util.mjs';
 import { resolveClip } from './capture.mjs';
 import { runVisionQa } from '../../vision-qa.mjs';
@@ -49,9 +50,15 @@ function bindCandidate(ctx, named, ws) {
 }
 
 async function avGates(ctx, { ad, srt, ws, qdir, gateSegments, target, gates }) {
-  const pic = runPictureGate({ candidate: ad, band: gateSegments.band, segments: gateSegments.segments, durationSeconds: gateSegments.durationSeconds });
-  writeJson(join(qdir, 'picture.json'), pic);
-  gates.picture = pic.ok ? { status: 'pass', detail: `UI ratio ${pic.screenRatio}` } : { status: 'fail', detail: pic.errors.slice(0, 2).join(' | ') };
+  if (creativeMode(ctx.spec) === 'verified-demo') {
+    const pic = runPictureGate({ candidate: ad, band: gateSegments.band, segments: gateSegments.segments, durationSeconds: gateSegments.durationSeconds });
+    writeJson(join(qdir, 'picture.json'), pic);
+    gates.picture = pic.ok ? { status: 'pass', detail: `UI ratio ${pic.screenRatio}` } : { status: 'fail', detail: pic.errors.slice(0, 2).join(' | ') };
+  } else {
+    // Deliberately not run: product-screen coverage is inapplicable to
+    // fully synthetic fiction/vision/animation. Do not pretend it passed.
+    gates.picture = { status: 'n/a', detail: 'no present-day product UI proof claim in this creative mode' };
+  }
 
   const cap = captionsCheck(readFileSync(srt, 'utf8'));
   gates.captions = cap.ok ? { status: 'pass', detail: `${cap.cues} cues` } : { status: 'fail', detail: cap.errors.slice(0, 2).join(' | ') };
@@ -85,8 +92,13 @@ async function syncGates(ctx, { ws, candidate, cdir, gates }) {
 // receipt; the marketing floor counts only a reviewer's qa/<ratio>/marketing-readiness.json that names this candidate.
 async function chainGates(ctx, { ws, qdir, ratio, candidate, sha, gates }) {
   const composeMapRel = `output/${ctx.spec.id}-compose-map.json`;
-  gates.integrity = await runIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
-  gates.pointer = await runPointerGate({ ws, moduleRoot: MODULE_ROOT });
+  if (creativeMode(ctx.spec) === 'verified-demo') {
+    gates.integrity = await runIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
+    gates.pointer = await runPointerGate({ ws, moduleRoot: MODULE_ROOT });
+  } else {
+    gates.integrity = { status: 'n/a', detail: 'no product-screen geometry binding required' };
+    gates.pointer = { status: 'n/a', detail: 'no physical cursor path required' };
+  }
   gates.frameIntegrity = await runFrameIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
   gates.marketing = await runMarketingGate({ ws, qdir, ratio, candidate, sha, composeMapRel, moduleRoot: MODULE_ROOT });
 }
@@ -128,7 +140,9 @@ async function viewerReleaseGate(ctx, { ws, qdir, candidate, sha, srt, loudPath,
   const evidence = assembleEvidence({ root: ws, candidate, candidateSha: sha, srtPath: srt, loudnessReportPath: loudPath, loudness: loud, reviews, scriptPath: join(ws, 'story', 'locked-script.txt') });
   writeJson(join(ws, 'qa', 'viewer-release-evidence.json'), evidence);
   // Always the current candidate's report: a copy left from an earlier render is bound to another SHA-256.
-  copyFileSync(join(qdir, 'picture.json'), join(ws, 'qa', 'encoded-picture.json'));
+  if (creativeMode(ctx.spec) === 'verified-demo') {
+    copyFileSync(join(qdir, 'picture.json'), join(ws, 'qa', 'encoded-picture.json'));
+  }
   const vr = await run(process.execPath, [gateScript('validate-viewer-release.mjs', MODULE_ROOT), ws, candidate], {});
   let parsed = null;
   try { parsed = JSON.parse(vr.stdout); } catch { parsed = null; }
