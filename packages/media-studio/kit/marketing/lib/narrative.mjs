@@ -1,7 +1,8 @@
 // Structural story gate for viewer-facing marketing cuts. Runs before any paid media calls.
 // This is not a semantic/cinematic review: the encoded-file critic still judges whether
 // the stated scenario, software mechanism and payoff are actually understandable on screen.
-const REQUIRED = ['persona', 'situation', 'trigger', 'problem', 'stakes', 'solution', 'mechanism', 'payoff'];
+const REQUIRED = ['persona', 'situation', 'trigger', 'problem', 'stakes', 'solution', 'mechanism', 'payoff', 'emotionalBefore', 'emotionalAfter', 'viewerValue'];
+const HOOK_COMPONENTS = ['visual', 'onScreen', 'spoken', 'viewerQuestion'];
 const ROLES = new Set(['hook', 'context', 'problem', 'context-problem', 'solution', 'demonstration', 'proof', 'payoff', 'cta']);
 const words = (v) => String(v || '').trim().split(/\s+/).filter(Boolean);
 const clean = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -26,6 +27,15 @@ export function inspectNarrativeArc(spec, cut, estimateBeatSeconds) {
     add('A 25s+ cut needs narrative { persona, situation, trigger, problem, stakes, solution, mechanism, payoff } before production.');
   } else {
     for (const field of REQUIRED) if (!meaningful(narrative[field])) add(`narrative.${field} must state a concrete ${field}, not an empty label.`);
+    if (meaningful(narrative.emotionalBefore) && meaningful(narrative.emotionalAfter) && clean(narrative.emotionalBefore) === clean(narrative.emotionalAfter)) {
+      add('The emotional before-state and after-state must differ; show what changed for the viewer.');
+    }
+  }
+  const hookPlan = cut.hookPlan || spec.hookPlan;
+  if (!hookPlan || typeof hookPlan !== 'object' || Array.isArray(hookPlan)) {
+    add('The first five seconds need hookPlan { visual, onScreen, spoken, viewerQuestion } so picture, text and voice establish a shared reason to watch.');
+  } else {
+    for (const field of HOOK_COMPONENTS) if (!meaningful(hookPlan[field])) add(`hookPlan.${field} must describe its own clear opening component.`);
   }
 
   const beats = Array.isArray(cut.beats) ? cut.beats : [];
@@ -40,6 +50,9 @@ export function inspectNarrativeArc(spec, cut, estimateBeatSeconds) {
   const hookLine = String(opening.narration || opening.onScreenText || '').split(/[.!?]/)[0];
   if (words(hookLine).length > 12) add('First hook sentence exceeds 12 words (approximately five seconds at 150 wpm).', `${cut.id}/${opening.id}`);
   if (words(opening.narration || opening.onScreenText).length < 3) add('Opening hook must convey a concrete pain or payoff.', `${cut.id}/${opening.id}`);
+  if (meaningful(hookPlan?.spoken) && !clean(opening.narration || '').startsWith(clean(hookPlan.spoken))) {
+    add('The hookPlan spoken line must match the actual beginning of the first narration beat; a proposed hook alone is not a rendered hook.', `${cut.id}/${opening.id}`);
+  }
 
   const context = firstAny('context', 'context-problem');
   const problem = firstAny('problem', 'context-problem');
@@ -52,11 +65,14 @@ export function inspectNarrativeArc(spec, cut, estimateBeatSeconds) {
   if (solution < 1) add('Introduce the named software as the answer to that problem (solution beat).');
   if (context > 0 && problem > 0 && solution > 0 && (context >= solution || problem >= solution)) add('Scenario and problem must precede the software solution.');
   if (demonstration < 1 || (solution >= 0 && demonstration <= solution)) add('Demonstrate the mechanism after the software introduction (demonstration or proof beat).');
-  if (demonstration >= 0 && !beats.slice(demonstration).some((b) => ['demonstration', 'proof'].includes(b.storyRole) && b.kind === 'ui')) {
+  if (demonstration >= 0 && !beats.slice(demonstration, payoff >= 0 ? payoff : undefined).some((b) => ['demonstration', 'proof'].includes(b.storyRole) && b.kind === 'ui')) {
     add('A product mechanism/proof beat must show actual captured product UI, not just a title or b-roll.');
   }
   if (payoff < 1 || (demonstration >= 0 && payoff <= demonstration)) add('Show a changed outcome after the demonstration (payoff beat).');
   if (cta < 1 || cta !== beats.length - 1 || (payoff >= 0 && cta <= payoff)) add('End with one CTA after the payoff, not a sudden cutoff.');
+  if (cta >= 0 && clean(spec.cta?.text) && !clean(`${beats[cta].narration || ''} ${beats[cta].onScreenText || ''}`).includes(clean(spec.cta.text))) {
+    add('The last beat must carry the approved CTA text: do not switch to another ask at the end.', `${cut.id}/${beats[cta].id}`);
+  }
 
   if (context > 0 && typeof estimateBeatSeconds === 'function') {
     const contextAt = beats.slice(0, context).reduce((sum, b) => sum + estimateBeatSeconds(b), 0);
