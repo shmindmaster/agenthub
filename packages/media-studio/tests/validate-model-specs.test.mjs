@@ -29,8 +29,10 @@ function job(name, edit = {}) {
   const receipt = read(join(fixtures, 'receipt.json'));
   const layers = Object.fromEntries(LAYERS.map((l) => [l, read(join(fixtures, `${l}.json`))]));
   edit.sheet?.(sheet); edit.receipt?.(receipt); edit.layers?.(layers);
-  write(join(root, 'capture', 'clips', 'C1.webm'), 'synthetic recording C1');
-  if (receipt.clips.C1) receipt.clips.C1.sha256 = sha(join(root, 'capture', 'clips', 'C1.webm'));
+  for (const [id, rec] of Object.entries(receipt.clips)) {
+    write(join(root, 'capture', rec.file), `synthetic recording ${id}`);
+    rec.sha256 = sha(join(root, 'capture', rec.file));
+  }
   for (const id of ['S01', 'S02']) {
     write(join(root, 'voice', 'takes', `${id}.wav`), `synthetic narration ${id}`);
     write(join(root, 'voice', 'align', `${id}.json`), { method: 'forced-alignment', take: { path: `voice/takes/${id}.wav`, sha256: sha(join(root, 'voice', 'takes', `${id}.wav`)) }, words: [] });
@@ -173,4 +175,93 @@ test('the resolver turns regions and anchors into renderer-shaped timed graphics
   const b = spawnSync(process.execPath, [resolver, bad], { encoding: 'utf8', windowsHide: true });
   assert.equal(b.status, 1);
   assert.match(b.stdout + b.stderr, /Open queue.*no program time/);
+});
+
+// ---- fixes from the independent review of b7ba9509
+const resolve_ = (root, args = []) => { const r = spawnSync(process.execPath, [resolver, root, ...args], { encoding: 'utf8', windowsHide: true }); return { code: r.status, out: r.stdout + r.stderr }; };
+const item = (report, id) => report.items.find((i) => i.id === id);
+const onApprove = (over = {}) => overlay({ beatId: 'S02', actionLabel: 'Approve', region: 'right-panel', text: 'Approve it', ...over });
+
+test('a zoom is kept out of timed graphics because the compositor would paint it over the footage', () => {
+  const root = job('zoom-over-pointer', { layers: (l) => { l.overlays.output.overlays[1] = onApprove({ kind: 'zoom', text: '' }); } });
+  assert.equal(resolve_(root).code, 0);
+  const graphics = read(join(root, 'plan', 'model-specs', 'timed-graphics.json'));
+  assert.ok(!graphics.overlays.some((o) => /zoom/.test(o.assetId)), JSON.stringify(graphics));
+  const { code, out, report } = run(root);
+  assert.equal(code, 0, out);
+  assert.equal(item(report, 'overlays[1]').geometry, 'not rendered: no crop renderer exists, so a zoom is kept out of timed graphics');
+});
+
+test('a Recast-zoomed take, an editorial crop or a panel is not checked rather than reported clear', () => {
+  const recast = job('recast-full', { receipt: (r) => { r.clips.C1.recast = 'full'; }, layers: (l) => { l.overlays.output.overlays[1] = onApprove(); } });
+  const r = run(recast);
+  assert.equal(item(r.report, 'overlays[1]').geometry, 'not checked: Recast zoom not modelled');
+  assert.ok(!r.report.items.some((i) => i.geometry === 'clear'));
+  assert.ok(r.report.checks.notPerformed.some((n) => n.check === 'geometry' && n.reason === 'not checked: Recast zoom not modelled'));
+  for (const [key, value, reason] of [['sourceRegion', { x: 0, y: 0, width: 0.5, height: 0.5 }, 'not checked: editorial crop not modelled'], ['destinationRect', { x: 400, y: 200, width: 800, height: 500 }, 'not checked: editorial panel not modelled']]) {
+    const root = job(`compose-${key}`, {
+      sheet: (s) => { s.inputs.composeMap = { path: 'output/film-compose-map.json', sha256: 'x' }; },
+      after: (r2) => write(join(r2, 'output', 'film-compose-map.json'), { generator: 'media-studio/compose-screencast', groups: [{ clipId: 'C1', segments: ['S01', 'S02'], startSeconds: 0, needSeconds: 12, [key]: value }] }),
+    });
+    const c = run(root);
+    assert.equal(item(c.report, 'overlays[0]').geometry, reason, key);
+    assert.equal(c.report.inputs.composeMap.path, 'output/film-compose-map.json');
+  }
+});
+
+test('an item whose window holds an action without geometry is partial, never clear', () => {
+  const root = job('partial', { receipt: (r) => { delete r.clips.C1.actions[6].x; delete r.clips.C1.actions[6].y; } });
+  const { code, out, report } = run(root);
+  assert.equal(code, 0, out);
+  assert.equal(item(report, 'overlays[0]').geometry, 'partial');
+  assert.ok(report.checks.notPerformed.some((n) => n.check === 'geometry' && n.item === 'overlays[0]' && /first row/.test(n.reason)));
+});
+
+test('a diagram spanning two clips is checked against both clips', () => {
+  const root = job('two-clips', {
+    sheet: (s) => { s.beats[1].screen.clip = 'C2'; },
+    receipt: (r) => { r.clips.C2 = { ...structuredClone(r.clips.C1), file: 'clips/C2.webm', segments: ['S02'] }; r.clips.C1.segments = ['S01']; },
+    layers: (l) => { Object.assign(l.diagram.output.diagrams[0], { beatId: 'S01', toBeatId: 'S02', placement: 'right-panel' }); l.overlays.output.overlays.pop(); },
+  });
+  const { code, report } = run(root);
+  assert.equal(code, 1);
+  assert.ok(report.errors.some((e) => /diagram\[0\]/.test(e) && /Approve/.test(e)), report.errors.join('\n'));
+});
+
+test('a fullscreen insert over a span with no clip is not checked, never "at a pause"', () => {
+  const root = job('fullscreen-card', { sheet: (s) => { s.beats[1].screen = { clip: null, kind: 'card' }; }, layers: (l) => { l.diagram.output.diagrams[0].placement = 'fullscreen'; l.overlays.output.overlays.pop(); } });
+  const { report } = run(root);
+  assert.equal(item(report, 'diagram[0]').geometry, 'not checked: no recorded clip in this span');
+});
+
+test('an action window is trimmed to its beat at both ends', () => {
+  const root = job('clamp', { sheet: (s) => { s.beats[1].actions[0].action_time = 6.1; }, layers: (l) => { l.overlays.output.overlays[1] = onApprove({ region: 'top-right' }); } });
+  assert.equal(resolve_(root).code, 0);
+  const placed = read(join(root, 'plan', 'model-specs', 'timed-graphics.json')).overlays.find((o) => o.visibleLabel === 'Approve it');
+  assert.equal(placed.startSeconds, 6);
+  assert.ok(!run(root).report.errors.some((e) => /outside/.test(e)));
+});
+
+test('the resolver writes nothing without layers, and the gate binds what it wrote', () => {
+  const bare = join(scratch, 'resolve-none');
+  write(join(bare, 'plan', 'cue-sheet.json'), read(join(fixtures, 'cue-sheet.json')));
+  const r = resolve_(bare);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /no model-written layers/);
+  assert.ok(!existsSync(join(bare, 'plan', 'model-specs')));
+  const root = job('bind-graphics');
+  assert.equal(resolve_(root).code, 0);
+  const path = join(root, 'plan', 'model-specs', 'timed-graphics.json');
+  assert.equal(run(root).report.inputs.timedGraphics.sha256, sha(path));
+  const g = read(path); g.overlays[0].x += 10; write(path, g);
+  const stale = run(root);
+  assert.equal(stale.code, 1);
+  assert.ok(stale.report.errors.some((e) => /timed-graphics.json is stale/.test(e)), stale.report.errors.join('\n'));
+});
+
+test('two diagrams at once, or a diagram under an overlay, fail', () => {
+  const both = job('two-diagrams', { layers: (l) => { l.diagram.output.diagrams.push({ ...l.diagram.output.diagrams[0], placement: 'right-panel' }); l.overlays.output.overlays.pop(); } });
+  assert.ok(run(both).report.errors.some((e) => /two supporting diagrams/.test(e)));
+  const under = job('diagram-under-overlay', { layers: (l) => { l.overlays.output.overlays[1].region = 'bottom-left'; } });
+  assert.ok(run(under).report.errors.some((e) => /diagram\[0\]/.test(e) && /overlays\[1\]/.test(e) && /overlap/.test(e)));
 });

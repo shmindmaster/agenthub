@@ -6,7 +6,9 @@
 //
 // Usage: node model-specs-resolve.mjs <jobRoot> [--frame 1600x1000] [--out plan/model-specs/timed-graphics.json]
 // Reads plan/cue-sheet.json and plan/model-specs/{overlays,diagram}.json; writes the overlays in the renderer contract
-// (schemas/timed-graphics.schema.json, unchanged). Exit 1 when anything was rejected (nothing is written then), 2 on usage.
+// (schemas/timed-graphics.schema.json, unchanged), zooms excepted. Exit 1 when anything was rejected or there are no layer
+// files (nothing is written then), 2 on usage. Nothing consumes this file automatically: compose-screencast.mjs reads
+// story/timed-graphics.json and needs a rendered asset per item in job.json campaign.assets.
 // The frame is --frame, else job.json deliveryProfile through campaign-contract frameFor (default briefing-board).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -110,23 +112,28 @@ export function resolveLayers({ sheet, layers, frame }) {
       const w = anchorWindow(item, beat, id);
       if (w.error) { rejected.push({ id, layer, error: w.error }); return; }
       if (layer === 'diagram' && !beatSpan(sheet, item)) { rejected.push({ id, layer, error: `${id}: toBeatId ${item.toBeatId} must be ${item.beatId} or a later beat in the cue sheet` }); return; }
-      if (layer === 'moments') { anchored.push({ id, layer, beatId: item.beatId, startSeconds: w.start, endSeconds: w.end }); return; }
+      const span = beatSpan(sheet, item);
+      // Trim both ends to the beat span when the anchor itself is inside it; an anchor outside is left for the gate to report.
+      let start = w.start, end = layer === 'diagram' ? span.end : w.end;
+      if (w.at >= span.start - 1e-3 && w.at < span.end) { start = Math.max(start, span.start); end = Math.min(end, span.end); }
+      if (layer === 'moments') { anchored.push({ id, layer, beatId: item.beatId, startSeconds: round3(start), endSeconds: round3(end) }); return; }
       const region = layer === 'diagram' ? item.placement : item.region;
       const rect = REGIONS.includes(region) && !(layer === 'overlays' && region === 'fullscreen') ? regionRect(region, frame) : null;
       if (!rect) { rejected.push({ id, layer, error: `${id}: region ${region} is not a named region this layer may use` }); return; }
-      const span = beatSpan(sheet, item);
-      let end = layer === 'diagram' ? span.end : w.end;
-      if (w.start >= span.start - 1e-3 && w.start < span.end) end = Math.min(end, span.end);
       placements.push({ id, layer, kind: layer === 'diagram' ? 'diagram' : item.kind, beatId: item.beatId, toBeatId: item.toBeatId ?? item.beatId, clip: beat.screen?.clip ?? null,
-        region, rect, fullscreen: region === 'fullscreen', startSeconds: w.start, endSeconds: round3(end), text: layer === 'diagram' ? item.caption : item.text });
+        region, rect, fullscreen: region === 'fullscreen', startSeconds: round3(start), endSeconds: round3(end), text: layer === 'diagram' ? item.caption : item.text });
     });
   }
   return { placements, captions, anchored, rejected };
 }
 
-/** Placements in the renderer contract (schemas/timed-graphics.schema.json): integer pixels, seconds, an asset id per item. */
+/**
+ * Placements in the renderer contract (schemas/timed-graphics.schema.json): integer pixels, seconds, an asset id per item.
+ * Zooms are left out: the compositor lays every timed graphic over its rectangle (compose-screencast.mjs overlay filter),
+ * which would hide the footage a zoom is meant to magnify, and no crop renderer exists yet.
+ */
 export function timedGraphics(placements) {
-  return { overlays: placements.map((p) => ({ assetId: `model-specs-${p.id.replace(/\W+/g, '-').replace(/-$/, '')}-${p.kind}`, x: p.rect.x, y: p.rect.y, width: p.rect.width, height: p.rect.height,
+  return { overlays: placements.filter((p) => p.kind !== 'zoom').map((p) => ({ assetId: `model-specs-${p.id.replace(/\W+/g, '-').replace(/-$/, '')}-${p.kind}`, x: p.rect.x, y: p.rect.y, width: p.rect.width, height: p.rect.height,
     startSeconds: Math.max(0, p.startSeconds), endSeconds: p.endSeconds, ...(p.text ? { visibleLabel: p.text } : {}) })) };
 }
 
@@ -167,7 +174,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   let frame;
   try { frame = await jobFrame(root, flag('--frame'), dirname(fileURLToPath(import.meta.url))); } catch (e) { console.error(e.message); process.exit(2); }
   const sheet = JSON.parse(readFileSync(sheetPath, 'utf8').replace(/^﻿/, ''));
-  const { placements, rejected } = resolveLayers({ sheet, layers: readLayers(root), frame });
+  const layers = readLayers(root);
+  if (!Object.keys(layers).length) { console.error(`no model-written layers in plan/model-specs/ (${LAYERS.join(', ')}); nothing written, so the release requirement stays off`); process.exit(1); }
+  const { placements, rejected } = resolveLayers({ sheet, layers, frame });
   const outPath = resolve(root, flag('--out', 'plan/model-specs/timed-graphics.json'));
   if (!rejected.length) { mkdirSync(dirname(outPath), { recursive: true }); writeFileSync(outPath, JSON.stringify(timedGraphics(placements), null, 2) + '\n'); }
   console.log(JSON.stringify({ ok: !rejected.length, out: rejected.length ? null : relative(root, outPath).replace(/\\/g, '/'), frame, overlays: placements.length, rejected: rejected.map((r) => r.error) }, null, 2));

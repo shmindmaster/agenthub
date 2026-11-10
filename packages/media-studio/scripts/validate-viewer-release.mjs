@@ -180,10 +180,10 @@ if (existsSync(modelSpecsDir)) {
   const specs = boundReport(specsRel, 'media-studio/validate-model-specs', 'model-written layers must pass validate-model-specs.mjs (anchors, timing, nothing over the pointer, captions, untouched sources)');
   boundToInput(specs, specsRel, ['cueSheet'], 'cue sheet');
   if (existsSync(join(modelSpecsDir, 'fallback-needed.json'))) errors.push('plan/model-specs/fallback-needed.json lists a layer that still needs a fallback; a person writes a simpler kit visual, removes the entry and reruns validate-model-specs.mjs.');
-  if (specs) for (const layer of ['moments', 'overlays', 'captions', 'diagram']) {
-    if (!existsSync(join(modelSpecsDir, `${layer}.json`))) continue;
-    if (!specs.inputs?.[`layer-${layer}`]) errors.push(`${specsRel} did not check plan/model-specs/${layer}.json; rerun the gate.`);
-    else boundToInput(specs, specsRel, [`layer-${layer}`], `model-written ${layer} layer`);
+  if (specs) for (const [file, key] of [['moments', 'layer-moments'], ['overlays', 'layer-overlays'], ['captions', 'layer-captions'], ['diagram', 'layer-diagram'], ['timed-graphics', 'timedGraphics']]) {
+    if (!existsSync(join(modelSpecsDir, `${file}.json`))) continue;
+    if (!specs.inputs?.[key]) errors.push(`${specsRel} did not check plan/model-specs/${file}.json; rerun the gate.`);
+    else boundToInput(specs, specsRel, [key], `model-written ${file} file`);
   }
 }
 // The feed test: marketing cuts fail closed below the marketing floor (validate-marketing-readiness.mjs owns the list).

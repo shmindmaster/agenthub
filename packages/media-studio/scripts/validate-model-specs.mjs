@@ -12,20 +12,24 @@
 //   anchors        every item names a cue-sheet beat plus a recorded action label or a word range of that beat
 //   timing         resolved times sit inside the anchored beat's screen slot (a diagram: beatId to toBeatId)
 //   geometry       no overlay rectangle intersects the pointer, the active element or the next click target, read from
-//                  capture/receipt.json events (x, y, targetBox) and the beat result's targetBox; a zoom is a crop of
-//                  the footage and is not a covering layer. Where the receipt has no geometry: "not checked: no geometry in receipt".
-//                  Receipt pixels are mapped to the frame by uniform fit; Recast punch-in zoom is not modelled, hence the padding.
-//   one-at-a-time  at most one explanatory overlay at a time besides captions; a fullscreen insert sits at a pause
-//                  (no recorded action inside it) and never under an overlay
+//                  capture/receipt.json events (x, y, targetBox) and the beat result's targetBox, for every clip in the
+//                  item's span (beatId to toBeatId). Receipt pixels are mapped to the frame by uniform fit and padded 24 px.
+//                  Never reported clear when it cannot be: "not checked: no geometry in receipt", "partial" when some
+//                  action in the window has none, "not checked: Recast zoom not modelled" for a recast "full" take,
+//                  "not checked: editorial crop/panel not modelled" for a compose-map sourceRegion or destinationRect,
+//                  "not checked: no recorded clip in this span". A zoom is not rendered (no crop renderer; the resolver
+//                  keeps it out of timed graphics). A fullscreen insert must sit at a pause with no recorded action.
+//   one-at-a-time  at most one explanatory overlay at a time besides captions; a fullscreen insert takes the frame alone;
+//                  one supporting diagram at a time, and no overlay over a side-panel diagram (no exception)
 //   captions       caption words equal the aligned transcript words by index (punctuation may change), each word once
 //   sources        the source recording equals the receipt's sha256 and each beat's audio equals its aligner report's take
 //   density        share of runtime with any overlay and with a fullscreen insert (a summary, warned above half)
-// Writes qa/model-specs-report.json bound to the cue sheet, receipt and every layer file. Exit 1 on any error, 2 on usage.
+// Writes qa/model-specs-report.json bound to the cue sheet, receipt, compose map, every layer file and timed-graphics.json. Exit 1 on any error, 2 on usage.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LAYERS, LIST_FIELD, TEXT_LIMITS, TIMING, beatSpan, jobFrame, normWord, readLayers, resolveLayers, schemaErrors } from './model-specs-resolve.mjs';
+import { LAYERS, LIST_FIELD, TEXT_LIMITS, TIMING, beatSpan, jobFrame, normWord, readLayers, resolveLayers, schemaErrors, timedGraphics } from './model-specs-resolve.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const USAGE = 'Usage: node validate-model-specs.mjs <jobRoot> [--cue-sheet plan/cue-sheet.json] [--out qa/model-specs-report.json] [--frame 1600x1000]';
@@ -118,60 +122,110 @@ function toFrame(rec) {
 }
 const intersects = (r, b) => r.x < b.x + b.w && b.x < r.x + r.width && r.y < b.y + b.h && b.y < r.y + r.height;
 const padded = (b) => ({ x: b.x - GEOMETRY_PAD_PX, y: b.y - GEOMETRY_PAD_PX, w: b.w + 2 * GEOMETRY_PAD_PX, h: b.h + 2 * GEOMETRY_PAD_PX });
-/** Recorded actions and results on a clip, on the program clock, with whatever geometry the receipt holds. */
-function clipTimeline(clip) {
+const ids = (sheet.beats || []).map((b) => b.beat);
+const spanBeats = (p) => { const i = ids.indexOf(p.beatId), j = ids.indexOf(p.toBeatId ?? p.beatId); return i < 0 ? [] : (sheet.beats || []).slice(i, Math.max(i, j) + 1); };
+// Editorial crops and panels from the compose map the cue sheet was built from (compose-screencast.mjs groups).
+const composeRel = sheet.inputs?.composeMap?.path;
+const composePath = composeRel ? resolve(root, composeRel) : null;
+const composeMap = composePath && existsSync(composePath) ? readJson(composePath) : null;
+if (composeMap) inputs.composeMap = ref(composePath);
+else if (composeRel) warnings.push(`the cue sheet names compose map ${composeRel}, which is missing; editorial crops and panels are not known`);
+// Recast states that leave the take unzoomed: noZoom (autoZoom off), skipped and fallback (a raw copy).
+const UNZOOMED = new Set(['noZoom', 'skipped', 'fallback']);
+/** Why receipt geometry cannot be trusted on this clip over [s, e], or null when it can. */
+function unmodelled(clip, s, e) {
   const rec = receipt?.clips?.[clip];
-  const map = toFrame(rec);
+  if (rec && rec.recast === 'full') return 'not checked: Recast zoom not modelled';
+  if (rec && !UNZOOMED.has(rec.recast)) return 'not checked: Recast zoom state not recorded';
+  for (const g of composeMap?.groups || []) {
+    if (g.clipId !== clip || !(Number(g.startSeconds) < e && s < Number(g.startSeconds) + Number(g.needSeconds))) continue;
+    if (g.destinationRect != null) return 'not checked: editorial panel not modelled';
+    if (g.sourceRegion != null) return 'not checked: editorial crop not modelled';
+  }
+  return null;
+}
+/** Recorded actions and results on these clips, on the program clock, with whatever geometry the receipt holds. */
+function timelineFor(clips) {
   const out = [];
   for (const beat of sheet.beats || []) {
-    if (beat.screen?.clip !== clip) continue;
+    const clip = beat.screen?.clip;
+    if (!clip || !clips.has(clip)) continue;
+    const rec = receipt?.clips?.[clip];
+    const map = toFrame(rec);
     for (const a of beat.actions || []) {
       if (!Number.isFinite(a.action_time)) continue;
       const ev = rec?.actions?.[a.receipt_event_index];
       const shapes = [];
       if (map && Number.isFinite(ev?.x) && Number.isFinite(ev?.y)) { const pt = map.point(ev.x, ev.y); shapes.push({ what: 'the pointer', box: { x: pt.x, y: pt.y, w: 0, h: 0 } }); }
       if (map && ev?.targetBox && Number.isFinite(ev.targetBox.w)) shapes.push({ what: 'the active element', box: map.box(ev.targetBox) });
-      out.push({ t: a.action_time, name: a.label || a.target || a.kind, beat: beat.beat, shapes, kind: 'action' });
+      out.push({ t: a.action_time, name: a.label || a.target || a.kind, beat: beat.beat, clip, shapes, kind: 'action' });
     }
     const res = beat.result;
     const exp = Number.isInteger(res?.receipt_expectation_index) ? rec?.expectations?.[res.receipt_expectation_index] : null;
-    if (map && Number.isFinite(res?.visible_at) && exp?.targetBox && Number.isFinite(exp.targetBox.w)) out.push({ t: res.visible_at, name: res.label, beat: beat.beat, shapes: [{ what: 'the result', box: map.box(exp.targetBox) }], kind: 'result' });
+    if (map && Number.isFinite(res?.visible_at) && exp?.targetBox && Number.isFinite(exp.targetBox.w)) out.push({ t: res.visible_at, name: res.label, beat: beat.beat, clip, shapes: [{ what: 'the result', box: map.box(exp.targetBox) }], kind: 'result' });
   }
   return out.sort((a, b) => a.t - b.t);
 }
+const ZOOM_NOTE = 'not rendered: no crop renderer exists, so a zoom is kept out of timed graphics';
 let geometryChecked = 0;
 for (const p of placements) {
-  if (p.kind === 'zoom') { p.report.geometry = 'not a covering layer: a zoom is a crop of the real footage'; continue; }
-  const timeline = p.clip ? clipTimeline(p.clip) : [];
+  const notChecked = (reason) => { p.report.geometry = reason; skip('geometry', reason, p.id); };
+  if (p.kind === 'zoom') { p.report.geometry = ZOOM_NOTE; continue; }
+  const beatsIn = spanBeats(p);
+  const clips = new Set(beatsIn.map((b) => b.screen?.clip).filter(Boolean));
+  if (!clips.size) { notChecked('not checked: no recorded clip in this span'); continue; }
+  const timeline = timelineFor(clips);
   const actions = timeline.filter((e) => e.kind === 'action');
   if (p.fullscreen) {
+    if (beatsIn.some((b) => (b.actions || []).some((a) => !Number.isFinite(a.action_time)))) { notChecked('not checked: an action in this span has no program time'); continue; }
     const during = actions.filter((e) => e.t >= p.startSeconds && e.t <= p.endSeconds);
     for (const e of during) errors.push(`${p.id}: fullscreen insert ${p.startSeconds}-${p.endSeconds}s covers the recorded action ${e.name} at ${e.t}s; place it at a pause or use a side panel`);
     p.report.geometry = during.length ? 'covers an action' : 'at a pause';
+    geometryChecked++;
     continue;
   }
+  const blocked = [...clips].map((c) => unmodelled(c, p.startSeconds, p.endSeconds)).find(Boolean);
+  if (blocked) { notChecked(blocked); continue; }
   const before = actions.filter((e) => e.t <= p.startSeconds).at(-1);
   const within = actions.filter((e) => e.t > p.startSeconds && e.t <= p.endSeconds);
   const next = actions.find((e) => e.t > p.endSeconds);
   const results = timeline.filter((e) => e.kind === 'result' && e.t <= p.endSeconds);
   const relevant = [before, ...within, next, ...results].filter(Boolean);
   const shapes = relevant.flatMap((e) => e.shapes.map((s) => ({ ...s, e })));
-  if (!shapes.length) { p.report.geometry = NO_GEOMETRY; skip('geometry', NO_GEOMETRY, p.id); continue; }
+  if (!shapes.length) { notChecked(NO_GEOMETRY); continue; }
   geometryChecked++;
   const hits = shapes.filter((s) => intersects(p.rect, padded(s.box)));
   for (const h of hits) errors.push(`${p.id}: ${p.region} ${p.startSeconds}-${p.endSeconds}s covers ${h.what} at ${h.e.name} (${h.e.t}s, ${h.e === next ? 'the next click target' : h.e.kind === 'result' ? 'the result on screen' : 'during the overlay'}); choose a free region`);
-  p.report.geometry = hits.length ? 'covers' : 'clear';
+  const blind = relevant.filter((e) => !e.shapes.length);
+  if (blind.length && !hits.length) skip('geometry', `not checked: no geometry in receipt for ${blind.map((e) => `${e.name} (${e.t}s)`).join(', ')}`, p.id);
+  p.report.geometry = hits.length ? 'covers' : blind.length ? 'partial' : 'clear';
 }
 if (geometryChecked) performed.add('geometry');
 
-// ---- one explanatory overlay at a time; fullscreen inserts never under an overlay
+// ---- one explanatory overlay at a time; fullscreen inserts take the frame alone; one supporting diagram at a time, never
+// under an overlay. A zoom is not rendered (no crop renderer) but still counts as the one explanatory item.
 const overlaps = (a, b) => a.startSeconds < b.endSeconds - 1e-3 && b.startSeconds < a.endSeconds - 1e-3;
+const rectsMeet = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 const explanatory = placements.filter((p) => p.layer === 'overlays');
 for (let i = 0; i < explanatory.length; i++) for (let j = i + 1; j < explanatory.length; j++) {
   if (overlaps(explanatory[i], explanatory[j])) errors.push(`${explanatory[i].id} and ${explanatory[j].id} are on screen together (${explanatory[j].startSeconds}-${Math.min(explanatory[i].endSeconds, explanatory[j].endSeconds)}s): one explanatory overlay at a time besides captions`);
 }
 for (const f of placements.filter((p) => p.fullscreen)) for (const o of explanatory) if (overlaps(f, o)) errors.push(`${f.id} (fullscreen) and ${o.id} are on screen together: a fullscreen insert takes the frame alone`);
+const diagrams = placements.filter((p) => p.layer === 'diagram');
+for (let i = 0; i < diagrams.length; i++) for (let j = i + 1; j < diagrams.length; j++) {
+  if (overlaps(diagrams[i], diagrams[j])) errors.push(`${diagrams[i].id} and ${diagrams[j].id}: two supporting diagrams on screen together; one side panel at a time keeps the real footage visible`);
+}
+for (const d of diagrams.filter((p) => !p.fullscreen)) for (const o of explanatory) {
+  if (o.kind !== 'zoom' && overlaps(d, o) && rectsMeet(d.rect, o.rect)) errors.push(`${d.id} (${d.region}) and ${o.id} (${o.region}) overlap on screen at ${Math.max(d.startSeconds, o.startSeconds)}s; put the overlay in a region clear of the panel`);
+}
 performed.add('one-at-a-time');
+
+// ---- the resolver's output, when written, is what the gate resolves now
+const graphicsPath = join(specsDir, 'timed-graphics.json');
+if (existsSync(graphicsPath)) {
+  inputs.timedGraphics = ref(graphicsPath);
+  if (JSON.stringify(readJson(graphicsPath)) !== JSON.stringify(timedGraphics(placements))) errors.push('plan/model-specs/timed-graphics.json is stale: it differs from what the layers resolve to now; rerun model-specs-resolve.mjs');
+}
 
 // ---- captions: the words actually spoken, by index, each once
 const byBeat = new Map((sheet.beats || []).map((b) => [b.beat, b]));
@@ -231,9 +285,10 @@ const union = (spans) => {
   for (const [a, b] of s) { if (!cur || a > cur[1]) { if (cur) total += cur[1] - cur[0]; cur = [a, b]; } else cur[1] = Math.max(cur[1], b); }
   return cur ? total + cur[1] - cur[0] : 0;
 };
+const rendered = placements.filter((p) => p.kind !== 'zoom');
 const runtime = Number(sheet.durationSeconds) || Math.max(0, ...(sheet.beats || []).map((b) => Number(b.slot_end) || 0));
 const density = runtime > 0
-  ? { runtimeSeconds: runtime, overlaySeconds: round(union(placements)), overlayShare: round(union(placements) / runtime), fullscreenSeconds: round(union(placements.filter((p) => p.fullscreen))), fullscreenShare: round(union(placements.filter((p) => p.fullscreen)) / runtime), items: placements.length, captionChunks: captions.length }
+  ? { runtimeSeconds: runtime, overlaySeconds: round(union(rendered)), overlayShare: round(union(rendered) / runtime), fullscreenSeconds: round(union(placements.filter((p) => p.fullscreen))), fullscreenShare: round(union(placements.filter((p) => p.fullscreen)) / runtime), items: placements.length, captionChunks: captions.length }
   : null;
 if (density && density.overlayShare > DENSITY_WARN_SHARE) warnings.push(`generated layers are on screen for ${Math.round(density.overlayShare * 100)}% of the runtime; the film is meant to be a recording with support`);
 function round(v) { return Math.round(v * 1000) / 1000; }

@@ -362,6 +362,9 @@ test('release gate requires the model-specs report only when the job has plan/mo
   writeFileSync(join(root, 'plan', 'model-specs', 'captions.json'), JSON.stringify({ layer: 'captions' }));
   result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /model-specs-report.json did not check plan\/model-specs\/captions.json/);
   rmSync(join(root, 'plan', 'model-specs', 'captions.json'));
+  writeFileSync(join(root, 'plan', 'model-specs', 'timed-graphics.json'), JSON.stringify({ overlays: [] }));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /model-specs-report.json did not check plan\/model-specs\/timed-graphics.json/);
+  rmSync(join(root, 'plan', 'model-specs', 'timed-graphics.json'));
   writeFileSync(join(root, 'plan', 'model-specs', 'fallback-needed.json'), JSON.stringify({ entries: [{ layer: 'diagram', reason: 'refusal' }] }));
   result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /fallback-needed.json lists a layer that still needs a fallback/);
 });

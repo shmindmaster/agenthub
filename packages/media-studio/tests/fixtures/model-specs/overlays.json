@@ -33,7 +33,7 @@
         "actionLabel": "",
         "fromWord": 4,
         "toWord": 4,
-        "region": "bottom-left",
+        "region": "top-right",
         "text": "Status: where a request stands",
         "note": "First use of the term."
       }

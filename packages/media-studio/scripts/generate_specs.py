@@ -3,7 +3,7 @@
 
     generate_specs.py <jobRoot> [--layers moments,overlays,captions,diagram] [--beats S01,S02] [--effort low|medium]
                       [--model claude-haiku-5-5] [--max-usd 0.50] [--max-requests 12]
-                      [--key-env ANTHROPIC_API_KEY_BACKUP] [--run] [--json]
+                      [--key-env ANTHROPIC_API_KEY_BACKUP] [--retry-fallbacks] [--run] [--json]
 
 Lane claude-haiku-specs (policy/provider-routing.json; skills/visuals/references/model-written-specs.md). The layers
 augment a real screen recording, its narration and its cue sheet; they never replace them. Each layer is its own request
@@ -20,13 +20,17 @@ producing agent set and the owner approved). Every generated item is anchored to
 label or a range of that beat's word indexes; scripts/model-specs-resolve.mjs places them and
 scripts/validate-model-specs.mjs is the gate.
 
-Without --run it only prints the quote: one row per layer with its estimated upper-bound dollars. With --run it sends each
+Without --run it only prints the quote: one row per layer with its estimated dollars (meant to sit above the real cost). With --run it sends each
 request that has not been paid for before, writes plan/model-specs/<layer>.json, caches the answer under
 plan/model-specs/cache/<requestSha256>.json and appends one line per request to qa/spend-ledger.jsonl. The request hash
 covers the whole request (model, system prefix, schema, beat data, effort, max_tokens), so an identical request never pays
 twice. A refusal is recorded and never resent unchanged. Truncation or an invalid answer gets one automatic retry (with the
 validation error included); after that the layer is listed in plan/model-specs/fallback-needed.json and the exit is
-non-zero: a person writes a simpler kit visual. Never a silent fallback.
+non-zero: a person writes a simpler kit visual. Never a silent fallback, and the same request is not paid for again unless
+the request changes or --retry-fallbacks is given. --max-usd is checked before every attempt. A --run holds
+qa/generate-specs.lock (pid and start time inside) and refuses to start while another run holds it; it never deletes a
+lock it did not create. An approved moments layer (approvedBy set by a person) is never overwritten. A prompt estimated
+above 90,000 tokens is refused.
 
 The key is read by NAME from ANTHROPIC_API_KEY_BACKUP (or --key-env) and passed explicitly in the request header. It is
 never printed or stored. ANTHROPIC_ADMIN_KEY only reports cost and is refused here; ANTHROPIC_API_KEY (the SDK default) is
@@ -36,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import http.client
 import json
 import math
 import os
@@ -64,15 +69,20 @@ EFFORTS = ("low", "medium")
 VISUAL_LAYERS = ("overlays", "diagram")
 REGIONS = ("top-left", "top-right", "bottom-left", "bottom-right", "left-panel", "right-panel", "lower-third", "fullscreen")
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "schemas" / "model-specs"
-# Claude Haiku 5.5 list prices per million tokens on prompts up to 100,000 tokens, read from the Claude Platform docs on
-# 2026-11-10. The cache-write rate is not in the lane note: 1.25x input (the 5-minute cache multiplier) is an assumption.
-USD_PER_MTOK = {"input": 0.10, "output": 0.50, "cache_read": 0.01, "cache_write": 0.125}
-USD_BASIS = "actual usage from the response at the Claude Haiku 5.5 list prices (cache writes at 1.25x input, assumed)"
-MAX_TOKENS_FACTOR = 4          # hidden thinking counts toward max_tokens
+# Claude Haiku 5.5 list prices per million tokens (Claude API reference, confirmed 2026-11-10): prompts of 100,000 tokens
+# or fewer, and the long-context rates above that. A 5-minute cache write costs about 1.25x input, a cache read about 0.1x.
+PRICES = {"standard": {"input": 0.10, "output": 0.50}, "long": {"input": 0.50, "output": 2.50}}
+CACHE_WRITE_FACTOR = 1.25
+CACHE_READ_FACTOR = 0.10
+LONG_CONTEXT_TOKENS = 100_000
+MAX_PROMPT_TOKENS = 90_000     # the guide keeps prompts under 100,000 tokens by design; refuse well before the price step
+USD_BASIS = "actual usage from the response at the Claude Haiku 5.5 list prices (long-context rates above 100,000 prompt tokens)"
+LOCK_NAME = "generate-specs.lock"
+MAX_TOKENS_FACTOR = 4          # adaptive thinking is on by default and counts toward max_tokens
 MAX_TOKENS_FLOOR = 1024
 MAX_TOKENS_CAP = 32000
 RETRY_MAX_TOKENS_CAP = 64000
-CHARS_PER_TOKEN = 3            # deliberately pessimistic; the quote is an upper bound
+CHARS_PER_TOKEN = 3            # deliberately pessimistic; an estimate meant to sit above the real count, not a guarantee
 TEXT_LIMITS = {"overlays": 48, "captions": 84, "diagram": 160}   # ranges live in code, not in the model-facing schema
 
 SYSTEM_PREFIX = """You write layer data for a film that is built on a real screen recording, its real narration and its cue sheet.
@@ -116,16 +126,33 @@ def max_tokens_for(layer, beats):
     return min(MAX_TOKENS_CAP, max(MAX_TOKENS_FLOOR, MAX_TOKENS_FACTOR * expected_output_tokens(layer, beats)))
 
 
-def quote_usd(input_tokens, max_tokens):
-    """Upper bound for one request: every input token uncached, every allowed output token spent."""
-    return round((input_tokens * USD_PER_MTOK["input"] + max_tokens * USD_PER_MTOK["output"]) / 1e6, 8)
+def rates(prompt_tokens):
+    """Dollars per million tokens for a prompt of this size: the long-context rates apply above 100,000 prompt tokens."""
+    base = PRICES["long" if prompt_tokens > LONG_CONTEXT_TOKENS else "standard"]
+    return {**base, "cache_write": base["input"] * CACHE_WRITE_FACTOR, "cache_read": base["input"] * CACHE_READ_FACTOR}
+
+
+def prompt_tokens(body):
+    """(cached system prefix, everything else sent) in estimated tokens. The schema travels with the request and counts."""
+    system = sum(estimate_tokens(s["text"]) for s in body["system"])
+    rest = sum(estimate_tokens(m["content"]) for m in body["messages"])
+    rest += estimate_tokens(json.dumps(body["output_config"]["format"]["schema"]))
+    return system, rest
+
+
+def request_quote(body):
+    """The quote for one attempt: the system prefix carries a cache marker, so it is priced at the cache-write rate; the rest
+    at the input rate; every allowed output token spent. The token count is an estimate, so this is not a strict bound."""
+    system, rest = prompt_tokens(body)
+    r = rates(system + rest)
+    return round((system * r["cache_write"] + rest * r["input"] + body["max_tokens"] * r["output"]) / 1e6, 10)
 
 
 def actual_usd(usage):
     u = usage or {}
-    total = (int(u.get("input_tokens") or 0) * USD_PER_MTOK["input"] + int(u.get("output_tokens") or 0) * USD_PER_MTOK["output"]
-             + int(u.get("cache_read_input_tokens") or 0) * USD_PER_MTOK["cache_read"]
-             + int(u.get("cache_creation_input_tokens") or 0) * USD_PER_MTOK["cache_write"])
+    fresh, written, read = (int(u.get(k) or 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    r = rates(fresh + written + read)
+    total = fresh * r["input"] + written * r["cache_write"] + read * r["cache_read"] + int(u.get("output_tokens") or 0) * r["output"]
     return round(total / 1e6, 10)
 
 
@@ -139,9 +166,8 @@ def model_schema(layer):
 
 
 def structured_output_fields(schema, effort):
-    """UNVERIFIED against the live API docs in this change: the Messages API field names for structured outputs and
-    effort. Every other part of the request is the long-standing Messages shape. If the API names them differently,
-    change only this function (and its test)."""
+    """Structured outputs and effort in the Messages API: output_config.format (json_schema) and output_config.effort, as
+    in the current Claude API reference (confirmed by the coordinator on 2026-11-10). Kept in one place on purpose."""
     return {"output_config": {"effort": effort, "format": {"type": "json_schema", "schema": schema}}}
 
 
@@ -199,10 +225,16 @@ def http_post_json(url, headers, body, timeout=240):
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
-        detail = e.read()[:300].decode("utf-8", "replace")
+        try:
+            detail = e.read()[:300].decode("utf-8", "replace")
+        except (OSError, http.client.HTTPException):
+            detail = "(body unreadable)"
         raise SpecsError(f"Messages API returned HTTP {e.code}: {detail}") from None
     except (urllib.error.URLError, TimeoutError) as e:
         raise SpecsError(f"Messages API request failed: {type(e).__name__}") from None
+    except (ValueError, OSError, http.client.HTTPException) as e:
+        # A 200 whose body is not JSON, or a connection reset while reading it: the request may still have been billed.
+        raise SpecsError(f"Messages API response could not be read: {type(e).__name__}") from None
 
 
 # ---- validation of an answer
@@ -304,11 +336,17 @@ def load_json(path, default=None):
     return json.loads(p.read_text(encoding="utf-8-sig"))
 
 
+def dump_json(data):
+    """The exact bytes write_json writes (no newline translation), so a hash can be taken before the write."""
+    return (json.dumps(data, indent=2) + "\n").encode("utf-8")
+
+
 def write_json(path, data):
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    return hashlib.sha256(p.read_bytes()).hexdigest()
+    blob = dump_json(data)
+    p.write_bytes(blob)
+    return hashlib.sha256(blob).hexdigest()
 
 
 def file_ref(job, rel):
@@ -343,8 +381,54 @@ def record_fallback(job, entries, cleared):
 # ---- the run
 
 def check_key_name(name):
-    if name in REFUSED_KEY_ENVS:
-        raise SpecsError(f"--key-env {name} is refused: {REFUSED_KEY_ENVS[name]}. Use {DEFAULT_KEY_ENV}.")
+    # Windows looks environment names up without regard to case, so anthropic_api_key would read ANTHROPIC_API_KEY.
+    if str(name).upper() in REFUSED_KEY_ENVS:
+        raise SpecsError(f"--key-env {name} is refused: {REFUSED_KEY_ENVS[str(name).upper()]}. Use {DEFAULT_KEY_ENV}.")
+
+
+def pid_alive(pid):
+    """Best effort: True when the process exists (or exists but cannot be queried), False when it is gone."""
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = kernel32.OpenProcess(0x1000, False, pid)        # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return ctypes.get_last_error() == 5                  # access denied: it exists
+        try:
+            code = ctypes.c_ulong()
+            return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259   # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def acquire_lock(job, now):
+    """An exclusive qa/generate-specs.lock for the length of a --run. Never removes a lock this run did not create."""
+    path = job / "qa" / LOCK_NAME
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        try:
+            held = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            held = {}
+        pid, started = held.get("pid"), held.get("startedAt", "an unknown time")
+        if pid_alive(pid):
+            raise SpecsError(f"another generate_specs.py --run holds qa/{LOCK_NAME} (pid {pid}, started {started}) and is still running; wait for it to finish") from None
+        raise SpecsError(f"qa/{LOCK_NAME} is held by pid {pid} (started {started}), which is not running, so the lock looks stale; "
+                         f"check that no run is active, then delete qa/{LOCK_NAME} by hand. It is never removed automatically.") from None
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"pid": os.getpid(), "startedAt": now}))
+    return path
 
 
 def lane_status(policy):
@@ -375,6 +459,7 @@ def plan_work(job, args, policy):
         beats = [b for b in beats if b["beat"] in only]
     brief = load_json(job / "story" / "model-specs-brief.json", {}) or {}
     approved = approved_moments(job)
+    pending = {e.get("layer"): e for e in (load_json(specs_dir(job) / "fallback-needed.json", {}) or {}).get("entries", [])}
     rows, problems = [], []
     for layer in layers:
         body = build_body(layer, beats, brief, args.model, args.effort, approved if layer in VISUAL_LAYERS else None)
@@ -382,10 +467,22 @@ def plan_work(job, args, policy):
         cached = load_json(specs_dir(job) / "cache" / f"{key}.json")
         if cached and cached.get("refused"):
             problems.append(f"{layer}: this exact request was refused before (request {key[:12]}); change the input or the brief before sending it again")
-        hit = bool(cached and "output" in cached)
-        est = quote_usd(estimate_tokens(body_text(body)), body["max_tokens"])
+        fallback = pending.get(layer)
+        if fallback and fallback.get("requestSha256") == key and not getattr(args, "retry_fallbacks", False):
+            problems.append(f"{layer}: this exact request already needs a fallback ({fallback.get('reason')}, request {key[:12]}); change the request, or pass --retry-fallbacks to pay for it again")
+        tokens = sum(prompt_tokens(body))
+        if tokens > MAX_PROMPT_TOKENS:
+            problems.append(f"{layer}: the prompt is about {tokens:,} tokens, over the 90,000-token limit this lane keeps (prompts above 100,000 tokens cost five times as much); send fewer beats with --beats or a shorter brief")
+        kept = False
+        if layer == "moments" and approved is not None:
+            doc = load_json(specs_dir(job) / "moments.json", {}) or {}
+            if doc.get("requestSha256") == key:
+                kept = True
+            else:
+                problems.append(f"moments: plan/model-specs/moments.json is approved ({doc.get('approvedBy')}) for a different request; the cue sheet or brief changed what the model would see. Review it again (remove approvedBy to regenerate) or leave moments out of --layers. It is not overwritten.")
+        hit = kept or bool(cached and "output" in cached)
         rows.append({"layer": layer, "model": args.model, "effort": args.effort, "maxTokens": body["max_tokens"], "key": key,
-                     "cached": hit, "estimateUsd": 0.0 if hit else est, "body": body})
+                     "cached": hit, "approved": kept, "estimateUsd": 0.0 if hit else request_quote(body), "body": body})
     return sheet, beats, rows, problems, status
 
 
@@ -415,13 +512,16 @@ def send(job, row, beats, post, headers, budget, stamp):
     spent = 0.0
     prompt_sha = sha256_text(body_text(body))
     for attempt in (1, 2):
-        if attempt == 2:
-            retry_quote = quote_usd(estimate_tokens(body_text(body)), body["max_tokens"])
-            if budget["spent"] + retry_quote > budget["cap"]:
-                return None, {"reason": "cap", "detail": f"the retry (~${retry_quote:.6f}) would pass --max-usd {budget['cap']}"}, spent
+        quote = request_quote(body)
+        if budget["spent"] + quote > budget["cap"]:
+            return None, {"reason": "cap", "detail": f"attempt {attempt} (~${quote:.6f}) after ${budget['spent']:.6f} spent would pass --max-usd {budget['cap']}"}, spent
         try:
             resp = post(MESSAGES_URL, headers, body)
         except SpecsError as e:
+            append_ledger(job, {"at": stamp, "kind": "spec", "lane": LANE, "layer": row["layer"], "model": row["model"], "effort": row["effort"],
+                                "attempt": attempt, "stopReason": None, "maxTokens": body["max_tokens"], "usd": None,
+                                "usdBasis": "unknown: the response could not be read; the request may have been billed", "usage": None,
+                                "error": str(e), "requestSha256": row["key"], "promptSha256": prompt_sha, "fileSha256": None})
             return None, {"reason": "error", "detail": str(e)}, spent
         usage = resp.get("usage") or {}
         usd = actual_usd(usage)
@@ -431,9 +531,12 @@ def send(job, row, beats, post, headers, budget, stamp):
         line = {"at": stamp, "kind": "spec", "lane": LANE, "layer": row["layer"], "model": resp.get("model") or row["model"],
                 "effort": row["effort"], "attempt": attempt, "stopReason": stop, "maxTokens": body["max_tokens"], "usd": usd,
                 "usdBasis": USD_BASIS, "usage": usage, "requestSha256": row["key"], "promptSha256": prompt_sha, "fileSha256": None}
+        if resp.get("stop_details") is not None:
+            line["stopDetails"] = resp["stop_details"]
         if stop == "refusal":
+            # HTTP 200 with stop_details; this model has no server-side refusal fallback, so nothing else was produced.
             append_ledger(job, line)
-            write_json(specs_dir(job) / "cache" / f"{row['key']}.json", {"refused": True, "at": stamp, "layer": row["layer"]})
+            write_json(specs_dir(job) / "cache" / f"{row['key']}.json", {"refused": True, "at": stamp, "layer": row["layer"], "stopDetails": resp.get("stop_details")})
             return None, {"reason": "refusal", "detail": "the model refused; the request is not resent unchanged"}, spent
         if stop == "max_tokens":
             append_ledger(job, line)
@@ -460,10 +563,12 @@ def send(job, row, beats, post, headers, budget, stamp):
                                                                  {"role": "user", "content": feedback}]}
                 continue
             return None, {"reason": "invalid", "detail": "; ".join(errs[:5])}, spent
+        # Paid result first: the ledger line, then the cache, then the layer file, so a crash never loses it silently.
         doc = layer_document(job, row, output, stamp)
-        line["fileSha256"] = write_json(specs_dir(job) / f"{row['layer']}.json", doc)
+        line["fileSha256"] = hashlib.sha256(dump_json(doc)).hexdigest()
         append_ledger(job, line)
         write_json(specs_dir(job) / "cache" / f"{row['key']}.json", {"layer": row["layer"], "at": stamp, "output": output})
+        write_json(specs_dir(job) / f"{row['layer']}.json", doc)
         return output, None, spent
     return None, {"reason": "invalid", "detail": "no answer"}, spent
 
@@ -471,6 +576,31 @@ def send(job, row, beats, post, headers, budget, stamp):
 def run(job, args, env=None, post=None, now=None, policy=None):
     job, env, post = Path(job), env if env is not None else os.environ, post or http_post_json
     policy = policy or route_media.load()
+    stamp = (now or datetime.now(timezone.utc)).isoformat(timespec="seconds")
+    if not args.run:
+        return run_locked(job, args, env, post, stamp, policy)
+    check_key_name(args.key_env)
+    lock = acquire_lock(job, stamp)
+    try:
+        return run_locked(job, args, env, post, stamp, policy)
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def rebind(job, row, output, stamp):
+    """A cached or approved answer for an identical request: rewrite the layer file when it holds another answer, and
+    refresh its recorded inputs when only those changed (a timing-only cue-sheet rebuild). Person edits survive."""
+    path = specs_dir(job) / f"{row['layer']}.json"
+    current = load_json(path, {}) or {}
+    fresh = layer_document(job, row, output, stamp)
+    if not row.get("approved") and (current.get("requestSha256") != row["key"] or current.get("output") != output):
+        write_json(path, fresh)
+    elif current.get("inputs") != fresh["inputs"]:
+        current["inputs"] = fresh["inputs"]
+        write_json(path, current)
+
+
+def run_locked(job, args, env, post, stamp, policy):
     sheet, beats, rows, problems, status = plan_work(job, args, policy)
     todo = [r for r in rows if not r["cached"]]
     total = round(sum(r["estimateUsd"] for r in todo), 8)
@@ -488,31 +618,33 @@ def run(job, args, env=None, post=None, now=None, policy=None):
         raise SpecsError(f"{len(todo)} requests exceeds --max-requests {args.max_requests}")
     if total > args.max_usd:
         raise SpecsError(f"estimate ${total} exceeds --max-usd {args.max_usd}; raise it only after the owner has seen the quote")
-    stamp = (now or datetime.now(timezone.utc)).isoformat(timespec="seconds")
     headers = {"x-api-key": (env.get(args.key_env) or "").strip(), "anthropic-version": ANTHROPIC_VERSION} if todo else {}
     budget = {"spent": 0.0, "cap": args.max_usd}
-    fallbacks, cleared = [], set()
+    fallbacks = []
+    report["fallbackNeeded"] = fallbacks
     for row in rows:
         if row["cached"]:
-            cached = load_json(specs_dir(job) / "cache" / f"{row['key']}.json")
-            current = load_json(specs_dir(job) / f"{row['layer']}.json", {}) or {}
-            if current.get("requestSha256") != row["key"] or current.get("output") != cached["output"]:
-                write_json(specs_dir(job) / f"{row['layer']}.json", layer_document(job, row, cached["output"], stamp))
-            cleared.add(row["layer"])
+            if row["approved"]:
+                output = (load_json(specs_dir(job) / f"{row['layer']}.json", {}) or {}).get("output")
+            else:
+                output = load_json(specs_dir(job) / "cache" / f"{row['key']}.json")["output"]
+            rebind(job, row, output, stamp)
+            if (specs_dir(job) / "fallback-needed.json").exists():
+                record_fallback(job, [], {row["layer"]})
             continue
         output, fallback, spent = send(job, row, beats, post, headers, budget, stamp)
         report["actualUsd"] = round(report["actualUsd"] + spent, 10)
         if fallback:
             entry = {"layer": row["layer"], "requestSha256": row["key"], "at": stamp, **fallback}
             fallbacks.append(entry)
+            # Recorded as it happens, so a later crash cannot lose it.
             append_ledger(job, {"at": stamp, "kind": "fallback-needed", "lane": LANE, **{k: entry[k] for k in ("layer", "reason", "detail", "requestSha256")}})
+            record_fallback(job, [entry], set())
         else:
-            cleared.add(row["layer"])
+            if (specs_dir(job) / "fallback-needed.json").exists():
+                record_fallback(job, [], {row["layer"]})
             report["generated"].append({"layer": row["layer"], "file": f"plan/model-specs/{row['layer']}.json",
                                         "items": len(output.get(LIST_FIELD[row["layer"]], []))})
-    if fallbacks or (specs_dir(job) / "fallback-needed.json").exists():
-        record_fallback(job, fallbacks, cleared)
-    report["fallbackNeeded"] = fallbacks
     report["ok"] = not fallbacks
     return report
 
@@ -529,7 +661,7 @@ def print_report(report):
         print(f"  {r['layer']:9} {r['model']:18} effort {r['effort']:6} max_tokens {r['maxTokens']:6} {state}")
     for p in report["problems"]:
         print("  PROBLEM:", p)
-    print(f"estimate for new requests: ${report['estimateUsd']:.6f}  (cap ${report['capUsd']:.2f}; an upper bound, actual cost is recorded)")
+    print(f"estimate for new requests: ${report['estimateUsd']:.6f}  (cap ${report['capUsd']:.2f}; an estimate meant to sit above the real cost; the actual cost is recorded)")
     for g in report["generated"]:
         print(f"  wrote {g['file']} ({g['items']} items)")
     for f in report["fallbackNeeded"]:
@@ -551,6 +683,7 @@ def build_parser():
     ap.add_argument("--max-usd", type=float, default=0.5)
     ap.add_argument("--max-requests", type=int, default=12)
     ap.add_argument("--key-env", default=DEFAULT_KEY_ENV, help="NAME of the variable holding the key; never the value")
+    ap.add_argument("--retry-fallbacks", action="store_true", help="pay again for a request already listed in fallback-needed.json")
     ap.add_argument("--run", action="store_true", help="spend: send the requests that have not been paid for")
     ap.add_argument("--json", action="store_true")
     return ap

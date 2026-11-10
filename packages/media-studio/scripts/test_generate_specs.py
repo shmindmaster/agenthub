@@ -1,7 +1,11 @@
 """Offline tests for the model-written specs adapter. No provider is called: every request goes through a fake."""
 import argparse
 import copy
+import hashlib
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -140,7 +144,7 @@ def make_job(root, sheet=None, brief=None):
 
 def args(**kw):
     base = dict(job=None, layers="moments", beats=None, model=g.DEFAULT_MODEL, effort="low", max_usd=0.5, max_requests=12,
-                key_env=g.DEFAULT_KEY_ENV, run=False, json=False)
+                key_env=g.DEFAULT_KEY_ENV, run=False, json=False, retry_fallbacks=False)
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -434,12 +438,15 @@ class StopReasons(unittest.TestCase):
     def test_a_refusal_is_recorded_and_never_resent_unchanged(self):
         with tempfile.TemporaryDirectory() as d:
             job = make_job(d)
-            fake = FakeMessages(message("", stop="refusal"))
+            refusal = message("", stop="refusal")
+            refusal["stop_details"] = {"type": "refusal", "category": "cyber"}
+            fake = FakeMessages(refusal)
             rep = g.run(job, args(run=True), env=ENV, post=fake)
             self.assertFalse(rep["ok"])
             self.assertEqual(len(fake.calls), 1)
             self.assertEqual(rep["fallbackNeeded"][0]["reason"], "refusal")
             self.assertEqual([l["stopReason"] for l in ledger(job) if l["kind"] == "spec"], ["refusal"])
+            self.assertEqual(ledger(job)[0]["stopDetails"], {"type": "refusal", "category": "cyber"})
             again = g.run(job, args(run=True), env=ENV, post=fake)
             self.assertEqual(len(fake.calls), 1)
             self.assertFalse(again["ok"])
@@ -506,6 +513,223 @@ class StopReasons(unittest.TestCase):
             rep = g.run(job, args(run=True, effort="medium"), env=ENV, post=FakeMessages())
             self.assertTrue(rep["ok"], rep)
             self.assertFalse((job / "plan" / "model-specs" / "fallback-needed.json").exists())
+
+
+def specs(job, name):
+    return json.loads((job / "plan" / "model-specs" / f"{name}.json").read_text(encoding="utf-8"))
+
+
+class ReviewFixes(unittest.TestCase):
+    """Fixes from the independent review of b7ba9509."""
+
+    def test_the_budget_is_checked_before_every_attempt_across_layers(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            quote = g.run(job, args(layers="moments,captions"), env=ENV, post=FakeMessages())
+            cap = quote["estimateUsd"] * 1.05
+            # The first layer costs far more than its quote, so the second layer's first attempt would pass the cap.
+            costly = message({"moments": []}, usage={"input_tokens": 99_000, "output_tokens": 10})
+            fake = FakeMessages(costly)
+            rep = g.run(job, args(run=True, layers="moments,captions", max_usd=cap), env=ENV, post=fake)
+            self.assertEqual(len(fake.calls), 1)
+            self.assertEqual([(f["layer"], f["reason"]) for f in rep["fallbackNeeded"]], [("captions", "cap")])
+            self.assertAlmostEqual(rep["actualUsd"], (99_000 * 0.10 + 10 * 0.50) / 1e6, places=10)
+
+    def test_a_cached_answer_is_rebound_after_a_timing_only_cue_sheet_change(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            fake = FakeMessages()
+            g.run(job, args(run=True), env=ENV, post=fake)
+            sheet = cue_sheet()
+            sheet["beats"][0]["narration"]["words"][0]["start"] = 0.45   # a rebuilt word clock; nothing the model sees changes
+            (job / "plan" / "cue-sheet.json").write_text(json.dumps(sheet), encoding="utf-8")
+            rep = g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertEqual(len(fake.calls), 1)
+            self.assertTrue(rep["requests"][0]["cached"])
+            current = hashlib.sha256((job / "plan" / "cue-sheet.json").read_bytes()).hexdigest()
+            self.assertEqual(specs(job, "moments")["inputs"]["cueSheet"]["sha256"], current)
+
+    def test_a_run_holds_an_exclusive_lock_and_never_removes_someone_elses(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            lock = job / "qa" / "generate-specs.lock"
+            lock.parent.mkdir(parents=True)
+            lock.write_text(json.dumps({"pid": os.getpid(), "startedAt": "2026-11-10T00:00:00+00:00"}), encoding="utf-8")
+            fake = FakeMessages()
+            with self.assertRaises(g.SpecsError) as cm:
+                g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertIn(str(os.getpid()), str(cm.exception))
+            self.assertIn("still running", str(cm.exception))
+            self.assertEqual(fake.calls, [])
+            self.assertTrue(lock.exists())
+            dead = subprocess.run([sys.executable, "-c", "import os; print(os.getpid())"], capture_output=True, text=True).stdout.strip()
+            lock.write_text(json.dumps({"pid": int(dead), "startedAt": "2026-11-10T00:00:00+00:00"}), encoding="utf-8")
+            with self.assertRaises(g.SpecsError) as cm:
+                g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertIn("not running", str(cm.exception))
+            self.assertTrue(lock.exists())
+            lock.unlink()
+            g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertFalse(lock.exists())
+
+    def test_the_lock_is_released_when_a_run_fails(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+
+            def boom(url, headers, body):
+                raise RuntimeError("unexpected")
+            with self.assertRaises(RuntimeError):
+                g.run(job, args(run=True), env=ENV, post=boom)
+            self.assertFalse((job / "qa" / "generate-specs.lock").exists())
+
+    def test_a_pending_fallback_stops_an_identical_resend_unless_asked(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            cut = message('{"moments": [', stop="max_tokens")
+            fake = FakeMessages(cut, cut)
+            g.run(job, args(run=True), env=ENV, post=fake)
+            again = g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertEqual(len(fake.calls), 2)
+            self.assertFalse(again["ok"])
+            self.assertIn("--retry-fallbacks", " ".join(again["problems"]))
+            retried = g.run(job, args(run=True, retry_fallbacks=True), env=ENV, post=fake)
+            self.assertEqual(len(fake.calls), 3)
+            self.assertTrue(retried["ok"], retried)
+            self.assertTrue(g.build_parser().parse_args(["job", "--retry-fallbacks"]).retry_fallbacks)
+
+    def test_key_names_are_refused_in_any_case(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            for name in ("anthropic_api_key", "Anthropic_Admin_Key"):
+                with self.assertRaises(g.SpecsError):
+                    g.run(job, args(key_env=name), env={name: KEY}, post=FakeMessages())
+
+    def test_a_prompt_over_90000_tokens_is_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            sheet = cue_sheet()
+            sheet["beats"][0]["expected_ui_state"] = "x" * 300_000
+            rep = g.run(make_job(d, sheet), args(), env=ENV, post=FakeMessages())
+            self.assertFalse(rep["ok"])
+            self.assertIn("90,000", " ".join(rep["problems"]))
+
+    def test_long_prompts_are_priced_at_the_long_context_rates(self):
+        short = g.actual_usd({"input_tokens": 100_000, "output_tokens": 1000})
+        self.assertAlmostEqual(short, (100_000 * 0.10 + 1000 * 0.50) / 1e6, places=10)
+        long = g.actual_usd({"input_tokens": 90_000, "cache_read_input_tokens": 20_000, "output_tokens": 1000})
+        self.assertAlmostEqual(long, (90_000 * 0.50 + 20_000 * 0.05 + 1000 * 2.50) / 1e6, places=10)
+
+    def test_a_broken_response_is_ledgered_and_earlier_fallbacks_survive(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            calls = []
+
+            def post(url, headers, body):
+                calls.append(body)
+                if len(calls) == 1:
+                    return message("", stop="refusal")
+                raise g.SpecsError("Messages API response could not be read: ValueError")
+            rep = g.run(job, args(run=True, layers="moments,captions"), env=ENV, post=post)
+            self.assertEqual([f["reason"] for f in rep["fallbackNeeded"]], ["refusal", "error"])
+            lines = [l for l in ledger(job) if l["kind"] == "spec"]
+            self.assertEqual([l["layer"] for l in lines], ["moments", "captions"])
+            self.assertIsNone(lines[1]["usd"])
+            self.assertIn("may have been billed", lines[1]["usdBasis"])
+            self.assertEqual(len(json.loads((job / "plan" / "model-specs" / "fallback-needed.json").read_text(encoding="utf-8"))["entries"]), 2)
+
+    def test_the_transport_converts_unreadable_bodies(self):
+        class Body:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b"<html>not json</html>"
+        real = g.urllib.request.urlopen
+        g.urllib.request.urlopen = lambda req, timeout: Body()
+        try:
+            with self.assertRaises(g.SpecsError):
+                g.http_post_json("https://example.invalid", {}, {})
+        finally:
+            g.urllib.request.urlopen = real
+
+    def test_a_paid_answer_is_ledgered_and_cached_before_the_layer_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            real = g.write_json
+
+            def flaky(path, data):
+                if Path(path).name == "moments.json":
+                    raise OSError("disk full")
+                return real(path, data)
+            g.write_json = flaky
+            try:
+                with self.assertRaises(OSError):
+                    g.run(job, args(run=True), env=ENV, post=FakeMessages())
+            finally:
+                g.write_json = real
+            (line,) = ledger(job)
+            self.assertEqual(len(line["fileSha256"]), 64)
+            self.assertEqual(len(list((job / "plan" / "model-specs" / "cache").glob("*.json"))), 1)
+
+    def test_the_quote_prices_the_cached_prefix_at_the_write_rate_and_counts_the_schema(self):
+        with tempfile.TemporaryDirectory() as d:
+            rep = g.run(make_job(d), args(), env=ENV, post=FakeMessages())
+            body = g.build_body("moments", cue_sheet()["beats"], {}, g.DEFAULT_MODEL, "low")
+            system = g.estimate_tokens(body["system"][0]["text"])
+            rest = g.estimate_tokens(body["messages"][0]["content"]) + g.estimate_tokens(json.dumps(body["output_config"]["format"]["schema"]))
+            want = (system * 0.125 + rest * 0.10 + body["max_tokens"] * 0.50) / 1e6
+            self.assertAlmostEqual(rep["requests"][0]["estimateUsd"], want, places=9)
+
+    def test_a_rerun_never_overwrites_approved_moments(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            moment = {"beatId": "S02", "anchor": "action", "actionLabel": "Approve", "fromWord": 0, "toWord": 0, "reason": "target", "note": "small"}
+            g.run(job, args(run=True), env=ENV, post=FakeMessages(message({"moments": [moment, dict(moment, beatId="S01", actionLabel="Open queue")]})))
+            path = job / "plan" / "model-specs" / "moments.json"
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            doc["approvedBy"] = "owner"
+            doc["output"]["moments"] = [moment]                       # the person kept one of two
+            path.write_text(json.dumps(doc), encoding="utf-8")
+            sheet = cue_sheet()
+            sheet["beats"][0]["expected_ui_state"] = "The queue lists three requests"
+            (job / "plan" / "cue-sheet.json").write_text(json.dumps(sheet), encoding="utf-8")
+            fake = FakeMessages()
+            rep = g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertEqual(fake.calls, [])
+            self.assertIn("approved", " ".join(rep["problems"]))
+            kept = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual((kept["approvedBy"], kept["output"]["moments"]), ("owner", [moment]))
+
+    def test_approved_moments_are_rebound_when_only_timing_changed(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            g.run(job, args(run=True), env=ENV, post=FakeMessages())
+            path = job / "plan" / "model-specs" / "moments.json"
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            doc["approvedBy"] = "owner"
+            path.write_text(json.dumps(doc), encoding="utf-8")
+            sheet = cue_sheet()
+            sheet["beats"][1]["narration"]["words"][2]["end"] = 6.9
+            (job / "plan" / "cue-sheet.json").write_text(json.dumps(sheet), encoding="utf-8")
+            rep = g.run(job, args(run=True), env=ENV, post=FakeMessages())
+            self.assertTrue(rep["ok"], rep)
+            kept = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(kept["approvedBy"], "owner")
+            self.assertEqual(kept["inputs"]["cueSheet"]["sha256"], hashlib.sha256((job / "plan" / "cue-sheet.json").read_bytes()).hexdigest())
+
+    def test_thinking_blocks_before_the_text_block_are_skipped(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+            reply = message({"moments": []})
+            reply["content"].insert(0, {"type": "thinking", "thinking": "Looking at the beats.", "signature": "sig"})
+            rep = g.run(job, args(run=True), env=ENV, post=FakeMessages(reply))
+            self.assertTrue(rep["ok"], rep)
+            self.assertEqual(specs(job, "moments")["output"], {"moments": []})
+
+    def test_the_api_shape_is_no_longer_marked_unverified(self):
+        self.assertNotIn("UNVERIFIED", Path(g.__file__).read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
