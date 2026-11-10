@@ -213,6 +213,21 @@
       "interface": {
         "displayName": "AH-Context7"
       }
+    },
+    {
+      "name": "ah-coding-agent-dispatch",
+      "source": {
+        "source": "local",
+        "path": "./packages/coding-agent-dispatch"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools",
+      "interface": {
+        "displayName": "AH-Coding-Agent-Dispatch"
+      }
     }
   ]
 }

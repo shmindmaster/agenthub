@@ -1,0 +1,40 @@
+{
+  "name": "ah-coding-agent-dispatch",
+  "description": "Dispatch a task to another coding-agent host through the windowless fleet dispatcher, under registry policy and per-host guards.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "dispatch",
+    "orchestration",
+    "coding-agent",
+    "fleet",
+    "acp",
+    "delegation",
+    "handoff"
+  ],
+  "skills": "./skills/",
+  "agents": "./agents/codex/",
+  "interface": {
+    "displayName": "AH-Coding-Agent-Dispatch",
+    "shortDescription": "Dispatch tasks to other coding-agent hosts.",
+    "longDescription": "Dispatch a task to another coding-agent host through the windowless fleet dispatcher, under registry policy and per-host guards.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "List which coding-agent hosts are callable right now.",
+      "Dispatch this task to the cheapest enabled host and return its output."
+    ],
+    "brandColor": "#0F766E",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
+  },
+  "version": "0.4.0"
+}

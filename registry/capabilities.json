@@ -881,22 +881,30 @@
     {
       "id": "coding-agent-dispatch",
       "owner": "personal-infrastructure",
-      "capabilityType": "skills",
+      "capabilityType": "plugin+skills",
       "canonicalSource": "packages/coding-agent-dispatch",
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "EC4036FB71FF1B8CAE32AD3593AE26CA99D04B234EF3B4E7C7E80DC6FD89F3A3",
+      "contentHash": "3D278B473278FB3E08E23E4DB7E02F46379807C73E85989C717035C5F6FDD7C6",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
         {
           "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills",
+            "agents"
+          ]
         },
         {
           "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills",
+            "agents"
+          ]
         },
         {
           "hostId": "opencode",
@@ -912,7 +920,10 @@
         },
         {
           "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "grok",
@@ -924,11 +935,17 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-extension-junction",
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "cursor-agent",
@@ -936,15 +953,24 @@
         },
         {
           "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "vscode-insiders",
@@ -955,7 +981,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "hostMappingsNote": "2026-10-14: every host that already receives the shared skill library. Claude and Codex are the primary orchestrators. The callable set is Invoke-CodingAgent.ps1 -List, not this host list. GUI and unverified hosts stay refused inside the script.",
+      "hostMappingsNote": "2026-11-10: packaging upgraded to the media-studio pattern -- root plugin.json is the version authority, with .claude-plugin, .codex-plugin, .cursor-plugin, .devin-plugin and .antigravity-plugin projections plus an empty .mcp.json. Native plugin install on claude and codex (the primary orchestrators, through the agenthub marketplace), native local plugin on cursor, devin, factory, antigravity and amp, extension junction on cline; every other host still receives the shared loose skill library, which is the contract the skill documents. The callable set is Invoke-CodingAgent.ps1 -List, not this host list. GUI and unverified hosts stay refused inside the script.",
       "dependencies": {
         "requires": [],
         "recommends": [],

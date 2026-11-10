@@ -396,10 +396,10 @@
       "enabledByOwner": "2026-11-05 enabled on the owner's direction that a host which works should not stay disabled. Evidence: account login established (claude.ai, firstParty). The weekly-limit blocker recorded 2026-10-22 reset on 2026-10-26 and is stale. The API-key route stays opt-in only and never a default or a fallback, per the 2026-10-24 correction."
     },
     "codex": {
-      "enabled": false,
-      "reason": "Owner-confirmed paid plan; keep disabled until the dispatcher captures a standalone response and quota permits a smoke.",
-      "verifiedOn": "2026-10-22",
-      "knownIssue": "2026-10-21 smoke captured no response text; ChatGPT-plan quota was exhausted at 22:00 CT."
+      "enabled": true,
+      "reason": "2026-11-10: standalone `codex exec --skip-git-repo-check -` captured a response ('READY', session 01a1c62b-7356-7160-9b9c-efeecb274bd2, exit 0, 32,069 tokens). Account quota permitted the smoke; the prior enablement condition is met. Two MCP workers failed at session start (assemblyai OAuth invalid_token; one remote MCP redirect-origin block) -- MCP health issues, not dispatch readiness; recorded for repair.",
+      "verifiedOn": "2026-11-10",
+      "knownIssue": "RESOLVED 2026-11-10 by the smoke above. History: 2026-10-21 smoke captured no response text; ChatGPT-plan quota was exhausted at 22:00 CT."
     },
     "gemini": {
       "enabled": false,

@@ -340,9 +340,11 @@
         "plugins",
         "hooks",
         "sandbox",
-        "worktrees"
+        "worktrees",
+        "acp"
       ],
-      "status": "active"
+      "status": "active",
+      "acpNote": "Verified 2026-11-10 on installed 1.0.77: `grok agent stdio` is the ACP stdio server the ACP registry (grok-build) ships via npx @xai-official/grok agent stdio. `grok agent` additionally exposes headless (Grok WebSocket relay), serve (WebSocket server) and leader (shared leader process) modes -- local stdio is the fleet-compatible one."
     },
     {
       "id": "warp",
@@ -625,9 +627,11 @@
         "subagents",
         "mcp",
         "plugins",
-        "hooks"
+        "hooks",
+        "acp"
       ],
       "status": "active",
+      "acpNote": "Verified 2026-11-10 on installed 1.6.0: `droid exec --output-format acp` is the native ACP stdio mode. The ACP registry (factory-droid) ships the same contract through npx droid@1.7.0 with args exec --output-format acp-daemon and auto-update disabled.",
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
       "versionProbe": "cli",
       "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because %USERPROFILE%\\bin\\droid.exe exists and `droid --version` returned 0.241.1 within the bounded probe.",

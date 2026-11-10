@@ -83,6 +83,11 @@
       "name": "ah-context7",
       "displayName": "AH-Context7",
       "source": "./packages/context7"
+    },
+    {
+      "name": "ah-coding-agent-dispatch",
+      "displayName": "AH-Coding-Agent-Dispatch",
+      "source": "./packages/coding-agent-dispatch"
     }
   ]
 }

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ah-coding-agent-dispatch",
+  "version": "0.4.0",
+  "description": "Dispatch a task to another coding-agent host through the windowless fleet dispatcher, under registry policy and per-host guards.",
+  "license": "MIT",
+  "keywords": [
+    "dispatch",
+    "orchestration",
+    "coding-agent",
+    "fleet",
+    "acp",
+    "delegation",
+    "handoff"
+  ]
+}

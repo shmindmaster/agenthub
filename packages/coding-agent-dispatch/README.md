@@ -1,6 +1,11 @@
 # coding-agent-dispatch
 
-Version 0.3.1 (version metadata lives in `SKILL.md`).
+Version 0.4.0 (the root `plugin.json` is the single version authority; `SKILL.md`
+metadata and every host projection carry the same number and
+`tests/validate-dispatch.ps1` enforces parity). The package is a full plugin:
+`.claude-plugin`, `.codex-plugin`, `.cursor-plugin`, `.devin-plugin` and
+`.antigravity-plugin` projections, an empty `.mcp.json`, and catalog entries in
+`.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`.
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever

@@ -1,0 +1,11 @@
+{
+  "name": "ah-coding-agent-dispatch",
+  "displayName": "AH-Coding-Agent-Dispatch",
+  "description": "Dispatch a task to another coding-agent host through the windowless fleet dispatcher, under registry policy and per-host guards.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "version": "0.4.0",
+  "logo": "assets/icon.svg"
+}
