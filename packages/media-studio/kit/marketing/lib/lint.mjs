@@ -4,6 +4,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { validate } from './schema.mjs';
+import { inspectNarrativeArc } from './narrative.mjs';
 import { fileSha, readJson, sentences, words } from './util.mjs';
 
 /** Narration that talks about the demo data, the film or its making instead of the viewer's problem. */
@@ -285,6 +286,7 @@ function lintCut(cut, state) {
     beatIds.add(beat.id);
     lintBeat(beat, cut, where(beat.id), state);
   }
+  for (const finding of inspectNarrativeArc(state.spec, cut, estimateBeatSeconds)) state.err(finding.code, finding.message, finding.where);
   const estimate = estimateCutSeconds(cut);
   state.estimates.push({ cut: cut.id, estimateSeconds: Number(estimate.toFixed(1)), targetSeconds: cut.targetSeconds });
   if (estimate > cut.targetSeconds + 4) state.err('too-long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target; trim the script before spending on voice`, cut.id);
@@ -310,7 +312,7 @@ export function lintSpec(spec, brand, options = {}) {
   const music = spec.music;
   lintMusic(music, err);
   lintLabelsAndCta(spec, brand, claimsById, err, warn, scanText);
-  const state = { seenRatios: new Set(), claimsById, scanText, io, err, warn, music, estimates: [] };
+  const state = { spec, seenRatios: new Set(), claimsById, scanText, io, err, warn, music, estimates: [] };
   for (const cut of cuts) lintCut(cut, state);
   return { ok: errors.length === 0, errors, warnings, estimates: state.estimates };
 }
