@@ -19,7 +19,9 @@
     "antigravity",
     "warp",
     "cline",
-    "vscode-insiders"
+    "vscode-insiders",
+    "kilo",
+    "mimo-code"
   ],
   "launchDefaults": {
     "gemini": [
@@ -243,6 +245,28 @@
         }
       },
       {
+        "hostId": "kilo",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "flags": [
+            "run",
+            "--auto"
+          ]
+        },
+        "note": "Promoted to active 2026-11-10 on owner direction. OpenCode fork; `kilo run --auto` auto-approves what rules do not deny. Verified by `kilo run --help` and a live `kilo run` smoke returning READY."
+      },
+      {
+        "hostId": "mimo-code",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "flags": [
+            "run",
+            "--yolo"
+          ]
+        },
+        "note": "Promoted to active 2026-11-10 on owner direction. OpenCode fork; its auto-approve flag is --yolo (--dangerously-skip-permissions), verified by `mimo run --help` and a live `mimo run` smoke returning READY."
+      },
+      {
         "hostId": "vscode-insiders",
         "defaultProfile": "repo-autonomous",
         "native": {
@@ -340,6 +364,19 @@
     "warp": {
       "authMode": "account",
       "loginCommand": "warp login"
+    },
+    "kilo": {
+      "model": "mimo-v2.6-pro",
+      "authMode": "apiKey",
+      "authEnv": "MIMO_API_KEY",
+      "loginCommand": "kilo auth",
+      "modelNote": "2026-11-10 `kilo run` smoke: agent code, model mimo-v2.6-pro answered READY. Stored credentials are empty; the MiMo provider in ~/.config/kilo/config.json resolves through the MIMO_API_KEY environment variable, so the dispatcher must NOT strip it."
+    },
+    "mimo-code": {
+      "model": "mimo-v2.6-pro",
+      "authMode": "account",
+      "loginCommand": "mimo providers",
+      "modelNote": "2026-11-10 `mimo run` smoke: agent build, model mimo-v2.6-pro answered READY against the stored Xiaomi Token Plan (Singapore) credential."
     }
   },
   "dispatchPolicy": {
@@ -540,6 +577,28 @@
       "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 11 s, returned ok.",
       "verifiedOn": "2026-10-14",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
+    },
+    "kilo": {
+      "enabled": true,
+      "model": "mimo-v2.6-pro",
+      "allowedModels": [
+        "mimo-v2.6-pro"
+      ],
+      "allowedModelsNote": "Only mimo-v2.6-pro has been smoke-verified on the MiMo provider (2026-11-10). Widen only with a captured response per model.",
+      "reason": "2026-11-10: `kilo run` returned READY in a bounded smoke (agent code, mimo-v2.6-pro). Auth is the MiMo provider via MIMO_API_KEY already in the environment; 0 stored credentials in ~/.local/share/kilo/auth.json.",
+      "verifiedOn": "2026-11-10",
+      "ownerDirection": "2026-11-10: owner directed onboarding the newer unmanaged CLIs into the managed fleet."
+    },
+    "mimo-code": {
+      "enabled": true,
+      "model": "mimo-v2.6-pro",
+      "allowedModels": [
+        "mimo-v2.6-pro"
+      ],
+      "allowedModelsNote": "Only mimo-v2.6-pro has been smoke-verified on the stored Xiaomi Token Plan credential (2026-11-10). Widen only with a captured response per model.",
+      "reason": "2026-11-10: `mimo run` returned READY in a bounded smoke (agent build, mimo-v2.6-pro) on the stored Xiaomi Token Plan (Singapore) credential.",
+      "verifiedOn": "2026-11-10",
+      "ownerDirection": "2026-11-10: owner directed onboarding the newer unmanaged CLIs into the managed fleet."
     }
   },
   "hostSurfaces": {

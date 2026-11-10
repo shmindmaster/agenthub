@@ -70,9 +70,9 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         [IO.File]::WriteAllText($stub, "#!/bin/sh`nexec '$node' '$recorder' `"`$@`"`n")
         [IO.File]::SetUnixFileMode($stub, [IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
     }
-    $ids = @('claude','codex','cursor','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop')
+    $ids = @('claude','codex','cursor','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode/glm-5.3-flash' }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
+    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode/glm-5.3-flash' }; kilo = @{ model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; 'mimo-code' = @{ model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -96,7 +96,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     foreach ($id in @('devin-cloud','jules','cursor-cloud','copilot-agent')) {
         $r = Run @('-HostId',$id,'-Prompt','ok'); Check "$id cloud refuses" ($r.Exit -eq 3 -and $r.Err -match 'hosted cloud execution')
     }
-    foreach ($id in @('claude','codex','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp')) {
+    foreach ($id in @('claude','codex','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         if ($id -eq 'copilot' -and $r.Exit -eq 3 -and $r.Err -match 'gh has no token for account sh-pendoah') {
             # Copilot dispatch reads the owner's sh-pendoah gh login; without it the
@@ -155,6 +155,13 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'OpenCode 2 uses native process cwd without obsolete flag' ($d.Cwd -in @($scratch, $scratchReal) -and $d.Arguments -notcontains '--dir')
         }
         if ($id -eq 'warp') { Check 'Warp account auth uses no API key override' (-not $d.ApiKeyVars.WARP_API_KEY) }
+        if ($id -eq 'kilo') {
+            Check 'Kilo runs with auto approval, JSON events and explicit dir' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--auto' -and $d.Arguments -contains '--format' -and $d.Arguments -contains '--dir' -and $d.Arguments -contains $scratch -and $d.Arguments[-1] -eq 'ok')
+            Check 'Kilo receives the policy model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'mimo-v2.6-pro')
+        }
+        if ($id -eq 'mimo-code') {
+            Check 'MiMo runs with yolo approval, JSON events and explicit dir' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--yolo' -and $d.Arguments -contains '--format' -and $d.Arguments -contains '--dir' -and $d.Arguments -contains $scratch -and $d.Arguments[-1] -eq 'ok')
+        }
         if ($id -eq 'amp') {
             $settingsIndex = [Array]::IndexOf($d.Arguments, '--settings-file')
             $settingsPath = if ($settingsIndex -ge 0) { $d.Arguments[$settingsIndex + 1] } else { $null }

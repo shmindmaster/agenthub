@@ -229,6 +229,32 @@ function Get-DispatchTable {
                 @{ Args = @('--dangerously-skip-permissions', ('--print=' + $PromptText)); Stdin = $null; PromptFile = $null }
             }
         }
+        'kilo' = @{
+            Mode = 'argument'
+            Build = {
+                param($PromptText, $Work, $File)
+                # OpenCode fork, but unlike OpenCode 2 its run honours --dir.
+                # Auth is the MiMo provider through MIMO_API_KEY, which the
+                # child environment must keep -- it is the account credential.
+                $args = @('run', '--auto', '--format', 'json', '--dir', $Work)
+                $kiloModel = if ($script:KiloModel) { $script:KiloModel } else { [string]$fleet.dispatchPolicy.kilo.model }
+                if ($kiloModel) { $args += @('--model', $kiloModel) }
+                $args += $PromptText
+                @{ Args = $args; Stdin = $null; PromptFile = $null }
+            }
+        }
+        'mimo-code' = @{
+            Mode = 'argument'
+            Build = {
+                param($PromptText, $Work, $File)
+                # OpenCode fork; its auto-approve flag is --yolo, not --auto.
+                $args = @('run', '--yolo', '--format', 'json', '--dir', $Work)
+                $mimoModel = if ($script:MimoCodeModel) { $script:MimoCodeModel } else { [string]$fleet.dispatchPolicy.'mimo-code'.model }
+                if ($mimoModel) { $args += @('--model', $mimoModel) }
+                $args += $PromptText
+                @{ Args = $args; Stdin = $null; PromptFile = $null }
+            }
+        }
         'factory' = @{
             Mode = 'file'
             Build = {
@@ -492,7 +518,7 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $r
     $script:ClineProvider = $choice.Substring(0, $split)
     $script:ClineModel = $choice.Substring($split + 1)
 } elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
-    if ($requested -notin @('opencode', 'factory', 'devin')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp, Factory or Devin model.' }
+    if ($requested -notin @('opencode', 'factory', 'devin', 'kilo', 'mimo-code')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp, Factory, Devin, Kilo or MiMo model.' }
     # Governed routing is per task, but only within the owner's recorded
     # allowlist: a model outside it could bill beyond the recorded allowance.
     $allowedModels = @()
@@ -503,6 +529,8 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $r
     if ($requested -eq 'opencode') { $script:OpenCodeModel = $Model.Trim() }
     if ($requested -eq 'factory') { $script:FactoryModel = $Model.Trim() }
     if ($requested -eq 'devin') { $script:DevinModel = $Model.Trim() }
+    if ($requested -eq 'kilo') { $script:KiloModel = $Model.Trim() }
+    if ($requested -eq 'mimo-code') { $script:MimoCodeModel = $Model.Trim() }
 }
 if (-not [string]::IsNullOrWhiteSpace($Title) -and $requested -ne 'opencode') {
     Write-Refusal 3 '-Title applies only to -HostId opencode.'

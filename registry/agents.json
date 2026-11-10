@@ -668,6 +668,64 @@
       "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded this launcher as absent. code-insiders.cmd is present. It is an editor, not a headless dispatch target. `code-insiders.cmd --version` returned 1.142.0-insider. No installer was run.",
       "versionProbeNote": "versionProbe stays cli. The declared launcher exists and `code-insiders.cmd --version` prints and exits. Corrected 2026-10-14 from the stale note that said the executable was absent.",
       "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run."
+    },
+    {
+      "id": "kilo",
+      "name": "Kilo CLI",
+      "version": "7.8.27",
+      "versionObserved": "2026-11-09: read-only `kilo --version` printed 7.8.27 (npm global shim). `kilo run` smoke 2026-11-10 returned READY (agent code, model mimo-v2.6-pro).",
+      "executable": "{userHome}/AppData/Roaming/npm/kilo.cmd",
+      "nativePaths": {
+        "config": "{userHome}/.config/kilo/config.json",
+        "configNote": "Vendor docs name kilo.jsonc as the global file. On this machine only config.json exists, and it carries the MiMo provider (credential by env name MIMO_API_KEY, value not recorded).",
+        "mcp": "{userHome}/.config/kilo/config.json",
+        "mcpKey": "mcp",
+        "mcpNote": "Kilo MCP entries live under the mcp object (type local or remote, command[], environment, enabled). No MCP servers recorded on 2026-11-09 (`kilo mcp list` read-only).",
+        "skillsDir": "{userHome}/.kilo/skills",
+        "instructions": null,
+        "instructionsNote": "Not established for AgentHub deployment. Sync-Instructions reaches inactive hosts; promoting to active does not deploy global instructions until a file contract is verified."
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins",
+        "acp"
+      ],
+      "status": "active",
+      "notes": "Installed on 2026-11-09, OpenCode-compatible fork. Promoted to active and dispatchable 2026-11-10 on owner direction. `kilo` and `kilocode` are two shims for the same install (identical version and help). Plugins install with `kilo plugin <npm>` (npm array in config); plugin format is PLUGIN.yaml. Loads ~/.agents/skills natively by default. No Kilo VS Code extension installed.",
+      "acpNote": "Verified 2026-11-10 on installed 7.8.27: `kilo acp` starts a native ACP stdio server; `kilo serve` starts a headless HTTP server.",
+      "headlessDispatchNote": "`kilo run --auto --format json --dir <cwd> <prompt>` verified 2026-11-10 (OpenCode-fork contract; --dir is honoured, unlike OpenCode 2). Auth is the MiMo provider through MIMO_API_KEY in config.json."
+    },
+    {
+      "id": "mimo-code",
+      "name": "MiMo Code CLI",
+      "version": "0.1.16",
+      "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. `mimo run` smoke 2026-11-10 returned READY (agent build, model mimo-v2.6-pro).",
+      "executable": "{userHome}/AppData/Roaming/npm/mimo.cmd",
+      "nativePaths": {
+        "config": "{userHome}/.config/mimocode/config.json",
+        "configNote": "Carries the MiMo provider. The same directory also holds mimocode.jsonc, which is where the MCP key is recorded.",
+        "mcp": "{userHome}/.config/mimocode/mimocode.jsonc",
+        "mcpKey": "mcp",
+        "mcpNote": "Same shape as OpenCode. OAuth tokens go to ~/.local/share/mimocode/mcp-auth.json. `mimo providers list` 2026-11-10 shows one credential (Xiaomi Token Plan Singapore). No MCP servers recorded on 2026-11-09.",
+        "skillsDir": "{userHome}/.config/mimocode/skills",
+        "instructions": null,
+        "instructionsNote": "Not established for AgentHub deployment. Sync-Instructions reaches inactive hosts; promoting to active does not deploy global instructions until a file contract is verified."
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins",
+        "acp"
+      ],
+      "status": "active",
+      "notes": "Installed on 2026-11-09, OpenCode fork. Promoted to active and dispatchable 2026-11-10 on owner direction. Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories.",
+      "acpNote": "Verified 2026-11-10 on installed 0.1.16: `mimo acp` starts a native ACP stdio server; `mimo serve` starts a headless HTTP server.",
+      "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> <prompt>` verified 2026-11-10. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan credential."
     }
   ],
   "inactiveAgents": [
@@ -711,54 +769,6 @@
       "headlessDispatchNote": "Windsurf routes to the installed Devin CLI; dispatch and autonomy restrictions on Devin also apply.",
       "inactiveNote": "Moved to inactiveAgents 2026-10-22: no windsurf executable on PATH or under %LOCALAPPDATA%/Programs and no ~/.codeium directory (hostInventory.notInstalled already recorded this). An active entry made Sync-AgentHub report drift and create ~/.codeium/windsurf/mcp_config.json for a host that is not installed. Dispatch of `windsurf` still routes to Devin per the dispatcher. Reactivate after an install is verified.",
       "renamedNote": "Checked 2026-11-04: Windsurf is now Devin Desktop. Version 3.11.238 is installed at %LOCALAPPDATA%/Programs/Devin/Devin.exe with its own CLI, and both read %APPDATA%/devin. Do not reactivate this row; the `devin` row is the host."
-    },
-    {
-      "id": "kilo",
-      "name": "Kilo CLI",
-      "version": "7.8.27",
-      "versionObserved": "2026-11-09: read-only `kilo --version` printed 7.8.27 (npm global shim). No agent run.",
-      "executable": "{userHome}/AppData/Roaming/npm/kilo.cmd",
-      "nativePaths": {
-        "config": "{userHome}/.config/kilo/config.json",
-        "configNote": "Vendor docs name kilo.jsonc as the global file. On this machine only config.json exists, and it carries the MiMo provider (credential by env name MIMO_API_KEY, value not recorded).",
-        "mcp": "{userHome}/.config/kilo/config.json",
-        "mcpKey": "mcp",
-        "mcpNote": "Kilo MCP entries live under the mcp object (type local or remote, command[], environment, enabled). No MCP servers recorded on 2026-11-09 (`kilo mcp list` read-only).",
-        "skillsDir": "{userHome}/.kilo/skills",
-        "instructions": null,
-        "instructionsNote": "Not established for AgentHub deployment. Sync-Instructions reaches inactive hosts, so no global instruction file is written here until the owner approves this host."
-      },
-      "supportedCapabilities": [
-        "skills",
-        "mcp",
-        "plugins"
-      ],
-      "status": "inactive",
-      "notes": "Installed on 2026-11-09, OpenCode-compatible fork. Not a dispatch target and no capability is mapped to it. Plugins install with `kilo plugin <npm>` (npm array in config); plugin format is PLUGIN.yaml. Loads ~/.agents/skills natively by default. No Kilo VS Code extension installed."
-    },
-    {
-      "id": "mimo-code",
-      "name": "MiMo Code CLI",
-      "version": "0.1.16",
-      "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. No agent run.",
-      "executable": "{userHome}/AppData/Roaming/npm/mimo.cmd",
-      "nativePaths": {
-        "config": "{userHome}/.config/mimocode/config.json",
-        "configNote": "Carries the MiMo provider. The same directory also holds mimocode.jsonc, which is where the MCP key is recorded.",
-        "mcp": "{userHome}/.config/mimocode/mimocode.jsonc",
-        "mcpKey": "mcp",
-        "mcpNote": "Same shape as OpenCode. OAuth tokens go to ~/.local/share/mimocode/mcp-auth.json. No MCP servers recorded on 2026-11-09.",
-        "skillsDir": "{userHome}/.config/mimocode/skills",
-        "instructions": null,
-        "instructionsNote": "Not established for AgentHub deployment. Sync-Instructions reaches inactive hosts, so no global instruction file is written here until the owner approves this host."
-      },
-      "supportedCapabilities": [
-        "skills",
-        "mcp",
-        "plugins"
-      ],
-      "status": "inactive",
-      "notes": "Installed on 2026-11-09, OpenCode fork. Not a dispatch target. Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories."
     },
     {
       "id": "mimo-desktop",
@@ -835,6 +845,26 @@
       ],
       "status": "inactive",
       "notes": "Installed on 2026-11-09. 26 apps (15 enabled), 52 skills under crew/skills. All 4 crons are disabled, which keeps it clear of the no-scheduled-jobs rule. auto_update is true, which the owner should review. A stale leftover app source (personal-shopper.stale-26434066) is recorded and not removed. Not a dispatch target."
+    },
+    {
+      "id": "qwen",
+      "name": "Qwen Code",
+      "version": "0.27.1",
+      "versionObserved": "2026-11-10: `qwen --version` printed 0.27.1 (npm global shim). `qwen -p` smoke the same day failed in resolveModelConfig -- no usable auth/model configuration.",
+      "executable": "{userHome}/AppData/Roaming/npm/qwen.cmd",
+      "nativePaths": {
+        "config": "{userHome}/.qwen/settings.json",
+        "skillsDir": "{userHome}/.qwen/skills",
+        "instructions": null,
+        "instructionsNote": "Not established for AgentHub deployment."
+      },
+      "supportedCapabilities": [
+        "skills",
+        "mcp",
+        "acp"
+      ],
+      "status": "inactive",
+      "notes": "Installed (npm @qwen-code/qwen-code 0.27.1). Gemini-CLI-family fork: -p/--prompt headless and --acp both verified in --help 2026-11-10, but a `qwen -p` smoke crashed in resolveModelConfig, so no auth or model configuration exists yet. `qwen auth` is a removed command; setup likely needs a provider key or settings.json auth block. Not a dispatch target until the owner establishes auth and a smoke returns a response."
     },
     {
       "id": "coderabbit",
