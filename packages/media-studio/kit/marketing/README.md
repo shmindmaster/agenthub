@@ -59,137 +59,77 @@ compose metadata and ratio. Keep the old job read-only. Old PASS receipts do not
 gates, including `wordSync` and `transcript`, and obtain exact-candidate reviews. QA measures existing captions; it does
 not retime them. The separate production timing-stage follow-up is not part of this repair.
 
-## Story-first contract (25 seconds and longer)
+## Choose creativeMode before writing the film
 
-A generated film that opens directly on unrelated UI is not a usable ad, even
-when its render, captions, music, timings and claims pass. The `lint` stage
-now calls `lib/narrative.mjs` and refuses a 25s+ cut that lacks a causal
-story **before** any paid provider runs. This is a structural floor; a human
-reviewer must still check the final file's meaning, coherence and factual
-accuracy. Do not satisfy the role labels with generic filler.
+Media Studio is **not** a single-product proof-of-feature generator. The
+`mvg` marketing-ad lane accepts `creativeMode`:
+`verified-demo` (default for legacy ads), `hybrid`, `future-vision`,
+`concept-film`, `fictional-story`, `explainer`, `documentary`,
+`educational`, and `abstract`. It accepts optional beat
+`truthStatus: verified|proposed|fictional|illustrative`.
 
-1. **Hook (0–5s):** Put the pain or visibly meaningful outcome in the first
-   sentence/frame. No corporate splash, logo reveal or unexplained dashboard.
-2. **Context + problem (next 5–10s):** Show the person, situation, trigger,
-   stakes and obstacle. This can be one `context-problem` beat for a short ad.
-3. **Software reveal:** Name the product in the `solution` beat and explain
-   what it makes possible. A logo appearing only on the last card is not an
-   introduction.
-4. **Proof through action:** A `demonstration` or `proof` beat must use
-   a real receipt-bound `ui` capture (input → action → visible result).
-   Do not use unrelated screens or synthetic UI as filler.
-5. **Payoff:** Revisit the original problem and show the changed outcome.
-   Keep a legible result hold and acknowledge human review/limits for AI.
-6. **Action:** One `cta` beat last. End on a next step, not an abrupt cut.
+A **verified demo** must support present-tense claims with real captured UI
+evidence. Its pre-spend 25s+ story lint checks scenario, clear product
+introduction, actual mechanism, outcome and CTA. A 10–24s verified teaser
+can compress to hook → real UI proof → CTA. These are verified-demo
+standards, **not a universal screenplay formula**.
 
-Add an explicit `narrative` object to the spec (or override it per `cuts[]`)
-with `persona`, `situation`, `trigger`, `problem`, `stakes`,
-`solution`, `mechanism`, `payoff`, `emotionalBefore`, `emotionalAfter`,
-and `viewerValue`. The emotional states should be credible and different:
-for an ABA clinic coordinator, uncertainty → knowing which visit requires
-follow-up is more trustworthy than manufactured panic → miraculous cure.
-`viewerValue` names a concrete insight or capability the viewer receives
-*before* the CTA, not an abstract feature label. Each value must say
-something specific; generic placeholders are a lint failure. Give every beat a
-`storyRole` from `hook`, `context`, `problem`, `context-problem`,
-`solution`, `demonstration`, `proof`, `payoff`, `cta`. The product name
-must appear in the solution beat's narration or on-screen text. Put scenario
-context before ten seconds have elapsed. Longer ads may use additional
-beats, but retain this order and one clear problem-to-result arc.
+All other forms are free to start at the climax, tell a fictional day in
+the life, depict an imagined future, use an abstract rhythmic structure,
+or follow a documentary's evidence trail. They do **not** require six
+ordered beats, a genuine current product clip, a software name in the
+opening, a mandatory conflict/hero at a fixed timestamp, or a generated
+person's age to meet a particular rule. The final reviewer judges the
+declared film's goals, story quality, truthfulness of real claims and
+actual visible result.
 
-For these 25s+ cuts, add a `hookPlan` (top-level or per-cut):
-`visual` names the *first real frame*, `onScreen` names the text or native
-UI evidence a silent viewer sees, `spoken` is the actual opening narration,
-and `viewerQuestion` names the curiosity the next scene resolves.
-The lint rejects missing components and a `spoken` line that does not
-match the opening beat. You may add up to two text-only `alternatives`
-(`angle`, `visual`, `spoken`) and a `selectionReason` to compare a
-problem-first, payoff-first or surprising-*but-true* opening. Develop those
-alternatives **before** paid speech, imagery or capture. Do not introduce
-unsupported statistics or clickbait that the body cannot substantiate.
+### Realistic people, patients and synthetic interfaces
 
-**Retention and editing decisions:** every meaningful shot change should
-clarify the current state, expose an obstacle, reveal information or show
-a result. A pattern interrupt is a *story turn*, not a random effect.
-Consider an open question in the hook, a relevant contrast or complication
-in the middle, and a payoff that closes that question. Do not mandate
-artificial twists, jump cuts every three seconds, exaggerated emotions,
-or constant motion. Preserve enough screen hold for product evidence to
-be read. Write voiceover as spoken language, use captions and genuine
-product labels for muted viewing, and test each aspect ratio at native
-capture resolution. Platform-specific hook variants are editorial
-derivatives, not naive crops.
+All fictional people—including photorealistic adults, children,
+patients, families and clinicians—and all synthetic screens, records,
+charts, futuristic UIs, detailed environments and unblurred props are
+valid creative assets when relevant. No mandatory blur, anonymization
+mask or prohibition on readable text is imposed for synthetic media.
+An actor may optionally have `broll.actor` metadata (role, ageGroup,
+character continuity). Legacy `noPatientOrMinor` metadata is not an
+active restriction.
 
-**After distribution:** where actual audience data is available, compare
-two or three *truthful* hook variants with the same core claim and
-comparable audience/exposure; measure early retention, completion, and
-the stated business CTA outcome rather than assuming viral view counts
-are product success. Capture the result as campaign evidence for the
-next brief. Never fabricate engagement or claim guaranteed virality.
+A proposed interface in `future-vision` or `concept-film` may be
+shown in full. In `hybrid`, identify it as `truthStatus: proposed`
+(or `fictional|illustrative`) and mark `broll.depictsProductUI: true`
+so it is not mistaken for current-functionality proof. Use
+`conceptDisclosure` or a clear film-level phrase such as
+"Concept visualization" or "Envisioning what's possible". **A film-level
+disclosure need not be a permanent watermark, blurred scene, or an
+audio interruption.** Keep the invented content visually excellent.
 
-For a 10–24s bumper, compress the same idea to **hook → genuine UI proof
-→ next step**. The short-form narrative lint requires a first `hook` beat,
-real UI before the last `cta` beat, early product identification, and the
-approved CTA. The full six-beat gate does not run for these deliberately
-short cuts; claim evidence and exact-encoded-candidate review still apply. Do not
-claim that a 15-second montage is a full product explainer.
+A fictional hospital/clinic encounter is not automatically a
+testimonial, a real medical record or a currently shipped capability.
+A verified factual claim, in contrast, still needs its source or
+real product capture. Licensed real-person portrayals require ordinary
+rights/consent. No real patient/customer data goes to an unapproved
+provider.
 
-Example cut outline (replace every line with product-verified claims and
-capture receipts before producing):
+**Example: future-world experience** — Show a clear, realistic synthetic
+family entering a future clinic, a fully legible imagined planning
+dashboard, an AI-supported interaction, then how the day changes for
+the fictional characters. This can be the *entire film*. It is not a
+working software demonstration unless separately backed by real
+capture and truth-status evidence.
 
-| Role | What the viewer sees | Narration purpose |
-| --- | --- | --- |
-| hook | A session flagged before it begins | State the immediate risk |
-| context-problem | Coordinator sees a questionable visit in tomorrow's schedule | Establish who, when, why |
-| solution | Genuine product screen, product name visible or spoken | Introduce software in the workflow |
-| demonstration | Coordinator checks authorization details, visible response | Prove the mechanism |
-| payoff | Same visit, now clearly requiring attention | Resolve the original uncertainty |
-| cta | Branded card | Invite one next step |
+For a general documentary, education program, dramatic or abstract film
+without a marketing CTA, use the wider `studio`/`video` development and
+composition workflow rather than pretending `mvg`'s ad spec is a
+universal film file format. See `skills/video/references/creative-formats.md`.
 
-A pass is not evidence that the software works beyond the recorded actions;
-existing claim, screenshot, authorization, product-readiness and QA rules
-still apply. If an older 25s+ spec fails this newly required lint, revise its
-written story and beats rather than bypassing the gate.
+### Production constraints are not creative constraints
 
-## Humanizing the setting without inventing product proof
-
-A buyer-facing software film benefits from a recognizable adult working
-through a real operational problem. The old blanket ban on generated
-people prevented this; the marketing `lint` now permits a **generic,
-fictional adult** for strictly non-claim story-setting b-roll, provided
-the beat's `broll.actor` declares all of:
-
-```json
-{
-  "kind": "fictional-adult",
-  "role": "office coordinator",
-  "storyPurpose": "Show the pressure of checking tomorrow's schedule",
-  "noRealPerson": true,
-  "noPatientOrMinor": true
-}
-```
-
-Keep the scene brief and meaningful: an adult coordinator reviewing
-tomorrow's work at a neutral desk with a blurred laptop, **no text,
-logos, visible product interface, clinical chart or fake customer
-testimonial**. Never depict patient care, children, minors, patient
-records, identifiable real people or a purported actual customer.
-Human setup is dramatization. Use an on-screen synthetic disclosure
-and the exact product's *real* Playwright/WebM recording for every
-software action, data claim and result. Reuse an accepted fictional
-adult reference for a series only through a model-specific, approved
-route that actually supports such references. The Runware model
-catalogue itself does not constitute a production adapter.
-
-`broll.actor` does not permit new narration, a fabricated clinic
-outcome, or an unsupported voice/likeness clone. `broll.provider`
-currently supports existing OpenAI-generated stills, accepted stock
-assets, and an excluded ElevenLabs-video route. **Runware
-`generate_stills.py` supports only its validated `runware:z-image@0`
-payload**, so a newly discovered Klein, Qwen, Sunburst or MiniMax
-model cannot simply be substituted into the existing marketing
-generator. Quote first, add a governed schema-specific adapter, review
-a sample, then make that model eligible. No silent fallback or spend.
+The `mvg` b-roll asset stage currently supports configured OpenAI image
+generation, accepted stock files and the historical ElevenLabs-video
+stub. Public Runware models cannot be activated simply by changing an
+environment variable; each must have a model-correct, priced, governed
+adapter. That is an implementation gap, **not** a ban on synthetic
+people, scenes or future product screens.
 
 ## Writing a spec (`ad.schema.json`)
 
