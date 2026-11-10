@@ -246,25 +246,29 @@
       },
       {
         "hostId": "kilo",
-        "defaultProfile": "interactive",
+        "defaultProfile": "repo-autonomous",
         "native": {
           "flags": [
             "run",
-            "--auto"
+            "--auto",
+            "--agent",
+            "peer"
           ]
         },
-        "note": "Promoted to active 2026-11-10 on owner direction. `kilo run --auto` auto-approves per `kilo run --help`, but that governed command and its unattended permission restrictions were never exercised; the smoke ran the bare default. interactive until a safe profile is verified."
+        "note": "Promoted to active 2026-11-10 on owner direction. repo-autonomous since the governed command `kilo run --auto ... --agent peer` was exercised the same day: it returned READY, and a denied command stayed blocked under --auto. The unattended contract is that guarded agent; the dispatcher refuses the host without it."
       },
       {
         "hostId": "mimo-code",
-        "defaultProfile": "interactive",
+        "defaultProfile": "repo-autonomous",
         "native": {
           "flags": [
             "run",
-            "--yolo"
+            "--yolo",
+            "--agent",
+            "peer"
           ]
         },
-        "note": "Promoted to active 2026-11-10 on owner direction. Its auto-approve flag is --yolo (--dangerously-skip-permissions) per `mimo run --help`, but that governed command and its unattended permission restrictions were never exercised; the smoke ran the bare default. interactive until a safe profile is verified."
+        "note": "Promoted to active 2026-11-10 on owner direction. repo-autonomous since the governed command `mimo run --yolo ... --agent peer` was exercised the same day: it returned READY, and a denied command stayed blocked under --yolo (--dangerously-skip-permissions). The unattended contract is that guarded agent; the dispatcher refuses the host without it."
       },
       {
         "hostId": "vscode-insiders",
