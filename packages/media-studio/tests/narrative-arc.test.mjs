@@ -163,7 +163,7 @@ test('full ad-schema and marketing lint accept a coherent evidence-backed produc
   }
   const claim = {
     id: 'c1', text: 'Authorized workflow review',
-    phrases: cut.beats.flatMap((beat) => beat.narration.split(/(?<=[.!?])\\s+/)),
+    phrases: cut.beats.flatMap((beat) => beat.narration.split(/(?<=[.!?])\s+/)),
     evidence: 'approved:product-evidence',
   };
   const spec = {
