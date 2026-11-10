@@ -36,6 +36,17 @@ a shipping feature without permanent watermarks or obscured artwork.
 Marketing-specific lint is not a replacement for the general film
 crew's creative development and encoded review.
 
+**Flexible storytelling schemas and preflight:** In addition to the
+existing verified-product storyboard, `schemas/creative-storyboard.schema.json`
+accepts free-form scene roles, generated images/video/3D, fictional
+people, children/patients, full speculative UI, intentional silence,
+non-linear order and form-specific transitions. `job.creativeMode`
+is available to the wider studio workflow. The general screenplay
+review requires independently evidenced judgments of audience,
+form-fit, visual-story and representation without forcing a
+current-product UI or a hero after scene three. The encoded viewer
+review remains mandatory before delivery.
+
 **Media-provider cost/quality selection:** For each missing story asset,
 read `skills/generate/references/provider-cost-quality-routing.md`. Reuse actual
 product capture, designed diagrams and accepted assets before proposing new
