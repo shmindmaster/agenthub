@@ -31,6 +31,7 @@ PACKAGES = {
     "ah-linear": "packages/linear",
     "ah-context7": "packages/context7",
     "ah-coding-agent-dispatch": "packages/coding-agent-dispatch",
+    "ah-funding": "packages/funding",
 }
 # Package folders Amp must not read: host manifests, tests, agents, render scratch.
 SKIP_TOP = {

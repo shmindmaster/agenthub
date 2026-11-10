@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ah-funding",
+  "version": "1.0.0",
+  "description": "Find, verify, rank and plan funding opportunities for a product portfolio, keeping one register of decisions.",
+  "license": "MIT",
+  "keywords": [
+    "funding",
+    "grants",
+    "sbir",
+    "accelerators",
+    "competitions",
+    "credits"
+  ]
+}

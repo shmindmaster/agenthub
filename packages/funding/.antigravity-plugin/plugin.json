@@ -1,0 +1,24 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ah-funding",
+  "displayName": "AH-Funding",
+  "version": "1.0.0",
+  "description": "Find, verify, rank and plan funding opportunities for a product portfolio, keeping one register of decisions.",
+  "suggestedPrompts": [
+    "Find funding that fits my products.",
+    "Rank the open funding opportunities."
+  ],
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "funding",
+    "grants",
+    "sbir",
+    "accelerators",
+    "competitions",
+    "credits"
+  ],
+  "logo": "assets/icon.svg"
+}

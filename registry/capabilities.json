@@ -1655,6 +1655,118 @@
       "kind": "provider",
       "maturity": "beta",
       "provenance": "agenthub-owned"
+    },
+    {
+      "id": "funding",
+      "owner": "packages/funding",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/funding",
+      "managedSkillNames": [
+        "scout",
+        "prioritize",
+        "plan-application"
+      ],
+      "contentHash": "FC19ED9F63824B424EE8E41C65866B74E4880890B10B31601E8896F685B9F515",
+      "hashBasis": "packages/funding",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "native-extension-junction",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        }
+      ],
+      "hostMappingsNote": "The mapping names each host's packaging route. No host has the plugin installed until the plugin deployment runbook is run after merge. Cursor Agent reads the Cursor copy, and the desktop and IDE aliases share their primary host's configuration. Gemini CLI is unlicensed on this account, and skill loading on Kilo and MiMo Code is not established, so none of the three is mapped.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [
+          "exa"
+        ],
+        "optional": []
+      },
+      "notes": "Funding research through three skills (scout, prioritize, plan-application) and a dependency-free Node reader for the register (skills/scout/scripts/register.mjs); no MCP server and no hook, so nothing connects until a skill is used. Discovery calls keyless public APIs (Grants.gov, NIH RePORTER, NSF Award Search, USAspending, Devpost) with plain HTTP, so every host gets the same result without a search plugin. The skills read and update the records folder named by FUNDING_RECORDS_ROOT and create no second store. Paid databases and sources that need a new account are owner decisions and are not wired. A single gateway MCP server is a recorded future option, not built.",
+      "kind": "workflow",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",

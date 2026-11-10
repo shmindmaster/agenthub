@@ -1,0 +1,64 @@
+{
+  "scenarios": [
+    {
+      "skill": "scout",
+      "kind": "workflow",
+      "input": "Find open grants for a synthetic caregiving product and add them to a synthetic register.",
+      "expected": "Return the new and changed register rows, each with an official URL and a verification date, plus a source access log.",
+      "evidence": [
+        "Search structured sources first, confirm every candidate on the organizer's own page, screen eligibility, and check the register before recommending anything.",
+        "Return the new and changed register rows, each with an official URL and a verification date, plus a source access log."
+      ]
+    },
+    {
+      "skill": "scout",
+      "kind": "recovery",
+      "input": "A grants database answers 401 and asks for an account.",
+      "expected": "If a source is blocked or needs an account, key or payment, record that in the access log and continue with the other sources.",
+      "evidence": [
+        "If a source is blocked or needs an account, key or payment, record that in the access log and continue with the other sources.",
+        "Paid databases and sources that need a new account stay off until the owner approves the cost."
+      ]
+    },
+    {
+      "skill": "prioritize",
+      "kind": "workflow",
+      "input": "Rank the screened rows of a synthetic register against two synthetic products.",
+      "expected": "Return a ranked matrix and a ranked list of engineering changes, and write the scores and decisions back to the register.",
+      "evidence": [
+        "Score only opportunities whose eligibility is screened, match each to its best product, then score the engineering changes that the top matches depend on.",
+        "Return a ranked matrix and a ranked list of engineering changes, and write the scores and decisions back to the register."
+      ]
+    },
+    {
+      "skill": "prioritize",
+      "kind": "recovery",
+      "input": "A register row has eligibility marked unverified because the owning entity is unknown.",
+      "expected": "If an eligibility fact or a product's evidence is missing, leave the scores empty, name the missing fact and rank the opportunity below every scored one.",
+      "evidence": [
+        "If an eligibility fact or a product's evidence is missing, leave the scores empty, name the missing fact and rank the opportunity below every scored one.",
+        "A high fit never offsets a blocked or unverified eligibility fact."
+      ]
+    },
+    {
+      "skill": "plan-application",
+      "kind": "workflow",
+      "input": "Plan the application for a synthetic grant whose register decision is apply.",
+      "expected": "Return the funder profile, the strategy, the artifact list with gaps, a dated plan and the owner actions.",
+      "evidence": [
+        "Research the funder from its own material and prior awards, then build the strategy from the product's recorded evidence.",
+        "Return the funder profile, the strategy, the artifact list with gaps, a dated plan and the owner actions."
+      ]
+    },
+    {
+      "skill": "plan-application",
+      "kind": "recovery",
+      "input": "The requested program is in the register with decision skip and an unmet reopen condition.",
+      "expected": "If the register row is closed, blocked or missing, stop and send the request to `scout` or `prioritize` before planning.",
+      "evidence": [
+        "If the register row is closed, blocked or missing, stop and send the request to `scout` or `prioritize` before planning.",
+        "Plan only a row whose decision is apply, prepare or in-flight and whose eligibility is not blocked."
+      ]
+    }
+  ]
+}

@@ -88,6 +88,11 @@
       "name": "ah-coding-agent-dispatch",
       "displayName": "AH-Coding-Agent-Dispatch",
       "source": "./packages/coding-agent-dispatch"
+    },
+    {
+      "name": "ah-funding",
+      "displayName": "AH-Funding",
+      "source": "./packages/funding"
     }
   ]
 }
