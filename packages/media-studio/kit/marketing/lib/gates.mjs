@@ -22,7 +22,10 @@ export const requiredGates = (spec) => {
   // but cannot be failed for having no real product capture/pointer traces.
   // Keep the independent audio/word/transcript, frame, marketing, story,
   // vision, and release evidence floors; don't silently re-add UI gates.
-  const neverForConcept = new Set(['picture', 'integrity', 'pointer', 'sync']);
+  // A film with captured interface beats (a hybrid, or an explainer that shows the product) keeps the gates that bind
+  // those captures; only the screen-share ratio check is specific to a product demo.
+  const hasCapture = (spec?.cuts?.flatMap((c) => c.beats || []) || spec?.beats || []).some((b) => b.kind === 'ui');
+  const neverForConcept = new Set(hasCapture ? ['picture'] : ['picture', 'integrity', 'pointer', 'sync']);
   const required = spec?.qa?.required || DEFAULT_REQUIRED;
   return [...new Set([...required, ...CHAIN_GATES, 'wordSync', 'transcript'])]
     .filter(name => !neverForConcept.has(name));
@@ -67,14 +70,18 @@ export function captionsCheck(srtText, { maxWords = 7, minWords = 2 } = {}) {
  * Gate workspace for one ratio: just the files validate-sync / validate-viewer-release / build-cue-sheet read.
  * Clip ids are remapped to the beat ids so clips from different film workspaces never collide.
  */
-export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs }) {
+export function buildGateWorkspace({ root, spec, brand, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs }) {
   const frame = FRAMES[ratio];
   mkdirSync(join(root, 'story'), { recursive: true });
   mkdirSync(join(root, 'capture', 'clips'), { recursive: true });
   mkdirSync(join(root, 'voice', 'asr'), { recursive: true });
   mkdirSync(join(root, 'qa'), { recursive: true });
   mkdirSync(join(root, 'output'), { recursive: true });
-  const isVerified = creativeMode(spec) === 'verified-demo';
+  const isVerified = creativeMode(spec) === 'verified-demo' || (cut.beats || []).some((b) => b.kind === 'ui');
+  // The product's brand file decides whether every film carries a disclosure
+  // line; a spec can also declare synthetic data for one film. Either way the
+  // narration and release checks are told, in every creative mode.
+  const disclosureRequired = brand?.disclosure?.required === true || spec.syntheticData === true;
   writeJson(join(root, 'job.json'), {
     jobId: `mvg-${spec.id}-${ratio}`, product: spec.product, title: spec.title,
     kind: isVerified ? 'product-screencast' : 'animation',
@@ -86,9 +93,9 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     // (programForm stays outcome-workflow, see README deviation 8). Each portrait or square ratio is captured at its own frame.
     marketing: true, syncClock: isVerified ? 'forced-aligner' : undefined,
     captureViewports: isVerified ? captureViewportsFor(ratio, frame) : {},
-    dataClass: spec.syntheticData ? 'synthetic' : undefined,
+    dataClass: disclosureRequired ? 'synthetic only' : undefined,
     label: spec.labels,
-    syntheticDisclosure: isVerified && spec.syntheticData ? { mode: 'end-card', text: spec.labels } : undefined,
+    syntheticDisclosure: disclosureRequired ? { mode: brand?.disclosure?.mode || 'end-card', text: spec.labels } : undefined,
     loudnessTargetLufs: loudnessLufs, recastFallbackAllowed: false, generator: 'media-studio/mvg',
   });
   // A beat with no narration (the opening title card, an end card with only on-screen text) is a silent beat: it has no words and

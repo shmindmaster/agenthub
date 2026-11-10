@@ -38,6 +38,7 @@ free to be imaginative.
 ## 5 Gates
 
 ```text
+node scripts/check-story.mjs story/brief.json                  # the story has the parts its film type needs
 py -3 scripts/check_script_terms.py story/locked-script.txt     # every name, acronym and brand decided
 node scripts/validate-narration.mjs <jobRoot>                   # fluff, repeats, hook inside five seconds
 ```

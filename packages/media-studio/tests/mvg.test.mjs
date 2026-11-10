@@ -52,6 +52,9 @@ const brand = {
   safeZones: { '9x16': { topPct: 14, bottomPct: 35, sidePct: 4 } },
   forbiddenNames: ['Spectrum Empowered', 'Kaego', 'CentralReach'],
   bannedPhrases: HEALTHCARE_BANNED,
+  // The product profile, not shared code, says this product shows synthetic data and is held to payer-claim rules.
+  claimPolicies: ['healthcare-payer'],
+  disclosure: { required: true, mustInclude: ['synthetic', 'no phi'] },
   budgets: { elevenlabsCredits: 1000, openaiUsd: 5, perRun: { elevenlabsCredits: 600, openaiUsd: 2 } },
   loudness: { social: -14, web: -16 },
   deliver: { dir: join(root, 'deliver'), reservedNumbers: [14, 15] },
@@ -1262,7 +1265,7 @@ test('chain gates 5: the workspace declares a marketing cut and the capture fram
   const clipFile = join(receiptDir, 'capture', 'clips', 'A01.webm');
   const entry = { actions: [{ t: 6, type: 'point', x: 5, y: 5, label: 'Carter row' }], recastHeadTrimSeconds: 0 };
   const clips = [{ beatId: 'B1', file: clipFile, receiptEntry: entry }, { beatId: 'B2', file: clipFile, receiptEntry: entry }];
-  buildGateWorkspace({ root: dir, spec, cut, ratio: '4x5', timeline, composeMap, clips, asr: {}, loudnessLufs: -14 });
+  buildGateWorkspace({ root: dir, spec, brand, cut, ratio: '4x5', timeline, composeMap, clips, asr: {}, loudnessLufs: -14 });
   const job = readJson(join(dir, 'job.json'));
   assert.equal(job.marketing, true);
   assert.equal(job.programForm, 'outcome-workflow', 'programForm is unchanged: marketing:true carries the applicability');

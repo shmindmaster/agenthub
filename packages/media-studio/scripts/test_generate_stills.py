@@ -86,8 +86,11 @@ class Prompt(unittest.TestCase):
         full = g.compose_prompt(scene)
         self.assertIn("mother and child", full)
         self.assertIn("readable imagined app screen", full)
+        # Style, text and subject are the scene's decision: nothing suppresses them.
         self.assertNotIn("No text", full)
-        self.assertNotIn("No recognisable real people", full)
+        self.assertNotIn("no letters", full)
+        # The likeness of a real person is not a style choice, so that one rule stays on every prompt.
+        self.assertIn("No recognisable real people", full)
 
     def test_house_style_comes_from_the_visual_bible(self):
         self.assertIn("flat paper-cut", g.compose_prompt("A dock", "flat paper-cut illustration"))

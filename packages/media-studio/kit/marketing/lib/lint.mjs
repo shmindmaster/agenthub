@@ -5,24 +5,24 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { validate } from './schema.mjs';
-import { inspectNarrativeArc } from './narrative.mjs';
-import { creativeMode, isConceptPresentation } from './creative-modes.mjs';
+import { inspectNarrativeArc, productNames } from './narrative.mjs';
+import { beatIsFactual, creativeMode } from './creative-modes.mjs';
+import { withProductProfile } from './product-profile.mjs';
 import { fileSha, readJson, sentences, words } from './util.mjs';
 
 /** Narration that talks about the demo data, the film or its making instead of the viewer's problem. */
 export const FLUFF = /\b(synthetic|sample data|demo data|in this (?:video|film|demo)|welcome to|let's take a look|as you can see)\b/i;
-export const WORDS_PER_SECOND = 2.55; // ~153 wpm, the brisk end of the measured ABACare narration band
+export const WORDS_PER_SECOND = 2.55; // ~153 wpm, the brisk end of measured product narration; an estimate, corrected by the real voice timing
 export const LEAD_SECONDS = 0.3;
 export const TAIL_SECONDS = 0.45;
 
 const NEGATION = /\b(no|not|nothing|never|without|none|neither|nor|n't|cannot)\b/i;
 
-// No global brand/domain-specific banned phrases: each film's approved
-// claims and optional brand policy govern assertions. See HEALTHCARE_BANNED
-// for a *separately opt-in* healthcare marketing policy example.
-export const DEFAULT_BANNED = [];
-export const HEALTHCARE_BANNED = [
-  { id: 'sent-to-payer', pattern: '\\b(submit(?:s|ted|ting)?|sen[dt]s?|sending|transmit(?:s|ted|ting)?|file[ds]?)\\b[^.!?]{0,40}\\b(payers?|insurers?|insurance)\\b', flags: 'i', unlessNegated: true, reason: 'Ready to Bill is local readiness; never imply submission to a payer.' },
+// Claim wording that no product may use about itself without substantiation
+// stays on by default for factual beats. Wording that belongs to one industry
+// is a named policy a product's brand file opts into (brand.claimPolicies).
+const KNOWN_BANNED = [
+  { id: 'sent-to-payer', pattern: '\\b(submit(?:s|ted|ting)?|sen[dt]s?|sending|transmit(?:s|ted|ting)?|file[ds]?)\\b[^.!?]{0,40}\\b(payers?|insurers?|insurance)\\b', flags: 'i', unlessNegated: true, reason: 'Never imply submission to a payer; say only what a claim with evidence states.' },
   { id: 'payer-outcome', pattern: '\\b(approved|paid|reimbursed|accepted)\\s+(?:by\\s+)?(?:the\\s+|a\\s+)?(payers?|insurers?)\\b|\\bget paid\\b|\\bpaid faster\\b|\\bfewer denials\\b|\\breduces? denials\\b|\\bno denials\\b', flags: 'i', unlessNegated: true, reason: 'No payer outcome may be implied.' },
   { id: 'guarantee', pattern: '\\bguarantee[sd]?\\b', flags: 'i', reason: 'No guarantees.' },
   { id: 'hipaa-status', pattern: '\\bHIPAA[\\s-]*(certified|compliant|approved)\\b', flags: 'i', reason: 'HHS recognizes no HIPAA certification; state only evidenced facts.' },
@@ -30,6 +30,16 @@ export const HEALTHCARE_BANNED = [
   { id: 'testimonial', pattern: '\\b(testimonials?|customers? (?:say|love|trust)|trusted by|loved by)\\b', flags: 'i', reason: 'No testimonials or customer praise.' },
   { id: 'comparative', pattern: '\\b(better than|faster than|cheaper than|unlike)\\b', flags: 'i', reason: 'No comparative claims without substantiation.' },
 ];
+
+const bannedById = (...ids) => KNOWN_BANNED.filter((b) => ids.includes(b.id));
+/** Applies to every product's factual claims. */
+export const DEFAULT_BANNED = bannedById('guarantee', 'superlative', 'testimonial', 'comparative');
+/** Industry policies a brand file opts into by name. */
+export const CLAIM_POLICIES = Object.freeze({
+  'healthcare-payer': bannedById('sent-to-payer', 'payer-outcome', 'hipaa-status'),
+});
+/** The full healthcare marketing list, for a brand file that prefers to carry it inline. */
+export const HEALTHCARE_BANNED = [...CLAIM_POLICIES['healthcare-payer'], ...DEFAULT_BANNED];
 
 const PEOPLE = /\b(person|people|man|woman|men|women|adult|face|faces|portrait|doctor|nurse|therapist|clinician|coordinator|administrator|owner|parent|parents|family|families|human|hands?)\b/i;
 const PROTECTED_PEOPLE = /\b(child|children|kid|kids|toddler|baby|boy|girl|minor|minors|patient|patients|student|students|infant|infants)\b/i;
@@ -57,11 +67,15 @@ export function estimateCutSeconds(cut) {
   return cut.beats.reduce((sum, beat) => sum + estimateBeatSeconds(beat), 0);
 }
 
-function resolveBannedPatterns(brand, spec) {
-  // The inherited restrictions are appropriate only to verified commercial
-  // demo claims. A fictional screenplay is not a clinical product assertion.
-  const defaults = creativeMode(spec) === 'verified-demo' ? DEFAULT_BANNED : [];
-  return [...defaults, ...(brand?.bannedPhrases || [])].map((b) => ({ ...b, regex: new RegExp(b.pattern, b.flags || 'i') }));
+function resolveBannedPatterns(brand, factual) {
+  // Default and industry policies govern factual statements. A line of
+  // dialogue in a declared fiction is not a product assertion; the brand's own
+  // list still applies to it, because a brand may forbid a phrase everywhere.
+  const policies = factual ? (brand?.claimPolicies || []).flatMap((name) => CLAIM_POLICIES[name] || []) : [];
+  const seen = new Set();
+  return [...(factual ? DEFAULT_BANNED : []), ...policies, ...(brand?.bannedPhrases || [])]
+    .filter((b) => (seen.has(b.id) ? false : seen.add(b.id)))
+    .map((b) => ({ ...b, regex: new RegExp(b.pattern, b.flags || 'i') }));
 }
 
 /** First banned-phrase hit in `text`, honoring unlessNegated at sentence level. */
@@ -162,10 +176,12 @@ function lintClaims(spec, io, err) {
 }
 
 function createTextScanner(brand, spec, err) {
-  const banned = resolveBannedPatterns(brand, spec);
+  for (const name of brand?.claimPolicies || []) if (!CLAIM_POLICIES[name]) err('claim-policy', `unknown brand.claimPolicies entry "${name}". Known: ${Object.keys(CLAIM_POLICIES).join(', ')}.`, 'brand');
+  const factualBanned = resolveBannedPatterns(brand, true);
+  const fictionBanned = resolveBannedPatterns(brand, false);
   const forbidden = (brand?.forbiddenNames || []).map((n) => ({ name: n, re: new RegExp(`(^|[^A-Za-z0-9])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^A-Za-z0-9])`, 'i') }));
-  return (text, where) => {
-    for (const h of bannedHits(text, banned)) err('banned-phrase', `"${h.match}" (${h.id}): ${h.reason || 'banned'} — "${h.sentence}"`, where);
+  return (text, where, factual = true) => {
+    for (const h of bannedHits(text, factual ? factualBanned : fictionBanned)) err('banned-phrase', `"${h.match}" (${h.id}): ${h.reason || 'banned'} — "${h.sentence}"`, where);
     for (const f of forbidden) if (f.re.test(text)) err('forbidden-name', `names "${f.name}", which must never appear in an ad`, where);
   };
 }
@@ -214,8 +230,15 @@ function lintMusic(music, err) {
 }
 
 function lintLabelsAndCta(spec, brand, claimsById, err, warn, scanText) {
-  // Film-wide synthetic/vision disclosure is meaningful; healthcare-specific
-  // 'NO PHI' text is never imposed on an unrelated product or documentary.
+  // What a film must disclose is the product's decision, recorded in its brand
+  // file (brand.disclosure). Shared code names no industry: a health product
+  // lists "synthetic" and "no phi" there, another product lists what it needs.
+  const flat = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const disclosure = brand?.disclosure;
+  if (disclosure?.required && !String(spec.labels || '').trim()) err('label', `${brand.product || 'This product'} requires a disclosure line on every film (brand.disclosure); labels is empty.`, 'labels');
+  for (const phrase of (disclosure?.required ? (disclosure.mustInclude || []) : [])) {
+    if (!flat(spec.labels).includes(flat(phrase))) err('label', `labels must state "${phrase}" (required by ${brand.product || 'the product'}'s brand.disclosure)`, 'labels');
+  }
   if (spec.syntheticData === true && !/\bsynthetic\b/i.test(spec.labels || '')) {
     err('label', 'syntheticData was declared but no synthetic-data notice appears in labels.', 'labels');
   }
@@ -235,9 +258,10 @@ function lintBeatShape(beat, where, err) {
   if (beat.kind !== 'ui' && beat.ui) err('beat-shape', `${beat.kind} beats must not carry a ui clip`, where);
 }
 
-function lintBeatText(beat, where, claimsById, err, warn, scanText, mode) {
+function lintBeatText(beat, where, claimsById, err, warn, scanText, mode, names) {
   const texts = [...sentences(beat.narration || ''), ...(beat.onScreenText ? [beat.onScreenText] : [])];
-  for (const t of texts) scanText(t, where);
+  const verified = beatIsFactual(beat, mode, names);
+  for (const t of texts) scanText(t, where, verified);
   const fluff = FLUFF.exec(beat.narration || '');
   if (fluff && mode === 'verified-demo') err('narration-fluff', `narration spends words on "${fluff[0]}"; say what the viewer gains, and leave data disclosure to an end card`, where);
   if (beat.onScreenText && words(beat.onScreenText).length > 8) warn('on-screen-length', 'on-screen text longer than 8 words may not survive phone-size reading', where);
@@ -247,8 +271,6 @@ function lintBeatText(beat, where, claimsById, err, warn, scanText, mode) {
   // A dramatic situation, envisioned interface or fictional patient journey
   // does not need evidence proving that it already happened. Real assertions
   // always keep the evidence gate, including within a hybrid film.
-  const verified = beat.truthStatus === 'verified' ||
-    (!beat.truthStatus && mode === 'verified-demo');
   if (verified && texts.length && !known.length) err('claim-unmapped', 'verified spoken or screen claim has no evidence reference', where);
   if (verified) for (const t of texts) {
     if (known.length && !known.some(c => claimCovers(c, t))) err('claim-uncovered', `"${t}" is not covered by any referenced claim`, where);
@@ -256,8 +278,22 @@ function lintBeatText(beat, where, claimsById, err, warn, scanText, mode) {
   }
 }
 
-function lintBroll(beat, where, err, warn, scanText, mode) {
+function lintBroll(beat, where, err, warn, scanText, mode, brand) {
   if (!beat.broll) return;
+  // Whether generated people may appear is the product's policy
+  // (brand.generatedPeople: any, adults-only, none). The default allows them,
+  // but in a film about the current product they must be classified, so a
+  // viewer is never shown an invented person as a real customer or patient.
+  const prompt = beat.broll.prompt || '';
+  const actor = beat.broll.actor;
+  const minor = PROTECTED_PEOPLE.test(prompt) || ['child', 'minor', 'teen', 'infant'].includes(actor?.ageGroup);
+  const anyone = minor || PEOPLE.test(prompt) || Boolean(actor);
+  const policy = brand?.generatedPeople || 'any';
+  if (policy === 'none' && anyone) err('broll-people', `${brand.product || 'This product'}'s brand file allows no generated people (generatedPeople: none).`, where);
+  else if (policy === 'adults-only' && minor) err('broll-people', `${brand.product || 'This product'}'s brand file allows generated adults only (generatedPeople: adults-only); this shot describes a minor or a patient.`, where);
+  else if (anyone && mode === 'verified-demo' && !['fictional', 'illustrative'].includes(beat.truthStatus) && !actor?.kind) {
+    err('representation', 'A generated person in a film about the current product must be classified (truthStatus fictional or illustrative, or broll.actor.kind) so they are never read as a real customer, patient or testimonial.', where);
+  }
   // Synthetic humans, children, patients, clinics, realistic faces, and
   // invented future interfaces are legitimate creative subjects. No blur
   // and no adult-only restriction. Truth-status separates an envisioned
@@ -274,7 +310,7 @@ function lintBroll(beat, where, err, warn, scanText, mode) {
   if (mode === 'verified-demo' && beat.claims?.length) {
     warn('broll-claims', 'Generated scene footage is illustration, not proof of measured software behavior; keep real UI evidence for current-feature claims', where);
   }
-  scanText(beat.broll.prompt || '', where);
+  scanText(beat.broll.prompt || '', where, false);
   if (beat.broll.provider === 'stock') warn('stock', 'Record rights or source licensing for supplied footage', where);
 }
 
@@ -302,8 +338,8 @@ function lintSfx(beat, where, err) {
 
 function lintBeat(beat, cut, where, state) {
   lintBeatShape(beat, where, state.err);
-  lintBeatText(beat, where, state.claimsById, state.err, state.warn, state.scanText, state.mode);
-  lintBroll(beat, where, state.err, state.warn, state.scanText, state.mode);
+  lintBeatText(beat, where, state.claimsById, state.err, state.warn, state.scanText, state.mode, state.names);
+  lintBroll(beat, where, state.err, state.warn, state.scanText, state.mode, state.brand);
   lintUi(beat, cut, where, state.io, state.err, state.warn);
   lintSfx(beat, where, state.err);
 }
@@ -317,7 +353,11 @@ function lintCut(cut, state) {
     beatIds.add(beat.id);
     lintBeat(beat, cut, where(beat.id), state);
   }
-  for (const finding of inspectNarrativeArc(state.spec, cut, estimateBeatSeconds)) state.err(finding.code, finding.message, finding.where);
+  for (const finding of inspectNarrativeArc(state.spec, cut, estimateBeatSeconds, { brand: state.brand })) {
+    // A waived story rule is a logged decision, not a blocked job.
+    if (finding.waived) state.warn('story-override', `${finding.rule} waived: ${finding.waived} (was: ${finding.message})`, finding.where);
+    else state.err(finding.code, finding.message, finding.where, finding.rule);
+  }
   const estimate = estimateCutSeconds(cut);
   state.estimates.push({ cut: cut.id, estimateSeconds: Number(estimate.toFixed(1)), targetSeconds: cut.targetSeconds });
   if (estimate > cut.targetSeconds + 4) state.err('too-long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target; trim the script before spending on voice`, cut.id);
@@ -330,11 +370,12 @@ function lintCut(cut, state) {
 export function lintSpec(spec, brand, options = {}) {
   const errors = [];
   const warnings = [];
-  const err = (code, message, where) => errors.push({ code, message, where });
+  const err = (code, message, where, rule) => errors.push(rule ? { code, rule, message, where } : { code, message, where });
   const warn = (code, message, where) => warnings.push({ code, message, where });
   const io = options.io || defaultIo(options.specDir);
   lintSchemas(spec, brand, options, err);
   if (errors.length) return { ok: false, errors, warnings, estimates: [] };
+  brand = withProductProfile(brand, spec, options.productProfiles);
 
   const cuts = normalizeCuts(spec);
   const claimsById = lintClaims(spec, io, err);
@@ -343,7 +384,7 @@ export function lintSpec(spec, brand, options = {}) {
   const music = spec.music;
   lintMusic(music, err);
   lintLabelsAndCta(spec, brand, claimsById, err, warn, scanText);
-  const state = { spec, mode: creativeMode(spec), seenRatios: new Set(), claimsById, scanText, io, err, warn, music, estimates: [] };
+  const state = { spec, brand, names: productNames(spec, brand), mode: creativeMode(spec), seenRatios: new Set(), claimsById, scanText, io, err, warn, music, estimates: [] };
   for (const cut of cuts) lintCut(cut, state);
   return { ok: errors.length === 0, errors, warnings, estimates: state.estimates };
 }

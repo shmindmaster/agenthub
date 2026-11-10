@@ -20,11 +20,14 @@
     "creativeMode": { "enum": ["verified-demo", "hybrid", "future-vision", "concept-film", "fictional-story", "explainer", "documentary", "educational", "abstract"], "description": "Film intent and reality contract. Omitted for existing verified product demo ads." },
     "conceptDisclosure": { "type": "string", "description": "Truthful concept/vision labeling when proposed functionality is depicted. May be in labels, on an end card, or prominent narration; does not mandate watermark or blur." },
     "syntheticData": { "type": "boolean", "description": "Data are synthetic. May be disclosed at film level; no automatic privacy blur." },
-    "narrative": { "$ref": "#/definitions/narrative", "description": "Required at lint for marketing cuts lasting 25 seconds or longer; cuts can override." },
-    "hookPlan": { "$ref": "#/definitions/hookPlan", "description": "Aligned first picture, on-screen message, spoken hook and viewer question for cuts >=25s." },
+    "filmType": { "enum": ["product-marketing", "feature-demo", "tutorial", "explainer", "social-cut", "founder-pitch", "internal-update", "story", "non-narrative"], "description": "The form the story gate judges this film by. Defaults from creativeMode (verified-demo and hybrid: product-marketing). A cut may set its own." },
+    "organizingPrinciple": { "type": "string", "minLength": 12, "description": "Required for a non-narrative film: what orders the shots and what the viewer should leave with." },
+    "storyOverrides": { "type": "array", "description": "Story rules waived for this film, each with the reason. A waived rule is logged as a warning instead of failing. Only story.* rules can be waived; truth and evidence rules cannot.", "items": { "type": "object", "additionalProperties": false, "required": ["rule", "reason"], "properties": { "rule": { "type": "string", "pattern": "^story\\.[a-z0-9.*-]+$" }, "reason": { "type": "string", "minLength": 12 }, "decidedBy": { "type": "string" }, "date": { "type": "string" } } } },
+    "narrative": { "$ref": "#/definitions/narrative", "description": "The brief. Which fields are required depends on filmType; the lint reports the missing ones." },
+    "hookPlan": { "$ref": "#/definitions/hookPlan", "description": "Aligned first picture, on-screen message, spoken hook and viewer question. Required for a full product-marketing cut." },
     "brand": { "type": "string", "description": "Path to the brand file, relative to the spec or absolute. Default: ../brand/brand.json" },
     "ratios": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/ratio" } },
-    "targetSeconds": { "type": "number", "minimum": 5, "maximum": 120 },
+    "targetSeconds": { "type": "number", "minimum": 5, "maximum": 900 },
     "cuts": {
       "type": "array", "minItems": 1,
       "description": "Distinct cuts of one ad (for example a 20 s main cut and a 12 s vertical cut). Ratios must not repeat across cuts.",
@@ -34,10 +37,13 @@
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,30}$" },
           "ratios": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/ratio" } },
-          "targetSeconds": { "type": "number", "minimum": 5, "maximum": 120 },
+          "targetSeconds": { "type": "number", "minimum": 5, "maximum": 900 },
           "beats": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/beat" } },
           "narrative": { "$ref": "#/definitions/narrative" },
-          "hookPlan": { "$ref": "#/definitions/hookPlan" }
+          "hookPlan": { "$ref": "#/definitions/hookPlan" },
+          "filmType": { "enum": ["product-marketing", "feature-demo", "tutorial", "explainer", "social-cut", "founder-pitch", "internal-update", "story", "non-narrative"] },
+          "organizingPrinciple": { "type": "string", "minLength": 12 },
+          "storyOverrides": { "type": "array", "description": "Story rules waived for this film, each with the reason. A waived rule is logged as a warning instead of failing. Only story.* rules can be waived; truth and evidence rules cannot.", "items": { "type": "object", "additionalProperties": false, "required": ["rule", "reason"], "properties": { "rule": { "type": "string", "pattern": "^story\\.[a-z0-9.*-]+$" }, "reason": { "type": "string", "minLength": 12 }, "decidedBy": { "type": "string" }, "date": { "type": "string" } } } }
         }
       }
     },
@@ -125,8 +131,7 @@
   },
   "definitions": {
     "hookPlan": {
-      "type": "object", "additionalProperties": false,
-      "required": ["visual", "onScreen", "spoken", "viewerQuestion"],
+      "type": "object", "additionalProperties": { "type": "string" },
       "description": "Describe picture, visible text, spoken hook and open question. Spoken hook must match the actual first narration beat.",
       "properties": {
         "visual": { "type": "string", "minLength": 6 },
@@ -134,7 +139,7 @@
         "spoken": { "type": "string", "minLength": 6 },
         "viewerQuestion": { "type": "string", "minLength": 6 },
         "alternatives": {
-          "type": "array", "maxItems": 2,
+          "type": "array", "maxItems": 3,
           "items": {
             "type": "object", "additionalProperties": false, "required": ["angle", "visual", "spoken"],
             "properties": {
@@ -148,8 +153,7 @@
       }
     },
     "narrative": {
-      "type": "object", "additionalProperties": false,
-      "required": ["persona", "situation", "trigger", "problem", "stakes", "solution", "mechanism", "payoff", "emotionalBefore", "emotionalAfter", "viewerValue"],
+      "type": "object", "additionalProperties": { "type": "string" },
       "description": "A grounded buyer-facing story brief. The lint also requires stage-coded beats and the actual software introduction.",
       "properties": {
         "persona": { "type": "string", "minLength": 6 },
@@ -204,7 +208,7 @@
         "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,30}$" },
         "kind": { "enum": ["ui", "broll", "card", "title"] },
         "truthStatus": { "enum": ["verified", "proposed", "fictional", "illustrative"], "description": "Representation of this beat. Generated future UIs and story reenactments are permitted when appropriately classified." },
-        "storyRole": { "enum": ["hook", "context", "problem", "context-problem", "solution", "demonstration", "proof", "payoff", "cta"], "description": "For 25s+ cuts: hook -> scenario/problem -> named solution -> real UI mechanism/proof -> payoff -> CTA." },
+        "storyRole": { "type": "string", "minLength": 2, "maxLength": 40, "description": "The part this beat plays: hook, context, problem, solution, demonstration, proof, payoff, cta, goal, step, explanation, takeaway, recap, next-step, or an accepted alias such as context-problem, product-introduction, call-to-action. Which roles a film needs depends on filmType." },
         "narration": { "type": "string" },
         "onScreenText": { "type": "string", "maxLength": 80 },
         "emphasis": { "type": "array", "items": { "type": "string" }, "description": "Words in the narration highlighted in the kinetic captions." },

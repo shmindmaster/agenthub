@@ -71,7 +71,8 @@ AZURE_IN_USD_PER_1K = 0.01
 AZURE_PROMPT_TOKENS_UPPER = 400
 RUNWARE_USD_PER_IMAGE = 0.01  # measured 0.0062 for a 1536x1024 z-image on 2026-11-06; rounded up for the quote
 DEFAULT_STYLE = ""  # scene and optional visual bible dictate realism, style, age, text and composition
-SAFETY = ""  # do not inject adult-only, no-human, no-text or blur constraints into synthetic art
+# Style, text and subject are the scene's decision. The likeness of a real person is not.
+SAFETY = "No recognisable real people, no real trademarks or watermarks."
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
@@ -103,7 +104,7 @@ def estimate_usd(lane_id, size="1536x1024", quality="medium"):
 
 def compose_prompt(prompt, style=None):
     """Respect the requested scene and its visual bible; no hidden subject/style bans."""
-    parts = [prompt.strip().rstrip(".") + ".", (style if style is not None else DEFAULT_STYLE).strip()]
+    parts = [prompt.strip().rstrip(".") + ".", (style if style is not None else DEFAULT_STYLE).strip(), SAFETY]
     return " ".join(p for p in parts if p)
 
 

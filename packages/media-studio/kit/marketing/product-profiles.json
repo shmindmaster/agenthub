@@ -1,0 +1,12 @@
+{
+  "description": "Per-product policy that applies to every film for a product, whichever job folder or brand file it is made from. Shared code names no product; a product that needs a rule gets an entry here. A brand file may add to these but cannot switch them off. Add a product by adding an entry; a product with no entry gets the defaults.",
+  "profiles": {
+    "abacare": {
+      "match": ["abacare", "abacare ai"],
+      "productNames": ["ABACare AI", "ABACare"],
+      "claimPolicies": ["healthcare-payer"],
+      "disclosure": { "required": true, "mustInclude": ["synthetic", "no phi"] },
+      "note": "Health-sensitive: films show synthetic data only and say so. Written brand is \"ABACare AI\"; pronunciation belongs to the product's lexicon, not here."
+    }
+  }
+}

@@ -199,6 +199,9 @@ test('full ad-schema and marketing lint accept a coherent evidence-backed produc
   assert.deepEqual(result.errors, []);
   const changed = structuredClone(spec);
   delete changed.narrative.viewerValue;
-  assert.ok(validate(schema, changed).some((e) => /viewerValue/.test(e)));
-  assert.equal(lintSpec(changed, {}, { io, adSchema: schema }).ok, false);
+  // Which brief fields a film needs depends on its film type, so the lint decides, not the schema.
+  assert.deepEqual(validate(schema, changed), []);
+  const missing = lintSpec(changed, {}, { io, adSchema: schema });
+  assert.equal(missing.ok, false);
+  assert.ok(missing.errors.some((e) => e.rule === 'story.narrative.viewerValue'));
 });

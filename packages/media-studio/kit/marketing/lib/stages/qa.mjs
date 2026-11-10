@@ -34,7 +34,7 @@ function gateInputs(ctx, cut, ratio, named, timeline, capture) {
   const clips = capture.map((c) => ({ ...c, receiptEntry: resolveClip(ctx, cut.beats.find((b) => b.id === c.beatId)).entry }));
   const asr = Object.fromEntries((timeline.lines || []).filter((l) => l.asr).map((l) => [l.beatId, join(ctx.jobDir, l.asr)]));
   const target = loudnessTarget(ratio, ctx.spec, ctx.brand);
-  buildGateWorkspace({ root: ws, spec: ctx.spec, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs: target.lufs });
+  buildGateWorkspace({ root: ws, spec: ctx.spec, brand: ctx.brand, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs: target.lufs });
   return { ws, cdir, gateSegments, target };
 }
 
@@ -92,7 +92,7 @@ async function syncGates(ctx, { ws, candidate, cdir, gates }) {
 // receipt; the marketing floor counts only a reviewer's qa/<ratio>/marketing-readiness.json that names this candidate.
 async function chainGates(ctx, { ws, qdir, ratio, candidate, sha, gates }) {
   const composeMapRel = `output/${ctx.spec.id}-compose-map.json`;
-  if (creativeMode(ctx.spec) === 'verified-demo') {
+  if (creativeMode(ctx.spec) === 'verified-demo' || normalizeCuts(ctx.spec).some((c) => c.beats.some((b) => b.kind === 'ui'))) {
     gates.integrity = await runIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
     gates.pointer = await runPointerGate({ ws, moduleRoot: MODULE_ROOT });
   } else {

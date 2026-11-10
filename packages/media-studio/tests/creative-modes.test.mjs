@@ -24,6 +24,22 @@ const base = (creativeMode) => ({
     { id: 'final', kind: 'card', narration: 'Explore this possibility.' },
   ] }],
 });
+// Every form still has to say what it is. A story names a person, a situation
+// and a change; a non-narrative piece states its organizing principle; a
+// how-to or explainer has a beginning, a middle and an end.
+const storyBrief = () => ({
+  persona: 'a clinic coordinator in a near-future practice', situation: 'planning the next day of visits',
+  emotionalBefore: 'unsure what tomorrow holds', emotionalAfter: 'calm and prepared for the day',
+});
+const threeBeats = (spec, roles) => {
+  const [first, last] = spec.cuts[0].beats;
+  spec.cuts[0].beats = [
+    { ...first, storyRole: roles[0] },
+    { ...first, id: 'middle', storyRole: roles[1], narration: 'The idea is shown one step at a time.' },
+    { ...last, storyRole: roles[2] },
+  ];
+  return spec;
+};
 const validateSpec = spec => {
   const errors = validate(schema, spec);
   assert.deepEqual(errors, [], errors.join('\n'));
@@ -32,9 +48,13 @@ const validateSpec = spec => {
 
 test('future vision: synthetic child patients and fully readable imagined UI need no blur, no real product capture', () => {
   const s = base('future-vision');
+  s.narrative = storyBrief();
   const r = validateSpec(s);
   assert.equal(r.ok, true, JSON.stringify(r.errors));
   assert.equal(r.errors.some(x => /people|patient|fake-ui|no-ui/.test(x.code)), false);
+  // The same film with no person, situation or change is not yet a story.
+  delete s.narrative;
+  assert.ok(validateSpec(s).errors.some(e => e.rule === 'story.narrative'));
 });
 
 test('fictional day-in-the-life is free of age, healthcare and screen prohibitions', () => {
@@ -43,18 +63,30 @@ test('fictional day-in-the-life is free of age, healthcare and screen prohibitio
   s.labels = 'Film title treatment';
   s.cuts[0].beats[0].truthStatus = 'fictional';
   delete s.cuts[0].beats[0].broll.actor;
+  s.narrative = storyBrief();
   const r = validateSpec(s);
   assert.equal(r.ok, true, JSON.stringify(r.errors));
 });
 
 test('abstract and educational films need no six-beat story and no product UI', () => {
+  const shape = {
+    abstract: (s) => { s.organizingPrinciple = 'Colour and motion follow one working day from morning to night.'; },
+    educational: (s) => { s.narrative = { goal: 'understand how the planning idea works' }; threeBeats(s, ['goal', 'step', 'payoff']); },
+    explainer: (s) => { s.narrative = { question: 'What could planning look like?', viewerValue: 'see one possible workflow end to end' }; threeBeats(s, ['hook', 'explanation', 'takeaway']); },
+  };
   for (const mode of ['abstract', 'educational', 'explainer']) {
     const s = base(mode);
     s.cuts[0].beats[0].truthStatus = 'illustrative';
     delete s.cuts[0].beats[0].broll.depictsProductUI;
+    shape[mode](s);
     const r = validateSpec(s);
-    assert.equal(r.ok, true, JSON.stringify(r.errors));
+    assert.equal(r.ok, true, `${mode}: ${JSON.stringify(r.errors)}`);
+    assert.equal(r.errors.some(e => /no-ui|proof-ui/.test(`${e.code} ${e.rule}`)), false);
   }
+  // Declaring a looser mode is not a way out of having a shape at all.
+  const bare = base('abstract');
+  bare.cuts[0].beats[0].truthStatus = 'illustrative';
+  assert.ok(validateSpec(bare).errors.some(e => e.rule === 'story.principle'));
 });
 
 test('fictional scenes are allowed around genuine verified-product footage', () => {
@@ -73,6 +105,8 @@ test('fictional scenes are allowed around genuine verified-product footage', () 
 test('hybrid shows real current UI and detailed proposed screens, with film-level concept clarity', () => {
   const s = base('hybrid');
   s.claims = [truth];
+  s.filmType = 'story';
+  s.narrative = storyBrief();
   s.cuts[0].beats.unshift({ id: 'current', kind: 'ui', truthStatus: 'verified',
     narration: 'The operator can review the current result.', claims: ['proof'],
     ui: { sourceJob: '/test/product', clipId: 'C1' } });
@@ -103,7 +137,10 @@ test('verified-demo cannot present proposed capabilities as shipped', () => {
 
 test('documentary factual assertions still need a source; reconstructions do not', () => {
   const s = base('documentary');
-  s.cuts[0].beats.unshift({ id: 'real-claim', kind: 'card', truthStatus: 'verified',
+  s.narrative = { question: 'What happened, and why does it matter?', viewerValue: 'understand the event and its effect' };
+  s.cuts[0].beats[0].storyRole = 'explanation';
+  s.cuts[0].beats[1].storyRole = 'takeaway';
+  s.cuts[0].beats.unshift({ id: 'real-claim', kind: 'card', truthStatus: 'verified', storyRole: 'hook',
     narration: 'This verified event occurred in 2020.' });
   const first = validateSpec(s);
   assert.ok(first.errors.some(e => e.code === 'claim-unmapped'));

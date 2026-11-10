@@ -15,8 +15,8 @@ Usage:
 Two kinds of check, and the tool never blurs them:
 
   MECHANICAL (computed from the files, evidence cites scene ids):
-    hook               S01 is a `hook`, no greeting/agenda opener, first sentence <= 25 words (~8 s at 150 wpm);
-                       26-35 words is a 5-point rhythm miss, beyond 35 (or wrong role / greeting) the hook is missing (-20)
+    hook               S01 is a `hook`, no greeting/agenda opener, first sentence <= 12 words (~5 s at 150 wpm);
+                       13-18 words is a 5-point rhythm miss, beyond 18 (or wrong role / greeting) the hook is missing (-20)
     one-hero           exactly one scene has heroMoment=true, it matches screenplay.heroSceneId and
                        storyboard.protectedHeroBeatId, it is not in the first 3 scenes, holdAfterSeconds >= 1.0
     silence-hero       the hero scene has silenceOnReveal or a silence/sting/duck music cue
@@ -79,7 +79,7 @@ ROLE_VOCAB = {"hook", "before", "bridge", "tension", "reveal", "proof", "trust",
 GREETING_RE = re.compile(r"\b(welcome|hello|hi there|hey everyone|my name is|in this (video|episode|film)|"
                          r"today (we|i)('ll| will| am|'re)|agenda|let'?s (get started|begin|dive in))\b", re.I)
 HOOK_MAX_WORDS = 12
-HOOK_LONG_WORDS = 12   # first sentence must fit the five-second opening at 150 wpm
+HOOK_LONG_WORDS = 18   # 13-18 words is a rhythm miss; beyond that the opening is not a hook
 HERO_MIN_HOLD = 1.0
 LAST_MIN_HOLD = 1.0
 DENSE_ROWS = 8
@@ -180,6 +180,9 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
         item = judged.get(name) or {}
         if item.get("verdict") not in ("pass", "fail", "n/a") or not str(item.get("evidence") or "").strip():
             missing.append("creative judgment " + name + " with scene/frame-cited evidence")
+    # A review in which nothing applied is not a review: n/a on every judgment would score a perfect 100.
+    if judged and all((judged.get(name) or {}).get("verdict") == "n/a" for name in FLEXIBLE_JUDGMENTS):
+        missing.append("at least one creative judgment that applies to this film (every judgment is n/a)")
     checks = {name: (judged.get(name) or {}).get("verdict", "n/a") for name in FLEXIBLE_JUDGMENTS}
     findings = []
     for index, name in enumerate(FLEXIBLE_JUDGMENTS, 1):
@@ -280,10 +283,10 @@ def main() -> int:
                         + (" (greeting/agenda opener)" if greeting else "") + (f" (over {HOOK_MAX_WORDS}: rhythm miss)" if hook_long else ""))
     if hook_missing:
         finding("major", s1.get("id", "S01"), evidence["hook"],
-                "Open on the payoff or the pain in one sentence of <= 25 words; no greeting, logo or agenda.", "media-writer", 20)
+                f"Open on the payoff or the pain in one sentence of <= {HOOK_MAX_WORDS} words; no greeting, logo or agenda.", "media-writer", 20)
         revise.append(s1.get("id", "S01"))
     elif hook_long:
-        finding("minor", s1.get("id", "S01"), evidence["hook"], f"Trim the opening sentence to <= {HOOK_MAX_WORDS} words (~8 s).", "media-writer", 5)
+        finding("minor", s1.get("id", "S01"), evidence["hook"], f"Trim the opening sentence to <= {HOOK_MAX_WORDS} words (~5 s).", "media-writer", 5)
 
     # ---- hero -----------------------------------------------------------------------------------------------------
     heroes = [s for s in scenes if s.get("heroMoment")]
