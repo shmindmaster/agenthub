@@ -7,7 +7,6 @@
 //   node quote-runware-models.mjs --capability image-to-video --list
 //   node quote-runware-models.mjs --models minimax-h3-max-turbo,prunaai-p-video-2-pro --capability image-to-video --seconds 5 --label 480p
 //   node quote-runware-models.mjs --models recraft-v4-1-flash --capability text-to-image --count 3
-import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 export const INDEX_URL = 'https://runware.ai/docs/models/index.json';
@@ -16,7 +15,7 @@ export const MODEL_SHORTLIST = Object.freeze({
   video: ['minimax-h3-max-turbo', 'prunaai-p-video-2-pro', 'alibaba-wan3-0'],
   speech: ['fish-audio-s2-1-pro'],
   music: ['minimax-music-2-6'],
-  threeD: ['microsoft-trellis-2', 'meta-sam-3d-objects'],
+  '3d': ['microsoft-trellis-2', 'meta-sam-3d-objects'],
 });
 export const ALLOWED_CAPABILITIES = new Set([
   'text-to-image', 'image-to-image', 'text-to-video', 'image-to-video',
@@ -34,7 +33,7 @@ export function validateSchemaUrl(value) {
   return url.href;
 }
 
-const numeric = (n) => Number.isFinite(Number(n)) && Number(n) >= 0 ? Number(n) : null;
+const numeric = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : null;
 const rounded = (x) => Math.round(x * 1e6) / 1e6;
 
 export function quotePricing(pricing, opts = {}) {
@@ -104,17 +103,21 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   for (let i = 0; i < args.length; i++) {
     const k = args[i];
     if (k === '--list') { options.list = true; continue; }
-    if (!['--capability', '--models', '--label', '--seconds', '--count', '--characters', '--bytes', '--max-usd'].includes(k)) throw new Error(`unknown argument ${k}`);
+    if (!['--capability', '--models', '--shortlist', '--label', '--seconds', '--count', '--characters', '--bytes', '--max-usd'].includes(k)) throw new Error(`unknown argument ${k}`);
     const raw = args[++i];
     if (raw === undefined || raw.startsWith('--')) throw new Error(`missing value for ${k}`);
     if (k === '--models') options.models = raw.split(',').map(v => v.trim()).filter(Boolean);
+    else if (k === '--shortlist') {
+      if (!MODEL_SHORTLIST[raw]) throw new Error(`unknown shortlist ${raw}; use image,video,speech,music,3d`);
+      options.models = [...MODEL_SHORTLIST[raw]];
+    }
     else if (['--seconds', '--count', '--characters', '--bytes', '--max-usd'].includes(k)) {
       const val = Number(raw);
       if (!Number.isFinite(val) || val < 0) throw new Error(`invalid numeric value for ${k}`);
       options[k.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = val;
     } else options[k.slice(2)] = raw;
   }
-  if (!options.list && !options.models?.length) throw new Error('pass --models id,id,... to quote (or --list to discover)');
+  if (!options.list && !options.models?.length) throw new Error('pass --models id,id,... or --shortlist image|video|speech|music|3d to quote (or --list to discover)');
   const fetchJson = async url => {
     if (url !== INDEX_URL) validateSchemaUrl(url);
     const response = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
