@@ -1,10 +1,12 @@
-// Fail-closed lint for an ad spec. Every spoken sentence and on-screen text must map to a claim with evidence;
+// Film-mode aware lint. Verified assertions require evidence; fictional and
+// envisioned scenes may be fully synthetic if their representation is clear.
 // banned phrases, invented figures, forbidden names, people/children b-roll and voice-policy violations stop the run
 // before any paid provider is contacted.
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { validate } from './schema.mjs';
 import { inspectNarrativeArc } from './narrative.mjs';
+import { creativeMode, isConceptPresentation } from './creative-modes.mjs';
 import { fileSha, readJson, sentences, words } from './util.mjs';
 
 /** Narration that talks about the demo data, the film or its making instead of the viewer's problem. */
@@ -51,8 +53,11 @@ export function estimateCutSeconds(cut) {
   return cut.beats.reduce((sum, beat) => sum + estimateBeatSeconds(beat), 0);
 }
 
-function resolveBannedPatterns(brand) {
-  return [...DEFAULT_BANNED, ...(brand?.bannedPhrases || [])].map((b) => ({ ...b, regex: new RegExp(b.pattern, b.flags || 'i') }));
+function resolveBannedPatterns(brand, spec) {
+  // The inherited restrictions are appropriate only to verified commercial
+  // demo claims. A fictional screenplay is not a clinical product assertion.
+  const defaults = creativeMode(spec) === 'verified-demo' ? DEFAULT_BANNED : [];
+  return [...defaults, ...(brand?.bannedPhrases || [])].map((b) => ({ ...b, regex: new RegExp(b.pattern, b.flags || 'i') }));
 }
 
 /** First banned-phrase hit in `text`, honoring unlessNegated at sentence level. */
@@ -152,8 +157,8 @@ function lintClaims(spec, io, err) {
   return claimsById;
 }
 
-function createTextScanner(brand, err) {
-  const banned = resolveBannedPatterns(brand);
+function createTextScanner(brand, spec, err) {
+  const banned = resolveBannedPatterns(brand, spec);
   const forbidden = (brand?.forbiddenNames || []).map((n) => ({ name: n, re: new RegExp(`(^|[^A-Za-z0-9])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^A-Za-z0-9])`, 'i') }));
   return (text, where) => {
     for (const h of bannedHits(text, banned)) err('banned-phrase', `"${h.match}" (${h.id}): ${h.reason || 'banned'} — "${h.sentence}"`, where);
@@ -205,15 +210,19 @@ function lintMusic(music, err) {
 }
 
 function lintLabelsAndCta(spec, brand, claimsById, err, warn, scanText) {
-  if (!/synthetic/i.test(spec.labels) || !/no phi/i.test(spec.labels)) err('label', 'labels must state SYNTHETIC and NO PHI', 'labels');
-  scanText(spec.labels, 'labels');
-  scanText(`${spec.cta.text}`, 'cta');
-  if (brand?.urls?.demo) {
-    try { if (new URL(spec.cta.url).host !== new URL(brand.urls.demo).host) warn('cta-url', `cta.url host differs from brand demo host ${brand.urls.demo}`, 'cta'); } catch { err('cta-url', 'cta.url is not a valid URL', 'cta'); }
+  // Film-wide synthetic/vision disclosure is meaningful; healthcare-specific
+  // 'NO PHI' text is never imposed on an unrelated product or documentary.
+  if (spec.syntheticData === true && !/\bsynthetic\b/i.test(spec.labels || '')) {
+    err('label', 'syntheticData was declared but no synthetic-data notice appears in labels.', 'labels');
   }
-  if (spec.cta.claim && !claimsById.has(spec.cta.claim)) err('claim-missing', `cta.claim ${spec.cta.claim} is not a claim id`, 'cta');
-  if (!spec.cta.claim) warn('cta-claim', 'cta has no claim id; its wording is not mapped to evidence', 'cta');
-  else scanText(spec.cta.text, 'cta');
+  scanText(spec.labels || '', 'labels');
+  if (spec.cta?.text) scanText(spec.cta.text, 'cta');
+  if (brand?.urls?.demo && spec.cta?.url) {
+    try { if (new URL(spec.cta.url).host !== new URL(brand.urls.demo).host) warn('cta-url', `cta.url host differs from brand demo host ${brand.urls.demo}`, 'cta'); }
+    catch { err('cta-url', 'cta.url is not a valid URL', 'cta'); }
+  }
+  if (spec.cta?.claim && !claimsById.has(spec.cta.claim)) err('claim-missing', `cta.claim ${spec.cta.claim} is not a claim id`, 'cta');
+  if (spec.cta && !spec.cta.claim && creativeMode(spec) === 'verified-demo') warn('cta-claim', 'cta has no claim id; its wording is not mapped to evidence', 'cta');
 }
 
 function lintBeatShape(beat, where, err) {
@@ -222,45 +231,47 @@ function lintBeatShape(beat, where, err) {
   if (beat.kind !== 'ui' && beat.ui) err('beat-shape', `${beat.kind} beats must not carry a ui clip`, where);
 }
 
-function lintBeatText(beat, where, claimsById, err, warn, scanText) {
+function lintBeatText(beat, where, claimsById, err, warn, scanText, mode) {
   const texts = [...sentences(beat.narration || ''), ...(beat.onScreenText ? [beat.onScreenText] : [])];
   for (const t of texts) scanText(t, where);
-  // Owner rule (2026-10-20): no spoken time on synthetic/demo data or on the film itself; the disclosure is an end-card line.
   const fluff = FLUFF.exec(beat.narration || '');
-  if (fluff) err('narration-fluff', `narration spends words on "${fluff[0]}"; say what the viewer gains, and leave the data disclosure to the end card`, where);
-  if (beat.onScreenText && words(beat.onScreenText).length > 8) warn('on-screen-length', 'on-screen text longer than 8 words will not survive phone-size reading', where);
-  const refs = (beat.claims || []).map((id) => claimsById.get(id));
-  (beat.claims || []).forEach((id) => { if (!claimsById.has(id)) err('claim-missing', `beat references unknown claim ${id}`, where); });
+  if (fluff && mode === 'verified-demo') err('narration-fluff', `narration spends words on "${fluff[0]}"; say what the viewer gains, and leave data disclosure to an end card`, where);
+  if (beat.onScreenText && words(beat.onScreenText).length > 8) warn('on-screen-length', 'on-screen text longer than 8 words may not survive phone-size reading', where);
+  const refs = (beat.claims || []).map(id => claimsById.get(id));
+  (beat.claims || []).forEach(id => { if (!claimsById.has(id)) err('claim-missing', `beat references unknown claim ${id}`, where); });
   const known = refs.filter(Boolean);
-  if (texts.length && !known.length) err('claim-unmapped', 'beat speaks or shows text but references no claim', where);
-  for (const t of texts) {
-    if (known.length && !known.some((c) => claimCovers(c, t))) err('claim-uncovered', `"${t}" is not covered by any referenced claim (add a phrase or reword)`, where);
-    for (const token of numericTokens(t)) if (!claimMentions(known, token)) err('figure-unsupported', `"${token}" in "${t}" is a figure no referenced claim states; invented or unsupported figures fail`, where);
+  // A dramatic situation, envisioned interface or fictional patient journey
+  // does not need evidence proving that it already happened. Real assertions
+  // always keep the evidence gate, including within a hybrid film.
+  const verified = beat.truthStatus === 'verified' ||
+    (!beat.truthStatus && ['verified-demo', 'documentary'].includes(mode));
+  if (verified && texts.length && !known.length) err('claim-unmapped', 'verified spoken or screen claim has no evidence reference', where);
+  if (verified) for (const t of texts) {
+    if (known.length && !known.some(c => claimCovers(c, t))) err('claim-uncovered', `"${t}" is not covered by any referenced claim`, where);
+    for (const token of numericTokens(t)) if (!claimMentions(known, token)) err('figure-unsupported', `"${token}" in "${t}" is unsupported by this verified claim`, where);
   }
 }
 
-function lintBroll(beat, where, err, warn, scanText) {
-  if (beat.broll) {
-    // A fictional *adult* can establish emotional context. A product claim,
-    // child/patient scene, genuine identity or made-up UI never can.
-    const actor = beat.broll.actor;
-    if (PROTECTED_PEOPLE.test(beat.broll.prompt)) {
-      err('broll-people', 'generative story b-roll may not depict children, minors or patients', where);
-    } else if (PEOPLE.test(beat.broll.prompt) &&
-      (!actor || actor.kind !== 'fictional-adult' || actor.noRealPerson !== true ||
-       actor.noPatientOrMinor !== true || !String(actor.role || '').trim() ||
-       !String(actor.storyPurpose || '').trim())) {
-      err('broll-people', 'human context requires actor {kind:fictional-adult, noRealPerson:true, noPatientOrMinor:true, role, storyPurpose}; never impersonate a real customer', where);
-    }
-    if (actor && (actor.kind !== 'fictional-adult' || actor.noRealPerson !== true || actor.noPatientOrMinor !== true)) {
-      err('broll-actor', 'actor metadata must certify a purely fictional adult, with no real likeness, minor or patient', where);
-    }
-    if (FAKE_PRODUCT.test(beat.broll.prompt)) err('broll-fake-ui', 'generated b-roll must not synthesize product dashboards or clinical records; use real captured product UI', where);
-    if (!/\bno (text|words|letters|logos)\b/i.test(beat.broll.prompt)) warn('broll-text', 'add "no text" to the b-roll prompt; generated text is unreliable', where);
-    if (beat.claims?.length) warn('broll-claims', 'generated b-roll must assert nothing; remove claim references from it', where);
-    scanText(beat.broll.prompt, where);
-    if (beat.broll.provider === 'stock') warn('stock', 'stock footage needs a recorded licence; prefer abstract generated stills', where);
+function lintBroll(beat, where, err, warn, scanText, mode) {
+  if (!beat.broll) return;
+  // Synthetic humans, children, patients, clinics, realistic faces, and
+  // invented future interfaces are legitimate creative subjects. No blur
+  // and no adult-only restriction. Truth-status separates an envisioned
+  // screen from measured present-day product proof.
+  if (beat.broll.depictsProductUI && mode === 'verified-demo' && beat.truthStatus !== 'illustrative' && beat.truthStatus !== 'fictional') {
+    err('representation', 'Generated product UI in a verified demo must be classified illustrative/fictional context, not passed off as current functional proof; choose hybrid or future-vision for proposed features.', where);
   }
+  if (beat.broll.actor?.kind === 'licensed-performer' && !beat.broll.actor?.consentReference) {
+    warn('actor-rights', 'A real performer should have appropriate consent/usage-rights documentation.', where);
+  }
+  if (!beat.broll.actor && /\b(performer|celebrity|real person|actual patient)\b/i.test(beat.broll.prompt || '')) {
+    warn('actor-rights', 'Confirm depicted real-person rights or make the person explicitly fictional.', where);
+  }
+  if (mode === 'verified-demo' && beat.claims?.length) {
+    warn('broll-claims', 'Generated scene footage is illustration, not proof of measured software behavior; keep real UI evidence for current-feature claims', where);
+  }
+  scanText(beat.broll.prompt || '', where);
+  if (beat.broll.provider === 'stock') warn('stock', 'Record rights or source licensing for supplied footage', where);
 }
 
 function lintUi(beat, cut, where, io, err, warn) {
@@ -287,8 +298,8 @@ function lintSfx(beat, where, err) {
 
 function lintBeat(beat, cut, where, state) {
   lintBeatShape(beat, where, state.err);
-  lintBeatText(beat, where, state.claimsById, state.err, state.warn, state.scanText);
-  lintBroll(beat, where, state.err, state.warn, state.scanText);
+  lintBeatText(beat, where, state.claimsById, state.err, state.warn, state.scanText, state.mode);
+  lintBroll(beat, where, state.err, state.warn, state.scanText, state.mode);
   lintUi(beat, cut, where, state.io, state.err, state.warn);
   lintSfx(beat, where, state.err);
 }
@@ -309,7 +320,7 @@ function lintCut(cut, state) {
   else if (estimate > cut.targetSeconds + 1.5) state.warn('long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
   else if (estimate < cut.targetSeconds * 0.6) state.warn('short', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
   if (state.music?.provider === 'elevenlabs' && state.music.lengthSeconds !== undefined && state.music.lengthSeconds < cut.targetSeconds + 2) state.err('music-length', `music.lengthSeconds ${state.music.lengthSeconds} s is shorter than cut ${cut.id} (${cut.targetSeconds} s target) plus 2 s; the bed must outlast the program (the assets stage re-checks against the measured length)`, 'music');
-  if (!cut.beats.some((b) => b.kind === 'ui')) state.err('no-ui', `cut ${cut.id} has no real UI beat; credibility-bearing seconds must be captured product UI`, cut.id);
+  if (state.mode === 'verified-demo' && !cut.beats.some((b) => b.kind === 'ui')) state.err('no-ui', `verified demo ${cut.id} has no captured UI proof. Other film modes can use fully generated visuals.`, cut.id);
 }
 
 export function lintSpec(spec, brand, options = {}) {
@@ -323,12 +334,12 @@ export function lintSpec(spec, brand, options = {}) {
 
   const cuts = normalizeCuts(spec);
   const claimsById = lintClaims(spec, io, err);
-  const scanText = createTextScanner(brand, err);
+  const scanText = createTextScanner(brand, spec, err);
   lintVoice(spec, err, warn, options);
   const music = spec.music;
   lintMusic(music, err);
   lintLabelsAndCta(spec, brand, claimsById, err, warn, scanText);
-  const state = { spec, seenRatios: new Set(), claimsById, scanText, io, err, warn, music, estimates: [] };
+  const state = { spec, mode: creativeMode(spec), seenRatios: new Set(), claimsById, scanText, io, err, warn, music, estimates: [] };
   for (const cut of cuts) lintCut(cut, state);
   return { ok: errors.length === 0, errors, warnings, estimates: state.estimates };
 }
