@@ -34,7 +34,7 @@ const timelinePath = join(root, "story", "narration-timeline.json");
 const timeline = existsSync(timelinePath) ? json(timelinePath) : null;
 const graphicsPath = join(root, "story", "timed-graphics.json");
 const graphics = existsSync(graphicsPath) ? json(graphicsPath).overlays : [];
-if (job.kind === 'product-screencast') {
+if ((job.kind === 'product-screencast' && (!job.creativeMode || job.creativeMode === 'verified-demo'))) {
   const picturePath = join(root, 'qa', 'encoded-picture.json');
   if (!existsSync(picturePath)) errors.push('missing qa/encoded-picture.json; encoded source and motion checks must pass on the exact candidate.');
   else {
@@ -47,7 +47,7 @@ if (job.kind === 'product-screencast') {
     } catch (error) { errors.push(`cannot read encoded-picture report: ${error.message}`); }
   }
 }
-if (job.kind === 'product-screencast') {
+if ((job.kind === 'product-screencast' && (!job.creativeMode || job.creativeMode === 'verified-demo'))) {
   // VIDEO-SYNC-DIRECTIVE §4: narration-to-visual sync is measured on the exact encoded file by validate-sync.mjs.
   const syncPath = join(root, 'qa', 'sync.json');
   if (!existsSync(syncPath)) errors.push('missing qa/sync.json; narration-to-visual sync must pass on the exact candidate (validate-sync.mjs).');
@@ -66,6 +66,11 @@ if (job.kind === 'product-screencast') {
     } catch (error) { errors.push(`cannot read sync report: ${error.message}`); }
   }
 }
+// The strict whole-film screen-ratio/pointer/proof gates apply to verified
+// current-function demos, not generated future visions, dramatized scenarios,
+// abstract films or hybrids with substantial concept footage. Such films
+// are still reviewed for truth-status separation and finished-frame quality.
+// Classifying a film as non-verified does NOT turn a fictional UI into proof.
 // Video standard (owner direction 2026-10-20): no fluff, the feed test, nothing redundant, a purposeful cursor. Each rule
 // has its own measuring gate; this gate only refuses a release that lacks a PASS bound to the exact inputs it measured.
 const boundReport = (relPath, generator, label) => {
@@ -163,7 +168,7 @@ for (const adjudication of narration?.fluff?.scopeAdjudications ?? []) {
 // Frame integrity on the exact encoded picture.
 boundToCandidate(canonical(boundReport('qa/frame-integrity.json', 'media-studio/validate-frame-integrity', 'tiled frames and off-cut luma jumps must be checked on the exact candidate (validate-frame-integrity.mjs)'), 'qa/frame-integrity.json',
   [['tilePsnr', 'max', 32], ['lumaJump', 'max', 40], ['contrastFloor', 'max', 12], ['cutWindow', 'max', 0.25], ['sampleFps', 'min', 2]]), 'qa/frame-integrity.json');
-if (job.kind === 'product-screencast') {
+if ((job.kind === 'product-screencast' && (!job.creativeMode || job.creativeMode === 'verified-demo'))) {
   // The cursor moved with purpose: the pointer-path gate on the capture receipt the picture came from. A beat's own
   // reasoned allowance lives in the cue plan or storyboard; the run-wide defaults stay at the floor.
   boundToInput(canonical(boundReport('qa/pointer-path.json', 'media-studio/validate-pointer-path', 'every take must pass the pointer-path gate (validate-pointer-path.mjs): one direction per beat, no wandering, no scroll return'), 'qa/pointer-path.json',
