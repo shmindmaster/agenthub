@@ -11,10 +11,22 @@ Read this when choosing the picture for a beat. Start at the first row that matc
 | An event, success, a handoff, a warning | A small moving mark: check, pulse, arrow | `lottie` | kit/public/lottie, text-to-lottie skill | free |
 | Code, a command, a config | Highlighted lines revealed in order | `code` | kit | free |
 | A real product screen | The captured screen | `screen-in-context` | skills/capture, Playwright plus Recast | free |
-| A place, an object, a mood no diagram can carry | A generated still, with text added in the kit | `still` | Azure image | Azure credit, priced first |
-| A cinematic moment | A generative video hero shot | `broll` | IrukaDark (conditional, by hand in Chrome, 232 credits per 5 s clip); Higgsfield, Runway, Vertex: frozen | approved hero shots only; `../../generate/references/irukadark.md` |
+| A place, a prop, or fictional adult office context no diagram can carry | An approved generated still, with text/branding added in the kit; never an invented app screen | `still` | Governed Azure or tested Runware stills; model-specific alternatives only after adapter, quote and sample review | Quote first; free kit/source footage wins when sufficient |
+| A non-claim cinematic context moment | Optional 4–8s generic adult/workplace b-roll; real UI immediately before/after | `broll` | IrukaDark conditional; H3 Lite/Highspeed and Gemini Omni candidates only until governed video adapter, pricing and approval; Higgsfield/Runway frozen | Optional; compare image-to-video vs free Remotion first; see `../../generate/references/provider-cost-quality-routing.md` |
 | What other sources say, a topic to learn from | A NotebookLM draft to read, not to ship | none (a draft) | notebooklm-py | free tier |
 | A name, a quote, an opening or a close | A card | `hero`, `quote`, `cta`, `chapter`, `lower-third` | kit | free |
+
+**Humanization guardrail:** a fictional adult office coordinator can make
+a buyer problem relatable. Marketing specs require explicit
+`broll.actor` provenance (`fictional-adult`, no real identity, no
+patient/minor). Keep that visual short and do not let the generated shot
+pretend to show ABACare results. Real screens, values and authorization
+behavior stay under captured UI receipts. GPT-Image 2.6 Sunburst can
+produce SVG and GIF output, but those specialty modes cannot take
+reference images and the SVG authoring call has its own token charge;
+prefer designed SVG/Lottie/Remotion unless there is a clear creative need.
+Seedream 5.5's advertised layer extraction is **coming-soon**, not a
+callable production lane as of 2026-11-10.
 
 ## How to decide
 
