@@ -21,15 +21,29 @@ Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` 
 
 **Story-first preflight (marketing cuts >= 25 s):** An ad must carry a concrete
 `narrative` brief (persona, situation, trigger, problem, stakes, solution,
-mechanism, payoff), then stage-coded beats from hook through recognizable
-scenario/problem, explicit product/software introduction, captured UI mechanism,
-changed result and one CTA. `kit/marketing/lib/narrative.mjs` is invoked by the
+mechanism, payoff, emotional before/after and viewer value) plus a
+`hookPlan` aligning the first image, on-screen meaning, spoken hook and
+viewer question. Role-coded beats trace recognizable context/problem,
+a named software introduction, captured UI mechanism, changed result
+and one CTA. `kit/marketing/lib/narrative.mjs` is invoked by the
 normal `lint` stage before paid voice/images or rendering; see
 `skills/video/references/story.md` and `kit/marketing/README.md`.
 A deliberately compressed cut under 25 seconds can use hook -> proof -> action,
 but remains subject to claim-evidence and exact-candidate QA. Structural lint
 does **not** replace watching the actual encoded video: the reviewer must
 reject incoherent context or fabricated payoff even when the metadata passes.
+
+**Media-provider cost/quality selection:** For each missing story asset,
+read `skills/generate/references/provider-cost-quality-routing.md`. Reuse actual
+product capture, designed diagrams and accepted assets before proposing new
+generation. `scripts/route_media.py --catalog` lists available/frozen local
+lanes; `scripts/quote-runware-models.mjs` compares **live Runware model
+prices** from public official schemas, without spending. AssemblyAI is
+an audio/transcript analysis route, Runware offers supplemental multimodal
+generation, and ElevenLabs is a conditional high-quality speech/music/SFX
+candidate. Listing a model does **not** enable a frozen lane or authorize spend.
+Quality/capability, license, real product proof and the exact-candidate
+film review outrank a cheaper quote. No generated UI impersonation.
 
 **Marketing ads** (15-30 s social and web ads in 16:9, 4:5 and 9:16): `kit/marketing/` is the generator (`mvg.mjs`). A spec of beats, claims with evidence, a voice, an optional music bed and a CTA goes through lint, voice, timing, assets, capture reuse, the `MarketingAd` Remotion composition, QA (including OpenAI vision review of sampled frames) and delivery; spend is capped per run and cumulatively, and every claim must map to evidence. See `kit/marketing/README.md`.
 
