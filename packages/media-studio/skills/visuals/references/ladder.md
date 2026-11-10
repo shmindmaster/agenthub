@@ -16,17 +16,20 @@ Read this when choosing the picture for a beat. Start at the first row that matc
 | What other sources say, a topic to learn from | A NotebookLM draft to read, not to ship | none (a draft) | notebooklm-py | free tier |
 | A name, a quote, an opening or a close | A card | `hero`, `quote`, `cta`, `chapter`, `lower-third` | kit | free |
 
-**Humanization guardrail:** a fictional adult office coordinator can make
-a buyer problem relatable. Marketing specs require explicit
-`broll.actor` provenance (`fictional-adult`, no real identity, no
-patient/minor). Keep that visual short and do not let the generated shot
-pretend to show ABACare results. Real screens, values and authorization
-behavior stay under captured UI receipts. GPT-Image 2.6 Sunburst can
-produce SVG and GIF output, but those specialty modes cannot take
-reference images and the SVG authoring call has its own token charge;
-prefer designed SVG/Lottie/Remotion unless there is a clear creative need.
-Seedream 5.5's advertised layer extraction is **coming-soon**, not a
-callable production lane as of 2026-11-10.
+**Synthetic subjects and formats:** Media Studio can generate full,
+realistic scenes featuring people of any age, fictional families,
+patients, clinicians, futuristic interfaces, readable UI, objects,
+buildings and invented technologies. Use them as much or as little as
+the approved film's format needs. No automatic blur, adult-only
+qualification or synthetic-screen ban. Mark factual current-product
+claims as verified and speculative capabilities as envisioned. A
+product may have an all-synthetic future-vision film without
+any existing-product capture. Actor continuity and rights/consent
+apply only where relevant (e.g. licensed real-person likeness).
+Consult `../../video/references/creative-formats.md` before selecting
+visuals. GPT-Image Sunburst has specialist SVG/GIF modes (with
+model-specific limitations); Seedream 5.5 is coming-soon as of
+2026-11-10, not a callable lane.
 
 ## How to decide
 
