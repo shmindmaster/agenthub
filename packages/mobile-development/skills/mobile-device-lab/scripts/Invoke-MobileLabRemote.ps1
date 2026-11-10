@@ -130,6 +130,13 @@ function Send-LabSource([object]$Lab, [string]$Repo) {
     $label
 }
 
+# Failures reach a -Json caller as one object, like every other mobile.ps1 route.
+trap {
+    if ($Json) { Write-Output ([pscustomobject]@{ ok = $false; action = $Action; productId = $ProductId; error = $_.Exception.Message } | ConvertTo-Json -Compress) }
+    else { Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red }
+    exit 1
+}
+
 switch ($Action) {
     'status' {
         $reply = Invoke-Worker 'mobile-lab status'

@@ -9,6 +9,7 @@ $mobile = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1
 pwsh -NoProfile -File $mobile remote status -Json
 pwsh -NoProfile -File $mobile remote run abacare -Json          # default profile
 pwsh -NoProfile -File $mobile remote run rexa -WorkingTree -Json # include tracked uncommitted changes
+pwsh -NoProfile -File $mobile remote start                       # boot the emulator (about a minute); installed apps persist
 pwsh -NoProfile -File $mobile remote view                        # owner: see and tap the emulator
 pwsh -NoProfile -File $mobile remote stop                        # stop the emulator when done
 ```

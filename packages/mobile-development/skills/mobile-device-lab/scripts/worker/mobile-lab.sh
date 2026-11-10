@@ -26,9 +26,11 @@ emulator_start() {
   if emulator_booted; then log "emulator already booted"; return 0; fi
   if ! pgrep -u "$(id -u)" -f "qemu-system.*${MOBILE_LAB_AVD}" >/dev/null; then
     log "starting ${MOBILE_LAB_AVD} headless"
+    # 9>&- on every long-lived child: fd 9 is the run lease, and a child that
+    # inherits it keeps the lab locked after the run ends.
     setsid nohup emulator -avd "$MOBILE_LAB_AVD" -no-window -no-audio -no-boot-anim \
       -no-snapshot -gpu swiftshader_indirect -no-metrics \
-      > "$STATE/emulator.log" 2>&1 < /dev/null &
+      > "$STATE/emulator.log" 2>&1 < /dev/null 9>&- &
   fi
   adb start-server >/dev/null 2>&1
   for _ in $(seq 1 120); do
@@ -176,7 +178,7 @@ run() {
     log "starting Metro on 8081"
     # CI must be unset, not empty: with CI=1 Metro does not watch files, and
     # Expo rejects an empty value.
-    env -u CI setsid nohup npx expo start --port 8081 > "$STATE/metro-$app.log" 2>&1 < /dev/null &
+    env -u CI setsid nohup npx expo start --port 8081 > "$STATE/metro-$app.log" 2>&1 < /dev/null 9>&- &
     local metro_up=false
     for _ in $(seq 1 60); do
       if curl -fsS -m 2 http://127.0.0.1:8081/status >/dev/null 2>&1; then metro_up=true; break; fi
@@ -188,7 +190,7 @@ run() {
 
   if [ -n "$pre" ]; then
     log "pre-command: $pre"
-    bash -lc "$pre" > "$out/pre-command.log" 2>&1 &
+    bash -lc "$pre" > "$out/pre-command.log" 2>&1 9>&- &
     PRE_PID=$!
     sleep 3
   fi
