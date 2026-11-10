@@ -14,10 +14,22 @@ Live-product screencasts use Playwright WebM + Recast in this pack (`kit/screenc
 
 **Product picture** (`skills/video/references/product-picture.md`): when the subject is a running product, the encoded film is Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards. `scripts/validate-product-picture.mjs` fails closed. Host projections must match `plugin.json`.
 
-Version authority: root `plugin.json` (`2.1.3`). Host projections must match.
+Version authority: root `plugin.json` (`2.7.0`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `MEDIA_STUDIO_ROOT`, default `D:\Media-Studio`). Private show bibles and customer recordings stay outside this repository.
 
 Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` compositor tooling). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.
+
+**Story-first preflight (marketing cuts >= 25 s):** An ad must carry a concrete
+`narrative` brief (persona, situation, trigger, problem, stakes, solution,
+mechanism, payoff), then stage-coded beats from hook through recognizable
+scenario/problem, explicit product/software introduction, captured UI mechanism,
+changed result and one CTA. `kit/marketing/lib/narrative.mjs` is invoked by the
+normal `lint` stage before paid voice/images or rendering; see
+`skills/video/references/story.md` and `kit/marketing/README.md`.
+A deliberately compressed cut under 25 seconds can use hook -> proof -> action,
+but remains subject to claim-evidence and exact-candidate QA. Structural lint
+does **not** replace watching the actual encoded video: the reviewer must
+reject incoherent context or fabricated payoff even when the metadata passes.
 
 **Marketing ads** (15-30 s social and web ads in 16:9, 4:5 and 9:16): `kit/marketing/` is the generator (`mvg.mjs`). A spec of beats, claims with evidence, a voice, an optional music bed and a CTA goes through lint, voice, timing, assets, capture reuse, the `MarketingAd` Remotion composition, QA (including OpenAI vision review of sampled frames) and delivery; spend is capped per run and cumulatively, and every claim must map to evidence. See `kit/marketing/README.md`.
 
