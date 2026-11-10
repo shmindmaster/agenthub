@@ -12,7 +12,15 @@ description: Turns an approved brief into a beat-by-beat storyboard with a pictu
 3. Hand `capture`, `visuals` and `generate` the approved storyboard, picture plan, breakdown and work list.
 4. If a required asset depends on a frozen lane or the plan fails, resolve the blocker before releasing tasks.
 
-An approved brief becomes a storyboard where every beat has a line AND a picture, then a short list of tasks that fresh agents can build and check one at a time.
+An approved brief becomes a storyboard with a useful picture or
+intentional visual/sound moment per beat, then a short list of production
+tasks. For `creativeMode` fiction, vision, concept, hybrid, documentary,
+educational or abstract, use the flexible storyboard schema at
+`schemas/creative-storyboard.schema.json` and preserve full creative
+freedom for synthetic people, scenarios, imaginary interfaces and
+non-linear stories. A verified product demo continues to use the
+capture/result storyboard and real-product evidence. Voice-only or
+silent visual scenes need not invent narration to fill fields.
 
 <HARD-GATE>
 No voice generation, image generation, capture or render until the storyboard passes `check_picture_relevance.py` and `check_visual_variety.py` and the owner has seen the picture table. Paying for audio or images against a picture that is words in boxes wastes money twice.
