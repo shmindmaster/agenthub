@@ -19,9 +19,30 @@ const meaningful = (v) => words(v).length >= 2 && !/^(?:tbd|n\/a|placeholder|tod
  * @returns {Array<{code:string,message:string,where:string}>}
  */
 export function inspectNarrativeArc(spec, cut, estimateBeatSeconds) {
-  if (!(Number(cut.targetSeconds) >= 25)) return [];
+  const duration = Number(cut.targetSeconds);
+  if (!(duration >= 10)) return []; // <10s micro-bumpers still have ordinary claim/readiness gates
   const errors = [];
   const add = (message, where = cut.id) => errors.push({ code: 'narrative-arc', message, where });
+  const beats = Array.isArray(cut.beats) ? cut.beats : [];
+  if (duration < 25) {
+    // A 10–24s teaser has no time for a full narrative but cannot be
+    // a random montage. Hook → one real UI proof → next action.
+    if (beats.length < 2) add('A 10–24s teaser needs a hook, real product evidence and a final CTA; a single unrelated clip is not a story.');
+    const first = beats[0];
+    const last = beats.at(-1);
+    if (first?.storyRole !== 'hook') add('A teaser must open with a pain/outcome hook.', `${cut.id}/${first?.id || 'opening'}`);
+    if (last?.storyRole !== 'cta') add('A teaser must finish with a clear CTA.', `${cut.id}/${last?.id || 'ending'}`);
+    const proof = beats.slice(0, -1).some(b => b.kind === 'ui' && ['hook','demonstration','proof','payoff'].includes(b.storyRole));
+    if (!proof) add('A teaser about running software needs at least one genuine receipt-bound product UI proof beat before the CTA.');
+    const earlyText = beats.slice(0, Math.min(2, beats.length)).map(b => `${b.narration || ''} ${b.onScreenText || ''}`).join(' ');
+    if (clean(spec.product) && !clean(earlyText).includes(clean(spec.product))) {
+      add(`Identify ${spec.product} in the early teaser, spoken or on screen; do not reveal the software only after the demonstration.`);
+    }
+    if (last?.storyRole === 'cta' && clean(spec.cta?.text) && !clean(`${last.narration || ''} ${last.onScreenText || ''}`).includes(clean(spec.cta.text))) {
+      add('Teaser last beat must carry the approved CTA text.', `${cut.id}/${last.id}`);
+    }
+    return errors;
+  }
   const narrative = cut.narrative || spec.narrative;
   if (!narrative || typeof narrative !== 'object' || Array.isArray(narrative)) {
     add('A 25s+ cut needs narrative { persona, situation, trigger, problem, stakes, solution, mechanism, payoff } before production.');
@@ -38,7 +59,6 @@ export function inspectNarrativeArc(spec, cut, estimateBeatSeconds) {
     for (const field of HOOK_COMPONENTS) if (!meaningful(hookPlan[field])) add(`hookPlan.${field} must describe its own clear opening component.`);
   }
 
-  const beats = Array.isArray(cut.beats) ? cut.beats : [];
   if (!beats.length) { add('Cut has no beats.'); return errors; }
   for (const beat of beats) {
     if (!ROLES.has(beat.storyRole)) add(`Beat ${beat.id} needs a valid storyRole (hook, context, problem, context-problem, solution, demonstration, proof, payoff, cta).`, `${cut.id}/${beat.id}`);
