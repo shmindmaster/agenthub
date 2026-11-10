@@ -17,6 +17,7 @@
     "audience": { "type": "string", "minLength": 3 },
     "objective": { "type": "string", "minLength": 3 },
     "concept": { "type": "string" },
+    "narrative": { "$ref": "#/definitions/narrative", "description": "Required at lint for marketing cuts lasting 25 seconds or longer; cuts can override." },
     "brand": { "type": "string", "description": "Path to the brand file, relative to the spec or absolute. Default: ../brand/brand.json" },
     "ratios": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/ratio" } },
     "targetSeconds": { "type": "number", "minimum": 5, "maximum": 120 },
@@ -30,7 +31,8 @@
           "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,30}$" },
           "ratios": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/ratio" } },
           "targetSeconds": { "type": "number", "minimum": 5, "maximum": 120 },
-          "beats": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/beat" } }
+          "beats": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/beat" } },
+          "narrative": { "$ref": "#/definitions/narrative" }
         }
       }
     },
@@ -116,6 +118,21 @@
     "notes": { "type": "array", "items": { "type": "string" } }
   },
   "definitions": {
+    "narrative": {
+      "type": "object", "additionalProperties": false,
+      "required": ["persona", "situation", "trigger", "problem", "stakes", "solution", "mechanism", "payoff"],
+      "description": "A grounded buyer-facing story brief. The lint also requires stage-coded beats and the actual software introduction.",
+      "properties": {
+        "persona": { "type": "string", "minLength": 6 },
+        "situation": { "type": "string", "minLength": 6 },
+        "trigger": { "type": "string", "minLength": 6 },
+        "problem": { "type": "string", "minLength": 6 },
+        "stakes": { "type": "string", "minLength": 6 },
+        "solution": { "type": "string", "minLength": 6 },
+        "mechanism": { "type": "string", "minLength": 6 },
+        "payoff": { "type": "string", "minLength": 6 }
+      }
+    },
     "ratio": { "enum": ["16x9", "4x5", "9x16"] },
     "voice": {
       "type": "object", "additionalProperties": false,
@@ -154,6 +171,7 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,30}$" },
         "kind": { "enum": ["ui", "broll", "card", "title"] },
+        "storyRole": { "enum": ["hook", "context", "problem", "context-problem", "solution", "demonstration", "proof", "payoff", "cta"], "description": "For 25s+ cuts: hook -> scenario/problem -> named solution -> real UI mechanism/proof -> payoff -> CTA." },
         "narration": { "type": "string" },
         "onScreenText": { "type": "string", "maxLength": 80 },
         "emphasis": { "type": "array", "items": { "type": "string" }, "description": "Words in the narration highlighted in the kinetic captions." },
