@@ -55,95 +55,45 @@ A single-beat clip runs question → reveal → takeaway.
 
 `write-story-review.py` requires: first scene `hook`; a `before` scene ahead of the hero; hero outside the first 3 scenes, `holdAfterSeconds` ≥ 1.0, and `silenceOnReveal` or `musicCue` `silence` or `sting`; `trust` or `proof` within 3 scenes after it, or a recorded judgment.
 
-## Narrative orientation: a hook is not the whole setup
+## Story structure follows the chosen form
 
-Do not start with a random screen, cut directly to software settings, or
-assume that the viewer knows the product. For any buyer-facing hero,
-product-screencast, technical-story or explainer, the viewer must understand
-the complete **who → situation → trigger → problem → stakes → named solution
-→ mechanism → verified result** chain. Opening with the outcome is allowed,
-but then rewind immediately to establish what makes it meaningful. Do not
-pad this chain with a corporate logo, biography or lengthy prologue.
+See `creative-formats.md` before imposing a beat map. A verified
+software demonstration needs a recognizable problem, the named current
+product, actual mechanism and verified result. A fictional story,
+documentary, musical film, non-linear puzzle, abstract animation,
+"day in the life", product concept or future vision can use very different
+shapes. All can use visually realistic humans of any age, fictional
+patients/families/clinicians, invented settings and fully readable
+futuristic interfaces. No automatic blur, age exclusion, artificial
+watermark or fixed 6-beat formula follows from an asset being synthetic.
 
-Before locking the screenplay, answer and demonstrate all of these:
+For a **verified current-product** movie, establish who/where, the task
+and why it matters; show the real screen action and visible result.
+Generated human-world context is welcome, but proposed software
+functionality is not factual proof. A short verified teaser can
+compress the chain without becoming a tab montage.
 
-- **Who and where?** Persona, current task and recognizable context.
-- **What happened?** Specific trigger, obstacle and consequence. What
-  would fail or take more work without intervention?
-- **What software is this?** Introduce the real product by name no later
-  than the first solution beat; explain its job in plain language.
-- **How does it solve that one problem?** One verified workflow shown as
-  input → action → visible response → result, not a tour of unrelated tabs.
-- **What changed?** Return to the original person/problem, show a readable
-  final state, include appropriate review/limits, then one CTA.
+For a **fictional, conceptual, or speculative** film, choose the
+appropriate creative structure: classical drama, aspiration, vignette,
+documentary-style reconstruction, non-linear climax-first, mood-piece,
+design film, visual experiment or abstract message. Develop characters,
+world, stakes, intentional moments, emotional changes, payoff or
+meaning as appropriate. A future screen can be completely fabricated
+and shown clearly—it is the *point* of the vision film. A declared
+concept/vision is not misrepresented current functionality.
 
-Do **not** mistake an engaging hook for permission to omit the setting.
-For a 25–60s product ad, the hook lands within 2–5 seconds, the scenario
-appears within 10 seconds and the software is named in the solution scene.
-For longer documentary/technical stories, the hook can be a cold open
-but the context and core product identity must arrive before the deeper
-diagnosis, code reveal or workflow. A 10–24s teaser can compress the arc
-to hook → one proof → payoff/action, but never pose as a comprehensive
-software explainer.
+For a **hybrid**, distinguish real capture/evidence from fictional
+context and proposed UI. State the concept status once in a natural
+place such as a title, narration, or end card. Do not cover every frame
+with an intrusive disclosure or impose blur on synthetic source data.
+Any real customer/patient material requires ordinary appropriate
+permissions independently of the style.
 
-Record the causal order and its visual evidence in the treatment,
-beat sheet, screenplay and storyboard. The user should be able to follow
-the story **on mute**, with meaningful visuals and sidecar captions.
-The encoded reviewer fails any abrupt or context-free montage regardless
-of polished sound, motion, cursor paths or QA scores. Preserve factual
-source evidence; never invent customer experiences or demonstrated
-product behavior. See `kit/marketing/README.md` for the hard lint contract
-on marketing cuts of 25 seconds and longer.
-
-## Story engine: emotion, curiosity, value and controlled pacing
-
-A plot is **not** only a list of scene roles. In development, identify:
-(1) the real-world pain behind the task, (2) the credible emotion it creates,
-(3) the specific question the hook opens, (4) the action that changes the
-situation, (5) the evidence that closes the question, and (6) one useful
-insight the viewer retains even without taking the CTA. Write the emotional
-before/after as an observable change in agency: uncertainty → clarity,
-busywork → control, or confusion → confidence. Avoid invented panic,
-miraculous AI results and forced outrage.
-
-For an opening, draft two or three **truthful** candidate hooks using
-different angles (pain-first, payoff-first, mistake/contrast). Score each
-against viewer relevance, specificity, truth/evidence, first-frame strength,
-and speed to context. Pick one before any paid generation. The opening
-must work as three coordinated channels: what the viewer *sees*, what the
-screen *says* (including native UI), and what the narration *says*. A
-cold-open payoff is fine; establish who and why immediately afterward.
-Do not withhold a basic explanation of what software is being shown
-just to manufacture mystery.
-
-For each middle beat, write the viewer's current question and what new
-information/action this beat supplies. Use an open loop **only** if its
-answer is delivered. A purposeful pattern interrupt changes an understood
-state (risk → discovery, failed path → useful alternative, action →
-visible response); random stock footage, zooms and motion do not.
-Use a visible `before → action → after` causal chain. A 3–5 second
-visual-refresh guideline is a *review prompt*, not a universal timer:
-keep product screens legible, allow longer result holds, and never cut
-before an important control/result can be read.
-
-Optimize the story for the audience and viewing context:
-- **Feed/social:** hook within the first couple of seconds, brief
-  grounded scenario, one result and one action. Use native 9:16/4:5
-  capture, captions and readable UI, not a crop from a desktop master.
-- **Web demo/landing page:** orient the viewer to the product earlier,
-  show a complete task and useful mechanism; use an appropriate landscape
-  or native delivery profile.
-- **Tutorial/long explainer/documentary:** spend proportionately more
-  time on context, investigation, obstacles, trade-offs and evidence.
-  The hook may precede context, but never substitute for it.
-
-A shareable insight can be an accurate, useful observation a colleague
-would recognize; virality is not a quality gate and is not guaranteed by
-emotional hooks. For published campaigns with measurable outcomes,
-compare alternate hooks using the same core body and comparable
-distribution, then learn from first-seconds retention, completion and
-business actions without claiming certainty from small samples.
-All examples must remain source-grounded.
+Hook, narration, visuals and editing should serve the audience and
+chosen film form; choose clear arcs rather than a compulsory chronology.
+Only genuinely verified claims need a current product/source
+receipt. A thematic or emotional payoff is valid in a non-product
+film. Keep the final review specific to its declared purpose.
 
 ## Writing for the ear
 
