@@ -31,7 +31,6 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 $WarpExcluded = @{
     'repowise'              = 'Needs the loopback shared server, which Warp does not run under the plugin-only policy, so the skill would dead-end. Install-WarpSkills.ps1 records the same reason.'
     'linkedin'              = 'Its server is a local stdio process and activationPolicy.pluginOnly does not permit linkedin on warp, so Warp cannot run it and the skill would dead-end. The plugin is on-demand by design.'
-    'coding-agent-dispatch' = 'capabilityType is skills and it is not in either marketplace, so there is no plugin to link; hosts reach it through their own agent directories.'
     'mobile-development'    = 'On demand only. Test-MobileDevelopment requires the catalog to be readable, which the deployed runtime package provides; no Warp skill link is part of that contract.'
 }
 $AmpExcluded = @{}
