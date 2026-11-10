@@ -68,15 +68,15 @@ const baseSpec = () => ({
   labels: 'SYNTHETIC DEMO · NO PHI · REAL PRODUCT',
   cta: { text: 'Try it on synthetic data', url: 'https://abacare.ai/demo', claim: 'c-cta' },
   claims: [
-    { id: 'c-runway', text: 'One authorization has twelve units left and three sessions still scheduled', phrases: ['twelve units left', 'three sessions'], evidence: 'file:evidence.txt:2' },
+    { id: 'c-runway', text: 'One authorization has twelve units left and three sessions still scheduled', phrases: ['twelve units left', 'three sessions', 'ABACare authorization runway'], evidence: 'file:evidence.txt:2' },
     { id: 'c-cta', text: 'Try the live demo on synthetic data', phrases: ['Try it on synthetic data', 'Try the live demo'], kind: 'cta', evidence: 'approved:playbook concept 1 CTA' },
     { id: 'c-local', text: 'Nothing is sent to a payer', phrases: ['Nothing is sent to a payer'], evidence: 'clip:film#A01@0-10' },
   ],
   ratios: ['16x9', '9x16'], targetSeconds: 20,
   beats: [
-    { id: 'B1', kind: 'ui', narration: 'Twelve units left, and three sessions still scheduled.', claims: ['c-runway'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 3 }, sfx: [{ cue: 'action:Carter row', prompt: 'soft interface click' }] },
-    { id: 'B2', kind: 'ui', narration: 'Nothing is sent to a payer.', claims: ['c-local'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 1 } },
-    { id: 'B3', kind: 'card', narration: 'Try the live demo.', onScreenText: 'Try it on synthetic data', claims: ['c-cta'] },
+    { id: 'B1', kind: 'ui', storyRole: 'hook', narration: 'Twelve units left, and three sessions still scheduled.', onScreenText: 'ABACare authorization runway', claims: ['c-runway'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 3 }, sfx: [{ cue: 'action:Carter row', prompt: 'soft interface click' }] },
+    { id: 'B2', kind: 'ui', storyRole: 'proof', narration: 'Nothing is sent to a payer.', claims: ['c-local'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 1 } },
+    { id: 'B3', kind: 'card', storyRole: 'cta', narration: 'Try the live demo.', onScreenText: 'Try it on synthetic data', claims: ['c-cta'] },
   ],
 });
 const lint = (spec, b = brand) => lintSpec(spec, b, { adSchema, brandSchema, specDir: root });
