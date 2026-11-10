@@ -325,7 +325,7 @@ $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument
         $market = if (-not $private) { 'agenthub' } elseif ($target -eq 'factory') { 'personal' } else { 'sarosh-private' }
         $route = if ($cap.id -eq 'repowise' -and $target -in 'claude','codex') { 'vendor' }
             elseif ($cap.deployedCatalog -and $target -ne 'gemini') { 'runtime' }
-            elseif ($target -eq 'grok' -and $cap.id -in 'product', 'media-studio', 'sarosh') { 'native-local-plugin' }
+            elseif ($target -eq 'grok' -and $cap.id -in 'product', 'media-studio', 'sarosh', 'coding-agent-dispatch') { 'native-local-plugin' }
             elseif ($target -eq 'copilot' -and $cap.id -in 'media-studio', 'repowise') { 'native-local-plugin' }
             else { $mapping.deploymentStatus }
         $row = [pscustomobject]@{
