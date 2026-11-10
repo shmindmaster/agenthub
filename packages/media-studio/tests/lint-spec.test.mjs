@@ -58,6 +58,7 @@ test('lintSpec preserves exact ordered findings and estimates for an invalid syn
   const spec = {
     voice: { ownerVoice: true, name: 'Sarosh', provider: 'openai' },
     music: { provider: 'elevenlabs', lengthSeconds: 1 },
+    syntheticData: true,
     labels: 'REAL PRODUCT',
     cta: { text: 'Guarantee this, unlike CentralReach.', url: 'not-a-url', claim: 'absent' },
     claims: [
@@ -93,7 +94,7 @@ test('lintSpec preserves exact ordered findings and estimates for an invalid syn
         { code: 'disclosure', message: 'OpenAI voices require a stated AI-voice disclosure (usage policy)', where: 'voice' },
         { code: 'music', message: 'music.prompt is required when music.provider is elevenlabs', where: 'music' },
         { code: 'music', message: 'music.licenseBasis is required (Eleven Music terms limit paid-ad use by plan)', where: 'music' },
-        { code: 'label', message: 'labels must state SYNTHETIC and NO PHI', where: 'labels' },
+        { code: 'label', message: 'syntheticData was declared but no synthetic-data notice appears in labels.', where: 'labels' },
         { code: 'banned-phrase', message: '"Guarantee" (guarantee): No guarantees. — "Guarantee this, unlike CentralReach."', where: 'cta' },
         { code: 'banned-phrase', message: '"unlike" (comparative): No comparative claims without substantiation. — "Guarantee this, unlike CentralReach."', where: 'cta' },
         { code: 'forbidden-name', message: 'names "CentralReach", which must never appear in an ad', where: 'cta' },
@@ -104,15 +105,15 @@ test('lintSpec preserves exact ordered findings and estimates for an invalid syn
         { code: 'forbidden-name', message: 'names "CentralReach", which must never appear in an ad', where: 'cta' },
         { code: 'beat-shape', message: 'card beats must not carry a ui clip', where: 'main/B1' },
         { code: 'claim-missing', message: 'beat references unknown claim unknown', where: 'main/B1' },
-        { code: 'claim-unmapped', message: 'beat speaks or shows text but references no claim', where: 'main/B1' },
-        { code: 'figure-unsupported', message: '"90" in "90 cases remain." is a figure no referenced claim states; invented or unsupported figures fail', where: 'main/B1' },
+        { code: 'claim-unmapped', message: 'verified spoken or screen claim has no evidence reference', where: 'main/B1' },
+        { code: 'figure-unsupported', message: '"90" in "90 cases remain." is unsupported by this verified claim', where: 'main/B1' },
         { code: 'clip-missing', message: `capture receipt not found: ${join(SYNTHETIC, 'ghost', 'capture', 'receipt.json')}`, where: 'main/B1' },
         { code: 'sfx-cue', message: 'unsupported cue later', where: 'main/B1' },
         { code: 'music-length', message: 'music.lengthSeconds 1 s is shorter than cut main (4 s target) plus 2 s; the bed must outlast the program (the assets stage re-checks against the measured length)', where: 'music' },
-        { code: 'no-ui', message: 'cut main has no real UI beat; credibility-bearing seconds must be captured product UI', where: 'main' },
+        { code: 'no-ui', message: 'verified demo main has no captured UI proof. Other film modes can use fully generated visuals.', where: 'main' },
       ],
       warnings: [
-        { code: 'on-screen-length', message: 'on-screen text longer than 8 words will not survive phone-size reading', where: 'main/B1' },
+        { code: 'on-screen-length', message: 'on-screen text longer than 8 words may not survive phone-size reading', where: 'main/B1' },
         { code: 'short', message: 'cut main is estimated at 1.9 s against a 4 s target', where: 'main' },
       ],
       estimates: [{ cut: 'main', estimateSeconds: 1.9, targetSeconds: 4 }],
@@ -120,35 +121,47 @@ test('lintSpec preserves exact ordered findings and estimates for an invalid syn
   );
 });
 
-test('fictional adult coordinator scene is eligible when explicitly declared and makes no product claim', () => {
+
+test('synthetic humans of any age, including realistic patients, are valid creative subjects', () => {
   const spec = validSpec();
+  spec.creativeMode = 'fictional-story';
   spec.cuts[0].beats.unshift({
-    id: 'context', kind: 'broll',
+    id: 'story', kind: 'broll', truthStatus: 'fictional',
+    narration: 'A family imagines a more coordinated healthcare visit.',
     broll: {
       provider: 'openai-image',
-      prompt: 'Generic fictional adult coordinator at an office desk with a blurred laptop, no text and no logos.',
-      actor: { kind: 'fictional-adult', role: 'office coordinator', storyPurpose: 'Ground the viewer in the real-world administrative challenge.', noRealPerson: true, noPatientOrMinor: true },
+      prompt: 'Photorealistic fictional child patient and two adults consulting a clinician in a well-lit room; crisp readable text in imagined app.',
+      depictsProductUI: true,
+      actor: { kind: 'fictional', role: 'fictional family', ageGroup: 'child', storyPurpose: 'A humane day-in-the-life scene' },
     },
   });
   const result = lintSpec(spec, {}, { io: io(true) });
   assert.equal(result.ok, true, JSON.stringify(result.errors));
+  assert.ok(!result.errors.some(e => ['broll-people','broll-fake-ui'].includes(e.code)));
 });
 
-test('human context without fictional adult provenance stays blocked', () => {
+test('envisioned UI and fictional people do not require any blur, adult-only flag or generated-real-UI proof', () => {
   const spec = validSpec();
-  spec.cuts[0].beats.unshift({ id: 'context', kind: 'broll', broll: {
-    provider: 'openai-image', prompt: 'A smiling therapist at a desk, no text or logos',
-  } });
-  const r = lintSpec(spec, {}, { io: io(true) });
-  assert.ok(r.errors.some(e => e.code === 'broll-people'));
+  spec.creativeMode = 'future-vision';
+  spec.conceptDisclosure = 'Envisioned future product experience';
+  spec.claims = [];
+  spec.cuts[0].beats = [
+    { id: 'future', kind: 'broll', truthStatus: 'proposed',
+      narration: 'A future interface anticipates tomorrow’s work.',
+      broll: { provider: 'openai-image',
+        prompt: 'Photorealistic patient with clear face and fully readable futuristic care-planning dashboard',
+        depictsProductUI: true } },
+    { id: 'ask', kind: 'card', narration: 'Explore what could be possible.' },
+  ];
+  const result = lintSpec(spec, {}, { io: io(true) });
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
 });
 
-test('fictional actor metadata cannot authorize patient/minor scenes or fabricated product UI', () => {
-  const actor = { kind: 'fictional-adult', role: 'office coordinator', storyPurpose: 'Ground the viewer in an administrative workflow.', noRealPerson: true, noPatientOrMinor: true };
-  const a = validSpec();
-  a.cuts[0].beats.unshift({ id: 'patient', kind: 'broll', broll: { provider: 'openai-image', prompt: 'Adult doctor beside a child patient in the therapy room, no text', actor } });
-  assert.ok(lintSpec(a, {}, { io: io(true) }).errors.some(e => e.code === 'broll-people'));
-  const b = validSpec();
-  b.cuts[0].beats.unshift({ id: 'screen', kind: 'broll', broll: { provider: 'openai-image', prompt: 'A fabricated software dashboard from an ABA clinic with numbers, no text', actor } });
-  assert.ok(lintSpec(b, {}, { io: io(true) }).errors.some(e => e.code === 'broll-fake-ui'));
+test('a hypothetical product feature must not be represented as a verified current feature', () => {
+  const spec = validSpec();
+  spec.cuts[0].beats.unshift({ id: 'future', kind: 'broll', truthStatus: 'proposed',
+    narration: 'Tomorrow it automatically predicts every event.',
+    broll: { provider: 'openai-image', prompt: 'A complete synthetic future product dashboard with readable metrics', depictsProductUI: true } });
+  const r = lintSpec(spec, {}, { io: io(true) });
+  assert.ok(r.errors.some(e => e.code === 'representation'));
 });
