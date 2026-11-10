@@ -246,7 +246,19 @@
             "provider": { "enum": ["openai-image", "elevenlabs-video", "stock"] },
             "prompt": { "type": "string", "minLength": 10 },
             "file": { "type": "string" },
-            "quality": { "enum": ["low", "medium", "high"] }
+            "quality": { "enum": ["low", "medium", "high"] },
+            "actor": {
+              "type": "object", "additionalProperties": false,
+              "required": ["kind", "role", "storyPurpose", "noRealPerson", "noPatientOrMinor"],
+              "description": "Explicit opt-in for generic fictional adult story-setting b-roll; actual software proof must be real screen capture.",
+              "properties": {
+                "kind": { "enum": ["fictional-adult"] },
+                "role": { "type": "string", "minLength": 3 },
+                "storyPurpose": { "type": "string", "minLength": 12 },
+                "noRealPerson": { "const": true },
+                "noPatientOrMinor": { "const": true }
+              }
+            }
           }
         },
         "sfx": {
