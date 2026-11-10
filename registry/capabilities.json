@@ -1666,7 +1666,7 @@
         "prioritize",
         "plan-application"
       ],
-      "contentHash": "FC19ED9F63824B424EE8E41C65866B74E4880890B10B31601E8896F685B9F515",
+      "contentHash": "CE7CFC2DC941B271836DDFAC22BD39615F03B433AE360F0ECF20395A37389E45",
       "hashBasis": "packages/funding",
       "status": "active-canonical",
       "hostMappings": [

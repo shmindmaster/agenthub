@@ -1,47 +1,74 @@
 # Scoring
 
-Read when computing a score or a band.
+Read when computing a score, a band or a confidence level.
 
-All three scores run 0 to 100. Round to a whole number. Record the component ratings beside the total so a later run can see what moved.
+All three scores run 0 to 100. Round to a whole number. Record the component ratings beside the total so a later run can see what moved. No score is a probability of winning, and none is ever stated as one.
 
 ## 1. Product fit
 
-How well one product matches one opportunity.
+How well one product matches one opportunity. Screen eligibility first: an unverified fact is never treated as confirmed.
 
-Rate each fit criterion 0 to 5, multiply by its weight, and scale the weighted sum to 0 to 100. The criteria and weights are the ones recorded in the newest `Portfolio Funding Strategy` file. Reuse them unchanged so scores stay comparable between runs.
+Rate each criterion 0 to 5, then fit = sum of (rating / 5 x weight).
 
-If that file names the criteria without listing them, ask the owner for the list once, write it into the new strategy file under the matrix, and score from there. Do not invent criteria or weights, and leave `fit_score` empty until they are known.
+| Criterion | Weight |
+|---|---|
+| Funder mission and selection criteria alignment | 25 |
+| Technical innovation and differentiation | 15 |
+| Demonstrated implementation and readiness | 15 |
+| Market validation, traction and supporting evidence | 15 |
+| Historical winner and selection-pattern alignment | 10 |
+| Feasibility of closing gaps before the deadline | 10 |
+| Commercial, economic or social impact | 10 |
 
-Rate from recorded evidence. A criterion with no evidence scores 0, not a guess at the middle.
+Ratings: 0 none, 1 weak, 2 partial with major gaps, 3 good with manageable gaps, 4 strong and supported by evidence, 5 exceptional. Rate from recorded evidence, not from a product's description.
+
+These are baseline weights. When a funder publishes its own criteria, shift the weights toward them and write the change beside the score: research grants weigh innovation and research merit more, venture weighs traction, differentiation and scalability, social-impact funders weigh measurable benefit, technical competitions weigh innovation and the demo.
+
+Do not mark an early-stage product down merely for having fewer finished backlog items.
 
 ## 2. Strategic priority
 
-Whether the opportunity is worth the effort now.
+Whether the opportunity is worth the effort, scored after each opportunity is matched to its strongest eligible product. Normalize each component to 0 to 100.
 
-| Component | Weight | Rate 0 to 100 on |
+| Component | Weight | Rate on |
 |---|---|---|
 | Product fit | 60% | The fit score of the best product |
-| Net funding value | 20% | Cash after equity given up, fees, cost share, travel and the hours the application takes. Credits and in-kind support count only where they replace real spend |
-| Application feasibility | 10% | Whether the required artifacts, registrations and partners can exist by the deadline |
-| Long-term value | 10% | What a win or a serious attempt leaves behind: reusable narrative, a funder relationship, a credential |
+| Net funding value and terms | 20% | Value after dilution, restrictions, obligations, application cost and delivery cost. Credits and in-kind support count only where they replace real spend |
+| Application feasibility | 10% | Whether the required artifacts, registrations, partners and hours can exist by the deadline |
+| Long-term value | 10% | Commercial and portfolio value beyond the award: reusable narrative, a funder relationship, a credential |
 
-Bands: P1 is 85 and above, P2 is 70 to 84, P3 is 55 to 69, P4 is below 55.
+| Band | Score | Meaning |
+|---|---|---|
+| P1 | 85 to 100 | Pursue immediately |
+| P2 | 70 to 84 | Prepare and prioritize |
+| P3 | 55 to 69 | Monitor or selectively improve |
+| P4 | Below 55 | Deprioritize or skip |
 
-Confidence is separate from the score: High when every deciding fact is CONFIRMED, Medium when one is EXPECTED or FORECAST, Low when one is UNVERIFIED.
-
-Decisions follow the band and the calendar: apply, prepare (worth it, not yet reachable), monitor (terms or dates not published), or skip with a reopen condition.
+Deadline urgency changes the schedule, never the score.
 
 ## 3. Engineering reprioritization
 
 Whether a piece of engineering or preparation work should move up because funding depends on it.
 
-| Component | Weight | Rate 0 to 100 on |
-|---|---|---|
-| Funding impact | 35% | How many scored opportunities it unblocks or strengthens, weighted by their priority |
-| Commercial value | 25% | Whether customers need it regardless of any funder |
-| Feasibility | 25% | Effort and elapsed time against the nearest deadline it serves |
-| Reuse | 15% | Whether other products or applications can use the result |
+| Component | Weight |
+|---|---|
+| Direct impact on funding competitiveness | 35% |
+| Commercial and customer value | 25% |
+| Engineering feasibility, effort and deadline alignment | 25% |
+| Reuse across products and funding programs | 15% |
 
 Score a change only when a named opportunity depends on it. Work that serves no opportunity and no customer goes on the defer list without a score. Owner-only prerequisites, such as a registration or an ownership record, are listed with their lead time and marked as owner actions.
 
-A change that scores high on funding impact and low on commercial value is a warning, not a recommendation: say that it bends the product toward a funder.
+A recommendation never displaces a customer commitment or security, compliance or reliability work. A change that scores high on funding impact and low on customer value is a warning that it bends the product toward a funder; say so.
+
+## Confidence
+
+State one level beside every major recommendation, separate from the score.
+
+- High: program requirements verified and product evidence strong.
+- Medium: opportunity verified, supporting evidence incomplete.
+- Low: significant assumptions, or eligibility or readiness unresolved.
+
+## Categories
+
+Rank within a category before ranking across them: non-dilutive grants and research funding; equity and accelerators; pitch competitions and prizes; corporate innovation and technical challenges; hackathons and engineering awards; credits and strategic support.
