@@ -1,3 +1,5 @@
+import { creativeMode, inspectRepresentation } from './creative-modes.mjs';
+
 // Structural story gate for viewer-facing marketing cuts. Runs before any paid media calls.
 // This is not a semantic/cinematic review: the encoded-file critic still judges whether
 // the stated scenario, software mechanism and payoff are actually understandable on screen.
@@ -19,9 +21,15 @@ const meaningful = (v) => words(v).length >= 2 && !/^(?:tbd|n\/a|placeholder|tod
  * @returns {Array<{code:string,message:string,where:string}>}
  */
 export function inspectNarrativeArc(spec, cut, estimateBeatSeconds) {
+  const errors = inspectRepresentation(spec, cut);
+  // Verified product demos benefit from a strict prove-current-product spine.
+  // All other modes are intentionally flexible: a film can start at the
+  // climax, introduce its setting non-linearly, or depict speculative worlds.
+  // Art-of-possible, fictional, educational and documentary work gets truth
+  // labeling review but never an imposed 6-beat software-demo template.
+  if (creativeMode(spec) !== 'verified-demo') return errors;
   const duration = Number(cut.targetSeconds);
-  if (!(duration >= 10)) return []; // <10s micro-bumpers still have ordinary claim/readiness gates
-  const errors = [];
+  if (!(duration >= 10)) return errors; // Micro-bumpers retain ordinary gates.
   const add = (message, where = cut.id) => errors.push({ code: 'narrative-arc', message, where });
   const beats = Array.isArray(cut.beats) ? cut.beats : [];
   if (duration < 25) {
