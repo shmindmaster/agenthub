@@ -16,7 +16,7 @@ or stored: AZURE_OPENAI_ENDPOINT with AZURE_OPENAI_API_KEY (or an Entra token fr
 
 Prices are estimates and say so. Azure low and medium are quoted at the measured price plus 50% (about 1 and 2 cents); high is not measured yet, so it
 is quoted at the worst case from the gpt-image-1 list meters ($0.04 per 1K output tokens). The real usage from each response is recorded. Runware reports the cost of every picture.
-No text, logos or likenesses go in a generated picture: text is added by the kit.
+Realistic synthetic people (including children or patients), readable UI, logos and text are allowed when the approved scene calls for them; present-day product proof is a separate evidence contract.
 """
 from __future__ import annotations
 
@@ -70,8 +70,8 @@ AZURE_OUT_USD_PER_1K = 0.04
 AZURE_IN_USD_PER_1K = 0.01
 AZURE_PROMPT_TOKENS_UPPER = 400
 RUNWARE_USD_PER_IMAGE = 0.01  # measured 0.0062 for a 1536x1024 z-image on 2026-11-06; rounded up for the quote
-DEFAULT_STYLE = "Photorealistic editorial photograph, natural light, one clear subject, uncluttered composition."
-SAFETY = "No text, no letters, no logos, no watermarks, no recognisable real people."
+DEFAULT_STYLE = ""  # scene and optional visual bible dictate realism, style, age, text and composition
+SAFETY = ""  # do not inject adult-only, no-human, no-text or blur constraints into synthetic art
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
@@ -102,8 +102,8 @@ def estimate_usd(lane_id, size="1536x1024", quality="medium"):
 
 
 def compose_prompt(prompt, style=None):
-    """The subject, then the house style, then the rule that keeps text out of the picture."""
-    parts = [prompt.strip().rstrip(".") + ".", (style or DEFAULT_STYLE).strip(), SAFETY]
+    """Respect the requested scene and its visual bible; no hidden subject/style bans."""
+    parts = [prompt.strip().rstrip(".") + ".", (style if style is not None else DEFAULT_STYLE).strip()]
     return " ".join(p for p in parts if p)
 
 
