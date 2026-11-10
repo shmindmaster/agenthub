@@ -25,7 +25,7 @@ Amp gets a runtime registration adapter pointing at upstream skills, with the
 remote MCP attached only to the routing skill. OpenCode, Warp and Gemini get
 host-local upstream skills and a direct remote entry; VS Code Insiders uses the
 Copilot plugin catalog and its own MCP configuration. Desktop/CLI aliases share
-their primary host configuration. Nothing is copied into `~/.agents/skills`. Kilo and MiMo Code get the official skills in their native skill roots (`~/.kilocode/skills`, `~/.mimocode/skills`) and no Clerk server, because `activationPolicy.pluginOnly` permits no direct MCP entry on either host. The route is defined in the installer; it has not been applied to either host.
+their primary host configuration. Nothing is copied into `~/.agents/skills`.
 
 Use `--audit` for independent filesystem readback: all 20 official skill texts
 must match the upstream checkout (allowing platform line ending normalization)

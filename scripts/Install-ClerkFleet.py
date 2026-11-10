@@ -29,10 +29,7 @@ NATIVE = {
     "grok": [["grok", "plugin", "install", "{upstream}", "--trust"]],
     "antigravity": [["agy", "plugin", "install", "{upstream}"]],
 }
-BRIDGES = {"cursor", "cline", "amp", "opencode", "warp", "gemini", "vscode-insiders", "kilo", "mimo-code"}
-# Plugin-only hosts whose pluginOnly allowlist in registry/mcps.json permits no direct
-# MCP entry. They get the official skills in their native skill root and no Clerk server.
-SKILLS_ONLY = {"kilo": ".kilocode", "mimo-code": ".mimocode"}
+BRIDGES = {"cursor", "cline", "amp", "opencode", "warp", "gemini", "vscode-insiders"}
 ALIASES = {"cursor-agent": "cursor", "opencode-desktop": "opencode",
            "antigravity-desktop": "antigravity", "antigravity-ide": "antigravity"}
 
@@ -95,8 +92,7 @@ def audit(upstream, home):
         elif host in patterns:
             roots = list(home.glob(patterns[host]))
         else:
-            roots = [home / {"opencode": ".config/opencode", "warp": ".warp", "gemini": ".gemini",
-                             **SKILLS_ONLY}[host]]
+            roots = [home / {"opencode": ".config/opencode", "warp": ".warp", "gemini": ".gemini"}[host]]
         matches = []
         for root in roots:
             if all((root / "skills" / name / "SKILL.md").is_file() and hashlib.sha256(
@@ -121,9 +117,6 @@ def audit(upstream, home):
         rows[host] = {"matchingOfficialSkills": len(expected) if matches else 0,
                       "remoteConfigured": remote, "freshSession": "not verified",
                       "authenticatedMcp": "not verified"}
-        if host in SKILLS_ONLY:
-            rows[host].update({"remoteConfigured": None,
-                               "remotePolicy": "skills only: pluginOnly permits no direct MCP entry on this host"})
         if host == "cursor":
             path, rule = companion_rule(home)
             rows[host]["qaGuidanceConfigured"] = path.is_file() and path.read_text(encoding="utf-8-sig") == rule
@@ -223,13 +216,10 @@ def bridge(host, upstream, home):
         # own documented MCP config (the Clerk CLI's vscode target is stable VS Code).
         merge_mcp(Path(os.environ["APPDATA"]) / "Code - Insiders/User/mcp.json", "servers", disabled=False)
     else:
-        folders = {"opencode": ".config/opencode/skills", "warp": ".warp/skills", "gemini": ".gemini/skills",
-                   **{name: root + "/skills" for name, root in SKILLS_ONLY.items()}}
+        folders = {"opencode": ".config/opencode/skills", "warp": ".warp/skills", "gemini": ".gemini/skills"}
         for skill in (upstream / "skills").iterdir():
             if (skill / "SKILL.md").exists():
                 copy_official(skill, home / folders[host] / skill.name)
-        if host in SKILLS_ONLY:
-            return
         if host == "gemini":
             # The CLI installer declines undetected/unlicensed Gemini clients.
             # Settings can still be prepared; this does not establish a usable CLI.
@@ -270,9 +260,8 @@ def main():
     if args.audit:
         rows = audit(args.runtime / "upstream", Path.home())
         print(json.dumps(rows, indent=2))
-        raise SystemExit(0 if all(r["matchingOfficialSkills"] == 20
-                                 and (r["remoteConfigured"] or host in SKILLS_ONLY)
-                                 and r.get("qaGuidanceConfigured", True) for host, r in rows.items()) else 1)
+        raise SystemExit(0 if all(r["matchingOfficialSkills"] == 20 and r["remoteConfigured"]
+                                 and r.get("qaGuidanceConfigured", True) for r in rows.values()) else 1)
     hosts = sorted({ALIASES.get(h, h) for h in (args.host or [*NATIVE, *BRIDGES])})
     if not args.apply:
         print(json.dumps({"upstream": "https://github.com/clerk/skills", "hosts": hosts,
