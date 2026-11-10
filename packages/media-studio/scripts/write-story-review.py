@@ -148,6 +148,71 @@ def visual_text(visual) -> tuple[list[str], int]:
     return rows, len(words(" ".join(leaves(visual))))
 
 
+FLEXIBLE_MODES = {"hybrid", "future-vision", "concept-film", "fictional-story", "explainer",
+                  "documentary", "educational", "abstract"}
+FLEXIBLE_JUDGMENTS = ("audience", "form-fit", "visual-story", "representation")
+
+
+def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_path,
+                         craft_min, show=False):
+    """Form-aware *pre-capture* lint. Does not replace the encoded-film critic.
+
+    A visual poem, fictional family story or future-vision film is not a failed
+    six-beat product demo. Require specific reviewer evidence for its actual form
+    and keep the same score/evidence/report contract.
+    """
+    mode = job.get("creativeMode")
+    script_path = root / "story" / "screenplay.json"
+    board_path = root / "story" / "storyboard.json"
+    candidate = root.name + "@flexible:" + hashlib.sha256(
+        (sha(script_path) + sha(board_path)).encode()).hexdigest()[:16]
+    scenes = screenplay.get("scenes") or []
+    beats = storyboard.get("beats") or storyboard.get("episodes") or []
+    verdicts = load(judgments_path) if judgments_path.exists() else {}
+    judged = verdicts.get("judgments") or {}
+    missing = []
+    if not scenes and not beats:
+        missing.append("a screenplay scene or a storyboard visual beat")
+    if mode in {"hybrid", "future-vision", "concept-film"} and not (
+        job.get("conceptDisclosure") or screenplay.get("conceptDisclosure")):
+        missing.append("film-level conceptDisclosure to distinguish envisioned from current functionality")
+    for name in FLEXIBLE_JUDGMENTS:
+        item = judged.get(name) or {}
+        if item.get("verdict") not in ("pass", "fail", "n/a") or not str(item.get("evidence") or "").strip():
+            missing.append("creative judgment " + name + " with scene/frame-cited evidence")
+    checks = {name: (judged.get(name) or {}).get("verdict", "n/a") for name in FLEXIBLE_JUDGMENTS}
+    findings = []
+    for index, name in enumerate(FLEXIBLE_JUDGMENTS, 1):
+        item = judged.get(name) or {}
+        if item.get("verdict") == "fail":
+            findings.append({
+                "id": "FLEX-" + str(index), "severity": "major",
+                "location": item.get("location", "story"),
+                "evidence": item.get("evidence", "Creative form review failed"),
+                "fix": item.get("fix", "Revise the pictured scene or script for its declared format."),
+                "owner": item.get("owner", "media-writer")})
+    score = max(0, 100 - 15 * len(findings))
+    if missing:
+        result = {"status": "MALFORMED_INPUT", "candidateId": candidate, "pass": False,
+                  "missingEvidence": missing,
+                  "reason": "Form-aware review has missing inputs or reviewer judgments; no approval issued.",
+                  "checks": checks, "findings": findings, "reviseSceneIds": []}
+    else:
+        result = {"status": "COMPLETE", "candidateId": candidate,
+                  "score": score, "pass": score >= craft_min and not findings,
+                  "reason": "Pre-capture creative-form lint for " + mode
+                            + "; no mandatory product UI, adult-only actors, six-beat template,"
+                              " or fixed hero position. Encoded candidate still requires critic.",
+                  "checks": checks, "findings": findings, "reviseSceneIds": []}
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(result if show else {
+        "status": result["status"], "pass": result["pass"],
+        "mode": mode, "score": result.get("score"),
+        "missingEvidence": result.get("missingEvidence", [])}, ensure_ascii=False))
+    return 0 if result.get("pass") else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("job_root")
@@ -180,6 +245,8 @@ def main() -> int:
         return 1
 
     sp, sb = load(sp_p), load(sb_p)
+    if job.get("creativeMode") in FLEXIBLE_MODES:
+        return flexible_form_review(root, job, sp, sb, jd_p, out_p, craft_min, args.print)
     scenes = sp.get("scenes") or []
     ids = [s["id"] for s in scenes]
     judgments = load(jd_p) if jd_p.exists() else {}
