@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/model-specs/moments.json",
+  "description": "Where the recording needs help. An empty list is a valid answer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["moments"],
+  "properties": {
+    "moments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["beatId", "anchor", "actionLabel", "fromWord", "toWord", "reason", "note"],
+        "properties": {
+          "beatId": { "type": "string", "description": "A beat id from the cue sheet." },
+          "anchor": { "type": "string", "enum": ["action", "words"], "description": "action: actionLabel names a recorded action of the beat. words: fromWord and toWord index the beat's spoken words." },
+          "actionLabel": { "type": "string", "description": "The recorded action label when anchor is action, otherwise empty." },
+          "fromWord": { "type": "integer", "description": "First spoken word index in the beat (0-based). 0 when anchor is action." },
+          "toWord": { "type": "integer", "description": "Last spoken word index in the beat, inclusive. 0 when anchor is action." },
+          "reason": { "type": "string", "enum": ["pace", "jargon", "target", "offscreen", "wait", "other"], "description": "pace: a fast run of actions. jargon: a term used without explanation. target: a small or low-contrast target. offscreen: something important is out of frame. wait: a long wait." },
+          "note": { "type": "string", "description": "One short sentence for the reviewer." }
+        }
+      }
+    }
+  }
+}

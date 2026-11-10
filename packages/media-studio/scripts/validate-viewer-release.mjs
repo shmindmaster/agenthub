@@ -172,6 +172,20 @@ if (job.kind === 'product-screencast') {
   boundToCandidate(canonical(boundReport('qa/picture-integrity.json', 'media-studio/validate-picture-integrity', 'product footage must pass the picture-integrity gate (validate-picture-integrity.mjs): no stretch, upscale, crop, bars or undeclared zoom, each ratio captured at its own viewport'), 'qa/picture-integrity.json',
     [['scaleTolerance', 'max', 0.005], ['barVariance', 'min', 4], ['barMinPx', 'max', 6], ['ratioTolerance', 'max', 0.02]]), 'qa/picture-integrity.json');
 }
+// Model-written layers (skills/visuals/references/model-written-specs.md): a job that has plan/model-specs/ releases only
+// with a PASS from validate-model-specs.mjs bound to the cue sheet and to every layer file there. No directory, no change.
+const modelSpecsDir = join(root, 'plan', 'model-specs');
+if (existsSync(modelSpecsDir)) {
+  const specsRel = 'qa/model-specs-report.json';
+  const specs = boundReport(specsRel, 'media-studio/validate-model-specs', 'model-written layers must pass validate-model-specs.mjs (anchors, timing, nothing over the pointer, captions, untouched sources)');
+  boundToInput(specs, specsRel, ['cueSheet'], 'cue sheet');
+  if (existsSync(join(modelSpecsDir, 'fallback-needed.json'))) errors.push('plan/model-specs/fallback-needed.json lists a layer that still needs a fallback; a person writes a simpler kit visual, removes the entry and reruns validate-model-specs.mjs.');
+  if (specs) for (const layer of ['moments', 'overlays', 'captions', 'diagram']) {
+    if (!existsSync(join(modelSpecsDir, `${layer}.json`))) continue;
+    if (!specs.inputs?.[`layer-${layer}`]) errors.push(`${specsRel} did not check plan/model-specs/${layer}.json; rerun the gate.`);
+    else boundToInput(specs, specsRel, [`layer-${layer}`], `model-written ${layer} layer`);
+  }
+}
 // The feed test: marketing cuts fail closed below the marketing floor (validate-marketing-readiness.mjs owns the list).
 const MARKETING_FORMS = ['campaign-flagship', 'campaign-comparison', 'campaign-short', 'campaign-outreach', 'marketing-cutdown', 'social-clip', 'hero'];
 if (job.marketing === true || job.kind === 'teaser' || MARKETING_FORMS.includes(job.programForm)) {

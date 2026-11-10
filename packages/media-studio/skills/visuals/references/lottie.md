@@ -5,6 +5,7 @@ Read this when a beat wants small vector motion: a check landing, a pulse on the
 ## Roles
 
 - **Authoring:** the `diffusionstudio/lottie` skill (`text-to-lottie`, MIT) writes Lottie JSON from a description and previews it with Skottie. It is not a renderer and has no video export.
+- **Only here:** Lottie JSON comes only from this tooling, or from a hand-authored or licensed file. The model-written specs lane (`claude-haiku-specs`, `model-written-specs.md`) never writes Lottie JSON. Its short loops are kit scene specs, and it may place a mark from `kit/public/lottie/` by name.
 - **Playback in video:** the kit's `lottie` visual kind uses `@remotion/lottie` (lottie-web, headless Chromium, no GPU). That is the frame you judge.
 - **Not the same renderer:** Skottie and lottie-web can draw a file differently. Render a Remotion still of the scene and look at it before accepting an animation.
 

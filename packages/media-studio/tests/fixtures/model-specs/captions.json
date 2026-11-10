@@ -1,0 +1,48 @@
+{
+  "schema": "media-studio/model-specs/1",
+  "generator": "media-studio/generate-specs",
+  "layer": "captions",
+  "lane": "claude-haiku-specs",
+  "model": "claude-haiku-5-5",
+  "effort": "low",
+  "requestSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "createdAt": "2026-11-10T00:00:00+00:00",
+  "inputs": {
+    "cueSheet": {
+      "path": "plan/cue-sheet.json",
+      "sha256": "bound-by-the-test"
+    }
+  },
+  "output": {
+    "chunks": [
+      {
+        "beatId": "S01",
+        "fromWord": 0,
+        "toWord": 3,
+        "text": "Open the queue and",
+        "emphasis": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "beatId": "S01",
+        "fromWord": 4,
+        "toWord": 7,
+        "text": "pick the first request.",
+        "emphasis": [],
+        "note": ""
+      },
+      {
+        "beatId": "S02",
+        "fromWord": 0,
+        "toWord": 6,
+        "text": "Approve it, and the status turns green.",
+        "emphasis": [
+          5
+        ],
+        "note": ""
+      }
+    ]
+  }
+}

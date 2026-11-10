@@ -1,0 +1,42 @@
+{
+  "schema": "media-studio/model-specs/1",
+  "generator": "media-studio/generate-specs",
+  "layer": "overlays",
+  "lane": "claude-haiku-specs",
+  "model": "claude-haiku-5-5",
+  "effort": "low",
+  "requestSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "createdAt": "2026-11-10T00:00:00+00:00",
+  "inputs": {
+    "cueSheet": {
+      "path": "plan/cue-sheet.json",
+      "sha256": "bound-by-the-test"
+    }
+  },
+  "output": {
+    "overlays": [
+      {
+        "kind": "callout",
+        "beatId": "S01",
+        "anchor": "action",
+        "actionLabel": "Open queue",
+        "fromWord": 0,
+        "toWord": 0,
+        "region": "top-left",
+        "text": "Opens the queue",
+        "note": "Names the first click."
+      },
+      {
+        "kind": "term",
+        "beatId": "S02",
+        "anchor": "words",
+        "actionLabel": "",
+        "fromWord": 4,
+        "toWord": 4,
+        "region": "bottom-left",
+        "text": "Status: where a request stands",
+        "note": "First use of the term."
+      }
+    ]
+  }
+}

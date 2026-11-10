@@ -25,7 +25,7 @@ try {
     $syncSource = Get-Content -LiteralPath (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -Raw -Encoding utf8
     if ($syncSource -match 'Local-AI') { throw 'Sync-MediaStudioKit.ps1 still references the retired Local-AI runtime' }
     $checks++
-    foreach ($name in @('validate-word-sync.mjs','validate-storyboard.mjs','validate-capture-manifest.mjs','backfill-capture-receipt.mjs','validate-demo-scenario.mjs','validate-product-picture.mjs','validate-encoded-picture.mjs','validate-sync.mjs','build-cue-sheet.mjs','validate-viewer-release.mjs','validate-narration.mjs','validate-capture-preflight.mjs','validate-pointer-path.mjs','validate-frame-integrity.mjs','validate-picture-integrity.mjs','validate-marketing-readiness.mjs','speech-only-readiness.mjs','build-contact-sheet.mjs')) {
+    foreach ($name in @('validate-word-sync.mjs','validate-storyboard.mjs','validate-capture-manifest.mjs','backfill-capture-receipt.mjs','validate-demo-scenario.mjs','validate-product-picture.mjs','validate-encoded-picture.mjs','validate-sync.mjs','build-cue-sheet.mjs','validate-viewer-release.mjs','validate-narration.mjs','validate-capture-preflight.mjs','validate-pointer-path.mjs','validate-frame-integrity.mjs','validate-picture-integrity.mjs','validate-marketing-readiness.mjs','speech-only-readiness.mjs','build-contact-sheet.mjs','validate-model-specs.mjs','model-specs-resolve.mjs')) {
         $source = Join-Path (Join-Path $package 'scripts') $name
         foreach ($destination in @((Join-Path (Join-Path $runtimeKit 'screencast') $name), (Join-Path $shared $name))) {
             if (-not (Test-Path -LiteralPath $destination)) { throw "Missing runtime gate: $destination" }
@@ -33,6 +33,30 @@ try {
             $checks++
         }
     }
+    # The model-specs gate reads the model-facing schemas beside itself: deployed byte-for-byte next to both gate copies.
+    $modelSpecSchemas = @(Get-ChildItem -LiteralPath (Join-Path $package 'schemas\model-specs') -File -Filter '*.schema.json')
+    if ($modelSpecSchemas.Count -ne 4) { throw "Expected four model-facing schemas, found $($modelSpecSchemas.Count)" }
+    foreach ($schema in $modelSpecSchemas) {
+        foreach ($destination in @((Join-Path (Join-Path (Join-Path $runtimeKit 'screencast') 'model-specs-schemas') $schema.Name), (Join-Path (Join-Path $shared 'model-specs-schemas') $schema.Name))) {
+            if (-not (Test-Path -LiteralPath $destination)) { throw "Missing model-specs schema: $destination" }
+            if ((Get-FileHash -LiteralPath $schema.FullName).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) { throw "Stale model-specs schema: $destination" }
+            $checks++
+        }
+    }
+    # The deployed gate runs from _shared\tools: its resolver, the campaign helper and the schemas resolve there.
+    $specsJob = Join-Path $scratch 'model-specs-job'
+    $fixtures = Join-Path $package 'tests\fixtures\model-specs'
+    New-Item -ItemType Directory -Force -Path (Join-Path $specsJob 'plan\model-specs') | Out-Null
+    Copy-Item -LiteralPath (Join-Path $fixtures 'cue-sheet.json') -Destination (Join-Path $specsJob 'plan\cue-sheet.json')
+    $layer = Get-Content -LiteralPath (Join-Path $fixtures 'moments.json') -Raw -Encoding utf8 | ConvertFrom-Json
+    $layer.inputs.cueSheet.sha256 = (Get-FileHash -LiteralPath (Join-Path $specsJob 'plan\cue-sheet.json') -Algorithm SHA256).Hash.ToLowerInvariant()
+    $layer.output.moments = @()
+    [IO.File]::WriteAllText((Join-Path $specsJob 'plan\model-specs\moments.json'), ($layer | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
+    $gateOutput = (& node (Join-Path $shared 'validate-model-specs.mjs') $specsJob 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) { throw "Deployed validate-model-specs.mjs failed on a clean synthetic job: $gateOutput" }
+    $deployedReport = Get-Content -LiteralPath (Join-Path $specsJob 'qa\model-specs-report.json') -Raw -Encoding utf8 | ConvertFrom-Json
+    if ($deployedReport.generator -ne 'media-studio/validate-model-specs' -or $deployedReport.ok -ne $true) { throw "Deployed model-specs gate wrote an unexpected report: $gateOutput" }
+    $checks++
     foreach ($name in @('compose-screencast.mjs','render-overlay.mjs','render-code.mjs','render-html.mjs','render-card.mjs','record-job.mjs','record-lib.mjs','sync-lib.mjs')) {
         $source = Join-Path (Join-Path $package 'kit\screencast') $name
         $destination = Join-Path $shared $name

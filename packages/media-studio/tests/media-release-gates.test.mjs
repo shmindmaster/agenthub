@@ -332,6 +332,40 @@ test('release gate requires the video-standard reports bound to the script, rece
   writeFileSync(jobPath, JSON.stringify(base));
 });
 
+test('release gate requires the model-specs report only when the job has plan/model-specs/', () => {
+  const root = join(scratch, 'model-specs'); job(root); const candidate = release(root);
+  // A job with no model-written layers behaves exactly as before: the same pass, and the same failure with nothing new in it.
+  let result = run(releaseValidator, [root, candidate]);
+  assert.equal(result.code, 0, result.output);
+  assert.doesNotMatch(result.output, /model-specs/);
+  const evidencePath = join(root, 'qa', 'viewer-release-evidence.json'); const evidence = readFileSync(evidencePath, 'utf8');
+  rmSync(evidencePath);
+  result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.deepEqual(JSON.parse(result.output).errors, ['missing qa/viewer-release-evidence.json; skipped or quiet QA is not a release pass.']);
+  writeFileSync(evidencePath, evidence);
+  // plan/model-specs/ switches the requirement on.
+  const sheetPath = join(root, 'plan', 'cue-sheet.json'); const layerPath = join(root, 'plan', 'model-specs', 'overlays.json');
+  mkdirSync(dirname(layerPath), { recursive: true }); writeFileSync(sheetPath, JSON.stringify({ beats: [] })); writeFileSync(layerPath, JSON.stringify({ layer: 'overlays' }));
+  result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0); assert.match(result.output, /missing qa\/model-specs-report.json; model-written layers/);
+  const report = { generator: 'media-studio/validate-model-specs', ok: true, errors: [], warnings: [], inputs: { cueSheet: { path: 'plan/cue-sheet.json', sha256: sha(sheetPath) }, 'layer-overlays': { path: 'plan/model-specs/overlays.json', sha256: sha(layerPath) } } };
+  const reportPath = join(root, 'qa', 'model-specs-report.json');
+  writeFileSync(reportPath, JSON.stringify(report));
+  result = run(releaseValidator, [root, candidate]); assert.equal(result.code, 0, result.output);
+  writeFileSync(reportPath, JSON.stringify({ ...report, ok: false, errors: ['overlays[0]: covers the pointer'] }));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /model-specs-report.json must be a PASS/);
+  writeFileSync(reportPath, JSON.stringify(report));
+  writeFileSync(layerPath, JSON.stringify({ layer: 'overlays', edited: true }));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /model-specs-report.json is stale: plan\/model-specs\/overlays.json changed/);
+  writeFileSync(layerPath, JSON.stringify({ layer: 'overlays' }));
+  writeFileSync(join(root, 'plan', 'model-specs', 'captions.json'), JSON.stringify({ layer: 'captions' }));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /model-specs-report.json did not check plan\/model-specs\/captions.json/);
+  rmSync(join(root, 'plan', 'model-specs', 'captions.json'));
+  writeFileSync(join(root, 'plan', 'model-specs', 'fallback-needed.json'), JSON.stringify({ entries: [{ layer: 'diagram', reason: 'refusal' }] }));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /fallback-needed.json lists a layer that still needs a fallback/);
+});
+
 test('release gate holds marketing cuts to the marketing floor', () => {
   const root = join(scratch, 'marketing-floor'); job(root); const candidate = release(root);
   const jobPath = join(root, 'job.json'); const base = JSON.parse(readFileSync(jobPath, 'utf8'));

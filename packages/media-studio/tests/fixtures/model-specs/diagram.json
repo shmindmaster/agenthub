@@ -1,0 +1,33 @@
+{
+  "schema": "media-studio/model-specs/1",
+  "generator": "media-studio/generate-specs",
+  "layer": "diagram",
+  "lane": "claude-haiku-specs",
+  "model": "claude-haiku-5-5",
+  "effort": "low",
+  "requestSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "createdAt": "2026-11-10T00:00:00+00:00",
+  "inputs": {
+    "cueSheet": {
+      "path": "plan/cue-sheet.json",
+      "sha256": "bound-by-the-test"
+    }
+  },
+  "output": {
+    "diagrams": [
+      {
+        "beatId": "S02",
+        "toBeatId": "S02",
+        "anchor": "words",
+        "actionLabel": "",
+        "fromWord": 0,
+        "toWord": 1,
+        "format": "mermaid",
+        "source": "flowchart LR\n  Pending --> Approved",
+        "caption": "A request moves from pending to approved.",
+        "placement": "left-panel",
+        "note": ""
+      }
+    ]
+  }
+}

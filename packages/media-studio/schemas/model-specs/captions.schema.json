@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/model-specs/captions.json",
+  "description": "Caption chunk boundaries and emphasis by word index. Never times: the aligner owns timing.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chunks"],
+  "properties": {
+    "chunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["beatId", "fromWord", "toWord", "text", "emphasis", "note"],
+        "properties": {
+          "beatId": { "type": "string", "description": "A beat id from the cue sheet." },
+          "fromWord": { "type": "integer", "description": "First spoken word index in the beat (0-based)." },
+          "toWord": { "type": "integer", "description": "Last spoken word index in the beat, inclusive." },
+          "text": { "type": "string", "description": "The spoken words fromWord to toWord, in order. Punctuation and line breaks may change; words may not." },
+          "emphasis": { "type": "array", "items": { "type": "integer" }, "description": "Word indexes inside this chunk to emphasise. May be empty." },
+          "note": { "type": "string", "description": "One short sentence for the reviewer, or empty." }
+        }
+      }
+    }
+  }
+}

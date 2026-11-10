@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/model-specs/diagram.json",
+  "description": "Supporting diagrams as Mermaid or D2 source, each with a one-sentence caption and the beat range it supports. An empty list is a valid answer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["diagrams"],
+  "properties": {
+    "diagrams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["beatId", "toBeatId", "anchor", "actionLabel", "fromWord", "toWord", "format", "source", "caption", "placement", "note"],
+        "properties": {
+          "beatId": { "type": "string", "description": "The beat the diagram enters on." },
+          "toBeatId": { "type": "string", "description": "The last beat the diagram supports. Equal to beatId for one beat." },
+          "anchor": { "type": "string", "enum": ["action", "words"], "description": "Where in beatId it enters. action: actionLabel names a recorded action. words: fromWord and toWord index the beat's spoken words." },
+          "actionLabel": { "type": "string", "description": "The recorded action label when anchor is action, otherwise empty." },
+          "fromWord": { "type": "integer", "description": "First spoken word index in beatId (0-based). 0 when anchor is action." },
+          "toWord": { "type": "integer", "description": "Last spoken word index in beatId, inclusive. 0 when anchor is action." },
+          "format": { "type": "string", "enum": ["mermaid", "d2"] },
+          "source": { "type": "string", "description": "The diagram source. About 7 to 12 nodes, labels of a few words." },
+          "caption": { "type": "string", "description": "One sentence. It doubles as alt text." },
+          "placement": { "type": "string", "enum": ["left-panel", "right-panel", "top-right", "bottom-right", "fullscreen"], "description": "A side panel or picture-in-picture. fullscreen only at a natural pause with no action." },
+          "note": { "type": "string", "description": "One short sentence for the reviewer." }
+        }
+      }
+    }
+  }
+}

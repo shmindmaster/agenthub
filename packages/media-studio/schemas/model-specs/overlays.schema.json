@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/model-specs/overlays.json",
+  "description": "Callouts, step captions, term cards, zoom regions and chapter cards over the real recording. An empty list is a valid answer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["overlays"],
+  "properties": {
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "beatId", "anchor", "actionLabel", "fromWord", "toWord", "region", "text", "note"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["callout", "step", "term", "zoom", "chapter"] },
+          "beatId": { "type": "string", "description": "A beat id from the cue sheet." },
+          "anchor": { "type": "string", "enum": ["action", "words"], "description": "action: actionLabel names a recorded action of the beat. words: fromWord and toWord index the beat's spoken words." },
+          "actionLabel": { "type": "string", "description": "The recorded action label when anchor is action, otherwise empty." },
+          "fromWord": { "type": "integer", "description": "First spoken word index in the beat (0-based). 0 when anchor is action." },
+          "toWord": { "type": "integer", "description": "Last spoken word index in the beat, inclusive. 0 when anchor is action." },
+          "region": { "type": "string", "enum": ["top-left", "top-right", "bottom-left", "bottom-right", "left-panel", "right-panel", "lower-third"], "description": "A free region of the frame. For a zoom, the region of the footage to magnify." },
+          "text": { "type": "string", "description": "A few words. Empty for a zoom." },
+          "note": { "type": "string", "description": "One short sentence for the reviewer." }
+        }
+      }
+    }
+  }
+}

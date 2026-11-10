@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "1.0.0",
+  "generator": "media-studio/record-job",
+  "clips": {
+    "C1": {
+      "file": "clips/C1.webm",
+      "segments": [
+        "S01",
+        "S02"
+      ],
+      "sha256": "bound-by-the-test",
+      "clipSeconds": 12,
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "deviceScaleFactor": 2,
+      "recast": "noZoom",
+      "actionClock": "recording-start",
+      "recastHeadTrimSeconds": 0,
+      "recastHeadTrimMethod": "synthetic fixture",
+      "actions": [
+        {
+          "t": 0.2,
+          "type": "goto",
+          "url": "http://synthetic.localhost/queue"
+        },
+        {
+          "t": 0.7,
+          "type": "move",
+          "x": 600,
+          "y": 420
+        },
+        {
+          "t": 0.9,
+          "type": "move",
+          "x": 780,
+          "y": 490
+        },
+        {
+          "t": 1.26,
+          "type": "click",
+          "x": 800,
+          "y": 500,
+          "label": "Open queue",
+          "target": "Open queue",
+          "tStart": 1.2
+        },
+        {
+          "t": 1.6,
+          "type": "move",
+          "x": 810,
+          "y": 520
+        },
+        {
+          "t": 1.8,
+          "type": "move",
+          "x": 818,
+          "y": 536
+        },
+        {
+          "t": 2.06,
+          "type": "click",
+          "x": 820,
+          "y": 540,
+          "label": null,
+          "target": "first row",
+          "tStart": 2
+        },
+        {
+          "t": 6.1,
+          "type": "move",
+          "x": 1000,
+          "y": 420
+        },
+        {
+          "t": 6.3,
+          "type": "move",
+          "x": 1180,
+          "y": 310
+        },
+        {
+          "t": 6.56,
+          "type": "click",
+          "x": 1200,
+          "y": 300,
+          "label": "Approve",
+          "target": "Approve",
+          "tStart": 6.5
+        },
+        {
+          "t": 7,
+          "type": "expect",
+          "label": "Status reads Approved"
+        }
+      ],
+      "expectations": [
+        {
+          "label": "Status reads Approved",
+          "observed": true,
+          "at": 6.6,
+          "observedAt": 7,
+          "state": "visible",
+          "alreadyVisible": false,
+          "targetBox": {
+            "x": 1100,
+            "y": 280,
+            "w": 220,
+            "h": 40
+          }
+        }
+      ],
+      "beats": [],
+      "error": null,
+      "valid": true
+    }
+  }
+}

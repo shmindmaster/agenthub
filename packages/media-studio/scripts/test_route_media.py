@@ -50,6 +50,15 @@ class Routing(unittest.TestCase):
         self.assertIn("model-written-specs.md", lane["how"])
         self.assertIn("never replaces them", lane["notes"])
         self.assertNotIn("claude-haiku-specs", [l["id"] for l in r.route(POLICY, ["screen", "product", "screencast"])])
+        for words in ("scripts/generate_specs.py", "--run", "qa/spend-ledger.jsonl", "validate-model-specs.mjs"):
+            self.assertIn(words, lane["how"])
+
+    def test_one_lottie_rule_in_both_lanes(self):
+        specs = next(l for l in POLICY["lanes"] if l["id"] == "claude-haiku-specs")
+        lottie = next(l for l in POLICY["lanes"] if l["id"] == "lottie-via-remotion")
+        self.assertIn("never writes Lottie JSON", specs["notes"])
+        self.assertIn("claude-haiku-specs never writes Lottie JSON", lottie["how"])
+        self.assertIn("lottie.md", lottie["how"])
 
     def test_every_lane_has_a_known_mode_and_the_catalog_lists_every_lane(self):
         for l in POLICY["lanes"]:

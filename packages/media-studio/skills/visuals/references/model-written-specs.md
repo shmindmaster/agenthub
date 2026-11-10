@@ -2,7 +2,7 @@
 
 Read this when a film needs diagrams, animated words, staged explainers or scene-setting pictures that are not a captured screen, and there are more of them than is sensible to write by hand, or they come from a large context such as a codebase, a transcript or a screen recording.
 
-The lane is `claude-haiku-specs` in `policy/provider-routing.json`. It is optional. A handful of pictures is still quicker to write straight into the kit.
+The lane is `claude-haiku-specs` in `policy/provider-routing.json`. It is optional. A handful of pictures is still quicker to write straight into the kit. The adapter is `scripts/generate_specs.py`, the resolver `scripts/model-specs-resolve.mjs` and the gate `scripts/validate-model-specs.mjs`.
 
 ## It adds to the recording; it never replaces it
 
@@ -45,6 +45,51 @@ Text stays real text, so it is legible and checkable. A bad result is fixed by e
 | Word timing | The aligner (`../../review/references/word-clocks.md`) | The model cannot hear audio. It returns word indexes, never times. |
 | Does it look right | A person on a sample, then the gates | Taste first, scale second. |
 
+## Run the adapter
+
+Quote first, then spend. Without `--run` nothing is sent and nothing is written.
+
+```powershell
+python scripts/generate_specs.py <jobRoot>                         # quote the default layer, moments
+python scripts/generate_specs.py <jobRoot> --run                   # send it; review plan/model-specs/moments.json
+python scripts/generate_specs.py <jobRoot> --layers overlays,captions,diagram                # quote the visual layers
+python scripts/generate_specs.py <jobRoot> --layers overlays,captions,diagram --run --max-usd 0.50
+node scripts/validate-model-specs.mjs <jobRoot>                    # the gate; writes qa/model-specs-report.json
+node scripts/model-specs-resolve.mjs <jobRoot>                     # timed graphics for the renderer
+```
+
+- **Layers**, one request and one schema each (`schemas/model-specs/`): `moments` (where help is needed, with a reason; an empty list is a valid answer), `overlays` (callouts, step captions, term cards, zoom regions, chapter cards in a named region), `captions` (chunk boundaries and emphasis by word index, never times), `diagram` (Mermaid or D2 source as a string, a one-sentence caption and the beat range it supports).
+- **Inputs** come from what the pipeline already records: `plan/cue-sheet.json` (each beat's spoken words with aligner times, labelled actions with program times, expected UI state) and, optionally, `story/model-specs-brief.json` with `{"style": "...", "examples": {"<layer>": [...]}}`, the house style and worked examples the producing agent wrote and the owner approved. Only text is sent; no frames.
+- **Moments first.** The default layer is `moments`. A person reviews `plan/model-specs/moments.json` and sets `"approvedBy"` in it; from then on the overlays and diagram requests carry only the approved moments.
+- **Request:** model `claude-haiku-5-5` (`--model`), effort `low` (`--effort medium` for messy source), structured outputs with the layer's schema, `max_tokens` four times the expected output, the reusable rules, style and examples first in a cached system block and the beat data last. No `temperature`, `top_p`, `top_k` or prefill.
+- **Never pays twice:** the request hash covers model, system prefix, schema, beat data, effort and `max_tokens`. An answer is cached in `plan/model-specs/cache/<hash>.json`; an identical request is served from it.
+- **Ledger:** one line per request in `qa/spend-ledger.jsonl` (`kind` `spec`, lane, layer, model, effort, attempt, stop reason, usage, dollars from the usage, request and prompt hashes, output file hash). `--max-usd` (default 0.50) refuses a run whose quote is over it, and refuses a retry that would pass it.
+- **Stop reasons:** a refusal is recorded and never resent unchanged. Truncation at `max_tokens` is retried once with twice the room. An answer that fails the schema or the anchor, caption-word or length checks is retried once with the errors in the message. After that the layer goes into `plan/model-specs/fallback-needed.json` and the exit is non-zero: a person writes a simpler kit visual, then removes the entry. Never a silent fallback.
+- **Key:** read by name from `ANTHROPIC_API_KEY_BACKUP` (`--key-env` names another variable) and sent in the request header. The tool refuses to start with `--key-env ANTHROPIC_ADMIN_KEY` or `ANTHROPIC_API_KEY`. The value is never printed or stored.
+
+## Anchors
+
+Every generated item carries `beatId` from the cue sheet plus either an action label recorded in that beat (`anchor: "action"`, timed by its program `action_time`) or a range of that beat's word indexes (`anchor: "words"`, timed by the aligner's words). Captions are always a word range. A diagram also names `toBeatId`, the last beat it supports. The model never writes a time or a pixel.
+
+`scripts/model-specs-resolve.mjs` places items deterministically. An action anchor runs from 0.2 s before the action to 2.5 s after it; a word anchor from the first word's start to the last word's end, at least 1.5 s; both are trimmed to the beat's screen slot, and a diagram runs to the end of `toBeatId`. Regions are a fixed vocabulary on the delivery frame (`job.json` `deliveryProfile`, or `--frame`), inside a 4% margin: `top-left`, `top-right`, `bottom-left`, `bottom-right` (30% by 16%), `left-panel`, `right-panel` (32% wide), `lower-third`, and `fullscreen` for a diagram only. The output is overlays in `schemas/timed-graphics.schema.json`, the unchanged renderer contract. Anything it cannot place (an unknown beat or action, a word range outside the beat, an action with no program time) is rejected, never guessed.
+
+## The gate and the job convention
+
+**A job has model-written layers when it has a `plan/model-specs/` directory.** `generate_specs.py --run` creates it. Then `validate-viewer-release.mjs` requires `qa/model-specs-report.json` as a PASS from `validate-model-specs.mjs`, bound to the cue sheet and to every layer file in that directory. A job without the directory releases exactly as before.
+
+`validate-model-specs.mjs` lists each check as performed, or as not performed with the reason:
+
+1. Layer files: from the adapter, valid against their schemas, generated from the current cue sheet, no pending fallback.
+2. Anchors: every item names a beat in the cue sheet and an action label or word range of that beat.
+3. Timing: resolved times sit inside the anchored beat (a diagram: from `beatId` to `toBeatId`).
+4. Geometry: no overlay rectangle, padded by 24 px, covers the pointer, the active element or the next click target, read from `capture/receipt.json`. A zoom is a crop of the footage, not a covering layer. A fullscreen insert must sit at a pause with no recorded action. Where the receipt has no geometry for an item the report says `not checked: no geometry in receipt`; it never passes silently.
+5. One explanatory overlay at a time besides captions; a fullscreen insert never shares the frame with an overlay.
+6. Captions: the words equal the aligned transcript words by index (punctuation may change), each word once.
+7. Sources: the recording equals the receipt's `sha256`, and each beat's audio equals the take hash in its aligner report.
+8. Density: the share of runtime with any overlay and with a fullscreen insert, warned above half.
+
+What the receipt holds today: `click` and `tap` events carry the pointer position (`x`, `y`) but no element box; `point`, `fill` and `select` events carry `targetBox`; `type` events carry neither; observed expectations carry the result element's `targetBox`. Coordinates are recorded-video pixels, mapped to the frame by uniform fit. Recast's punch-in zoom is not modelled, which is why the padding exists.
+
 ## Format by job
 
 Pick the highest-level format that can say it. It costs fewer tokens and makes fewer errors.
@@ -56,9 +101,11 @@ Pick the highest-level format that can say it. It costs fewer tokens and makes f
 | Animated words | Caption chunks and emphasis words by word index | the caption layer |
 | A chart | Chart config only: type, series names, the one highlight | `chart`, `stat` (data goes to the renderer directly) |
 | An annotated screen recording | Chapters, step captions, callouts, zoom regions | overlays on `screen-in-context` |
-| A short loop | A scene spec whose last frame matches the first | `lottie` or a kit scene |
+| A short loop | A kit scene spec whose last frame matches the first | a kit scene; an existing Lottie mark may be placed by name |
 
-Do not ask for raw coordinates: give named slots or regions and let code place things. Do not ask for Lottie JSON. Do not run model-written render code unreviewed.
+Do not ask for raw coordinates: give named slots or regions and let code place things. Do not run model-written render code unreviewed.
+
+This lane never writes Lottie JSON. A short loop from it is a kit scene spec. Lottie marks come only from the lottie lane's own tooling (`lottie.md`) and may be placed by name, for example `lottie/check.json`.
 
 ## Budgets to state in the prompt
 
@@ -103,17 +150,25 @@ Model output is untrusted input to the renderer.
 4. The gates in `SKILL.md`, then the contact sheet, looked at.
 5. Augmentation check: the source recording and audio are byte-identical to the originals, every generated item carries a source timestamp, and turning every generated layer off still leaves a complete, watchable film.
 
-One retry with the validation error in the prompt, then a simpler kit visual written by hand. Never let a missing or invalid spec silently produce a different picture: log it and list it. A refusal is not resent unchanged.
+`validate-model-specs.mjs` does step 1, step 2 except compiling the diagram source, and the hash and anchor parts of step 5; the render, the diagram compile, the contact sheet and the layers-off viewing stay with the kit and a person. One retry with the validation error in the prompt, then a simpler kit visual written by hand. Never let a missing or invalid spec silently produce a different picture: log it and list it. A refusal is not resent unchanged.
+
+## Explaining a codebase
+
+The compact code map comes from RepoWise at a pinned commit, never from a working tree or from the model's memory: the files, symbols and call paths the question needs, and nothing else. The diagram is written from that map. When the film shows the code itself, the code stage (`kit/code-stage/README.md`) records it: files are read from git objects at the resolved commit, and `capture/code-stage/receipt.json` holds the commit, each file's sha256 and blob id and a hash per shown line, re-checked later by `verify-receipt.mjs`. That receipt keeps the diagram truthful: every node and edge names something at the same commit, and a diagram that names code the receipt does not hold goes back for review. This is guidance only; nothing in this lane reads a repository.
+
+## Prompts and examples in this package
+
+Product-specific prompts, house styles and worked examples do not go in this public package. They live in the gitignored personal overlay with the product's other material. This package ships only neutral synthetic examples, such as the fixtures in `tests/fixtures/model-specs/`.
 
 ## Keys and privacy
 
-- Model calls use the key named in the lane (`ANTHROPIC_API_KEY_BACKUP`), passed explicitly; SDKs read `ANTHROPIC_API_KEY` by default.
+- Model calls use the key named in the lane (`ANTHROPIC_API_KEY_BACKUP`), passed explicitly; SDKs read `ANTHROPIC_API_KEY` by default, so `generate_specs.py` refuses that name.
 - An Admin key (`ANTHROPIC_ADMIN_KEY`) is never used for generation. Its only use here is reporting what a run cost. Keep it off render workers.
 - Workers that only render get no key: generate specs first, then ship specs.
 - Frames may hold credentials or personal data. Send synthetic or redacted frames only. Batch requests are stored for up to 29 days.
 
 ## Cost
 
-Per million tokens on prompts up to 100,000 tokens: input $0.10, output $0.50 (thinking included), half that in batch, cache reads $0.01. A 2,000-token spec is about a tenth of a cent. Rendering and review time cost more than the model. Record the actual spend in `qa/spend-ledger.jsonl`.
+Per million tokens on prompts up to 100,000 tokens: input $0.10, output $0.50 (thinking included), half that in batch, cache reads $0.01. A 2,000-token spec is about a tenth of a cent. Rendering and review time cost more than the model. `generate_specs.py` records the actual spend from each response's usage in `qa/spend-ledger.jsonl`. Its quote is an upper bound (every input token uncached, every allowed output token spent). Cache writes are priced at 1.25 times input, an assumption: the lane note does not state that rate.
 
 Prices and model limits were read from the Claude Platform documentation on 2026-11-10. Callout accuracy from screenshots and per-image token cost are not measured here: measure before a large run.

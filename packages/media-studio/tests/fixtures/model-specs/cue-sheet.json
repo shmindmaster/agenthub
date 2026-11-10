@@ -1,0 +1,192 @@
+{
+  "generator": "media-studio/build-cue-sheet",
+  "schemaVersion": "1.0.0",
+  "voiceFirst": true,
+  "mode": "mapped",
+  "durationSeconds": 12,
+  "inputs": {},
+  "precision": {
+    "allWordLevel": true,
+    "degradedBeats": []
+  },
+  "edl": [],
+  "warnings": [],
+  "errors": [],
+  "beats": [
+    {
+      "beat": "S01",
+      "t_start": 0.4,
+      "t_end": 2.85,
+      "slot_start": 0,
+      "slot_end": 6,
+      "narration": {
+        "text": "Open the queue and pick the first request.",
+        "words": [
+          {
+            "w": "Open",
+            "start": 0.4,
+            "end": 0.65
+          },
+          {
+            "w": "the",
+            "start": 0.7,
+            "end": 0.95
+          },
+          {
+            "w": "queue",
+            "start": 1,
+            "end": 1.25
+          },
+          {
+            "w": "and",
+            "start": 1.3,
+            "end": 1.55
+          },
+          {
+            "w": "pick",
+            "start": 1.6,
+            "end": 1.85
+          },
+          {
+            "w": "the",
+            "start": 1.9,
+            "end": 2.15
+          },
+          {
+            "w": "first",
+            "start": 2.2,
+            "end": 2.45
+          },
+          {
+            "w": "request.",
+            "start": 2.5,
+            "end": 2.75
+          }
+        ],
+        "precision": "word",
+        "source": "voice/align/S01.json"
+      },
+      "screen": {
+        "clip": "C1",
+        "kind": "screen",
+        "file": "capture/clips/C1.webm",
+        "visible_from": 0,
+        "visible_until": 12,
+        "changes_from_previous": true
+      },
+      "actions": [
+        {
+          "kind": "click",
+          "label": "Open queue",
+          "target": "Open queue",
+          "narrated": true,
+          "receipt_event_index": 3,
+          "clip_time": 1.2,
+          "cursor": {
+            "x": 800,
+            "y": 500
+          },
+          "action_time": 1.2
+        },
+        {
+          "kind": "click",
+          "label": null,
+          "target": "first row",
+          "narrated": false,
+          "receipt_event_index": 6,
+          "clip_time": 2,
+          "cursor": {
+            "x": 820,
+            "y": 540
+          },
+          "action_time": 2
+        }
+      ],
+      "result": null,
+      "expected_ui_state": "The queue lists two requests",
+      "camera": "static",
+      "transition": "fade-in"
+    },
+    {
+      "beat": "S02",
+      "t_start": 6.2,
+      "t_end": 8.05,
+      "slot_start": 6,
+      "slot_end": 12,
+      "narration": {
+        "text": "Approve it and the status turns green.",
+        "words": [
+          {
+            "w": "Approve",
+            "start": 6.2,
+            "end": 6.45
+          },
+          {
+            "w": "it",
+            "start": 6.5,
+            "end": 6.75
+          },
+          {
+            "w": "and",
+            "start": 6.8,
+            "end": 7.05
+          },
+          {
+            "w": "the",
+            "start": 7.1,
+            "end": 7.35
+          },
+          {
+            "w": "status",
+            "start": 7.4,
+            "end": 7.65
+          },
+          {
+            "w": "turns",
+            "start": 7.7,
+            "end": 7.95
+          },
+          {
+            "w": "green.",
+            "start": 8,
+            "end": 8.25
+          }
+        ],
+        "precision": "word",
+        "source": "voice/align/S02.json"
+      },
+      "screen": {
+        "clip": "C1",
+        "kind": "screen",
+        "file": "capture/clips/C1.webm",
+        "visible_from": 0,
+        "visible_until": 12,
+        "changes_from_previous": false
+      },
+      "actions": [
+        {
+          "kind": "click",
+          "label": "Approve",
+          "target": "Approve",
+          "narrated": true,
+          "receipt_event_index": 9,
+          "clip_time": 6.5,
+          "cursor": {
+            "x": 1200,
+            "y": 300
+          },
+          "action_time": 6.5
+        }
+      ],
+      "result": {
+        "label": "Status reads Approved",
+        "receipt_expectation_index": 0,
+        "clip_time": 7,
+        "visible_at": 7
+      },
+      "expected_ui_state": "Status reads Approved",
+      "camera": "static",
+      "transition": "continuous"
+    }
+  ]
+}

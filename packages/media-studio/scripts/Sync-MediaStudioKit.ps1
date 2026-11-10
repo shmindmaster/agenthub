@@ -150,7 +150,9 @@ if (Test-Path -LiteralPath $marketingSource) {
 $gateScripts = @('queue-qwen-alignment-clock.mjs', 'derived-audio-clock.mjs', 'hosted-alignment-clock.mjs', 'validate-edit-map.mjs', 'edit-map-clock.mjs', 'validate-word-sync.mjs', 'validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
     # video standard (2026-10-20): record-job.mjs resolves validate-capture-preflight.mjs from _shared\tools; the rest are the release gates the skills cite
     'validate-narration.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'speech-only-readiness.mjs', 'build-contact-sheet.mjs',
-    'picture-gates.mjs', 'piecewise-capture-clock.mjs', 'physical-result-observations.mjs', 'final-encoder-transform.mjs', 'product-panel-geometry.mjs', 'action-result-review.mjs', 'validate-picture-inputs.mjs', 'render-program.mjs', 'lock-facts.mjs', 'write-captions.mjs', 'merge-designed-cuts.mjs')
+    'picture-gates.mjs', 'piecewise-capture-clock.mjs', 'physical-result-observations.mjs', 'final-encoder-transform.mjs', 'product-panel-geometry.mjs', 'action-result-review.mjs', 'validate-picture-inputs.mjs', 'render-program.mjs', 'lock-facts.mjs', 'write-captions.mjs', 'merge-designed-cuts.mjs',
+    # model-written layers (SH-4317): the gate and its resolver; the gate reads the model-facing schemas from model-specs-schemas beside it
+    'validate-model-specs.mjs', 'model-specs-resolve.mjs')
 $sharedTools = Join-Path (Join-Path (Split-Path -Parent $RuntimeKit) '_shared') 'tools'
 New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null
 foreach ($name in $gateScripts) {
@@ -158,6 +160,12 @@ foreach ($name in $gateScripts) {
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical gate missing: $from" }
     Copy-Item -LiteralPath $from -Destination (Join-Path (Join-Path $RuntimeKit 'screencast') $name) -Force
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
+}
+$modelSpecSchemas = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '..\schemas\model-specs') -File -Filter '*.schema.json')
+if ($modelSpecSchemas.Count -eq 0) { throw 'Canonical model-specs schemas missing: schemas\model-specs' }
+foreach ($destination in @((Join-Path (Join-Path $RuntimeKit 'screencast') 'model-specs-schemas'), (Join-Path $sharedTools 'model-specs-schemas'))) {
+    New-Item -ItemType Directory -Force -Path $destination | Out-Null
+    foreach ($schema in $modelSpecSchemas) { Copy-Item -LiteralPath $schema.FullName -Destination (Join-Path $destination $schema.Name) -Force }
 }
 foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
     $from = Join-Path (Join-Path $packageKit 'screencast') $name
@@ -216,6 +224,7 @@ if (Test-Path -LiteralPath $gate) {
 $managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs') +
     @($mediaHelpers) +
     @('Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs', 'demo-stack.mjs', 'plugin.json', 'RELEASE-EVIDENCE.md', 'write-story-review.py',
+    'model-specs-schemas',  # the model-facing schemas validate-model-specs.mjs reads beside itself
     'node_modules')  # node_modules is the capture-lib dependency link the screencast tools resolve from, not a script
 $unmanaged = @(Get-ChildItem -LiteralPath $sharedTools -Force | Where-Object { $_.Name -notin $managedTools } | ForEach-Object Name)
 if ($unmanaged.Count -gt 0) {
