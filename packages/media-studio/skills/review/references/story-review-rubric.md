@@ -6,6 +6,20 @@ Before capture: `validate-narration.mjs <jobRoot>`, then `python write-story-rev
 
 ## Checks
 
+The 12-word hook, one-hero after scene three, before-state, mandatory
+trust/proof scene, product CTA and pointer rules below are the
+**verified-demo rubric**, not universal filmmaking requirements.
+For `creativeMode` `hybrid`, `future-vision`, `concept-film`,
+`fictional-story`, `explainer`, `documentary`, `educational`
+or `abstract`, the screenplay's `write-story-review.py` path
+requires separately evidenced reviewer judgments `audience`,
+`form-fit`, `visual-story`, and `representation`. It does
+not reject imaginary characters, patients, clear future interfaces,
+long dramatic openings, slow montage, or absence of captured UI.
+The exact encoded film still needs a form-appropriate critic pass.
+Failure to disclose *proposed technology presented as current*
+remains a defect; the visual subjects themselves are not.
+
 `L`: the lint computes it. `J`: verdict and scene-cited evidence in `qa/story-judgments.json` (schema `media-studio/story-judgments/1`: `reviewer`, `judgments`, `deliberateRepeats`, `findings`). `E`: encoded file only. The critic judges every row on the picture.
 
 | Id | By | Pass |
