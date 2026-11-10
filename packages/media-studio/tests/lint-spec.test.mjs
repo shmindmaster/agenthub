@@ -119,3 +119,36 @@ test('lintSpec preserves exact ordered findings and estimates for an invalid syn
     },
   );
 });
+
+test('fictional adult coordinator scene is eligible when explicitly declared and makes no product claim', () => {
+  const spec = validSpec();
+  spec.cuts[0].beats.unshift({
+    id: 'context', kind: 'broll',
+    broll: {
+      provider: 'openai-image',
+      prompt: 'Generic fictional adult coordinator at an office desk, no text, no logos, no visible application screen.',
+      actor: { kind: 'fictional-adult', role: 'office coordinator', storyPurpose: 'Ground the viewer in the real-world administrative challenge.', noRealPerson: true, noPatientOrMinor: true },
+    },
+  });
+  const result = lintSpec(spec, {}, { io: io(true) });
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+});
+
+test('human context without fictional adult provenance stays blocked', () => {
+  const spec = validSpec();
+  spec.cuts[0].beats.unshift({ id: 'context', kind: 'broll', broll: {
+    provider: 'openai-image', prompt: 'A smiling therapist at a desk, no text or logos',
+  } });
+  const r = lintSpec(spec, {}, { io: io(true) });
+  assert.ok(r.errors.some(e => e.code === 'broll-people'));
+});
+
+test('fictional actor metadata cannot authorize patient/minor scenes or fabricated product UI', () => {
+  const actor = { kind: 'fictional-adult', role: 'office coordinator', storyPurpose: 'Ground the viewer in an administrative workflow.', noRealPerson: true, noPatientOrMinor: true };
+  const a = validSpec();
+  a.cuts[0].beats.unshift({ id: 'patient', kind: 'broll', broll: { provider: 'openai-image', prompt: 'Adult doctor beside a child patient in the therapy room, no text', actor } });
+  assert.ok(lintSpec(a, {}, { io: io(true) }).errors.some(e => e.code === 'broll-people'));
+  const b = validSpec();
+  b.cuts[0].beats.unshift({ id: 'screen', kind: 'broll', broll: { provider: 'openai-image', prompt: 'A fabricated software dashboard from an ABA clinic with numbers, no text', actor } });
+  assert.ok(lintSpec(b, {}, { io: io(true) }).errors.some(e => e.code === 'broll-fake-ui'));
+});
