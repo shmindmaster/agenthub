@@ -19,20 +19,22 @@ Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and
 
 Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` compositor tooling). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.
 
-**Story-first preflight (marketing cuts >= 25 s):** An ad must carry a concrete
-`narrative` brief (persona, situation, trigger, problem, stakes, solution,
-mechanism, payoff, emotional before/after and viewer value) plus a
-`hookPlan` aligning the first image, on-screen meaning, spoken hook and
-viewer question. Role-coded beats trace recognizable context/problem,
-a named software introduction, captured UI mechanism, changed result
-and one CTA. `kit/marketing/lib/narrative.mjs` is invoked by the
-normal `lint` stage before paid voice/images or rendering; see
-`skills/video/references/story.md` and `kit/marketing/README.md`.
-A 10–24s teaser uses a compact gated hook → real UI proof → CTA with
-early product identification; one unexplained clip cannot pass. Cuts under 10s
-still use their claim-evidence and exact-candidate QA. Structural lint
-does **not** replace watching the actual encoded video: the reviewer must
-reject incoherent context or fabricated payoff even when the metadata passes.
+**Creative forms, not a single product template:** Read
+`skills/video/references/creative-formats.md`. Media Studio supports
+verified current-product demos, hybrid films, fictional day-in-the-life
+stories, entirely synthetic human scenes, patients/children/families,
+documentary, education, abstract visuals and envisioned future interfaces.
+The marketing ad `creativeMode` selects these contexts; only the
+`verified-demo` form requires the strict source-proven UI flow and
+prescribed story beats. Other modes can build their own narrative or
+nonlinear structure, with no synthetic-human age ban, default blur,
+mandatory text suppression, or arbitrary product-screen percentage.
+`truthStatus: verified|proposed|fictional|illustrative` separates factual
+current-capability proof from imaginative future scenes. A film-level
+concept declaration prevents a proposed feature being mistaken for
+a shipping feature without permanent watermarks or obscured artwork.
+Marketing-specific lint is not a replacement for the general film
+crew's creative development and encoded review.
 
 **Media-provider cost/quality selection:** For each missing story asset,
 read `skills/generate/references/provider-cost-quality-routing.md`. Reuse actual
@@ -43,10 +45,9 @@ prices** from public official schemas, without spending. AssemblyAI is
 an audio/transcript analysis route, Runware offers supplemental multimodal
 generation, and ElevenLabs is a conditional high-quality speech/music/SFX
 candidate. Listing a model does **not** enable a frozen lane or authorize spend.
-Quality/capability, license, real product proof and the exact-candidate
-film review outrank a cheaper quote. No generated UI impersonation.
+Quality/capability, rights and the exact-candidate film review outrank a cheaper quote. Generated UI is welcome in fiction/concepts/vision; only current-product factual demonstrations demand actual captured proof.
 
-**Marketing ads** (15-30 s social and web ads in 16:9, 4:5 and 9:16): `kit/marketing/` is the generator (`mvg.mjs`). A spec of beats, claims with evidence, a voice, an optional music bed and a CTA goes through lint, voice, timing, assets, capture reuse, the `MarketingAd` Remotion composition, QA (including OpenAI vision review of sampled frames) and delivery; spend is capped per run and cumulatively, and every claim must map to evidence. See `kit/marketing/README.md`.
+**Marketing ads** (5-120 s social and web ads in 16:9, 4:5 and 9:16): `kit/marketing/` is the generator (`mvg.mjs`). A spec of beats, claims with evidence, a voice, an optional music bed and a CTA goes through lint, voice, timing, assets, capture reuse, the `MarketingAd` Remotion composition, QA (including OpenAI vision review of sampled frames) and delivery; spend is capped per run and cumulatively, and every claim must map to evidence. See `kit/marketing/README.md`.
 
 Pre-capture screenplay lint: `scripts/validate-narration.mjs <jobRoot>` then `scripts/write-story-review.py <jobRoot>` (the sync script copies them to `_shared\tools`; the story review fails `no-fluff` without the narration check). It is not a craft pass and does not authorize compose or delivery. Product-screencast still requires `validate-product-picture.mjs`, `validate-demo-scenario.mjs`, `validate-viewer-release.mjs`, and encoded-file review (`product-picture.md`, `RELEASE-EVIDENCE.md`).
 
