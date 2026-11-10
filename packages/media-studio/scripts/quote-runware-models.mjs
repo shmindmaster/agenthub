@@ -11,16 +11,29 @@ import { pathToFileURL } from 'node:url';
 
 export const INDEX_URL = 'https://runware.ai/docs/models/index.json';
 export const MODEL_SHORTLIST = Object.freeze({
-  image: ['recraft-v4-1-flash', 'alibaba-qwen-image-3-0', 'alibaba-qwen-image-3-0-pro'],
-  video: ['minimax-h3-max-turbo', 'prunaai-p-video-2-pro', 'alibaba-wan3-0'],
-  speech: ['fish-audio-s2-1-pro'],
+  image: [
+    'bfl-flux-3-image-klein', 'alibaba-qwen-image-2-1-turbo',
+    'minimax-h3-image', 'minimax-h3-image-highspeed',
+    'openai-gpt-image-2-6-sunburst', 'alibaba-qwen-image-3-0',
+    'bytedance-seedream-5-5', // coming-soon at 2026-11-10; excluded until index says live
+  ],
+  video: [
+    'minimax-h3-lite', 'minimax-h3-highspeed', 'minimax-h3-max-turbo',
+    'google-gemini-omni-flash-1-2', 'klingai-video-4-0-flash',
+    'prunaai-p-video-2-pro-replace', 'prunaai-p-video-2-pro',
+  ],
+  speech: [
+    'heygen-voice-1-0-turbo-free', 'heygen-voice-1-0-turbo',
+    'heygen-voice-1-0', 'fish-audio-s2-1-pro',
+  ],
   music: ['minimax-music-2-6'],
   '3d': ['microsoft-trellis-2', 'meta-sam-3d-objects'],
 });
 export const ALLOWED_CAPABILITIES = new Set([
   'text-to-image', 'image-to-image', 'text-to-video', 'image-to-video',
   'video-to-video', 'audio-to-video', 'text-to-audio', 'audio-to-audio',
-  'text-to-3d', 'image-to-3d', 'edit', 'upscale',
+  'text-to-3d', 'image-to-3d', 'edit', 'upscale', 'vectorize',
+  'transparency', 'audio',
 ]);
 
 export function validateSchemaUrl(value) {
@@ -72,7 +85,19 @@ export async function discoverAndQuote({
   if (capability && !ALLOWED_CAPABILITIES.has(capability)) throw new Error(`unknown capability: ${capability}`);
   const index = await fetchJson(INDEX_URL);
   const catalog = filterLiveCatalog(index, { capability, models });
-  if (list) return { catalog: catalog.map(x => ({ id: x.id, air: x.air, capabilities: x.capabilities, schema: x.schema })), source: INDEX_URL, paidCalls: 0 };
+  // Missing, discontinued, and coming-soon entries must be visible, never
+  // silently treated as eligible or priced. A model page is not live access.
+  const matches = (row, id) => row.id === id || row.air === id;
+  const unavailable = models.length ? index.filter(row =>
+    models.some(id => matches(row, id)) &&
+    (row.status !== 'live' || (capability && !row.capabilities?.includes(capability)))
+  ).map(row => ({
+    id: row.id, air: row.air ?? null, status: row.status,
+    reason: row.status !== 'live' ? 'model not live; no generation or price ranking' : 'model does not support requested capability',
+  })) : [];
+  const unknownModels = models.filter(id => !index.some(row => matches(row, id)));
+  if (list) return { catalog: catalog.map(x => ({ id: x.id, air: x.air, capabilities: x.capabilities, schema: x.schema })),
+    unavailable, unknownModels, source: INDEX_URL, paidCalls: 0 };
   if (catalog.length > 20) throw new Error('explicitly choose <=20 models to quote; use --list to inspect the live catalog first');
   const result = [];
   for (const row of catalog) {
@@ -94,7 +119,9 @@ export async function discoverAndQuote({
     qualityApproved: false,
     selection: 'quote-only: verify fidelity, supported request options, license, privacy, provider entitlement and user approval before generation',
   }));
-  return { results: ranked, source: INDEX_URL, paidCalls: 0, evaluatedAt: new Date().toISOString(), note: 'No quality rank is inferred from pricing; quoted configurations are not executable authorizations.' };
+  return { results: ranked, unavailable, unknownModels, source: INDEX_URL, paidCalls: 0,
+    evaluatedAt: new Date().toISOString(),
+    note: 'No quality rank is inferred from pricing; a listed or discounted model can be coming-soon, and quoted configurations are not executable authorizations.' };
 }
 
 const args = process.argv.slice(2);
