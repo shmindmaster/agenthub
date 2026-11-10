@@ -93,9 +93,20 @@ test('the payoff must come before the final action', () => {
   assert.ok(check(brief(), cut).some((e) => /End with one CTA/.test(e.message)));
 });
 
-test('a 15-second bumper may compress hook and proof without full six-beat exposition', () => {
-  const cut = { id: 'bumper', targetSeconds: 15, beats: [beat('A', undefined, 'A visit gets flagged.', 'ui')] };
-  assert.deepEqual(check({ ...brief(), narrative: undefined }, cut), []);
+test('a 15-second bumper may compress setup to hook/proof + CTA', () => {
+  const cut = { id: 'bumper', targetSeconds: 15, beats: [
+    beat('A', 'hook', 'ABACare flags the visit that needs attention.', 'ui'),
+    beat('B', 'cta', 'Book an ABACare walkthrough.', 'card'),
+  ] };
+  assert.deepEqual(check({ product: 'ABACare', cta: { text: 'Book an ABACare walkthrough' } }, cut), []);
+});
+
+test('a 15-second cut of one unexplained screen is not a usable teaser', () => {
+  const cut = { id: 'bumper', targetSeconds: 15, beats: [beat('A', undefined, 'Dashboard settings appear.', 'ui')] };
+  const errors = check({ product: 'ABACare' }, cut);
+  assert.ok(errors.some(e => /single unrelated clip/.test(e.message)));
+  assert.ok(errors.some(e => /teaser must open/.test(e.message)));
+  assert.ok(errors.some(e => /genuine receipt-bound product UI proof/.test(e.message)));
 });
 
 
