@@ -28,7 +28,13 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$skipNames = @('.git', 'node_modules', '__pycache__', '.venv')
+# Generated trees are not plugin content. A name match on any path part, plus the
+# cloud-render chunk prefix, so a dirty checkout is not copied into Cursor.
+$skipNames = @('.git', 'node_modules', '__pycache__', '.venv', '.pytest_cache', 'logs', 'dist', 'coverage')
+
+function Test-SkippedPackagePart([string]$Part) {
+    return ($Part -in $skipNames) -or $Part.StartsWith('.cloud-render-chunks-', [StringComparison]::Ordinal)
+}
 
 function Get-CursorPackagePaths([string]$RepoRoot) {
     $files = @('registry/capabilities.json', 'overlays/personal/capabilities.json') | ForEach-Object { Join-Path $RepoRoot $_ }
@@ -49,7 +55,7 @@ function Get-PackageFiles([string]$Path) {
     Get-ChildItem -LiteralPath $base -Recurse -File -Force |
         Where-Object {
             $parts = $_.FullName.Substring($base.Length + 1) -split '[\\/]'
-            -not ($parts | Where-Object { $_ -in $skipNames })
+            -not ($parts | Where-Object { Test-SkippedPackagePart $_ })
         } |
         ForEach-Object {
             [pscustomobject]@{

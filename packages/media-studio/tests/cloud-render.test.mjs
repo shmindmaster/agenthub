@@ -2,7 +2,7 @@
 // Run: node --test tests/cloud-render.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -162,4 +162,9 @@ test('runChunked stops sibling chunks when one reports ok: false', async () => {
   const opts = { chunks: 3, comp: 'Test', out: ['out.mp4'], cpu: 4, memory: '8Gi', name: 'test', kit: tmpdir() };
   await assert.rejects(runChunked(opts, [], {}, { clients: fakeClients, stopExecution: fakeStopExecution, waitForResult: fakeWaitForResult }), /chunks failed: 2 .*render crashed/);
   assert.deepEqual(stopped.sort(), ['exec-1', 'exec-3']);
+  const scratch = (dir) => readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && (entry.name.startsWith('.cloud-render-chunks-') || entry.name.startsWith('cloud-render-chunks-')))
+    .map((entry) => entry.name);
+  assert.deepEqual(scratch(pkg), [], 'chunk scratch must not be created in the package');
+  assert.deepEqual(scratch(dirname(resolve(opts.out[0]))), [], 'chunk scratch must not be created beside the output');
 });

@@ -40,3 +40,5 @@ overlays/personal/
 
 # Test run output
 packages/media-studio/logs/
+# Older cloud-render builds wrote chunk scratch beside the output. Current builds use the OS temp directory.
+.cloud-render-chunks-*/

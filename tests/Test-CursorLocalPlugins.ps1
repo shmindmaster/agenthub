@@ -44,6 +44,11 @@ try {
     [IO.File]::WriteAllText((Join-Path $package 'skills/go/SKILL.md'), 'one')
     [void][IO.Directory]::CreateDirectory((Join-Path $package '.git'))
     [IO.File]::WriteAllText((Join-Path $package '.git/config'), 'skip me')
+    foreach ($generated in @('node_modules', '__pycache__', '.pytest_cache', 'logs', 'dist', 'coverage', '.cloud-render-chunks-abc')) {
+        $generatedDir = Join-Path $package $generated
+        [void][IO.Directory]::CreateDirectory($generatedDir)
+        [IO.File]::WriteAllText((Join-Path $generatedDir 'skip.txt'), 'skip')
+    }
 
     $target = Join-Path $work 'local'
     [void][IO.Directory]::CreateDirectory($target)
@@ -66,6 +71,9 @@ try {
     Assert-True (Test-Path -LiteralPath (Join-Path $package 'skills/go/SKILL.md')) 'removing the link must not touch its target'
     Assert-True (Test-Path -LiteralPath (Join-Path $link 'skills/go/SKILL.md')) 'install should copy package files'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $link '.git'))) 'install should skip .git'
+    foreach ($generated in @('node_modules', '__pycache__', '.pytest_cache', 'logs', 'dist', 'coverage', '.cloud-render-chunks-abc')) {
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $link $generated))) "install should skip $generated"
+    }
     Assert-True (Test-Path -LiteralPath (Join-Path $other 'keep.txt')) 'install must leave unmanaged folders alone'
 
     $current = Invoke-Installer @($package) $target -Audit

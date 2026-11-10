@@ -417,12 +417,23 @@ export async function runChunked(opts, rest, cfg, deps = {}) {
   }));
   const tDone = Date.now();
   const failed = chunks.filter((ch) => !ch.result.ok);
-  const tmp = fs.mkdtempSync(path.join(path.dirname(outLocal), '.cloud-render-chunks-'));
+  // Scratch stays in the OS temp directory. Writing it beside the output dropped
+  // .cloud-render-chunks-* folders into this package whenever the output path
+  // resolved here, including the failure tests.
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-render-chunks-'));
+  let wroteLog = false;
   for (const ch of chunks) {
     const log = await c.storage.getText(`jobs/${ch.jobId}/log.txt`);
-    if (log) fs.writeFileSync(path.join(tmp, `chunk-${ch.k}.log`), log);
+    if (log) {
+      fs.writeFileSync(path.join(tmp, `chunk-${ch.k}.log`), log);
+      wroteLog = true;
+    }
   }
-  if (failed.length) throw new Error(`chunks failed: ${failed.map((ch) => `${ch.k + 1} (${ch.jobId}): ${String(ch.result.error).slice(-300)}`).join(' | ')}; logs in ${tmp}`);
+  if (failed.length) {
+    if (!wroteLog) fs.rmSync(tmp, { recursive: true, force: true });
+    const where = wroteLog ? `; logs in ${tmp}` : '';
+    throw new Error(`chunks failed: ${failed.map((ch) => `${ch.k + 1} (${ch.jobId}): ${String(ch.result.error).slice(-300)}`).join(' | ')}${where}`);
+  }
   const ranges = [];
   for (const ch of chunks) {
     ch.local = path.join(tmp, path.basename(ch.outputs[0].path));

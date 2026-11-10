@@ -36,6 +36,7 @@ SKIP_TOP = {
     ".claude-plugin", ".codex-plugin", ".cursor-plugin", ".antigravity-plugin", ".pytest_cache",
     "tests", "agents", ".mcp.json", "mcp.json", "mcp.codex.json", "mcp_config.json",
     "plugin.json", "gemini-extension.json",
+    "logs", "dist", "coverage",
 }
 # Amp expands ${VAR}. It sends ${env:VAR} literally (loopback test, 2026-11-04).
 HEADERS = {
@@ -91,7 +92,9 @@ def build(target, plugin, rel):
         src = os.path.join(pkg, item)
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(dest, item),
-                            ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", "node_modules"))
+                            ignore=shutil.ignore_patterns(
+                                "__pycache__", ".pytest_cache", "node_modules",
+                                "logs", "dist", "coverage", ".cloud-render-chunks-*"))
         else:
             shutil.copy2(src, os.path.join(dest, item))
     skills = sorted(d for d in os.listdir(os.path.join(dest, "skills"))

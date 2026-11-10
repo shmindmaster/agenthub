@@ -21,7 +21,7 @@ node "%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit\cloud\cloud-render.mjs" 
 
 Options: `--name <label>` (job id label), `--cpu <1-4>` and `--memory <Gi>` (default 4 vCPU / 8 GiB),
 `--kit <dir>` (kit to overlay; defaults to the kit this file sits in), `--dry-run` (print the plan, no cloud calls),
-`--keep` (keep the local temp dir). Housekeeping: `doctor`, `status <jobId>`, `logs <jobId>`, `bootstrap`, `sync-worker`.
+`--keep` (keep the local temp dir). Chunk downloads, the concat list, and per-chunk logs use the operating-system temp directory (`cloud-render-chunks-*`), not the output folder and not this package. An empty scratch directory from a failed join is removed. Housekeeping: `doctor`, `status <jobId>`, `logs <jobId>`, `bootstrap`, `sync-worker`.
 
 Each run prints a JSON summary (wall time split into upload / cloud / download, worker timings, upload reuse,
 billed seconds and USD) and writes it next to the first output as `<output>.cloud-render.json`, with the cloud log
