@@ -84,13 +84,48 @@ accuracy. Do not satisfy the role labels with generic filler.
 
 Add an explicit `narrative` object to the spec (or override it per `cuts[]`)
 with `persona`, `situation`, `trigger`, `problem`, `stakes`,
-`solution`, `mechanism`, and `payoff`. Each value must say something
-specific; generic placeholders are a lint failure. Give every beat a
+`solution`, `mechanism`, `payoff`, `emotionalBefore`, `emotionalAfter`,
+and `viewerValue`. The emotional states should be credible and different:
+for an ABA clinic coordinator, uncertainty → knowing which visit requires
+follow-up is more trustworthy than manufactured panic → miraculous cure.
+`viewerValue` names a concrete insight or capability the viewer receives
+*before* the CTA, not an abstract feature label. Each value must say
+something specific; generic placeholders are a lint failure. Give every beat a
 `storyRole` from `hook`, `context`, `problem`, `context-problem`,
 `solution`, `demonstration`, `proof`, `payoff`, `cta`. The product name
 must appear in the solution beat's narration or on-screen text. Put scenario
 context before ten seconds have elapsed. Longer ads may use additional
 beats, but retain this order and one clear problem-to-result arc.
+
+For these 25s+ cuts, add a `hookPlan` (top-level or per-cut):
+`visual` names the *first real frame*, `onScreen` names the text or native
+UI evidence a silent viewer sees, `spoken` is the actual opening narration,
+and `viewerQuestion` names the curiosity the next scene resolves.
+The lint rejects missing components and a `spoken` line that does not
+match the opening beat. You may add up to two text-only `alternatives`
+(`angle`, `visual`, `spoken`) and a `selectionReason` to compare a
+problem-first, payoff-first or surprising-*but-true* opening. Develop those
+alternatives **before** paid speech, imagery or capture. Do not introduce
+unsupported statistics or clickbait that the body cannot substantiate.
+
+**Retention and editing decisions:** every meaningful shot change should
+clarify the current state, expose an obstacle, reveal information or show
+a result. A pattern interrupt is a *story turn*, not a random effect.
+Consider an open question in the hook, a relevant contrast or complication
+in the middle, and a payoff that closes that question. Do not mandate
+artificial twists, jump cuts every three seconds, exaggerated emotions,
+or constant motion. Preserve enough screen hold for product evidence to
+be read. Write voiceover as spoken language, use captions and genuine
+product labels for muted viewing, and test each aspect ratio at native
+capture resolution. Platform-specific hook variants are editorial
+derivatives, not naive crops.
+
+**After distribution:** where actual audience data is available, compare
+two or three *truthful* hook variants with the same core claim and
+comparable audience/exposure; measure early retention, completion, and
+the stated business CTA outcome rather than assuming viral view counts
+are product success. Capture the result as campaign evidence for the
+next brief. Never fabricate engagement or claim guaranteed virality.
 
 For a 10–24s bumper, compress the same idea to **hook → proof → next step**;
 the deterministic six-beat gate does not run for these deliberately short
