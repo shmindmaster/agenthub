@@ -28,8 +28,9 @@ a named software introduction, captured UI mechanism, changed result
 and one CTA. `kit/marketing/lib/narrative.mjs` is invoked by the
 normal `lint` stage before paid voice/images or rendering; see
 `skills/video/references/story.md` and `kit/marketing/README.md`.
-A deliberately compressed cut under 25 seconds can use hook -> proof -> action,
-but remains subject to claim-evidence and exact-candidate QA. Structural lint
+A 10–24s teaser uses a compact gated hook → real UI proof → CTA with
+early product identification; one unexplained clip cannot pass. Cuts under 10s
+still use their claim-evidence and exact-candidate QA. Structural lint
 does **not** replace watching the actual encoded video: the reviewer must
 reject incoherent context or fabricated payoff even when the metadata passes.
 
