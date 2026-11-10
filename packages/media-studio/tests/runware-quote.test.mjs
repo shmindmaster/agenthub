@@ -75,3 +75,42 @@ test('quote rejects AIR mismatch and never presents it as an approved model', as
 test('shortlists keep names as discoverable candidates; they do not imply entitlement', () => {
   assert.ok(MODEL_SHORTLIST.video.includes('minimax-h3-max-turbo'));
 });
+
+test('coming-soon Seedream 5.5 stays visible as unavailable and is never quoted or routed as live', async () => {
+  const coming = { id: 'bytedance-seedream-5-5', air: 'bytedance:seedream@5.5', status: 'coming-soon',
+    capabilities: ['text-to-image', 'image-to-image'], schema: 'https://runware.ai/docs/models/bytedance-seedream-5-5/schema.json' };
+  const urls = [];
+  const r = await discoverAndQuote({
+    capability: 'text-to-image', models: ['bytedance-seedream-5-5'],
+    fetchJson: async url => { urls.push(url); if (url !== INDEX_URL) throw Error('should never fetch or quote unavailable schema'); return [...catalog, coming]; },
+  });
+  assert.deepEqual(urls, [INDEX_URL]);
+  assert.deepEqual(r.results, []);
+  assert.equal(r.unavailable[0].status, 'coming-soon');
+  assert.match(r.unavailable[0].reason, /not live/);
+});
+
+test('a live model without a requested modality is clearly excluded', async () => {
+  const r = await discoverAndQuote({
+    capability: 'image-to-video', models: ['recraft-v4-1-flash'],
+    fetchJson,
+  });
+  assert.deepEqual(r.results, []);
+  assert.equal(r.unavailable[0].status, 'live');
+  assert.match(r.unavailable[0].reason, /does not support/);
+});
+
+test('unknown model ID is reported rather than silently yielding no choices', async () => {
+  const r = await discoverAndQuote({ models: ['imagined-model-9'], fetchJson });
+  assert.deepEqual(r.unknownModels, ['imagined-model-9']);
+  assert.deepEqual(r.results, []);
+});
+
+test('specialist modes remain discoverable without treating animations as videoInfererence', () => {
+  assert.ok(MODEL_SHORTLIST.image.includes('openai-gpt-image-2-6-sunburst'));
+  assert.ok(MODEL_SHORTLIST.image.includes('bytedance-seedream-5-5'));
+  assert.ok(MODEL_SHORTLIST.video.includes('minimax-h3-lite'));
+  assert.ok(MODEL_SHORTLIST.video.includes('google-gemini-omni-flash-1-2'));
+  assert.ok(MODEL_SHORTLIST.speech.includes('heygen-voice-1-0-turbo-free'));
+});
+
