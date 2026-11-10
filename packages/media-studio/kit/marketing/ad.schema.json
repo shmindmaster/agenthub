@@ -19,6 +19,7 @@
     "concept": { "type": "string" },
     "creativeMode": { "enum": ["verified-demo", "hybrid", "future-vision", "concept-film", "fictional-story", "explainer", "documentary", "educational", "abstract"], "description": "Film intent and reality contract. Omitted for existing verified product demo ads." },
     "conceptDisclosure": { "type": "string", "description": "Truthful concept/vision labeling when proposed functionality is depicted. May be in labels, on an end card, or prominent narration; does not mandate watermark or blur." },
+    "syntheticData": { "type": "boolean", "description": "Data are synthetic. May be disclosed at film level; no automatic privacy blur." },
     "narrative": { "$ref": "#/definitions/narrative", "description": "Required at lint for marketing cuts lasting 25 seconds or longer; cuts can override." },
     "hookPlan": { "$ref": "#/definitions/hookPlan", "description": "Aligned first picture, on-screen message, spoken hook and viewer question for cuts >=25s." },
     "brand": { "type": "string", "description": "Path to the brand file, relative to the spec or absolute. Default: ../brand/brand.json" },
@@ -72,7 +73,8 @@
       }
     },
     "claims": {
-      "type": "array", "minItems": 1,
+      "type": "array", "minItems": 0,
+      "description": "Evidence-backed current factual assertions; empty for a wholly fictional or conceptual film without real claims.",
       "items": {
         "type": "object", "additionalProperties": false,
         "required": ["id", "text", "evidence"],
@@ -88,7 +90,7 @@
         }
       }
     },
-    "labels": { "type": "string", "minLength": 8, "description": "Persistent on-screen label, e.g. SYNTHETIC DEMO · NO PHI · REAL PRODUCT" },
+    "labels": { "type": "string", "minLength": 0, "description": "Optional branding/film-wide disclosure text. Concepts may be declared by labels or conceptDisclosure; film modes do not impose blur or repeated watermarks." },
     "budget": {
       "type": "object", "additionalProperties": false,
       "properties": {
