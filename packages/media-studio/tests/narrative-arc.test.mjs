@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { inspectNarrativeArc } from '../kit/marketing/lib/narrative.mjs';
 import { estimateBeatSeconds, lintSpec } from '../kit/marketing/lib/lint.mjs';
+import { validate } from '../kit/marketing/lib/schema.mjs';
+import { readFileSync } from 'node:fs';
 
 const outline = () => ({
   persona: 'an ABA clinic coordinator',
@@ -150,4 +152,42 @@ test('marketing lint actually invokes narrative checks before provider spend', (
   const result = lintSpec(spec, {}, { io: { specDir: '/unused', exists: () => true, readJson: () => ({clips: {}}) } });
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => e.code === 'narrative-arc'), JSON.stringify(result.errors));
+});
+
+test('full ad-schema and marketing lint accept a coherent evidence-backed product story', () => {
+  const cut = goodCut();
+  cut.targetSeconds = 32;
+  for (const beat of cut.beats) {
+    beat.claims = ['c1'];
+    if (beat.kind === 'ui') beat.ui = { sourceJob: '/test/product-capture', clipId: 'C1' };
+  }
+  const claim = {
+    id: 'c1', text: 'Authorized workflow review',
+    phrases: cut.beats.flatMap((beat) => beat.narration.split(/(?<=[.!?])\\s+/)),
+    evidence: 'approved:product-evidence',
+  };
+  const spec = {
+    id: 'narrative-acceptance', title: 'Authorization Review',
+    product: 'ABACare', audience: 'ABA clinic coordinators',
+    objective: 'Identify a scheduled visit requiring authorization review',
+    narrative: outline(), hookPlan: hookPlan(),
+    voice: { provider: 'openai', voiceId: 'alloy', model: 'gpt-4o-mini-tts', disclosure: 'end card' },
+    claims: [claim], labels: 'SYNTHETIC · NO PHI',
+    cta: { text: 'Book an ABACare walkthrough', url: 'https://example.com/demo', claim: 'c1' },
+    cuts: [cut],
+  };
+  const schema = JSON.parse(readFileSync(new URL('../kit/marketing/ad.schema.json', import.meta.url), 'utf8'));
+  const io = {
+    specDir: '/test',
+    exists: () => true,
+    readJson: () => ({ clips: { C1: { valid: true, clipSeconds: 60, events: { clicks: 0 } } } }),
+  };
+  assert.deepEqual(validate(schema, spec), []);
+  const result = lintSpec(spec, {}, { io, adSchema: schema });
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  assert.deepEqual(result.errors, []);
+  const changed = structuredClone(spec);
+  delete changed.narrative.viewerValue;
+  assert.ok(validate(schema, changed).some((e) => /viewerValue/.test(e)));
+  assert.equal(lintSpec(changed, {}, { io, adSchema: schema }).ok, false);
 });
