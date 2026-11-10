@@ -17,6 +17,8 @@
     "audience": { "type": "string", "minLength": 3 },
     "objective": { "type": "string", "minLength": 3 },
     "concept": { "type": "string" },
+    "creativeMode": { "enum": ["verified-demo", "hybrid", "future-vision", "concept-film", "fictional-story", "explainer", "documentary", "educational", "abstract"], "description": "Film intent and reality contract. Omitted for existing verified product demo ads." },
+    "conceptDisclosure": { "type": "string", "description": "Truthful concept/vision labeling when proposed functionality is depicted. May be in labels, on an end card, or prominent narration; does not mandate watermark or blur." },
     "narrative": { "$ref": "#/definitions/narrative", "description": "Required at lint for marketing cuts lasting 25 seconds or longer; cuts can override." },
     "hookPlan": { "$ref": "#/definitions/hookPlan", "description": "Aligned first picture, on-screen message, spoken hook and viewer question for cuts >=25s." },
     "brand": { "type": "string", "description": "Path to the brand file, relative to the spec or absolute. Default: ../brand/brand.json" },
@@ -199,6 +201,7 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,30}$" },
         "kind": { "enum": ["ui", "broll", "card", "title"] },
+        "truthStatus": { "enum": ["verified", "proposed", "fictional", "illustrative"], "description": "Representation of this beat. Generated future UIs and story reenactments are permitted when appropriately classified." },
         "storyRole": { "enum": ["hook", "context", "problem", "context-problem", "solution", "demonstration", "proof", "payoff", "cta"], "description": "For 25s+ cuts: hook -> scenario/problem -> named solution -> real UI mechanism/proof -> payoff -> CTA." },
         "narration": { "type": "string" },
         "onScreenText": { "type": "string", "maxLength": 80 },
@@ -247,16 +250,19 @@
             "prompt": { "type": "string", "minLength": 10 },
             "file": { "type": "string" },
             "quality": { "enum": ["low", "medium", "high"] },
+            "depictsProductUI": { "type": "boolean", "description": "True for a synthetic interface or envisioned future software screen. Allowed in concept/vision/hybrid modes; never substituted as measured proof of existing functionality." },
             "actor": {
               "type": "object", "additionalProperties": false,
-              "required": ["kind", "role", "storyPurpose", "noRealPerson", "noPatientOrMinor"],
-              "description": "Explicit opt-in for generic fictional adult story-setting b-roll; actual software proof must be real screen capture.",
+              "description": "Optional creative continuity metadata for any fictitious character, including realistic families, patients or clinicians. No blurring or adult-only rule.",
               "properties": {
-                "kind": { "enum": ["fictional-adult"] },
-                "role": { "type": "string", "minLength": 3 },
-                "storyPurpose": { "type": "string", "minLength": 12 },
-                "noRealPerson": { "const": true },
-                "noPatientOrMinor": { "const": true }
+                "kind": { "enum": ["fictional", "fictional-adult", "reconstruction", "licensed-performer"] },
+                "role": { "type": "string" },
+                "storyPurpose": { "type": "string" },
+                "name": { "type": "string" },
+                "ageGroup": { "enum": ["child", "teen", "adult", "older-adult", "unspecified"] },
+                "consentReference": { "type": "string", "description": "Optional rights evidence for a named real performer; keep private identifiers outside public repository." },
+                "noRealPerson": { "type": "boolean", "description": "Legacy optional metadata" },
+                "noPatientOrMinor": { "type": "boolean", "description": "Legacy optional metadata; no longer a creative restriction" }
               }
             }
           }
