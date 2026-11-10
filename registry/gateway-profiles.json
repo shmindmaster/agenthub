@@ -197,10 +197,6 @@
               "state": "poc-pending"
             },
             {
-              "hostId": "gemini",
-              "state": "poc-pending"
-            },
-            {
               "hostId": "copilot",
               "state": "poc-pending"
             },

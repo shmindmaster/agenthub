@@ -1699,25 +1699,6 @@ function Sync-HostMcp-ConvertedJsonFile {
     return @{ status=(Resolve-McpWriteStatus $changed); path=$Path }
 }
 
-function ConvertTo-GeminiMcpEntry {
-    param([hashtable]$CanonicalEntry)
-
-    $entry = @{}
-    if ($CanonicalEntry.type -eq 'http') {
-        $entry.httpUrl = $CanonicalEntry.url
-        if ($CanonicalEntry.ContainsKey('headers')) {
-            $entry.headers = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.headers -Style braced
-        }
-    } elseif ($CanonicalEntry.type -eq 'stdio') {
-        $entry.command = $CanonicalEntry.command
-        $entry.args = @($CanonicalEntry.args)
-        if ($CanonicalEntry.ContainsKey('env')) {
-            $entry.env = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.env -Style braced
-        }
-    }
-    return $entry
-}
-
 function ConvertTo-AntigravityMcpEntry {
     param([hashtable]$CanonicalEntry)
 
@@ -2362,10 +2343,6 @@ foreach ($agent in $agentsToSync) {
             $r = Sync-HostMcp-OpenCode -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
-        'gemini' {
-            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.settings -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-GeminiMcpEntry} -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
-            $hostDrift.mcp += $r
-        }
         'antigravity' {
             $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-AntigravityMcpEntry} -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
@@ -2401,7 +2378,6 @@ if ($Validate -or $Apply -or $Audit) {
         '{roamingConfig}/devin/mcp_config.json',
         '{userHome}/.config/amp/settings.json',
         '{userHome}/.config/opencode/opencode.json',
-        '{userHome}/.gemini/settings.json',
         '{userHome}/.gemini/antigravity/mcp_config.json',
         '{userHome}/.gemini/config/mcp_config.json',
         '{userHome}/.copilot/mcp-config.json',

@@ -11,6 +11,7 @@ Read when adding or changing a register row or a narrative entry.
 | `Existing Pipeline and Eligibility Facts.md` | Entity, ownership, registration and prior-award facts; what is in flight; section C rejected list | Update only from a cited source. Mark each fact CONFIRMED, STATED, CONFLICT, INFERRED or UNKNOWN |
 | `Portfolio Profiles - Group *.md` | What each product is, its stage and its evidence | Update from code and records, never from a pitch |
 | `Portfolio Funding Strategy - <date>.md` | The ranked matrix, engineering changes and plan as of that date | `prioritize` writes a new dated file and leaves earlier ones as written |
+| `Application Plan - <register id> - <date>.md` | The funder profile, criterion-to-evidence map, gaps and dated plan for one opportunity | `plan-application` writes a new dated file per plan |
 
 Edit in place. Never copy a file to keep a backup, and never write these facts anywhere else.
 

@@ -104,8 +104,6 @@ function Get-SessionStores {
     Add 'factory-droid' 'sessions' "$h\.factory\sessions\*"
     Add 'opencode' 'tool output' "$h\.local\share\opencode\tool-output"
     AddDb 'opencode' 'sessions (opencode.db)' 'opencode' "$h\.local\share\opencode\opencode.db" @('opencode')
-    Add 'gemini-cli' 'chats' "$h\.gemini\tmp\*\chats"
-    Add 'gemini-cli' 'tool outputs' "$h\.gemini\tmp\*\tool-outputs"
     foreach ($g in 'antigravity', 'antigravity-cli', 'antigravity-ide') {
         foreach ($s in 'conversations', 'brain', 'annotations', 'browser_recordings', 'html_artifacts') {
             Add 'antigravity' "$g $s" "$h\.gemini\$g\$s"

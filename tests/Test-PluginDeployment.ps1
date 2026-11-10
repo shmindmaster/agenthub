@@ -161,7 +161,7 @@ try {
     [void][IO.Directory]::CreateDirectory((Join-Path $fakeRoot 'packages/repowise/skills/fake'))
     [IO.File]::WriteAllText((Join-Path $fakeRoot 'packages/repowise/plugin.json'), '{"name":"repowise","version":"1.0.0"}')
     [IO.File]::WriteAllText((Join-Path $fakeRoot 'packages/repowise/skills/fake/SKILL.md'), '# fake')
-    [IO.File]::WriteAllText((Join-Path $fakeRoot 'registry/agents.json'), (@{ activeAgents = @('owner-a','owner-b','owner-c','surf-a','surf-c','surf-d','surf-x','surf-y','gemini','opencode','surf-g','surf-o','surf-r') | ForEach-Object { @{ id = $_; executable = 'x' } } } | ConvertTo-Json -Depth 5))
+    [IO.File]::WriteAllText((Join-Path $fakeRoot 'registry/agents.json'), (@{ activeAgents = @('owner-a','owner-b','owner-c','surf-a','surf-c','surf-d','surf-x','surf-y','opencode','surf-o','surf-r') | ForEach-Object { @{ id = $_; executable = 'x' } } } | ConvertTo-Json -Depth 5))
     [IO.File]::WriteAllText((Join-Path $fakeRoot 'registry/capabilities.json'), (@{ capabilities = @(
         @{ id = 'fake-cap'; canonicalSource = 'packages/fake-cap'; hostMappings = @(
             @{ hostId = 'surf-a'; deploymentStatus = 'native-local-plugin'; nativeOwnerHost = 'ghost-owner' },
@@ -170,9 +170,7 @@ try {
             @{ hostId = 'owner-c'; deploymentStatus = 'native-local-plugin' },
             @{ hostId = 'surf-d'; deploymentStatus = 'native-local-plugin'; nativeOwnerHost = 'owner-a' },
             @{ hostId = 'surf-x'; deploymentStatus = 'native-local-plugin'; nativeOwnerHost = 'surf-y' },
-            @{ hostId = 'surf-y'; deploymentStatus = 'native-local-plugin'; nativeOwnerHost = 'surf-x' },
-            @{ hostId = 'gemini'; deploymentStatus = 'native-local-plugin' },
-            @{ hostId = 'surf-g'; deploymentStatus = 'native-local-plugin'; nativeOwnerHost = 'gemini' }
+            @{ hostId = 'surf-y'; deploymentStatus = 'native-local-plugin'; nativeOwnerHost = 'surf-x' }
         ) },
         @{ id = 'repowise'; canonicalSource = 'packages/repowise'; hostMappings = @(
             @{ hostId = 'opencode'; deploymentStatus = 'managed-loose-skills' },
@@ -183,12 +181,11 @@ try {
     $fakeReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $fakeRoot -UserProfile $skillHome -PluginId fake-cap -Json | ConvertFrom-Json)
     $fakeRows = @{}
     foreach ($m in @($fakeReport.mappings)) { $fakeRows[$m.host] = [string]$m.status }
-    foreach ($case in 'surf-a','surf-c','surf-d','surf-x','surf-y','surf-g') {
+    foreach ($case in 'surf-a','surf-c','surf-d','surf-x','surf-y') {
         if ($fakeRows[$case] -ne 'blocked') { throw "invalid owner declaration accepted on $case ($($fakeRows[$case]))" }
     }
     $detail = [string](@($fakeReport.mappings | Where-Object host -EQ 'surf-a')).detail
     if ($detail -notmatch 'ghost-owner') { throw "unknown owner was not named in the refusal: $detail" }
-    if (-not ([string](@($fakeReport.mappings | Where-Object host -EQ 'surf-g')).detail -match 'Gemini rollout is disabled')) { throw 'Alias to the disabled Gemini owner did not inherit the owner block' }
     # The repowise capability carries an owner-routed blocked route on opencode:
     # both aliased surfaces must inherit the block, and a misleading surface
     # deploymentStatus must not override the owner's effective route.

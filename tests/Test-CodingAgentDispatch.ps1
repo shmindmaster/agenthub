@@ -70,9 +70,9 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         [IO.File]::WriteAllText($stub, "#!/bin/sh`nexec '$node' '$recorder' `"`$@`"`n")
         [IO.File]::SetUnixFileMode($stub, [IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
     }
-    $ids = @('claude','codex','cursor','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code')
+    $ids = @('claude','codex','cursor','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code','kiro')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
+    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; kiro = @{ enabled = $true; agent = 'ah-peer'; model = 'auto'; allowedModels = @('auto', 'claude-sonnet-5.5') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -96,7 +96,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     foreach ($id in @('devin-cloud','jules','cursor-cloud','copilot-agent')) {
         $r = Run @('-HostId',$id,'-Prompt','ok'); Check "$id cloud refuses" ($r.Exit -eq 3 -and $r.Err -match 'hosted cloud execution')
     }
-    foreach ($id in @('claude','codex','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code')) {
+    foreach ($id in @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         if ($id -eq 'copilot' -and $r.Exit -eq 3 -and $r.Err -match 'gh has no token for account sh-pendoah') {
             # Copilot dispatch reads the owner's sh-pendoah gh login; without it the
@@ -121,11 +121,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'Factory runs exec with medium autonomy, JSON output and rule settings' ($factoryArgsMatch -and $settingsIndex -ge 0 -and $d.Arguments[$settingsIndex + 1] -like '*runtime-settings.json' -and $d.Arguments -contains '-m' -and $d.Arguments -contains 'gpt-6-luna' -and $d.Arguments[-2] -eq '-f' -and $d.PromptContents -contains 'ok')
             Check 'Factory never requests unsafe permissions' ($d.Arguments -notcontains 'high' -and $d.Arguments -notcontains '--skip-permissions-unsafe')
         }
-        if ($id -eq 'gemini') {
-            $promptIndex = [Array]::IndexOf($d.Arguments, '--prompt')
-            $approvalIndex = [Array]::IndexOf($d.Arguments, '--approval-mode')
-            Check 'Gemini uses headless prompt with yolo approval mode' ($promptIndex -ge 0 -and $d.Arguments[$promptIndex + 1] -eq 'ok' -and $approvalIndex -ge 0 -and $d.Arguments[$approvalIndex + 1] -eq 'yolo' -and $d.Arguments -notcontains '--yolo')
-        }
         if ($id -eq 'cursor-agent') {
             Check 'Cursor uses print text mode, read-only Q&A and trusted workspace' ($d.Arguments -contains '--print' -and $d.Arguments -contains '--output-format' -and $d.Arguments -contains 'text' -and $d.Arguments -contains '--mode' -and $d.Arguments -contains 'ask' -and $d.Arguments -contains '--trust' -and $d.Arguments -contains '--workspace' -and $d.Arguments -contains $scratch)
         }
@@ -146,7 +141,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'Cline receives bounded cwd and reasoning' ($d.Arguments -contains $scratch -and $d.Arguments -contains 'low' -and $timeoutIndex -ge 0 -and $d.Arguments[$timeoutIndex + 1] -eq '5')
             Check 'Cline runs the peer guard in-process' ($d.PeerGuard -eq '1' -and $d.ClineBackend -eq 'local' -and $d.Arguments -contains '--compaction')
         }
-        if ($id -eq 'gemini') { Check 'Gemini uses OAuth without API-key variables' (-not $d.ApiKeyVars.GOOGLE_API_KEY -and -not $d.ApiKeyVars.GEMINI_API_KEY) }
         if ($id -eq 'opencode') {
             $formatIndex = [Array]::IndexOf($d.Arguments, '--format')
             Check 'OpenCode uses native JSON events while keeping unattended run and prompt' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--auto' -and $formatIndex -ge 0 -and $d.Arguments[$formatIndex + 1] -eq 'json' -and $d.Arguments[-1] -eq 'ok')
@@ -161,6 +155,12 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'Kilo keeps its separately authorized plan key' ($d.ApiKeyVars.MIMO_API_KEY)
             $agentIndex = [Array]::IndexOf($d.Arguments, '--agent')
             Check 'Kilo runs unattended only under the policy-named guarded agent' ($agentIndex -ge 0 -and $d.Arguments[$agentIndex + 1] -eq 'peer')
+        }
+        if ($id -eq 'kiro') {
+            $agentIndex = [Array]::IndexOf($d.Arguments, '--agent')
+            Check 'Kiro runs non-interactive with trusted tools and the prompt last' ($d.Arguments[0] -eq 'chat' -and $d.Arguments -contains '--no-interactive' -and $d.Arguments -contains '--trust-all-tools' -and $d.Arguments[-1] -eq 'ok')
+            Check 'Kiro runs unattended only under the policy-named guarded agent' ($agentIndex -ge 0 -and $d.Arguments[$agentIndex + 1] -eq 'ah-peer')
+            Check 'Kiro receives the policy model and runs in the task directory' ($d.Arguments -contains 'auto' -and $d.Cwd -in @($scratch, $scratchReal))
         }
         if ($id -eq 'mimo-code') {
             Check 'MiMo runs with yolo approval, JSON events and explicit dir' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--yolo' -and $d.Arguments -contains '--format' -and $d.Arguments -contains '--dir' -and $d.Arguments -contains $scratch -and $d.Arguments[-1] -eq 'ok')
@@ -179,15 +179,20 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     # Kilo and MiMo take provider/model ids only, from the policy allowlist, for
     # the recorded default and for an explicit -Model alike; a bare id or an
     # unlisted default must be refused before launch.
-    foreach ($guarded in @('kilo', 'mimo-code')) {
+    foreach ($guarded in @('kilo', 'mimo-code', 'kiro')) {
         $fleet.dispatchPolicy.$guarded.Remove('agent'); Save-Fixture
         $r = Run @('-HostId',$guarded,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         Check "$guarded refuses an unattended run when policy names no guarded agent" ($r.Exit -eq 3 -and $r.Err -match 'guarded agent') $r.Err
         $fleet.dispatchPolicy.$guarded.agent = 'peer;echo'; Save-Fixture
         $r = Run @('-HostId',$guarded,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         Check "$guarded refuses a shell-unsafe agent name" ($r.Exit -eq 3 -and $r.Err -match 'guarded agent') $r.Err
-        $fleet.dispatchPolicy.$guarded.agent = 'peer'; Save-Fixture
+        $fleet.dispatchPolicy.$guarded.agent = $(if ($guarded -eq 'kiro') { 'ah-peer' } else { 'peer' }); Save-Fixture
     }
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','claude-sonnet-5.5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Kiro routes an allowed explicit model' ($null -ne $d -and $d.Arguments -contains 'claude-sonnet-5.5' -and $d.Arguments -notcontains 'auto') $r.Err
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-Model','claude-opus-5.5')
+    Check 'Kiro refuses a model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy\.kiro\.allowedModels')
     $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','mimo/mimo-v2.5')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     Check 'Kilo routes an allowed explicit provider/model' ($null -ne $d -and $d.Arguments -contains 'mimo/mimo-v2.5' -and $d.Arguments -notcontains 'mimo/mimo-v2.6-pro') $r.Err
@@ -246,12 +251,11 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'Devin refuses a model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy\.devin\.allowedModels')
     $text = "quoted `"text`" café`n& echo %PATH% !name! " + ('x' * 9000)
     $taskFile = Join-Path $fixture 'task.txt'; [IO.File]::WriteAllText($taskFile, $text)
-    foreach ($id in @('gemini','antigravity')) {
+    foreach ($id in @('antigravity')) {
         $r = Run @('-HostId',$id,'-PromptFile',$taskFile,'-Cwd',$scratch,'-TimeoutSec','5')
         $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
         $detail = "exit=$($r.Exit) lengths=$(@($d.PromptContents | ForEach-Object { $_.Length }) -join ',') expected=$($text.Length) args=$($d.Arguments -join ' ') $($r.Err)"
         Check "$id preserves long quoted multiline prompt" ($r.Exit -eq 0 -and $d.PromptContents -contains $text) $detail
-        if ($id -eq 'gemini') { Check 'Gemini admits runtime prompt directory' ($d.Arguments -contains '--include-directories') }
     }
     foreach ($id in @('codex','amp','devin')) {
         $r = Run @('-HostId',$id,'-PromptFile',$taskFile,'-Cwd',$scratch,'-TimeoutSec','5')
@@ -336,7 +340,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $fleet.dispatchPolicy.Remove('claude'); Save-Fixture
     $r = Run @('-HostId','windsurf','-Prompt','ok','-Cwd',$scratch)
     Check 'Windsurf executes the Devin file contract' ($r.Exit -eq 0 -and $r.Out -match 'routed: windsurf -> devin' -and $r.Out -match 'swe-2-medium') $r.Err
-    $r = Run @('-HostId','gemini','-Prompt','--dash & echo %PATH%','-ShowCommand')
+    $r = Run @('-HostId','antigravity','-Prompt','--dash & echo %PATH%','-ShowCommand')
     Check 'show command uses safe pointer' ($r.Exit -eq 0 -and $r.Out -match 'prompt-show.txt' -and $r.Out -notmatch '%PATH%')
     $fleet.dispatchPolicy['devin'] = @{ enabled = $false; reason = 'synthetic auth block'; ownerAction = 'owner runs devin auth login' }; Save-Fixture
     $r = Run @('-HostId','windsurf','-Prompt','ok')
@@ -347,8 +351,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','amp','-Prompt','ok'); Check 'table cannot bypass interactive profile' ($r.Exit -eq 3 -and $r.Err -match 'interactive')
     ($fleet.autonomyProfiles.profiles | Where-Object hostId -eq 'windsurf').defaultProfile = 'interactive'; Save-Fixture
     $r = Run @('-HostId','windsurf','-Prompt','ok'); Check 'alias cannot bypass its interactive profile' ($r.Exit -eq 3 -and $r.Err -match 'interactive')
-    ($agents.activeAgents | Where-Object id -eq 'gemini').executable = Join-Path $fixture 'missing-agent-binary'; Save-Fixture
-    $r = Run @('-HostId','gemini','-Prompt','ok'); Check 'missing binary refuses' ($r.Exit -eq 3 -and $r.Err -match 'executable is absent')
+    ($agents.activeAgents | Where-Object id -eq 'antigravity').executable = Join-Path $fixture 'missing-agent-binary'; Save-Fixture
+    $r = Run @('-HostId','antigravity','-Prompt','ok'); Check 'missing binary refuses' ($r.Exit -eq 3 -and $r.Err -match 'executable is absent')
     $env:CAD_FIXTURE_EXIT = '1'
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch); Check 'child exit code retained' ($r.Exit -eq 7)
     $env:CAD_FIXTURE_EXIT = $null; $env:CAD_FIXTURE_SLEEP = '1'

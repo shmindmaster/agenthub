@@ -29,8 +29,8 @@ Two things this file must get right, both learned from the data:
 
 Absence is judged on this machine and means nothing fleet-wide -- a product
 may be installed on another host. That is exactly why the remedy is a NOTE rather than deletion:
-the same reasoning Test-DeclaredPathAccountability records in
-gemini.agentsDirNote, where a declared path was changed on the mistaken basis
+the same reasoning Test-DeclaredPathAccountability records from the retired
+gemini entry's agentsDirNote, where a declared path was changed on the mistaken basis
 that a directory absent from disk must be wrong.
 
 Accounting may take either form, and both are accepted on purpose:

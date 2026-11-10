@@ -62,11 +62,10 @@ if ([string]::IsNullOrWhiteSpace($env:AGENTHUB_TEST_SCRATCH)) {
 }
 
 function New-SyntheticProfile {
-    param([string]$Name, [switch]$InstallCodex, [switch]$InstallOpenCode, [switch]$InstallGemini, [switch]$InstallAntigravity)
+    param([string]$Name, [switch]$InstallCodex, [switch]$InstallOpenCode, [switch]$InstallAntigravity)
     $profileRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-subagents-$Name-" + [guid]::NewGuid())
     if ($InstallCodex) { New-Item -ItemType Directory -Path (Join-Path $profileRoot '.codex') -Force | Out-Null }
     if ($InstallOpenCode) { New-Item -ItemType Directory -Path (Join-Path $profileRoot '.config\opencode') -Force | Out-Null }
-    if ($InstallGemini) { New-Item -ItemType Directory -Path (Join-Path $profileRoot '.gemini') -Force | Out-Null }
     if ($InstallAntigravity) { New-Item -ItemType Directory -Path (Join-Path $profileRoot '.gemini\antigravity-cli') -Force | Out-Null }
     return $profileRoot
 }
@@ -256,10 +255,10 @@ function Test-UnmanagedDestinationRefusesAndExitsNonZero {
 }
 
 # --- Behavior 6: idempotency. Two consecutive -Apply runs against the same
-# fresh synthetic profile (all 4 hosts installed); the second reports zero
+# fresh synthetic profile (all 3 hosts installed); the second reports zero
 # updates. ---
 function Test-SecondApplyIsIdempotent {
-    $userProfile = New-SyntheticProfile -Name 'idempotent' -InstallCodex -InstallOpenCode -InstallGemini -InstallAntigravity
+    $userProfile = New-SyntheticProfile -Name 'idempotent' -InstallCodex -InstallOpenCode -InstallAntigravity
     try {
         $first = Invoke-SyncSubagents -ExtraArgs @('-Apply', '-UserProfile', $userProfile)
         if ($first.ExitCode -ne 0) {
@@ -310,7 +309,7 @@ function Test-CapabilityWithoutAgentsDirectoryIsSkippedCleanly {
 # directory tree is created for it -- never force-installed. ---
 function Test-HostNotInstalledIsSkippedCleanlyWithoutCreatingDirectories {
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-subagents-not-installed-" + [guid]::NewGuid())
-    # Deliberately do NOT pre-create .codex, .config\opencode, .gemini, etc.
+    # Deliberately do NOT pre-create .codex, .config\opencode, .gemini\antigravity-cli, etc.
     try {
         $result = Invoke-SyncSubagents -ExtraArgs @('-Apply', '-UserProfile', $userProfile)
         if ($result.ExitCode -ne 0) {

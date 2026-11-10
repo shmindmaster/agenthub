@@ -69,6 +69,8 @@
   dispatchPolicy allowedModels; a bare model id or anything outside the
   allowlist is refused. Defaults to the recorded policy model, which is
   validated the same way before launch.
+  For -HostId kiro, a model listed in dispatchPolicy.kiro.allowedModels (each
+  spends Kiro credits at its own multiplier); anything else is refused.
 
 .PARAMETER Title
   Session title for -HostId opencode, so the run is findable in the shared
@@ -182,19 +184,6 @@ function Get-DispatchTable {
                 @{ Args = @('--print', '--output-format', 'text', '--mode', 'ask', '--trust', '--workspace', $Work, $PromptText); Stdin = $null; PromptFile = $null }
             }
         }
-        'gemini' = @{
-            Mode = 'argument'
-            Build = {
-                param($PromptText, $Work, $File)
-                # The registered shim applies its yolo default only when this
-                # explicit approval-mode flag is absent.
-                $args = @('--approval-mode', 'yolo', '--prompt', $PromptText)
-                # Gemini restricts read_file to workspace roots. A pointer
-                # prompt must explicitly admit its runtime prompt directory.
-                if ($File) { $args += @('--include-directories', (Split-Path -Parent $File)) }
-                @{ Args = $args; Stdin = $null; PromptFile = $null }
-            }
-        }
         'grok' = @{
             Mode = 'file'
             Build = {
@@ -286,6 +275,28 @@ function Get-DispatchTable {
                 $args += @('--agent', $mimoAgent)
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
+            }
+        }
+        'kiro' = @{
+            Mode = 'argument'
+            Build = {
+                param($PromptText, $Work, $File)
+                # Kiro CLI has no directory flag; the child process working
+                # directory is the task directory. --trust-all-tools approves
+                # every tool call, so an unattended run is refused unless policy
+                # names the agent whose tool settings deny outward and
+                # destructive commands. Auth is the Builder ID account login.
+                $kiroPolicy = $fleet.dispatchPolicy.kiro
+                $kiroModel = if ($script:KiroModel) { $script:KiroModel } else { [string]$kiroPolicy.model }
+                $kiroAllowed = @($kiroPolicy.allowedModels | ForEach-Object { [string]$_ })
+                if ($kiroModel -notmatch '^[A-Za-z0-9_.-]+$' -or $kiroModel -notin $kiroAllowed) {
+                    Write-Refusal 3 "refused kiro: model '$kiroModel' is not in dispatchPolicy.kiro.allowedModels"
+                }
+                $kiroAgent = [string]$kiroPolicy.agent
+                if ($kiroAgent -notmatch '^[A-Za-z0-9_-]+$') {
+                    Write-Refusal 3 "refused kiro: dispatchPolicy.kiro.agent must name the guarded agent for unattended runs"
+                }
+                @{ Args = @('chat', '--no-interactive', '--trust-all-tools', '--agent', $kiroAgent, '--model', $kiroModel, $PromptText); Stdin = $null; PromptFile = $null }
             }
         }
         'factory' = @{
@@ -551,7 +562,7 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $r
     $script:ClineProvider = $choice.Substring(0, $split)
     $script:ClineModel = $choice.Substring($split + 1)
 } elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
-    if ($requested -notin @('opencode', 'factory', 'devin', 'kilo', 'mimo-code')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp, Factory, Devin, Kilo or MiMo model.' }
+    if ($requested -notin @('opencode', 'factory', 'devin', 'kilo', 'mimo-code', 'kiro')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo or Kiro model.' }
     # Kilo and MiMo take provider/model ids only; a bare id is never a fallback.
     if ($requested -in @('kilo', 'mimo-code') -and $Model.Trim() -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$') {
         Write-Refusal 3 "refused ${requested}: -Model must be a provider/model id listed in dispatchPolicy.${requested}.allowedModels (got '$($Model.Trim())')"
@@ -568,6 +579,7 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $r
     if ($requested -eq 'devin') { $script:DevinModel = $Model.Trim() }
     if ($requested -eq 'kilo') { $script:KiloModel = $Model.Trim() }
     if ($requested -eq 'mimo-code') { $script:MimoCodeModel = $Model.Trim() }
+    if ($requested -eq 'kiro') { $script:KiroModel = $Model.Trim() }
 }
 if (-not [string]::IsNullOrWhiteSpace($Title) -and $requested -ne 'opencode') {
     Write-Refusal 3 '-Title applies only to -HostId opencode.'
@@ -699,7 +711,6 @@ $accountScrub = @{
     'codex'        = @('OPENAI_API_KEY')
     'cline'        = @('CLINE_API_KEY', 'OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY')
     'devin'        = @('DEVIN_API_KEY', 'DEVIN_API_TOKEN', 'DEVIN_SERVICE_USER_TOKEN', 'DEVIN_ORG_ID')
-    'gemini'       = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'warp'         = @('WARP_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'grok'         = @('XAI_API_KEY')

@@ -39,11 +39,27 @@ test('check reports a duplicate id, a bad date, a bad band and an unquoted comma
       .replace('"Up to $100,000"', 'Up to $100,000'),
     (root) => {
       const { problems } = check(root);
-      for (const expected of ['duplicate id', 'verified must be', 'band must be', 'quote any value']) {
+      for (const expected of ['duplicate id', 'verified must be a real', 'band must be', 'quote any value']) {
         assert.ok(problems.some((p) => p.includes(expected)), `missing problem: ${expected}\n${problems.join('\n')}`);
       }
     },
   );
+});
+
+test('check rejects a date with the right shape that is not on the calendar', () => {
+  withBrokenRegister((text) => text.replace(/2025-10-01\r?\n$/, '2026-02-30\n').replace(',apply,2026-01-10,', ',apply,2026-13-45,'), (root) => {
+    const { problems } = check(root);
+    assert.ok(problems.some((p) => p.includes('verified must be a real')), problems.join('\n'));
+    assert.ok(problems.some((p) => p.includes('decision_date must be a real')), problems.join('\n'));
+  });
+});
+
+test('due rejects a days value that is not a usable number', () => {
+  assert.throws(() => due(fixtures, Number('abc')), /days must be a number/);
+  assert.throws(() => due(fixtures, -1), /days must be a number/);
+  const run = spawnSync(process.execPath, [script, 'due', fixtures, 'abc'], { encoding: 'utf8', windowsHide: true });
+  assert.equal(run.status, 2);
+  assert.match(run.stderr, /days must be a number/);
 });
 
 test('check fails when a column is renamed', () => {
@@ -81,11 +97,11 @@ test('due lists open rows past the verification window and leaves closed rows ou
 });
 
 test('the command exits 1 on a broken register and 2 when the register is missing', () => {
-  assert.equal(spawnSync(process.execPath, [script, 'check', fixtures]).status, 0);
+  assert.equal(spawnSync(process.execPath, [script, 'check', fixtures], { windowsHide: true }).status, 0);
   withBrokenRegister((text) => text.replace(',P4,', ',P9,'), (root) => {
-    assert.equal(spawnSync(process.execPath, [script, 'check', root]).status, 1);
+    assert.equal(spawnSync(process.execPath, [script, 'check', root], { windowsHide: true }).status, 1);
   });
-  const missing = spawnSync(process.execPath, [script, 'check', join(fixtures, 'absent')], { encoding: 'utf8' });
+  const missing = spawnSync(process.execPath, [script, 'check', join(fixtures, 'absent')], { encoding: 'utf8', windowsHide: true });
   assert.equal(missing.status, 2);
   assert.match(missing.stderr, /do not create a second register/);
 });

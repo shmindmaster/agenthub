@@ -272,7 +272,7 @@ function Test-SkillCopy([string]$Source, [string]$Destination, [string]$Client) 
     return -not @(Compare-Object $sourceSkills $installedSkills).Count
 }
 
-$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; gemini='gemini'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders'; kilo='kilo'; 'mimo-code'='mimo' }
+$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders'; kilo='kilo'; 'mimo-code'='mimo' }
 
 # A mapping may declare nativeOwnerHost: the surface row is reported under its
 # own hostId but every observation, client call and install resolves through
@@ -296,7 +296,6 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     # Every owner-bound policy resolves through the native owner, so an alias
     # can never escape its owner's disable, blocked route or loose-skill rule.
     $nativeHost = Get-RowNativeHost $Row
-    if ($nativeHost -eq 'gemini') { $Row.status = 'blocked'; $Row.detail = 'AgentHub Gemini rollout is disabled pending an entitled CLI.'; return }
     $routeKey = "$nativeHost/$($Row.capability)"
     if ($blockedRoutes.ContainsKey($routeKey)) { $Row.status = 'blocked'; $Row.detail = $blockedRoutes[$routeKey]; return }
     if ($Row.route -eq 'preprovisioned-loose-skills' -or $nativeHost -eq 'windsurf') {
@@ -336,7 +335,7 @@ function Get-MappingMarketplace([bool]$Private, [string]$OwnerHost) {
 
 function Get-MappingRoute($Cap, [string]$OwnerHost, [string]$DeploymentStatus) {
     if ($Cap.id -eq 'repowise' -and $OwnerHost -in 'claude','codex') { return 'vendor' }
-    if ($Cap.deployedCatalog -and $OwnerHost -ne 'gemini') { return 'runtime' }
+    if ($Cap.deployedCatalog) { return 'runtime' }
     if ($OwnerHost -eq 'grok' -and $Cap.id -in 'product', 'media-studio', 'sarosh', 'coding-agent-dispatch') { return 'native-local-plugin' }
     if ($OwnerHost -eq 'copilot' -and $Cap.id -in 'media-studio', 'repowise') { return 'native-local-plugin' }
     return $DeploymentStatus

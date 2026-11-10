@@ -31,7 +31,7 @@ owned skills with `Sync-Capabilities.ps1 -Apply -Prune`. Audit both afterwards.
 Pruning only removes unchanged managed copies; a modified copy needs review.
 
 Instruction destinations are surface-specific. Antigravity CLI, Desktop and
-IDE share the Gemini-owned `~/.gemini/GEMINI.md`; the instruction audit reports
+IDE share `~/.gemini/GEMINI.md`, owned by the Antigravity CLI entry since Gemini CLI was retired on 2026-11-10; the instruction audit reports
 the concrete owner's state for each shared surface and rejects an invalid owner.
 The [current Antigravity rules documentation](https://www.antigravity.google/docs/rules/)
 specifies 24,000 bytes per file after inline includes and a 20,000-token aggregate

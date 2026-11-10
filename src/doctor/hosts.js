@@ -126,7 +126,6 @@ const MCP_LAYOUT = {
   grok: [{ field: 'config', format: 'toml', key: 'mcp_servers', dialect: 'codex' }],
   opencode: [{ field: 'config', key: 'mcp', dialect: 'opencode', file: 'opencode.json' }],
   'opencode-desktop': [{ field: 'config', key: 'mcp', dialect: 'opencode', file: 'opencode.json' }],
-  gemini: [{ field: 'settings', key: 'mcpServers' }],
   copilot: [{ field: 'mcp', key: 'mcpServers' }],
   antigravity: [{ field: 'mcp', key: 'mcpServers' }, { field: 'legacyMcp', key: 'mcpServers' }],
   warp: [{ field: 'mcp', key: 'mcpServers' }],

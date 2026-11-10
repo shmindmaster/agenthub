@@ -1,13 +1,13 @@
 # Host details
 
-Read when: dispatching to Cline, OpenCode, Factory, Devin, Gemini, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
+Read when: dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
 
 Contents: Account hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
 
 ## Account hosts
 
 - Cursor Agent, Amp, OpenCode: account login; confirm with the host's own status command before the first dispatch.
-- Gemini: the dispatcher passes `--approval-mode yolo`; the registered shim skips its own yolo default for that invocation and adds `--skip-trust`. Google ended this client for individual accounts, so it stays disabled; dispatch Google work to Antigravity. Temporary task files are admitted with `--include-directories`.
+- Gemini CLI is retired (2026-11-10) and has no dispatch contract. Dispatch Google work to Antigravity.
 - Copilot: runs on the `sh-pendoah` GitHub account; the dispatcher reads that token from gh's keyring into the child environment only.
 - Codex reads the task from stdin (`exec --skip-git-repo-check -`) and does not initialize Git. Antigravity gets `--print=<prompt>` after its permissions flag.
 - Long, quoted or multiline argument prompts go through a temporary UTF-8 file and a short pointer; the file is removed on completion.
@@ -38,10 +38,16 @@ missing. If a peer file is absent on a machine, recreate it from the rules in
   initialization, session handoff and authenticated inference remain separate
   checks. Do not start a listener or install a bridge to bypass a refused run.
 
-Kiro's installed CLI supports `chat --no-interactive`; that discovery does not
-establish unattended permission policy or model allowance. Qwen has a saved
-configuration, but its observed run failed in `resolveModelConfig`. Do not
-describe either as callable or change their credentials to make a check pass.
+Kiro CLI is dispatchable on its Builder ID login. `--trust-all-tools` approves
+every tool call, so it runs only under the policy-named `ah-peer` agent
+(`~/.kiro/agents/ah-peer.json`), which denies outward and destructive commands
+and does not load the host's MCP file. Every Kiro model spends plan credits at
+its own multiplier; only an allowlisted model may be routed. The Kiro IDE and
+KiroCrew are not dispatch targets.
+
+Qwen has a saved configuration, but its observed run failed in
+`resolveModelConfig`. Do not describe it as callable or change its credentials
+to make a check pass.
 
 ## Factory
 

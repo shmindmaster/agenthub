@@ -19,10 +19,10 @@
     <canonicalSource>/agents directory exists and contains at least one
     *.agent.md file -- a capability without one is skipped cleanly, never
     treated as an error. For each such capability's agents, generates
-    per-host subagent files for exactly the 4 hosts documented in
-    registry/subagent-formats.json (codex, opencode, gemini, antigravity --
-    the same 4 the deleted generator served; see that file's header note for
-    why no other host is in scope). Destination roots are built entirely
+    per-host subagent files for exactly the 3 hosts documented in
+    registry/subagent-formats.json (codex, opencode, antigravity -- the
+    hosts the deleted generator served, less gemini, retired 2026-11-10;
+    see that file's header note for why no other host is in scope). Destination roots are built entirely
     from the resolved -UserProfile parameter plus registry-declared
     templates -- this script never reads an absolute destination path baked
     into a registry file, which is the exact hazard class documented in
@@ -279,7 +279,7 @@ function Read-CanonicalAgent {
 # ---------------------------------------------------------------------------
 # Tool-name translation. A tool with no entry in a host's toolMap is dropped
 # from that host's list (matching the deleted generator's own behavior --
-# neither Gemini nor Antigravity has a documented, verified tool name for
+# Antigravity has no documented, verified tool name for
 # every possible canonical tool, e.g. WebSearch/WebFetch; AGENTS.md forbids
 # inventing an unverified host-native tool name), but -- unlike the deleted
 # generator (defect #7, silent drop) -- every drop is surfaced as a visible
@@ -301,8 +301,8 @@ function Get-MappedTools {
 }
 
 # ---------------------------------------------------------------------------
-# Per-host renderers. Four genuinely different serialization dialects (TOML,
-# three mutually-incompatible YAML-frontmatter shapes) -- this is inherent
+# Per-host renderers. Three genuinely different serialization dialects (TOML,
+# two mutually-incompatible YAML-frontmatter shapes) -- this is inherent
 # to the target formats, not capability-specific branching. Which renderer
 # applies to which host is selected generically via $formatsReg.hosts[].format
 # (registry data), never by comparing a host id against a capability name.
@@ -328,15 +328,6 @@ function Get-OpenCodeMdContent {
     return [pscustomobject]@{ Content = (($fm + '', $Agent.Body) -join "`n"); Unmapped = @() }
 }
 
-function Get-GeminiMdContent {
-    param($RuntimeName, $Agent, $ToolMap)
-    $mapped = Get-MappedTools -Tools $Agent.Tools -ToolMapObj $ToolMap
-    $fm = @('---', "name: $RuntimeName", "description: $($Agent.Description)", 'kind: local', 'tools:') +
-        @($mapped.Mapped | ForEach-Object { "  - $_" }) +
-        @('model: inherit', 'max_turns: 30', '---')
-    return [pscustomobject]@{ Content = (($fm + '', $Agent.Body) -join "`n"); Unmapped = $mapped.Unmapped }
-}
-
 function Get-AntigravityMdContent {
     param($RuntimeName, $Agent, $ToolMap)
     $mapped = Get-MappedTools -Tools $Agent.Tools -ToolMapObj $ToolMap
@@ -352,7 +343,6 @@ function Get-RenderedSubagent {
     switch ($Format) {
         'codex-toml'     { return Get-CodexTomlContent -RuntimeName $RuntimeName -Agent $Agent }
         'opencode-md'    { return Get-OpenCodeMdContent -RuntimeName $RuntimeName -Agent $Agent }
-        'gemini-md'      { return Get-GeminiMdContent -RuntimeName $RuntimeName -Agent $Agent -ToolMap $ToolMap }
         'antigravity-md' { return Get-AntigravityMdContent -RuntimeName $RuntimeName -Agent $Agent -ToolMap $ToolMap }
         default { throw "Unknown subagent format '$Format' declared in $SubagentFormatsFile." }
     }
@@ -364,7 +354,6 @@ function Get-RenderedSubagent {
 # ---------------------------------------------------------------------------
 function Test-CodexTomlShape { param([string]$Content) return ($Content -match '(?m)^name\s*=\s*"' -and $Content -match '(?m)^developer_instructions\s*=\s*"""') }
 function Test-OpenCodeMdShape { param([string]$Content) return ($Content.TrimStart().StartsWith('---') -and $Content -match '(?m)^description:\s') }
-function Test-GeminiMdShape { param([string]$Content) return ($Content.TrimStart().StartsWith('---') -and $Content -match '(?m)^kind:\s*local\s*$') }
 function Test-AntigravityMdShape { param([string]$Content) return ($Content.TrimStart().StartsWith('---') -and $Content -match '(?m)^commandExecutionPolicy:\s') }
 function Test-ManifestShape {
     param([string]$Content)
@@ -379,33 +368,22 @@ function Test-SubagentShape {
     switch ($Format) {
         'codex-toml'     { return Test-CodexTomlShape -Content $Content }
         'opencode-md'    { return Test-OpenCodeMdShape -Content $Content }
-        'gemini-md'      { return Test-GeminiMdShape -Content $Content }
         'antigravity-md' { return Test-AntigravityMdShape -Content $Content }
         default { return $false }
     }
 }
 
 # ---------------------------------------------------------------------------
-# Manifest content (Gemini extension / Antigravity plugin wrapper). Built by
+# Manifest content (Antigravity plugin wrapper). Built by
 # hand rather than ConvertTo-Json: PowerShell 5.1's ConvertTo-Json emits a
 # different indent/spacing style ("  \"name\":  \"x\"", 4-space, double
 # space after colon) than PowerShell 7's ("  \"name\": \"x\"", 2-space,
-# single space -- confirmed by comparing both against the real deployed
-# gemini-extension.json, which matches pwsh's style, proving the original
-# generator ran under pwsh). Relying on ConvertTo-Json here would make this
+# single space -- confirmed by comparing both against a real deployed
+# manifest, which matched pwsh's style, proving the original generator ran
+# under pwsh). Relying on ConvertTo-Json here would make this
 # script's manifest output depend on which shell ran it, violating "both
 # shells produce the same result."
 # ---------------------------------------------------------------------------
-function Get-GeminiManifestContent {
-    param($Capability)
-    $desc = "AgentHub-managed $($Capability.DisplayName) subagents; skills and MCP remain centrally distributed."
-    return "{`n" +
-        "  ""name"": $(ConvertTo-TomlString "agenthub-$($Capability.Id)"),`n" +
-        "  ""version"": $(ConvertTo-TomlString $Capability.Version),`n" +
-        "  ""description"": $(ConvertTo-TomlString $desc)`n" +
-        "}`n"
-}
-
 function Get-AntigravityManifestContent {
     param($Capability)
     $desc = "AgentHub-managed $($Capability.DisplayName) subagents; skills and MCP remain centrally distributed."
@@ -419,7 +397,6 @@ function Get-AntigravityManifestContent {
 function Get-RenderedManifest {
     param([string]$ManifestKind, $Capability)
     switch ($ManifestKind) {
-        'gemini-extension'   { return Get-GeminiManifestContent -Capability $Capability }
         'antigravity-plugin' { return Get-AntigravityManifestContent -Capability $Capability }
         default { return $null }
     }
@@ -525,7 +502,7 @@ foreach ($cap in $capabilities) {
         $destDir = Expand-DestinationTemplate -Template $hostFormat.destinationTemplate -CapabilityId $cap.Id
         $toolMap = $hostFormat.toolMap
 
-        # Manifest (Gemini extension / Antigravity plugin wrapper), one per
+        # Manifest (Antigravity plugin wrapper), one per
         # capability x host, only for hosts that declare a manifestKind.
         if ($hostFormat.manifestKind -and $hostFormat.manifestKind -ne 'none') {
             $manifestDir = Expand-DestinationTemplate -Template $hostFormat.manifestDestinationTemplate -CapabilityId $cap.Id

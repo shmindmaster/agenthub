@@ -18,7 +18,6 @@ Home: /home/you   Registry: none, comparing agents with each other
 AGENT             MCP  SKILLS  INSTRUCTIONS        ISSUES
 Claude Code         3       2  CLAUDE.md ~684 tok  1 high · 2 warn
 OpenAI Codex        2       2  AGENTS.md ~10 tok   2 warn
-Gemini CLI          1       2  -                   1 warn
 Cursor              2       2  -                   1 high
 Cursor Agent CLI    2       2  -                   1 high
 
@@ -41,7 +40,7 @@ That output is from a test fixture home, trimmed. Run it against your own machin
 
 ## What doctor checks
 
-- **Which agents are set up**, from their config files: Claude Code, Claude Desktop, OpenAI Codex, Cursor and the Cursor CLI, Gemini CLI, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp, Windsurf, VS Code and VS Code Insiders. Paths come from [`registry/agents.json`](./registry/agents.json) and resolve per OS.
+- **Which agents are set up**, from their config files: Claude Code, Claude Desktop, OpenAI Codex, Cursor and the Cursor CLI, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp, Windsurf, VS Code and VS Code Insiders. Paths come from [`registry/agents.json`](./registry/agents.json) and resolve per OS.
 - **What each one loads**: its MCP servers (JSON, JSONC and TOML configs in each agent's own dialect), its skills including the shared `~/.agents/skills` library, and its global instruction files with a rough token count.
 - **Risky MCP configs**: API keys and tokens written into a config (the value is never printed), remote servers over plain `http://`, remote servers with no credentials configured, commands that are not on `PATH` so the server cannot start, and `npx`/`uvx` packages with no pinned version.
 - **Drift**: the same server defined differently in two agents, servers set up in some agents but not others, two different copies of one skill, skills without `name`/`description` frontmatter, and instruction files that differ between agents. Inside an AgentHub checkout, or with `--registry <dir>`, it also compares each agent with the registry.
@@ -64,7 +63,7 @@ It never writes a file, starts a server or opens a network connection. `--probe-
 
 If you run more than one AI coding agent, you end up with several copies of the same instructions, skills and MCP server settings, and they slowly stop matching. AgentHub keeps one canonical copy, writes it into each agent's own configuration format, and tells you when an agent has drifted from it.
 
-It targets Claude Code, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot CLI and the other agents listed in [`registry/agents.json`](./registry/agents.json). The sync engine is a set of PowerShell 7 scripts over plain JSON and Markdown. It runs on Windows, macOS (Apple silicon and Intel) and Linux: CI runs `validate`, the `sync` audit and the full test suite on all of them. Each host's paths follow its documented layout per OS, for example `~/.claude` everywhere, Cursor and VS Code settings under `%APPDATA%`, `~/Library/Application Support` or `~/.config`, and Devin under `%APPDATA%\devin` on Windows but `~/.config/devin` on macOS and Linux. A few owner-workstation integrations are Windows-only (see [Platform support](#platform-support)). Nothing is written to an agent's configuration until you run `sync --apply`.
+It targets Claude Code, OpenAI Codex, Cursor, GitHub Copilot CLI and the other agents listed in [`registry/agents.json`](./registry/agents.json). The sync engine is a set of PowerShell 7 scripts over plain JSON and Markdown. It runs on Windows, macOS (Apple silicon and Intel) and Linux: CI runs `validate`, the `sync` audit and the full test suite on all of them. Each host's paths follow its documented layout per OS, for example `~/.claude` everywhere, Cursor and VS Code settings under `%APPDATA%`, `~/Library/Application Support` or `~/.config`, and Devin under `%APPDATA%\devin` on Windows but `~/.config/devin` on macOS and Linux. A few owner-workstation integrations are Windows-only (see [Platform support](#platform-support)). Nothing is written to an agent's configuration until you run `sync --apply`.
 
 ### What it keeps in sync
 
@@ -76,11 +75,11 @@ You describe your setup once, in this repository. AgentHub works out what each h
 | Skills, in `packages/<name>/` | The host's skills directory |
 | Plugins | The host's native plugin package where it has one, loose skills and MCP configuration where it does not |
 | MCP servers, in `registry/mcps.json` | An entry in the host's own MCP config file |
-| Subagents, as `agents/*.agent.md` | Native subagent files for Codex, OpenCode, Gemini CLI and Antigravity |
+| Subagents, as `agents/*.agent.md` | Native subagent files for Codex, OpenCode and Antigravity |
 
 A host with no documented location for one of these is skipped rather than guessed at.
 
-The registry describes Claude Code, OpenAI Codex, Cursor and Cursor Agent, Gemini CLI, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp and VS Code Insiders. Windsurf and OpenCode Desktop are marked unverified.
+The registry describes Claude Code, OpenAI Codex, Cursor and Cursor Agent, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp and VS Code Insiders. Windsurf and OpenCode Desktop are marked unverified.
 
 ### Why you can trust it with your agents' config
 

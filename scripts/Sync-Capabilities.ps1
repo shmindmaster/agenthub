@@ -365,7 +365,7 @@ foreach ($capability in $capabilities.capabilities) {
     # A host that declares nativePaths.sharedSkillsDir wants ONE deployment
     # in that shared directory instead of a redundant copy in its own
     # skillsDir. The fleet master is ~/.agents/skills. Hosts that natively
-    # read that path (codex, gemini, cursor, copilot, warp, amp, factory,
+    # read that path (codex, cursor, copilot, warp, amp, factory,
     # opencode, windsurf, vscode-insiders) deploy only there. Hosts that do
     # not (claude, cline, grok) still declare sharedSkillsDir
     # so AgentHub writes once; their skillsDir is a directory junction to

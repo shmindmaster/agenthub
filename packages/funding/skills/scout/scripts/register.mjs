@@ -14,6 +14,9 @@ export const COLUMNS = [
 ];
 const BANDS = ['', 'P1', 'P2', 'P3', 'P4'];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+// The shape alone admits 2026-02-30; a real date survives a round trip through Date.
+const isDate = (value) => ISO_DATE.test(value || '') && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
+  && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
 // Decisions that close an opportunity. A closed row is recommended again only when reopen_if holds.
 const CLOSED = /^(skip|rejected|declined|dropped|expired|not-eligible)/i;
 
@@ -60,8 +63,8 @@ export function check(root) {
     else if (ids.has(r.id.toLowerCase())) problems.push(`${at}: duplicate id`);
     ids.add((r.id || '').toLowerCase());
     for (const col of ['program', 'category', 'decision']) if (!r[col]) problems.push(`${at}: ${col} is empty`);
-    if (!ISO_DATE.test(r.verified || '')) problems.push(`${at}: verified must be YYYY-MM-DD`);
-    if (r.decision_date && !ISO_DATE.test(r.decision_date)) problems.push(`${at}: decision_date must be YYYY-MM-DD`);
+    if (!isDate(r.verified)) problems.push(`${at}: verified must be a real YYYY-MM-DD date`);
+    if (r.decision_date && !isDate(r.decision_date)) problems.push(`${at}: decision_date must be a real YYYY-MM-DD date`);
     if (r.official_url && !/^https:\/\//.test(r.official_url)) problems.push(`${at}: official_url must be an https URL`);
     if (!BANDS.includes(r.band || '')) problems.push(`${at}: band must be P1 to P4 or empty`);
     for (const col of ['fit_score', 'priority_score']) {
@@ -93,6 +96,7 @@ export function seen(root, query) {
 }
 
 export function due(root, days = 30, today = new Date()) {
+  if (!Number.isFinite(days) || days < 0) throw new Error('days must be a number that is zero or greater, for example: due <root> 30');
   const cutoff = new Date(today.getTime() - days * 86400000).toISOString().slice(0, 10);
   return loadRegister(root).rows
     .filter((r) => !CLOSED.test(r.decision) && (r.verified || '') < cutoff)

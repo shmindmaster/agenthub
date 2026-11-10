@@ -67,18 +67,6 @@ class ClerkFleetTests(unittest.TestCase):
             script.write_text('@echo off\n@echo %~1\n', encoding="utf-8")
             self.assertEqual(fleet.run([str(script), "literal value with spaces"]), "literal value with spaces")
 
-    def test_gemini_preserves_conflicting_local_process_entry(self):
-        with tempfile.TemporaryDirectory() as temp:
-            home, upstream = Path(temp) / "home", Path(temp) / "upstream"
-            (upstream / "skills").mkdir(parents=True)
-            path = home / ".gemini/settings.json"
-            path.parent.mkdir(parents=True)
-            original = '{"mcpServers":{"clerk":{"command":"legacy","args":[]}}}'
-            path.write_text(original)
-            with self.assertRaisesRegex(RuntimeError, "Conflicting"):
-                fleet.bridge("gemini", upstream, home)
-            self.assertEqual(path.read_text(), original)
-
     def test_cursor_companion_rejects_linked_rules_ancestor(self):
         with tempfile.TemporaryDirectory() as temp:
             home = Path(temp)

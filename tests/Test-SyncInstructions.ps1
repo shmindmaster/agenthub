@@ -150,8 +150,8 @@ function Test-RenderContractProducesExactBytes {
 
         # Shared surfaces inherit the actual owner's audit state. VS Code's
         # Copilot harness has its own documented file-discovery route.
-        if ($after.Output -notmatch '(?m)^antigravity\s+shared \(current\).*owner=gemini') {
-            return @{ Passed = $false; Detail = 'Antigravity did not report the concrete Gemini owner state' }
+        if ($after.Output -notmatch '(?m)^antigravity-desktop\s+shared \(current\).*owner=antigravity') {
+            return @{ Passed = $false; Detail = 'Antigravity Desktop did not report the concrete Antigravity owner state' }
         }
         $editorPolicy = Join-Path $userProfile '.copilot\instructions\agenthub-global.instructions.md'
         if (-not (Test-Path -LiteralPath $editorPolicy) -or

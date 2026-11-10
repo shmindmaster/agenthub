@@ -252,7 +252,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # an inactive host, or one with an uncaptured response; those stay out and are pinned
     # below, because "nothing should be disabled" is not a budget authorization.
     $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin',
-        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code')
+        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'kiro')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -314,17 +314,16 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add("$($entry.Name) has no loginCommand")
         }
     }
-    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'gemini', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code')
+    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code', 'kiro')
     foreach ($id in $dispatchHosts) {
         if ($profile.hostSettings.PSObject.Properties.Name -notcontains $id) {
             $violations.Add("$id has no hostSettings authentication record")
         }
     }
-    if ($profile.hostSettings.gemini.authMode -ne 'account' -or
-        $profile.hostSettings.gemini.settingsPath -ne 'security.auth.selectedType' -or
-        $profile.hostSettings.gemini.settingsValue -ne 'oauth-personal' -or
-        $profile.dispatchPolicy.gemini.enabled -ne $false) {
-        $violations.Add('Gemini must retain account OAuth settings and remain disabled')
+    # Gemini CLI was retired on 2026-11-10 (docs/fleet/retired-hosts-2026-10-21.md).
+    if ($profile.hostSettings.PSObject.Properties.Name -contains 'gemini' -or
+        $profile.dispatchPolicy.PSObject.Properties.Name -contains 'gemini') {
+        $violations.Add('Gemini CLI is retired and must have no hostSettings or dispatchPolicy record')
     }
     foreach ($violation in @(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy)) { $violations.Add($violation) }
     $openCode = $profile.dispatchPolicy.opencode
@@ -395,6 +394,13 @@ function Test-LiveHostAuthenticationMetadata {
         if ($planPolicy.enabled -eq $true -and [string]$planPolicy.agent -notmatch '^[A-Za-z0-9_-]+$') {
             $violations.Add("$id dispatch is enabled without a guarded agent; its auto-approve flag approves every action no rule denies")
         }
+    }
+    $kiroPolicy = $profile.dispatchPolicy.kiro
+    if ($kiroPolicy.enabled -eq $true -and (
+        [string]$kiroPolicy.agent -notmatch '^[A-Za-z0-9_-]+$' -or
+        $profile.hostSettings.kiro.authMode -ne 'account' -or
+        @($kiroPolicy.allowedModels | ForEach-Object { [string]$_ }) -notcontains $kiroPolicy.model)) {
+        $violations.Add('Kiro dispatch must run on its account login under a guarded agent, with its default model inside allowedModels')
     }
     foreach ($violation in @(Get-CodexDispatchEvidenceViolations $profile.dispatchPolicy.codex)) { $violations.Add($violation) }
     if ($profile.managedHosts -notcontains 'cursor-agent') {

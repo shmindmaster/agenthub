@@ -161,36 +161,6 @@
       "surfaceType": "companion-desktop"
     },
     {
-      "id": "gemini",
-      "name": "Gemini CLI",
-      "version": "0.67.0",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `gemini.cmd --version` printed 0.65.0. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported 0.64.0. `npm view @google/gemini-cli version` returned the same version, so no upgrade was performed.",
-      "executable": "{userHome}/bin/gemini.cmd",
-      "nativePaths": {
-        "settings": "{userHome}/.gemini/settings.json",
-        "instructions": "{userHome}/.gemini/GEMINI.md",
-        "instructionHeader": "# Gemini CLI and Antigravity Global Instructions",
-        "instructionFormat": "markdown",
-        "skillsDir": "{userHome}/.gemini/skills",
-        "agentsDir": "{userHome}/.gemini/agents",
-        "agentsDirNote": "Reverted 2026-08-04, same day it was wrongly changed. An earlier edit replaced this with ~/.gemini/extensions on the mistaken basis that a directory absent from disk must be wrong. Gemini CLI documents ~/.gemini/agents as the user-level subagent directory, alongside project-level .gemini/agents. AgentHub's own subagents ship as extension bundles under ~/.gemini/extensions per registry/subagent-formats.json, which is a separate mechanism; this field records the host-native user-level directory and the two need not agree.",
-        "extensionsDir": "{userHome}/.gemini/extensions",
-        "sharedSkillsDir": "{userHome}/.agents/skills"
-      },
-      "supportedCapabilities": [
-        "rules",
-        "skills",
-        "subagents",
-        "extensions",
-        "hooks",
-        "mcp",
-        "acp"
-      ],
-      "status": "active",
-      "notes": "The managed model registry selects Gemini 3.6 Flash with HIGH thinking; local settings inspected during this repair instead named gemini-3.8-flash-high. The existing transport failure prevents an inference-readiness claim. AgentHub-managed skills deploy once under {userHome}/.agents/skills, which Gemini reads natively. ~/.gemini/skills is retained as the documented Gemini-native path and is not a second copy.",
-      "headlessDispatchNote": "Gemini 0.64.0 --prompt is headless. Pointer prompts also use --include-directories for their runtime prompt file. Prior crash report ends in TypeError: fetch failed sending request after workspace-policy denials; no nested transport cause was saved."
-    },
-    {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
       "version": "1.0.108",
@@ -239,10 +209,11 @@
         "agentsDir": "{userHome}/.gemini/config/agents",
         "agentsDirNote": "Reverted 2026-08-04, same day it was wrongly changed. An earlier edit replaced this with the antigravity-cli plugins path because this directory does not exist on disk and nothing writes to it. That reasoning was wrong -- absence on disk is not absence from the documentation, which is the same mistake that recorded windsurf's skills directory as null. antigravity.google/docs/subagents documents two separate discovery mechanisms: Global Customizations at ~/.gemini/config/agents/<name>.md (this field) and plugin-bundled agents at plugins/<plugin>/agents (registry/subagent-formats.json). Both are valid and they are not required to agree.",
         "pluginsDir": "{userHome}/.gemini/config/plugins",
-        "instructions": null,
-        "instructionsOwnedBy": "gemini",
-        "verification": "documented-shared-destination",
-        "instructionsNote": "Verified 2026-10-23 against https://www.antigravity.google/docs/rules/ (all three surfaces): ~/.gemini/GEMINI.md is an always-active global rule shared with the gemini entry. instructionsOwnedBy avoids competing writers. Current documented limit is 24,000 bytes per file after inline includes, plus a 20,000-token aggregate active-rules budget; the earlier 12,000-character claim is superseded. File deployment is not proof an already-running session consumed it.",
+        "instructions": "{userHome}/.gemini/GEMINI.md",
+        "instructionHeader": "# Gemini CLI and Antigravity Global Instructions",
+        "instructionFormat": "markdown",
+        "verification": "documented-path",
+        "instructionsNote": "Verified 2026-10-23 against https://www.antigravity.google/docs/rules/ (all three surfaces): ~/.gemini/GEMINI.md is an always-active global rule. This entry owns the file since the gemini host, its earlier owner, was retired on 2026-11-10; the desktop and IDE entries name it through instructionsOwnedBy. instructionHeader keeps the earlier owner's text so the deployed file does not change. Current documented limit is 24,000 bytes per file after inline includes, plus a 20,000-token aggregate active-rules budget; the earlier 12,000-character claim is superseded. File deployment is not proof an already-running session consumed it.",
         "cliSkillsDirNote": "Verified 2026-08-05 against antigravity.google/docs/cli/plugins, which states directly that skills shared across all workstation workspaces go in ~/.gemini/antigravity-cli/skills/. Distinct from workspace .agents/skills/ and from the broader ~/.gemini/skills/ shared across all Antigravity tools rather than the CLI alone. Path correct; absent only because AgentHub deploys Antigravity capabilities as plugin bundles under ~/.gemini/antigravity-cli/plugins/ instead. Updated 2026-10-21: scripts/Sync-Capabilities.ps1 now manages this directory without deploying into it, because the CLI already reads the shared library ~/.agents/skills (sharedSkillsDir) and a copy here would load every skill twice. With -Apply -Prune it removes retired fleet skill names and shadow copies (entries named like a skill AgentHub ships to this host); without -Prune it reports them as drift. Entries AgentHub does not ship (third-party skills) are reported as unmanaged and never deleted, and a reparse point is never removed. Background: on 2026-10-20 this directory held 29 stale unmanaged skill copies (old media-studio skills and retired names) that the CLI loaded beside the managed set; they were backed up to antigravity-cli-skills-backup-20261020-2353.zip with a SHA-256 manifest in the orchestrator's shared notes and then removed. That removal was the owner's decision, relayed by the orchestrating session."
       },
       "supportedCapabilities": [
@@ -269,9 +240,9 @@
         "configHome": "{roamingConfig}/Antigravity",
         "configHomeNote": "Electron user-data directory: %APPDATA%\\Antigravity on Windows, ~/Library/Application Support/Antigravity on macOS, ~/.config/Antigravity on Linux (app.getPath('userData'); observed on all three by https://seanthegeek.net/doubleagent/collectors/research/antigravity.html, checked 2026-10-24).",
         "instructions": null,
-        "instructionsOwnedBy": "gemini",
+        "instructionsOwnedBy": "antigravity",
         "verification": "documented-shared-destination",
-        "instructionsNote": "Verified 2026-10-23 against https://www.antigravity.google/docs/rules/ (all three surfaces): ~/.gemini/GEMINI.md is an always-active global rule shared with the gemini entry. instructionsOwnedBy avoids competing writers. Current documented limit is 24,000 bytes per file after inline includes, plus a 20,000-token aggregate active-rules budget; the earlier 12,000-character claim is superseded. File deployment is not proof an already-running session consumed it."
+        "instructionsNote": "Verified 2026-10-23 against https://www.antigravity.google/docs/rules/ (all three surfaces): ~/.gemini/GEMINI.md is an always-active global rule. The antigravity entry owns it since the gemini host, its earlier owner, was retired on 2026-11-10. instructionsOwnedBy avoids competing writers. Current documented limit is 24,000 bytes per file after inline includes, plus a 20,000-token aggregate active-rules budget; the earlier 12,000-character claim is superseded. File deployment is not proof an already-running session consumed it."
       },
       "supportedCapabilities": [
         "skills",
@@ -294,9 +265,9 @@
         "configHome": "{userHome}/.antigravity-ide",
         "settings": "{roamingConfig}/Antigravity IDE/User/settings.json",
         "instructions": null,
-        "instructionsOwnedBy": "gemini",
+        "instructionsOwnedBy": "antigravity",
         "verification": "documented-shared-destination",
-        "instructionsNote": "Verified 2026-10-23 against https://www.antigravity.google/docs/rules/ (all three surfaces): ~/.gemini/GEMINI.md is an always-active global rule shared with the gemini entry. instructionsOwnedBy avoids competing writers. Current documented limit is 24,000 bytes per file after inline includes, plus a 20,000-token aggregate active-rules budget; the earlier 12,000-character claim is superseded. File deployment is not proof an already-running session consumed it.",
+        "instructionsNote": "Verified 2026-10-23 against https://www.antigravity.google/docs/rules/ (all three surfaces): ~/.gemini/GEMINI.md is an always-active global rule. The antigravity entry owns it since the gemini host, its earlier owner, was retired on 2026-11-10. instructionsOwnedBy avoids competing writers. Current documented limit is 24,000 bytes per file after inline includes, plus a 20,000-token aggregate active-rules budget; the earlier 12,000-character claim is superseded. File deployment is not proof an already-running session consumed it.",
         "configHomeNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
         "settingsNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated."
       },
@@ -437,7 +408,7 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Cline 3.0.71 (observed 2026-10-14). Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion \u2014 same set as gemini and registry allowlist; chrome-devtools-mcp is retired and must not be registered; use Playwright for browser work (brave-search was retired on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
+      "notes": "Cline 3.0.71 (observed 2026-10-14). Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion \u2014 same set as the registry allowlist; chrome-devtools-mcp is retired and must not be registered; use Playwright for browser work (brave-search was retired on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
     },
     {
       "id": "cursor",
@@ -647,7 +618,7 @@
         "mcp": "{roamingConfig}/Code - Insiders/User/mcp.json",
         "settings": "{roamingConfig}/Code - Insiders/User/settings.json",
         "sharedSkillsDir": "{userHome}/.agents/skills",
-        "sharedSkillsDirNote": "Verified 2026-08-20 against https://code.visualstudio.com/docs/agent-customization/agent-skills: VS Code supports personal Agent Skills under ~/.copilot/skills, ~/.claude/skills, and ~/.agents/skills. AgentHub already manages ~/.agents/skills as the shared user-level destination for Codex, Gemini, and Warp, so VS Code Insiders resolves to that same documented shared directory instead of inventing an AppData-private skills path.",
+        "sharedSkillsDirNote": "Verified 2026-08-20 against https://code.visualstudio.com/docs/agent-customization/agent-skills: VS Code supports personal Agent Skills under ~/.copilot/skills, ~/.claude/skills, and ~/.agents/skills. AgentHub already manages ~/.agents/skills as the shared user-level destination for Codex and Warp, so VS Code Insiders resolves to that same documented shared directory instead of inventing an AppData-private skills path.",
         "instructions": "{userHome}/.copilot/instructions/agenthub-global.instructions.md",
         "verification": "documented-path",
         "instructionsNote": "Verified 2026-10-23 against https://code.visualstudio.com/docs/agent-customization/custom-instructions: Copilot user instructions use ~/.copilot/instructions/*.instructions.md with applyTo frontmatter. The CLI single file ~/.copilot/copilot-instructions.md is a different discovery route and does not establish VS Code coverage. This file covers the Copilot harness; Claude/Codex harnesses use their native sources. Local harness profile storage and current-session consumption are not verified. chat.instructionsFilesLocations remains supported, not deprecated.",
@@ -724,6 +695,35 @@
       "notes": "Installed on 2026-11-09, OpenCode fork. Promoted to active 2026-11-10 on owner direction; dispatch enabled the same day after the governed command and the guarded peer agent were verified (fleet-profile dispatchPolicy.mimo-code). Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories; ~/.agents/skills stays empty under the plugin-only policy. Subagents and rules support are not established.",
       "acpNote": "`mimo acp` and `mimo serve` are help-discovered entry points (2026-11-10); ACP protocol initialization, session handoff and authenticated inference are not established.",
       "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> --model xiaomi-token-plan-sgp/mimo-v2.6-pro --agent peer <prompt>` verified 2026-11-10: returned READY, exit 0, and a denied command stayed denied under --yolo. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan key credential (a stored key, not an OAuth account login)."
+    },
+    {
+      "id": "kiro",
+      "name": "Kiro IDE and Kiro CLI",
+      "version": "3.1.0",
+      "versionObserved": "2026-11-09: read-only `kiro-cli --version` printed kiro-cli 3.1.0. Kiro IDE 1.4.121 recorded from the same audit. An unattended `kiro-cli chat --no-interactive` run returned READY on 2026-11-10 under agent ah-peer.",
+      "executable": "{userHome}/AppData/Local/Kiro-Cli/kiro-cli.exe",
+      "nativePaths": {
+        "configHome": "{userHome}/.kiro",
+        "skillsDir": "{userHome}/.kiro/skills",
+        "agentsDir": "{userHome}/.kiro/agents",
+        "powersDir": "{userHome}/.kiro/powers",
+        "rulesDir": "{userHome}/.kiro/steering",
+        "mcp": "{userHome}/.kiro/settings/mcp.json",
+        "mcpKey": "mcpServers",
+        "mcpNote": "Remote entries take url and headers, and ${VAR} is supported. The file holds owner-authored entries (a linear remote and an aws-mcp proxy). An auth header value is present and is not recorded here.",
+        "instructions": null,
+        "instructionsNote": "steering/AGENTS.md is hand-written owner content, not AgentHub-managed and not in the AgentHub header format. Deployment is withheld until the owner approves."
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins",
+        "hooks"
+      ],
+      "status": "active",
+      "notes": "Kiro IDE (1.4.121, no user extensions; IDE executable %LOCALAPPDATA%\\Programs\\Kiro\\bin\\kiro) and Kiro CLI (3.1.0, Builder ID login) are recorded as one row because they share ~/.kiro. `kiro-cli chat --no-interactive --trust-all-tools --agent ah-peer --model <model>` verified 2026-11-10 on auto, claude-opus-5.5, claude-sonnet-5.5 and claude-haiku-5.5: returned READY, exit 0, and a denied shell command stayed blocked with all tools trusted (fleet-profile dispatchPolicy.kiro). The CLI is the dispatch surface; the IDE is not dispatched. Shared state on 2026-11-09: 28 skills, 8 powers, 2 steering files, 1 workflow. 24 AWS skills are duplicated in ~/.agents/skills. Powers are the plugin form and the native catalog was not listed. KiroCrew is a separate row and is not a dispatch target."
     }
   ],
   "inactiveAgents": [
@@ -789,35 +789,6 @@
       ],
       "status": "inactive",
       "notes": "Installed on 2026-11-09. Sign-in is by Xiaomi account. Plugins install only through the in-app store, and the store catalog could not be listed because the console is JavaScript-rendered. No MCP servers configured. Bundled remotion and hyperframes plugin sources are Codex-marketplace repackages per the audit. Not a dispatch target."
-    },
-    {
-      "id": "kiro",
-      "name": "Kiro IDE and Kiro CLI",
-      "version": "3.1.0",
-      "versionObserved": "2026-11-09: read-only `kiro-cli --version` printed kiro-cli 3.1.0. Kiro IDE 1.4.121 recorded from the same audit. No agent run.",
-      "executable": "{userHome}/AppData/Local/Kiro-Cli/kiro-cli.exe",
-      "nativePaths": {
-        "configHome": "{userHome}/.kiro",
-        "skillsDir": "{userHome}/.kiro/skills",
-        "agentsDir": "{userHome}/.kiro/agents",
-        "powersDir": "{userHome}/.kiro/powers",
-        "rulesDir": "{userHome}/.kiro/steering",
-        "mcp": "{userHome}/.kiro/settings/mcp.json",
-        "mcpKey": "mcpServers",
-        "mcpNote": "Remote entries take url and headers, and ${VAR} is supported. The file holds owner-authored entries (a linear remote and an aws-mcp proxy). An auth header value is present and is not recorded here.",
-        "instructions": null,
-        "instructionsNote": "steering/AGENTS.md is hand-written owner content, not AgentHub-managed and not in the AgentHub header format. Deployment is withheld until the owner approves."
-      },
-      "supportedCapabilities": [
-        "rules",
-        "skills",
-        "subagents",
-        "mcp",
-        "plugins",
-        "hooks"
-      ],
-      "status": "inactive",
-      "notes": "Kiro IDE (1.4.121, no user extensions; IDE executable %LOCALAPPDATA%\\Programs\\Kiro\\bin\\kiro) and Kiro CLI (3.1.0, Builder ID login) are recorded as one row because they share ~/.kiro. `kiro-cli chat --help` 2026-11-10 lists --no-interactive and --output-format stream-json (ACP events); unattended permission policy, inference and model allowance are not established and no automatic login is attempted. Shared state on 2026-11-09: 28 skills, 8 powers, 2 steering files, 1 workflow. 24 AWS skills are duplicated in ~/.agents/skills. Powers are the plugin form and the native catalog was not listed. KiroCrew is a separate row. Not a dispatch target."
     },
     {
       "id": "kirocrew",

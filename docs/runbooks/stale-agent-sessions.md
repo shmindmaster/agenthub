@@ -8,7 +8,7 @@ never scheduled: no repeating jobs.
 ```powershell
 pwsh -NoProfile -File scripts\Remove-StaleAgentSessions.ps1          # dry run, 7 days
 pwsh -NoProfile -File scripts\Remove-StaleAgentSessions.ps1 -Apply   # recycle / archive
-pwsh -NoProfile -File scripts\Remove-StaleAgentSessions.ps1 -Days 14 -Agent grok,gemini-cli
+pwsh -NoProfile -File scripts\Remove-StaleAgentSessions.ps1 -Days 14 -Agent grok,antigravity
 ```
 
 Every run writes a JSON manifest (each unit, its last activity, size and
@@ -47,7 +47,6 @@ decision) to `%LOCALAPPDATA%\AgentHub\session-cleanup\` unless you pass
 | GitHub Copilot CLI | `~\.copilot\session-state\<id>\` | files |
 | Factory Droid | `~\.factory\sessions\<cwd>\<id>.jsonl` + `<id>.settings.json` | files |
 | OpenCode | `~\.local\share\opencode\opencode.db` `session`/`session_v2.time_archived`; `tool-output\` | rows (closed) / files |
-| Gemini CLI | `~\.gemini\tmp\<project>\chats`, `tool-outputs` | files |
 | Antigravity | `~\.gemini\antigravity{,-cli,-ide}\conversations`, `brain`, `annotations`, `browser_recordings`, `html_artifacts` | files |
 | Windsurf | `~\.codeium\windsurf\cascade`, `brain` | files |
 | Amp | `~\.local\share\amp\last-threads` (threads themselves are server-side) | files |
