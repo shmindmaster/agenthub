@@ -262,7 +262,7 @@ foreach ($capability in $effectiveCapabilities) {
   $resolvedHashBasis = Test-RegistryRelativePath -Value ([string]$capability.hashBasis) -Root $root -FieldName 'hashBasis' -CapabilityId $capability.id -OverlayRoot $overlayRoot
   if ($resolvedHashBasis -and $resolvedHashBasis -ne $expectedRoot) { Fail "hashBasis must cover the complete package: $($capability.id)" }
   $actualHash = Get-AgentHubRegistryHashBasisValue -Path $expectedRoot
-  if ($actualHash -ne $capability.contentHash) { Fail "contentHash drift: $($capability.id)" }
+  if ($actualHash -ne $capability.contentHash) { Fail "contentHash drift: $($capability.id) (computed=$actualHash; registry=$($capability.contentHash))" }
 }
 
 if (@($agents.activeAgents).Count -eq 0) { Fail 'agents registry has no active agents' }
