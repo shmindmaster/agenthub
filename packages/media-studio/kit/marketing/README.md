@@ -59,6 +59,61 @@ compose metadata and ratio. Keep the old job read-only. Old PASS receipts do not
 gates, including `wordSync` and `transcript`, and obtain exact-candidate reviews. QA measures existing captions; it does
 not retime them. The separate production timing-stage follow-up is not part of this repair.
 
+## Story-first contract (25 seconds and longer)
+
+A generated film that opens directly on unrelated UI is not a usable ad, even
+when its render, captions, music, timings and claims pass. The `lint` stage
+now calls `lib/narrative.mjs` and refuses a 25s+ cut that lacks a causal
+story **before** any paid provider runs. This is a structural floor; a human
+reviewer must still check the final file's meaning, coherence and factual
+accuracy. Do not satisfy the role labels with generic filler.
+
+1. **Hook (0–5s):** Put the pain or visibly meaningful outcome in the first
+   sentence/frame. No corporate splash, logo reveal or unexplained dashboard.
+2. **Context + problem (next 5–10s):** Show the person, situation, trigger,
+   stakes and obstacle. This can be one `context-problem` beat for a short ad.
+3. **Software reveal:** Name the product in the `solution` beat and explain
+   what it makes possible. A logo appearing only on the last card is not an
+   introduction.
+4. **Proof through action:** A `demonstration` or `proof` beat must use
+   a real receipt-bound `ui` capture (input → action → visible result).
+   Do not use unrelated screens or synthetic UI as filler.
+5. **Payoff:** Revisit the original problem and show the changed outcome.
+   Keep a legible result hold and acknowledge human review/limits for AI.
+6. **Action:** One `cta` beat last. End on a next step, not an abrupt cut.
+
+Add an explicit `narrative` object to the spec (or override it per `cuts[]`)
+with `persona`, `situation`, `trigger`, `problem`, `stakes`,
+`solution`, `mechanism`, and `payoff`. Each value must say something
+specific; generic placeholders are a lint failure. Give every beat a
+`storyRole` from `hook`, `context`, `problem`, `context-problem`,
+`solution`, `demonstration`, `proof`, `payoff`, `cta`. The product name
+must appear in the solution beat's narration or on-screen text. Put scenario
+context before ten seconds have elapsed. Longer ads may use additional
+beats, but retain this order and one clear problem-to-result arc.
+
+For a 10–24s bumper, compress the same idea to **hook → proof → next step**;
+the deterministic six-beat gate does not run for these deliberately short
+cuts, but evidence and exact-encoded-candidate review still apply. Do not
+claim that a 15-second montage is a full product explainer.
+
+Example cut outline (replace every line with product-verified claims and
+capture receipts before producing):
+
+| Role | What the viewer sees | Narration purpose |
+| --- | --- | --- |
+| hook | A session flagged before it begins | State the immediate risk |
+| context-problem | Coordinator sees a questionable visit in tomorrow's schedule | Establish who, when, why |
+| solution | Genuine product screen, product name visible or spoken | Introduce software in the workflow |
+| demonstration | Coordinator checks authorization details, visible response | Prove the mechanism |
+| payoff | Same visit, now clearly requiring attention | Resolve the original uncertainty |
+| cta | Branded card | Invite one next step |
+
+A pass is not evidence that the software works beyond the recorded actions;
+existing claim, screenshot, authorization, product-readiness and QA rules
+still apply. If an older 25s+ spec fails this newly required lint, revise its
+written story and beats rather than bypassing the gate.
+
 ## Writing a spec (`ad.schema.json`)
 
 | Field | Meaning |
