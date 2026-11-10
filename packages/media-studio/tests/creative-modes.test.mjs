@@ -39,7 +39,7 @@ test('future vision: synthetic child patients and fully readable imagined UI nee
 
 test('fictional day-in-the-life is free of age, healthcare and screen prohibitions', () => {
   const s = base('fictional-story');
-  s.conceptDisclosure = undefined;
+  delete s.conceptDisclosure;
   s.labels = 'Film title treatment';
   s.cuts[0].beats[0].truthStatus = 'fictional';
   delete s.cuts[0].beats[0].broll.actor;
