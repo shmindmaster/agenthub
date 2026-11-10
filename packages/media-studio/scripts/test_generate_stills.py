@@ -81,11 +81,13 @@ class Pricing(unittest.TestCase):
 
 
 class Prompt(unittest.TestCase):
-    def test_text_logos_and_likenesses_are_always_ruled_out(self):
-        full = g.compose_prompt("A dock at dawn.")
-        self.assertIn("No text", full)
-        self.assertIn("logos", full)
-        self.assertIn("real people", full)
+    def test_synthetic_people_and_readable_ui_are_not_automatically_suppressed(self):
+        scene = "Photorealistic mother and child with a clear, readable imagined app screen"
+        full = g.compose_prompt(scene)
+        self.assertIn("mother and child", full)
+        self.assertIn("readable imagined app screen", full)
+        self.assertNotIn("No text", full)
+        self.assertNotIn("No recognisable real people", full)
 
     def test_house_style_comes_from_the_visual_bible(self):
         self.assertIn("flat paper-cut", g.compose_prompt("A dock", "flat paper-cut illustration"))
