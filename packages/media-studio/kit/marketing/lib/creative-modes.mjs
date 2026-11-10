@@ -39,8 +39,8 @@ export function inspectRepresentation(spec, cut) {
     if (beat.truthStatus && !REALITY_STATUSES.has(beat.truthStatus)) {
       add('truth-status', `unknown truthStatus: ${beat.truthStatus}`, at);
     }
-    if (mode === 'verified-demo' && conceptBeat(beat)) {
-      add('representation', 'Conceptual, dramatized or fictional beats require hybrid, future-vision, fictional-story, or another explicit creativeMode; default verified-demo promises current-function proof.', at);
+    if (mode === 'verified-demo' && beat.truthStatus === 'proposed') {
+      add('representation', 'Proposed product functionality is not proof of current behavior: select hybrid, future-vision or concept-film and disclose the distinction. Fictional or illustrative context shots are allowed within verified demos.', at);
     }
   }
   if (isConceptPresentation(spec, cut)) {
@@ -49,8 +49,8 @@ export function inspectRepresentation(spec, cut) {
       add('concept-disclosure', 'A film presenting future or proposed product capabilities needs an accurate concept/future-vision disclosure; no permanent watermark or blurring is required.');
     }
   }
-  if (mode === 'hybrid' && beats.some(b => (b.kind === 'broll' && b.truthStatus !== 'verified') && b.broll?.depictsProductUI && !conceptBeat(b))) {
-    add('representation', 'Hybrid films need truthStatus proposed|fictional|illustrative on generated concept UI; do not imply it is the current working product.');
+  if (mode === 'hybrid' && beats.some(b => b.kind === 'broll' && b.broll?.depictsProductUI && !conceptBeat(b))) {
+    add('representation', 'Hybrid films must classify generated concept interfaces as proposed, fictional or illustrative; real current-product proof must come from verified capture.');
   }
   return errors;
 }
