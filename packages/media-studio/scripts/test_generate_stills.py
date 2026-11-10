@@ -211,6 +211,17 @@ class Run(unittest.TestCase):
             g.run(job, args(run=True, public_dir=str(public)), env=ENV, post=FakeProvider())
             self.assertTrue((public / "stills" / "film-20261106" / "s1.png").exists())
 
+    def test_model_override_not_in_legacy_runware_payload_is_refused_before_spend(self):
+        self.assertEqual(g.validate_runware_image_model(g.RUNWARE_DEFAULT_MODEL), None)
+        fake = FakeProvider()
+        with self.assertRaisesRegex(g.StillsError, "schema-specific governed adapter"):
+            g.generate_runware(
+                "office background, no text", "1024x1024", "low",
+                {**ENV, "MEDIA_STUDIO_RUNWARE_IMAGE_MODEL": "bfl:flux@3-image-klein"},
+                fake,
+            )
+        self.assertEqual(fake.calls, [])
+
     def test_a_non_png_is_rejected(self):
         with self.assertRaises(g.StillsError):
             g.png_size(b"<html>not an image</html>" * 4)
