@@ -112,11 +112,12 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
     $market = $Row.marketplace
     $source = $Row.source
     if ($Row.route -eq 'vendor') {
-        if ($Row.host -eq 'claude') {
+        $nativeHost = Get-RowNativeHost $Row
+        if ($nativeHost -eq 'claude') {
             $reg = Read-Document (Join-Path $UserProfile '.claude/plugins/installed_plugins.json')
             $entry = @($reg.plugins.'repowise@repowise') | Select-Object -Last 1
             if ($entry.version) { return New-Observation $entry.version $entry.installPath 'vendor-managed' }
-        } elseif ($Row.host -eq 'codex') {
+        } elseif ($nativeHost -eq 'codex') {
             $entry = Get-VersionedObservation (Join-Path $UserProfile '.codex/plugins/cache/repowise/codex') '.codex-plugin/plugin.json'
             if ($entry.version) { $entry.status = 'vendor-managed'; return $entry }
         }
@@ -135,7 +136,7 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
         }
         return $runtime
     }
-    switch ($Row.host) {
+    switch (Get-RowNativeHost $Row) {
         'claude' {
             $reg = Read-Document (Join-Path $UserProfile '.claude/plugins/installed_plugins.json')
             $entry = @($reg.plugins."$name@$market") | Where-Object scope -EQ 'user' | Select-Object -Last 1
@@ -196,8 +197,8 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
             return $candidates | Sort-Object { [version]$_.version } -Descending | Select-Object -First 1
         }
         'cline' { return Get-LinkedObservation (Join-Path $UserProfile ".agents/plugins/$name") $source }
-        { $_ -in 'opencode', 'warp' } {
-            $hostHome = if ($_ -eq 'warp') { '.warp' } else { '.config/opencode' }
+        { $_ -in 'opencode', 'warp', 'kilo', 'mimo-code' } {
+            $hostHome = switch ($_) { 'warp' { '.warp' } 'kilo' { '.kilocode' } 'mimo-code' { '.mimocode' } default { '.config/opencode' } }
             $expectedLinks = @{}
             foreach ($skill in Get-ChildItem -LiteralPath (Join-Path $source 'skills') -Directory) {
                 if (Test-Path (Join-Path $skill.FullName 'SKILL.md')) { $expectedLinks["skills/$($skill.Name)"] = $skill.FullName }
@@ -268,7 +269,15 @@ function Test-SkillCopy([string]$Source, [string]$Destination, [string]$Client) 
     return -not @(Compare-Object $sourceSkills $installedSkills).Count
 }
 
-$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; gemini='gemini'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders' }
+$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; gemini='gemini'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders'; kilo='kilo'; 'mimo-code'='mimo' }
+
+# A mapping may declare nativeOwnerHost: the surface row is reported under its
+# own hostId but every observation, client call and install resolves through
+# the owner host, so one owner install satisfies both rows. Default is self.
+function Get-RowNativeHost($Row) {
+    if ($Row.nativeOwnerHost) { return [string]$Row.nativeOwnerHost }
+    return [string]$Row.host
+}
 # These compatibility routes are documented exceptions to a registry's generic
 # loose-skill or native mapping. They must never trigger a second install.
 $blockedRoutes = @{
@@ -281,17 +290,20 @@ $blockedRoutes = @{
 }
 
 function Set-PluginStatus($Row, [switch]$Fresh) {
-    if ($Row.host -eq 'gemini') { $Row.status = 'blocked'; $Row.detail = 'AgentHub Gemini rollout is disabled pending an entitled CLI.'; return }
-    $routeKey = "$($Row.host)/$($Row.capability)"
+    # Every owner-bound policy resolves through the native owner, so an alias
+    # can never escape its owner's disable, blocked route or loose-skill rule.
+    $nativeHost = Get-RowNativeHost $Row
+    if ($nativeHost -eq 'gemini') { $Row.status = 'blocked'; $Row.detail = 'AgentHub Gemini rollout is disabled pending an entitled CLI.'; return }
+    $routeKey = "$nativeHost/$($Row.capability)"
     if ($blockedRoutes.ContainsKey($routeKey)) { $Row.status = 'blocked'; $Row.detail = $blockedRoutes[$routeKey]; return }
-    if ($Row.route -eq 'preprovisioned-loose-skills' -or $Row.host -eq 'windsurf') {
+    if ($Row.route -eq 'preprovisioned-loose-skills' -or $nativeHost -eq 'windsurf') {
         $Row.status = 'blocked'; $Row.detail = 'Legacy surface. Use the managed Devin host when available.'; return
     }
-    if ($Row.route -eq 'managed-loose-skills' -and $Row.host -notin 'opencode','warp','copilot') {
+    if ($Row.route -eq 'managed-loose-skills' -and $nativeHost -notin 'opencode','warp','copilot','kilo','mimo-code') {
         $Row.status = 'blocked'; $Row.detail = 'Registry maps loose skills on a plugin-only host. Reconcile its approved native owner before installing.'; return
     }
-    if ($live -and $clients.ContainsKey($Row.host) -and
-        $Row.host -notin 'amp', 'warp', 'vscode-insiders', 'cursor' -and -not (Get-Command $clients[$Row.host] -ErrorAction SilentlyContinue)) {
+    if ($live -and $clients.ContainsKey($nativeHost) -and
+        $nativeHost -notin 'amp', 'warp', 'vscode-insiders', 'cursor' -and -not (Get-Command $clients[$nativeHost] -ErrorAction SilentlyContinue)) {
         $Row.status = 'blocked'; $Row.detail = 'Host CLI unavailable.'; return
     }
     try { $observation = Get-PluginObservation $Row -Fresh:$Fresh } catch {
@@ -300,7 +312,7 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     $Row.observed = if ($observation.version) { $observation.version } elseif ($observation.status -eq 'current') { $Row.expected } else { $null }
     $Row.previousPath = $observation.path
     $Row.detail = $observation.detail
-    if (-not $observation -and $Row.host -notin 'cursor','amp','cline','opencode','warp') {
+    if (-not $observation -and $nativeHost -notin 'cursor','amp','cline','opencode','warp','kilo','mimo-code') {
         $Row.status = 'blocked'
         $Row.detail = 'Native registration is absent. First install requires verified host activation and ownership.'
         return
@@ -308,9 +320,23 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     if ($observation.status -and $observation.status -ne 'current') { $Row.status = $observation.status; return }
     if ($observation.status -eq 'current' -and $observation.path -eq $Row.source) { $Row.status = 'current'; return }
     if (-not $observation) { $Row.status = 'missing'; return }
-    if ($observation.version -ne $Row.expected -or ($observation.path -and -not (Test-SkillCopy $Row.source $observation.path $Row.host))) {
+    if ($observation.version -ne $Row.expected -or ($observation.path -and -not (Test-SkillCopy $Row.source $observation.path $nativeHost))) {
         $Row.status = 'drift'
     } else { $Row.status = 'current' }
+}
+
+function Get-MappingMarketplace([bool]$Private, [string]$OwnerHost) {
+    if (-not $Private) { return 'agenthub' }
+    if ($OwnerHost -eq 'factory') { return 'personal' }
+    return 'sarosh-private'
+}
+
+function Get-MappingRoute($Cap, [string]$OwnerHost, [string]$DeploymentStatus) {
+    if ($Cap.id -eq 'repowise' -and $OwnerHost -in 'claude','codex') { return 'vendor' }
+    if ($Cap.deployedCatalog -and $OwnerHost -ne 'gemini') { return 'runtime' }
+    if ($OwnerHost -eq 'grok' -and $Cap.id -in 'product', 'media-studio', 'sarosh', 'coding-agent-dispatch') { return 'native-local-plugin' }
+    if ($OwnerHost -eq 'copilot' -and $Cap.id -in 'media-studio', 'repowise') { return 'native-local-plugin' }
+    return $DeploymentStatus
 }
 
 $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilities -OverlayRoot $overlay) {
@@ -322,19 +348,33 @@ $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument
     foreach ($mapping in $cap.hostMappings) {
         $target = [string]$mapping.hostId
         if (-not $hostCatalog.ContainsKey($target) -or ($HostId -and $HostId -ne $target)) { continue }
-        $market = if (-not $private) { 'agenthub' } elseif ($target -eq 'factory') { 'personal' } else { 'sarosh-private' }
-        $route = if ($cap.id -eq 'repowise' -and $target -in 'claude','codex') { 'vendor' }
-            elseif ($cap.deployedCatalog -and $target -ne 'gemini') { 'runtime' }
-            elseif ($target -eq 'grok' -and $cap.id -in 'product', 'media-studio', 'sarosh', 'coding-agent-dispatch') { 'native-local-plugin' }
-            elseif ($target -eq 'copilot' -and $cap.id -in 'media-studio', 'repowise') { 'native-local-plugin' }
-            else { $mapping.deploymentStatus }
+        $nativeOwner = if ($mapping.nativeOwnerHost) { [string]$mapping.nativeOwnerHost } else { $target }
+        # Route and marketplace always follow the owner, never the surface:
+        # an alias inherits its owner's effective route so a misleading
+        # declaration on the surface row cannot widen what runs.
+        $ownerMapping = if ($nativeOwner -ne $target) { @($cap.hostMappings | Where-Object { [string]$_.hostId -eq $nativeOwner }) | Select-Object -First 1 } else { $mapping }
+        $route = Get-MappingRoute $cap $nativeOwner ([string]$ownerMapping.deploymentStatus)
+        $market = Get-MappingMarketplace $private $nativeOwner
         $row = [pscustomobject]@{
             host=$target; plugin=$manifest.name; capability=$cap.id; route=$route
+            nativeOwnerHost=$nativeOwner
             expected=$(if ($route -eq 'vendor') { $null } else { $manifest.version }); observed=$null; status=$null; detail=$null
             source=$source; sourceHash=$cap.contentHash; relative=[string]$cap.canonicalSource; marketplace=$market
             previousPath=$null; catalog=$cap.deployedCatalog
         }
-        Set-PluginStatus $row
+        # The owner must be an active host with a self-owned mapping for the
+        # same capability; unknown, chained or cyclic owners refuse before any
+        # observation or mutation can run under the wrong identity.
+        if ($nativeOwner -ne $target) {
+            $ownerMapping = @($cap.hostMappings | Where-Object { [string]$_.hostId -eq $nativeOwner }) | Select-Object -First 1
+            $ownerSelfOwned = $ownerMapping -and (-not $ownerMapping.nativeOwnerHost -or [string]$ownerMapping.nativeOwnerHost -eq $nativeOwner)
+            if (-not $hostCatalog.ContainsKey($nativeOwner)) {
+                $row.status = 'blocked'; $row.detail = "nativeOwnerHost '$nativeOwner' is not an active host."
+            } elseif (-not $ownerSelfOwned) {
+                $row.status = 'blocked'; $row.detail = "nativeOwnerHost '$nativeOwner' has no self-owned $($cap.id) mapping; chained or cyclic owners are refused."
+            }
+        }
+        if (-not $row.status) { Set-PluginStatus $row }
         $row
     }
 }
@@ -371,7 +411,7 @@ function Invoke-PluginInstall($Row) {
         Invoke-Client pwsh @('-NoProfile','-File',(Join-Path $PSScriptRoot 'Sync-Capabilities.ps1'),'-Apply','-RepositoryRoot',$root,'-UserProfile',$UserProfile,'-CapabilityId',$Row.capability) | Out-Null
         return
     }
-    switch ($Row.host) {
+    switch (Get-RowNativeHost $Row) {
         'claude' {
             Invoke-Client claude @('plugin','marketplace','update',$Row.marketplace) | Out-Null
             $verb = if ($present) { 'update' } else { 'install' }
@@ -423,12 +463,42 @@ function Invoke-PluginInstall($Row) {
             [void][IO.Directory]::CreateDirectory((Split-Path -Parent $dest))
             New-Item -ItemType Junction -Path $dest -Target $source | Out-Null
         }
-        { $_ -in 'opencode','warp' } {
-            $dest = if ($_ -eq 'warp') { '.warp' } else { '.config/opencode' }
+        { $_ -in 'opencode','warp','kilo','mimo-code' } {
+            $dest = switch ($_) { 'warp' { '.warp' } 'kilo' { '.kilocode' } 'mimo-code' { '.mimocode' } default { '.config/opencode' } }
             Invoke-Client pwsh @('-NoProfile','-File',(Join-Path $PSScriptRoot 'Install-WarpSkills.ps1'),'-Root',$root,'-WarpHome',(Join-Path $UserProfile $dest),'-PluginId',$Row.capability) | Out-Null
         }
         default { throw 'No supported installer for this host mapping.' }
     }
+}
+
+# Rollback follows the same owner rule as install: a failed change on a
+# surface row restores through its native owner's recovery branch.
+function Invoke-PluginRollback($Row, $Entry, $Backup) {
+    $nativeHost = Get-RowNativeHost $Row
+    if ($Backup -and $nativeHost -in 'cursor','amp') {
+        $destination = [IO.Path]::GetFullPath($Entry.previousPath)
+        $prefix = $liveProfile.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+        if (-not $destination.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Rollback destination is outside the invoking profile.' }
+        $item = Get-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+        if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Rollback refused a reparse point.' }
+        if ($item) { Remove-Item -LiteralPath $destination -Recurse -Force }
+        Copy-Item -LiteralPath $Backup -Destination $destination -Recurse
+    } elseif ($Backup -and $nativeHost -in 'grok','antigravity') {
+        $client = if ($nativeHost -eq 'grok') { 'grok' } else { 'agy' }
+        $null = Invoke-Client $client @('plugin','uninstall',$Row.plugin)
+        $arguments = @('plugin','install',$Backup.Replace('\','/'))
+        if ($nativeHost -eq 'grok') { $arguments += '--trust' }
+        $null = Invoke-Client $client $arguments
+    } else {
+        throw "Native registration requires host-specific recovery. Previous=$($Entry.previous); backup=$Backup"
+    }
+}
+
+# A pending row is re-observed fresh before installing: a surface row whose
+# owner install just verified is already current and must not install twice.
+function Test-PluginRowPending($Row) {
+    Set-PluginStatus $Row -Fresh
+    return ($Row.status -in 'missing','drift')
 }
 
 $conflicts = @()
@@ -461,7 +531,10 @@ if ($Apply) {
     [IO.File]::WriteAllText($receiptPath, (@{ release=$release; changes=@() } | ConvertTo-Json))
     foreach ($row in $rows) {
         if ($row.status -notin 'missing', 'drift') { continue }
-        if ($row.host -eq 'vscode-insiders') {
+        # Rows sharing a native owner install once: before attempting, re-observe
+        # fresh so a surface whose owner install just verified is skipped.
+        if (-not (Test-PluginRowPending $row)) { continue }
+        if ((Get-RowNativeHost $row) -eq 'vscode-insiders') {
             $row.status = 'blocked'
             $row.detail = 'Register the package through chat.pluginLocations or its approved Copilot catalog.'
             continue
@@ -486,23 +559,7 @@ if ($Apply) {
                 Set-PluginStatus $row -Fresh
                 return $row.status -eq 'current'
             } -Rollback {
-                if ($backup -and $row.host -in 'cursor','amp') {
-                    $destination = [IO.Path]::GetFullPath($entry.previousPath)
-                    $prefix = $liveProfile.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
-                    if (-not $destination.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Rollback destination is outside the invoking profile.' }
-                    $item = Get-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
-                    if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Rollback refused a reparse point.' }
-                    if ($item) { Remove-Item -LiteralPath $destination -Recurse -Force }
-                    Copy-Item -LiteralPath $backup -Destination $destination -Recurse
-                } elseif ($backup -and $row.host -in 'grok','antigravity') {
-                    $client = if ($row.host -eq 'grok') { 'grok' } else { 'agy' }
-                    $null = Invoke-Client $client @('plugin','uninstall',$row.plugin)
-                    $arguments = @('plugin','install',$backup.Replace('\','/'))
-                    if ($row.host -eq 'grok') { $arguments += '--trust' }
-                    $null = Invoke-Client $client $arguments
-                } else {
-                    throw "Native registration requires host-specific recovery. Previous=$($entry.previous); backup=$backup"
-                }
+                Invoke-PluginRollback -Row $row -Entry $entry -Backup $backup
             }
             foreach ($peer in @($rows | Where-Object { $_.plugin -eq $row.plugin -and $_.route -eq 'runtime' })) { Set-PluginStatus $peer -Fresh }
             Set-PluginStatus $row -Fresh
@@ -529,7 +586,7 @@ if ($Apply) {
 $report = [ordered]@{
     mode = if ($Apply) { 'apply' } else { 'audit' }
     release = $release
-    mappings = @($rows | Select-Object host,plugin,route,expected,observed,status,detail)
+    mappings = @($rows | Select-Object host,plugin,route,nativeOwnerHost,expected,observed,status,detail)
     conflicts = @($conflicts)
     changes = @($changes.ToArray())
 }

@@ -65,6 +65,10 @@
   dispatchPolicy.warp.model.
   For -HostId factory, a model listed in dispatchPolicy.factory.allowedModels;
   anything else is refused. Defaults to dispatchPolicy.factory.model.
+  For -HostId kilo or mimo-code, a provider/model id listed in that host's
+  dispatchPolicy allowedModels; a bare model id or anything outside the
+  allowlist is refused. Defaults to the recorded policy model, which is
+  validated the same way before launch.
 
 .PARAMETER Title
   Session title for -HostId opencode, so the run is findable in the shared
@@ -234,11 +238,17 @@ function Get-DispatchTable {
             Build = {
                 param($PromptText, $Work, $File)
                 # OpenCode fork, but unlike OpenCode 2 its run honours --dir.
-                # Auth is the MiMo provider through MIMO_API_KEY, which the
-                # child environment must keep -- it is the account credential.
+                # Auth is the MiMo provider through MIMO_API_KEY, the separately
+                # authorized Token Plan key -- not an account login -- so the
+                # child environment keeps it.
                 $args = @('run', '--auto', '--format', 'json', '--dir', $Work)
-                $kiloModel = if ($script:KiloModel) { $script:KiloModel } else { [string]$fleet.dispatchPolicy.kilo.model }
-                if ($kiloModel) { $args += @('--model', $kiloModel) }
+                $kiloPolicy = $fleet.dispatchPolicy.kilo
+                $kiloModel = if ($script:KiloModel) { $script:KiloModel } else { [string]$kiloPolicy.model }
+                $kiloAllowed = @($kiloPolicy.allowedModels | ForEach-Object { [string]$_ })
+                if ($kiloModel -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$' -or $kiloModel -notin $kiloAllowed) {
+                    Write-Refusal 3 "refused kilo: model '$kiloModel' is not a provider/model id in dispatchPolicy.kilo.allowedModels"
+                }
+                $args += @('--model', $kiloModel)
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
             }
@@ -248,9 +258,16 @@ function Get-DispatchTable {
             Build = {
                 param($PromptText, $Work, $File)
                 # OpenCode fork; its auto-approve flag is --yolo, not --auto.
+                # Auth is the stored Xiaomi Token Plan credential, so provider
+                # key environment variables are stripped like any account host.
                 $args = @('run', '--yolo', '--format', 'json', '--dir', $Work)
-                $mimoModel = if ($script:MimoCodeModel) { $script:MimoCodeModel } else { [string]$fleet.dispatchPolicy.'mimo-code'.model }
-                if ($mimoModel) { $args += @('--model', $mimoModel) }
+                $mimoPolicy = $fleet.dispatchPolicy.'mimo-code'
+                $mimoModel = if ($script:MimoCodeModel) { $script:MimoCodeModel } else { [string]$mimoPolicy.model }
+                $mimoAllowed = @($mimoPolicy.allowedModels | ForEach-Object { [string]$_ })
+                if ($mimoModel -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$' -or $mimoModel -notin $mimoAllowed) {
+                    Write-Refusal 3 "refused mimo-code: model '$mimoModel' is not a provider/model id in dispatchPolicy.mimo-code.allowedModels"
+                }
+                $args += @('--model', $mimoModel)
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
             }
@@ -519,6 +536,10 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $r
     $script:ClineModel = $choice.Substring($split + 1)
 } elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
     if ($requested -notin @('opencode', 'factory', 'devin', 'kilo', 'mimo-code')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp, Factory, Devin, Kilo or MiMo model.' }
+    # Kilo and MiMo take provider/model ids only; a bare id is never a fallback.
+    if ($requested -in @('kilo', 'mimo-code') -and $Model.Trim() -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$') {
+        Write-Refusal 3 "refused ${requested}: -Model must be a provider/model id listed in dispatchPolicy.${requested}.allowedModels (got '$($Model.Trim())')"
+    }
     # Governed routing is per task, but only within the owner's recorded
     # allowlist: a model outside it could bill beyond the recorded allowance.
     $allowedModels = @()
@@ -671,6 +692,10 @@ $accountScrub = @{
     'amp'          = @('AMP_API_KEY')
     'copilot'      = @('GH_TOKEN', 'GITHUB_TOKEN')
     'opencode'     = @('OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY')
+    # mimo-code runs on its stored Xiaomi Token Plan credential; a stray plan
+    # key in the environment must not override it. kilo is the opposite case:
+    # its credential IS MIMO_API_KEY, so it is deliberately absent here.
+    'mimo-code'    = @('MIMO_API_KEY')
 }
 if ($accountScrub.ContainsKey($targetId)) {
     foreach ($name in $accountScrub[$targetId]) {

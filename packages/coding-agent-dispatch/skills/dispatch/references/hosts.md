@@ -1,6 +1,6 @@
 # Host details
 
-Read when: dispatching to Cline, OpenCode, Factory, Devin, Gemini, Warp or Copilot, resuming a Cline session, or auditing a host plugin.
+Read when: dispatching to Cline, OpenCode, Factory, Devin, Gemini, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
 
 Contents: Account hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
 
@@ -11,7 +11,34 @@ Contents: Account hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installer
 - Copilot: runs on the `sh-pendoah` GitHub account; the dispatcher reads that token from gh's keyring into the child environment only.
 - Codex reads the task from stdin (`exec --skip-git-repo-check -`) and does not initialize Git. Antigravity gets `--print=<prompt>` after its permissions flag.
 - Long, quoted or multiline argument prompts go through a temporary UTF-8 file and a short pointer; the file is removed on completion.
-- The Claude host is disabled in `dispatchPolicy`. An explicit `-HostId claude -AnthropicApiKey` run is the only opt-in; it refuses once `apiKeyOptIn.expiresUtc` has passed and for every other host.
+- Claude's current account eligibility comes from `dispatchPolicy`, not this
+  reference. The separate `-HostId claude -AnthropicApiKey` path is a per-call
+  opt-in only while its recorded authorization is valid; it is not a fallback
+  for an account refusal.
+
+## New plan hosts
+
+Kilo and MiMo Code are installed inventory, but the initial default-model
+replies did not verify the exact governed commands or unattended permission
+restrictions. They remain refused until those gates are established during an
+authorized task. Do not turn `--auto` or `--yolo` into an implicit peer guard.
+
+- Kilo's configured provider/model is `mimo/mimo-v2.6-pro`. Its separately
+  authorized Token Plan uses the existing `MIMO_API_KEY` reference, not an
+  account login or an authorization for arbitrary API usage.
+- MiMo Code's configured plan model is
+  `xiaomi-token-plan-sgp/mimo-v2.6-pro`, using its stored plan credential.
+- Native skill projections are not portable native plugins. Neither implies
+  that a session loaded the skill, that global policy was consumed, or that
+  all fleet MCP integrations are available.
+- `kilo acp` and `mimo acp` are help-discovered entry points. Protocol
+  initialization, session handoff and authenticated inference remain separate
+  checks. Do not start a listener or install a bridge to bypass a refused run.
+
+Kiro's installed CLI supports `chat --no-interactive`; that discovery does not
+establish unattended permission policy or model allowance. Qwen has a saved
+configuration, but its observed run failed in `resolveModelConfig`. Do not
+describe either as callable or change their credentials to make a check pass.
 
 ## Factory
 

@@ -178,16 +178,27 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   same script. The dispatcher reads `registry/fleet-profile.json` on each
   invocation, so policy changes take effect immediately for source-checkout
   dispatch; syncing deploys the package and instructions. `-List` reports the
-  callable set. Codex remains disabled until its dispatcher captures a
-  standalone response and quota permits a smoke. The paid Devin model replaces
-  its former free route. OpenCode's Go model is selected, but dispatch remains
-  disabled pending owner verification and a successful smoke. A host without
-  a verified headless command is refused, including GUI hosts. Deploy with
-  `Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`; use
+  callable set. Codex is enabled on its 2026-11-10 captured response and is
+  gated on that evidence staying recorded, not on a fixed disable. Devin is
+  disabled: `devin auth status` reported Not logged in on 2026-11-10. Kilo
+  and MiMo Code are active inventory but disabled: their default-model
+  smokes passed while the governed commands and unattended permission
+  restrictions were never exercised; their dispatch models are the full
+  provider/model ids `mimo/mimo-v2.6-pro` and
+  `xiaomi-token-plan-sgp/mimo-v2.6-pro`. They receive the `dispatch` skill
+  as host-local junctions under `~/.kilocode/skills` and
+  `~/.mimocode/skills` (native skill projection, not an `ah-*` plugin), and
+  `cursor-agent`/`vscode-insiders` observe their `cursor`/`copilot` owner
+  installs through `nativeOwnerHost` instead of installing twice. A host
+  without a verified headless command is refused, including GUI hosts.
+  Audit deploy state with
+  `Sync-Plugins.ps1 -RepositoryRoot <repo> -UserProfile <profile> -PluginId coding-agent-dispatch -Json`;
+  install onto hosts with the same command plus `-Apply`, which deploys the
+  published source into host caches (pushing the commit publishes; clean
+  published main and green CI required); use
   `Sync-AgentHub.ps1 -Apply -Validate` for a full AgentHub deployment. The
   orchestrator doors are `agents/claude/coding-agent.md` and
-  `agents/codex/coding-agent.toml`, copied into `~/.claude/agents` and
-  `~/.codex/agents`.
+  `agents/codex/coding-agent.toml`, installed by each host manifest.
 - **Public-first control plane (2026-09-17):** Sole product remote is
   `github.com/shmindmaster/agenthub`. Tracked `packages/` and
   `registry/capabilities.json` carry only public capabilities. Private

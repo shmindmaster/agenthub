@@ -246,25 +246,25 @@
       },
       {
         "hostId": "kilo",
-        "defaultProfile": "repo-autonomous",
+        "defaultProfile": "interactive",
         "native": {
           "flags": [
             "run",
             "--auto"
           ]
         },
-        "note": "Promoted to active 2026-11-10 on owner direction. OpenCode fork; `kilo run --auto` auto-approves what rules do not deny. Verified by `kilo run --help` and a live `kilo run` smoke returning READY."
+        "note": "Promoted to active 2026-11-10 on owner direction. `kilo run --auto` auto-approves per `kilo run --help`, but that governed command and its unattended permission restrictions were never exercised; the smoke ran the bare default. interactive until a safe profile is verified."
       },
       {
         "hostId": "mimo-code",
-        "defaultProfile": "repo-autonomous",
+        "defaultProfile": "interactive",
         "native": {
           "flags": [
             "run",
             "--yolo"
           ]
         },
-        "note": "Promoted to active 2026-11-10 on owner direction. OpenCode fork; its auto-approve flag is --yolo (--dangerously-skip-permissions), verified by `mimo run --help` and a live `mimo run` smoke returning READY."
+        "note": "Promoted to active 2026-11-10 on owner direction. Its auto-approve flag is --yolo (--dangerously-skip-permissions) per `mimo run --help`, but that governed command and its unattended permission restrictions were never exercised; the smoke ran the bare default. interactive until a safe profile is verified."
       },
       {
         "hostId": "vscode-insiders",
@@ -366,17 +366,18 @@
       "loginCommand": "warp login"
     },
     "kilo": {
-      "model": "mimo-v2.6-pro",
+      "model": "mimo/mimo-v2.6-pro",
       "authMode": "apiKey",
       "authEnv": "MIMO_API_KEY",
       "loginCommand": "kilo auth",
-      "modelNote": "2026-11-10 `kilo run` smoke: agent code, model mimo-v2.6-pro answered READY. Stored credentials are empty; the MiMo provider in ~/.config/kilo/config.json resolves through the MIMO_API_KEY environment variable, so the dispatcher must NOT strip it."
+      "modelNote": "2026-11-10 `kilo run` default-model smoke: agent code, mimo-v2.6-pro answered READY. Stored credentials are empty; the MiMo provider in ~/.config/kilo/config.json resolves through the MIMO_API_KEY environment variable, which is the separately authorized Token Plan key -- not an account login -- so the dispatcher must NOT strip it."
     },
     "mimo-code": {
-      "model": "mimo-v2.6-pro",
+      "model": "xiaomi-token-plan-sgp/mimo-v2.6-pro",
       "authMode": "account",
+      "authNote": "The account label here means a stored Xiaomi Token Plan key credential, not an OAuth account login; the stored credential must not be overridden by a stray MIMO_API_KEY.",
       "loginCommand": "mimo providers",
-      "modelNote": "2026-11-10 `mimo run` smoke: agent build, model mimo-v2.6-pro answered READY against the stored Xiaomi Token Plan (Singapore) credential."
+      "modelNote": "2026-11-10 `mimo run` default-model smoke: agent build, mimo-v2.6-pro answered READY against the stored Xiaomi Token Plan (Singapore) credential."
     }
   },
   "dispatchPolicy": {
@@ -485,7 +486,7 @@
       "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget before implementing and enabling a cloud adapter."
     },
     "devin": {
-      "enabled": true,
+      "enabled": false,
       "scope": "local-only: devin -p in C:\\wt worktrees. --cloud, /handoff, /cloud, devin connect (Local Hands) and the Devin API session routes stay prohibited while dispatchPolicy.devin-cloud is disabled.",
       "model": "swe-2-medium",
       "allowedModels": [
@@ -498,7 +499,7 @@
       "allowedModelsNote": "devin models list --format json 2026-10-26 (CLI 3000.11.205, Devin Pro): swe-2-medium, swe-2-high and swe-2-max are cost_tier Free. adaptive is $0.5/$0.1/$2 per 1M input/cached/output; fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium is Med cost, $2/$0.1/$10 for the lead with a Free sidekick. Paid usage draws the Pro daily/weekly quota, then on-demand credits (docs.devin.ai/admin/billing/self-serve). The former default swe-2-medium-lightning is High cost ($1/$0.1/$5) and is excluded, as are Opus/Fable/GPT Fusion leads.",
       "permissionMode": "dangerous",
       "permissionNote": "Owner direction 2026-10-26: leave permissions as they are (user env DEVIN_PERMISSION_MODE=dangerous, launchDefaults.devin). Devin's OS sandbox and the autonomous mode that needs it are not supported on Windows (docs.devin.ai/cli/sandbox), and no deny rules are configured, so nothing blocks git push or gh calls from a dispatched run. Run Devin only in C:\\wt worktrees and review before integrating.",
-      "reason": "2026-10-26: account login verified (devin auth status: Devin Pro, team membership approved). The dispatcher strips DEVIN_API_KEY/DEVIN_API_TOKEN/DEVIN_ORG_ID so the stored login authenticates. read_config_from already disables claude, cursor, windsurf, copilot, opencode and zed imports (only agents_standard), so AgentHub-deployed MCP, skills and AGENTS.md are the only shared capability source. Headless dispatch smoke 2026-10-26 (swe-2-medium, Free): the first dispatcher run at 20:30 CT exited 0 after 17 s with empty stdout and stderr; three later runs (two direct, one through the dispatcher at about 20:32) returned READY, the dispatcher run in 4 s. Treat exit 0 without the expected output or report file as a failed run.",
+      "reason": "2026-11-10: `devin auth status` reports 'Not logged in' against the stored credentials path, with and without the DEVIN_* environment variables present, so account status is unauthenticated and no key fallback is attempted; the owner must run devin auth login before re-enabling. Earlier evidence: 2026-10-26 account login verified (devin auth status: Devin Pro, team membership approved). The dispatcher strips DEVIN_API_KEY/DEVIN_API_TOKEN/DEVIN_ORG_ID so the stored login authenticates. read_config_from already disables claude, cursor, windsurf, copilot, opencode and zed imports (only agents_standard), so AgentHub-deployed MCP, skills and AGENTS.md are the only shared capability source. Headless dispatch smoke 2026-10-26 (swe-2-medium, Free): the first dispatcher run at 20:30 CT exited 0 after 17 s with empty stdout and stderr; three later runs (two direct, one through the dispatcher at about 20:32) returned READY, the dispatcher run in 4 s. Treat exit 0 without the expected output or report file as a failed run.",
       "verifiedOn": "2026-10-26",
       "ownerDirection": "2026-10-26: owner asked in the Claude session to make Devin a first-class execution peer (local and cloud), with no cloud budget for this batch, local tasks run one at a time once free RAM allows, and permissions left as they are. This supersedes, for Devin local runs only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
@@ -579,24 +580,24 @@
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     },
     "kilo": {
-      "enabled": true,
-      "model": "mimo-v2.6-pro",
+      "enabled": false,
+      "model": "mimo/mimo-v2.6-pro",
       "allowedModels": [
-        "mimo-v2.6-pro"
+        "mimo/mimo-v2.6-pro"
       ],
-      "allowedModelsNote": "Only mimo-v2.6-pro has been smoke-verified on the MiMo provider (2026-11-10). Widen only with a captured response per model.",
-      "reason": "2026-11-10: `kilo run` returned READY in a bounded smoke (agent code, mimo-v2.6-pro). Auth is the MiMo provider via MIMO_API_KEY already in the environment; 0 stored credentials in ~/.local/share/kilo/auth.json.",
+      "allowedModelsNote": "Only mimo/mimo-v2.6-pro has been smoke-verified on the MiMo provider (2026-11-10, bare default run). Widen only with a captured response per model.",
+      "reason": "original default-model smoke passed but exact governed command and unattended permission restrictions are not verified; no paid availability probes; needs authorized task validation before enabling",
       "verifiedOn": "2026-11-10",
       "ownerDirection": "2026-11-10: owner directed onboarding the newer unmanaged CLIs into the managed fleet."
     },
     "mimo-code": {
-      "enabled": true,
-      "model": "mimo-v2.6-pro",
+      "enabled": false,
+      "model": "xiaomi-token-plan-sgp/mimo-v2.6-pro",
       "allowedModels": [
-        "mimo-v2.6-pro"
+        "xiaomi-token-plan-sgp/mimo-v2.6-pro"
       ],
-      "allowedModelsNote": "Only mimo-v2.6-pro has been smoke-verified on the stored Xiaomi Token Plan credential (2026-11-10). Widen only with a captured response per model.",
-      "reason": "2026-11-10: `mimo run` returned READY in a bounded smoke (agent build, mimo-v2.6-pro) on the stored Xiaomi Token Plan (Singapore) credential.",
+      "allowedModelsNote": "Only xiaomi-token-plan-sgp/mimo-v2.6-pro has been smoke-verified on the stored Xiaomi Token Plan credential (2026-11-10, bare default run). Widen only with a captured response per model.",
+      "reason": "original default-model smoke passed but exact governed command and unattended permission restrictions are not verified; no paid availability probes; needs authorized task validation before enabling",
       "verifiedOn": "2026-11-10",
       "ownerDirection": "2026-11-10: owner directed onboarding the newer unmanaged CLIs into the managed fleet."
     }

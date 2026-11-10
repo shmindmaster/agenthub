@@ -22,7 +22,7 @@ $requiredFiles = @(
     'skills/dispatch/opencode/lightweight-chat.js',
     'skills/dispatch/factory/runtime-settings.json',
     'agents/claude/coding-agent.md', 'agents/codex/coding-agent.toml',
-    'assets/icon.svg'
+    'assets/icon.svg', 'tests/workflows.json'
 )
 
 function Assert-True([bool]$Condition, [string]$Message) {

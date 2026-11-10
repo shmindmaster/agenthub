@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "skill": "dispatch",
+      "kind": "workflow",
+      "input": "Delegate a synthetic repository task to an enabled host using the installed plugin.",
+      "expected": "Resolve the installed script, list governed hosts, run the selected host with the task repository, and return the output and exit code.",
+      "evidence": [
+        "Set `$dispatcher` to the absolute path of `Invoke-CodingAgent.ps1` beside this",
+        "Return the child's output and exit code."
+      ]
+    },
+    {
+      "skill": "dispatch",
+      "kind": "recovery",
+      "input": "The selected host is refused or its installed skill location is unavailable.",
+      "expected": "Report the blocking gate without changing credentials or bypassing the refusal through another host interface.",
+      "evidence": [
+        "A refused row stays refused: report it and stop.",
+        "If installation, policy, authentication or allowance prevents a run, report the"
+      ]
+    }
+  ]
+}
