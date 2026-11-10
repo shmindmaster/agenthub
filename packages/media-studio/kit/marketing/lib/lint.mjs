@@ -248,7 +248,7 @@ function lintBeatText(beat, where, claimsById, err, warn, scanText, mode) {
   // does not need evidence proving that it already happened. Real assertions
   // always keep the evidence gate, including within a hybrid film.
   const verified = beat.truthStatus === 'verified' ||
-    (!beat.truthStatus && ['verified-demo', 'documentary'].includes(mode));
+    (!beat.truthStatus && mode === 'verified-demo');
   if (verified && texts.length && !known.length) err('claim-unmapped', 'verified spoken or screen claim has no evidence reference', where);
   if (verified) for (const t of texts) {
     if (known.length && !known.some(c => claimCovers(c, t))) err('claim-uncovered', `"${t}" is not covered by any referenced claim`, where);
