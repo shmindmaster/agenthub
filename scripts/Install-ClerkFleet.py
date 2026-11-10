@@ -32,6 +32,12 @@ NATIVE = {
 BRIDGES = {"cursor", "cline", "amp", "opencode", "warp", "gemini", "vscode-insiders"}
 ALIASES = {"cursor-agent": "cursor", "opencode-desktop": "opencode",
            "antigravity-desktop": "antigravity", "antigravity-ide": "antigravity"}
+# Explicit dispositions for installed hosts with no approved Clerk route: never
+# bridged, installed or probed, only recorded.
+BLOCKED = {
+    "kilo": "Clerk native plugin/MCP rollout discovery-required; no approved host mapping or direct MCP exception.",
+    "mimo-code": "Clerk native plugin/MCP rollout discovery-required; no approved host mapping or direct MCP exception.",
+}
 
 
 def companion_rule(home):
@@ -123,6 +129,10 @@ def audit(upstream, home):
             rows[host]["qaGuidanceLoading"] = "not verified"
     for alias, host in ALIASES.items():
         rows[alias] = {**rows[host], "configurationOwner": host}
+    for host, reason in BLOCKED.items():
+        rows[host] = {"matchingOfficialSkills": 0, "remoteConfigured": False,
+                      "installation": "blocked", "reason": reason,
+                      "freshSession": "not verified", "authenticatedMcp": "not verified"}
     return rows
 
 
@@ -252,19 +262,30 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--apply", action="store_true")
     mode.add_argument("--audit", action="store_true", help="Read back official skill hashes and remote config, without starting hosts")
-    parser.add_argument("--host", action="append", choices=sorted(set(NATIVE) | BRIDGES | set(ALIASES)))
+    parser.add_argument("--host", action="append", choices=sorted(set(NATIVE) | BRIDGES | set(ALIASES) | set(BLOCKED)))
     parser.add_argument("--runtime", type=Path, default=Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local/share")) / "AgentHub/clerk")
     args = parser.parse_args()
+    selected = {ALIASES.get(h, h) for h in (args.host or [*NATIVE, *BRIDGES, *BLOCKED])}
+    blocked = sorted(set(BLOCKED) & selected)
+    hosts = sorted(selected - set(BLOCKED))
+    # A blocked-only apply must refuse before the runtime directory, upstream
+    # clone or platform-write gate runs: nothing is executed or written.
+    if args.apply and not hosts:
+        print(json.dumps({"mode": "apply", "hosts": {},
+                          "blocked": {h: BLOCKED[h] for h in blocked},
+                          "reason": "no supported hosts selected"}, indent=2))
+        raise SystemExit(1)
     if os.name != "nt" and (args.apply or args.audit):
         parser.error("Apply/audit currently target Windows fleet layouts; use plan mode on other platforms")
     if args.audit:
         rows = audit(args.runtime / "upstream", Path.home())
         print(json.dumps(rows, indent=2))
         raise SystemExit(0 if all(r["matchingOfficialSkills"] == 20 and r["remoteConfigured"]
-                                 and r.get("qaGuidanceConfigured", True) for r in rows.values()) else 1)
-    hosts = sorted({ALIASES.get(h, h) for h in (args.host or [*NATIVE, *BRIDGES])})
+                                 and r.get("qaGuidanceConfigured", True)
+                                 for r in rows.values()) else 1)
     if not args.apply:
         print(json.dumps({"upstream": "https://github.com/clerk/skills", "hosts": hosts,
+                          "blocked": {h: BLOCKED[h] for h in blocked},
                           "mode": "plan", "auth": "not attempted"}, indent=2))
         return
     args.runtime.mkdir(parents=True, exist_ok=True)
@@ -296,6 +317,9 @@ def main():
             receipt["hosts"][host] = {"installation": "completed", "freshSession": "not verified", "authenticatedMcp": "not verified"}
         except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
             receipt["hosts"][host] = {"installation": "blocked", "reason": str(exc)}
+    for host in blocked:
+        receipt["hosts"][host] = {"installation": "blocked", "reason": BLOCKED[host],
+                                  "freshSession": "not verified", "authenticatedMcp": "not verified"}
     (args.runtime / "latest-rollout.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(receipt, indent=2))
     if any(row["installation"] == "blocked" for row in receipt["hosts"].values()):

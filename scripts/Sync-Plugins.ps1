@@ -170,7 +170,10 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
         }
         'copilot' {
             $entry = Get-ListedPlugin copilot $name -Fresh:$Fresh
-            if ($entry.marketplace -eq $market) { return New-Observation $entry.version $source }
+            if ($entry.marketplace -eq $market) {
+                if ($entry.enabled -eq $false) { return New-Observation $entry.version $source 'blocked' 'Native Copilot plugin is installed but disabled; explicit host activation is required.' }
+                return New-Observation $entry.version $source
+            }
             if ($entry) { return New-Observation '' '' 'unmanaged' 'Copilot registration uses a different marketplace.' }
         }
         'devin' {
@@ -317,7 +320,7 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
         $Row.detail = 'Native registration is absent. First install requires verified host activation and ownership.'
         return
     }
-    if ($observation.status -and $observation.status -ne 'current') { $Row.status = $observation.status; return }
+    if ($observation.status -and $observation.status -ne 'current') { $Row.status = $observation.status; $Row.detail = $observation.detail; return }
     if ($observation.status -eq 'current' -and $observation.path -eq $Row.source) { $Row.status = 'current'; return }
     if (-not $observation) { $Row.status = 'missing'; return }
     if ($observation.version -ne $Row.expected -or ($observation.path -and -not (Test-SkillCopy $Row.source $observation.path $nativeHost))) {

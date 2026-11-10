@@ -216,3 +216,8 @@ installation, discovery, OAuth and actual role acceptance as separate stages.
 
 Read the full acceptance contract at https://github.com/shmindmaster/agenthub/blob/main/docs/runbooks/clerk-auth.md.
 <!-- clerk-companion:end -->
+
+Kilo and MiMo Code are installed plan hosts whose Clerk routes are discovery-required:
+they have no approved host mapping or direct MCP exception yet, and the dispatch
+skill projection alone does not establish Clerk parity. scripts/Install-ClerkFleet.py
+records them under BLOCKED and refuses to install, bridge or probe them.

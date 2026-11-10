@@ -156,8 +156,41 @@ class ClerkFleetTests(unittest.TestCase):
 
     def test_every_active_surface_has_a_rollout_route(self):
         agents = json.loads((ROOT / "registry/agents.json").read_text(encoding="utf-8-sig"))
-        supported = set(fleet.NATIVE) | fleet.BRIDGES | set(fleet.ALIASES)
+        supported = set(fleet.NATIVE) | fleet.BRIDGES | set(fleet.ALIASES) | set(fleet.BLOCKED)
         self.assertFalse({a["id"] for a in agents["activeAgents"]} - supported)
+        # A blocked disposition must carry a reason and never claim a
+        # supported surface.
+        self.assertTrue(all(fleet.BLOCKED.values()))
+        self.assertFalse(set(fleet.BLOCKED) & (set(fleet.NATIVE) | fleet.BRIDGES | set(fleet.ALIASES)))
+
+    def test_blocked_host_plan_reports_reason_without_side_effects(self):
+        with patch("sys.argv", ["installer", "--host", "kilo"]), patch.object(fleet, "run") as run:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                fleet.main()
+            plan = json.loads(output.getvalue())
+            self.assertEqual(plan["hosts"], [])
+            self.assertIn("discovery-required", plan["blocked"]["kilo"])
+            run.assert_not_called()
+
+    def test_blocked_host_apply_refuses_before_any_runtime_write(self):
+        for host in ("kilo", "mimo-code"):
+            with tempfile.TemporaryDirectory() as temp:
+                runtime = Path(temp) / "runtime"
+                argv = ["installer", "--host", host, "--apply", "--runtime", str(runtime)]
+                with patch("sys.argv", argv), patch.object(fleet, "run") as run:
+                    with contextlib.redirect_stdout(io.StringIO()) as output:
+                        with self.assertRaises(SystemExit) as caught:
+                            fleet.main()
+                    self.assertEqual(caught.exception.code, 1)
+                    run.assert_not_called()
+                    self.assertFalse(runtime.exists())
+                    self.assertIn("discovery-required", output.getvalue())
+
+    def test_unknown_host_is_still_rejected(self):
+        with patch("sys.argv", ["installer", "--host", "ghost"]):
+            with self.assertRaises(SystemExit) as caught:
+                fleet.main()
+            self.assertEqual(caught.exception.code, 2)
 
 
 if __name__ == "__main__":
