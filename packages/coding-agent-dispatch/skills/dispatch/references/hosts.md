@@ -38,10 +38,16 @@ missing. If a peer file is absent on a machine, recreate it from the rules in
   initialization, session handoff and authenticated inference remain separate
   checks. Do not start a listener or install a bridge to bypass a refused run.
 
-Kiro's installed CLI supports `chat --no-interactive`; that discovery does not
-establish unattended permission policy or model allowance. Qwen has a saved
-configuration, but its observed run failed in `resolveModelConfig`. Do not
-describe either as callable or change their credentials to make a check pass.
+Kiro CLI is dispatchable on its Builder ID login. `--trust-all-tools` approves
+every tool call, so it runs only under the policy-named `ah-peer` agent
+(`~/.kiro/agents/ah-peer.json`), which denies outward and destructive commands
+and does not load the host's MCP file. Every Kiro model spends plan credits at
+its own multiplier; only an allowlisted model may be routed. The Kiro IDE and
+KiroCrew are not dispatch targets.
+
+Qwen has a saved configuration, but its observed run failed in
+`resolveModelConfig`. Do not describe it as callable or change its credentials
+to make a check pass.
 
 ## Factory
 

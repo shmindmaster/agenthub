@@ -81,7 +81,11 @@
           "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
         },
         "kilo": {},
-        "mimo-code": {}
+        "mimo-code": {},
+        "kiro": {
+          "linear": "Owner-authored remote entry in ~/.kiro/settings/mcp.json that predates fleet management. Runs no local process.",
+          "aws-mcp": "Owner-authored local proxy entry that predates fleet management. Starts per session; the dispatch agent does not load this file. A permission, not a registration: the sync never generates it."
+        }
       }
     },
     "sessionStart": {

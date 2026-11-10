@@ -695,6 +695,35 @@
       "notes": "Installed on 2026-11-09, OpenCode fork. Promoted to active 2026-11-10 on owner direction; dispatch enabled the same day after the governed command and the guarded peer agent were verified (fleet-profile dispatchPolicy.mimo-code). Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories; ~/.agents/skills stays empty under the plugin-only policy. Subagents and rules support are not established.",
       "acpNote": "`mimo acp` and `mimo serve` are help-discovered entry points (2026-11-10); ACP protocol initialization, session handoff and authenticated inference are not established.",
       "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> --model xiaomi-token-plan-sgp/mimo-v2.6-pro --agent peer <prompt>` verified 2026-11-10: returned READY, exit 0, and a denied command stayed denied under --yolo. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan key credential (a stored key, not an OAuth account login)."
+    },
+    {
+      "id": "kiro",
+      "name": "Kiro IDE and Kiro CLI",
+      "version": "3.1.0",
+      "versionObserved": "2026-11-09: read-only `kiro-cli --version` printed kiro-cli 3.1.0. Kiro IDE 1.4.121 recorded from the same audit. An unattended `kiro-cli chat --no-interactive` run returned READY on 2026-11-10 under agent ah-peer.",
+      "executable": "{userHome}/AppData/Local/Kiro-Cli/kiro-cli.exe",
+      "nativePaths": {
+        "configHome": "{userHome}/.kiro",
+        "skillsDir": "{userHome}/.kiro/skills",
+        "agentsDir": "{userHome}/.kiro/agents",
+        "powersDir": "{userHome}/.kiro/powers",
+        "rulesDir": "{userHome}/.kiro/steering",
+        "mcp": "{userHome}/.kiro/settings/mcp.json",
+        "mcpKey": "mcpServers",
+        "mcpNote": "Remote entries take url and headers, and ${VAR} is supported. The file holds owner-authored entries (a linear remote and an aws-mcp proxy). An auth header value is present and is not recorded here.",
+        "instructions": null,
+        "instructionsNote": "steering/AGENTS.md is hand-written owner content, not AgentHub-managed and not in the AgentHub header format. Deployment is withheld until the owner approves."
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins",
+        "hooks"
+      ],
+      "status": "active",
+      "notes": "Kiro IDE (1.4.121, no user extensions; IDE executable %LOCALAPPDATA%\\Programs\\Kiro\\bin\\kiro) and Kiro CLI (3.1.0, Builder ID login) are recorded as one row because they share ~/.kiro. `kiro-cli chat --no-interactive --trust-all-tools --agent ah-peer --model <model>` verified 2026-11-10 on auto, claude-opus-5.5, claude-sonnet-5.5 and claude-haiku-5.5: returned READY, exit 0, and a denied shell command stayed blocked with all tools trusted (fleet-profile dispatchPolicy.kiro). The CLI is the dispatch surface; the IDE is not dispatched. Shared state on 2026-11-09: 28 skills, 8 powers, 2 steering files, 1 workflow. 24 AWS skills are duplicated in ~/.agents/skills. Powers are the plugin form and the native catalog was not listed. KiroCrew is a separate row and is not a dispatch target."
     }
   ],
   "inactiveAgents": [
@@ -760,35 +789,6 @@
       ],
       "status": "inactive",
       "notes": "Installed on 2026-11-09. Sign-in is by Xiaomi account. Plugins install only through the in-app store, and the store catalog could not be listed because the console is JavaScript-rendered. No MCP servers configured. Bundled remotion and hyperframes plugin sources are Codex-marketplace repackages per the audit. Not a dispatch target."
-    },
-    {
-      "id": "kiro",
-      "name": "Kiro IDE and Kiro CLI",
-      "version": "3.1.0",
-      "versionObserved": "2026-11-09: read-only `kiro-cli --version` printed kiro-cli 3.1.0. Kiro IDE 1.4.121 recorded from the same audit. No agent run.",
-      "executable": "{userHome}/AppData/Local/Kiro-Cli/kiro-cli.exe",
-      "nativePaths": {
-        "configHome": "{userHome}/.kiro",
-        "skillsDir": "{userHome}/.kiro/skills",
-        "agentsDir": "{userHome}/.kiro/agents",
-        "powersDir": "{userHome}/.kiro/powers",
-        "rulesDir": "{userHome}/.kiro/steering",
-        "mcp": "{userHome}/.kiro/settings/mcp.json",
-        "mcpKey": "mcpServers",
-        "mcpNote": "Remote entries take url and headers, and ${VAR} is supported. The file holds owner-authored entries (a linear remote and an aws-mcp proxy). An auth header value is present and is not recorded here.",
-        "instructions": null,
-        "instructionsNote": "steering/AGENTS.md is hand-written owner content, not AgentHub-managed and not in the AgentHub header format. Deployment is withheld until the owner approves."
-      },
-      "supportedCapabilities": [
-        "rules",
-        "skills",
-        "subagents",
-        "mcp",
-        "plugins",
-        "hooks"
-      ],
-      "status": "inactive",
-      "notes": "Kiro IDE (1.4.121, no user extensions; IDE executable %LOCALAPPDATA%\\Programs\\Kiro\\bin\\kiro) and Kiro CLI (3.1.0, Builder ID login) are recorded as one row because they share ~/.kiro. `kiro-cli chat --help` 2026-11-10 lists --no-interactive and --output-format stream-json (ACP events); unattended permission policy, inference and model allowance are not established and no automatic login is attempted. Shared state on 2026-11-09: 28 skills, 8 powers, 2 steering files, 1 workflow. 24 AWS skills are duplicated in ~/.agents/skills. Powers are the plugin form and the native catalog was not listed. KiroCrew is a separate row. Not a dispatch target."
     },
     {
       "id": "kirocrew",

@@ -37,7 +37,10 @@ ALIASES = {"cursor-agent": "cursor", "opencode-desktop": "opencode",
            "antigravity-desktop": "antigravity", "antigravity-ide": "antigravity"}
 # Explicit dispositions for installed hosts with no approved Clerk route: never
 # bridged, installed or probed, only recorded.
-BLOCKED = {}
+BLOCKED = {
+    "kiro": "Clerk route discovery-required: Kiro loads skills, powers and an owner-authored MCP file, and no Clerk "
+            "mapping or direct MCP exception has been approved for it.",
+}
 
 
 def companion_rule(home):
