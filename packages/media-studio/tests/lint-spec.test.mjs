@@ -126,7 +126,7 @@ test('fictional adult coordinator scene is eligible when explicitly declared and
     id: 'context', kind: 'broll',
     broll: {
       provider: 'openai-image',
-      prompt: 'Generic fictional adult coordinator at an office desk, no text, no logos, no visible application screen.',
+      prompt: 'Generic fictional adult coordinator at an office desk with a blurred laptop, no text and no logos.',
       actor: { kind: 'fictional-adult', role: 'office coordinator', storyPurpose: 'Ground the viewer in the real-world administrative challenge.', noRealPerson: true, noPatientOrMinor: true },
     },
   });
