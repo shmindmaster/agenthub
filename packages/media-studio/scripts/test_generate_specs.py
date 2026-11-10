@@ -967,7 +967,7 @@ class ThirdReviewFixes(unittest.TestCase):
                 post("u", {}, {})
         self.assertIsNone(getattr(cm.exception, "status", None))
 
-    def test_an_http_error_status_is_not_billed_and_a_plain_rerun_retries_it(self):
+    def test_an_http_error_status_is_not_charged_and_a_plain_rerun_retries_it(self):
         for status in (401, 403, 429, 500, 529):
             with tempfile.TemporaryDirectory() as d:
                 job = make_job(d)
@@ -977,12 +977,41 @@ class ThirdReviewFixes(unittest.TestCase):
                 self.assertEqual(rep["fallbackNeeded"][0]["reason"], "http-status", status)
                 self.assertIn(str(status), rep["fallbackNeeded"][0]["detail"])
                 line = [l for l in ledger(job) if l["kind"] == "spec"][0]
-                self.assertEqual(line["usd"], 0.0)
-                self.assertIn("not billed", line["usdBasis"])
+                self.assertEqual(line["usd"], None if status == 500 else 0.0, status)
+                self.assertIn("unknown" if status == 500 else "not billed", line["usdBasis"], status)
                 fake = FakeMessages()
                 again = g.run(job, args(run=True), env=ENV, post=fake)
                 self.assertEqual(len(fake.calls), 1, status)
                 self.assertTrue(again["ok"], again)
+
+
+class FourthReviewFixes(unittest.TestCase):
+    """Leftovers from the third review (of af56409b)."""
+
+    def test_an_http_error_after_a_paid_attempt_names_the_marker_not_a_plain_rerun(self):
+        with tempfile.TemporaryDirectory() as d:
+            job = make_job(d)
+
+            def busy(body):
+                raise g.HttpStatusError(429, "Messages API returned HTTP 429: busy")
+            fake = FakeMessages(message('{"moments": [', stop="max_tokens"), busy)
+            rep = g.run(job, args(run=True), env=ENV, post=fake)
+            detail = rep["fallbackNeeded"][0]["detail"]
+            self.assertNotIn("a plain rerun sends it again", detail)
+            self.assertIn("--retry-fallbacks", detail)
+            again = g.run(job, args(run=True), env=ENV, post=fake)
+            self.assertEqual(len(fake.calls), 2)
+            self.assertIn("--retry-fallbacks", " ".join(again["problems"]))
+
+    def test_a_server_error_records_an_unknown_cost_and_api_refusals_record_zero(self):
+        for status, usd in ((500, None), (502, None), (503, None), (401, 0.0), (429, 0.0), (529, 0.0)):
+            with tempfile.TemporaryDirectory() as d:
+                job = make_job(d)
+                with transport_raising(http_error(status)) as post:
+                    g.run(job, args(run=True), env=ENV, post=post)
+                line = [l for l in ledger(job) if l["kind"] == "spec"][0]
+                self.assertEqual(line["usd"], usd, status)
+                self.assertIn("unknown" if usd is None else "not billed", line["usdBasis"], status)
 
 
 if __name__ == "__main__":

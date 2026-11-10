@@ -28,8 +28,8 @@ twice. A refusal is recorded and never resent unchanged. Truncation or an invali
 validation error included); after that the layer is listed in plan/model-specs/fallback-needed.json and the exit is
 non-zero: a person writes a simpler kit visual. Never a silent fallback. A request that was paid for and failed is marked in
 its cache entry (right after the failed attempt's ledger line, before any retry) and not paid for again unless the request changes or --retry-fallbacks is given (a cap fallback that was
-never sent goes out once --max-usd allows it; an HTTP error status is not billed, charged or marked, so a plain rerun
-sends it again). --max-usd is checked before every attempt. A --run holds
+never sent goes out once --max-usd allows it; an HTTP error status is not charged or marked, so a plain rerun sends it
+again unless an earlier paid attempt is marked; a 5xx other than 529 is ledgered with usd null). --max-usd is checked before every attempt. A --run holds
 qa/generate-specs.lock (pid and start time inside) and refuses to start while another run holds it; it never deletes a
 lock it did not create. An approved moments layer (approvedBy set by a person) is never overwritten. A prompt estimated
 above 90,000 tokens (2.5 characters per token) is refused before every attempt, the retry included.
@@ -117,7 +117,7 @@ class SpecsError(Exception):
 
 
 class HttpStatusError(SpecsError):
-    """The API answered with an error status (401, 403, 429, 5xx): nothing was generated, so nothing was billed."""
+    """The API answered with an error status (401, 403, 429, 5xx): nothing was generated."""
 
     def __init__(self, status, message):
         super().__init__(message)
@@ -561,12 +561,18 @@ def send(job, row, beats, post, headers, budget, stamp):
         try:
             resp = post(MESSAGES_URL, headers, body)
         except HttpStatusError as e:
-            # An error status means nothing was generated: not billed, not charged and not marked, so a plain rerun retries it.
+            # An error status means nothing was generated: not charged and not marked. A 4xx (and 529 overloaded) is the API
+            # refusing the request, so it is not billed; another 5xx is a server failure whose billing is not known.
+            server = 500 <= e.status < 600 and e.status != 529
+            usd, basis = (None, f"unknown: the API answered HTTP {e.status}, a server error") if server else (0.0, f"not billed: the API answered HTTP {e.status}")
             append_ledger(job, {"at": stamp, "kind": "spec", "lane": LANE, "layer": row["layer"], "model": row["model"], "effort": row["effort"],
-                                "attempt": attempt, "stopReason": None, "maxTokens": body["max_tokens"], "usd": 0.0,
-                                "usdBasis": f"not billed: the API answered HTTP {e.status}", "usage": None, "httpStatus": e.status,
+                                "attempt": attempt, "stopReason": None, "maxTokens": body["max_tokens"], "usd": usd,
+                                "usdBasis": basis, "usage": None, "httpStatus": e.status,
                                 "error": str(e), "requestSha256": row["key"], "promptSha256": prompt_sha, "fileSha256": None})
-            return None, {"reason": "http-status", "sent": True, "detail": f"{e}; a plain rerun sends it again"}, spent
+            marked = (load_json(specs_dir(job) / "cache" / f"{row['key']}.json", {}) or {}).get("failed")
+            rerun = ("an earlier paid attempt of this request is marked failed, so resending it needs --retry-fallbacks" if marked
+                     else "a plain rerun sends it again")
+            return None, {"reason": "http-status", "sent": True, "detail": f"{e}; {rerun}"}, spent
         except SpecsError as e:
             budget["spent"] += quote          # the real cost is unknown and it may have been billed: charge the quote
             append_ledger(job, {"at": stamp, "kind": "spec", "lane": LANE, "layer": row["layer"], "model": row["model"], "effort": row["effort"],
