@@ -78,8 +78,8 @@ ROLE_VOCAB = {"hook", "before", "bridge", "tension", "reveal", "proof", "trust",
               "explain", "problem", "close", "cta"}
 GREETING_RE = re.compile(r"\b(welcome|hello|hi there|hey everyone|my name is|in this (video|episode|film)|"
                          r"today (we|i)('ll| will| am|'re)|agenda|let'?s (get started|begin|dive in))\b", re.I)
-HOOK_MAX_WORDS = 25
-HOOK_LONG_WORDS = 35   # beyond this the hook is judged missing, not merely long
+HOOK_MAX_WORDS = 12
+HOOK_LONG_WORDS = 12   # first sentence must fit the five-second opening at 150 wpm
 HERO_MIN_HOLD = 1.0
 LAST_MIN_HOLD = 1.0
 DENSE_ROWS = 8
