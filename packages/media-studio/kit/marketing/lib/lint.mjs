@@ -17,7 +17,11 @@ export const TAIL_SECONDS = 0.45;
 
 const NEGATION = /\b(no|not|nothing|never|without|none|neither|nor|n't|cannot)\b/i;
 
-export const DEFAULT_BANNED = [
+// No global brand/domain-specific banned phrases: each film's approved
+// claims and optional brand policy govern assertions. See HEALTHCARE_BANNED
+// for a *separately opt-in* healthcare marketing policy example.
+export const DEFAULT_BANNED = [];
+export const HEALTHCARE_BANNED = [
   { id: 'sent-to-payer', pattern: '\\b(submit(?:s|ted|ting)?|sen[dt]s?|sending|transmit(?:s|ted|ting)?|file[ds]?)\\b[^.!?]{0,40}\\b(payers?|insurers?|insurance)\\b', flags: 'i', unlessNegated: true, reason: 'Ready to Bill is local readiness; never imply submission to a payer.' },
   { id: 'payer-outcome', pattern: '\\b(approved|paid|reimbursed|accepted)\\s+(?:by\\s+)?(?:the\\s+|a\\s+)?(payers?|insurers?)\\b|\\bget paid\\b|\\bpaid faster\\b|\\bfewer denials\\b|\\breduces? denials\\b|\\bno denials\\b', flags: 'i', unlessNegated: true, reason: 'No payer outcome may be implied.' },
   { id: 'guarantee', pattern: '\\bguarantee[sd]?\\b', flags: 'i', reason: 'No guarantees.' },
