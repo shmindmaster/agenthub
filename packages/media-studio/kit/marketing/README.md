@@ -151,6 +151,46 @@ existing claim, screenshot, authorization, product-readiness and QA rules
 still apply. If an older 25s+ spec fails this newly required lint, revise its
 written story and beats rather than bypassing the gate.
 
+## Humanizing the setting without inventing product proof
+
+A buyer-facing software film benefits from a recognizable adult working
+through a real operational problem. The old blanket ban on generated
+people prevented this; the marketing `lint` now permits a **generic,
+fictional adult** for strictly non-claim story-setting b-roll, provided
+the beat's `broll.actor` declares all of:
+
+```json
+{
+  "kind": "fictional-adult",
+  "role": "office coordinator",
+  "storyPurpose": "Show the pressure of checking tomorrow's schedule",
+  "noRealPerson": true,
+  "noPatientOrMinor": true
+}
+```
+
+Keep the scene brief and meaningful: an adult coordinator reviewing
+tomorrow's work at a neutral desk with a blurred laptop, **no text,
+logos, visible product interface, clinical chart or fake customer
+testimonial**. Never depict patient care, children, minors, patient
+records, identifiable real people or a purported actual customer.
+Human setup is dramatization. Use an on-screen synthetic disclosure
+and the exact product's *real* Playwright/WebM recording for every
+software action, data claim and result. Reuse an accepted fictional
+adult reference for a series only through a model-specific, approved
+route that actually supports such references. The Runware model
+catalogue itself does not constitute a production adapter.
+
+`broll.actor` does not permit new narration, a fabricated clinic
+outcome, or an unsupported voice/likeness clone. `broll.provider`
+currently supports existing OpenAI-generated stills, accepted stock
+assets, and an excluded ElevenLabs-video route. **Runware
+`generate_stills.py` supports only its validated `runware:z-image@0`
+payload**, so a newly discovered Klein, Qwen, Sunburst or MiniMax
+model cannot simply be substituted into the existing marketing
+generator. Quote first, add a governed schema-specific adapter, review
+a sample, then make that model eligible. No silent fallback or spend.
+
 ## Writing a spec (`ad.schema.json`)
 
 | Field | Meaning |
