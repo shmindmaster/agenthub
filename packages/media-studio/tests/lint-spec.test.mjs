@@ -142,6 +142,7 @@ test('envisioned UI and fictional people do not require any blur, adult-only fla
   spec.creativeMode = 'future-vision';
   spec.conceptDisclosure = 'Envisioned future product experience';
   spec.claims = [];
+  delete spec.cta.claim;
   spec.cuts[0].beats = [
     { id: 'future', kind: 'broll', truthStatus: 'proposed',
       narration: 'A future interface anticipates tomorrow’s work.',
