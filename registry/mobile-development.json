@@ -46,6 +46,71 @@
       "note": "A ceiling, not an install instruction: the parent owns the guest Xcode install, and setup-appium-guest.sh only reports a difference. Xcode 27 also requires macOS 26.6+, but meeting that floor does not make it installable on this architecture. Re-check the source before acting on this."
     }
   },
+  "remoteAndroid": {
+    "decision": "docs/architecture/mobile-lab-remote-android.md",
+    "recordedOn": "2026-11-10",
+    "sshHostAlias": "mobile-lab",
+    "user": "mobilelab",
+    "labRoot": "/srv/mobile-lab",
+    "apiLevel": 36,
+    "avdName": "lab-api36",
+    "deviceSerial": "emulator-5554",
+    "viewLocalPort": 15555,
+    "lease": "flock on <labRoot>/state/lease.lock, held for a whole run. The local Global mutex still governs the Windows emulator and the macOS guest.",
+    "host": {
+      "provider": "digitalocean",
+      "name": "sh-build-02",
+      "dropletId": 617893815,
+      "shared": true,
+      "incrementalDailyCostUsd": 0,
+      "teardown": "2026-11-30",
+      "after": "Re-run the provisioning script on an AWS nested-virtualization instance (C8i, M8i or R8i family, or a .metal size) and repoint the SSH alias. Nothing else changes."
+    },
+    "apps": [
+      {
+        "productId": "abacare",
+        "install": "corepack pnpm install --filter @abacare/mobile... --frozen-lockfile",
+        "defaultProfile": "unconfigured",
+        "profiles": {
+          "unconfigured": {
+            "variant": "release",
+            "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
+            "flow": ".maestro/smoke-unconfigured.yaml",
+            "screenshot": true,
+            "note": "A build with no API URL must refuse to start. Reaches no backend and shows no clinical data, so capture is allowed."
+          },
+          "preview-rig": {
+            "variant": "debug",
+            "env": {
+              "PREVIEW_MOCK": "1",
+              "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+              "EXPO_PUBLIC_API_URL": "http://10.0.2.2:8787/api",
+              "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k"
+            },
+            "preCommand": "node preview/server.js",
+            "flow": ".maestro/journeys/06-identity-gate.yaml",
+            "screenshot": true,
+            "verified": false,
+            "note": "Synthetic tenant from preview/server.js on the worker with the mock identity. The publishable key is the repository's documented placeholder for clerk.example.com. Not passing as of 2026-11-10: the debug build installs and Metro is reachable, but the app stops on the Expo development launcher and the journey does not open the bundle."
+          }
+        }
+      },
+      {
+        "productId": "rexa",
+        "install": "npm ci",
+        "extraPaths": ["assets/narration"],
+        "defaultProfile": "smoke",
+        "profiles": {
+          "smoke": {
+            "variant": "release",
+            "env": {},
+            "flow": ".maestro/other-screens.yaml",
+            "screenshot": true
+          }
+        }
+      }
+    ]
+  },
   "agentSurface": {
     "primary": [
       {
@@ -148,6 +213,18 @@
         "command": "mobile.ps1 check <files|runtime> [android|ios|both]",
         "providerIds": ["windows-mobile-toolchain", "vmware-workstation", "macos-guest-vm", "android-avd", "ios-simulator"],
         "serviceIds": ["adb", "ssh", "guest-appium", "appium-mcp"]
+      },
+      {
+        "id": "device.android-remote",
+        "name": "Build, run, test and view an app on the remote Linux Android worker",
+        "command": "mobile.ps1 remote <status|start|stop|run|sync|view|clean|provision> [productId]",
+        "providerIds": ["mobile-scope-registry", "linux-android-worker"],
+        "serviceIds": ["ssh"],
+        "fileRefs": [
+          "packages/mobile-development/skills/mobile-device-lab/references/remote-android.md",
+          "packages/mobile-development/skills/mobile-device-lab/scripts/Invoke-MobileLabRemote.ps1",
+          "packages/mobile-development/skills/mobile-device-lab/scripts/worker/provision-android-worker.sh"
+        ]
       }
     ],
     "specialty": [
@@ -267,6 +344,14 @@
       "platform": "ios",
       "expectationRef": "expectations.ios",
       "providerId": "macos-guest-vm"
+    },
+    {
+      "id": "linux-android-worker",
+      "kind": "remote-worker",
+      "platform": "linux",
+      "configRef": "remoteAndroid",
+      "requires": "x86_64 Ubuntu host with /dev/kvm; no Docker",
+      "provisioning": "packages/mobile-development/skills/mobile-device-lab/scripts/worker/provision-android-worker.sh"
     }
   ],
   "services": [
@@ -321,7 +406,8 @@
       "test.mobile-web",
       "evidence.capture",
       "guest.sync",
-      "health.check"
+      "health.check",
+      "device.android-remote"
     ],
     "specialty": [
       "build.ios-signed",
@@ -339,7 +425,7 @@
       { "id": "android-studio", "name": "Android Studio", "reason": "CLI SDK and AVD tooling is sufficient and avoids a second bundled JDK." },
       { "id": "nested-virtualization", "name": "Nested virtualization", "reason": "The macOS guest does not need nested VMs and the working VM configuration keeps vhv.enable false." },
       { "id": "second-vm-nic", "name": "Second VM NIC", "reason": "VMnet8 NAT already provides host-private reachability and a second NIC adds address ambiguity." },
-      { "id": "routine-cloud-builds", "name": "Routine cloud builds", "reason": "Android APKs and iOS Simulator builds compile locally; cloud builds are a gated fallback, not the routine path." },
+      { "id": "routine-cloud-builds", "name": "Routine paid cloud builds (EAS Build)", "reason": "Android APKs compile with Gradle on the owner's own Linux worker and iOS builds compile in the macOS guest; a paid build service is a gated fallback, not the routine path." },
       { "id": "cloud-device-farms", "name": "Cloud device farms", "reason": "The canonical lab uses local virtual devices; paid external device farms are outside this capability." }
     ]
   }
