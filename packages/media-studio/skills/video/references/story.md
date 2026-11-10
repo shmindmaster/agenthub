@@ -55,6 +55,46 @@ A single-beat clip runs question → reveal → takeaway.
 
 `write-story-review.py` requires: first scene `hook`; a `before` scene ahead of the hero; hero outside the first 3 scenes, `holdAfterSeconds` ≥ 1.0, and `silenceOnReveal` or `musicCue` `silence` or `sting`; `trust` or `proof` within 3 scenes after it, or a recorded judgment.
 
+## Narrative orientation: a hook is not the whole setup
+
+Do not start with a random screen, cut directly to software settings, or
+assume that the viewer knows the product. For any buyer-facing hero,
+product-screencast, technical-story or explainer, the viewer must understand
+the complete **who → situation → trigger → problem → stakes → named solution
+→ mechanism → verified result** chain. Opening with the outcome is allowed,
+but then rewind immediately to establish what makes it meaningful. Do not
+pad this chain with a corporate logo, biography or lengthy prologue.
+
+Before locking the screenplay, answer and demonstrate all of these:
+
+- **Who and where?** Persona, current task and recognizable context.
+- **What happened?** Specific trigger, obstacle and consequence. What
+  would fail or take more work without intervention?
+- **What software is this?** Introduce the real product by name no later
+  than the first solution beat; explain its job in plain language.
+- **How does it solve that one problem?** One verified workflow shown as
+  input → action → visible response → result, not a tour of unrelated tabs.
+- **What changed?** Return to the original person/problem, show a readable
+  final state, include appropriate review/limits, then one CTA.
+
+Do **not** mistake an engaging hook for permission to omit the setting.
+For a 25–60s product ad, the hook lands within 2–5 seconds, the scenario
+appears within 10 seconds and the software is named in the solution scene.
+For longer documentary/technical stories, the hook can be a cold open
+but the context and core product identity must arrive before the deeper
+diagnosis, code reveal or workflow. A 10–24s teaser can compress the arc
+to hook → one proof → payoff/action, but never pose as a comprehensive
+software explainer.
+
+Record the causal order and its visual evidence in the treatment,
+beat sheet, screenplay and storyboard. The user should be able to follow
+the story **on mute**, with meaningful visuals and sidecar captions.
+The encoded reviewer fails any abrupt or context-free montage regardless
+of polished sound, motion, cursor paths or QA scores. Preserve factual
+source evidence; never invent customer experiences or demonstrated
+product behavior. See `kit/marketing/README.md` for the hard lint contract
+on marketing cuts of 25 seconds and longer.
+
 ## Writing for the ear
 
 - One idea per scene, one thought per sentence, short sentences.
