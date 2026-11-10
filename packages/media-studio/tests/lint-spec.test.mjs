@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join, resolve } from 'node:path';
-import { lintSpec } from '../kit/marketing/lib/lint.mjs';
+import { lintSpec, HEALTHCARE_BANNED } from '../kit/marketing/lib/lint.mjs';
 
 // Absolute on every platform, so path resolution inside lintSpec is a no-op.
 const SYNTHETIC = resolve('/synthetic');
@@ -82,7 +82,7 @@ test('lintSpec preserves exact ordered findings and estimates for an invalid syn
   };
 
   assert.deepEqual(
-    lintSpec(spec, { forbiddenNames: ['CentralReach'], urls: { demo: 'https://brand.example/demo' } }, { io: io(false) }),
+    lintSpec(spec, { bannedPhrases: HEALTHCARE_BANNED, forbiddenNames: ['CentralReach'], urls: { demo: 'https://brand.example/demo' } }, { io: io(false) }),
     {
       ok: false,
       errors: [
