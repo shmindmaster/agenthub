@@ -121,7 +121,8 @@ export function evaluate(verdict, { failOn = 'high', spec = null } = {}) {
     findings.push({ frame: f.label, ...i });
   }
   const blocking = findings.filter((f) => rank[f.severity] >= threshold);
-  const labelOk = verdict.overall.labelPresentWhereRequired === true;
+  const labelRequired = spec ? (spec.syntheticData === true || ['hybrid', 'future-vision', 'concept-film'].includes(spec.creativeMode)) : true;
+  const labelOk = !labelRequired || verdict.overall.labelPresentWhereRequired === true;
   const reasons = blocking.map((f) => `${f.frame}: ${f.category} (${f.severity}) ${f.detail}`);
   if (!labelOk) reasons.push('overall: the synthetic-data disclosure is missing or illegible on the end card');
   return { ok: blocking.length === 0 && labelOk, blocking: blocking.length, findings, labelPresentWhereRequired: labelOk, reasons };
