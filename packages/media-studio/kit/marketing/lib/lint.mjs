@@ -25,7 +25,9 @@ export const DEFAULT_BANNED = [
   { id: 'comparative', pattern: '\\b(better than|faster than|cheaper than|unlike)\\b', flags: 'i', reason: 'No comparative claims without substantiation.' },
 ];
 
-const PEOPLE = /\b(child|children|kid|kids|toddler|baby|boy|girl|person|people|man|woman|men|women|face|faces|portrait|doctor|nurse|therapist|clinician|parent|parents|family|families|human|hands?)\b/i;
+const PEOPLE = /\b(person|people|man|woman|men|women|adult|face|faces|portrait|doctor|nurse|therapist|clinician|coordinator|administrator|owner|parent|parents|family|families|human|hands?)\b/i;
+const PROTECTED_PEOPLE = /\b(child|children|kid|kids|toddler|baby|boy|girl|minor|minors|patient|patients|student|students|infant|infants)\b/i;
+const FAKE_PRODUCT = /\b(dashboard|software (?:screen|interface)|app(?:lication)? (?:screen|interface)|medical chart|patient record|claim form|billing screen)\b/i;
 const CELEBRITY = /\b(morgan freeman|attenborough|mcconaughey|michael caine|sound[- ]?alike|in the style of|sounds? like|impersonat\w*)\b/i;
 const NUMBER_WORDS = /\b(zero|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|percent)\b/gi;
 const NUMBER_TOKEN = /\$\s?\d[\d,.]*|\b\d[\d,.]*\s?%?/g;
@@ -239,7 +241,21 @@ function lintBeatText(beat, where, claimsById, err, warn, scanText) {
 
 function lintBroll(beat, where, err, warn, scanText) {
   if (beat.broll) {
-    if (PEOPLE.test(beat.broll.prompt)) err('broll-people', 'b-roll prompts must not describe people, faces, children or clinicians', where);
+    // A fictional *adult* can establish emotional context. A product claim,
+    // child/patient scene, genuine identity or made-up UI never can.
+    const actor = beat.broll.actor;
+    if (PROTECTED_PEOPLE.test(beat.broll.prompt)) {
+      err('broll-people', 'generative story b-roll may not depict children, minors or patients', where);
+    } else if (PEOPLE.test(beat.broll.prompt) &&
+      (!actor || actor.kind !== 'fictional-adult' || actor.noRealPerson !== true ||
+       actor.noPatientOrMinor !== true || !String(actor.role || '').trim() ||
+       !String(actor.storyPurpose || '').trim())) {
+      err('broll-people', 'human context requires actor {kind:fictional-adult, noRealPerson:true, noPatientOrMinor:true, role, storyPurpose}; never impersonate a real customer', where);
+    }
+    if (actor && (actor.kind !== 'fictional-adult' || actor.noRealPerson !== true || actor.noPatientOrMinor !== true)) {
+      err('broll-actor', 'actor metadata must certify a purely fictional adult, with no real likeness, minor or patient', where);
+    }
+    if (FAKE_PRODUCT.test(beat.broll.prompt)) err('broll-fake-ui', 'generated b-roll must not synthesize product dashboards or clinical records; use real captured product UI', where);
     if (!/\bno (text|words|letters|logos)\b/i.test(beat.broll.prompt)) warn('broll-text', 'add "no text" to the b-roll prompt; generated text is unreliable', where);
     if (beat.claims?.length) warn('broll-claims', 'generated b-roll must assert nothing; remove claim references from it', where);
     scanText(beat.broll.prompt, where);
