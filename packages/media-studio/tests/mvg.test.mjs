@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { readdirSync, symlinkSync } from 'node:fs';
 import { validate } from '../kit/marketing/lib/schema.mjs';
-import { bannedHits, DEFAULT_BANNED, estimateCutSeconds, lintSpec, normalizeCuts } from '../kit/marketing/lib/lint.mjs';
+import { bannedHits, HEALTHCARE_BANNED, estimateCutSeconds, lintSpec, normalizeCuts } from '../kit/marketing/lib/lint.mjs';
 import { canonical, fileSha, hashOf, readJson } from '../kit/marketing/lib/util.mjs';
 import { checkStage, stageKey, writeStage } from '../kit/marketing/lib/cache.mjs';
 import { BudgetError, CostLedger } from '../kit/marketing/lib/ledger.mjs';
@@ -51,6 +51,7 @@ const brand = {
   fonts: { display: 'Space Grotesk', body: 'Geist' },
   safeZones: { '9x16': { topPct: 14, bottomPct: 35, sidePct: 4 } },
   forbiddenNames: ['Spectrum Empowered', 'Kaego', 'CentralReach'],
+  bannedPhrases: HEALTHCARE_BANNED,
   budgets: { elevenlabsCredits: 1000, openaiUsd: 5, perRun: { elevenlabsCredits: 600, openaiUsd: 2 } },
   loudness: { social: -14, web: -16 },
   deliver: { dir: join(root, 'deliver'), reservedNumbers: [14, 15] },
@@ -145,11 +146,11 @@ test('lint: invented figures, banned phrases, forbidden names, people b-roll', (
   assert.ok(codes(rc).includes('banned-phrase')); // comparative
   const d = baseSpec();
   d.beats.splice(1, 0, { id: 'BR', kind: 'broll', broll: { provider: 'openai-image', prompt: 'a smiling child in a clinic' } });
-  assert.ok(codes(lint(d)).includes('broll-people'));
+  assert.equal(codes(lint(d)).includes('broll-people'), false, 'People are not universally banned from synthetic story footage');
 });
 
 test('banned phrases honor negation: "nothing is sent to a payer" is allowed, "sent to the payer" is not', () => {
-  const banned = DEFAULT_BANNED.map((b) => ({ ...b, regex: new RegExp(b.pattern, b.flags) }));
+  const banned = HEALTHCARE_BANNED.map((b) => ({ ...b, regex: new RegExp(b.pattern, b.flags) }));
   assert.equal(bannedHits('Nothing is sent to a payer.', banned).length, 0);
   assert.equal(bannedHits('No claim was submitted or transmitted to a payer.', banned).length, 0);
   assert.equal(bannedHits('The claim is sent to the payer.', banned).length, 1);
