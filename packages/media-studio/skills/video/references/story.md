@@ -95,6 +95,56 @@ source evidence; never invent customer experiences or demonstrated
 product behavior. See `kit/marketing/README.md` for the hard lint contract
 on marketing cuts of 25 seconds and longer.
 
+## Story engine: emotion, curiosity, value and controlled pacing
+
+A plot is **not** only a list of scene roles. In development, identify:
+(1) the real-world pain behind the task, (2) the credible emotion it creates,
+(3) the specific question the hook opens, (4) the action that changes the
+situation, (5) the evidence that closes the question, and (6) one useful
+insight the viewer retains even without taking the CTA. Write the emotional
+before/after as an observable change in agency: uncertainty → clarity,
+busywork → control, or confusion → confidence. Avoid invented panic,
+miraculous AI results and forced outrage.
+
+For an opening, draft two or three **truthful** candidate hooks using
+different angles (pain-first, payoff-first, mistake/contrast). Score each
+against viewer relevance, specificity, truth/evidence, first-frame strength,
+and speed to context. Pick one before any paid generation. The opening
+must work as three coordinated channels: what the viewer *sees*, what the
+screen *says* (including native UI), and what the narration *says*. A
+cold-open payoff is fine; establish who and why immediately afterward.
+Do not withhold a basic explanation of what software is being shown
+just to manufacture mystery.
+
+For each middle beat, write the viewer's current question and what new
+information/action this beat supplies. Use an open loop **only** if its
+answer is delivered. A purposeful pattern interrupt changes an understood
+state (risk → discovery, failed path → useful alternative, action →
+visible response); random stock footage, zooms and motion do not.
+Use a visible `before → action → after` causal chain. A 3–5 second
+visual-refresh guideline is a *review prompt*, not a universal timer:
+keep product screens legible, allow longer result holds, and never cut
+before an important control/result can be read.
+
+Optimize the story for the audience and viewing context:
+- **Feed/social:** hook within the first couple of seconds, brief
+  grounded scenario, one result and one action. Use native 9:16/4:5
+  capture, captions and readable UI, not a crop from a desktop master.
+- **Web demo/landing page:** orient the viewer to the product earlier,
+  show a complete task and useful mechanism; use an appropriate landscape
+  or native delivery profile.
+- **Tutorial/long explainer/documentary:** spend proportionately more
+  time on context, investigation, obstacles, trade-offs and evidence.
+  The hook may precede context, but never substitute for it.
+
+A shareable insight can be an accurate, useful observation a colleague
+would recognize; virality is not a quality gate and is not guaranteed by
+emotional hooks. For published campaigns with measurable outcomes,
+compare alternate hooks using the same core body and comparable
+distribution, then learn from first-seconds retention, completion and
+business actions without claiming certainty from small samples.
+All examples must remain source-grounded.
+
 ## Writing for the ear
 
 - One idea per scene, one thought per sentence, short sentences.
