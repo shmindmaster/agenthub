@@ -169,6 +169,7 @@ class ClerkFleetTests(unittest.TestCase):
                 self.assertTrue((home / root / "skills/clerk/SKILL.md").is_file())
                 self.assertEqual([p.name for p in (home / root).iterdir()], ["skills"])
 
+    @unittest.skipUnless(fleet.os.name == "nt", "Windows fleet audit")
     def test_audit_accepts_a_missing_remote_only_under_the_skills_only_policy(self):
         policy = {"remotePolicy": "skills only: pluginOnly permits no direct MCP entry on this host"}
         good = {"kilo": {"matchingOfficialSkills": 20, "remoteConfigured": None, **policy}}
@@ -178,7 +179,6 @@ class ClerkFleetTests(unittest.TestCase):
             with contextlib.ExitStack() as stack:
                 stack.enter_context(patch("sys.argv", ["installer", "--audit"]))
                 stack.enter_context(patch.object(fleet, "audit", return_value=rows))
-                stack.enter_context(patch.object(fleet.os, "name", "nt"))
                 stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
                 with self.assertRaises(SystemExit) as result:
                     fleet.main()
