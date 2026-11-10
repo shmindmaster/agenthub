@@ -50,6 +50,31 @@ Any `block` finding; missing or failing no-fluff, or `cursor-flow` with screen b
 
 Fail when the score is under `craftScoreMin` (default 85), on any `block` finding, or when the hook is missing, the hero count is not exactly one, the opening is a feature tour, the bed is unducked, the narration reads the slide, anything is said twice, or the cursor moves with nothing named. Marketing cuts also need `qa/marketing-readiness-check.json` PASS on this candidate.
 
+## Context and software-orientation ship blockers
+
+An engaging cold open is allowed; a context-free montage is not. On any
+buyer-facing software film, review the actual picture and audio from 0:00
+through the first solution and payoff. Record a timestamped `block` finding
+and send it to `develop` / `video` when any of these occurs:
+
+- The viewer never learns the persona, situation, triggering event or
+  specific problem. The first shots simply cycle among unrelated screens.
+- The product is not identified by name in its solution beat; the viewer
+  cannot tell what software is solving the issue until the closing logo.
+- There is no visible cause-and-effect: one screen is followed by another,
+  without showing what was done, what the system returned and why that
+  result addresses the original stakes.
+- The film exits directly after a screen tour instead of revisiting the
+  original problem, holding the result and supplying one relevant next step.
+
+For >=25s marketing cuts, verify the `narrative`/ `storyRole` preflight
+and then independently assess whether the **encoded footage** truly conveys
+that outline. Metadata, scene-role tags and a passing `lint` report cannot
+prove that the audience understands the story. A silent watch-through is
+mandatory: the outcome must remain comprehensible without narration, aided
+by screen evidence and available captions. Never manufacture a product
+capability or an outcome to close a narrative gap.
+
 ## Judge the encoded file
 
 The story-experience review reads the picture. Cite a timestamp or frame for every finding and ignore generator self-assessment. Required inputs: encoded candidate, contact sheet, screenplay, storyboard, visual bible, captions, `job.json`, `qa/narration-check.json`, and `qa/pointer-path.json` with screen beats. A `product-screencast` also needs a passing `validate-product-picture.mjs`. A missing or mutable input is `status: MALFORMED_INPUT`, never a pass.
