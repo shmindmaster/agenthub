@@ -57,7 +57,8 @@ emulator_stop() {
   log "emulator stopped"
 }
 
-metro_stop() { pkill -u "$(id -u)" -f 'expo start' 2>/dev/null || true; }
+# Metro runs as "node .../expo/bin/cli start --port 8081", so match on the port.
+metro_stop() { pkill -u "$(id -u)" -f 'start --port 8081' 2>/dev/null || true; }
 
 status() {
   local booted=false holder="" metro=false
