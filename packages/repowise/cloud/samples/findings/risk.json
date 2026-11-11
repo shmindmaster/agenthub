@@ -1,0 +1,6 @@
+{
+  "entries": [
+    { "path": "src/server/entry.ts", "score": "high", "summary": "fan-in 14, recent churn" },
+    { "path": "src/net/retry.ts", "score": "medium", "summary": "hotspot with shallow tests" }
+  ]
+}
