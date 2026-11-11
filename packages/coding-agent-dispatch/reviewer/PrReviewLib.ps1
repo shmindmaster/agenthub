@@ -75,9 +75,11 @@ function Test-PrReviewSecretEnvName {
     param([string]$Name)
     $n = [string]$Name
     if ($n -in @('GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN')) { return $true }
-    foreach ($pattern in @('*_API_KEY', '*_TOKEN', '*_SECRET')) {
-        if ($n -like $pattern) { return $true }
-    }
+    # Any name carrying a credential word, wherever it sits in the name
+    # (AWS_SECRET_ACCESS_KEY, CLERK_SECRET_KEY, AZURE_OPENAI_KEY, GITHUB_PAT,
+    # DB_PASSWORD, DATABASE_URL). Over-withholding only costs a BLOCKED run.
+    if ($n -match '(?i)(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|CONNECTION_?STRING|DATABASE_URL)') { return $true }
+    if ($n -match '(?i)(^|_)(PAT|PWD|DSN)$') { return $true }
     return $false
 }
 
@@ -161,6 +163,13 @@ function Split-PrReviewDiff {
     }
     if ($null -ne $current) { $sections += $current }
 
+    # No "diff --git" section means there is nothing reviewable (an empty or
+    # headerless diff): return no groups so the caller reports BLOCKED
+    # instead of asking a model to pass an empty change.
+    if (@($sections).Count -eq 0) {
+        return [pscustomobject]@{ Groups = @(); NotCovered = @() }
+    }
+
     if (([string]$DiffText).Length -le $MaxChars) {
         return [pscustomobject]@{
             Groups = @(@{ Files = @($sections | ForEach-Object { $_.File }); Text = [string]$DiffText })
@@ -215,9 +224,11 @@ function ConvertFrom-PrReviewAnswer {
     param([string]$Text, [string]$ExpectedHeadSha)
     if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
     $json = $null
-    $fenced = [regex]::Match([string]$Text, '(?s)```(?:json)?\s*(\{.*?\})\s*```')
-    if ($fenced.Success) {
-        $json = $fenced.Groups[1].Value
+    # The answer is the last fenced block: an earlier block may be a quote
+    # from the reviewed text.
+    $fencedAll = [regex]::Matches([string]$Text, '(?s)```(?:json)?\s*(\{.*?\})\s*```')
+    if ($fencedAll.Count -gt 0) {
+        $json = $fencedAll[$fencedAll.Count - 1].Groups[1].Value
     } else {
         $start = [int]([string]$Text).IndexOf('{')
         $end = [int]([string]$Text).LastIndexOf('}')
@@ -253,6 +264,8 @@ function ConvertFrom-PrReviewAnswer {
             }
         }
     }
+    # A PASS cannot carry a critical or major finding.
+    if ($verdict -ceq 'PASS' -and @($findings | Where-Object { $_.severity -cin @('critical', 'major') }).Count -gt 0) { $verdict = 'FAIL' }
     $covered = @(); $notCovered = @()
     if ($obj.PSObject.Properties['covered'] -and $null -ne $obj.covered) { $covered = @($obj.covered | ForEach-Object { [string]$_ }) }
     if ($obj.PSObject.Properties['notCovered'] -and $null -ne $obj.notCovered) { $notCovered = @($obj.notCovered | ForEach-Object { [string]$_ }) }

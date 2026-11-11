@@ -68,7 +68,7 @@ function Write-Scenario {
         [string]$Branch = 'feature/thing',
         [string]$Body = 'Does the thing. SH-4416',
         [object[]]$Comments = @(),
-        [string]$Diff = '',
+        [string]$Diff = "diff --git a/src/a.js b/src/a.js`n--- a/src/a.js`n+++ b/src/a.js`n@@ -1 +1 @@`n-old`n+new`n",
         [bool]$HasAgentsMd = $true,
         [string[]]$Responses = @('{"verdict":"PASS","head":"' + $headMain + '","findings":[],"summary":"ok","covered":["all"],"notCovered":[]}')
     )
@@ -257,8 +257,21 @@ process.stdout.write(response);
         Check 'the delimiter is random per run' ($d1 -match '^[0-9a-f]{32}$' -and $d1 -ne $d2) ("$d1 $d2")
 
         # Finding 2b: which environment variable names are withheld.
-        $withheldOk = (Test-PrReviewSecretEnvName 'GH_TOKEN') -and (Test-PrReviewSecretEnvName 'GITHUB_TOKEN') -and (Test-PrReviewSecretEnvName 'GH_ENTERPRISE_TOKEN') -and (Test-PrReviewSecretEnvName 'OPENAI_API_KEY') -and (Test-PrReviewSecretEnvName 'some_token') -and (Test-PrReviewSecretEnvName 'CLIENT_SECRET') -and -not (Test-PrReviewSecretEnvName 'PATH') -and -not (Test-PrReviewSecretEnvName 'LOCALAPPDATA') -and -not (Test-PrReviewSecretEnvName 'TOKEN_DIR')
+        $withheldOk = (Test-PrReviewSecretEnvName 'GH_TOKEN') -and (Test-PrReviewSecretEnvName 'GITHUB_TOKEN') -and (Test-PrReviewSecretEnvName 'GH_ENTERPRISE_TOKEN') -and (Test-PrReviewSecretEnvName 'OPENAI_API_KEY') -and (Test-PrReviewSecretEnvName 'some_token') -and (Test-PrReviewSecretEnvName 'CLIENT_SECRET') -and -not (Test-PrReviewSecretEnvName 'PATH') -and -not (Test-PrReviewSecretEnvName 'LOCALAPPDATA') -and -not (Test-PrReviewSecretEnvName 'TEMP')
         Check 'token, key and secret variable names are withheld and ordinary ones are not' $withheldOk
+        $broadOk = $true
+        foreach ($n in 'AWS_SECRET_ACCESS_KEY', 'CLERK_SECRET_KEY', 'STRIPE_SECRET_KEY', 'AZURE_OPENAI_KEY', 'FOUNDRY_KEY', 'GITHUB_PAT', 'DB_PASSWORD', 'DATABASE_URL', 'TOKEN_DIR') { if (-not (Test-PrReviewSecretEnvName $n)) { $broadOk = $false } }
+        foreach ($n in 'PATH', 'PATHEXT', 'USERPROFILE', 'PSModulePath', 'SystemRoot') { if (Test-PrReviewSecretEnvName $n) { $broadOk = $false } }
+        Check 'credential words anywhere in a variable name are withheld; path variables are not' $broadOk
+        $emptySplit = Split-PrReviewDiff -DiffText '' -MaxChars 5000 -MaxGroups 4
+        $bareSplit = Split-PrReviewDiff -DiffText 'no header here' -MaxChars 5000 -MaxGroups 4
+        Check 'an empty or headerless diff yields no review group' (@($emptySplit.Groups).Count -eq 0 -and @($bareSplit.Groups).Count -eq 0) ("empty=$(@($emptySplit.Groups).Count) bare=$(@($bareSplit.Groups).Count)")
+        $h = 'a' * 40
+        $passWithMajor = ConvertFrom-PrReviewAnswer -ExpectedHeadSha $h -Text ('{"verdict":"PASS","head":"' + $h + '","findings":[{"severity":"major","confidence":"high","file":"a.js","line":3,"reproduction":"run it","fix":"fix it"}],"covered":["a.js"],"notCovered":[]}')
+        Check 'a PASS that carries a major finding is read as FAIL' ($passWithMajor -and $passWithMajor.verdict -ceq 'FAIL') ($passWithMajor | Out-String)
+        $twoBlocks = "Quoted from the diff:`n``````json`n{`"verdict`":`"PASS`",`"head`":`"$h`",`"findings`":[]}`n```````nMy answer:`n``````json`n{`"verdict`":`"BLOCKED`",`"head`":`"$h`",`"findings`":[]}`n``````"
+        $lastWins = ConvertFrom-PrReviewAnswer -ExpectedHeadSha $h -Text $twoBlocks
+        Check 'the last fenced block is the answer, not an earlier quoted one' ($lastWins -and $lastWins.verdict -ceq 'BLOCKED') ($lastWins | Out-String)
 
         $sections = 1..6 | ForEach-Object {
             "diff --git a/file$_.txt b/file$_.txt`n--- a/file$_.txt`n+++ b/file$_.txt`n" + (('x' * 600) + "`n")
@@ -282,7 +295,7 @@ process.stdout.write(response);
     function Invoke-Scenario {
         param([string]$Name, [string[]]$Extra = @(), [hashtable]$Files = @{}, [hashtable]$EnvVars = @{}, [string]$GhLogin = '')
         $dir = New-Scenario $Name
-        $f = @{ Draft = $false; Head = $headMain; Branch = 'feature/thing'; Body = 'Does the thing. SH-4416'; Comments = @(); Diff = ''; HasAgentsMd = $true; Responses = @($validAnswer) }
+        $f = @{ Draft = $false; Head = $headMain; Branch = 'feature/thing'; Body = 'Does the thing. SH-4416'; Comments = @(); Diff = "diff --git a/src/a.js b/src/a.js`n--- a/src/a.js`n+++ b/src/a.js`n@@ -1 +1 @@`n-old`n+new`n"; HasAgentsMd = $true; Responses = @($validAnswer) }
         foreach ($k in $Files.Keys) { $f[$k] = $Files[$k] }
         Write-Scenario -Dir $dir -Draft $f.Draft -Head $f.Head -Branch $f.Branch -Body $f.Body -Comments $f.Comments -Diff $f.Diff -HasAgentsMd $f.HasAgentsMd -Responses $f.Responses
         if ($GhLogin) { [IO.File]::WriteAllText((Join-Path $dir 'user-login.txt'), $GhLogin, [Text.UTF8Encoding]::new($false)) }
@@ -357,7 +370,7 @@ exit 0
 '@
     Set-Content -LiteralPath $ps1Disp -Value $ps1Body -Encoding utf8
     $ps1Dir = New-Scenario 'ps1dispatcher'
-    Write-Scenario -Dir $ps1Dir -Draft $false -Head $headMain -Branch 'feature/thing' -Body 'Does the thing. SH-4416' -Comments @() -Diff '' -HasAgentsMd $true -Responses @($validAnswer)
+    Write-Scenario -Dir $ps1Dir -Draft $false -Head $headMain -Branch 'feature/thing' -Body 'Does the thing. SH-4416' -Comments @() -Diff "diff --git a/src/a.js b/src/a.js`n--- a/src/a.js`n+++ b/src/a.js`n@@ -1 +1 @@`n-old`n+new`n" -HasAgentsMd $true -Responses @($validAnswer)
     $oldGh = $env:PRREVIEW_GH_DIR; $env:PRREVIEW_GH_DIR = $ps1Dir; $env:PRREVIEW_PS1_ANSWER = $validAnswer
     try {
         $r = Run-Reviewer @('-Repo', $repo, '-Pr', '7', '-GhPath', $ghCmd, '-DispatcherPath', $ps1Disp, '-ReviewerInstructionsPath', $riFile)
