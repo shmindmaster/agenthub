@@ -52,6 +52,9 @@ $ErrorActionPreference = 'Stop'
 
 function Read-SourceJson([string]$Path, [string]$Source) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "$Source output not found: $Path" }
+    # [IO.File] resolves against the process directory, not the PowerShell
+    # location, so hand it a full path.
+    $Path = (Resolve-Path -LiteralPath $Path).ProviderPath
     $bytes = [IO.File]::ReadAllBytes($Path)
     $sha = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($bytes)).Replace('-', '').ToLowerInvariant()
     try { $doc = [Text.Encoding]::UTF8.GetString($bytes) | ConvertFrom-Json }

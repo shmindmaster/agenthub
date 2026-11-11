@@ -229,6 +229,10 @@ index_one() {
     if [ -f "$checkout/.repowise/state.json" ]; then
         set -- repowise update --no-workspace --index-only --concurrency 1
         [ "$FACTS_ONLY" = "1" ] && set -- "$@" --defer-docs
+        # repowise update [PATH]: single-repo mode acts on PATH, so name the
+        # checkout explicitly; without it the command would target the
+        # index root (the working directory) instead of this repository.
+        set -- "$@" "$checkout"
     else
         set -- repowise workspace add "$checkout" --alias "$alias" --no-docs --no-save-key
     fi
