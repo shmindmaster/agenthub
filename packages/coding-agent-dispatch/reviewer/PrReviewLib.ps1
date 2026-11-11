@@ -123,6 +123,30 @@ function Get-PrReviewAuthorHost {
     return ''
 }
 
+# Reviewer hosts, in the order the reviewer prefers them, taken only from
+# registry/fleet-profile.json -> dispatchPolicy: a host counts when its
+# readOnly record is an object carrying a flags list (the dispatcher's
+# enforced read-only mode) and policy does not disable it. readOnly false
+# (checked, none) and null or absent (not established) never count.
+function Get-PrReviewReadOnlyHosts {
+    param($DispatchPolicy)
+    if ($null -eq $DispatchPolicy) { return @() }
+    $supported = @()
+    foreach ($property in @($DispatchPolicy.PSObject.Properties)) {
+        $entry = $property.Value
+        if ($null -eq $entry -or $entry -isnot [pscustomobject]) { continue }
+        if ($entry.PSObject.Properties['enabled'] -and $entry.enabled -eq $false) { continue }
+        $record = $entry.PSObject.Properties['readOnly']
+        if ($null -eq $record -or $record.Value -isnot [pscustomobject]) { continue }
+        if ($null -eq $record.Value.PSObject.Properties['flags']) { continue }
+        $supported += [string]$property.Name
+    }
+    $preferred = @('codex', 'claude', 'kiro', 'factory')
+    $ordered = @($preferred | Where-Object { $_ -in $supported })
+    $ordered += @($supported | Where-Object { $_ -notin $preferred } | Sort-Object)
+    return @($ordered)
+}
+
 # Issue ids from the title, body and branch: SH-1234-style ids and #123.
 function Get-PrReviewLinkedIssues {
     param([string[]]$Texts)

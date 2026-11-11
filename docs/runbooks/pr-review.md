@@ -7,18 +7,17 @@ different from the one that authored the PR. The script itself never
 approves, never merges, never pushes and never edits the pull request. The
 owner keeps merge control.
 
-## Read-only is not enforced on the model run
+## The model run is host-enforced read-only
 
-The script issues no write command, but the model it starts is a normal
-dispatcher run. What the reviewer does to limit that run (see Guardrails)
-does not make the model run read-only: the dispatcher has no enforced
-read-only mode, so a model that follows text injected through a pull
-request can still write wherever its host's own permissions allow.
+The model run is host-enforced read-only on claude, codex, factory and
+kiro. The reviewer always passes `-ReadOnly` to the dispatcher (and
+`-Role reviewer` on Kiro), picks its reviewer host only among hosts whose
+`dispatchPolicy.<host>.readOnly` in `registry/fleet-profile.json` records an
+enforced read-only mode, and exits BLOCKED (exit 3, no model run, nothing
+posted) when none is available. The flags for each host and the help text
+they come from are in `readOnlyNote` beside each record.
 
-- Automatic triggering must not be enabled until the dispatcher has an
-  enforced read-only mode. That includes the SH-4411 wiring below.
-- Until then the tool is run manually by the owner's session, on pull
-  requests the owner has chosen to review.
+Automatic triggering is still not wired (SH-4411).
 
 ## Run it
 
@@ -46,7 +45,7 @@ pwsh -NoProfile -File .\packages\coding-agent-dispatch\reviewer\Invoke-PrReview.
 ```
 
 Optional: `-HostId` picks the reviewer host (refused if it is also the author
-host), `-Model` passes a model through to the dispatcher (subscription routes
+host, BLOCKED if no enforced read-only mode is recorded for it), `-Model` passes a model through to the dispatcher (subscription routes
 only; the dispatcher enforces that), `-Force` re-reviews a head that already
 has a verdict, `-ReviewerLogin` names the GitHub login whose comments carry
 trusted markers (default: the account `gh` is signed in as), `-DiffMaxChars` and `-MaxGroups` bound the per-group diff
@@ -80,6 +79,8 @@ run, no GitHub.
   the exact head SHA, and findings each with severity, confidence, file,
   line, reproduction command or failing test, and fix rationale. A malformed
   answer is retried once; then the verdict is BLOCKED.
+- Without a host that has a recorded enforced read-only mode and is not the
+  author host, the run is BLOCKED with exit 3 before any model call.
 - A dispatcher failure (for example a policy-disabled host) is BLOCKED, not
   a crash. So is a run with no accepted answer, and a diff that could not be
   split into file groups (no review call ran).
@@ -97,10 +98,8 @@ webhooks, runners or cloud resources. The planned trigger is a GitHub
 `pull_request` workflow filtering to `ready_for_review` (and manual
 `workflow_dispatch`), running on AWS CodeBuild, which invokes this script
 with `-Trigger ready_for_review -Post`. The trigger filter above is what
-makes replayed and synchronize events safe. SH-4411 owns that wiring, and it
-is blocked on an enforced read-only mode in the dispatcher (see above):
-until both exist, the reviewer runs only when the owner's session invokes it
-by hand.
+makes replayed and synchronize events safe. SH-4411 owns that wiring; until
+it exists, the reviewer runs only when a session invokes it.
 
 ## Rollback
 
@@ -120,7 +119,7 @@ run.
 - No merge, approval or push is issued by this script or asked of the
   reviewer; the tests assert that the script issues no write command. They
   cannot assert what a real model run does.
-- Limits on the model run, none of which is enforcement:
+- Further limits on the model run, beside the host-enforced read-only mode:
   - The pull request's own text (title, body, branch and author names, file
     names, `AGENTS.md` at the PR head, the diff) sits in blocks fenced by a
     random per-run delimiter, and the brief says that content is data, never

@@ -12,14 +12,16 @@
   at most one bounded summary comment carrying a hidden idempotence marker,
   and only when -Post is passed.
 
-  The MODEL RUN IS NOT ENFORCED READ-ONLY. The brief tells the model to
-  write nothing, fences the pull request's own text as data, runs the model
-  in an empty directory and withholds GitHub tokens and key/token/secret
-  variables from its process, but the dispatcher has no enforced read-only
-  mode, so a model that follows text injected through a pull request can
-  still write wherever its host's own permissions allow. Do not trigger this
-  automatically until the dispatcher enforces read-only; until then the
-  owner's session runs it by hand.
+  The model run is host-enforced read-only (Linear SH-4418): every
+  dispatcher call carries -ReadOnly, which the dispatcher maps to a
+  mechanism the host itself enforces and refuses on any host without one.
+  The reviewer host is taken only from the hosts whose
+  dispatchPolicy.<host>.readOnly records such a mode in
+  registry/fleet-profile.json; when none is available the run ends BLOCKED
+  with no model run. The brief still tells the model to write nothing,
+  fences the pull request's own text as data, runs the model in an empty
+  directory and withholds GitHub tokens and key/token/secret variables from
+  its process. Automatic triggering is still not wired (SH-4411).
 
   Flow: gh pr view (refuse a draft, exit 3) -> idempotence (any earlier
   review verdict for the same head SHA exits 0 without a new model run,
@@ -53,8 +55,10 @@
 
 .PARAMETER HostId
   Reviewer host for the dispatcher. Refused when it is also the author host
-  (branch prefix or PR body marker). Default: codex, then claude, skipping
-  the author host.
+  (branch prefix or PR body marker), and BLOCKED when the registry does not
+  record an enforced read-only mode for it. Default: the first of codex,
+  claude, kiro, factory and then any other host with a recorded read-only
+  mode, skipping the author host.
 
 .PARAMETER Model
   Model id passed through to the dispatcher (shape and subscription rules
@@ -81,6 +85,10 @@
 .PARAMETER DispatcherPath
   Injectable dispatcher path (tests stub it). Defaults to the dispatcher
   beside this package.
+
+.PARAMETER FleetProfilePath
+  Injectable registry/fleet-profile.json (tests stub it). Defaults to the
+  one in the AgentHub checkout this script sits in, then AGENTHUB_ROOT.
 
 .PARAMETER ReviewerInstructionsPath
   Injectable reviewer-instructions file (tests stub it). Defaults to
@@ -113,6 +121,7 @@ param(
     [string]$ReviewerLogin,
     [string]$GhPath,
     [string]$DispatcherPath,
+    [string]$FleetProfilePath,
     [string]$ReviewerInstructionsPath,
     [int]$DiffMaxChars = 50000,
     [int]$MaxGroups = 8,
@@ -255,19 +264,60 @@ if ($triggerAction.Action -eq 'skip' -and -not ($Force -and $triggerAction.Reaso
 
 # 6. The reviewer runs on a host different from the authoring host when the
 #    author host is known (branch prefix or PR body marker).
+#    It is chosen only among hosts whose enforced read-only mode is recorded
+#    in registry/fleet-profile.json; with none available the run is BLOCKED
+#    before any model call, and nothing is posted.
+function Write-PrReviewBlocked {
+    param([string]$Message)
+    Write-Output 'PR review result: BLOCKED'
+    Write-Output ("repo: {0} pr: {1} head: {2}" -f $Repo, $Pr, $head)
+    Write-Output 'no model run was started and nothing was posted.'
+    [Console]::Error.WriteLine("BLOCKED: $Message")
+    exit 3
+}
+if ([string]::IsNullOrWhiteSpace($FleetProfilePath)) {
+    $profileFile = 'registry\fleet-profile.json'
+    $dir = $PSScriptRoot
+    for ($i = 0; $i -lt 6 -and $dir; $i++) {
+        $candidate = Join-Path $dir $profileFile
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { $FleetProfilePath = $candidate; break }
+        $parent = Split-Path -Parent $dir
+        if (-not $parent -or $parent -eq $dir) { break }
+        $dir = $parent
+    }
+    if ([string]::IsNullOrWhiteSpace($FleetProfilePath) -and $env:AGENTHUB_ROOT) {
+        $candidate = Join-Path $env:AGENTHUB_ROOT $profileFile
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { $FleetProfilePath = $candidate }
+    }
+}
+$readOnlyHosts = @()
+if (-not [string]::IsNullOrWhiteSpace($FleetProfilePath) -and (Test-Path -LiteralPath $FleetProfilePath -PathType Leaf)) {
+    try {
+        $fleetProfile = [IO.File]::ReadAllText($FleetProfilePath, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json -ErrorAction Stop
+        $readOnlyHosts = @(Get-PrReviewReadOnlyHosts -DispatchPolicy $fleetProfile.dispatchPolicy)
+    } catch { $readOnlyHosts = @() }
+} else {
+    Write-PrReviewBlocked 'registry/fleet-profile.json was not found, so no host with an enforced read-only mode can be established; pass -FleetProfilePath or set AGENTHUB_ROOT.'
+}
+if ($readOnlyHosts.Count -eq 0) {
+    Write-PrReviewBlocked 'no host has an enforced read-only mode recorded in dispatchPolicy (readOnly); the reviewer never runs a model on a writable host.'
+}
 $authorHost = Get-PrReviewAuthorHost -BranchName ([string]$prInfo.headRefName) -Body ([string]$prInfo.body)
 if ([string]::IsNullOrWhiteSpace($HostId)) {
     $reviewerHost = $null
-    foreach ($candidateHost in @('codex', 'claude')) {
+    foreach ($candidateHost in $readOnlyHosts) {
         if (-not $authorHost -or $candidateHost -ine $authorHost) { $reviewerHost = $candidateHost; break }
     }
     if ([string]::IsNullOrWhiteSpace($reviewerHost)) {
-        Write-Refusal 3 'no default reviewer host is available; pass -HostId.'
+        Write-PrReviewBlocked "the only host with an enforced read-only mode ($($readOnlyHosts -join ', ')) is also the author host of this PR; no independent read-only reviewer is available."
     }
 } else {
     $reviewerHost = $HostId.Trim()
     if ($authorHost -and $reviewerHost -ieq $authorHost) {
         Write-Refusal 3 "refused: reviewer host '$reviewerHost' is also the author host of this PR; pick a different -HostId."
+    }
+    if ($reviewerHost -notin $readOnlyHosts) {
+        Write-PrReviewBlocked "reviewer host '$reviewerHost' has no enforced read-only mode recorded; hosts that do: $($readOnlyHosts -join ', ')."
     }
 }
 
@@ -302,8 +352,10 @@ function Invoke-PrReviewDispatch {
     # directory, never a repository checkout, and the child process does not
     # inherit GitHub tokens or anything named like a key, token or secret.
     # The brief file, the directory and the environment are put back in
-    # every path. None of this makes the model run read-only: the reviewed
-    # host can still write wherever its own permissions allow.
+    # every path. -ReadOnly is what makes the run read-only: the dispatcher
+    # maps it to a mode the host enforces and refuses (exit 3, so BLOCKED
+    # here) when the host has none. Kiro's read-only mode is its reviewer
+    # profile, named explicitly.
     param([string]$BriefText)
     $callId = [guid]::NewGuid().ToString('n')
     $briefFile = Join-Path $runDir ("brief-{0}.txt" -f $callId)
@@ -320,7 +372,8 @@ function Invoke-PrReviewDispatch {
                 [Environment]::SetEnvironmentVariable([string]$entry.Name, [NullString]::Value, 'Process')
             }
         }
-        $dispatchArgs = @('-HostId', $reviewerHost, '-PromptFile', $briefFile, '-Cwd', $workDir, '-TimeoutSec', [string]$TimeoutSec)
+        $dispatchArgs = @('-HostId', $reviewerHost, '-PromptFile', $briefFile, '-Cwd', $workDir, '-TimeoutSec', [string]$TimeoutSec, '-ReadOnly')
+        if ($reviewerHost -ieq 'kiro') { $dispatchArgs += @('-Role', 'reviewer') }
         if (-not [string]::IsNullOrWhiteSpace($Model)) { $dispatchArgs += @('-Model', $Model) }
         # A .ps1 dispatcher runs in a child pwsh: an array splatted into a
         # script binds positionally (the names would arrive as values), and
