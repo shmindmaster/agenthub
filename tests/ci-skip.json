@@ -108,6 +108,11 @@
       "file": "tests/Test-SyncRepoToGuest.ps1",
       "platforms": ["linux", "macos"],
       "reason": "Syncs a Windows-host checkout into the VMware macOS guest over the mobile lab's SSH configuration, using Windows tar.exe."
+    },
+    {
+      "file": "tests/Test-PrReview.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "Stubs gh and the dispatcher with .cmd files and runs the reviewer the way the owner's Windows session does; the stubs do not execute on Linux or macOS runners. The reviewer is a manual Windows-host tool until the dispatcher has an enforced read-only mode."
     }
   ]
 }
