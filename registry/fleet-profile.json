@@ -510,8 +510,11 @@
         "opencode/glm-5.3",
         "opencode/kimi-k2.7-code",
         "opencode/deepseek-v4-pro",
-        "opencode/gemini-4-argon"
+        "opencode/gemini-4-argon",
+        "mimo-token-plan/mimo-v2.6-pro",
+        "mimo-token-plan/mimo-v2.6-flash"
       ],
+      "allowedModelsNote": "opencode/* entries use the OpenCode Go endpoint. mimo-token-plan/* entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.config/opencode/opencode.json and are the fallback when the Go plan is out of credit or usage (owner direction 2026-11-11; the Go endpoint returned 402 'Insufficient balance' on 2026-11-11).",
       "reason": "2026-10-26: one-word prompts returned the expected text through the Go-only endpoint for every allowedModels entry. The free models (glm-5.3-flash-free, deepseek-v4.1-flash-free, mimo-v2.6-flash-free, big-pickle) and claude-sonnet-5-5 and gpt-6.1-sol returned 'Model is unavailable' (HTTP 400) on that endpoint. -Model routes per task only within allowedModels; the extra-usage credit is $0, so no overage can bill. Bound task execution by the dispatcher timeout.",
       "ownerAction": null,
       "verifiedOn": "2026-10-26",
@@ -545,9 +548,11 @@
         "cline-pass:cline-pass/glm-5.3-flash",
         "cline-pass:cline-pass/kimi-k3",
         "cline-pass:cline-pass/deepseek-v4-pro",
-        "cline-pass:cline-pass/qwen3.8-max"
+        "cline-pass:cline-pass/qwen3.8-max",
+        "mimo-token-plan:mimo-v2.6-pro",
+        "mimo-token-plan:mimo-v2.6-flash"
       ],
-      "allowedModelsNote": "provider:model. Free ids carry ':free' and price 0 in https://api.cline.bot/api/v1/ai/cline/models; any other model on provider cline is usage-billed and is not allowed. cline-pass entries are subscription-allowance only and fail closed when the weekly limit is reached.",
+      "allowedModelsNote": "provider:model. Free ids carry ':free' and price 0 in https://api.cline.bot/api/v1/ai/cline/models; any other model on provider cline is usage-billed and is not allowed. cline-pass entries are subscription-allowance only and fail closed when the weekly limit is reached. mimo-token-plan entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.cline/data/settings and are the fallback when a host's own plan is out of credit or usage (owner direction 2026-11-11).",
       "verifiedOn": "2026-10-26",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
       "knownIssue": "Historical --yolo benchmark mode could hang at submit_and_exit. Normal --json mode with native timeout preserves plugins and MCP. Check the result before treating any timeout as success. A headless run starts a background cline-hub-daemon that inherits stdout; never read a run's output through a pipe that waits for EOF.",
