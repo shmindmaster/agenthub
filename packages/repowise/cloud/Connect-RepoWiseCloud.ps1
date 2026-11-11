@@ -38,7 +38,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$runtimeDir = Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\repowise-cloud'
+$runtimeDir = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) (Join-Path 'AgentHub' (Join-Path 'runtime' 'repowise-cloud'))
 $null = New-Item -ItemType Directory -Force -Path $runtimeDir
 
 function Invoke-Hidden {
