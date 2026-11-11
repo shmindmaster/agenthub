@@ -6,8 +6,11 @@ read-only findings report.
 
 Covers:
   1. context_cap.py truncates an oversized tools/call result with a clear
-     marker (byte cap and item cap both proven), and leaves small results
-     untouched. Runs the real module through python.
+     marker (byte cap and item cap both proven), caps the WHOLE serialized
+     result (an oversized structuredContent is dropped, not passed through),
+     caps JSON-RPC batches element by element, truncates multi-byte text
+     without emitting invalid UTF-8, and leaves small results untouched.
+     Runs the real module through python.
   2. repowise_bridge_capped.py's SSE parser splits streamable-HTTP bodies
      into JSON-RPC messages (unit-level, no network).
   3. Measure-RepoWiseBenefit.ps1 produces the comparison table from the
@@ -82,6 +85,54 @@ err = {"jsonrpc": "2.0", "id": 9, "error": {"code": -1, "message": "nope"}}
 out4, _ = cap_response(err)
 assert out4 == err, "error response was altered"
 
+# the byte budget covers the WHOLE serialized result: a small content array
+# with an oversized structuredContent is capped too, not passed through
+huge_structured = {"result": {"content": [{"type": "text", "text": "ok"}],
+                              "structuredContent": {"data": "y" * 90000}}}
+out5, stats5 = cap_response(huge_structured, max_bytes=5000)
+assert stats5["truncated"], "oversized structuredContent passed uncapped"
+assert "structuredContent" not in out5["result"], "structuredContent was not dropped"
+marker5 = out5["result"]["content"][-1]["text"]
+assert MARKER_PREFIX in marker5 and "structuredContent" in marker5, marker5
+assert len(json.dumps(out5["result"], ensure_ascii=False).encode("utf-8")) <= 5000, "result still over budget"
+
+# an oversized non-text field besides content/structuredContent cannot hide
+# either: the whole serialized result is what the budget measures
+fat_meta = {"result": {"content": [{"type": "text", "text": "ok"}],
+                       "structuredContent": {"blob": "z" * 90000}, "isError": False}}
+out6, stats6 = cap_response(fat_meta, max_bytes=5000)
+assert len(json.dumps(out6["result"], ensure_ascii=False).encode("utf-8")) <= 5200, out6["result"]
+
+# a JSON-RPC batch is capped element by element, not skipped
+batch = [{"jsonrpc": "2.0", "id": 1,
+          "result": {"content": [{"type": "text", "text": "x" * 90000}]}},
+         {"jsonrpc": "2.0", "id": 2,
+          "result": {"content": [{"type": "text", "text": "fine"}]}}]
+outb, statsb = cap_response(batch, max_bytes=5000)
+assert isinstance(outb, list) and len(outb) == 2, "batch shape changed"
+assert statsb["truncated"] and statsb["total_items"] == 2 and statsb["kept_items"] == 2, statsb
+assert MARKER_PREFIX in outb[0]["result"]["content"][-1]["text"], "first batch element uncapped"
+assert outb[1]["result"]["content"][0]["text"] == "fine", "second batch element altered"
+
+# a single batch element that is an error reply still passes through
+outb2, statsb2 = cap_response([{"jsonrpc": "2.0", "id": 3, "error": {"code": -1}}], max_bytes=5000)
+assert outb2 == [{"jsonrpc": "2.0", "id": 3, "error": {"code": -1}}] and not statsb2["truncated"]
+
+# mid-text truncation is safe for multi-byte text: no mojibake, budget honored
+mb = "\u4e2d" * 4000  # CJK char, 3 UTF-8 bytes each -> 12000 bytes
+outm, statsm = cap_response({"result": {"content": [{"type": "text", "text": mb}]}}, max_bytes=3000)
+kept_text = outm["result"]["content"][0]["text"]
+assert statsm["truncated"] and MARKER_PREFIX in outm["result"]["content"][-1]["text"]
+assert len(kept_text.encode("utf-8")) <= 3000, "multi-byte text over budget"
+assert "\ufffd" not in kept_text, "truncation emitted a replacement character"
+assert kept_text.encode("utf-8").decode("utf-8") == kept_text, "truncated text is not valid UTF-8"
+
+# an oversized non-text item is dropped whole (never byte-sliced into garbage)
+res = {"result": {"content": [{"type": "resource",
+                               "resource": {"uri": "x://y", "text": "z" * 90000}}]}}
+outr, statsr = cap_response(res, max_bytes=5000)
+assert statsr["truncated"] and MARKER_PREFIX in outr["result"]["content"][-1]["text"], "non-text item uncapped"
+
 # SSE body split into JSON-RPC messages
 sse = 'event: message\ndata: {"jsonrpc":"2.0","id":1,"result":{"ok":true}}\n\nevent: message\ndata: {"jsonrpc":"2.0","method":"notifications/x"}\n\n'
 msgs = parse_sse(sse)
@@ -89,7 +140,7 @@ assert len(msgs) == 2 and msgs[0]["id"] == 1 and msgs[1]["method"] == "notificat
 print("PROBE-OK")
 '@, [Text.UTF8Encoding]::new($false))
         $capOut = & $python $probe ($cloud -replace '\\', '/') 2>&1 | Out-String
-        Report 'context_cap truncates oversized results with a clear marker (bytes and items)' `
+        Report 'context_cap bounds the whole result: content, structuredContent, batches, multi-byte safe' `
             ($LASTEXITCODE -eq 0 -and $capOut -match 'PROBE-OK') $capOut
     } finally {
         Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue

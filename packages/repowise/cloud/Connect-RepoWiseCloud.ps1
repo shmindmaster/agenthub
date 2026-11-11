@@ -81,6 +81,79 @@ function Test-LoopbackListening([int]$Port) {
     } catch { return $false }
 }
 
+# --- pure validation / argument-building helpers (unit-tested) ---------------
+# Everything an attacker-shaped local value could reach (a remote shell string
+# or an ssh argv slot) goes through these before any ssh process starts.
+
+function Test-RepoWiseAlias {
+    param([string]$Value)
+    # -cmatch: aliases are lowercase by contract (same rule the bash side
+    # applies); PowerShell's -match is case-insensitive.
+    return ($Value -cmatch '^[a-z0-9][a-z0-9._-]*$')
+}
+
+function Test-SshTarget {
+    # [user@]host restricted so it can never be read as an ssh option; the
+    # first character deliberately excludes `-`.
+    param([string]$Value)
+    return ($Value -match '^[A-Za-z0-9._][A-Za-z0-9._-]*(@[A-Za-z0-9._-]+)?$')
+}
+
+function ConvertTo-RemoteStatusDir {
+    # ~/path or /path over [A-Za-z0-9._-] segments only; `~` becomes the literal
+    # text $HOME so the remote shell expands it inside double quotes. Rejecting
+    # everything else keeps quote-breaking and .. segments out of the remote
+    # command. Throws on anything it cannot prove safe.
+    param([Parameter(Mandatory)][string]$Dir)
+    if ($Dir -notmatch '(^|/)\.\.(/|$)') {
+        if ($Dir -match '^~/([A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+$') {
+            return "`$HOME/" + $Dir.Substring(2)
+        }
+        if ($Dir -match '^/([A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+$') {
+            return $Dir
+        }
+    }
+    throw "invalid -RemoteStatusDir '$Dir': expected ~/path or /path over [A-Za-z0-9._-] segments"
+}
+
+function New-SshTunnelArguments {
+    param([int]$LocalPort, [int]$RemotePort, [string]$SshTarget)
+    if (-not (Test-SshTarget $SshTarget)) {
+        throw "invalid -SshTarget '$SshTarget': expected [user@]host over [A-Za-z0-9._-]"
+    }
+    if ($LocalPort -lt 1 -or $LocalPort -gt 65535 -or $RemotePort -lt 1 -or $RemotePort -gt 65535) {
+        throw "ports must be integers in 1-65535"
+    }
+    return @(
+        '-N', '-T',
+        '-L', "127.0.0.1:$LocalPort`:127.0.0.1:$RemotePort",
+        '-o', 'ExitOnForwardFailure=yes',
+        '-o', 'BatchMode=yes',
+        '-o', 'StrictHostKeyChecking=accept-new',
+        '-o', 'ServerAliveInterval=30',
+        '-o', 'ServerAliveCountMax=2',
+        '--', $SshTarget
+    )
+}
+
+function New-StatusProbeArguments {
+    # Builds the ssh argv for the read-only status probe. The remote command
+    # distinguishes three outcomes through its exit code so the caller can tell
+    # "status file absent" (4) from "present but unreadable" (3) and from any
+    # other ssh/remote failure: stderr is never redirected away.
+    param([string]$SshTarget, [string]$StatusDir, [string]$Alias)
+    if (-not (Test-SshTarget $SshTarget)) {
+        throw "invalid -SshTarget '$SshTarget': expected [user@]host over [A-Za-z0-9._-]"
+    }
+    if (-not (Test-RepoWiseAlias $Alias)) {
+        throw "invalid -Alias '$Alias': must match ^[a-z0-9][a-z0-9._-]*$"
+    }
+    $dir = ConvertTo-RemoteStatusDir $StatusDir
+    $p = "$dir/$Alias.json"
+    $cmd = "if [ -f `"$p`" ]; then cat `"$p`"; elif [ -e `"$p`" ]; then exit 3; else exit 4; fi"
+    return @('-T', '-o', 'BatchMode=yes', '--', $SshTarget, $cmd)
+}
+
 # Resolve local repository state (tolerates running outside any repo).
 $repoRoot = $null; $head = $null
 try {
@@ -95,21 +168,25 @@ if (-not $Alias) {
     $Alias = if ($repoRoot) { Split-Path -Leaf $repoRoot } else { Split-Path -Leaf (Resolve-Path $RepositoryRoot).Path }
 }
 
+# Validate every value that reaches a remote shell string or an ssh argv slot
+# before any ssh process is started.
+if (-not (Test-RepoWiseAlias $Alias)) {
+    throw "invalid -Alias '$Alias': must match ^[a-z0-9][a-z0-9._-]*$ (it is interpolated into a remote shell command)"
+}
+if (-not (Test-SshTarget $SshTarget)) {
+    throw "invalid -SshTarget '$SshTarget': expected [user@]host over [A-Za-z0-9._-] (it must never be read as an ssh option)"
+}
+if ($RemotePort -lt 1 -or $RemotePort -gt 65535) {
+    throw "-RemotePort must be an integer in 1-65535"
+}
+$null = ConvertTo-RemoteStatusDir $RemoteStatusDir
+
 $sshExe = (Get-Command ssh.exe -CommandType Application -ErrorAction Stop).Source
 if ($LocalPort -eq 0) { $LocalPort = Get-FreeLoopbackPort }
 $url = "http://127.0.0.1:$LocalPort/mcp"
 $errLog = Join-Path $runtimeDir 'ssh-tunnel.err.log'
 
-$sshArgs = @(
-    '-N', '-T',
-    '-L', "127.0.0.1:$LocalPort`:127.0.0.1:$RemotePort",
-    '-o', 'ExitOnForwardFailure=yes',
-    '-o', 'BatchMode=yes',
-    '-o', 'StrictHostKeyChecking=accept-new',
-    '-o', 'ServerAliveInterval=30',
-    '-o', 'ServerAliveCountMax=2',
-    $SshTarget
-)
+$sshArgs = New-SshTunnelArguments -LocalPort $LocalPort -RemotePort $RemotePort -SshTarget $SshTarget
 
 $tunnel = $null
 $result = [ordered]@{
@@ -155,22 +232,32 @@ try {
     try { $null = Invoke-WebRequest -Uri $url -Method Delete -Headers $headers -TimeoutSec 5 -UseBasicParsing } catch { }
 
     # Stale-index check: the indexer records the last indexed commit per alias.
-    $statusProbe = Invoke-Hidden $sshExe @('-T', '-o', 'BatchMode=yes', $SshTarget,
-        "cat '$RemoteStatusDir/$Alias.json' 2>/dev/null || true") -WaitMs 20000
-    if ($statusProbe.ExitCode -eq 0 -and $statusProbe.StdOut.Trim()) {
+    # The probe distinguishes "status file absent" (exit 4 -> not-indexed) from
+    # a real read failure (any other non-zero -> unknown); stderr is kept and
+    # surfaced instead of being swallowed by `|| true`.
+    $statusProbe = Invoke-Hidden $sshExe `
+        (New-StatusProbeArguments -SshTarget $SshTarget -StatusDir $RemoteStatusDir -Alias $Alias) `
+        -WaitMs 20000
+    if ($statusProbe.ExitCode -eq 4) {
+        $result.indexStatus = 'not-indexed'
+    } elseif ($statusProbe.ExitCode -ne 0) {
+        Write-Warning "could not read remote index status (ssh exit $($statusProbe.ExitCode)): $($statusProbe.StdErr.Trim())"
+        $result.indexStatus = 'unknown'
+    } else {
         try {
             $statusJson = $statusProbe.StdOut | ConvertFrom-Json
             $result.indexed = [string]$statusJson.revision
         } catch { }
-    }
-    if (-not $result.indexed) {
-        $result.indexStatus = 'not-indexed'
-    } elseif (-not $head) {
-        $result.indexStatus = 'unknown'
-    } elseif ($result.indexed -eq $head) {
-        $result.indexStatus = 'fresh'
-    } else {
-        $result.indexStatus = 'stale'
+        if (-not $result.indexed) {
+            Write-Warning 'remote index status file was present but unreadable or empty'
+            $result.indexStatus = 'unknown'
+        } elseif (-not $head) {
+            $result.indexStatus = 'unknown'
+        } elseif ($result.indexed -eq $head) {
+            $result.indexStatus = 'fresh'
+        } else {
+            $result.indexStatus = 'stale'
+        }
     }
 }
 finally {

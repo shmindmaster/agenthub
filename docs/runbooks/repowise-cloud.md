@@ -55,6 +55,20 @@ run for this audit):
   workspace file (`.repowise-workspace.yaml`) plus per-repo `.repowise/`
   directories; `state.json` records `last_sync_commit`, which the index script
   checks against the mirror revision before reporting success.
+  - **Established** (from `packages/repowise/scripts/bounded_index.py`, which
+    reads `repo/.repowise/state.json`, and from a real AgentHub checkout):
+    on repowise 0.60.1, `.repowise/` lives **inside the indexed repository
+    directory** and `.repowise-workspace.yaml` at the workspace root.
+  - **Consequence:** an unfiltered `git clean -fd` inside the checkout would
+    delete `.repowise/` every run, so the incremental `repowise update
+    --index-only` path would never fire. `materialize_checkout` therefore
+    cleans with `-e .repowise -e .repowise-workspace.yaml`.
+  - **NOT ESTABLISHED:** whether repowise on Linux keeps state in exactly the
+    same locations (the vendor supports Linux but the layout was verified on
+    Windows only), and exactly where `workspace add` writes the workspace
+    file when the checkout is added to an existing workspace. If a deployed
+    run shows `.repowise/` absent from the checkout after indexing, inspect
+    `repowise workspace list` output and adjust the `-e` excludes to match.
 - **What differs on Linux:**
   - The Windows Job Object memory cap has no direct equivalent; this recipe
     uses a `systemd-run --scope` cgroup (`MemoryMax`) with an `ulimit -v`
@@ -160,13 +174,37 @@ is shipped.
 - The only path in is **SSH**, workstation -> host, forwarding
   `127.0.0.1:<local>` to `127.0.0.1:7339`. Firewall the host to SSH only.
 - Mirrors are **read-only by construction**: bare repos, fetched with a
-  read-only deploy key; even root on the index host cannot push through them
-  (no push URL with write credentials exists).
+  read-only deploy key, and every mirror's push URL is pinned to `DISABLED`
+  (`git remote set-url --push origin DISABLED`) after each sync — even a
+  writable credential cannot turn the host into a write path.
+- Repository URLs are **validated before they reach git**: `valid_repo_url`
+  accepts only scp-style ssh, `ssh://`, or `https://` clone URLs to
+  github.com of the form `owner/name[.git]`, and `git clone`/`remote set-url`
+  place `--` before the URL. A URL can therefore never be parsed as a git
+  option (e.g. `-oProxyCommand=...`). Mirroring a different git host means
+  deliberately widening that function — it is not a config option.
+- Aliases are **path segments**, and validated as such (`^[a-z0-9][a-z0-9._-]*$`)
+  in both scripts: `--only ../x` and a config alias like it are refused before
+  `git clean`/`reset --hard` can run outside the mirror, index, state or
+  status roots (`path_under` re-verifies containment).
 - Credentials appear **by name only**: the deploy key is an env-var name in
   the mirror list; embedder secrets live in `embedder.env` (0600) referenced
-  by `EnvironmentFile`; nothing secret is in the repo.
+  by `EnvironmentFile`; nothing secret is in the repo. Both bash scripts run
+  `umask 077`, and the sync refuses a key file that is group- or
+  world-readable (the same rule ssh itself applies).
 - `Connect-RepoWiseCloud.ps1` registers **nothing persistent** — no scheduled
   task, no Run key, no service — and kills only the tunnel PID it started.
+  Its `-Alias`, `-SshTarget`, `-RemoteStatusDir` and ports are all validated
+  (and `--` terminates ssh option parsing) before any ssh process starts, so
+  none of them can be turned into a remote shell command or an ssh option.
+- The stale-index probe **distinguishes "missing" from "unreadable"**: the
+  remote command prints the status file when present, exits 4 when absent
+  (`not-indexed`), and surfaces stderr on any other failure (`unknown`). It
+  builds the path with `$HOME` inside double quotes — never a single-quoted
+  `~` that silently fails.
+- Indexer exit-code semantics: `124` is the `timeout` deadline; `137` is a
+  SIGKILL — under `MemoryMax` that is the cgroup OOM kill (or the `-k` grace
+  firing) and is reported as a **memory kill**, not a timeout.
 
 ## Scheduling
 

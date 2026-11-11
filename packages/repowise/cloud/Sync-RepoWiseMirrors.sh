@@ -37,6 +37,44 @@ the path to the private-key file. The credential itself never appears here.
 EOF
 }
 
+# Aliases double as path segments under the mirror/state roots.
+valid_alias() {
+    [[ "$1" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
+}
+
+# valid_repo_url <url>: only scp-style ssh or ssh:// or https:// clone URLs to
+# github.com of the form owner/name[.git]. The fixed shape means a config URL
+# can never start with `-` (read as a git option) or point a fetch anywhere
+# unexpected. Widening to another git host is a deliberate edit here, not a
+# config option.
+valid_repo_url() {
+    local url="$1" gh='github\.com'
+    [[ "$url" =~ ^(git@${gh}:|ssh://git@${gh}/|https://${gh}/)[A-Za-z0-9._-]+/[A-Za-z0-9._-]+(\.git)?$ ]]
+}
+
+# key_mode_private <octal-mode>: 0 when group/other have no access bits,
+# 1 when any are set, 2 when the mode cannot be parsed. The decision is kept
+# separate from stat so it is unit-testable off the index host.
+key_mode_private() {
+    case "$1" in ''|*[!0-9]*) return 2 ;; esac
+    [ $((8#$1 & 8#077)) -eq 0 ]
+}
+
+# assert_key_private <path>: refuse a credential file that is group- or
+# world-accessible -- the same rule ssh applies to identity files.
+assert_key_private() {
+    local key_path="$1" mode
+    mode="$(stat -c %a -- "$key_path" 2>/dev/null || stat -f %Lp -- "$key_path" 2>/dev/null || true)"
+    if key_mode_private "$mode"; then
+        return 0
+    elif [ $? -eq 2 ]; then
+        echo "cannot stat credential file mode: $key_path" >&2; return 1
+    else
+        echo "credential file $key_path is group/world accessible (mode $mode); run chmod 600" >&2
+        return 1
+    fi
+}
+
 # git_ssh_command <repo-json> : echo the GIT_SSH_COMMAND for one repository.
 # The credential is referenced by NAME only: the environment variable it names
 # must hold the path to a readable SSH private-key file (a read-only deploy
@@ -49,6 +87,7 @@ git_ssh_command() {
     key_path="${!cred_env:-}"
     [ -n "$key_path" ] || { echo "credential env $cred_env is not set" >&2; return 1; }
     [ -r "$key_path" ] || { echo "credential file from $cred_env is not readable: $key_path" >&2; return 1; }
+    assert_key_private "$key_path" || return 1
     printf 'ssh -i %q -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new' "$key_path"
 }
 
@@ -57,19 +96,23 @@ sync_one() {
     alias="$(jq -r '.alias' <<<"$repo")"
     url="$(jq -r '.url' <<<"$repo")"
     branch="$(jq -r '.defaultBranch' <<<"$repo")"
-    [[ "$alias" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo "$alias: invalid alias" >&2; return 1; }
+    valid_alias "$alias" || { echo "$alias: invalid alias" >&2; return 1; }
+    valid_repo_url "$url" || { echo "$alias: invalid repository url (expected a github.com owner/name ssh or https clone URL)" >&2; return 1; }
     dir="$MIRROR_ROOT/$alias.git"
     ssh_cmd="$(git_ssh_command "$repo")" || return 1
 
     if [ ! -d "$dir" ]; then
-        GIT_SSH_COMMAND="$ssh_cmd" git clone --mirror "$url" "$dir" || return 1
+        GIT_SSH_COMMAND="$ssh_cmd" git clone --mirror -- "$url" "$dir" || return 1
     else
         [ -d "$dir/objects" ] || { echo "$dir exists but is not a bare mirror" >&2; return 1; }
         # The mirror's stored URL is refreshed each run so a list change takes
         # effect without a reclone; the fetch itself is read-only.
-        git -C "$dir" remote set-url origin "$url" || return 1
+        git -C "$dir" remote set-url -- origin "$url" || return 1
         GIT_SSH_COMMAND="$ssh_cmd" git -C "$dir" remote update --prune || return 1
     fi
+    # A mirror must never push: pin a disabled push URL so even a writable
+    # credential cannot turn this host into a write path.
+    git -C "$dir" remote set-url --push -- origin DISABLED || return 1
 
     rev="$(git -C "$dir" rev-parse --verify "refs/heads/$branch^{commit}")" \
         || { echo "$alias: default branch $branch not found after fetch" >&2; return 1; }
@@ -93,6 +136,7 @@ main() {
 
 if [[ "${BASH_SOURCE[0]:-}" == "${0}" ]]; then
     set -euo pipefail
+    umask 077
     while [ $# -gt 0 ]; do
         case "$1" in
             --config) CONFIG="$2"; shift 2 ;;

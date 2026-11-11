@@ -14,15 +14,27 @@ Covers:
   3. No cloud file contains a credential-shaped string, a non-loopback IPv4
      literal, or a non-placeholder repository URL.
   4. Sync-RepoWiseMirrors.sh: bare-mirror ops only, credential by env NAME,
-     no interactive prompt path, failure exits non-zero, no working tree.
+     no interactive prompt path, failure exits non-zero, no working tree,
+     `--` before the URL, a DISABLED push URL, private umask, and a
+     group/world-readable credential refusal. When bash is on PATH the
+     decision functions are executed: valid_repo_url accept/reject,
+     key_mode_private, assert_key_private on a real file, and sync_one
+     refusing an option-shaped URL.
   5. Invoke-RepoWiseCloudIndex.sh: hard caps (systemd-run scope MemoryMax +
-     timeout), status JSON fields, no scheduler artifacts; should_index is
-     unit-tested through bash (skip on unchanged, index on changed/missing/
-     previously-failed).
+     timeout), status JSON fields, no scheduler artifacts, alias regex before
+     any repo path is built (index_one and --only), path_under containment,
+     RepoWise state preserved across the checkout clean, exit 137 reported as
+     a memory kill, private umask. Executed through bash when present:
+     should_index, valid_alias/path_under/index_one on hostile input,
+     classify_exit, and the real `--only ../x` argument gate.
   6. The service unit and serve launcher expose loopback only.
   7. Connect-RepoWiseCloud.ps1 parses, launches ssh windowless, verifies the
      MCP endpoint, does the stale-index check, kills only its own tunnel, and
      registers nothing persistent (no scheduled task, Run key, or service).
+     Its real validation and argument-building functions are extracted from
+     the file's own AST and executed with hostile inputs, and the script
+     itself is invoked once with an injection-shaped alias and an
+     option-shaped target to prove both throw before ssh can start.
 
 Run: pwsh -NoProfile -File tests/Test-RepoWiseCloud.ps1
      powershell.exe -NoProfile -File tests/Test-RepoWiseCloud.ps1
@@ -45,6 +57,7 @@ function Read-Text([string]$Path) { [IO.File]::ReadAllText($Path) }
 
 $bashFiles = 'Sync-RepoWiseMirrors.sh', 'Invoke-RepoWiseCloudIndex.sh', 'repowise-mcp-serve.sh'
 $bash = Get-Command bash -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+$hostExe = (Get-Process -Id $PID).Path
 
 # --- 1. bash scripts parse --------------------------------------------------
 foreach ($name in $bashFiles) {
@@ -135,6 +148,16 @@ Report 'sync script exits non-zero on any repository failure' `
     ($sync -match 'failed \+ 1' -and $sync -match "exit 1") 'failure does not reach the exit code'
 Report 'sync script serializes runs (flock) and stays idempotent' `
     ($sync -match 'flock -n' -and $sync -match 'clone --mirror') 'lock or idempotent clone/update split missing'
+Report 'sync script ends option parsing before the URL (git clone --mirror --)' `
+    ($sync -match 'git clone --mirror -- ') 'a URL could still be read as a git option'
+Report 'sync script pins a DISABLED push URL on every mirror' `
+    ($sync -match 'remote set-url --push -- origin DISABLED') 'push still possible with a writable credential'
+Report 'sync script validates the repository URL shape before fetching' `
+    ($sync -match 'valid_repo_url\(\)' -and $sync -match 'valid_repo_url "\$url"') 'url validation missing'
+Report 'sync script refuses a group/world-readable credential file' `
+    ($sync -match 'assert_key_private' -and $sync -match 'key_mode_private') 'credential permission check missing'
+Report 'sync script runs with a private umask' `
+    ($sync -match 'umask 077') 'umask missing'
 
 # --- 5. index script contract + should_index unit test -----------------------
 $index = Read-Text (Join-Path $cloud 'Invoke-RepoWiseCloudIndex.sh')
@@ -154,6 +177,18 @@ Report 'index script installs no schedule' `
 Report 'index script refreshes facts only through repowise update --index-only (or workspace add --no-docs)' `
     ($index -match 'repowise update --no-workspace --index-only' -and $index -match 'workspace add.*--no-docs' -and
      $index -notmatch 'repowise (init|agents|update --full)') 'unexpected repowise invocation'
+Report 'index script validates aliases before building paths' `
+    ($index -match 'valid_alias\(\)' -and $index -match 'valid_alias "\$alias"' -and
+     $index -match 'invalid --only alias') 'alias regex missing from index_one/--only'
+Report 'index script keeps every repo path inside its root (path_under)' `
+    ($index -match 'path_under "\$MIRROR_ROOT"' -and $index -match 'path_under "\$INDEX_ROOT"' -and
+     $index -match 'path_under "\$STATUS_DIR"' -and $index -match 'path_under "\$STATE_DIR"') 'uncontained repo path found'
+Report 'index script keeps RepoWise state across the checkout clean' `
+    ($index -match 'clean -fdq -e \.repowise') 'git clean would delete .repowise every run'
+Report 'index script reports exit 137 as a memory kill, not a timeout' `
+    ($index -match '137\).*memory kill' -and $index -match '124\).*timeout' -and $index -notmatch '124\|137') '137 is still labelled a timeout'
+Report 'index script runs with a private umask' `
+    ($index -match 'umask 077') 'umask missing'
 
 if ($bash) {
     $jqProbe = & $bash.Source -c 'command -v jq' 2>$null
@@ -182,10 +217,80 @@ echo "$out"
         } finally {
             Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
         }
+        # sync_one refuses a hostile URL before it reaches git (jq inside bash).
+        $syncPath = (Join-Path $cloud 'Sync-RepoWiseMirrors.sh') -replace '\\', '/'
+        $unit2 = @'
+source "$1"
+repo="$(jq -nc '{alias:"demo",url:"-oProxyCommand=touch /tmp/x",defaultBranch:"main"}')"
+if sync_one "$repo" >/dev/null 2>&1; then echo "BAD: hostile url synced"; else echo "refused"; fi
+'@
+        $out2 = & $bash.Source -c $unit2 'unit' $syncPath 2>&1 | Out-String
+        Report 'sync_one refuses an option-shaped URL before running git' `
+            ($out2 -match 'refused' -and $out2 -notmatch 'BAD:') $out2
     } else {
         Write-Host 'NOTE: jq unavailable inside bash -- should_index unit skipped' -ForegroundColor Yellow
         Report 'should_index unit test (skipped: no jq for bash)' $true 'skipped, not run'
     }
+
+    # --- executed decision functions: no jq, no network, no ssh --------------
+    $indexPath = (Join-Path $cloud 'Invoke-RepoWiseCloudIndex.sh') -replace '\\', '/'
+    $unit3 = @'
+source "$1"
+fails=0
+valid_alias "../x"           && { echo "BAD: ../x alias accepted"; fails=1; }
+valid_alias "x';touch /tmp/p;'" && { echo "BAD: quote alias accepted"; fails=1; }
+valid_alias "agenthub"       || { echo "BAD: agenthub rejected"; fails=1; }
+[ "$(path_under /srv/mirrors demo 2>/dev/null)" = "/srv/mirrors/demo" ] || { echo "BAD: demo path"; fails=1; }
+path_under /srv/mirrors "../x"    2>/dev/null && { echo "BAD: ../x under root"; fails=1; }
+path_under /srv/mirrors "..\\x"   2>/dev/null && { echo "BAD: backslash escape"; fails=1; }
+l="$(classify_exit 0 systemd-user)";   case "$l" in indexed*) ;; *) echo "BAD: 0 -> $l"; fails=1 ;; esac
+l="$(classify_exit 124 rlimit)";       case "$l" in failed*timeout*) ;; *) echo "BAD: 124 -> $l"; fails=1 ;; esac
+l="$(classify_exit 137 systemd-user)"; case "$l" in failed*memory*kill*) ;; *) echo "BAD: 137 -> $l"; fails=1 ;; esac
+case "$l" in *timeout*) echo "BAD: 137 labelled timeout"; fails=1 ;; esac
+l="$(classify_exit 2 rlimit)";         case "$l" in failed*"exited 2"*) ;; *) echo "BAD: 2 -> $l"; fails=1 ;; esac
+MIRROR_ROOT=/srv/m STATUS_DIR=/srv/s INDEX_ROOT=/srv/i STATE_DIR=/srv/st CONFIG=/dev/null index_one "../x" >/dev/null 2>&1 \
+    && { echo "BAD: index_one ran for ../x"; fails=1; }
+[ -e /srv/m/../x ] && { echo "BAD: escape touched fs"; fails=1; }
+[ $fails -eq 0 ] && echo "UNIT3-OK"
+'@
+    $out3 = & $bash.Source -c $unit3 'unit' $indexPath 2>&1 | Out-String
+    Report 'index decision functions refuse ../x and classify exit codes' `
+        ($LASTEXITCODE -eq 0 -and $out3 -match 'UNIT3-OK' -and $out3 -notmatch 'BAD:') $out3
+
+    # --only ../x is refused by the real entry point before tools are checked.
+    $e2e = & $bash.Source -c '"$1" --only "../x"' 'e2e' $indexPath 2>&1 | Out-String
+    Report 'index script refuses --only ../x at the argument gate' `
+        ($LASTEXITCODE -ne 0 -and $e2e -match 'invalid --only alias') $e2e
+
+    $syncPath2 = (Join-Path $cloud 'Sync-RepoWiseMirrors.sh') -replace '\\', '/'
+    $unit4 = @'
+source "$1"
+fails=0
+gh=github.com
+valid_repo_url "git@${gh}:owner/repo.git"     || { echo "BAD: scp url rejected"; fails=1; }
+valid_repo_url "git@${gh}:owner/repo"         || { echo "BAD: bare scp url rejected"; fails=1; }
+valid_repo_url "https://${gh}/owner/repo"     || { echo "BAD: https url rejected"; fails=1; }
+valid_repo_url "ssh://git@${gh}/owner/repo.git" || { echo "BAD: ssh url rejected"; fails=1; }
+valid_repo_url "-oProxyCommand=touch /tmp/x"  && { echo "BAD: option url accepted"; fails=1; }
+valid_repo_url "https://evil.example.com/o/r" && { echo "BAD: wrong host accepted"; fails=1; }
+valid_repo_url "git@${gh}:a/b/c"              && { echo "BAD: 3-segment url accepted"; fails=1; }
+valid_repo_url "file:///etc/passwd"           && { echo "BAD: file url accepted"; fails=1; }
+key_mode_private 600 || { echo "BAD: 600 refused"; fails=1; }
+key_mode_private 400 || { echo "BAD: 400 refused"; fails=1; }
+key_mode_private 644 && { echo "BAD: 644 accepted"; fails=1; }
+key_mode_private 660 && { echo "BAD: 660 accepted"; fails=1; }
+key_mode_private garbage && { echo "BAD: garbage mode"; fails=1; } || [ $? -eq 2 ] || { echo "BAD: garbage rc"; fails=1; }
+k="$(mktemp)"; chmod 777 "$k" 2>/dev/null || true
+assert_key_private "$k" >/dev/null 2>&1 && { echo "BAD: 777 key accepted"; fails=1; }
+assert_key_private "$k.nonexistent" >/dev/null 2>&1 && { echo "BAD: missing key accepted"; fails=1; }
+rm -f "$k"
+[ $fails -eq 0 ] && echo "UNIT4-OK"
+'@
+    $out4 = & $bash.Source -c $unit4 'unit' $syncPath2 2>&1 | Out-String
+    Report 'sync decision functions validate URL shape and key permissions' `
+        ($LASTEXITCODE -eq 0 -and $out4 -match 'UNIT4-OK' -and $out4 -notmatch 'BAD:') $out4
+} else {
+    Write-Host 'NOTE: bash not on PATH -- .sh decision-function tests skipped (structural text check only)' -ForegroundColor Yellow
 }
 
 # --- 6. service unit + serve launcher: loopback only --------------------------
@@ -208,7 +313,7 @@ Report 'serve launcher keeps the server resident under the unit (--idle-minutes 
 # --- 7. connector: windowless, verifies, stale-check, clean close, no hooks ---
 $connectorPath = Join-Path $cloud 'Connect-RepoWiseCloud.ps1'
 $tokens = $null; $parseErrors = $null
-$null = [Management.Automation.Language.Parser]::ParseFile($connectorPath, [ref]$tokens, [ref]$parseErrors)
+$connectorAst = [Management.Automation.Language.Parser]::ParseFile($connectorPath, [ref]$tokens, [ref]$parseErrors)
 Report 'Connect-RepoWiseCloud.ps1 parses as PowerShell' ($parseErrors.Count -eq 0) ($parseErrors | Out-String)
 $connector = Read-Text $connectorPath
 Report 'connector launches ssh windowless via ProcessStartInfo' `
@@ -223,6 +328,71 @@ Report 'connector closes only the tunnel it started' `
     ($connector -match '\$tunnel\.Kill\(\)' -and $connector -notmatch 'taskkill|Stop-Process\s+-Name|Get-NetTCPConnection.*Remove') 'over-broad process kill found'
 Report 'connector registers nothing persistent (no scheduled task, Run key, service)' `
     ($connector -notmatch 'Register-ScheduledTask|schtasks|CurrentVersion\\Run|New-Service|Set-Service|reg\.exe.*add') 'persistence mechanism found'
+
+# Execute the connector's real validation/argument functions: the file's
+# function definitions are extracted from its own AST and dot-sourced here, so
+# the checks below run the shipped code, not a copy of it.
+$connectorFuncs = ($connectorAst.FindAll(
+    { param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) |
+    ForEach-Object { $_.Extent.Text }) -join "`n"
+. ([ScriptBlock]::Create($connectorFuncs))
+
+Report 'connector alias validator accepts real aliases and refuses injection' `
+    ((Test-RepoWiseAlias 'agenthub') -and (Test-RepoWiseAlias 'repo-a.v2_1') -and
+     -not (Test-RepoWiseAlias "x';touch /tmp/p;'") -and -not (Test-RepoWiseAlias '../x') -and
+     -not (Test-RepoWiseAlias 'UPPER') -and -not (Test-RepoWiseAlias '-flag')) 'validator mismatch'
+
+Report 'connector ssh-target validator refuses an option-shaped target' `
+    ((Test-SshTarget 'repowise-mirror') -and (Test-SshTarget 'user@host') -and
+     -not (Test-SshTarget '-oProxyCommand=echo x') -and -not (Test-SshTarget '-V') -and
+     -not (Test-SshTarget 'host;id')) 'validator mismatch'
+
+$dirOut = ConvertTo-RemoteStatusDir '~/.local/share/repowise-cloud/status'
+Report 'connector status dir maps ~ to $HOME (expanded remotely inside double quotes)' `
+    ($dirOut -eq '$HOME/.local/share/repowise-cloud/status' -and
+     (ConvertTo-RemoteStatusDir '/var/lib/status') -eq '/var/lib/status') $dirOut
+$dirThrew = $false
+try { ConvertTo-RemoteStatusDir 'relative/../x' | Out-Null } catch { $dirThrew = $true }
+$dirThrew2 = $false
+try { ConvertTo-RemoteStatusDir '~/a";id;"' | Out-Null } catch { $dirThrew2 = $true }
+Report 'connector status dir rejects relative, .. and quote-breaking paths' `
+    ($dirThrew -and $dirThrew2) 'unvalidated path accepted'
+
+$probeArgs = New-StatusProbeArguments -SshTarget 'repowise-mirror' -StatusDir '~/.local/share/repowise-cloud/status' -Alias 'agenthub'
+$probeCmd = [string]$probeArgs[-1]
+Report 'connector status probe uses double-quoted $HOME and never swallows errors' `
+    ($probeCmd -match 'if \[ -f "\$HOME/\.local/share/repowise-cloud/status/agenthub\.json" \]' -and
+     $probeCmd -match 'exit 3' -and $probeCmd -match 'exit 4' -and
+     $probeCmd -notmatch '2>/dev/null' -and $probeCmd -notmatch '\|\| true' -and
+     $probeArgs -contains '--' -and $probeArgs[-2] -eq 'repowise-mirror') $probeCmd
+$probeThrew = $false
+try { New-StatusProbeArguments -SshTarget '-oProxyCommand=x' -StatusDir '/x' -Alias 'agenthub' | Out-Null } catch { $probeThrew = $true }
+$probeThrew2 = $false
+try { New-StatusProbeArguments -SshTarget 'h' -StatusDir '/x' -Alias "x';id;'" | Out-Null } catch { $probeThrew2 = $true }
+Report 'connector status probe builder refuses option-shaped target and injection alias' `
+    ($probeThrew -and $probeThrew2) 'hostile input reached the argv builder'
+
+$tunArgs = New-SshTunnelArguments -LocalPort 12345 -RemotePort 7339 -SshTarget 'repowise-mirror'
+$dashIdx = [array]::IndexOf([object[]]$tunArgs, '--')
+Report 'connector tunnel argv ends options with -- and forwards loopback only' `
+    ($dashIdx -eq ($tunArgs.Count - 2) -and $tunArgs[-1] -eq 'repowise-mirror' -and
+     ($tunArgs -join ' ') -match '127\.0\.0\.1:12345:127\.0\.0\.1:7339' -and
+     $tunArgs -contains '-o' -and $tunArgs -contains 'BatchMode=yes') ($tunArgs -join ' ')
+$tunThrew = $false
+try { New-SshTunnelArguments -LocalPort 1 -RemotePort 7339 -SshTarget '-oProxyCommand=evil' | Out-Null } catch { $tunThrew = $true }
+$tunThrew2 = $false
+try { New-SshTunnelArguments -LocalPort 0 -RemotePort 7339 -SshTarget 'repowise-mirror' | Out-Null } catch { $tunThrew2 = $true }
+Report 'connector tunnel builder refuses option-shaped target and bad port' `
+    ($tunThrew -and $tunThrew2) 'hostile input reached the argv builder'
+
+# End to end through the script itself: hostile values throw before ssh.exe is
+# even resolved, so no ssh process can start.
+$badAliasOut = & $hostExe -NoProfile -File $connectorPath -Alias "x';touch /tmp/p;'" -SshTarget 'repowise-mirror' 2>&1 | Out-String
+Report 'connector refuses a shell-injection alias before any ssh call (e2e)' `
+    ($LASTEXITCODE -ne 0 -and $badAliasOut -match 'invalid -Alias') $badAliasOut
+$badTargetOut = & $hostExe -NoProfile -File $connectorPath -Alias 'agenthub' -SshTarget '-oProxyCommand=echo x' 2>&1 | Out-String
+Report 'connector refuses an option-shaped ssh target before any ssh call (e2e)' `
+    ($LASTEXITCODE -ne 0 -and $badTargetOut -match 'invalid -SshTarget') $badTargetOut
 
 Write-Host ''
 if ($failures.Count -gt 0) {

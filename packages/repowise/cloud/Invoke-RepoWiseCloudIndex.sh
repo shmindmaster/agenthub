@@ -53,6 +53,51 @@ utc_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
 # --- pure decision helpers (unit-tested by tests/Test-RepoWiseCloud.ps1) ---
 
+# Aliases double as path segments under the mirror/index/state/status roots.
+# Anything else -- ../x in particular -- is rejected before it reaches a path.
+valid_alias() {
+    [[ "$1" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
+}
+
+# normalize_path <path>: lexically collapse . and .. segments (no fs access).
+# Fails when .. would climb above the path's own root.
+normalize_path() {
+    local path="$1" seg joined
+    local out=()
+    local IFS='/'
+    for seg in $path; do
+        case "$seg" in
+            ''|.) ;;
+            ..)
+                if [ "${#out[@]}" -gt 0 ]; then
+                    out=("${out[@]:0:$((${#out[@]} - 1))}")
+                else
+                    return 1
+                fi ;;
+            *) out+=("$seg") ;;
+        esac
+    done
+    joined="$(printf '/%s' "${out[@]}")"
+    case "$path" in
+        /*) printf '%s\n' "${joined:-/}" ;;
+        *)  printf '%s\n' "${joined#/}" ;;
+    esac
+}
+
+# path_under <root> <name>: echo the normalized "<root>/<name>" only when name
+# is a valid single segment AND the resolved path stays under root. git clean /
+# reset run on paths built this way, so containment is proven, not assumed.
+path_under() {
+    local root="$1" name="$2" resolved norm
+    valid_alias "$name" || { echo "invalid path segment: $name" >&2; return 1; }
+    resolved="$(normalize_path "$root/$name")" || return 1
+    norm="$(normalize_path "$root")" || return 1
+    case "$resolved" in
+        "$norm"/*) printf '%s\n' "$resolved" ;;
+        *) echo "path escapes root $norm: $resolved" >&2; return 1 ;;
+    esac
+}
+
 indexed_revision() {
     # The revision of the last SUCCESSFUL index, or empty. A failed run never
     # advances this, so a failed refresh is retried next run.
@@ -105,13 +150,16 @@ run_capped() {
 materialize_checkout() {
     # The only working trees on this host are machine-owned and disposable:
     # every visit hard-resets them to the mirrored commit. Humans never edit here.
+    # The clean excludes .repowise/ and .repowise-workspace.yaml: that is where
+    # RepoWise keeps its own index state (established on Windows -- see the
+    # runbook), and deleting it every run would force full re-indexes forever.
     local mirror="$1" checkout="$2" rev="$3"
     if [ ! -d "$checkout/.git" ]; then
-        git clone -q "file://$mirror" "$checkout" || return 1
+        git clone -q -- "file://$mirror" "$checkout" || return 1
     fi
     git -C "$checkout" fetch -q --prune origin || return 1
     git -C "$checkout" reset --hard -q "$rev" || return 1
-    git -C "$checkout" clean -fdq || return 1
+    git -C "$checkout" clean -fdq -e .repowise -e .repowise-workspace.yaml || return 1
 }
 
 last_sync_commit() {
@@ -131,11 +179,27 @@ write_status() {
           >"$tmp" && mv "$tmp" "$file"
 }
 
+# classify_exit <code> <cap-mode>: print "<outcome>\t<detail>" for a capped run.
+# 124 is the `timeout` deadline; 137 is a SIGKILL -- under MemoryMax that is the
+# cgroup OOM kill (or the -k grace), so it is reported as a memory kill, not a
+# timeout.
+classify_exit() {
+    local code="$1" mode="$2"
+    case "$code" in
+        0)   printf 'indexed\tok (cap=%s)\n' "$mode" ;;
+        124) printf 'failed\ttimeout after %ss (cap=%s)\n' "$TIMEOUT_S" "$mode" ;;
+        137) printf 'failed\tmemory kill: exit 137 (SIGKILL -- typically the cgroup OOM kill; cap=%s)\n' "$mode" ;;
+        *)   printf 'failed\trepowise exited %s (cap=%s)\n' "$code" "$mode" ;;
+    esac
+}
+
 index_one() {
-    local alias="$1" mirror rev branch status_file checkout started outcome detail prev_rev mode code synced
-    mirror="$MIRROR_ROOT/$alias.git"
-    status_file="$STATUS_DIR/$alias.json"
-    checkout="$INDEX_ROOT/$alias"
+    local alias="$1" mirror rev branch status_file checkout started outcome detail prev_rev mode code synced state_rev
+    valid_alias "$alias" || { echo "invalid alias: $alias" >&2; return 1; }
+    mirror="$(path_under "$MIRROR_ROOT" "$alias.git")" || return 1
+    status_file="$(path_under "$STATUS_DIR" "$alias.json")" || return 1
+    checkout="$(path_under "$INDEX_ROOT" "$alias")" || return 1
+    state_rev="$(path_under "$STATE_DIR" "$alias.rev")" || return 1
     prev_rev="$(indexed_revision "$status_file")"
 
     if [ ! -d "$mirror" ]; then
@@ -143,7 +207,7 @@ index_one() {
         return 1
     fi
     branch="$(jq -r --arg a "$alias" '.repositories[] | select(.alias == $a) | .defaultBranch' "$CONFIG")"
-    rev="$(cat "$STATE_DIR/$alias.rev" 2>/dev/null || true)"
+    rev="$(cat "$state_rev" 2>/dev/null || true)"
     [ -n "$rev" ] || rev="$(git -C "$mirror" rev-parse --verify "refs/heads/$branch^{commit}" 2>/dev/null || true)"
     if [ -z "$rev" ]; then
         write_status "$status_file" "$alias" "$prev_rev" "$(utc_now)" failed "no fetched revision for $branch"
@@ -171,11 +235,7 @@ index_one() {
 
     code=0
     ( cd "$INDEX_ROOT" && run_capped "$mode" "repowise-index-$alias" "$@" ) || code=$?
-    case "$code" in
-        0)   outcome=indexed; detail="ok (cap=$mode)" ;;
-        124|137) outcome=failed; detail="timeout after ${TIMEOUT_S}s (cap=$mode)" ;;
-        *)   outcome=failed; detail="repowise exited $code (cap=$mode)" ;;
-    esac
+    IFS=$'\t' read -r outcome detail <<<"$(classify_exit "$code" "$mode")"
     if [ "$outcome" = indexed ]; then
         synced="$(last_sync_commit "$checkout")"
         if [ "$synced" != "$rev" ]; then
@@ -211,6 +271,7 @@ main() {
 
 if [[ "${BASH_SOURCE[0]:-}" == "${0}" ]]; then
     set -euo pipefail
+    umask 077
     while [ $# -gt 0 ]; do
         case "$1" in
             --config) CONFIG="$2"; shift 2 ;;
@@ -218,7 +279,11 @@ if [[ "${BASH_SOURCE[0]:-}" == "${0}" ]]; then
             --index-root) INDEX_ROOT="$2"; shift 2 ;;
             --state-dir) STATE_DIR="$2"; shift 2 ;;
             --status-dir) STATUS_DIR="$2"; shift 2 ;;
-            --only) shift; while [ $# -gt 0 ] && [[ "$1" != --* ]]; do ONLY+=("$1"); shift; done ;;
+            --only) shift
+                while [ $# -gt 0 ] && [[ "$1" != --* ]]; do
+                    valid_alias "$1" || { echo "invalid --only alias: $1" >&2; exit 2; }
+                    ONLY+=("$1"); shift
+                done ;;
             -h|--help) usage; exit 0 ;;
             *) echo "unknown argument: $1" >&2; usage; exit 2 ;;
         esac
