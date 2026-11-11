@@ -4,6 +4,8 @@ Same fixture discipline as test_elevenlabs_cli: no request ever leaves this proc
 """
 import hashlib
 import json
+import pathlib
+import re
 from unittest.mock import patch
 
 from test_elevenlabs_cli import AUDIO, FORMAT, REVISION, WORKSPACE
@@ -33,7 +35,12 @@ class LaneArgv(fixtures.OfflineCase):
         elif lane == "sfx":
             argv += ["--prompt", prompt or SFX_PROMPT]
         else:
-            argv += ["--prompt", prompt] if prompt else ["--composition-plan", str(plan or self.plan_file())]
+            if plan:
+                argv += ["--composition-plan", str(plan)]
+            else:
+                argv += ["--prompt", prompt or MUSIC_PROMPT]
+                if "--music-length-ms" not in extra:
+                    argv += ["--music-length-ms", "30000"]
         return [*argv, *extra]
 
     def plan_file(self, plan=PLAN):
@@ -104,7 +111,7 @@ class LaneQuoting(LaneArgv):
 
     def test_music_prompt_and_plan_are_exclusive(self):
         for extra, pattern in ((("--prompt", "x", "--composition-plan", "y"), "exactly one"),
-                               (("--prompt", "x", "--seed", "1"), "composition plan"),
+                               (("--prompt", "x", "--seed", "1"), "seed"),
                                (("--prompt", "x", "--music-length-ms", "100"), "3000 and 600000"),
                                (("--prompt", "x", "--music-length-ms", "600001"), "3000 and 600000")):
             with self.subTest(extra=extra):
@@ -112,18 +119,15 @@ class LaneQuoting(LaneArgv):
                         "--cache-revision", REVISION, *extra]
                 self.assertEqual(self.invoke("music-quote", *argv), 2)
                 self.assertIn(pattern, self.err)
-        argv = ["--model-id", "music_v2_5", "--cache-workspace", WORKSPACE, "--cache-revision", REVISION,
-                "--composition-plan", str(self.plan_file()), "--music-length-ms", "60000"]
-        self.assertEqual(self.invoke("music-quote", *argv), 2)
-        self.assertIn("prompt only", self.err)
 
-    def test_a_plan_is_structurally_validated_offline(self):
-        bad = self.plan_file({"chunks": [{"text": "x"}]})
-        self.assertEqual(self.invoke("music-quote", *self.lane_argv("music", plan=bad)), 2)
-        self.assertIn("plan chunk", self.err)
-        broken = self.root / "broken.json"
-        broken.write_text("{")
-        self.assertEqual(self.invoke("music-quote", *self.lane_argv("music", plan=broken)), 2)
+    def test_a_composition_plan_is_refused_so_music_stays_instrumental(self):
+        lyrics = self.plan_file({"chunks": [{"text": "[Verse 1]\nWe close the case tonight", "duration_ms": 30000,
+                                             "positive_styles": ["female lead vocal"], "negative_styles": []}]})
+        for plan in (lyrics, self.plan_file()):
+            with self.subTest(plan=plan):
+                self.assertEqual(self.invoke("music-quote", *self.lane_argv("music", plan=plan)), 2)
+                self.assertIn("Composition plans are refused", self.err)
+                self.assertNotIn("request_sha256", self.out)
 
 
 class LaneManifests(LaneArgv):
@@ -334,6 +338,20 @@ class LanePaid(LaneManifests):
                                                    flags=flags, prompt=prompt), 0, self.err)
                 receipt = json.loads((self.root / (header + ".mp3.provenance.json")).read_text())
                 self.assertEqual(receipt["request_id"], "fixture-receipt")
+
+    def test_paid_audio_without_a_receipt_is_kept_unaccepted(self):
+        flags = ("--music-length-ms", "30000")
+        manifest = self.authorize("music", quotes=[self.lane_quote("music", *flags, prompt=MUSIC_PROMPT)])
+        audio = (200, "audio/mpeg", b"synthetic unbound audio", {})
+        with patch.object(cli, "_request_full", return_value=audio) as post:
+            self.assertEqual(self.run_lane("music", manifest=manifest, flags=flags, prompt=MUSIC_PROMPT), 2)
+        self.assertEqual(post.call_count, 1)
+        self.assertIn("reservation retained", self.err)
+        self.assertIn("Unbound audio kept", self.err)
+        held = re.search(r"kept for inspection at (.+?) \(sha256", self.err).group(1)
+        kept = list(pathlib.Path(held).glob("*.bin"))
+        self.assertEqual([k.read_bytes() for k in kept], [b"synthetic unbound audio"])
+        self.assertFalse((self.root / "a.mp3").exists())
 
     def test_a_lane_reservation_over_the_epoch_ceiling_never_posts(self):
         manifest = self.authorize("sfx", quotes=[self.lane_quote("sfx"),

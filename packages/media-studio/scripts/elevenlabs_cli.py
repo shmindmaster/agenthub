@@ -323,10 +323,14 @@ def music_payload(args):
     """The exact body sent to /v1/music, and the determinable song length in ms for the credit estimate."""
     if bool(args.prompt) == bool(args.composition_plan):
         raise RuntimeError("Music needs exactly one of --prompt or --composition-plan")
+    if args.composition_plan:
+        raise RuntimeError("Composition plans are refused: the API cannot force an instrumental result on a plan "
+                           "(chunk text is sung as lyrics and audio references can carry vocals). Use --prompt, "
+                           "which pins force_instrumental")
     payload = {"model_id": args.model_id}
     if args.prompt:
         if args.seed is not None:
-            raise RuntimeError("The API accepts seed only with a composition plan, never with a prompt")
+            raise RuntimeError("The API does not accept seed with a prompt, and composition plans are refused")
         payload["prompt"] = args.prompt
         payload["force_instrumental"] = True
         if args.music_length_ms is not None:
@@ -505,9 +509,9 @@ def music_arguments(parser):
     _lane_arguments(parser)
     parser.add_argument("--prompt")
     parser.add_argument("--composition-plan", metavar="PATH",
-                        help="JSON file: {chunks: [generation or audio-reference chunks]} for music_v2_5")
+                        help="Refused: the API cannot force an instrumental result on a plan; use --prompt")
     parser.add_argument("--music-length-ms", type=int)
-    parser.add_argument("--seed", type=int, help="Composition-plan requests only")
+    parser.add_argument("--seed", type=int, help="Refused: the API takes seed only with a composition plan, which is refused")
     parser.add_argument("--model-id", required=True, choices=["music_v2_5"])
     parser.add_argument("--output-format", default="auto")
 

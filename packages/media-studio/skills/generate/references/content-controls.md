@@ -83,7 +83,7 @@ The quote subcommands are offline and print `text_sha256` (the dialogue inputs J
 
 Dialogue takes `--turn VOICE_ID TEXT` per input (total text at most 2,000 characters), optional `--seed` and the speech `audio_effects` flags (`--filter-preset-id`, `--environment-id`, `--background-noise-id`, `--distance`, `--send-level`, `--pan`). Owner direction 2026-11-03, media.md: the Deloitte pursuit films for Revolva, Empowera and CoLedger may use the owner PVC on Eleven v4; every other film keeps the no-clone rule, and the owner PVC may appear only when the job's manifest names it.
 
-Sfx takes `--prompt` with optional `--duration-seconds` (0.5–30), `--prompt-influence` (0–1) and `--loop`/`--no-loop`. Music takes exactly one of `--prompt` or `--composition-plan <file>`; a prompt request pins `force_instrumental` and may set `--music-length-ms` (3,000–600,000), while a plan takes `--seed` and gets its length from its chunks. A prompt without `--music-length-ms` cannot be priced, so the adapter refuses it.
+Sfx takes `--prompt` with optional `--duration-seconds` (0.5–30), `--prompt-influence` (0–1) and `--loop`/`--no-loop`. Music takes `--prompt` only; the request pins `force_instrumental` and sets `--music-length-ms` (3,000–600,000). `--composition-plan` is refused before any network call, because the API cannot force an instrumental result on a plan (chunk text is sung as lyrics, and audio-reference chunks can carry vocals), and `--seed` is refused with it. A paid call that returns audio without any provider identifier keeps the reservation and leaves the bytes unaccepted in the ledger's `quarantine/` folder for inspection. A prompt without `--music-length-ms` cannot be priced, so the adapter refuses it.
 
 ## Blocked or failed call
 

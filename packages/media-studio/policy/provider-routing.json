@@ -269,7 +269,7 @@
       "mode": "api",
       "cost": "ElevenLabs Creator plan, about 116,400 characters left (speech); music and sound-effect usage is not separately recorded. Adapter pricing: 200 credits per sound-generation call, 900 credits per minute of music",
       "identity": "mahumtech",
-      "how": "Do not call it by default. Owner-authorized jobs run scripts/elevenlabs_cli.py `sfx` (model eleven_text_to_sound_v3) and `music` (model music_v2_5, prompt or composition plan, force_instrumental) with their own immutable manifest kinds, offline `sfx-quote`/`music-quote` first. Video to Music stays without a governed lane.",
+      "how": "Do not call it by default. Owner-authorized jobs run scripts/elevenlabs_cli.py `sfx` (model eleven_text_to_sound_v3) and `music` (model music_v2_5, prompt only with force_instrumental and --music-length-ms; composition plans are refused because the API cannot force an instrumental plan) with their own immutable manifest kinds, offline `sfx-quote`/`music-quote` first. Video to Music stays without a governed lane.",
       "notes": "Owner direction 2026-11-11 (Revolva film session): owner-authorized jobs may use ElevenLabs dialogue, sound effects and music. Every paid call still needs that job's own manifest and stays frozen until the owner grants it in the current task. A Professional Voice Clone named SH exists on the account; it runs only for the manifest-named Deloitte pursuit films (owner direction 2026-11-03); every other film keeps the no-clone rule."
     },
     {

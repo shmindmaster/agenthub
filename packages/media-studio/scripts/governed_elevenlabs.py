@@ -251,18 +251,29 @@ def _run(ledger, cli, args, model_id, output_format, request, text, preflight, s
                         ledger.bind_receipt(row, bound[0])
                         break
 
+            delivered = []
             try:
                 _, ctype, raw, headers = submit(received)
                 received(headers)
                 if not raw or not (ctype.startswith("audio/") or ctype == "application/octet-stream"):
                     raise RuntimeError("Provider returned no audio")
+                delivered[:] = [raw]
                 row = ledger.complete(row, raw, ctype, bound[0] if bound else None)
             except BaseException as exc:
                 # Every failure, HTTP 429 included, fences this request. Nothing here retries or releases it.
                 status = f"{exc}. " if isinstance(exc, cli.ProviderHTTPError) else ""
+                held = ""
+                if delivered and not bound:
+                    # Paid audio arrived without any provider identifier: keep the bytes, unaccepted and
+                    # outside the asset store, so the owner can inspect them instead of paying again.
+                    quarantine = ledger.root / "quarantine"
+                    runtime.secure_directory(quarantine)
+                    digest = hashlib.sha256(delivered[0]).hexdigest()
+                    (quarantine / f"{key}-{digest[:16]}.bin").write_bytes(delivered[0])
+                    held = f" Unbound audio kept for inspection at {quarantine} (sha256 {digest})."
                 if not ledger.unknown(row):
                     raise RuntimeError("Submission state changed; inspect its existing receipt before any retry.") from None
-                raise RuntimeError(f"{status}Submission unresolved (cache_key {key}); reservation retained. "
+                raise RuntimeError(f"{status}Submission unresolved (cache_key {key}); reservation retained.{held} "
                                    "No automatic retry; report this and recover provider history.") from None
         if row["state"] in ("pending", "accepted"):
             raw = ledger.read_asset(row)
