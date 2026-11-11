@@ -1,0 +1,18 @@
+version: 0.2
+
+# Example for repositories that use native webhook mode (CiMode=native).
+# The project artifact type is S3, so this file must publish at least one file.
+# Runner mode (CiMode=runner) does not run this file. GitHub Actions runs the
+# workflow already in the repository. See docs/runbooks/codebuild-pr-ci.md.
+
+phases:
+  build:
+    commands:
+      - echo "Replace this build phase with the repository Linux test command."
+      - mkdir -p ci-out
+      - echo example > ci-out/source-version.txt
+
+artifacts:
+  files:
+    - ci-out/source-version.txt
+  discard-paths: yes

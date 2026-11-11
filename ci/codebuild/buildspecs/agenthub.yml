@@ -1,0 +1,109 @@
+version: 0.2
+
+# AgentHub Linux pull-request checks for native CodeBuild webhook mode.
+# Mirrors .github/workflows/ci.yml job powershell-tests, not the doctor job.
+# GitHub-hosted ubuntu runners already include PowerShell. This image does not,
+# so the block below installs it, then Node.js LTS the way actions/setup-node
+# resolves node-version lts/*, then Python 3.12, ripgrep, and ffmpeg.
+#
+# CodeBuild replaces each $$ in this file with a single $ before the shell runs.
+# The pwsh command lines are written without dollar signs so they match CI.
+
+env:
+  variables:
+    CI: "true"
+    DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    POWERSHELL_TELEMETRY_OPTOUT: "1"
+    npm_config_update_notifier: "false"
+
+phases:
+  build:
+    commands:
+      - |
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+        if [ "$$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+        . /etc/os-release
+
+        if ! command -v pwsh >/dev/null 2>&1; then
+          pkgdir="$$(mktemp -d)"
+          case "$${ID}" in
+            ubuntu)
+              curl -fsSL -o "$$pkgdir/packages-microsoft-prod.deb" "https://packages.microsoft.com/config/ubuntu/$${VERSION_ID}/packages-microsoft-prod.deb"
+              $$SUDO dpkg -i "$$pkgdir/packages-microsoft-prod.deb"
+              $$SUDO apt-get update -q
+              $$SUDO apt-get install -y -q powershell
+              ;;
+            amzn)
+              major="$${VERSION_ID%%.*}"
+              curl -fsSL -o "$$pkgdir/packages-microsoft-prod.rpm" "https://packages.microsoft.com/config/amazon/$${major}/packages-microsoft-prod.rpm"
+              $$SUDO dnf install -y "$$pkgdir/packages-microsoft-prod.rpm"
+              $$SUDO dnf install -y powershell
+              ;;
+            *)
+              echo "No PowerShell package mapping for ID=$${ID}. Use aws/codebuild/standard:8.0 (Ubuntu 24.04)." >&2
+              exit 1
+              ;;
+          esac
+          rm -rf "$$pkgdir"
+        fi
+        pwsh -NoProfile -Command '[string]$$PSVersionTable.PSVersion'
+
+        case "$${ID}" in
+          ubuntu)
+            $$SUDO apt-get update -q
+            $$SUDO apt-get install -y -q python3.12 ripgrep ffmpeg curl ca-certificates tar gzip
+            ;;
+          amzn)
+            $$SUDO dnf install -y python3.12 ripgrep curl tar gzip
+            if ! $$SUDO dnf install -y ffmpeg; then
+              echo "ffmpeg is not in the Amazon Linux repositories. Use aws/codebuild/standard:8.0 so the package install matches the Linux job in .github/workflows/ci.yml." >&2
+              exit 1
+            fi
+            ;;
+        esac
+        $$SUDO ln -sfn "$$(command -v python3.12)" /usr/local/bin/python3.12
+        $$SUDO ln -sfn "$$(command -v python3.12)" /usr/local/bin/python3
+        $$SUDO ln -sfn "$$(command -v python3.12)" /usr/local/bin/python
+        python3 --version
+
+        node_index="$$(mktemp)"
+        curl -fsSL https://nodejs.org/dist/index.json -o "$$node_index"
+        node_version="$$(python3 -c 'import json,sys; data=json.load(open(sys.argv[1], encoding="utf-8")); print(next(item["version"] for item in data if isinstance(item.get("lts"), str)))' "$$node_index")"
+        echo "node lts $$node_version"
+        case "$$(uname -m)" in
+          x86_64) node_arch=x64 ;;
+          aarch64|arm64) node_arch=arm64 ;;
+          *) echo "unsupported architecture" >&2; exit 1 ;;
+        esac
+        curl -fsSL -o /tmp/node-lts.tar.gz "https://nodejs.org/dist/$${node_version}/node-$${node_version}-linux-$${node_arch}.tar.gz"
+        $$SUDO tar -xzf /tmp/node-lts.tar.gz -C /usr/local --strip-components=1
+        hash -r
+        node --version
+        npm --version
+
+        npm install -g @anthropic-ai/claude-code@2.1.310
+        kit="$$(mktemp -d)"
+        npm install --no-audit --no-fund --prefix "$$kit" typescript@5.9.3 @types/node@24.10.1
+        export EXECUTION_CONTROLS_TSC="$$kit/node_modules/typescript/bin/tsc"
+        export EXECUTION_CONTROLS_TYPE_ROOTS="$$kit/node_modules/@types"
+
+        git config --global --add safe.directory "$$(pwd)"
+        echo "CODEBUILD_SOURCE_VERSION=$${CODEBUILD_SOURCE_VERSION-}"
+        echo "CODEBUILD_RESOLVED_SOURCE_VERSION=$${CODEBUILD_RESOLVED_SOURCE_VERSION-}"
+        echo "CODEBUILD_WEBHOOK_EVENT=$${CODEBUILD_WEBHOOK_EVENT-}"
+        echo "CODEBUILD_WEBHOOK_HEAD_REF=$${CODEBUILD_WEBHOOK_HEAD_REF-}"
+        echo "CODEBUILD_WEBHOOK_BASE_REF=$${CODEBUILD_WEBHOOK_BASE_REF-}"
+
+        pwsh -NoProfile -File ./scripts/Validate-AgentHub.ps1
+        profile_dir="$$(mktemp -d)"
+        pwsh -NoProfile -File ./scripts/AgentHub.ps1 sync -UserProfile "$$profile_dir"
+        pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath ./tests/ci-skip.json
+
+        mkdir -p ci-out
+        printf '%s\n' "$${CODEBUILD_RESOLVED_SOURCE_VERSION-}" > ci-out/source-version.txt
+
+artifacts:
+  files:
+    - ci-out/source-version.txt
+  discard-paths: yes
