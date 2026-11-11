@@ -73,7 +73,7 @@ class Routing(unittest.TestCase):
     def test_frozen_music_and_sfx_is_listed_with_what_unfreezes_it(self):
         lane = next(l for l in POLICY["lanes"] if l["id"] == "elevenlabs-music-sfx")
         self.assertEqual(lane["status"], "frozen")
-        self.assertIn("lifts that rule", lane["notes"])
+        self.assertIn("owner grants it in the current task", lane["notes"])
         self.assertEqual(r.route(POLICY, ["music"]), [])
 
     def test_irukadark_is_by_hand_and_never_outranks_the_scripted_image_lanes(self):
