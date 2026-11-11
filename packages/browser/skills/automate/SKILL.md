@@ -32,7 +32,7 @@ Use an isolated browser for clean-state QA and capture. For other browsing, pref
 
 Read when:
 
-- `references/testing.md`: you are testing an application, not completing a task.
+- `references/testing.md`: you are testing an application or capturing product proof; use its viewport, action/result and reset handoff.
 - `references/hosts.md`: you need an existing Chrome or Edge profile, a native browser, or a Playwright fallback.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

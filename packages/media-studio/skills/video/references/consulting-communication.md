@@ -30,6 +30,8 @@ Follow one case across explicit role handoffs; do not collapse distinct authorit
 Write scene conclusions before narration. Every substantive scene has an
 `actionTitle` (a full sentence), `supportingArgument`, `proofRefs` and `evidenceClaims`.
 Run `check-story.mjs` on the brief; its `titlesOnly` output is the ghost storyboard.
+Use `node scripts/check-story.mjs story/brief.json --titles` to display just the
+scene conclusions without narration (the process still exits nonzero on failure).
 Display those titles alone at Pink. The mechanical check establishes presence and
 fit; a separate reviewer must judge that they form a coherent, relevant argument.
 Navigation labels and repeated control slogans do not pass that editorial review.
@@ -97,3 +99,13 @@ For selectable/open caption delivery, record `captions` in the existing
 `qa/story-experience-review.json`: mode, deliverySurface, verdict PASS,
 artifactPath relative to the job, and sha256 of that exact export. The check
 must inspect the intended player as well as the file. Re-encoding invalidates it.
+
+Pink uses the existing form-aware `write-story-review.py` route for these profiles,
+without labelling a factual demo as fiction. Copy the approved decision fields and
+profile-specific `narrative` into the screenplay/job. Its seven reviewer judgments
+are audience, form-fit, visual-story, representation, ghost-storyboard, proof-scope
+and answer-first, each with scene-cited evidence and pass/fail (not n/a). Bind
+`qa/story-judgments.json` inputs.screenplay.sha256 and inputs.storyboard.sha256 to
+the current files. The reviewer reruns the same story gate and requires the current
+hash-bound narration report. No fixed dramatic hero or three-scene anticipation
+is imposed on an update. Final encoded-file review remains a separate existing gate.

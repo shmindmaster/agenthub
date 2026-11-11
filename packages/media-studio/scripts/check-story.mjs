@@ -6,7 +6,7 @@
 // generated or paid for. It contacts no provider and writes nothing unless
 // --out is given.
 //
-//   node check-story.mjs <brief.json> [--brand <brand.json>] [--json] [--out <report.json>]
+//   node check-story.mjs <brief.json> [--brand <brand.json>] [--json|--titles] [--out <report.json>]
 //   node check-story.mjs --types [--json]
 //
 // Smallest brief:
@@ -50,7 +50,7 @@ export function normalizeBeat(raw, index) {
     narration,
     // A plan has no capture yet, so kind is the declared intent: the product is shown where the role shows it.
     // A shot classified as proposed, fictional or illustrative is a generated shot, never a capture.
-    kind: raw.kind || (SHOWS_PRODUCT.has(role) && !['proposed', 'fictional', 'illustrative'].includes(raw.truthStatus) ? 'ui' : 'card'),
+    kind: raw.kind || (raw.visualMode === 'screen' || (SHOWS_PRODUCT.has(role) && !['proposed', 'fictional', 'illustrative'].includes(raw.truthStatus)) ? 'ui' : 'card'),
   };
   if (onScreenText) beat.onScreenText = onScreenText;
   if (raw.truthStatus) beat.truthStatus = raw.truthStatus;
@@ -136,6 +136,12 @@ if (invoked) {
   let report;
   try { report = checkStory(brief, brand); } catch (error) { console.error(`check-story: ${error.message}`); process.exit(2); }
   if (flag('--out')) writeFileSync(flag('--out'), `${JSON.stringify(report, null, 2)}\n`);
-  if (json) console.log(JSON.stringify(report, null, 2)); else print(report);
+  if (json) console.log(JSON.stringify(report, null, 2));
+  else if (args.includes('--titles')) {
+    for (const cut of report.cuts) {
+      console.log(`# ${cut.id}`);
+      cut.titlesOnly.forEach((scene, i) => console.log(`${i + 1}. ${scene.actionTitle}`));
+    }
+  } else print(report);
   process.exit(report.ok ? 0 : 1);
 }

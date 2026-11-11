@@ -71,6 +71,8 @@ import hashlib
 import json
 import re
 import sys
+import subprocess
+import os
 from pathlib import Path
 
 TOOL_VERSION = "2026-09-15.2"
@@ -151,6 +153,36 @@ def visual_text(visual) -> tuple[list[str], int]:
 FLEXIBLE_MODES = {"hybrid", "future-vision", "concept-film", "fictional-story", "explainer",
                   "documentary", "educational", "abstract"}
 FLEXIBLE_JUDGMENTS = ("audience", "form-fit", "visual-story", "representation")
+COMMUNICATION_JUDGMENTS = FLEXIBLE_JUDGMENTS + ("ghost-storyboard", "proof-scope", "answer-first")
+
+
+def communication_evidence(root, job, screenplay):
+    """Reuse the actual story gate and current narration report; no second engine."""
+    missing = []
+    gate = Path(__file__).with_name("check-story.mjs")
+    code = ("import fs from 'node:fs'; const {checkStory}=await import(process.argv[1]);"
+            "console.log(JSON.stringify(checkStory(JSON.parse(fs.readFileSync(0,'utf8')))));")
+    try:
+        run = subprocess.run(["node", "--input-type=module", "-e", code, gate.resolve().as_uri()],
+                             input=json.dumps({**job, **screenplay}), capture_output=True, text=True,
+                             timeout=30, creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+        if run.returncode:
+            missing.append("story gate failed to execute: " + run.stderr[:300])
+        else:
+            report = json.loads(run.stdout)
+            missing.extend(f"{f['rule']}: {f['message']}" for cut in report['cuts'] for f in cut['failures'])
+    except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+        missing.append("story gate unavailable: " + str(exc))
+    narration_path = root / "qa/narration-check.json"
+    narration = load(narration_path) if narration_path.exists() else {}
+    if narration.get("ok") is not True:
+        missing.append("a passing narration-check.json")
+    for key, relative_path in (("job", "job.json"), ("screenplay", "story/screenplay.json"),
+                               ("timeline", "story/narration-timeline.json")):
+        path = root / relative_path
+        if path.exists() and (narration.get("inputs", {}).get(key) or {}).get("sha256") != sha(path):
+            missing.append("narration check is not bound to current " + relative_path)
+    return missing
 
 
 def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_path,
@@ -161,7 +193,9 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
     six-beat product demo. Require specific reviewer evidence for its actual form
     and keep the same score/evidence/report contract.
     """
-    mode = job.get("creativeMode")
+    profile = screenplay.get("communicationProfile") or job.get("communicationProfile")
+    mode = profile or job.get("creativeMode")
+    judgment_names = COMMUNICATION_JUDGMENTS if profile else FLEXIBLE_JUDGMENTS
     script_path = root / "story" / "screenplay.json"
     board_path = root / "story" / "storyboard.json"
     candidate = root.name + "@flexible:" + hashlib.sha256(
@@ -171,21 +205,28 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
     verdicts = load(judgments_path) if judgments_path.exists() else {}
     judged = verdicts.get("judgments") or {}
     missing = []
+    if profile:
+        missing.extend(communication_evidence(root, job, screenplay))
+        for key, path in (("screenplay", script_path), ("storyboard", board_path)):
+            if (verdicts.get("inputs", {}).get(key) or {}).get("sha256") != sha(path):
+                missing.append("reviewer judgments bound to current " + key)
     if not scenes and not beats:
         missing.append("a screenplay scene or a storyboard visual beat")
     if mode in {"hybrid", "future-vision", "concept-film"} and not (
         job.get("conceptDisclosure") or screenplay.get("conceptDisclosure")):
         missing.append("film-level conceptDisclosure to distinguish envisioned from current functionality")
-    for name in FLEXIBLE_JUDGMENTS:
+    for name in judgment_names:
         item = judged.get(name) or {}
         if item.get("verdict") not in ("pass", "fail", "n/a") or not str(item.get("evidence") or "").strip():
             missing.append("creative judgment " + name + " with scene/frame-cited evidence")
+        if profile and item.get("verdict") == "n/a":
+            missing.append("consulting judgment " + name + " must be assessed")
     # A review in which nothing applied is not a review: n/a on every judgment would score a perfect 100.
-    if judged and all((judged.get(name) or {}).get("verdict") == "n/a" for name in FLEXIBLE_JUDGMENTS):
+    if judged and all((judged.get(name) or {}).get("verdict") == "n/a" for name in judgment_names):
         missing.append("at least one creative judgment that applies to this film (every judgment is n/a)")
-    checks = {name: (judged.get(name) or {}).get("verdict", "n/a") for name in FLEXIBLE_JUDGMENTS}
+    checks = {name: (judged.get(name) or {}).get("verdict", "n/a") for name in judgment_names}
     findings = []
-    for index, name in enumerate(FLEXIBLE_JUDGMENTS, 1):
+    for index, name in enumerate(judgment_names, 1):
         item = judged.get(name) or {}
         if item.get("verdict") == "fail":
             findings.append({
@@ -203,10 +244,12 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
     else:
         result = {"status": "COMPLETE", "candidateId": candidate,
                   "score": score, "pass": score >= craft_min and not findings,
-                  "reason": "Pre-capture creative-form lint for " + mode
+                  "reason": ("Pre-capture communication-profile review for " + profile + "; story, evidence and narration checks remain mandatory. Encoded candidate still requires critic.") if profile else "Pre-capture creative-form lint for " + mode
                             + "; no mandatory product UI, adult-only actors, six-beat template,"
                               " or fixed hero position. Encoded candidate still requires critic.",
                   "checks": checks, "findings": findings, "reviseSceneIds": []}
+    if profile:
+        result["reviewStage"] = "Pink"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(result if show else {
@@ -248,7 +291,7 @@ def main() -> int:
         return 1
 
     sp, sb = load(sp_p), load(sb_p)
-    if job.get("creativeMode") in FLEXIBLE_MODES:
+    if sp.get("communicationProfile") or job.get("communicationProfile") or job.get("creativeMode") in FLEXIBLE_MODES:
         return flexible_form_review(root, job, sp, sb, jd_p, out_p, craft_min, args.print)
     scenes = sp.get("scenes") or []
     ids = [s["id"] for s in scenes]

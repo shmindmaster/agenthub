@@ -4,6 +4,8 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync } f
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { checkStory } from '../scripts/check-story.mjs';
 import { inspectCommunication, resolveFilmType } from '../kit/marketing/lib/story-profiles.mjs';
 import { inspectNarrativeArc } from '../kit/marketing/lib/narrative.mjs';
@@ -111,5 +113,47 @@ test('fresh copied package resolves the existing story gate without installed-ho
     const run = spawnSync(process.execPath, [join(root, 'scripts/check-story.mjs'), join(root, 'brief.json'), '--json'], { encoding: 'utf8', windowsHide: true });
     assert.equal(run.status, 0, run.stderr + run.stdout);
     assert.equal(JSON.parse(run.stdout).cuts[0].filmType, 'feature-demo');
+    const titles = spawnSync(process.execPath, [join(root, 'scripts/check-story.mjs'), join(root, 'brief.json'), '--titles'], { encoding: 'utf8', windowsHide: true });
+    assert.equal(titles.status, 0, titles.stderr);
+    assert.match(titles.stdout, /1\. The reviewer records/);
+    assert.ok(!titles.stdout.includes('Casework records'), 'ghost storyboard contains no narration');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('Pink reviews an update without a dramatic hero, while enforcing current proof, narration and reviewer evidence', () => {
+  const root = mkdtempSync(join(tmpdir(), 'consulting-review-'));
+  const scripts = fileURLToPath(new URL('../scripts/', import.meta.url));
+  const write = (name, value) => writeFileSync(join(root, name), JSON.stringify(value));
+  const hash = (name) => createHash('sha256').update(readFileSync(join(root, name))).digest('hex');
+  try {
+    mkdirSync(join(root, 'story')); mkdirSync(join(root, 'qa'));
+    const { targetSeconds, narrative, product, ...job } = profile('product-update');
+    job.primaryTakeaway = 'Source conflicts now block approval.';
+    write('job.json', { ...job, kind: 'product-screencast' });
+    const lines = [job.primaryTakeaway, 'Select the supported date to record the decision.', 'Open the case review page.'];
+    const scenes = ['context', 'demonstration', 'next-step'].map((sceneRole, i) => {
+      const { kind, minSeconds, storyRole, ...scene } = beat(`s${i}`);
+      return { ...scene, sceneRole, visualMode: 'screen', narration: lines[i] };
+    });
+    write('story/screenplay.json', { title: 'Resolve one case', product, narrative, communicationProfile: job.communicationProfile, primaryTakeaway: job.primaryTakeaway, scenes });
+    write('story/storyboard.json', { title: 'Resolve one case', beats: [] });
+    const narration = spawnSync(process.execPath, [join(scripts, 'validate-narration.mjs'), root], { encoding: 'utf8', windowsHide: true });
+    assert.equal(narration.status, 0, narration.stderr + narration.stdout);
+    const verdicts = { inputs: { screenplay: { sha256: hash('story/screenplay.json') }, storyboard: { sha256: hash('story/storyboard.json') } }, judgments: Object.fromEntries(['audience', 'form-fit', 'visual-story', 'representation', 'ghost-storyboard', 'proof-scope', 'answer-first'].map((name) => [name, { verdict: 'pass', evidence: 's0 through s2 show the case and its recorded result.' }])) };
+    write('qa/story-judgments.json', verdicts);
+    const review = () => spawnSync('python', [join(scripts, 'write-story-review.py'), root], { encoding: 'utf8', windowsHide: true });
+    let run = review();
+    assert.equal(run.status, 0, run.stderr + run.stdout);
+    assert.equal(JSON.parse(readFileSync(join(root, 'qa/story-review.json'))).reviewStage, 'Pink');
+    verdicts.judgments['proof-scope'].verdict = 'fail'; write('qa/story-judgments.json', verdicts);
+    assert.equal(review().status, 1, 'one failed proof judgment blocks regardless of average score');
+    verdicts.judgments['proof-scope'].verdict = 'pass'; write('qa/story-judgments.json', verdicts);
+    scenes[1].evidenceClaims[0].scope = 'measured-benefit';
+    write('story/screenplay.json', { title: 'Resolve one case', product, narrative, communicationProfile: job.communicationProfile, primaryTakeaway: job.primaryTakeaway, scenes });
+    run = review();
+    assert.equal(run.status, 1);
+    const result = JSON.parse(readFileSync(join(root, 'qa/story-review.json')));
+    assert.ok(result.missingEvidence.some((e) => e.includes('measurement')));
+    assert.ok(result.missingEvidence.some((e) => e.includes('current screenplay')));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

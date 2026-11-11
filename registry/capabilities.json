@@ -788,7 +788,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "F9C7900B678FE6B08D25DBC5F23CFAFE9A5376E60FC64EA40AA5DB73A11FD395",
+      "contentHash": "B29AAF4BB3D3C2AE376F8C70C3DBD17679519273EEE284D6A7D750A156943E52",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1349,7 +1349,7 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "F3F875D6467C224916D890CF13DCBF161223D28EA0077739E0068890D1D5FDBA",
+      "contentHash": "ACE64F51747D0A4987636DB829A5EEAB73CD84D40CCB7B7B9E19EB45E31A3C2C",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [
