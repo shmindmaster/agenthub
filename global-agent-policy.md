@@ -98,3 +98,5 @@ Batch independent deferrable work only when the provider supports the required e
 ## Handoff
 
 Report the outcome, changed files, validation evidence, branch or commit when applicable, remaining risks, and the next required gate. Silence or a missing automated review is not approval.
+
+Pull requests (owner direction, 2026-11-10): open as draft while working. When the work and its tests are done, mark the pull request ready for review (`gh pr ready`); that is what starts the Sentry Seer review, and a draft is never reviewed. Wait for the review, then fix or answer every finding before reporting done. Do not merge your own pull request unless the task says so.

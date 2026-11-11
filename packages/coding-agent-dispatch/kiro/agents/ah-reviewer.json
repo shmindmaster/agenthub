@@ -1,0 +1,197 @@
+{
+  "name": "ah-reviewer",
+  "model": "auto",
+  "description": "Independent read-only reviewer: reads a diff or pull request, runs the checks, and issues Pass, Fail or Blocked. Never edits the code it reviews.",
+  "prompt": "You run unattended for an orchestrator; no human answers during the run. Do not ask questions: decide, record the assumption, continue. You are an independent reviewer and must not have written the change. Review the whole cumulative diff against its base at the exact head SHA you are given. Check correctness, regression risk, tenant and permission boundaries, test gaps and the repository's own rules in AGENTS.md. You may run tests, linters and type checks, but you must not modify tracked files, commit, push or approve a merge. Report findings most severe first, each with file, line and a concrete failure scenario, then one verdict: PASS, FAIL or BLOCKED, bound to the head SHA. End with a STATUS line (DONE, BLOCKED or FAILED) followed by: branch, commit SHAs, commands run with pass and fail counts, files changed, and anything you could not verify. Never claim a check passed unless you ran it.",
+  "tools": [
+    "read",
+    "shell",
+    "glob",
+    "grep",
+    "web_search",
+    "web_fetch",
+    "thinking",
+    "todo",
+    "@linear"
+  ],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "shell",
+        "match": [
+          "git push*--force*",
+          "git push* -f*",
+          "git push*--mirror*",
+          "git push*--delete*",
+          "git push*--tags*",
+          "git push* main*",
+          "git push* master*",
+          "git push* dev*",
+          "git push*:main*",
+          "git push*:master*",
+          "git push*:dev*",
+          "gh pr merge*",
+          "gh release *",
+          "gh repo delete*",
+          "gh repo edit*",
+          "gh repo create*",
+          "gh repo archive*",
+          "gh secret *",
+          "gh variable *",
+          "gh auth *",
+          "gh workflow run*",
+          "gh run rerun*",
+          "gh api * -X *",
+          "gh api *--method *",
+          "npm publish*",
+          "pnpm publish*",
+          "yarn publish*",
+          "twine upload*",
+          "docker push*",
+          "pnpm deploy*",
+          "pnpm ship*",
+          "pnpm run deploy*",
+          "pnpm run ship*",
+          "node scripts/promote*",
+          "eas submit*",
+          "eas build*",
+          "aws *",
+          "az *",
+          "doctl *",
+          "gcloud *",
+          "railway *",
+          "vercel *",
+          "kubectl *",
+          "terraform apply*",
+          "terraform destroy*",
+          "kiro-cli login*",
+          "kiro-cli logout*",
+          "kiro-cli user*",
+          "kiro-cli settings *",
+          "git reset --hard*",
+          "git clean *",
+          "git branch -D *",
+          "git stash*",
+          "git checkout -- *",
+          "git worktree remove*",
+          "rm -rf /*",
+          "rm -rf ~*",
+          "rm -rf C:*",
+          "rm -rf D:*",
+          "format *",
+          "diskpart*",
+          "shutdown*",
+          "schtasks*",
+          "sc create *",
+          "sc delete *",
+          "reg add *",
+          "reg delete *",
+          "taskkill /IM *",
+          "taskkill /F /IM *",
+          "Stop-Process -Name *",
+          "wsl *",
+          "printenv*",
+          "env",
+          "set",
+          "Get-ChildItem Env:*",
+          "gci env:*",
+          "cat *.env*",
+          "type *.env*",
+          "Get-Content *.env*",
+          "cat *.aws/*",
+          "cat *.ssh/*",
+          "git commit*",
+          "git push*",
+          "git add *",
+          "git merge*",
+          "git rebase*",
+          "git cherry-pick*",
+          "git apply*",
+          "gh pr review*--approve*",
+          "gh pr create*",
+          "gh pr edit*",
+          "gh pr ready*",
+          "gh pr close*"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "fs_read",
+        "match": [
+          "**/.env",
+          "**/.env.*",
+          "~/.aws/**",
+          "~/.ssh/**",
+          "~/.kiro/settings/**",
+          "~/.secrets/**",
+          "~/.config/gh/**",
+          "~/.codex/auth.json",
+          "~/.claude/.credentials.json",
+          "~/.local/share/opencode/auth.json",
+          "~/.local/share/mimocode/**",
+          "~/.grok/auth.json",
+          "~/.factory/settings.json",
+          "~/.azure/**",
+          "~/.config/doctl/**",
+          "**/*.pem",
+          "**/*.pfx",
+          "**/id_rsa*",
+          "**/id_ed25519*"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "fs_write",
+        "match": [
+          "~/.kiro/**",
+          "~/.aws/**",
+          "~/.ssh/**",
+          "~/.claude/**",
+          "~/.codex/**",
+          "~/.config/**",
+          "D:/Local-AI/**",
+          "D:/OneDrive - MahumTech/**",
+          "F:/**",
+          "C:/Windows/**",
+          "C:/Program Files/**"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "aws-mcp/*"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "fs_write",
+        "match": [
+          "C:/Repos/**"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "fs_write",
+        "match": [
+          "C:/wt/**"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "subagent",
+        "effect": "deny"
+      },
+      {
+        "capability": "all",
+        "effect": "allow"
+      }
+    ]
+  },
+  "includeMcpJson": true,
+  "includePowers": false,
+  "resources": [
+    "file://C:/Repos/shmindmaster/agenthub/overlays/personal/global-agent-policy.md",
+    "skill://C:/Repos/shmindmaster/agenthub/packages/product/skills/**/SKILL.md"
+  ]
+}

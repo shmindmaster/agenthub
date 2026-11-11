@@ -62,8 +62,9 @@ Local Hands on Windows, Pro spend caps, Fusion eligibility on Pro (docs say
 
 ## Models and routing
 
-`devin models list --format json` (816 variants). Allowlist in
-`dispatchPolicy.devin.allowedModels`; the dispatcher refuses anything else.
+`devin models list --format json` (816 variants). Smoke-verified list in
+`dispatchPolicy.devin.allowedModels`; since 2026-11-10 the dispatcher passes an
+unlisted `-Model` through with a stderr note.
 
 | Model | Cost | Use for |
 |---|---|---|

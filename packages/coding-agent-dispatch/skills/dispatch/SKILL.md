@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.4.3"
+  version: "0.5.0"
 ---
 
 # Dispatch to another coding agent
@@ -50,6 +50,14 @@ the missing installation; do not search credentials or guess a cache version.
    `-TimeoutSec 7200` for program-scale work. `-ShowCommand` prints the command
    without starting anything. It does not prove that a host will execute it.
 
+   `-Model <id>` picks the model for codex, grok, opencode, cline, warp,
+   factory, devin, kilo, mimo-code and kiro. Any model the host can reach is
+   accepted: `allowedModels` in `dispatchPolicy` records the smoke-verified
+   models and does not limit the choice. An unlisted model adds one stderr
+   note and runs. Only a malformed id is refused, plus the two
+   subscription-only rules in `references/hosts.md` (no `opencode/` Zen
+   wallet, MiMo on the Token Plan only).
+
 3. Return the child's output and exit code. Do not restate its flags.
    Remove only task files and scratch created for this dispatch after reading
    the result. Preserve the caller's files and any evidence needed for a failure.
@@ -61,6 +69,20 @@ Exit codes: 0 child succeeded; 2 launch failure; 3 refusal (policy, autonomy, in
 - Concurrent hosts require separate claims and non-overlapping write scopes.
   Before starting another host, check free RAM; below 4 GiB, finish or pause work
   first. Shared history never authorizes overlapping edits.
+- Assigning backlog work to the fleet (owner direction, 2026-11-10): spread it
+  over hosts instead of loading one. Default to two sessions per host that has
+  allowance and RAM for them (for example two Grok, two Kiro, two OpenCode, two
+  Antigravity CLI), fewer when free RAM is under 4 GiB or a plan is near its
+  limit. Give each session a batch of several related backlog items of real
+  size, not one small item. Batches never share files: split by repository or
+  by area inside one, and give each session its own worktree under
+  `C:\wt\<repo>\<task>`. Claim every item in Linear (`agent:<host>`, In
+  Progress) before launch. The session that wrote a change never gives its
+  final review; a different host reviews it.
+- Every brief ends with the pull-request rule: open as draft, mark it ready for
+  review (`gh pr ready`) when the work and tests are done, because that starts
+  the Sentry Seer review and a draft is never reviewed, then fix or answer
+  every finding before reporting done.
 - Every child runs windowless and never takes focus. Never open the Cursor IDE, Antigravity, OpenCode Desktop, Warp, VS Code or any GUI to get around a refusal.
 - Never run a paid probe or smoke to test availability. Readiness comes from `-List`, the account's included allowance, and `registry/fleet-profile.json` (`dispatchPolicy`, `hostSettings`), which can disable any host with a reason. Help output proves a command contract, not authentication or allowance.
 - Never log in, change credentials, or accept a paid fallback automatically. If an auth check fails, keep the host disabled and ask the owner to log in from their own terminal.
@@ -82,4 +104,4 @@ unrelated host or service to recover.
 
 ## Host details
 
-Read `references/hosts.md` when dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, resuming a Cline session, or auditing a host plugin (`Install-*.ps1`).
+Read `references/hosts.md` when choosing a model, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, resuming a Cline session, or auditing a host plugin (`Install-*.ps1`).

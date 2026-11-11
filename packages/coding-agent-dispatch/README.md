@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.4.3 (the root `plugin.json` is the single version authority; `SKILL.md`
+Version 0.5.0 (the root `plugin.json` is the single version authority; `SKILL.md`
 metadata and every host projection carry the same number and
 `tests/validate-dispatch.ps1` enforces parity). The package is a full plugin:
 `.claude-plugin`, `.codex-plugin`, `.cursor-plugin`, `.devin-plugin` and
@@ -22,7 +22,8 @@ contract; Google work goes to Antigravity CLI. `windsurf`
 routes to Devin. Readiness is additionally gated by
 `dispatchPolicy` and each host's autonomy profile. Devin uses its paid plan
 model recorded in `registry/fleet-profile.json`; OpenCode's Go model is
-selected there. OpenCode 2.1.4 native Console account OAuth and Go-only
+selected there as `opencode-go/<model>`, the Go subscription provider.
+OpenCode 2.1.4 native Console account OAuth and Go-only
 inference passed on 2026-10-23 without an API-key override. Its CLI and Desktop
 share the native service; `run` uses the child process working directory.
 Windsurf shares Devin's model and command. Current host readiness is recorded
@@ -114,6 +115,23 @@ output alone do not prove working inference.
 `model` unless `-Model` is given, and is refused for every other host. The key
 is shared promotional credit; the skill documents when to use it.
 
+`-Model` chooses the model per task for codex, grok, opencode, cline, warp,
+factory, devin, kilo, mimo-code and kiro. Owner direction 2026-11-10: a model
+or coding plan is allowed on any host where it can be integrated and
+supported. `dispatchPolicy.<host>.allowedModels` records the smoke-verified
+models and does not limit the choice; an unlisted model is passed through with
+one stderr note. The dispatcher refuses only a malformed id (whitespace, shell
+metacharacters, or a missing `provider/model` or `provider:model` shape where
+the host needs one) and the two subscription-only cases below.
+
+Subscriptions only, never a pay-as-you-go wallet (owner direction 2026-11-10).
+OpenCode provider `opencode/` is the Zen wallet and is refused; use
+`opencode-go/<model>`. A MiMo-routed model on any host must run on the Xiaomi
+Token Plan: provider `xiaomi/` is refused, `MIMO_BASE_URL`, when set, must name
+a `token-plan-<region>.xiaomimimo.com` host, and `MIMO_API_KEY`, when set, must
+start with `tp-` or `ttp-`. A refusal names the variable and never prints its
+value. Details are in `skills/dispatch/references/hosts.md`.
+
 Codex accepts non-repository working directories without creating Git state.
 Antigravity uses attached `--print=<prompt>`. Long or shell-sensitive argument
 prompts use temporary UTF-8 task files. Children, including batch shims and
@@ -144,6 +162,7 @@ own those two files.
 
 `tests/Test-CodingAgentDispatch.ps1` uses synthetic native argument recorders
 and never consumes a model run. It covers the command fixes, new hosts,
+model pass-through, malformed-id and subscription-only refusals,
 Unicode/multiline transport, alias policy gates, missing binaries and bounded
 hidden process-tree termination. `-DispatcherPath` can demonstrate regression
 failures against an older copy without changing installed hosts.

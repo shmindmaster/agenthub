@@ -55,22 +55,26 @@
 
 .PARAMETER Model
   Model for an -AnthropicApiKey run. Defaults to apiKeyOptIn.model.
-  For -HostId opencode, a model listed in dispatchPolicy.opencode.allowedModels;
-  anything else is refused. Defaults to dispatchPolicy.opencode.model.
-  For -HostId cline, provider:model listed in dispatchPolicy.cline.allowedModels
-  (for example cline:poolside/laguna-s-2.1:free); anything else is refused, so a
-  run cannot select a usage-billed model. Defaults to hostSettings.cline.
-  For -HostId warp, a model listed in dispatchPolicy.warp.allowedModels (every
-  Warp-hosted model spends Warp credits); anything else is refused. Defaults to
-  dispatchPolicy.warp.model.
-  For -HostId factory, a model listed in dispatchPolicy.factory.allowedModels;
-  anything else is refused. Defaults to dispatchPolicy.factory.model.
-  For -HostId kilo or mimo-code, a provider/model id listed in that host's
-  dispatchPolicy allowedModels; a bare model id or anything outside the
-  allowlist is refused. Defaults to the recorded policy model, which is
-  validated the same way before launch.
-  For -HostId kiro, a model listed in dispatchPolicy.kiro.allowedModels (each
-  spends Kiro credits at its own multiplier); anything else is refused.
+  For codex, grok, opencode, cline, warp, factory, devin, kilo, mimo-code and
+  kiro, the model the host should run this task on. Any model the host can
+  reach is accepted and passed through (owner direction 2026-11-10: a model or
+  coding plan is allowed wherever it can be integrated and supported).
+  dispatchPolicy.<host>.allowedModels records the smoke-verified models; it
+  does not restrict the choice. A model outside it adds one stderr note and
+  the run continues. The host and its plan decide what the model costs.
+  Only the shape is checked, to protect the command line: no whitespace or
+  shell metacharacters, provider/model for opencode, kilo and mimo-code (a
+  bare id is refused), and provider:model for cline (for example
+  cline:poolside/laguna-s-2.1:free). A malformed id is refused.
+  Without -Model the host runs on its recorded default (dispatchPolicy.<host>.model,
+  hostSettings.cline for cline, the host's own default for codex and grok).
+  Two refusals remain, both about money (owner direction 2026-11-10:
+  subscriptions only, never a pay-as-you-go wallet). OpenCode refuses provider
+  opencode/, the Zen wallet; use opencode-go/<model>, the Go subscription. A
+  MiMo-routed model on any host must run on the Xiaomi Token Plan: provider
+  xiaomi/ is refused, MIMO_BASE_URL, when set, must name a
+  token-plan-<region>.xiaomimimo.com host, and MIMO_API_KEY, when set, must
+  start with tp- or ttp-. The values are never printed.
 
 .PARAMETER Title
   Session title for -HostId opencode, so the run is findable in the shared
@@ -123,6 +127,90 @@ function Write-Refusal {
     exit $Code
 }
 
+# A model id only has to be safe on the command line and in the shape the host
+# parses. Which models a task may name is not restricted here (owner direction
+# 2026-11-10); dispatchPolicy.<host>.allowedModels records what was smoke-verified.
+function Get-DispatchModelShape {
+    param([string]$Id)
+    if ($Id -in @('opencode', 'kilo', 'mimo-code')) {
+        return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a provider/model id' }
+    }
+    if ($Id -eq 'cline') {
+        return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.-]*:[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a provider:model id' }
+    }
+    if ($Id -eq 'kiro') {
+        return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.-]*$'; Label = 'a model id of letters, digits, dots, underscores and hyphens' }
+    }
+    return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a model id without whitespace or shell metacharacters' }
+}
+
+function Assert-DispatchModelId {
+    param([string]$Id, [string]$ModelId, [string]$Source = '-Model')
+    $shape = Get-DispatchModelShape $Id
+    if ($ModelId -notmatch $shape.Pattern) {
+        Write-Refusal 3 "refused ${Id}: $Source '$ModelId' is malformed; it must be $($shape.Label)"
+    }
+}
+
+$script:UnlistedModelNoted = @{}
+function Write-UnlistedModelNote {
+    param([string]$Id, [string]$ModelId)
+    $listed = @()
+    $policy = $script:dispatchPolicy
+    if ($policy -and $policy.PSObject.Properties[$Id] -and $policy.$Id -isnot [string] -and $policy.$Id.PSObject.Properties['allowedModels']) {
+        $listed = @($policy.$Id.allowedModels | ForEach-Object { [string]$_ })
+    }
+    if ($ModelId -in $listed) { return }
+    $key = "$Id|$ModelId"
+    if ($script:UnlistedModelNoted.ContainsKey($key)) { return }
+    $script:UnlistedModelNoted[$key] = $true
+    [Console]::Error.WriteLine("note: $Id model '$ModelId' is not in the smoke-verified list; passing it through (owner direction 2026-11-10)")
+}
+
+# OWNER DIRECTION 2026-11-10: subscriptions only, never a pay-as-you-go wallet.
+# These are the only model refusals besides a malformed id.
+function Get-DispatchModelProvider {
+    param([string]$Id, [string]$ModelId)
+    $separator = if ($Id -eq 'cline') { ':' } else { '/' }
+    $index = $ModelId.IndexOf($separator)
+    if ($index -gt 0) { return $ModelId.Substring(0, $index) }
+    return ''
+}
+
+function Assert-SubscriptionRoute {
+    param([string]$Id, [string]$ModelId)
+    if ([string]::IsNullOrWhiteSpace($ModelId)) { return }
+    $provider = Get-DispatchModelProvider -Id $Id -ModelId $ModelId
+    if ($Id -eq 'opencode' -and $provider -eq 'opencode') {
+        Write-Refusal 3 "refused opencode: model '$ModelId' uses provider opencode/, the pay-as-you-go Zen wallet; use opencode-go/<model>, the Go subscription (subscriptions only, owner direction 2026-11-10)"
+    }
+    # A MiMo route is named by its provider segment, or by the whole id on a
+    # host whose model ids carry no provider (Codex, Factory).
+    $route = if ($provider) { $provider } else { $ModelId }
+    if ($route -notmatch '(?i)mimo|xiaomi') { return }
+    # MiMo Code lists provider xiaomi beside xiaomi-token-plan-<region>; the
+    # plain one is the pay-as-you-go API.
+    if ($provider -eq 'xiaomi') {
+        Write-Refusal 3 "refused ${Id}: model '$ModelId' uses provider xiaomi/, the pay-as-you-go MiMo API; use the Token Plan provider (subscriptions only, owner direction 2026-11-10)"
+    }
+    # Xiaomi: the Token Plan serves from token-plan-<region>.xiaomimimo.com with
+    # tp-/ttp- keys; pay-as-you-go uses api.xiaomimimo.com with sk- keys. Only
+    # the variable name is ever reported.
+    $baseUrl = [Environment]::GetEnvironmentVariable('MIMO_BASE_URL')
+    if (-not [string]::IsNullOrWhiteSpace($baseUrl)) {
+        $parsed = $null
+        $isTokenPlanHost = [Uri]::TryCreate($baseUrl.Trim(), [UriKind]::Absolute, [ref]$parsed) -and
+            $parsed.Host.ToLowerInvariant() -match '^token-plan-[a-z0-9-]+\.xiaomimimo\.com$'
+        if (-not $isTokenPlanHost) {
+            Write-Refusal 3 "refused ${Id}: MIMO_BASE_URL does not name a Xiaomi Token Plan host (token-plan-<region>.xiaomimimo.com); a MiMo model runs on the Token Plan only, never the pay-as-you-go API"
+        }
+    }
+    $planKey = [Environment]::GetEnvironmentVariable('MIMO_API_KEY')
+    if (-not [string]::IsNullOrWhiteSpace($planKey) -and -not ($planKey.StartsWith('tp-', [StringComparison]::Ordinal) -or $planKey.StartsWith('ttp-', [StringComparison]::Ordinal))) {
+        Write-Refusal 3 "refused ${Id}: MIMO_API_KEY is not a Xiaomi Token Plan key (tp- or ttp- prefix); a MiMo model runs on the Token Plan only, never a pay-as-you-go key"
+    }
+}
+
 function Format-WindowsArgument {
     param([string]$Value)
     if ($null -eq $Value) { return '""' }
@@ -173,7 +261,11 @@ function Get-DispatchTable {
                 param($PromptText, $Work, $File)
                 # The shim selects a profile; cwd may legitimately be a
                 # scratch directory. Do not initialize a repository there.
-                $args = @('exec', '--skip-git-repo-check', '-')
+                # codex exec --help: -m, --model <MODEL>. Passed only when a
+                # task names one; otherwise the shim's profile picks the model.
+                $args = @('exec')
+                if ($script:CodexModel) { $args += @('-m', $script:CodexModel) }
+                $args += @('--skip-git-repo-check', '-')
                 @{ Args = $args; Stdin = $PromptText; PromptFile = $null }
             }
         }
@@ -190,7 +282,10 @@ function Get-DispatchTable {
                 param($PromptText, $Work, $File)
                 # Local user guide 14-headless-mode.md: --prompt-file triggers headless.
                 # Do not also pass -p; that puts the prompt on the command line.
-                @{ Args = @('--prompt-file', $File, '--yolo', '--cwd', $Work); Stdin = $null; PromptFile = $File }
+                # grok --help: -m, --model <MODEL>. Passed only when a task names one.
+                $args = @('--prompt-file', $File, '--yolo', '--cwd', $Work)
+                if ($script:GrokModel) { $args += @('--model', $script:GrokModel) }
+                @{ Args = $args; Stdin = $null; PromptFile = $File }
             }
         }
         'opencode' = @{
@@ -203,6 +298,7 @@ function Get-DispatchTable {
                 # boundaries without parsing terminal-rendered output.
                 $args = @('run', '--auto', '--format', 'json')
                 $openCodeModel = if ($script:OpenCodeModel) { $script:OpenCodeModel } else { [string]$fleet.dispatchPolicy.opencode.model }
+                Assert-SubscriptionRoute -Id 'opencode' -ModelId $openCodeModel
                 if ($openCodeModel) { $args += @('--model', $openCodeModel) }
                 # --auto approves every action a rule leaves at ask, so unattended
                 # runs use the policy-named agent whose rules deny outward actions.
@@ -233,10 +329,10 @@ function Get-DispatchTable {
                 $args = @('run', '--auto', '--format', 'json', '--dir', $Work)
                 $kiloPolicy = $fleet.dispatchPolicy.kilo
                 $kiloModel = if ($script:KiloModel) { $script:KiloModel } else { [string]$kiloPolicy.model }
-                $kiloAllowed = @($kiloPolicy.allowedModels | ForEach-Object { [string]$_ })
-                if ($kiloModel -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$' -or $kiloModel -notin $kiloAllowed) {
-                    Write-Refusal 3 "refused kilo: model '$kiloModel' is not a provider/model id in dispatchPolicy.kilo.allowedModels"
-                }
+                # The default is checked like an explicit -Model: shape only.
+                Assert-DispatchModelId -Id 'kilo' -ModelId $kiloModel -Source 'model'
+                Assert-SubscriptionRoute -Id 'kilo' -ModelId $kiloModel
+                Write-UnlistedModelNote -Id 'kilo' -ModelId $kiloModel
                 $args += @('--model', $kiloModel)
                 # --auto approves every action no rule denies, so an unattended run
                 # is refused unless policy names the agent whose rules deny
@@ -260,10 +356,10 @@ function Get-DispatchTable {
                 $args = @('run', '--yolo', '--format', 'json', '--dir', $Work)
                 $mimoPolicy = $fleet.dispatchPolicy.'mimo-code'
                 $mimoModel = if ($script:MimoCodeModel) { $script:MimoCodeModel } else { [string]$mimoPolicy.model }
-                $mimoAllowed = @($mimoPolicy.allowedModels | ForEach-Object { [string]$_ })
-                if ($mimoModel -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$' -or $mimoModel -notin $mimoAllowed) {
-                    Write-Refusal 3 "refused mimo-code: model '$mimoModel' is not a provider/model id in dispatchPolicy.mimo-code.allowedModels"
-                }
+                # The default is checked like an explicit -Model: shape only.
+                Assert-DispatchModelId -Id 'mimo-code' -ModelId $mimoModel -Source 'model'
+                Assert-SubscriptionRoute -Id 'mimo-code' -ModelId $mimoModel
+                Write-UnlistedModelNote -Id 'mimo-code' -ModelId $mimoModel
                 $args += @('--model', $mimoModel)
                 # --yolo approves every action no rule denies, so an unattended run
                 # is refused unless policy names the agent whose rules deny
@@ -288,10 +384,8 @@ function Get-DispatchTable {
                 # destructive commands. Auth is the Builder ID account login.
                 $kiroPolicy = $fleet.dispatchPolicy.kiro
                 $kiroModel = if ($script:KiroModel) { $script:KiroModel } else { [string]$kiroPolicy.model }
-                $kiroAllowed = @($kiroPolicy.allowedModels | ForEach-Object { [string]$_ })
-                if ($kiroModel -notmatch '^[A-Za-z0-9_.-]+$' -or $kiroModel -notin $kiroAllowed) {
-                    Write-Refusal 3 "refused kiro: model '$kiroModel' is not in dispatchPolicy.kiro.allowedModels"
-                }
+                Assert-DispatchModelId -Id 'kiro' -ModelId $kiroModel -Source 'model'
+                Write-UnlistedModelNote -Id 'kiro' -ModelId $kiroModel
                 $kiroAgent = [string]$kiroPolicy.agent
                 if ($kiroAgent -notmatch '^[A-Za-z0-9_-]+$') {
                     Write-Refusal 3 "refused kiro: dispatchPolicy.kiro.agent must name the guarded agent for unattended runs"
@@ -318,6 +412,7 @@ function Get-DispatchTable {
                 }
                 $args = @('exec', '--cwd', $Work, '--auto', $autonomy, '-o', 'json', '--settings', $runtimeSettings)
                 $factoryModel = if ($script:FactoryModel) { $script:FactoryModel } else { [string]$factoryPolicy.model }
+                Assert-SubscriptionRoute -Id 'factory' -ModelId $factoryModel
                 if ($factoryModel) { $args += @('-m', $factoryModel) }
                 $args += @('-f', $File)
                 @{ Args = $args; Stdin = $null; PromptFile = $File }
@@ -333,6 +428,7 @@ function Get-DispatchTable {
                     '--auto-approve', 'true', '--thinking', 'low', '--compaction', 'agentic')
                 $clineProvider = if ($script:ClineProvider) { $script:ClineProvider } else { [string]$fleet.hostSettings.cline.provider }
                 $clineModel = if ($script:ClineModel) { $script:ClineModel } else { [string]$fleet.hostSettings.cline.model }
+                Assert-SubscriptionRoute -Id 'cline' -ModelId ("{0}:{1}" -f $clineProvider, $clineModel)
                 if ($clineProvider) { $args += @('--provider', $clineProvider) }
                 if ($clineModel) { $args += @('--model', $clineModel) }
                 $args += $PromptText
@@ -540,46 +636,34 @@ $agent = Get-AgentRecord -Agents $agents -Id $requested
 if (-not $agent) { Write-Refusal 3 "refused ${requested}: unknown host" }
 
 $script:ClineGuardEnv = @{ AGENTHUB_PEER_GUARD = '1'; CLINE_SESSION_BACKEND_MODE = 'local' }
-if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $requested -eq 'warp') {
-    # Every Warp-hosted model spends Warp credits, so only the recorded
-    # economical allowlist may be selected per task.
-    $allowedModels = @()
-    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties['warp'] -and $dispatchPolicy.warp.PSObject.Properties['allowedModels']) {
-        $allowedModels = @($dispatchPolicy.warp.allowedModels | ForEach-Object { [string]$_ })
-    }
-    if ($Model.Trim() -notin $allowedModels) { Write-Refusal 3 "refused warp: $($Model.Trim()) is not in dispatchPolicy.warp.allowedModels" }
-    $script:WarpModel = $Model.Trim()
-} elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $requested -eq 'cline') {
-    # Provider id plus model: on provider cline only ':free' ids are recorded,
-    # because every other model there bills usage credit.
-    $allowedModels = @()
-    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties['cline'] -and $dispatchPolicy.cline.PSObject.Properties['allowedModels']) {
-        $allowedModels = @($dispatchPolicy.cline.allowedModels | ForEach-Object { [string]$_ })
+if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
+    # OWNER DIRECTION 2026-11-10: a model or coding plan is allowed wherever it
+    # can be integrated and supported. -Model is passed through to every host
+    # whose CLI takes a model flag; allowedModels records the smoke-verified
+    # models and no longer restricts the choice. Only the shape is enforced.
+    if ($requested -notin @('codex', 'grok', 'opencode', 'cline', 'warp', 'factory', 'devin', 'kilo', 'mimo-code', 'kiro')) {
+        Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or to Codex, Grok, OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo or Kiro.'
     }
     $choice = $Model.Trim()
-    if ($choice -notin $allowedModels) { Write-Refusal 3 "refused cline: $choice is not in dispatchPolicy.cline.allowedModels (use provider:model)" }
-    $split = $choice.IndexOf(':')
-    $script:ClineProvider = $choice.Substring(0, $split)
-    $script:ClineModel = $choice.Substring($split + 1)
-} elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
-    if ($requested -notin @('opencode', 'factory', 'devin', 'kilo', 'mimo-code', 'kiro')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo or Kiro model.' }
-    # Kilo and MiMo take provider/model ids only; a bare id is never a fallback.
-    if ($requested -in @('kilo', 'mimo-code') -and $Model.Trim() -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$') {
-        Write-Refusal 3 "refused ${requested}: -Model must be a provider/model id listed in dispatchPolicy.${requested}.allowedModels (got '$($Model.Trim())')"
+    Assert-DispatchModelId -Id $requested -ModelId $choice
+    Assert-SubscriptionRoute -Id $requested -ModelId $choice
+    Write-UnlistedModelNote -Id $requested -ModelId $choice
+    switch ($requested) {
+        'codex'     { $script:CodexModel = $choice }
+        'grok'      { $script:GrokModel = $choice }
+        'opencode'  { $script:OpenCodeModel = $choice }
+        'warp'      { $script:WarpModel = $choice }
+        'factory'   { $script:FactoryModel = $choice }
+        'devin'     { $script:DevinModel = $choice }
+        'kilo'      { $script:KiloModel = $choice }
+        'mimo-code' { $script:MimoCodeModel = $choice }
+        'kiro'      { $script:KiroModel = $choice }
+        'cline'     {
+            $split = $choice.IndexOf(':')
+            $script:ClineProvider = $choice.Substring(0, $split)
+            $script:ClineModel = $choice.Substring($split + 1)
+        }
     }
-    # Governed routing is per task, but only within the owner's recorded
-    # allowlist: a model outside it could bill beyond the recorded allowance.
-    $allowedModels = @()
-    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties[$requested] -and $dispatchPolicy.$requested.PSObject.Properties['allowedModels']) {
-        $allowedModels = @($dispatchPolicy.$requested.allowedModels | ForEach-Object { [string]$_ })
-    }
-    if ($Model.Trim() -notin $allowedModels) { Write-Refusal 3 "refused ${requested}: $($Model.Trim()) is not in dispatchPolicy.${requested}.allowedModels" }
-    if ($requested -eq 'opencode') { $script:OpenCodeModel = $Model.Trim() }
-    if ($requested -eq 'factory') { $script:FactoryModel = $Model.Trim() }
-    if ($requested -eq 'devin') { $script:DevinModel = $Model.Trim() }
-    if ($requested -eq 'kilo') { $script:KiloModel = $Model.Trim() }
-    if ($requested -eq 'mimo-code') { $script:MimoCodeModel = $Model.Trim() }
-    if ($requested -eq 'kiro') { $script:KiroModel = $Model.Trim() }
 }
 if (-not [string]::IsNullOrWhiteSpace($Title) -and $requested -ne 'opencode') {
     Write-Refusal 3 '-Title applies only to -HostId opencode.'
@@ -702,7 +786,7 @@ $psi.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
 # OWNER RULE 2026-10-22: every agent runs on its account/plan login, never a provider API key.
 # Strip provider keys from the child environment so a key in the User environment cannot
 # override the account login (Devin used DEVIN_API_KEY; Codex's wrapper used OPENAI_API_KEY).
-# OpenCode 2 uses native Console account OAuth and a Go-only provider endpoint.
+# OpenCode 2 uses native Console account OAuth; its Go subscription is the opencode-go provider.
 # Remove both provider overrides so they cannot replace the stored account.
 # Exception (owner direction 2026-10-24): an explicit -AnthropicApiKey claude run keeps
 # ANTHROPIC_API_KEY; ANTHROPIC_API_KEY_BACKUP is still removed.

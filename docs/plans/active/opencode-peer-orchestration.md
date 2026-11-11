@@ -158,8 +158,10 @@ Rules:
    demonstrated failure: wrong result on review, two unproductive loops, or a
    timeout with no artifact. Record the escalation in the registry.
 2. A review never uses the implementer's model.
-3. `dispatchPolicy.opencode.allowedModels` is the hard allowlist. The
-   dispatcher refuses any other `-Model`. Add a model only after a probe.
+3. `dispatchPolicy.opencode.allowedModels` records the smoke-verified models.
+   It does not limit `-Model` (owner direction 2026-11-10): an unlisted
+   `provider/model` id runs with a stderr note. Use `opencode-go/<id>`, the Go
+   subscription; `opencode/<id>` is the pay-as-you-go Zen wallet and is refused.
 4. Extra-usage credit is $0 and auto-reload is not enabled, so a run cannot
    bill beyond the Go allowance. Do not enable either without owner approval.
 
@@ -223,8 +225,8 @@ ACP is not a general agent-to-agent bus.
   `COMMON.md`), create a worktree with the AgentHub helper, then run
   `pwsh -NoProfile -File "$env:USERPROFILE\.agents\skills\dispatch\Invoke-CodingAgent.ps1" -HostId opencode -PromptFile <brief> -Cwd <worktree> -Model <allowed> -Title "OC-n ..." -TimeoutSec 5400`.
   Add a registry row.
-- **Change the default or allowed models:** probe first
-  (`opencode run --model opencode/<id> "Reply READY"`), then edit
+- **Change the default or recorded models:** probe first
+  (`opencode run --model opencode-go/<id> "Reply READY"`), then edit
   `dispatchPolicy.opencode`, then run `scripts/Validate-AgentHub.ps1`.
 - **Recover a failed run:** the dispatcher `.out` log (written at exit) has
   every JSON event, including `sessionID`. Resume with

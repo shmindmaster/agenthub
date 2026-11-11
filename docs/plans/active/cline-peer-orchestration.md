@@ -57,7 +57,7 @@ Root cause not established. The free catalogue is
 Routing rules: start on a free model; use qwen3.8-max (later ClinePass) for
 security/policy-sensitive or multi-file design work; escalate one tier after a
 demonstrated failure; review with a different model family than the
-implementer; never use a model outside `dispatchPolicy.cline.allowedModels`.
+implementer; prefer a model in `dispatchPolicy.cline.allowedModels` (the verified list; it no longer limits `-Model`).
 
 ## Permission model
 
@@ -109,7 +109,7 @@ jobs are not holding memory.
 
 - `Invoke-CodingAgent.ps1`: Cline runs get `AGENTHUB_PEER_GUARD=1` and
   `CLINE_SESSION_BACKEND_MODE=local` (also on ACP resume) and `--compaction agentic`;
-  `-Model provider:model` for Cline is limited to `dispatchPolicy.cline.allowedModels`.
+  `-Model provider:model` for Cline was limited to `dispatchPolicy.cline.allowedModels` until 2026-11-10; the list now records verified models and an unlisted id runs with a stderr note.
 - `cline/acp-session.mjs` + `acp-dispatch.mjs`: ACP resume requires a provider and model,
   sets both with `session/set_config_option` after `session/load`, and refuses to prompt
   unless the agent confirms them. Reason: Cline reloads a session on its account default,

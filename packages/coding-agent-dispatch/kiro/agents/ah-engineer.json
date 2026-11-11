@@ -1,0 +1,189 @@
+{
+  "name": "ah-engineer",
+  "model": "auto",
+  "description": "Unattended engineer: implements one assigned issue in an isolated worktree, runs tests, pushes a feature branch and opens a draft pull request. Cannot merge, deploy, touch cloud accounts or read credentials.",
+  "prompt": "You run unattended for an orchestrator; no human answers during the run. Do not ask questions: decide, record the assumption, continue. Work only inside the worktree you were started in (under C:/wt); never edit a main checkout under C:/Repos. Read the repository's AGENTS.md first and follow it. Read the assigned Linear issue, claim it (agent:kiro label, In Progress) if your brief says to, implement the smallest change that meets its acceptance, and add or update tests. Run the focused tests yourself. Commit to a feature branch, push that branch, and open a DRAFT pull request against the repository's integration branch. When the work is finished and tests pass, always mark it ready for review (gh pr ready): that starts the Sentry Seer review, and a draft is never reviewed. Wait for the review and fix or answer every finding before reporting DONE. Merging, releases, deploys, cloud CLIs, force pushes, pushes to main, master or dev, and credential files are denied: if the task needs one, stop and report BLOCKED. For an independent check delegate to the ah-reviewer or ah-tester sub-agent; never treat your own review as the final verdict. End with a STATUS line (DONE, BLOCKED or FAILED) followed by: branch, commit SHAs, commands run with pass and fail counts, files changed, and anything you could not verify. Never claim a check passed unless you ran it.",
+  "tools": [
+    "read",
+    "write",
+    "shell",
+    "glob",
+    "grep",
+    "web_search",
+    "web_fetch",
+    "thinking",
+    "todo",
+    "subagent/ah-reviewer",
+    "subagent/ah-tester",
+    "@linear"
+  ],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "shell",
+        "match": [
+          "git push*--force*",
+          "git push* -f*",
+          "git push*--mirror*",
+          "git push*--delete*",
+          "git push*--tags*",
+          "git push* main*",
+          "git push* master*",
+          "git push* dev*",
+          "git push*:main*",
+          "git push*:master*",
+          "git push*:dev*",
+          "gh pr merge*",
+          "gh release *",
+          "gh repo delete*",
+          "gh repo edit*",
+          "gh repo create*",
+          "gh repo archive*",
+          "gh secret *",
+          "gh variable *",
+          "gh auth *",
+          "gh workflow run*",
+          "gh run rerun*",
+          "gh api * -X *",
+          "gh api *--method *",
+          "npm publish*",
+          "pnpm publish*",
+          "yarn publish*",
+          "twine upload*",
+          "docker push*",
+          "pnpm deploy*",
+          "pnpm ship*",
+          "pnpm run deploy*",
+          "pnpm run ship*",
+          "node scripts/promote*",
+          "eas submit*",
+          "eas build*",
+          "aws *",
+          "az *",
+          "doctl *",
+          "gcloud *",
+          "railway *",
+          "vercel *",
+          "kubectl *",
+          "terraform apply*",
+          "terraform destroy*",
+          "kiro-cli login*",
+          "kiro-cli logout*",
+          "kiro-cli user*",
+          "kiro-cli settings *",
+          "git reset --hard*",
+          "git clean *",
+          "git branch -D *",
+          "git stash*",
+          "git checkout -- *",
+          "git worktree remove*",
+          "rm -rf /*",
+          "rm -rf ~*",
+          "rm -rf C:*",
+          "rm -rf D:*",
+          "format *",
+          "diskpart*",
+          "shutdown*",
+          "schtasks*",
+          "sc create *",
+          "sc delete *",
+          "reg add *",
+          "reg delete *",
+          "taskkill /IM *",
+          "taskkill /F /IM *",
+          "Stop-Process -Name *",
+          "wsl *",
+          "printenv*",
+          "env",
+          "set",
+          "Get-ChildItem Env:*",
+          "gci env:*",
+          "cat *.env*",
+          "type *.env*",
+          "Get-Content *.env*",
+          "cat *.aws/*",
+          "cat *.ssh/*",
+          "git commit*--no-verify*",
+          "git push*--no-verify*"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "fs_read",
+        "match": [
+          "**/.env",
+          "**/.env.*",
+          "~/.aws/**",
+          "~/.ssh/**",
+          "~/.kiro/settings/**",
+          "~/.secrets/**",
+          "~/.config/gh/**",
+          "~/.codex/auth.json",
+          "~/.claude/.credentials.json",
+          "~/.local/share/opencode/auth.json",
+          "~/.local/share/mimocode/**",
+          "~/.grok/auth.json",
+          "~/.factory/settings.json",
+          "~/.azure/**",
+          "~/.config/doctl/**",
+          "**/*.pem",
+          "**/*.pfx",
+          "**/id_rsa*",
+          "**/id_ed25519*"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "fs_write",
+        "match": [
+          "~/.kiro/**",
+          "~/.aws/**",
+          "~/.ssh/**",
+          "~/.claude/**",
+          "~/.codex/**",
+          "~/.config/**",
+          "D:/Local-AI/**",
+          "D:/OneDrive - MahumTech/**",
+          "F:/**",
+          "C:/Windows/**",
+          "C:/Program Files/**"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "aws-mcp/*"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "fs_write",
+        "match": [
+          "C:/Repos/**"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "subagent",
+        "match": [
+          "ah-reviewer",
+          "ah-tester"
+        ],
+        "effect": "allow"
+      },
+      {
+        "capability": "all",
+        "effect": "allow"
+      }
+    ]
+  },
+  "includeMcpJson": true,
+  "includePowers": false,
+  "resources": [
+    "file://C:/Repos/shmindmaster/agenthub/overlays/personal/global-agent-policy.md",
+    "skill://C:/Repos/shmindmaster/agenthub/packages/product/skills/**/SKILL.md",
+    "skill://C:/Repos/shmindmaster/agenthub/packages/repowise/skills/**/SKILL.md",
+    "skill://.kiro/skills/**/SKILL.md"
+  ]
+}

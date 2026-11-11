@@ -330,12 +330,13 @@ function Test-LiveHostAuthenticationMetadata {
     if ($openCode.enabled -ne $true -or
         $profile.hostSettings.opencode.authMode -ne 'account' -or
         $profile.hostSettings.opencode.model -ne $openCode.model -or
-        $openCode.model -ne 'opencode/glm-5.3-flash' -or
+        $openCode.model -ne 'opencode-go/glm-5.3-flash' -or
+        @($openCode.allowedModels | Where-Object { [string]$_ -like 'opencode/*' }).Count -gt 0 -or
         $openCode.verifiedOn -ne '2026-10-26' -or
         @($openCode.allowedModels) -notcontains $openCode.model -or
         $openCode.agent -ne 'peer' -or
         $null -ne $openCode.ownerAction) {
-        $violations.Add('OpenCode Go dispatch must keep its account login, verified default model inside allowedModels, and the outward-action-denying peer agent')
+        $violations.Add('OpenCode Go dispatch must keep its account login, the opencode-go default inside allowedModels with no opencode/ (Zen wallet) ids, and the outward-action-denying peer agent')
     }
     $warpPolicy = $profile.dispatchPolicy.warp
     if ($warpPolicy.enabled -eq $true -and (
@@ -354,7 +355,7 @@ function Test-LiveHostAuthenticationMetadata {
         $violations.Add('Factory dispatch must stay on its account login at low or medium autonomy, with its default model inside allowedModels and a present runtime rules file')
     }
     # Devin: local runs on the account login with a free SWE-2 default; the
-    # high-cost Lightning tier stays out of the allowlist, and the cloud surface
+    # high-cost Lightning tier stays out of the recorded list, and the cloud surface
     # stays disabled until the owner records a cloud budget.
     $devinPolicy = $profile.dispatchPolicy.devin
     if ($devinPolicy.enabled -eq $true -and (
@@ -372,7 +373,8 @@ function Test-LiveHostAuthenticationMetadata {
         $violations.Add('Cline must retain the owner-authorized Alibaba Coding Plan provider settings')
     }
     # Every model on provider 'cline' except ':free' ids bills usage credit, and
-    # the default dispatch model must itself be allowlisted.
+    # the default dispatch model must itself be in the recorded list. The list
+    # records verified models; it does not limit what -Model may name.
     $cline = $profile.dispatchPolicy.cline
     if ($cline.enabled -eq $true) {
         $clineModels = @($cline.allowedModels | ForEach-Object { [string]$_ })
@@ -387,7 +389,7 @@ function Test-LiveHostAuthenticationMetadata {
     foreach ($id in @('kilo', 'mimo-code')) {
         $planPolicy = $profile.dispatchPolicy.$id
         if ($planPolicy.enabled -eq $true -and (
-            [string]$planPolicy.model -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$' -or
+            [string]$planPolicy.model -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$' -or
             @($planPolicy.allowedModels | ForEach-Object { [string]$_ }) -notcontains $planPolicy.model)) {
             $violations.Add("$id dispatch must keep a provider/model default inside allowedModels")
         }

@@ -297,8 +297,8 @@
       }
     },
     "opencode": {
-      "model": "opencode/glm-5.3-flash",
-      "smallModel": "opencode/glm-5.3-flash",
+      "model": "opencode-go/glm-5.3-flash",
+      "smallModel": "opencode-go/glm-5.3-flash",
       "authMode": "account",
       "loginCommand": "opencode auth login opencode --method device",
       "availableProviders": {
@@ -306,7 +306,7 @@
           "apiKeyEnv": "DEEPSEEK_API_KEY"
         }
       },
-      "modelNote": "2026-10-23: OpenCode 2.1.4 native Console account OAuth, stored by its shared service. The built-in opencode provider is configured privately with the Go-only https://opencode.ai/inference/go/v1 endpoint and no API-key override. Exact-response inference passed in 3.8 seconds. CLI and Desktop share this service; title generation uses the same Go model."
+      "modelNote": "2026-10-23: OpenCode 2.1.4 native Console account OAuth, stored by its shared service. The built-in opencode provider is configured privately with the Go-only https://opencode.ai/inference/go/v1 endpoint and no API-key override. Exact-response inference passed in 3.8 seconds. CLI and Desktop share this service; title generation uses the same Go model. 2026-11-10 (opencode 2.2.6): the Go subscription is addressed as provider opencode-go (opencode-go/<model>), which answers on the stored Go workspace login with OPENCODE_GO_API_KEY unset; opencode/<model> is the pay-as-you-go Zen wallet and returned 'Insufficient balance'. model and smallModel were corrected from opencode/glm-5.3-flash to opencode-go/glm-5.3-flash."
     },
     "copilot": {
       "model": "auto",
@@ -377,8 +377,13 @@
       "model": "auto",
       "authMode": "account",
       "loginCommand": "kiro-cli login",
-      "modelNote": "2026-11-10: `kiro-cli whoami` reports a Builder ID login. auto lets Kiro choose the model per task at 1.00x credits and is the default; dispatchPolicy.kiro.allowedModels lists the models a task may name."
+      "modelNote": "2026-11-10: `kiro-cli whoami` reports a Builder ID login. auto lets Kiro choose the model per task at 1.00x credits and is the default; dispatchPolicy.kiro.allowedModels lists the smoke-verified models; a task may name any model Kiro offers."
     }
+  },
+  "dispatchModelPolicy": {
+    "appliesTo": "dispatchPolicy.<host>.allowedModels and the -Model argument of Invoke-CodingAgent.ps1. Recorded beside dispatchPolicy because every dispatchPolicy entry is a host record with an enabled flag.",
+    "modelPolicyNote": "Owner direction 2026-11-10: a model or coding plan is allowed on any host where it can be integrated and supported. allowedModels lists the models recorded as smoke-verified (or, where its note says so, confirmed in the host's own model listing); it does not limit -Model. The dispatcher checks only the shape of a model id, passes an unlisted one through, and writes one stderr note. The earlier allow-list refusals were a session's cost guard, not an owner rule. Host enablement, guarded agents, credential stripping, cloud refusals and the Claude API-key opt-in are unchanged. The two money refusals that remain are in subscriptionOnly below.",
+    "subscriptionOnly": "Owner direction 2026-11-10: subscriptions only, never a pay-as-you-go wallet. These are the only model refusals besides a malformed id. (1) OpenCode: provider opencode/ is the pay-as-you-go Zen wallet and is refused; use opencode-go/<model>, the Go subscription. (2) MiMo on every host (kilo, mimo-code, opencode mimo-token-plan/*, cline mimo-token-plan:*, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider xiaomi/ (the pay-as-you-go API in MiMo Code's model listing) is refused; MIMO_BASE_URL, when set, must name a token-plan-<region>.xiaomimimo.com host (pay-as-you-go is api.xiaomimimo.com); MIMO_API_KEY, when set, must start with tp- or ttp- (pay-as-you-go keys start with sk-). The dispatcher names the variable and never prints its value."
   },
   "dispatchPolicy": {
     "cursor": {
@@ -451,7 +456,7 @@
         "claude-5-5-haiku-medium",
         "claude-5-5-sonnet-medium"
       ],
-      "allowedModelsNote": "Every Warp-hosted model, Auto included, spends Warp credits (docs.warp.dev/agents/cli/models-and-usage); there is no free tier to route to. Only glm-5.3-flash-fireworks was smoke-tested. Per-model credit rates are not established: oz exposes no usage command; /usage and the statusline credit_usage item exist only in the interactive Warp Agent CLI (installed 2026-10-26 at %LOCALAPPDATA%/Warp/bin/warp.cmd, v0.2026.10.21.08.25.stable_02).",
+      "allowedModelsNote": "Recorded models, not a limit on -Model. Every Warp-hosted model, Auto included, spends Warp credits (docs.warp.dev/agents/cli/models-and-usage); there is no free tier to route to. Only glm-5.3-flash-fireworks was smoke-tested. Per-model credit rates are not established: oz exposes no usage command; /usage and the statusline credit_usage item exist only in the interactive Warp Agent CLI (installed 2026-10-26 at %LOCALAPPDATA%/Warp/bin/warp.cmd, v0.2026.10.21.08.25.stable_02).",
       "mcpConfig": "{userHome}/.warp/.mcp.json",
       "mcpConfigNote": "settings.toml agents.mcp_servers.file_based_mcp_enabled = false, so agent run does not load ~/.warp/.mcp.json by itself; the dispatcher resolves this template through PathBinding and passes it per run as --mcp with --mcp-startup-timeout 30s. A missing file skips both flags with one stderr warning. The file may hold auth headers, so the dispatcher never reads or prints it.",
       "reason": "2026-10-26 (Oz v0.2026.10.14.08.27.stable_03): `oz whoami` succeeds with WARP_API_KEY removed, so the stored account login authenticates. One local smoke, `agent run -C <empty scratch dir> --model glm-5.3-flash-fireworks --no-snapshot --output-format ndjson`, exited 0 in 30 s and returned READY (run 01a17a80-1423-7e43-bb96-7aafdd060bc1, conversation 653d2c55-b99d-46bb-8f7f-709c1509af30). A local run still registers a run record and cloud conversation on oz.warp.dev (agents.cloud_conversation_storage_enabled = true).",
@@ -490,7 +495,7 @@
         "adaptive",
         "fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium"
       ],
-      "allowedModelsNote": "devin models list --format json 2026-10-26 (CLI 3000.11.205, Devin Pro): swe-2-medium, swe-2-high and swe-2-max are cost_tier Free. adaptive is $0.5/$0.1/$2 per 1M input/cached/output; fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium is Med cost, $2/$0.1/$10 for the lead with a Free sidekick. Paid usage draws the Pro daily/weekly quota, then on-demand credits (docs.devin.ai/admin/billing/self-serve). The former default swe-2-medium-lightning is High cost ($1/$0.1/$5) and is excluded, as are Opus/Fable/GPT Fusion leads.",
+      "allowedModelsNote": "Recorded models, not a limit on -Model; an unlisted model such as the excluded ones below is passed through when a task names it. devin models list --format json 2026-10-26 (CLI 3000.11.205, Devin Pro): swe-2-medium, swe-2-high and swe-2-max are cost_tier Free. adaptive is $0.5/$0.1/$2 per 1M input/cached/output; fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium is Med cost, $2/$0.1/$10 for the lead with a Free sidekick. Paid usage draws the Pro daily/weekly quota, then on-demand credits (docs.devin.ai/admin/billing/self-serve). The former default swe-2-medium-lightning is High cost ($1/$0.1/$5) and is left out of this list, as are Opus/Fable/GPT Fusion leads.",
       "permissionMode": "dangerous",
       "permissionNote": "Owner direction 2026-10-26: leave permissions as they are (user env DEVIN_PERMISSION_MODE=dangerous, launchDefaults.devin). Devin's OS sandbox and the autonomous mode that needs it are not supported on Windows (docs.devin.ai/cli/sandbox), and no deny rules are configured, so nothing blocks git push or gh calls from a dispatched run. Run Devin only in C:\\wt worktrees and review before integrating.",
       "reason": "2026-11-10 (later the same day): `devin auth status` reports 'Logged in (via Devin)' with DEVIN_API_KEY, DEVIN_API_TOKEN, DEVIN_SERVICE_USER_TOKEN and DEVIN_ORG_ID removed from the environment, and the governed command (`devin --permission-mode dangerous --respect-workspace-trust false -p --prompt-file <file> --model swe-2-medium`) returned READY, exit 0, with those variables removed. An earlier check that day had read 'Not logged in'; the owner had signed in through the account login since. The owner removed DEVIN_API_KEY and WARP_API_KEY from the User environment on 2026-11-10; the dispatcher still strips the Devin key variables so a reintroduced key cannot override the stored account login. Earlier evidence: 2026-10-26 account login verified (devin auth status: Devin Pro, team membership approved). The dispatcher strips DEVIN_API_KEY/DEVIN_API_TOKEN/DEVIN_ORG_ID so the stored login authenticates. read_config_from already disables claude, cursor, windsurf, copilot, opencode and zed imports (only agents_standard), so AgentHub-deployed MCP, skills and AGENTS.md are the only shared capability source. Headless dispatch smoke 2026-10-26 (swe-2-medium, Free): the first dispatcher run at 20:30 CT exited 0 after 17 s with empty stdout and stderr; three later runs (two direct, one through the dispatcher at about 20:32) returned READY, the dispatcher run in 4 s. Treat exit 0 without the expected output or report file as a failed run.",
@@ -499,23 +504,23 @@
     },
     "opencode": {
       "enabled": true,
-      "model": "opencode/glm-5.3-flash",
+      "model": "opencode-go/glm-5.3-flash",
       "agent": "peer",
       "agentNote": "~/.config/opencode/agents/peer.md: allow-all local development, deny .env/auth reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo, npm publish, railway, az, doctl, vercel and opencode auth. Needed because run --auto approves every ask rule. Global opencode.json policies additionally deny force-push, reset --hard, git clean, branch -D, recursive root deletes, disk formatting, scheduled-task/service/Run-key creation, cloud deletes and credential export for every agent.",
       "allowedModels": [
-        "opencode/glm-5.3-flash",
-        "opencode/qwen3.8-flash",
-        "opencode/deepseek-v4.1-flash",
-        "opencode/minimax-m3",
-        "opencode/glm-5.3",
-        "opencode/kimi-k2.7-code",
-        "opencode/deepseek-v4-pro",
-        "opencode/gemini-4-argon",
+        "opencode-go/glm-5.3-flash",
+        "opencode-go/qwen3.8-flash",
+        "opencode-go/deepseek-v4.1-flash",
+        "opencode-go/minimax-m3",
+        "opencode-go/glm-5.3",
+        "opencode-go/kimi-k2.7-code",
+        "opencode-go/deepseek-v4-pro",
+        "opencode-go/gemini-4-argon",
         "mimo-token-plan/mimo-v2.6-pro",
         "mimo-token-plan/mimo-v2.6-flash"
       ],
-      "allowedModelsNote": "opencode/* entries use the OpenCode Go endpoint. mimo-token-plan/* entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.config/opencode/opencode.json and are the fallback when the Go plan is out of credit or usage (owner direction 2026-11-11; the Go endpoint returned 402 'Insufficient balance' on 2026-11-11).",
-      "reason": "2026-10-26: one-word prompts returned the expected text through the Go-only endpoint for every allowedModels entry. The free models (glm-5.3-flash-free, deepseek-v4.1-flash-free, mimo-v2.6-flash-free, big-pickle) and claude-sonnet-5-5 and gpt-6.1-sol returned 'Model is unavailable' (HTTP 400) on that endpoint. -Model routes per task only within allowedModels; the extra-usage credit is $0, so no overage can bill. Bound task execution by the dispatcher timeout.",
+      "allowedModelsNote": "Smoke-verified models, not a limit on -Model. opencode-go/* entries are the OpenCode Go subscription, reached through the stored Go workspace login. The opencode/* provider is the pay-as-you-go Zen wallet, a different route: it returned 'Insufficient balance' on 2026-11-10 (opencode 2.2.6) while opencode-go/glm-5.3-flash and opencode-go/kimi-k2.7-code returned READY with OPENCODE_GO_API_KEY unset. Every opencode-go id here is in the `opencode models` listing (32 opencode-go models). mimo-token-plan/* entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.config/opencode/opencode.json and are the fallback when the Go plan is out of credit or usage (owner direction 2026-11-11; the 402 'Insufficient balance' seen on 2026-11-11 came from the opencode/* Zen wallet ids this list carried then, not from the Go subscription).",
+      "reason": "2026-10-26: one-word prompts returned the expected text for every model then listed, recorded under opencode/* ids. The free models (glm-5.3-flash-free, deepseek-v4.1-flash-free, mimo-v2.6-flash-free, big-pickle) and claude-sonnet-5-5 and gpt-6.1-sol returned 'Model is unavailable' (HTTP 400). 2026-11-10 (opencode 2.2.6): the Go subscription is the opencode-go provider and the ids were corrected to opencode-go/*; opencode-go/glm-5.3-flash and opencode-go/kimi-k2.7-code returned READY on the stored Go workspace login, and the other six opencode-go ids are confirmed in `opencode models` but not re-run under the new id. -Model accepts any provider/model id; an unlisted one is passed through with a stderr note. Bound task execution by the dispatcher timeout.",
       "ownerAction": null,
       "verifiedOn": "2026-10-26",
       "ownerDirection": "2026-10-26: owner asked in the Claude session to make OpenCode a first-class execution peer and to delegate 3-4 substantial engineering tasks to it. This supersedes, for OpenCode only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
@@ -552,7 +557,7 @@
         "mimo-token-plan:mimo-v2.6-pro",
         "mimo-token-plan:mimo-v2.6-flash"
       ],
-      "allowedModelsNote": "provider:model. Free ids carry ':free' and price 0 in https://api.cline.bot/api/v1/ai/cline/models; any other model on provider cline is usage-billed and is not allowed. cline-pass entries are subscription-allowance only and fail closed when the weekly limit is reached. mimo-token-plan entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.cline/data/settings and are the fallback when a host's own plan is out of credit or usage (owner direction 2026-11-11).",
+      "allowedModelsNote": "provider:model. Recorded models, not a limit on -Model. Free ids carry ':free' and price 0 in https://api.cline.bot/api/v1/ai/cline/models; any other model on provider cline is usage-billed and is kept out of this list, but the dispatcher passes it through when a task names it. cline-pass entries are subscription-allowance only and fail closed when the weekly limit is reached. mimo-token-plan entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.cline/data/settings and are the fallback when a host's own plan is out of credit or usage (owner direction 2026-11-11).",
       "verifiedOn": "2026-10-26",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
       "knownIssue": "Historical --yolo benchmark mode could hang at submit_and_exit. Normal --json mode with native timeout preserves plugins and MCP. Check the result before treating any timeout as success. A headless run starts a background cline-hub-daemon that inherits stdout; never read a run's output through a pipe that waits for EOF.",
@@ -584,9 +589,10 @@
       "agent": "peer",
       "agentNote": "~/.config/kilo/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, kilo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --auto approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
       "allowedModels": [
-        "mimo/mimo-v2.6-pro"
+        "mimo/mimo-v2.6-pro",
+        "mimo/mimo-v2.6-flash"
       ],
-      "allowedModelsNote": "Only mimo/mimo-v2.6-pro has been smoke-verified on the MiMo provider (2026-11-10, governed command). Widen only with a captured response per model.",
+      "allowedModelsNote": "Recorded models, not a limit on -Model. mimo/mimo-v2.6-pro was smoke-verified on the MiMo provider (2026-11-10, governed command). mimo/mimo-v2.6-flash is listed under provider mimo in ~/.config/kilo/config.json and was added on owner direction 2026-11-10 without a captured response.",
       "reason": "2026-11-10: the exact governed command (`kilo run --auto --format json --dir <cwd> --model mimo/mimo-v2.6-pro --agent peer`) returned READY, exit 0. A second run under the same command asked for `doctl version` and `echo ALLOWED_OK`: the first was blocked by the agent's bash deny rule before execution and the second ran, so --auto does not override an explicit deny. `kilo debug agent peer` listed the deny rules as resolved. Only the listed model was exercised.",
       "ownerAction": null,
       "verifiedOn": "2026-11-10",
@@ -598,9 +604,10 @@
       "agent": "peer",
       "agentNote": "~/.config/mimocode/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, mimo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --yolo approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
       "allowedModels": [
-        "xiaomi-token-plan-sgp/mimo-v2.6-pro"
+        "xiaomi-token-plan-sgp/mimo-v2.6-pro",
+        "xiaomi-token-plan-sgp/mimo-v2.6-flash"
       ],
-      "allowedModelsNote": "Only xiaomi-token-plan-sgp/mimo-v2.6-pro has been smoke-verified on the stored Xiaomi Token Plan credential (2026-11-10, governed command). Widen only with a captured response per model.",
+      "allowedModelsNote": "Recorded models, not a limit on -Model. xiaomi-token-plan-sgp/mimo-v2.6-pro was smoke-verified on the stored Xiaomi Token Plan credential (2026-11-10, governed command). xiaomi-token-plan-sgp/mimo-v2.6-flash appears in `mimo models xiaomi-token-plan-sgp` and was added on owner direction 2026-11-10 without a captured response.",
       "reason": "2026-11-10: the exact governed command (`mimo run --yolo --format json --dir <cwd> --model xiaomi-token-plan-sgp/mimo-v2.6-pro --agent peer`) returned READY, exit 0. A second run under the same command asked for `doctl version` and `echo ALLOWED_OK`: the first was blocked by the agent's bash deny rule before execution and the second ran, so --yolo does not override an explicit deny. `mimo debug agent peer` listed the deny rules as resolved. Only the listed model was exercised.",
       "ownerAction": null,
       "verifiedOn": "2026-11-10",
@@ -617,7 +624,7 @@
         "claude-sonnet-5.5",
         "claude-haiku-5.5"
       ],
-      "allowedModelsNote": "Each listed model returned READY on the governed command on 2026-11-10. Credit multipliers from `kiro-cli chat --list-models`: auto 1.00x (Kiro picks the model per task), claude-opus-5.5 2.00x, claude-sonnet-5.5 1.30x, claude-haiku-5.5 0.06x. auto is the default on owner direction 2026-11-10 that Kiro should use capable models for complex work and not the cheapest one; route claude-opus-5.5 explicitly for the hardest tasks. Widen only with a captured response per model.",
+      "allowedModelsNote": "Each listed model returned READY on the governed command on 2026-11-10. Credit multipliers from `kiro-cli chat --list-models`: auto 1.00x (Kiro picks the model per task), claude-opus-5.5 2.00x, claude-sonnet-5.5 1.30x, claude-haiku-5.5 0.06x. auto is the default on owner direction 2026-11-10 that Kiro should use capable models for complex work and not the cheapest one; route claude-opus-5.5 explicitly for the hardest tasks. The list records verified models and does not limit -Model.",
       "reason": "2026-11-10: the governed command (`kiro-cli chat --no-interactive --trust-all-tools --agent ah-peer --model <model> <prompt>`) returned READY, exit 0. A second run asked for `doctl version` and `echo ALLOWED_OK`: the first was blocked by the agent's shell deny rule before execution and the second ran, so --trust-all-tools does not override an explicit deny. `kiro-cli agent validate` accepted the agent file.",
       "ownerAction": null,
       "verifiedOn": "2026-11-10",

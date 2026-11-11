@@ -1,8 +1,23 @@
 # Host details
 
-Read when: dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
+Read when: choosing a model, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
 
-Contents: Account hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
+Contents: Models, Account hosts, New plan hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
+
+## Models
+
+Owner direction 2026-11-10: a model or coding plan is allowed on any host where it can be integrated and supported.
+
+- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, warp, factory, devin, kilo, mimo-code and kiro. Other hosts take no `-Model`.
+- `dispatchPolicy.<host>.allowedModels` records the smoke-verified models. It does not limit the choice. An unlisted model adds one stderr line, `note: <host> model '<id>' is not in the smoke-verified list; passing it through`, and the run continues. The host and its plan decide what the model costs; check the cost before routing an expensive one.
+- The id must be well formed: no whitespace or shell metacharacters; `provider/model` for opencode, kilo and mimo-code; `provider:model` for cline. A malformed id is refused with exit 3.
+
+Both rules are recorded in `registry/fleet-profile.json` -> `dispatchModelPolicy`.
+
+Subscriptions only, never a pay-as-you-go wallet (owner direction 2026-11-10). These two refusals stay:
+
+- OpenCode: provider `opencode/` is the pay-as-you-go Zen wallet and is refused. Use `opencode-go/<model>`, the Go subscription on the stored Go workspace login.
+- MiMo, on every host (kilo `mimo/*`, mimo-code `xiaomi-token-plan-*/*`, opencode `mimo-token-plan/*`, cline `mimo-token-plan:*`, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider `xiaomi/` (the pay-as-you-go API in MiMo Code's model listing) is refused. If `MIMO_BASE_URL` is set, its host must be `token-plan-<region>.xiaomimimo.com`; pay-as-you-go is `api.xiaomimimo.com`. If `MIMO_API_KEY` is set, it must start with `tp-` or `ttp-`; pay-as-you-go keys start with `sk-`. The refusal names the variable and never prints its value.
 
 ## Account hosts
 
@@ -42,8 +57,8 @@ Kiro CLI is dispatchable on its Builder ID login. `--trust-all-tools` approves
 every tool call, so it runs only under the policy-named `ah-peer` agent
 (`~/.kiro/agents/ah-peer.json`), which denies outward and destructive commands
 and does not load the host's MCP file. Every Kiro model spends plan credits at
-its own multiplier; only an allowlisted model may be routed. The Kiro IDE and
-KiroCrew are not dispatch targets.
+its own multiplier; any model Kiro offers may be routed with `-Model`. The Kiro
+IDE and KiroCrew are not dispatch targets.
 
 Qwen has a saved configuration, but its observed run failed in
 `resolveModelConfig`. Do not describe it as callable or change its credentials
@@ -51,11 +66,11 @@ to make a check pass.
 
 ## Factory
 
-Dispatch is governed. `exec --auto` runs at low or medium only (`high` permits git push; `--skip-permissions-unsafe` is never emitted). `-o json` returns a session id and credit usage. `-m` defaults to `dispatchPolicy.factory.model`; `-Model` refuses anything outside `dispatchPolicy.factory.allowedModels`. `--settings` points at `factory/runtime-settings.json`, checked with `droid rules check`.
+Dispatch is governed. `exec --auto` runs at low or medium only (`high` permits git push; `--skip-permissions-unsafe` is never emitted). `-o json` returns a session id and credit usage. `-m` defaults to `dispatchPolicy.factory.model`; `-Model` passes any well-formed model id through (see Models). `--settings` points at `factory/runtime-settings.json`, checked with `droid rules check`.
 
 ## Devin
 
-Local only: `devin -p --prompt-file`, never `--cloud`. `--model` defaults to `dispatchPolicy.devin.model`; `-Model` refuses anything outside `dispatchPolicy.devin.allowedModels`. Permission mode is `dangerous` by owner direction and Windows has no Devin sandbox, so run Devin only in `C:/wt` worktrees.
+Local only: `devin -p --prompt-file`, never `--cloud`. `--model` defaults to `dispatchPolicy.devin.model`; `-Model` passes any well-formed model id through (see Models). Permission mode is `dangerous` by owner direction and Windows has no Devin sandbox, so run Devin only in `C:/wt` worktrees.
 
 ## Warp
 
@@ -71,6 +86,8 @@ Cline dispatch is enabled in `dispatchPolicy`:
 - `cline/acp-session.mjs` is a transport-only client for caller-owned streams.
 
 ## OpenCode
+
+The Go subscription is provider `opencode-go`; the default is `opencode-go/glm-5.3-flash`. Provider `opencode` is the pay-as-you-go Zen wallet and is refused (see Models).
 
 `opencode acp` is the native stdio ACP server, sharing the persisted account and configuration. The ACP client owns permission handling.
 

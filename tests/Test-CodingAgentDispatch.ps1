@@ -28,6 +28,9 @@ function Run([string[]]$Arguments) {
     $result = [pscustomobject]@{ Exit = $p.ExitCode; Out = $o.GetAwaiter().GetResult(); Err = $e.GetAwaiter().GetResult() }
     $p.Dispose(); return $result
 }
+function PassNote([string]$HostName, [string]$ModelId) {
+    return ('note: {0} model ''{1}'' is not in the smoke-verified list; passing it through' -f [regex]::Escape($HostName), [regex]::Escape($ModelId))
+}
 $oldRoot = $env:AGENTHUB_ROOT; $oldLocal = $env:LOCALAPPDATA
 $oldWindowsHome = $env:USERPROFILE; $oldPosixHome = $env:HOME
 $oldApiKeyVars = @{}
@@ -35,6 +38,11 @@ foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KE
     $oldApiKeyVars[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     [Environment]::SetEnvironmentVariable($name, 'synthetic-dispatch-fixture', 'Process')
 }
+# MiMo routes run only on the Xiaomi Token Plan: a tp-/ttp- key and a
+# token-plan-<region> host. Fake values, set for this process only.
+$oldMimoBaseUrl = [Environment]::GetEnvironmentVariable('MIMO_BASE_URL', 'Process')
+$env:MIMO_API_KEY = 'tp-synthetic-dispatch-fixture'
+$env:MIMO_BASE_URL = 'https://token-plan-sgp.xiaomimimo.com/v1'
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('cad fixture ' + [guid]::NewGuid().ToString('n'))
 try {
     foreach ($dir in @('registry','scripts\lib','scratch','logs')) { $null = New-Item -ItemType Directory -Path (Join-Path $fixture $dir) -Force }
@@ -72,7 +80,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $ids = @('claude','codex','cursor','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code','kiro')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; kiro = @{ enabled = $true; agent = 'ah-peer'; model = 'auto'; allowedModels = @('auto', 'claude-sonnet-5.5') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
+    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode-go/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; kiro = @{ enabled = $true; agent = 'ah-peer'; model = 'auto'; allowedModels = @('auto', 'claude-sonnet-5.5') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -144,7 +152,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         if ($id -eq 'opencode') {
             $formatIndex = [Array]::IndexOf($d.Arguments, '--format')
             Check 'OpenCode uses native JSON events while keeping unattended run and prompt' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--auto' -and $formatIndex -ge 0 -and $d.Arguments[$formatIndex + 1] -eq 'json' -and $d.Arguments[-1] -eq 'ok')
-            Check 'OpenCode receives paid plan model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'opencode/glm-5.3-flash')
+            Check 'OpenCode receives the Go subscription model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'opencode-go/glm-5.3-flash')
             Check 'OpenCode Go account uses no API key override' (-not $d.ApiKeyVars.OPENCODE_GO_API_KEY -and -not $d.ApiKeyVars.OPENCODE_API_KEY)
             Check 'OpenCode 2 uses native process cwd without obsolete flag' ($d.Cwd -in @($scratch, $scratchReal) -and $d.Arguments -notcontains '--dir')
         }
@@ -176,9 +184,10 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'Amp dispatch-only settings file is removed' ($settingsPath -and -not (Test-Path -LiteralPath $settingsPath))
         }
     }
-    # Kilo and MiMo take provider/model ids only, from the policy allowlist, for
-    # the recorded default and for an explicit -Model alike; a bare id or an
-    # unlisted default must be refused before launch.
+    # Owner direction 2026-11-10: allowedModels records smoke-verified models and
+    # does not limit -Model. An unlisted model is passed through with one stderr
+    # note; only a malformed id is refused. Kilo and MiMo still take
+    # provider/model ids only, for the recorded default and an explicit -Model.
     foreach ($guarded in @('kilo', 'mimo-code', 'kiro')) {
         $fleet.dispatchPolicy.$guarded.Remove('agent'); Save-Fixture
         $r = Run @('-HostId',$guarded,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
@@ -190,51 +199,68 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','claude-sonnet-5.5')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'Kiro routes an allowed explicit model' ($null -ne $d -and $d.Arguments -contains 'claude-sonnet-5.5' -and $d.Arguments -notcontains 'auto') $r.Err
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-Model','claude-opus-5.5')
-    Check 'Kiro refuses a model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy\.kiro\.allowedModels')
+    Check 'Kiro routes a listed explicit model without a note' ($null -ne $d -and $d.Arguments -contains 'claude-sonnet-5.5' -and $d.Arguments -notcontains 'auto' -and $r.Err -notmatch 'note:') $r.Err
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','claude-opus-5.5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'Kiro passes an unlisted model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'claude-opus-5.5' -and $r.Err -match (PassNote 'kiro' 'claude-opus-5.5')) $r.Err
+    Check 'An unlisted model is noted exactly once' (@(($r.Err -split '\r?\n') -match '^note:').Count -eq 1) $r.Err
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-Model','claude opus;echo')
+    Check 'Kiro refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
     $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','mimo/mimo-v2.5')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'Kilo routes an allowed explicit provider/model' ($null -ne $d -and $d.Arguments -contains 'mimo/mimo-v2.5' -and $d.Arguments -notcontains 'mimo/mimo-v2.6-pro') $r.Err
-    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-Model','mimo/other-model')
-    Check 'Kilo refuses a provider/model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy\.kilo\.allowedModels')
+    Check 'Kilo routes a listed explicit provider/model' ($null -ne $d -and $d.Arguments -contains 'mimo/mimo-v2.5' -and $d.Arguments -notcontains 'mimo/mimo-v2.6-pro' -and $r.Err -notmatch 'note:') $r.Err
+    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','mimo/other-model')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'Kilo passes an unlisted provider/model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'mimo/other-model' -and $r.Err -match (PassNote 'kilo' 'mimo/other-model')) $r.Err
+    Check 'Kilo keeps its guarded agent and plan key on an unlisted model' ($null -ne $d -and $d.Arguments -contains '--agent' -and $d.Arguments -contains 'peer' -and $d.ApiKeyVars.MIMO_API_KEY) $r.Err
     $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-Model','mimo-v2.6-pro')
     Check 'Kilo refuses a bare model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
     $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-Model','mimo/x&echo')
-    Check 'Kilo refuses a shell-unsafe model even when allowlisted' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    Check 'Kilo refuses a shell-unsafe model even when listed' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
     $fleet.dispatchPolicy.kilo.model = 'mimo/x&echo'; Save-Fixture
     $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
-    Check 'Kilo refuses a shell-unsafe default even when allowlisted' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    Check 'Kilo refuses a shell-unsafe default even when listed' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
     $fleet.dispatchPolicy.kilo.model = 'mimo/mimo-v2.6-pro'; Save-Fixture
     $fleet.dispatchPolicy.kilo.model = 'mimo-v2.6-pro'; Save-Fixture
     $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
     Check 'Kilo refuses a bare default model' ($r.Exit -eq 3 -and $r.Err -match 'provider/model') $r.Err
     $fleet.dispatchPolicy.kilo.model = 'mimo/mimo-v2.6-flash'; Save-Fixture
     $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
-    Check 'Kilo refuses a default outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'allowedModels') $r.Err
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Kilo runs an unlisted default with a note' ($null -ne $d -and $d.Arguments -contains 'mimo/mimo-v2.6-flash' -and $r.Err -match (PassNote 'kilo' 'mimo/mimo-v2.6-flash')) $r.Err
     $fleet.dispatchPolicy.kilo.model = 'mimo/mimo-v2.6-pro'; Save-Fixture
     $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','xiaomi-token-plan-sgp/mimo-v2.6-pro')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'MiMo honours the allowed explicit provider/model' ($null -ne $d -and $d.Arguments -contains 'xiaomi-token-plan-sgp/mimo-v2.6-pro') $r.Err
-    $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-Model','xiaomi-token-plan-sgp/other')
-    Check 'MiMo refuses a provider/model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy\.mimo-code\.allowedModels')
+    Check 'MiMo honours the listed explicit provider/model' ($null -ne $d -and $d.Arguments -contains 'xiaomi-token-plan-sgp/mimo-v2.6-pro' -and $r.Err -notmatch 'note:') $r.Err
+    $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','xiaomi-token-plan-sgp/other')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'MiMo passes an unlisted provider/model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'xiaomi-token-plan-sgp/other' -and $r.Err -match (PassNote 'mimo-code' 'xiaomi-token-plan-sgp/other')) $r.Err
+    Check 'MiMo still strips the env plan key and keeps its guarded agent on an unlisted model' ($null -ne $d -and -not $d.ApiKeyVars.MIMO_API_KEY -and $d.Arguments -contains '--agent' -and $d.Arguments -contains 'peer') $r.Err
     $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-Model','mimo-v2.6-pro')
     Check 'MiMo refuses a bare model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
     $fleet.dispatchPolicy.'mimo-code'.allowedModels += 'xiaomi-token-plan-sgp/x&echo'
     $fleet.dispatchPolicy.'mimo-code'.model = 'xiaomi-token-plan-sgp/x&echo'; Save-Fixture
     $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
-    Check 'MiMo refuses a shell-unsafe default even when allowlisted' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    Check 'MiMo refuses a shell-unsafe default even when listed' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
     $fleet.dispatchPolicy.'mimo-code'.allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro')
     $fleet.dispatchPolicy.'mimo-code'.model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; Save-Fixture
     $fleet.dispatchPolicy.'mimo-code'.model = 'xiaomi-token-plan-sgp/other'; Save-Fixture
     $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
-    Check 'MiMo refuses a default outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'allowedModels') $r.Err
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'MiMo runs an unlisted default with a note' ($null -ne $d -and $d.Arguments -contains 'xiaomi-token-plan-sgp/other' -and $r.Err -match (PassNote 'mimo-code' 'xiaomi-token-plan-sgp/other')) $r.Err
     $fleet.dispatchPolicy.'mimo-code'.model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; Save-Fixture
     $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','gpt-6-sol')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'Factory honours an allowed explicit model' ($null -ne $d -and $d.Arguments -contains 'gpt-6-sol' -and $d.Arguments -notcontains 'gpt-6-luna') $r.Err
+    Check 'Factory honours a listed explicit model' ($null -ne $d -and $d.Arguments -contains 'gpt-6-sol' -and $d.Arguments -notcontains 'gpt-6-luna' -and $r.Err -notmatch 'note:') $r.Err
     $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','gpt-6.1-sol')
-    Check 'Factory refuses a model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'is not in dispatchPolicy\.factory\.allowedModels')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '-m') } else { -1 }
+    Check 'Factory passes an unlisted model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'gpt-6.1-sol' -and $d.Arguments -contains 'medium' -and $r.Err -match (PassNote 'factory' 'gpt-6.1-sol')) $r.Err
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','gpt 6&echo')
+    Check 'Factory refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
     $fleet.dispatchPolicy.factory.autonomy = 'high'; Save-Fixture
     $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
     Check 'Factory refuses high autonomy' ($r.Exit -eq 3 -and $r.Err -match 'only low or medium')
@@ -246,9 +272,13 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','devin','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','adaptive')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
-    Check 'Devin routes an allowed model per task' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'adaptive' -and $d.Arguments -notcontains 'swe-2-medium') $r.Err
+    Check 'Devin routes a listed model per task' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'adaptive' -and $d.Arguments -notcontains 'swe-2-medium' -and $r.Err -notmatch 'note:') $r.Err
     $r = Run @('-HostId','devin','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','swe-2-medium-lightning')
-    Check 'Devin refuses a model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy\.devin\.allowedModels')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'Devin passes an unlisted model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'swe-2-medium-lightning' -and -not $d.ApiKeyVars.DEVIN_API_KEY -and $r.Err -match (PassNote 'devin' 'swe-2-medium-lightning')) $r.Err
+    $r = Run @('-HostId','devin','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','--cloud')
+    Check 'Devin refuses a model id shaped like a flag' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
     $text = "quoted `"text`" café`n& echo %PATH% !name! " + ('x' * 9000)
     $taskFile = Join-Path $fixture 'task.txt'; [IO.File]::WriteAllText($taskFile, $text)
     foreach ($id in @('antigravity')) {
@@ -281,34 +311,105 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'recorded opt-in is not applied without the switch' ($r.Exit -eq 3 -and $r.Err -match 'weekly account limit')
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-AnthropicApiKey')
     Check 'Anthropic API-key opt-in is refused for other hosts' ($r.Exit -eq 3 -and $r.Err -match 'applies only to -HostId claude')
-    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-Model','x')
-    Check 'model override requires the API-key opt-in' ($r.Exit -eq 3 -and $r.Err -match '-Model applies only')
-    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-Model','opencode/kimi-k3')
-    Check 'OpenCode refuses a model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy.opencode.allowedModels')
-    $fleet.dispatchPolicy.opencode['allowedModels'] = @('opencode/glm-5.3-flash', 'opencode/glm-5.3'); $fleet.dispatchPolicy.opencode['agent'] = 'peer'; Save-Fixture
-    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-Model','opencode/glm-5.3','-Title','T1 task','-TimeoutSec','5')
+    $r = Run @('-HostId','amp','-Prompt','ok','-Cwd',$scratch,'-Model','x')
+    Check 'a host without a model contract still refuses -Model' ($r.Exit -eq 3 -and $r.Err -match '-Model applies only')
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','gpt-6.1-sol')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '-m') } else { -1 }
+    Check 'Codex passes an explicit model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'gpt-6.1-sol' -and $d.Arguments[0] -eq 'exec' -and $d.Arguments[-1] -eq '-' -and $d.Input -eq 'ok' -and -not $d.ApiKeyVars.OPENAI_API_KEY -and $r.Err -match (PassNote 'codex' 'gpt-6.1-sol')) $r.Err
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-Model','gpt 6|more')
+    Check 'Codex refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
+    $r = Run @('-HostId','grok','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','grok-4.7-code')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'Grok passes an explicit model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'grok-4.7-code' -and $d.Arguments -contains '--prompt-file' -and $d.PromptContents -contains 'ok' -and $r.Err -match (PassNote 'grok' 'grok-4.7-code')) $r.Err
+    $r = Run @('-HostId','grok','-Prompt','ok','-Cwd',$scratch,'-Model','grok;echo')
+    Check 'Grok refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','opencode-go/kimi-k3')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'OpenCode passes an unlisted provider/model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'opencode-go/kimi-k3' -and -not $d.ApiKeyVars.OPENCODE_GO_API_KEY -and $r.Err -match (PassNote 'opencode' 'opencode-go/kimi-k3')) $r.Err
+    # Subscriptions only: the opencode/ provider is the pay-as-you-go Zen wallet.
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','opencode/kimi-k3')
+    Check 'OpenCode refuses the pay-as-you-go opencode/ provider and names the Go route' ($r.Exit -eq 3 -and $r.Err -match 'Zen wallet' -and $r.Err -match 'opencode-go/<model>') $r.Err
+    $fleet.dispatchPolicy.opencode.model = 'opencode/glm-5.3-flash'; Save-Fixture
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'OpenCode refuses a recorded default on the opencode/ provider' ($r.Exit -eq 3 -and $r.Err -match 'Zen wallet') $r.Err
+    $fleet.dispatchPolicy.opencode.model = 'opencode-go/glm-5.3-flash'; Save-Fixture
+    # MiMo routes on every host must be the Xiaomi Token Plan.
+    $mimoRoutes = @(
+        @('kilo', 'mimo/mimo-v2.6-pro'),
+        @('mimo-code', 'xiaomi-token-plan-sgp/mimo-v2.6-pro'),
+        @('opencode', 'mimo-token-plan/mimo-v2.6-pro'),
+        @('cline', 'mimo-token-plan:mimo-v2.6-pro'),
+        @('factory', 'custom-mimo-v2.6-pro')
+    )
+    foreach ($route in $mimoRoutes) {
+        $routeHost = $route[0]; $routeModel = $route[1]
+        $r = Run @('-HostId',$routeHost,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model',$routeModel)
+        $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+        Check "$routeHost runs a MiMo model with a tp- key and a token-plan host" ($null -ne $d -and $r.Err -notmatch 'refused') $r.Err
+        $env:MIMO_API_KEY = 'sk-synthetic-payg-fixture'
+        $r = Run @('-HostId',$routeHost,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model',$routeModel)
+        Check "$routeHost refuses a MiMo model on a pay-as-you-go sk- key without printing it" ($r.Exit -eq 3 -and $r.Err -match 'MIMO_API_KEY' -and $r.Err -notmatch 'synthetic-payg' -and $r.Out -notmatch 'synthetic-payg') $r.Err
+        $env:MIMO_API_KEY = 'ttp-synthetic-dispatch-fixture'; $env:MIMO_BASE_URL = 'https://api.xiaomimimo.com/v1'
+        $r = Run @('-HostId',$routeHost,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model',$routeModel)
+        Check "$routeHost refuses a MiMo model on the pay-as-you-go base URL without printing it" ($r.Exit -eq 3 -and $r.Err -match 'MIMO_BASE_URL' -and $r.Err -notmatch 'api\.xiaomimimo') $r.Err
+        $env:MIMO_BASE_URL = 'https://token-plan-sgp.xiaomimimo.com/v1'
+        $r = Run @('-HostId',$routeHost,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model',$routeModel)
+        Check "$routeHost accepts a ttp- key on a token-plan host" ($r.Exit -eq 0) $r.Err
+        $env:MIMO_API_KEY = 'tp-synthetic-dispatch-fixture'
+    }
+    $env:MIMO_API_KEY = $null; $env:MIMO_BASE_URL = $null
+    $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'MiMo runs on its stored plan credential when neither variable is set' ($r.Exit -eq 0) $r.Err
+    $env:MIMO_BASE_URL = 'https://token-plan-sgp.xiaomimimo.com.example.net/v1'
+    $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'Kilo refuses a look-alike token-plan host on its default model' ($r.Exit -eq 3 -and $r.Err -match 'MIMO_BASE_URL') $r.Err
+    $env:MIMO_API_KEY = 'tp-synthetic-dispatch-fixture'; $env:MIMO_BASE_URL = 'https://token-plan-sgp.xiaomimimo.com/v1'
+    $r = Run @('-HostId','mimo-code','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','xiaomi/mimo-v2.6-pro')
+    Check 'MiMo refuses the pay-as-you-go xiaomi/ provider' ($r.Exit -eq 3 -and $r.Err -match 'pay-as-you-go MiMo API') $r.Err
+    $env:MIMO_API_KEY = 'sk-synthetic-payg-fixture'
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','opencode-go/mimo-v2.6-pro')
+    Check 'A MiMo model on the OpenCode Go subscription is not a MiMo API route' ($r.Exit -eq 0) $r.Err
+    $env:MIMO_API_KEY = 'tp-synthetic-dispatch-fixture'
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-Model','kimi-k3')
+    Check 'OpenCode refuses a bare model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-Model','opencode-go/x&echo')
+    Check 'OpenCode refuses a shell-unsafe model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
+    $fleet.dispatchPolicy.opencode['allowedModels'] = @('opencode-go/glm-5.3-flash', 'opencode-go/glm-5.3'); $fleet.dispatchPolicy.opencode['agent'] = 'peer'; Save-Fixture
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-Model','opencode-go/glm-5.3','-Title','T1 task','-TimeoutSec','5')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
     $titleIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--title') } else { -1 }
-    Check 'OpenCode routes an allowed model and session title per task' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'opencode/glm-5.3' -and $titleIndex -ge 0 -and $d.Arguments[$titleIndex + 1] -eq 'T1 task' -and $d.Arguments[-1] -eq 'ok') $r.Err
+    Check 'OpenCode routes a listed Go model and session title per task' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'opencode-go/glm-5.3' -and $r.Err -notmatch 'note:' -and $titleIndex -ge 0 -and $d.Arguments[$titleIndex + 1] -eq 'T1 task' -and $d.Arguments[-1] -eq 'ok') $r.Err
     $agentIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--agent') } else { -1 }
     Check 'OpenCode unattended runs use the policy-named agent' ($agentIndex -ge 0 -and $d.Arguments[$agentIndex + 1] -eq 'peer') $r.Err
     $fleet.dispatchPolicy.opencode.Remove('allowedModels'); $fleet.dispatchPolicy.opencode.Remove('agent'); Save-Fixture
     $fleet.dispatchPolicy['cline'] = @{ allowedModels = @('openai-compatible:qwen3.8-max-0902', 'cline:poolside/laguna-s-2.1:free') }; Save-Fixture
     $r = Run @('-HostId','cline','-Prompt','ok','-Cwd',$scratch,'-Model','cline:anthropic/claude-sonnet-5.5','-TimeoutSec','5')
-    Check 'Cline refuses a usage-billed model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy.cline.allowedModels')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $providerIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--provider') } else { -1 }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'Cline passes an unlisted provider:model through with a note' ($providerIndex -ge 0 -and $d.Arguments[$providerIndex + 1] -eq 'cline' -and $modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'anthropic/claude-sonnet-5.5' -and $d.PeerGuard -eq '1' -and -not $d.ApiKeyVars.ANTHROPIC_API_KEY -and $r.Err -match (PassNote 'cline' 'cline:anthropic/claude-sonnet-5.5')) $r.Err
+    $r = Run @('-HostId','cline','-Prompt','ok','-Cwd',$scratch,'-Model','claude-sonnet-5.5','-TimeoutSec','5')
+    Check 'Cline refuses a model id without a provider' ($r.Exit -eq 3 -and $r.Err -match 'provider:model')
     $r = Run @('-HostId','cline','-Prompt','ok','-Cwd',$scratch,'-Model','cline:poolside/laguna-s-2.1:free','-TimeoutSec','5')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $providerIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--provider') } else { -1 }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
-    Check 'Cline routes an allowed provider:model per task' ($providerIndex -ge 0 -and $d.Arguments[$providerIndex + 1] -eq 'cline' -and $modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'poolside/laguna-s-2.1:free' -and $d.PeerGuard -eq '1') $r.Err
+    Check 'Cline routes a listed provider:model per task' ($r.Err -notmatch 'note:' -and $providerIndex -ge 0 -and $d.Arguments[$providerIndex + 1] -eq 'cline' -and $modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'poolside/laguna-s-2.1:free' -and $d.PeerGuard -eq '1') $r.Err
     $fleet.dispatchPolicy.Remove('cline'); Save-Fixture
-    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-Model','claude-5-5-opus-max')
-    Check 'Warp refuses a model outside the credit allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy.warp.allowedModels')
+    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-Model','claude-5-5-opus-max','-TimeoutSec','5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'Warp passes an unlisted model through with a note, guard intact' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'claude-5-5-opus-max' -and $d.Arguments -contains '--no-snapshot' -and $d.WarpGuard.gitCount -eq '3' -and -not $d.ApiKeyVars.WARP_API_KEY -and $r.Err -match (PassNote 'warp' 'claude-5-5-opus-max')) $r.Err
+    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-Model','glm 5.3;echo')
+    Check 'Warp refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
     $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-Model','glm-5.3-fireworks','-TimeoutSec','5')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
-    Check 'Warp routes an allowed model per task' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'glm-5.3-fireworks') $r.Err
+    Check 'Warp routes a listed model per task' ($r.Err -notmatch 'note:' -and $modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'glm-5.3-fireworks') $r.Err
     # dispatchPolicy.warp.mcpConfig is a {userHome} template resolved against the
     # invoking user's home, so the synthetic home points at the fixture for these
     # runs and is restored after. The fixture file is deliberately not a real MCP
@@ -366,6 +467,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $env:AGENTHUB_ROOT = $oldRoot; $env:LOCALAPPDATA = $oldLocal; $env:CAD_FIXTURE_EXIT = $null; $env:CAD_FIXTURE_SLEEP = $null
     $env:USERPROFILE = $oldWindowsHome; $env:HOME = $oldPosixHome
     foreach ($name in $oldApiKeyVars.Keys) { [Environment]::SetEnvironmentVariable($name, $oldApiKeyVars[$name], 'Process') }
+    [Environment]::SetEnvironmentVariable('MIMO_BASE_URL', $oldMimoBaseUrl, 'Process')
     $resolved = [IO.Path]::GetFullPath($fixture)
     if ($resolved.StartsWith([IO.Path]::GetFullPath(([IO.Path]::GetTempPath())).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $resolved -Recurse -Force }
 }
