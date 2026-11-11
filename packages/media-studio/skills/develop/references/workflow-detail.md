@@ -1,12 +1,22 @@
 # Workflow detail
 
+Choose the film's creative form *before* deciding its beat structure.
+Read `../../video/references/creative-formats.md`. Current-product
+demos follow an evidence-led problem/action/result. A fictional, future
+vision, conceptual, documentary, educational or abstract film may use a
+different structure, fully imagined interfaces and people of any age.
+For non-verified forms, `schemas/creative-storyboard.schema.json`
+accepts free-form roles and rich visual shots without requiring a
+hero/CTA/cold-open. The classic structure below applies when making
+verified-product or deliberately classic narrative pieces.
+
 ## Red flags
 
 | Thought | Reality |
 | --- | --- |
 | "I'll write narration straight away." | Beats with pictures first, or the script will describe things no one can see. |
 | "A bullet list is a script." | A script has a turn. Find it. |
-| "The hook can come after the context." | The hook is the first five seconds. |
+| "The hook can come after the context." | A verified feed demo needs an early hook; a documentary, slow drama or abstract film may intentionally build context or reveal its point later. |
 | "I'll round the number." | Locked facts are locked. |
 
 
@@ -28,8 +38,11 @@ Write the logline: who, wants what, against what, with what at stake. Then test 
 
 - `role` is one of hook, before, tension, reveal, proof, trust, hero, payoff, cta, bridge (`schemas/storyboard.schema.json`).
 - `picture` is what the viewer sees, in nouns: "four truck outlines crossed out". If it could be the line again, it is not a picture.
-- Exactly one `hero` beat, the moment the piece exists for.
-- No role three times in a row; the viewer's question changes every beat.
+- **Verified-demo template:** one hero beat, with a purposeful progression.
+- **Flexible story/vision/abstract:** no mandatory hero count or fixed beat
+  labels. Use atmosphere, characters, scenes, non-linear concepts, parallel
+  storytelling or montage as the project needs. Judge the intended visual
+  experience, not a universal checklist.
 
 Shapes that work: problem, stakes, mechanism, proof, call to action (explainer); before, turn, after (story); question, evidence, answer (briefing); setup, escalation, reversal, payoff (documentary or drama).
 

@@ -1,5 +1,7 @@
 # Forms
 
+Read `creative-formats.md` first. A product's existence does not determine that its requested film must be a factual product tour. Fully synthetic and photorealistic story films, concept interfaces, fictional patients, day-in-the-life sequences, documentaries, educational animations and future-state visions are valid; use the appropriate `kind` and `creativeMode` for the selected production lane. `mvg`'s marketing-only `creativeMode` does not automatically add new modes to `job.schema.json`.
+
 Lookup for `programForm`, `kind`, `deliveryProfile`, series and campaigns in `job.json`. Infer them from the brief. One promise per film; organize around the viewer's job, not the product nav.
 
 ## Kinds
@@ -8,7 +10,7 @@ Remotion is required for every kind marked R, unless `intent: draft`. A draft ma
 
 | `kind` | Use | `deliveryProfile` | Make it |
 | --- | --- | --- | --- |
-| `product-screencast` | Real UI | set per job | Product picture contract, `record-job.mjs`, `validate-product-picture.mjs` |
+| `product-screencast` | Verified current-product UI | set per job | Product picture contract, `record-job.mjs`, `validate-product-picture.mjs` |
 | `briefing` | Argument | `briefing-board` | R. Composition `Briefing` from the house kit. Exact logos, numbers, legal text are set type |
 | `training` | One skill per clip, about 3 min | `onboarding` | R. Interrupt between cards |
 | `explainer` | Idea, no live product | `youtube-16x9` | R. Diagram that builds |
@@ -55,7 +57,7 @@ Campaign forms are enforced by `job.schema.json`: `kind` `product-screencast`, e
 | `campaign-outreach` | One audience, one CTA | 70-80s | `product-screencast` |
 | `marketing-cutdown` | Feed cut of a master | as briefed | `product-screencast` |
 
-- Buyer-facing: start with the cost, then show config → action → response → result. A settings tour is five films.
+- Verified buyer-facing software demo: start with the cost and prove config → action → response → result. Future-vision, concept, documentary, fictional and experimental formats choose their own narrative shape; never require a settings walkthrough or current-product capture where none was promised.
 - `ai-in-action`, `ai-trust`: show the human change. An instant-perfect result fails.
 - `ai-trust`, `technical-story`: `explainer` only when no product can be shown.
 - Derivatives: set `sourceJobId`; recut the capture, never re-fake UI.

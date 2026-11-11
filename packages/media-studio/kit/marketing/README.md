@@ -59,6 +59,88 @@ compose metadata and ratio. Keep the old job read-only. Old PASS receipts do not
 gates, including `wordSync` and `transcript`, and obtain exact-candidate reviews. QA measures existing captions; it does
 not retime them. The separate production timing-stage follow-up is not part of this repair.
 
+## Choose creativeMode before writing the film
+
+Media Studio is **not** a single-product proof-of-feature generator. The
+`mvg` marketing-ad lane accepts `creativeMode`:
+`verified-demo` (default for legacy ads), `hybrid`, `future-vision`,
+`concept-film`, `fictional-story`, `explainer`, `documentary`,
+`educational`, and `abstract`. It accepts optional beat
+`truthStatus: verified|proposed|fictional|illustrative`.
+
+A **verified demo** must support present-tense claims with real captured UI
+evidence. Its pre-spend 25s+ story lint checks scenario, clear product
+introduction, actual mechanism, outcome and CTA. A 10–24s verified teaser
+can compress to hook → real UI proof → CTA. These are verified-demo
+standards, **not a universal screenplay formula**.
+
+All other forms are free to start at the climax, tell a fictional day in
+the life, depict an imagined future, use an abstract rhythmic structure,
+or follow a documentary's evidence trail. They do **not** require six
+ordered beats, a genuine current product clip, a software name in the
+opening, a mandatory conflict/hero at a fixed timestamp, or a generated
+person's age to meet a particular rule. The final reviewer judges the
+declared film's goals, story quality, truthfulness of real claims and
+actual visible result.
+
+### Realistic people, patients and synthetic interfaces
+
+Fictional people, invented settings and imagined screens are valid
+creative assets. Two things decide what a given film may show, and
+neither is shared code:
+
+- **The product's policy.** A brand file may set `generatedPeople` to
+  `any` (default), `adults-only` or `none`. `product-profiles.json`
+  holds the standing policy of a product that needs one.
+- **Classification.** In a film about the current product, a generated
+  person carries `truthStatus: fictional` or `illustrative` (or a
+  `broll.actor.kind`), so nobody is shown an invented person as a real
+  customer or patient. A captured product screen is always a statement
+  about the product today and cannot be relabelled as fiction.
+
+No blur, anonymization mask or ban on readable text is imposed on
+synthetic media.
+An actor may optionally have `broll.actor` metadata (role, ageGroup,
+character continuity). Legacy `noPatientOrMinor` metadata is not an
+active restriction.
+
+A proposed interface in `future-vision` or `concept-film` may be
+shown in full. In `hybrid`, identify it as `truthStatus: proposed`
+(or `fictional|illustrative`) and mark `broll.depictsProductUI: true`
+so it is not mistaken for current-functionality proof. Use
+`conceptDisclosure` or a clear film-level phrase such as
+"Concept visualization" or "Envisioning what's possible". **A film-level
+disclosure need not be a permanent watermark, blurred scene, or an
+audio interruption.** Keep the invented content visually excellent.
+
+A fictional hospital/clinic encounter is not automatically a
+testimonial, a real medical record or a currently shipped capability.
+A verified factual claim, in contrast, still needs its source or
+real product capture. Licensed real-person portrayals require ordinary
+rights/consent. No real patient/customer data goes to an unapproved
+provider.
+
+**Example: future-world experience** — Show a clear, realistic synthetic
+family entering a future clinic, a fully legible imagined planning
+dashboard, an AI-supported interaction, then how the day changes for
+the fictional characters. This can be the *entire film*. It is not a
+working software demonstration unless separately backed by real
+capture and truth-status evidence.
+
+For a general documentary, education program, dramatic or abstract film
+without a marketing CTA, use the wider `studio`/`video` development and
+composition workflow rather than pretending `mvg`'s ad spec is a
+universal film file format. See `skills/video/references/creative-formats.md`.
+
+### Production constraints are not creative constraints
+
+The `mvg` b-roll asset stage currently supports configured OpenAI image
+generation, accepted stock files and the historical ElevenLabs-video
+stub. Public Runware models cannot be activated simply by changing an
+environment variable; each must have a model-correct, priced, governed
+adapter. That is an implementation gap, **not** a ban on synthetic
+people, scenes or future product screens.
+
 ## Writing a spec (`ad.schema.json`)
 
 | Field | Meaning |
@@ -70,7 +152,7 @@ not retime them. The separate production timing-stage follow-up is not part of t
 | `beats[]` | `id`, `kind` `ui` / `broll` / `card` / `title`, `narration`, `onScreenText`, `emphasis[]`, `claims[]`, `minSeconds`, `ui {sourceJob, clipId, trimStart, trimEnd, focus[], actions[], freshness, record}`, `broll {provider, prompt}`, `sfx[] {cue, prompt, durationSeconds}`. A final `card` beat is the CTA end card. |
 | `claims[]` | `id`, `text`, `phrases[]` (exact substrings of narration/on-screen text it substantiates), `kind`, `evidence`: `file:<path>[:line]`, `clip:<sourceJob>#<clipId>@<t0>-<t1>` (checked against the capture receipt) or `approved:<source>`. |
 | `cta` | `text`, `url` (https), `displayUrl`, `claim`. |
-| `labels` | Synthetic-data disclosure shown as one line on the end card; must say SYNTHETIC and NO PHI. |
+| `labels` | The film's disclosure line, shown on the end card. What it must contain is the product's rule: `brand.disclosure.mustInclude`, or the product's entry in `product-profiles.json` (ABACare: SYNTHETIC and NO PHI). A spec that sets `syntheticData` must say "synthetic". |
 | `edit.beatGrid` | Optional `{ bpm, offsetSeconds }`: the music bed's tempo, so the marketing-readiness floor (>= 90% of cuts within 80 ms of the beat) can be met. The bed plays from program time 0, so beats fall at `offsetSeconds + n * 60/bpm` for any whole `n` (the offset is the bed's phase). After the voice-first timeline is built, every scene boundary except the program start is moved to the next beat at or after its natural end by lengthening that scene's tail hold only (never shortening, each extension under one beat); narration keeps its place inside its scene and everything after shifts with it (`startSeconds`, `lineStartSeconds`, word and caption times), so the film grows by the added holds. Each boundary is then moved to a whole frame (30 fps: the nearest frame to the beat, never earlier than the scene's natural end, so a cut sits within one frame of the beat), so the edit list, the captions and the gates name the frames the picture cuts on; MarketingAd lays consecutive beats out from one shared rounded boundary, so no frame belongs to no beat (no black frame at a cut). Keep it out of `music` (the bed's cache key is its prompt, length and model) and put the tempo in the music prompt yourself. It keys the `timing` stage (a change re-times with the cached ASR, no new spend), is written to `timeline.json` and to `compose-map.json` as `beatGrid`, and a UI beat's longer hold must still be covered by its clip (compose refuses a hold over the limit). |
 | `budget`, `qa` | Per-run caps; `qa.storyMin`, `qa.visionEverySeconds`, `qa.loudness`, `qa.required`. |
 
@@ -103,12 +185,19 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 
 ## Truth rules (enforced, not advisory)
 
-- Real captured UI carries every credibility-bearing second; a cut with no UI beat fails lint. No fabricated UI, dashboards,
-  metrics, customers or testimonials; no generated people or children (b-roll prompts naming either fail lint); synthetic
-  data only; the label stays on screen in every frame (vision QA checks it).
-- Every narration sentence and on-screen text maps to a claim with checked evidence; any figure (digits or number words) must
-  appear in a referenced claim. "Submitted to a payer" and payer-outcome language fail unless negated ("nothing is sent to a
-  payer"). Ready to Bill is local readiness.
+- In a `verified-demo` film, real captured UI carries every credibility-bearing second and a cut with no UI beat fails
+  lint. A generated interface is never proof of current behaviour, and a captured interface is never fiction.
+- A beat is **factual** when it is captured UI, is marked `verified`, belongs to a verified demo, or names the product in a
+  form that states facts (explainer, documentary, educational, hybrid). Every factual sentence and on-screen text maps to
+  a claim with checked evidence; any figure (digits or number words) must appear in a referenced claim. Declaring another
+  `creativeMode` does not change this.
+- Guarantees, superlatives, testimonials and unsubstantiated comparisons fail in factual beats for every product. Industry
+  wording is a named policy the product opts into: `brand.claimPolicies: ["healthcare-payer"]` fails "submitted to a payer"
+  and payer-outcome language unless negated ("nothing is sent to a payer").
+- A film that shows proposed capability says so (`conceptDisclosure` or `labels`), in words that mean "not current": a
+  product name or a slogan containing "vision" or "future" does not count.
+- The disclosure line a product requires is checked in lint, in the narration gate and by the frame reviewer, in every
+  creative mode.
 - Marketing narration is never the owner clone unless `voice.ownerVoice` is true, that job's immutable owner manifest names the voice, and `voice.disclosure` states it. Never a celebrity sound-alike. OpenAI voices need a stated AI disclosure. The delivery note denies an owner voice only for OpenAI stock voices.
   Eleven Music needs a `licenseBasis` (its terms limit Creator to individual use and never name advertising; confirm in
   writing before paid media).
@@ -214,3 +303,50 @@ narration that spends words on the demo data or on the film itself (`synthetic`,
 - Vision models miss small text; the vision gate is evidence, not the final read. Watch and listen to every encoded file.
 - ElevenLabs `eleven_v4` ignores style and speed, so pacing comes from punctuation, the script and `stitching`.
 - Pronunciation: the ABACare dictionary (`ABACare` to "A B A Care") is attached; the transcript gate confirms it.
+
+## Film types and the story gate
+
+`lib/story-profiles.mjs` keys the story rules by `filmType`, so a film is judged by the parts its own form needs. Set
+`filmType` on the spec or on one cut; without it the type follows `creativeMode` (a verified demo or hybrid is
+`product-marketing`).
+
+| `filmType` | Beats, in order | Brief (`narrative`) |
+| --- | --- | --- |
+| `product-marketing` | hook, context, problem, solution (product named), demonstration, payoff, cta | persona, situation, trigger, problem, stakes, solution, mechanism, payoff, emotionalBefore, emotionalAfter, viewerValue, plus `hookPlan` |
+| `product-marketing` under 25 s | hook, demonstration, cta; product named in the first two beats | none |
+| `feature-demo` | context, demonstration, payoff | persona, problem, payoff |
+| `tutorial` | goal, step, payoff | goal |
+| `explainer` | hook, explanation, takeaway | question, viewerValue |
+| `social-cut` | hook, demonstration, then a payoff or a cta | none |
+| `founder-pitch` | hook, problem, solution, proof, cta | problem, solution, ask |
+| `internal-update` | context, demonstration, next-step | change |
+| `story` | free order | persona, situation, emotionalBefore, emotionalAfter |
+| `non-narrative` | free order | none; `organizingPrinciple` is required |
+
+A cut under ten seconds keeps only the ordinary gates. Thresholds use the longer of `targetSeconds` and the estimate.
+
+Role and field names accept the wording of a planning document: `problem and stakes`, `product introduction`,
+`call to action`, `beforeState`, `afterState`, `firstVisual`, `spokenLine`.
+
+**Waiving a rule.** Each finding has a rule id such as `story.cta-last`. A spec may waive story rules:
+
+```json
+"storyOverrides": [{ "rule": "story.cta-last", "reason": "Owner 2026-11-10: plays inside the product page, which carries the button." }]
+```
+
+The finding becomes a `story-override` warning that names the rule and the reason. Only `story.*` rules can be waived;
+truth and evidence rules cannot. A spec written before the story gate either adds `storyRole` to its beats or waives
+`story.*` with the reason.
+
+**Before capture, for any product:**
+
+```text
+node scripts/check-story.mjs <brief.json> [--brand <brand.json>]   # exit 0 pass, 1 fail; contacts no provider
+node scripts/check-story.mjs --types                               # what each film type needs
+```
+
+The brief may be a full spec or only `product`, `filmType`, `targetSeconds`, `narrative` and `beats`.
+
+**Not film-type aware yet.** The `mvg` renderer always draws an end card from `cta`, so a spec still carries `cta` even
+when its film type needs no call-to-action beat. Ratios are 16x9, 4x5 and 9x16; `voice.provider` is elevenlabs, openai or
+local.

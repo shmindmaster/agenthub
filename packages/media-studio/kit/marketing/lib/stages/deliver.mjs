@@ -8,6 +8,16 @@ import { fileSha, readJson, writeJson } from '../util.mjs';
 import { selectedCuts, verifiedCandidate } from '../candidate.mjs';
 import { releasable, requiredGates } from '../gates.mjs';
 
+/** What the picture is, said from the spec: captures only when there are any, and no claim about a demo tenant the film did not use. */
+function pictureNote(ctx, clips) {
+  const beats = ctx.spec.cuts?.flatMap((c) => c.beats || []) || ctx.spec.beats || [];
+  const generated = beats.some((b) => b.kind === 'broll');
+  const data = ctx.brand?.disclosure?.required || ctx.spec.syntheticData ? ' on synthetic data' : '';
+  const captured = clips.length ? `receipt-bound Playwright + Recast captures (${clips.join(', ')})${data}, cropped to follow the pointer` : 'no product capture';
+  const mode = ctx.spec.creativeMode && ctx.spec.creativeMode !== 'verified-demo' ? ` Creative mode: ${ctx.spec.creativeMode}.` : '';
+  return `${captured}${generated ? '; generated shots are classified in the spec and assert nothing about the current product' : ''}.${mode}`;
+}
+
 // Only an OpenAI stock voice can be denied as a clone. An ElevenLabs job may be a clone that omits ownerVoice.
 function narratorNote(v) {
   const nature = v.ownerVoice === true ? "an AI clone of the owner's voice, used under this job's owner authorization"
@@ -22,7 +32,7 @@ export function readmeSection({ ctx, nn, title, delivered, gatesByRatio, date })
   return [
     `## ${String(nn).padStart(2, '0')} - ${title} (delivered ${date})`,
     '',
-    `${ctx.spec.objective}. Cuts: ${delivered.map((d) => `${d.ratio} ${mmss(d.seconds)} (sha256 ${d.mp4Sha256.slice(0, 12)}...)`).join(', ')}. Narrator: ${narratorNote(v)}. Picture: receipt-bound Playwright + Recast captures (${clips.join(', ')}) on the bounded synthetic Demo Clinic, cropped to follow the pointer; generated assets are abstract and assert nothing. Gates on the exact files: ${gateLine}. Ledger: \`${ctx.jobDir}\`.`,
+    `${ctx.spec.objective}. Cuts: ${delivered.map((d) => `${d.ratio} ${mmss(d.seconds)} (sha256 ${d.mp4Sha256.slice(0, 12)}...)`).join(', ')}. Narrator: ${narratorNote(v)}. Picture: ${pictureNote(ctx, clips)} Gates on the exact files: ${gateLine}. Ledger: \`${ctx.jobDir}\`.`,
     '',
   ].join('\n');
 }
@@ -37,7 +47,7 @@ export async function deliverStage(ctx) {
       const ad = named.ad;
       if (!existsSync(gp) || !existsSync(ad)) throw new Error(`deliver: ${ratio} has no gated candidate; run compose and qa first`);
       const g = readJson(gp);
-      const measured = releasable(g.gates || {}, requiredGates(ctx.spec));
+      const measured = releasable(g.gates || {}, requiredGates(ctx.spec, ratio));
       if (!measured.ok || Object.values(g.gates || {}).some((gate) => gate.candidateSha256 !== named.sha256)) throw new Error(`deliver refused for ${ratio}: missing, failing or stale per-gate candidate binding`);
       if (!g.ok) throw new Error(`deliver refused for ${ratio}: ${g.failing.join('; ')}`);
       if (g.specSha256 !== ctx.specSha || g.brandSha256 !== ctx.brandSha) throw new Error(`deliver refused for ${ratio}: QA used different spec or brand inputs`);

@@ -54,6 +54,18 @@
       }
     },
     "forbiddenNames": { "type": "array", "items": { "type": "string", "minLength": 2 }, "description": "Prospect, customer, partner and competitor names that must never appear in narration, text or frames." },
+    "productNames": { "type": "array", "items": { "type": "string", "minLength": 2 }, "description": "Other written or spoken forms of the product name that count as naming it (for example a two-word public brand, or the form a narrator says)." },
+    "claimPolicies": { "type": "array", "uniqueItems": true, "items": { "enum": ["healthcare-payer"] }, "description": "Industry claim policies this product's factual statements are held to, by name. The generic bans (guarantees, superlatives, testimonials, unsubstantiated comparisons) apply to every product without listing them." },
+    "disclosure": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "description": "What every film for this product must disclose. Shared code imposes no industry wording; a product that shows synthetic data lists the words its label must contain.",
+      "properties": {
+        "required": { "type": "boolean" },
+        "mustInclude": { "type": "array", "items": { "type": "string", "minLength": 2 }, "description": "Phrases the film's labels line must contain, compared without case or punctuation." },
+        "mode": { "enum": ["end-card", "caption"], "description": "Where the line is shown. Default end-card." }
+      }
+    },
+    "generatedPeople": { "enum": ["any", "adults-only", "none"], "description": "Whether generated people may appear in this product's films. Default any. In a film about the current product they must still be classified as fictional or illustrative." },
     "bannedPhrases": {
       "type": "array",
       "items": {

@@ -12,7 +12,17 @@ description: Develops an approved case into a logline, treatment, beat sheet wit
 3. Hand `plan` the locked screenplay, beat sheet and approved story decision.
 4. If a beat lacks a defensible picture or approval, revise the beat before planning.
 
-Turn the case into a story and then into locked lines. This is where the idea becomes something worth watching. Quality here is what no later step can add back.
+Turn the case into the form that the viewer actually requested. Read
+`../video/references/creative-formats.md` before choosing a structure.
+A current-product demo uses a factual problem/action/result sequence;
+a fictional day-in-the-life may follow characters, a documentary can
+build from sourced evidence, and a future vision may begin with an
+invented full-resolution UI, family or patient scene. Abstract and
+music-led works do not require one hero scene, a linear obstacle or
+a strictly timed spoken hook. All people and synthetic screens may
+look fully realistic; no default blurring or adult-only requirement.
+Verified factual claims remain sourced while envisioned scenes are
+free to be imaginative.
 
 ## Order
 
@@ -28,6 +38,7 @@ Turn the case into a story and then into locked lines. This is where the idea be
 ## 5 Gates
 
 ```text
+node scripts/check-story.mjs story/brief.json                  # the story has the parts its film type needs
 py -3 scripts/check_script_terms.py story/locked-script.txt     # every name, acronym and brand decided
 node scripts/validate-narration.mjs <jobRoot>                   # fluff, repeats, hook inside five seconds
 ```

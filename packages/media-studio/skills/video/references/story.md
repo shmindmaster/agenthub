@@ -55,6 +55,46 @@ A single-beat clip runs question → reveal → takeaway.
 
 `write-story-review.py` requires: first scene `hook`; a `before` scene ahead of the hero; hero outside the first 3 scenes, `holdAfterSeconds` ≥ 1.0, and `silenceOnReveal` or `musicCue` `silence` or `sting`; `trust` or `proof` within 3 scenes after it, or a recorded judgment.
 
+## Story structure follows the chosen form
+
+See `creative-formats.md` before imposing a beat map. A verified
+software demonstration needs a recognizable problem, the named current
+product, actual mechanism and verified result. A fictional story,
+documentary, musical film, non-linear puzzle, abstract animation,
+"day in the life", product concept or future vision can use very different
+shapes. Fictional people, invented settings and readable imagined
+interfaces are available to all of them, within the product's own policy
+(`brand.generatedPeople`, `product-profiles.json`). No blur, watermark or
+fixed beat formula follows from an asset being synthetic.
+
+For a **verified current-product** movie, establish who/where, the task
+and why it matters; show the real screen action and visible result.
+Generated human-world context is welcome, but proposed software
+functionality is not factual proof. A short verified teaser can
+compress the chain without becoming a tab montage.
+
+For a **fictional, conceptual, or speculative** film, choose the
+appropriate creative structure: classical drama, aspiration, vignette,
+documentary-style reconstruction, non-linear climax-first, mood-piece,
+design film, visual experiment or abstract message. Develop characters,
+world, stakes, intentional moments, emotional changes, payoff or
+meaning as appropriate. A future screen can be completely fabricated
+and shown clearly—it is the *point* of the vision film. A declared
+concept/vision is not misrepresented current functionality.
+
+For a **hybrid**, distinguish real capture/evidence from fictional
+context and proposed UI. State the concept status once in a natural
+place such as a title, narration, or end card. Do not cover every frame
+with an intrusive disclosure or impose blur on synthetic source data.
+Any real customer/patient material requires ordinary appropriate
+permissions independently of the style.
+
+Hook, narration, visuals and editing should serve the audience and
+chosen film form; choose clear arcs rather than a compulsory chronology.
+Only genuinely verified claims need a current product/source
+receipt. A thematic or emotional payoff is valid in a non-product
+film. Keep the final review specific to its declared purpose.
+
 ## Writing for the ear
 
 - One idea per scene, one thought per sentence, short sentences.
@@ -169,3 +209,32 @@ Screencasts: Recast owns cursor, clicks and zoom. Do not invent another overlay 
 | Text callout | `onScreen`, up to 4 words | Repeating the voice |
 | B-roll | Accepted plates, `gpt-image-2.5-flare` stills | Synthesized UI, metrics, testimonials |
 | Accent | `sfxCue`, `silenceOnReveal`, `transitionAudio` | Wall-to-wall bed |
+
+## The story gate, by film type
+
+Run it before any capture, generation or voice, for every product:
+
+```text
+node scripts/check-story.mjs <brief.json> [--brand <brand.json>]
+node scripts/check-story.mjs --types
+```
+
+Pick the film type that is true of the film: `product-marketing`, `feature-demo`, `tutorial`, `explainer`,
+`social-cut`, `founder-pitch`, `internal-update`, `story` or `non-narrative`. Each has its own required beats and
+brief; `kit/marketing/README.md` has the table. A tutorial is not asked for a call to action, and a marketing film is
+not excused from setting a scene.
+
+What the gate checks is structure. It cannot tell whether a viewer can follow the film; the review of the encoded file
+still decides that.
+
+| Standard | Where it is enforced |
+| --- | --- |
+| Hook inside five seconds, about 12 words, picture, text and voice agree | `story.hook-first`, `story.hook-length`, `story.hook-plan.*` |
+| Context after the hook and before the product | `story.context`, `story.context-late`, `story.order` |
+| One problem, the product by name, proof, a changed result | `story.problem`, `story.product-named`, `story.demonstration`, `story.proof-ui`, `story.payoff` |
+| Emotional before and after, a useful payoff | `story.narrative.emotionalBefore`, `.emotionalAfter`, `.change`, `.viewerValue` |
+| Value before the ask, one call to action | `story.cta-last`, `story.cta-single`, `story.cta-text` |
+| One scenario and one thread, momentum, craft, per-channel fit | Reviewer judgment on the encoded file (`review` skill) |
+
+A rule that does not fit a film is waived with a reason in `storyOverrides`, which is logged. Do not make a film
+louder to pass a rule: suspense, exaggeration and effects are not requirements, and nothing here asks for them.

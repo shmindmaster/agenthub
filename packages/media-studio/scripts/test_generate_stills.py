@@ -81,11 +81,16 @@ class Pricing(unittest.TestCase):
 
 
 class Prompt(unittest.TestCase):
-    def test_text_logos_and_likenesses_are_always_ruled_out(self):
-        full = g.compose_prompt("A dock at dawn.")
-        self.assertIn("No text", full)
-        self.assertIn("logos", full)
-        self.assertIn("real people", full)
+    def test_synthetic_people_and_readable_ui_are_not_automatically_suppressed(self):
+        scene = "Photorealistic mother and child with a clear, readable imagined app screen"
+        full = g.compose_prompt(scene)
+        self.assertIn("mother and child", full)
+        self.assertIn("readable imagined app screen", full)
+        # Style, text and subject are the scene's decision: nothing suppresses them.
+        self.assertNotIn("No text", full)
+        self.assertNotIn("no letters", full)
+        # The likeness of a real person is not a style choice, so that one rule stays on every prompt.
+        self.assertIn("No recognisable real people", full)
 
     def test_house_style_comes_from_the_visual_bible(self):
         self.assertIn("flat paper-cut", g.compose_prompt("A dock", "flat paper-cut illustration"))
@@ -210,6 +215,17 @@ class Run(unittest.TestCase):
             public = Path(d) / "public"
             g.run(job, args(run=True, public_dir=str(public)), env=ENV, post=FakeProvider())
             self.assertTrue((public / "stills" / "film-20261106" / "s1.png").exists())
+
+    def test_model_override_not_in_legacy_runware_payload_is_refused_before_spend(self):
+        self.assertEqual(g.validate_runware_image_model(g.RUNWARE_DEFAULT_MODEL), None)
+        fake = FakeProvider()
+        with self.assertRaisesRegex(g.StillsError, "schema-specific governed adapter"):
+            g.generate_runware(
+                "office background, no text", "1024x1024", "low",
+                {**ENV, "MEDIA_STUDIO_RUNWARE_IMAGE_MODEL": "bfl:flux@3-image-klein"},
+                fake,
+            )
+        self.assertEqual(fake.calls, [])
 
     def test_a_non_png_is_rejected(self):
         with self.assertRaises(g.StillsError):

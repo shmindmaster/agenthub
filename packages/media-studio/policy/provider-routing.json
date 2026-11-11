@@ -1,10 +1,16 @@
 {
   "schema": "media-studio/provider-routing/1",
-  "revision": "provider-routing-2026-11-10-2",
-  "asOf": "2026-11-06",
-  "basis": "Balances and plan states are as recorded in the Linear credits ledger on 2026-11-04 to 2026-11-06. Not re-verified in any vendor console. Re-check a balance before a paid run that depends on it.",
+  "revision": "provider-routing-2026-11-10-4",
+  "asOf": "2026-11-10",
+  "basis": "Provider capabilities and public pricing docs reviewed 2026-11-10; balances and plans remain as recorded in the Linear credits ledger 2026-11-04 to 2026-11-06 and were not reverified in any vendor console. Re-check a balance before a paid run that depends on it.",
   "rules": [
     "Credits are a temporary subsidy, not permission to raise spending caps.",
+    "Live Runware catalogue (2026-11-10): Seedream 5.5 is coming-soon; do not route or infer production availability from its public model page. MiniMax H3 Image promotion covers 4K only until November 17. MiniMax H3 Lite/Highspeed video pricing is promotional until December 31; P-Video-2-Pro-Replace discount until November 19 is for person replacement, not general text-to-video; Kling 4.0 Flash 15% discount expires November 10. Always re-quote live schemas and never hardcode promotions as evergreen defaults.",
+    "Allow photorealistic synthetic people of any age, fictional patients, families, clinicians, unblurred synthetic data and fully designed speculative UIs where the story calls for them. No automatic blur or age restriction. Label proposed functionality rather than treating it as verified current behavior; live-product proof uses source-hashed capture.",
+    "Do not interpret route_media.py sorting by status/free as an actual numerical lowest-cost model ranking. It discovers usable lanes; model selection also requires current per-model price, actual task/configuration, truth/quality verification and consent. Read skills/generate/references/provider-cost-quality-routing.md.",
+    "For Runware model research, use scripts/quote-runware-models.mjs against the canonical live model index and schemas with no key/spend; if pricing needs configuration or GPU-time measurements, report manual-quote instead of guessing. A quote does not authorize generation.",
+    "AssemblyAI analyzes speech and can act as a second transcript or timestamp opinion when explicitly requested; it does not generate images/video. ElevenLabs offers premium voice and music/effects/ASR candidates, but frozen direct-account lanes remain frozen until governed adapter and owner authorization in that task.",
+    "For every creative asset choose the approved film mode and storyboard goal first, then compare accepted media and available generation on equal quality and cost. Fully synthetic image/video/3D/UI and human scenes may be the whole movie in vision, fiction, abstract or conceptual modes. Only factual demonstrations of current functionality require real capture.",
     "Cheapest lane that passes QA wins for a picture. A free picture lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid picture lane. Voice has no free lane.",
     "Narration, dialogue, rehearsal, draft and audition speech follow skills/generate/references/voice-recipes.md. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2. Deepgram Haley batch synthesis serves prepared support prompts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
     "Azure first (MahumTech resource mt-foundary-resource). Other providers are fallbacks or specialist lanes.",
@@ -176,12 +182,32 @@
       "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. Speech stays prominent."
     },
     {
+      "id": "runware-model-quote",
+      "needs": ["model-research", "provider-selection", "price-quote", "cost-comparison", "3d-model-search"],
+      "status": "ready",
+      "mode": "script",
+      "cost": "none (public Runware model catalogue and schema reads only)",
+      "identity": "any",
+      "how": "node scripts/quote-runware-models.mjs --capability image-to-video --list; then --shortlist video --capability image-to-video --seconds 5 --label 768p or --shortlist image --capability text-to-image --count 2. Models marked coming-soon are listed as unavailable, not priced. Compare model quality and entitlement separately.",
+      "notes": "Live ids, AIR, modes and rate schema discovered from runware.ai/docs/models/index.json and schema.json. No inference call, account query, entitlement check, spend approval or quality verdict. Frozen/unknown generation lanes remain frozen/unknown."
+    },
+    {
+      "id": "runware-3d-research",
+      "needs": ["3d", "3d-model", "image-to-3d", "text-to-3d"],
+      "status": "frozen",
+      "mode": "api",
+      "cost": "Runware dynamic; TRELLIS.2 published from $0.0077 for a 512-setting example as of 2026-11-10; re-quote current model schema",
+      "identity": "any",
+      "how": "Do not call. Only propose an optional 3D illustrative metaphor when free SVG/Remotion cannot express the idea; quote public schema with quote-runware-models.mjs before requesting explicit adapter/spend approval.",
+      "notes": "No governed 3D adapter in Media Studio. 3D is not a product demo and does not replace real UI or create unverified software results."
+    },
+    {
       "id": "runware-image",
       "needs": ["image", "still", "illustration", "photo", "background"],
       "status": "ready",
       "cost": "Runware credit, $252.00 on 2026-11-04; $0.0062 per 1536x1024 picture (reported by the provider, 2026-11-06)",
       "identity": "any",
-      "how": "scripts/generate_stills.py <jobRoot> --lane runware-image. Default model runware:z-image@0; override with MEDIA_STUDIO_RUNWARE_IMAGE_MODEL. RUNWARE_API_KEY from the environment.",
+      "how": "scripts/generate_stills.py <jobRoot> --lane runware-image. Default and ONLY validated model in this fixed-payload adapter is runware:z-image@0. Other image models require a schema-specific governed adapter and matching price quote; MEDIA_STUDIO_RUNWARE_IMAGE_MODEL override is intentionally refused before paid calls. RUNWARE_API_KEY from the environment.",
       "notes": "The cheap draft and iteration lane. Verified by a real call on 2026-11-06. The owner chooses which entity a film is made for; the credit belongs to ABACare, so name that in the quote and never treat it as a blocker. The SOP-bound training adapter (kit/cloud/runware-image.mjs) is separate and stays for Empowera training stills."
     },
     {

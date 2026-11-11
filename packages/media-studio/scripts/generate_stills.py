@@ -11,12 +11,12 @@ before, writes assets/stills/<scene>.png, records each one in assets/stills/mani
 visual.src in the picture plan so the kit's still visual (layout "bleed" for a full-frame photograph) can show it.
 
 Lanes (policy/provider-routing.json): azure-image is the default (MahumTech, gpt-image deployment on mt-foundary-resource);
-runware-image is the cheap draft lane. A frozen lane is refused. Keys come from the environment by name and are never printed
-or stored: AZURE_OPENAI_ENDPOINT with AZURE_OPENAI_API_KEY (or an Entra token from the Azure CLI), RUNWARE_API_KEY.
+runware-image is the cheap draft lane only for its tested default model `runware:z-image@0`. A frozen lane is refused. Keys come from the environment by name and are never printed
+or stored: AZURE_OPENAI_ENDPOINT with AZURE_OPENAI_API_KEY (or an Entra token from the Azure CLI), RUNWARE_API_KEY. Setting MEDIA_STUDIO_RUNWARE_IMAGE_MODEL to any other model is intentionally refused until a per-model governed adapter and price quote exists.
 
 Prices are estimates and say so. Azure low and medium are quoted at the measured price plus 50% (about 1 and 2 cents); high is not measured yet, so it
 is quoted at the worst case from the gpt-image-1 list meters ($0.04 per 1K output tokens). The real usage from each response is recorded. Runware reports the cost of every picture.
-No text, logos or likenesses go in a generated picture: text is added by the kit.
+Realistic synthetic people (including children or patients), readable UI, logos and text are allowed when the approved scene calls for them; present-day product proof is a separate evidence contract.
 """
 from __future__ import annotations
 
@@ -43,7 +43,20 @@ AZURE_API_VERSION = "2025-04-01-preview"
 AZURE_DEFAULT_DEPLOYMENT = "gpt-image-2.5-flare"
 RUNWARE_URL = "https://api.runware.ai/v1"
 RUNWARE_DEFAULT_MODEL = "runware:z-image@0"
+# The legacy generic imageInference payload (steps=8, positivePrompt, fixed PNG)
+# is only verified on this model. Other Runware models have differing input
+# schemas, pricing and output format. Refuse an env-only model override.
 RUNWARE_STEPS = 8
+
+
+def validate_runware_image_model(model):
+    if model != RUNWARE_DEFAULT_MODEL:
+        raise StillsError(
+            "Runware model %s is a candidate only, not supported by this "
+            "fixed-payload stills adapter. Quote it with quote-runware-models.mjs "
+            "and add a schema-specific governed adapter with actual model price "
+            "and approval before spending." % model
+        )
 SIZES = ("1536x1024", "1024x1024", "1024x1536")
 QUALITIES = ("low", "medium", "high")
 LANES = {"azure-image": "azure", "runware-image": "runware"}
@@ -57,8 +70,9 @@ AZURE_OUT_USD_PER_1K = 0.04
 AZURE_IN_USD_PER_1K = 0.01
 AZURE_PROMPT_TOKENS_UPPER = 400
 RUNWARE_USD_PER_IMAGE = 0.01  # measured 0.0062 for a 1536x1024 z-image on 2026-11-06; rounded up for the quote
-DEFAULT_STYLE = "Photorealistic editorial photograph, natural light, one clear subject, uncluttered composition."
-SAFETY = "No text, no letters, no logos, no watermarks, no recognisable real people."
+DEFAULT_STYLE = ""  # scene and optional visual bible dictate realism, style, age, text and composition
+# Style, text and subject are the scene's decision. The likeness of a real person is not.
+SAFETY = "No recognisable real people, no real trademarks or watermarks."
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
@@ -89,8 +103,8 @@ def estimate_usd(lane_id, size="1536x1024", quality="medium"):
 
 
 def compose_prompt(prompt, style=None):
-    """The subject, then the house style, then the rule that keeps text out of the picture."""
-    parts = [prompt.strip().rstrip(".") + ".", (style or DEFAULT_STYLE).strip(), SAFETY]
+    """Respect the requested scene and its visual bible; no hidden subject/style bans."""
+    parts = [prompt.strip().rstrip(".") + ".", (style if style is not None else DEFAULT_STYLE).strip(), SAFETY]
     return " ".join(p for p in parts if p)
 
 
@@ -159,6 +173,7 @@ def generate_runware(full_prompt, size, quality, env, post):
         raise StillsError("RUNWARE_API_KEY is not set")
     width, height = (int(n) for n in size.split("x"))
     model = _env(env, "MEDIA_STUDIO_RUNWARE_IMAGE_MODEL") or RUNWARE_DEFAULT_MODEL
+    validate_runware_image_model(model)
     task = {"taskType": "imageInference", "taskUUID": str(uuid.uuid4()), "model": model, "positivePrompt": full_prompt, "width": width,
             "height": height, "steps": RUNWARE_STEPS, "numberResults": 1, "outputType": "base64Data", "outputFormat": "PNG",
             "includeCost": True, "safety": {"checkContent": True}}
@@ -237,6 +252,12 @@ def plan_work(job, args, policy):
             continue
         full = compose_prompt(prompt, style)
         model = (os.environ.get("MEDIA_STUDIO_AZURE_IMAGE_DEPLOYMENT") or AZURE_DEFAULT_DEPLOYMENT) if lane == "azure-image" else (os.environ.get("MEDIA_STUDIO_RUNWARE_IMAGE_MODEL") or RUNWARE_DEFAULT_MODEL)
+        if lane == "runware-image":
+            try:
+                validate_runware_image_model(model)
+            except StillsError as e:
+                problems.append(f"{sid}: {e}")
+                continue
         key = cache_key(lane, model, size, quality, full)
         have = (manifest.get("stills") or {}).get(sid) or {}
         cached = have.get("key") == key and (job / "assets" / "stills" / f"{sid}.png").exists()

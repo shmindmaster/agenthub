@@ -52,6 +52,9 @@ export const CAPTION_MARGIN_SECONDS = 0.25;
  * can catch a caption mid fade-in (every word transparent) and be misread as unreadable or incomplete. A sample moves forward
  * to the first clear time (then backward) within half the interval; if none exists it stays.
  */
+import { INVENTED_MODES } from './lib/creative-modes.mjs';
+import { withProductProfile } from './lib/product-profile.mjs';
+
 export function sampleTimes(durationSeconds, everySeconds = 1.5, { cues = [], margin = CAPTION_MARGIN_SECONDS } = {}) {
   const near = (t) => cues.some((c) => Math.abs(t - c.startSec) < margin || Math.abs(t - c.endSec) < margin);
   const nudge = (t) => {
@@ -70,19 +73,40 @@ export function sampleTimes(durationSeconds, everySeconds = 1.5, { cues = [], ma
 
 export function buildInstructions({ spec, brand, ratio }) {
   const forbidden = (brand?.forbiddenNames || []).join(', ') || '(none)';
-  const spoken = (spec.cuts?.flatMap((c) => c.beats) || spec.beats || []).map((b) => [b.narration, b.onScreenText].filter(Boolean).join(' | ')).filter(Boolean);
+  const mode = spec?.creativeMode || 'verified-demo';
+  const verified = mode === 'verified-demo';
+  const spoken = (spec.cuts?.flatMap(c => c.beats) || spec.beats || [])
+    .map(b => [b.narration, b.onScreenText].filter(Boolean).join(' | ')).filter(Boolean);
+  const filmLabel = [spec.conceptDisclosure, spec.labels].filter(Boolean).join(' / ');
+  const disclosureRequired = disclosureIsRequired(spec, brand);
+  const people = brand?.generatedPeople || 'any';
+  const payerPolicy = (brand?.claimPolicies || []).includes('healthcare-payer');
   return [
-    `You are the visual QA reviewer for a ${ratio} marketing ad for ${spec.product}. Review each frame like a skeptical compliance editor.`,
-    `The required disclosure line is: "${spec.labels}". It belongs on the closing end card (the frame with the call to action), not over the product picture. Report missing-label (high) when an end-card frame lacks it or it is illegible there, and set overall.labelPresentWhereRequired accordingly (true when no end-card frame was sampled).`,
-    `The product UI in the frames is real captured software on synthetic data. Do NOT report the product's own synthetic names or numbers as problems; DO report typos or garbled text in OVERLAY text (captions, headlines, label, call to action) as high.`,
-    `Report unreadable-text (high for overlay text, medium for UI text) when text is too small, low-contrast or cut off to read on a phone held at arm's length.`,
-    `Report banned-claim (high) for any overlay text asserting: submission or transmission to a payer, payer approval or payment outcomes, guarantees, HIPAA certification, testimonials, superlatives, invented percentages or dollar figures.`,
-    `Report prospect-name (high) if any of these names appear anywhere in a frame: ${forbidden}.`,
-    `Report caption-overlap (high) when captions or graphics cover the focal point of the UI (the highlighted row, the pointer, the control being acted on).`,
-    `Report people-or-children (high) for photographic or illustrated people, faces or children ADDED by the ad (b-roll, overlays, backgrounds). Ignore the small profile avatars that are part of the captured product UI. Report fabricated-ui (high) for any dashboard, chart or screen that does not look like captured software.`,
-    `The captions are 4-7 word chunks of ONE spoken sentence, shown one chunk at a time and highlighted word by word: a caption that is a fragment of a longer sentence is normal and is NOT a typo or an incomplete sentence. Sampled frames avoid caption transitions, but if a caption looks faded or partly transparent treat it as mid-animation and do not report it.`,
-    `Every issue needs a one-sentence detail and a short evidence string quoting the visible text. If a frame has no issues return an empty list. Do not invent issues.`,
-    `Approved overlay copy for reference (anything else on overlay is suspicious): ${spoken.join(' // ')} // ${spec.cta?.text || ''}`,
+    `You are reviewing an encoded ${ratio} film in creativeMode "${mode}" for ${spec.product || 'its intended audience'}. Judge the actual chosen film form, not a compulsory product-demo template.`,
+    disclosureRequired
+      ? `The required disclosure line is: "${filmLabel}". It belongs on the closing end card or an equally clear film-level statement, not over the product picture; no permanent watermark or blurring is required. Report missing-label (high) when the film never shows it legibly, and set overall.labelPresentWhereRequired accordingly (true when no end-card frame was sampled).`
+      : 'No synthetic-disclosure watermark or closing label is automatically required. Do not flag missing-label for a fictional story without a deceptive current-product claim.',
+    verified
+      ? 'Current product UI claims must be traceable to captured software. Ignore the small profile avatars within actual captured screens. A fictional surrounding scene, readable synthetic illustration, or realistic patient/child is not a defect.'
+      : 'Synthetic people of any age, patients, clinicians, full-resolution human faces, readable imaginary UI, medical records, charts, futuristic worlds and fictional events are valid subject matter. Never flag them merely for appearing. They do not need blur.',
+    'Flag fabricated-ui only when an image depicts a proposed interface but the film falsely asserts it is verified CURRENT shipped functionality. In a concept, fiction or future-vision, photoreal imagined interfaces are intentionally allowed.',
+    people === 'none'
+      ? 'This product allows no generated people. Report people-or-children (high) for photographic or illustrated people or faces ADDED by the film (b-roll, overlays, backgrounds). Ignore avatars inside captured product UI.'
+      : people === 'adults-only'
+        ? 'This product allows generated adults only. Report people-or-children (high) for any generated child, minor or patient ADDED by the film. Ignore avatars inside captured product UI.'
+        : 'Do not use people-or-children as an issue by itself; evaluate actual unwanted misrepresentation or factual inaccuracies as other, with precise frame evidence.',
+    verified
+      ? `Report banned-claim (high) for overlay text asserting guarantees, testimonials, superlatives, unsubstantiated comparisons, or invented percentages or dollar figures${payerPolicy ? ', and for submission or transmission to a payer, payer approval or payment outcomes, or HIPAA certification' : ''}.`
+      : 'Report banned-claim only for a statement presented as a present-day fact about the product that the approved copy does not contain.',
+    'Report unreadable text when it is unintentionally illegible and reading it is necessary to understand the scene; do not demand plain layouts when the visual brief calls for an expressive style.',
+    verified
+      ? 'Flag actual unverified present-day product claims with accurate evidence. Healthcare/payer-specific bans apply only where separately configured in the brand claims policy.'
+      : 'Do not treat imaginative dialogue, synthetic patient stories, future functionality, fictional testimonials within clearly fictional stories, or speculative numbers as present-day commercial claims.',
+    `Report an explicit brand forbidden-name violation only for genuine configured names: ${forbidden}. Do not invent forbidden entities.`,
+    'Check visual consistency, character continuity, purposeful eye path, emotional progression, native output resolution, captions when present, and clear transitions. An intentional long take or non-linear montage is allowed.',
+    `The captions are ${brand?.captionStyle?.minWords || 4}-${brand?.captionStyle?.maxWords || 7} word chunks of ONE spoken sentence, shown one chunk at a time and highlighted word by word: a caption that is a fragment of a longer sentence is normal and is NOT a typo or an incomplete sentence.`,
+    'Every finding must cite the visible frame and exact evidence. Return an empty issues list for a frame with no defects.',
+    `Approved spoken/overlay copy: ${spoken.join(' // ')} // ${spec.cta?.text || ''}`,
   ].join('\n');
 }
 
@@ -96,13 +120,27 @@ export function parseVerdict(text) {
 }
 
 /** Fail on any high-severity finding or a missing label on any frame. */
-export function evaluate(verdict, { failOn = 'high' } = {}) {
+/** A disclosure line is required when the product's brand file says so, the spec declares synthetic data, or the film shows proposed capability. */
+export function disclosureIsRequired(spec, brand) {
+  return Boolean(brand?.disclosure?.required || spec?.syntheticData || ['hybrid', 'future-vision', 'concept-film'].includes(spec?.creativeMode));
+}
+
+export function evaluate(verdict, { failOn = 'high', spec = null, brand = null } = {}) {
   const rank = { high: 3, medium: 2, low: 1 };
   const threshold = rank[failOn];
   const findings = [];
-  for (const f of verdict.frames) for (const i of f.issues) findings.push({ frame: f.label, ...i });
+  for (const f of verdict.frames) for (const i of f.issues) {
+    // Backwards-compatible raw evaluation (spec absent) still tests literal
+    // reviewer verdicts. With film context, never fail a realistic person
+    // or proposed screen merely because it is generated.
+    if (spec && i.category === 'people-or-children' && (brand?.generatedPeople || 'any') === 'any') continue;
+    // An imagined interface is the point of a declared concept or fiction; in any factual form it is still a defect.
+    if (spec && i.category === 'fabricated-ui' && (INVENTED_MODES.has(spec.creativeMode) || spec.creativeMode === 'hybrid')) continue;
+    findings.push({ frame: f.label, ...i });
+  }
   const blocking = findings.filter((f) => rank[f.severity] >= threshold);
-  const labelOk = verdict.overall.labelPresentWhereRequired === true;
+  const labelRequired = spec ? disclosureIsRequired(spec, brand) : true;
+  const labelOk = !labelRequired || verdict.overall.labelPresentWhereRequired === true;
   const reasons = blocking.map((f) => `${f.frame}: ${f.category} (${f.severity}) ${f.detail}`);
   if (!labelOk) reasons.push('overall: the synthetic-data disclosure is missing or illegible on the end card');
   return { ok: blocking.length === 0 && labelOk, blocking: blocking.length, findings, labelPresentWhereRequired: labelOk, reasons };
@@ -194,7 +232,7 @@ export async function runVisionQa(o) {
   const labels = verdict.frames.map((f) => f.label);
   if (labels.length !== frames.length || new Set(labels).size !== frames.length || frames.some((f) => !labels.includes(f.label))) throw new VerdictError('vision verdict must cover every sampled frame exactly once');
   if (candidateSha && fileSha(o.candidate) !== candidateSha) throw new Error('candidate changed during vision QA');
-  const result = applyArbitration(evaluate(verdict), o.arbitration || null, candidateSha);
+  const result = applyArbitration(evaluate(verdict, { spec: o.spec, brand: o.brand }), o.arbitration || null, candidateSha);
   return {
     generator: 'media-studio/mvg-vision-qa', provider, model, ratio: o.ratio,
     candidate: { path: o.candidate, sha256: candidateSha, durationSeconds: round(duration, 2) },
@@ -217,8 +255,9 @@ if (isMain()) {
   if (!candidate || !specPath || !ratio) { console.error('usage: node vision-qa.mjs <candidate.mp4> --spec <ad.json> --ratio 16x9|4x5|9x16 [--brand brand.json] [--out report.json]'); process.exit(2); }
   const spec = readJson(resolve(specPath));
   const brandPath = flag('--brand') || join(dirname(resolve(specPath)), '..', 'brand', 'brand.json');
-  const brand = existsSync(brandPath) ? readJson(brandPath) : {};
+  const rawBrand = existsSync(brandPath) ? readJson(brandPath) : {};
   const arbPath = flag('--arbitration');
+  const brand = withProductProfile(rawBrand, spec);
   const report = await runVisionQa({ candidate: resolve(candidate), spec, brand, ratio, provider: flag('--provider'), arbitration: arbPath && existsSync(arbPath) ? readJson(resolve(arbPath)) : null });
   const out = resolve(flag('--out', 'vision-qa.json'));
   mkdirSync(dirname(out), { recursive: true });

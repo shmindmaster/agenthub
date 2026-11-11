@@ -8,18 +8,57 @@ workflow. Live-product screencasts are this pack (Playwright WebM + Recast), not
 
 Live-product screencasts use Playwright WebM + Recast in this pack (`kit/screencast/record-job.mjs`, `scripts/validate-product-picture.mjs`).
 
-**Viewer-facing** jobs apply `skills/video/references/story.md`. The screenplay carries story role, WIIFM, and tension; the storyboard carries shot plan, archetype, sound and one eye path per screen beat. Score < 85 from the story-experience review (`review`) does not ship. `intent: draft` skips generated plates and the critic gate. Product-screencast craft uses the product-picture contract. Before capture, `scripts/validate-narration.mjs` holds the locked script to the no-fluff rule (every line earns its seconds; no greeting, meta, recap, process, version or synthetic-data talk; hook and promise inside five seconds; synthetic disclosure as a caption or end card; fluff per minute and a words-cut report) and `scripts/validate-demo-scenario.mjs` requires a source-hashed synthetic scenario with one persona, problem, hero, visible outcome, coherent case/target continuity, and a CTA; `record-job.mjs` runs `scripts/validate-capture-preflight.mjs` (scene ids, cue keywords, typing budgets) before the first take. After recording, `scripts/validate-pointer-path.mjs` fails any take whose cursor reversed, wandered, over-travelled or scrolled past and returned. Every ratio is captured at its own viewport with device emulation (`job.captureViewports`, `record-job.mjs --ratio`), never cropped out of a desktop take; `scripts/validate-picture-integrity.mjs` fails stretched, upscaled, cropped, barred or undeclared-zoom product footage and a vertical cut recorded at a desktop viewport. After every recut, `scripts/validate-viewer-release.mjs` requires exact-candidate captions, loudness, authored-script pronunciation, visual/title/action-result reviews, the narration check, frame integrity (`scripts/validate-frame-integrity.mjs`), picture integrity, the pointer-path report, the marketing floor on marketing cuts (`scripts/validate-marketing-readiness.mjs`, `references/marketing-readiness.md`) and a stitchable sequence before release. `scripts/build-contact-sheet.mjs` tiles the cue-sheet stills for the human watch-through.
+**Viewer-facing** jobs apply `skills/video/references/story.md`. The screenplay carries story role, WIIFM, and tension; the storyboard carries shot plan, archetype, sound and one eye path per screen beat. Score < 85 from the story-experience review (`review`) does not ship. `intent: draft` skips generated plates and the critic gate. Product-screencast craft uses the product-picture contract. Before capture, `scripts/validate-narration.mjs` applies five-second hook/no-fluff/repetition constraints to **verified demos** but respects other declared creative modes (fiction, future-vision, documentary, abstract, education and hybrid). `scripts/write-story-review.py` similarly uses form-aware pre-capture judgments for non-verified films instead of enforcing an artificial six-beat product plot. For verified product demos, `scripts/validate-demo-scenario.mjs` requires a source-hashed scenario with persona, problem, visible product outcome and CTA; `record-job.mjs` runs `scripts/validate-capture-preflight.mjs` (scene ids, cue keywords, typing budgets) before the first take. After recording, `scripts/validate-pointer-path.mjs` fails any take whose cursor reversed, wandered, over-travelled or scrolled past and returned. Every ratio is captured at its own viewport with device emulation (`job.captureViewports`, `record-job.mjs --ratio`), never cropped out of a desktop take; `scripts/validate-picture-integrity.mjs` fails stretched, upscaled, cropped, barred or undeclared-zoom product footage and a vertical cut recorded at a desktop viewport. After every recut, `scripts/validate-viewer-release.mjs` requires exact-candidate captions, loudness, authored-script pronunciation, visual/title/action-result reviews, the narration check, frame integrity (`scripts/validate-frame-integrity.mjs`), picture integrity, the pointer-path report, the marketing floor on marketing cuts (`scripts/validate-marketing-readiness.mjs`, `references/marketing-readiness.md`) and a stitchable sequence before release. `scripts/build-contact-sheet.mjs` tiles the cue-sheet stills for the human watch-through.
 
 **Technical stories** (`programForm: technical-story`) are product or engineering changes told as 5–8 minute mini documentaries: `skills/video/references/story.md` holds the beat map and markup rules; `kit/screencast/` holds the compositor, annotation overlay, code-reveal and card renderers with their manifest hints. Product-specific capture notes live under `skills/capture/references/`.
 
 **Product picture** (`skills/video/references/product-picture.md`): when the subject is a running product, the encoded film is Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards. `scripts/validate-product-picture.mjs` fails closed. Host projections must match `plugin.json`.
 
-Version authority: root `plugin.json` (`2.1.3`). Host projections must match.
+Version authority: root `plugin.json` (`2.8.0`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `MEDIA_STUDIO_ROOT`, default `D:\Media-Studio`). Private show bibles and customer recordings stay outside this repository.
 
 Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` compositor tooling). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.
 
-**Marketing ads** (15-30 s social and web ads in 16:9, 4:5 and 9:16): `kit/marketing/` is the generator (`mvg.mjs`). A spec of beats, claims with evidence, a voice, an optional music bed and a CTA goes through lint, voice, timing, assets, capture reuse, the `MarketingAd` Remotion composition, QA (including OpenAI vision review of sampled frames) and delivery; spend is capped per run and cumulatively, and every claim must map to evidence. See `kit/marketing/README.md`.
+**Creative forms, not a single product template:** Read
+`skills/video/references/creative-formats.md`. Media Studio supports
+verified current-product demos, hybrid films, fictional day-in-the-life
+stories, entirely synthetic human scenes, patients/children/families,
+documentary, education, abstract visuals and envisioned future interfaces.
+The marketing ad `creativeMode` selects these contexts; only the
+`verified-demo` form requires the strict source-proven UI flow and
+prescribed story beats. Other modes can build their own narrative or
+nonlinear structure, with no synthetic-human age ban, default blur,
+mandatory text suppression, or arbitrary product-screen percentage.
+`truthStatus: verified|proposed|fictional|illustrative` separates factual
+current-capability proof from imaginative future scenes. A film-level
+concept declaration prevents a proposed feature being mistaken for
+a shipping feature without permanent watermarks or obscured artwork.
+Marketing-specific lint is not a replacement for the general film
+crew's creative development and encoded review.
+
+**Flexible storytelling schemas and preflight:** In addition to the
+existing verified-product storyboard, `schemas/creative-storyboard.schema.json`
+accepts free-form scene roles, generated images/video/3D, fictional
+people, children/patients, full speculative UI, intentional silence,
+non-linear order and form-specific transitions. `job.creativeMode`
+is available to the wider studio workflow. The general screenplay
+review requires independently evidenced judgments of audience,
+form-fit, visual-story and representation without forcing a
+current-product UI or a hero after scene three. The encoded viewer
+review remains mandatory before delivery.
+
+**Media-provider cost/quality selection:** For each missing story asset,
+read `skills/generate/references/provider-cost-quality-routing.md`. Reuse actual
+product capture, designed diagrams and accepted assets before proposing new
+generation. `scripts/route_media.py --catalog` lists available/frozen local
+lanes; `scripts/quote-runware-models.mjs` compares **live Runware model
+prices** from public official schemas, without spending. AssemblyAI is
+an audio/transcript analysis route, Runware offers supplemental multimodal
+generation, and ElevenLabs is a conditional high-quality speech/music/SFX
+candidate. Listing a model does **not** enable a frozen lane or authorize spend.
+Quality/capability, rights and the exact-candidate film review outrank a cheaper quote. Generated UI is welcome in fiction/concepts/vision; only current-product factual demonstrations demand actual captured proof.
+
+**Marketing ads** (5-120 s social and web ads in 16:9, 4:5 and 9:16): `kit/marketing/` is the generator (`mvg.mjs`). A spec of beats, claims with evidence, a voice, an optional music bed and a CTA goes through lint, voice, timing, assets, capture reuse, the `MarketingAd` Remotion composition, QA (including OpenAI vision review of sampled frames) and delivery; spend is capped per run and cumulatively, and every claim must map to evidence. See `kit/marketing/README.md`.
 
 Pre-capture screenplay lint: `scripts/validate-narration.mjs <jobRoot>` then `scripts/write-story-review.py <jobRoot>` (the sync script copies them to `_shared\tools`; the story review fails `no-fluff` without the narration check). It is not a craft pass and does not authorize compose or delivery. Product-screencast still requires `validate-product-picture.mjs`, `validate-demo-scenario.mjs`, `validate-viewer-release.mjs`, and encoded-file review (`product-picture.md`, `RELEASE-EVIDENCE.md`).
 

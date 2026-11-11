@@ -152,7 +152,11 @@ $gateScripts = @('queue-qwen-alignment-clock.mjs', 'derived-audio-clock.mjs', 'h
     'validate-narration.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'speech-only-readiness.mjs', 'build-contact-sheet.mjs',
     'picture-gates.mjs', 'piecewise-capture-clock.mjs', 'physical-result-observations.mjs', 'final-encoder-transform.mjs', 'product-panel-geometry.mjs', 'action-result-review.mjs', 'validate-picture-inputs.mjs', 'render-program.mjs', 'lock-facts.mjs', 'write-captions.mjs', 'merge-designed-cuts.mjs',
     # model-written layers (SH-4317): the gate and its resolver; the gate reads the model-facing schemas from model-specs-schemas beside it
-    'validate-model-specs.mjs', 'model-specs-resolve.mjs')
+    'validate-model-specs.mjs', 'model-specs-resolve.mjs',
+    # public, no-key model catalogue and price quotation, shared with all media hosts
+    'quote-runware-models.mjs',
+    # the pre-capture story gate for any product and film type; it loads the kit library from briefing-kit\marketing\lib
+    'check-story.mjs')
 $sharedTools = Join-Path (Join-Path (Split-Path -Parent $RuntimeKit) '_shared') 'tools'
 New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null
 foreach ($name in $gateScripts) {

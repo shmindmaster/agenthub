@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { readdirSync, symlinkSync } from 'node:fs';
 import { validate } from '../kit/marketing/lib/schema.mjs';
-import { bannedHits, DEFAULT_BANNED, estimateCutSeconds, lintSpec, normalizeCuts } from '../kit/marketing/lib/lint.mjs';
+import { bannedHits, HEALTHCARE_BANNED, estimateCutSeconds, lintSpec, normalizeCuts } from '../kit/marketing/lib/lint.mjs';
 import { canonical, fileSha, hashOf, readJson } from '../kit/marketing/lib/util.mjs';
 import { checkStage, stageKey, writeStage } from '../kit/marketing/lib/cache.mjs';
 import { BudgetError, CostLedger } from '../kit/marketing/lib/ledger.mjs';
@@ -51,6 +51,10 @@ const brand = {
   fonts: { display: 'Space Grotesk', body: 'Geist' },
   safeZones: { '9x16': { topPct: 14, bottomPct: 35, sidePct: 4 } },
   forbiddenNames: ['Spectrum Empowered', 'Kaego', 'CentralReach'],
+  bannedPhrases: HEALTHCARE_BANNED,
+  // The product profile, not shared code, says this product shows synthetic data and is held to payer-claim rules.
+  claimPolicies: ['healthcare-payer'],
+  disclosure: { required: true, mustInclude: ['synthetic', 'no phi'] },
   budgets: { elevenlabsCredits: 1000, openaiUsd: 5, perRun: { elevenlabsCredits: 600, openaiUsd: 2 } },
   loudness: { social: -14, web: -16 },
   deliver: { dir: join(root, 'deliver'), reservedNumbers: [14, 15] },
@@ -68,15 +72,15 @@ const baseSpec = () => ({
   labels: 'SYNTHETIC DEMO · NO PHI · REAL PRODUCT',
   cta: { text: 'Try it on synthetic data', url: 'https://abacare.ai/demo', claim: 'c-cta' },
   claims: [
-    { id: 'c-runway', text: 'One authorization has twelve units left and three sessions still scheduled', phrases: ['twelve units left', 'three sessions'], evidence: 'file:evidence.txt:2' },
+    { id: 'c-runway', text: 'One authorization has twelve units left and three sessions still scheduled', phrases: ['twelve units left', 'three sessions', 'ABACare authorization runway'], evidence: 'file:evidence.txt:2' },
     { id: 'c-cta', text: 'Try the live demo on synthetic data', phrases: ['Try it on synthetic data', 'Try the live demo'], kind: 'cta', evidence: 'approved:playbook concept 1 CTA' },
     { id: 'c-local', text: 'Nothing is sent to a payer', phrases: ['Nothing is sent to a payer'], evidence: 'clip:film#A01@0-10' },
   ],
   ratios: ['16x9', '9x16'], targetSeconds: 20,
   beats: [
-    { id: 'B1', kind: 'ui', narration: 'Twelve units left, and three sessions still scheduled.', claims: ['c-runway'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 3 }, sfx: [{ cue: 'action:Carter row', prompt: 'soft interface click' }] },
-    { id: 'B2', kind: 'ui', narration: 'Nothing is sent to a payer.', claims: ['c-local'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 1 } },
-    { id: 'B3', kind: 'card', narration: 'Try the live demo.', onScreenText: 'Try it on synthetic data', claims: ['c-cta'] },
+    { id: 'B1', kind: 'ui', storyRole: 'hook', narration: 'Twelve units left, and three sessions still scheduled.', onScreenText: 'ABACare authorization runway', claims: ['c-runway'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 3 }, sfx: [{ cue: 'action:Carter row', prompt: 'soft interface click' }] },
+    { id: 'B2', kind: 'ui', storyRole: 'proof', narration: 'Nothing is sent to a payer.', claims: ['c-local'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 1 } },
+    { id: 'B3', kind: 'card', storyRole: 'cta', narration: 'Try the live demo.', onScreenText: 'Try it on synthetic data', claims: ['c-cta'] },
   ],
 });
 const lint = (spec, b = brand) => lintSpec(spec, b, { adSchema, brandSchema, specDir: root });
@@ -145,11 +149,11 @@ test('lint: invented figures, banned phrases, forbidden names, people b-roll', (
   assert.ok(codes(rc).includes('banned-phrase')); // comparative
   const d = baseSpec();
   d.beats.splice(1, 0, { id: 'BR', kind: 'broll', broll: { provider: 'openai-image', prompt: 'a smiling child in a clinic' } });
-  assert.ok(codes(lint(d)).includes('broll-people'));
+  assert.equal(codes(lint(d)).includes('broll-people'), false, 'People are not universally banned from synthetic story footage');
 });
 
 test('banned phrases honor negation: "nothing is sent to a payer" is allowed, "sent to the payer" is not', () => {
-  const banned = DEFAULT_BANNED.map((b) => ({ ...b, regex: new RegExp(b.pattern, b.flags) }));
+  const banned = HEALTHCARE_BANNED.map((b) => ({ ...b, regex: new RegExp(b.pattern, b.flags) }));
   assert.equal(bannedHits('Nothing is sent to a payer.', banned).length, 0);
   assert.equal(bannedHits('No claim was submitted or transmitted to a payer.', banned).length, 0);
   assert.equal(bannedHits('The claim is sent to the payer.', banned).length, 1);
@@ -1261,7 +1265,7 @@ test('chain gates 5: the workspace declares a marketing cut and the capture fram
   const clipFile = join(receiptDir, 'capture', 'clips', 'A01.webm');
   const entry = { actions: [{ t: 6, type: 'point', x: 5, y: 5, label: 'Carter row' }], recastHeadTrimSeconds: 0 };
   const clips = [{ beatId: 'B1', file: clipFile, receiptEntry: entry }, { beatId: 'B2', file: clipFile, receiptEntry: entry }];
-  buildGateWorkspace({ root: dir, spec, cut, ratio: '4x5', timeline, composeMap, clips, asr: {}, loudnessLufs: -14 });
+  buildGateWorkspace({ root: dir, spec, brand, cut, ratio: '4x5', timeline, composeMap, clips, asr: {}, loudnessLufs: -14 });
   const job = readJson(join(dir, 'job.json'));
   assert.equal(job.marketing, true);
   assert.equal(job.programForm, 'outcome-workflow', 'programForm is unchanged: marketing:true carries the applicability');

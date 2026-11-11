@@ -5,6 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { chooseResult, expectationClipTimes, expandKeywords, shiftAsr, unnarratedActions } from './align.mjs';
 import { CHAIN_GATES, captureViewportsFor } from './chain-gates.mjs';
+import { creativeMode } from './creative-modes.mjs';
 import { FRAMES } from './layout.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
 
@@ -13,7 +14,28 @@ import { fileSha, readJson, round, writeJson } from './util.mjs';
 export const DEFAULT_REQUIRED = ['picture', 'integrity', 'pointer', 'frameIntegrity', 'captions', 'loudness', 'sync', 'listen', 'vision', 'marketing', 'story', 'viewerRelease', 'wordSync', 'transcript'];
 
 /** The gates deliver requires: the spec's list (or the default), always including the film-chain gates. */
-export const requiredGates = (spec) => [...new Set([...(spec?.qa?.required || DEFAULT_REQUIRED), ...CHAIN_GATES, 'wordSync', 'transcript'])];
+/** Does this ratio's cut (or, with no ratio, any cut) contain captured interface? */
+export function hasCapture(spec, ratio) {
+  const cuts = Array.isArray(spec?.cuts) && spec.cuts.length ? spec.cuts : [{ ratios: spec?.ratios, beats: spec?.beats || [] }];
+  const scoped = ratio ? cuts.filter((c) => (c.ratios || []).includes(ratio)) : cuts;
+  return (scoped.length ? scoped : cuts).some((c) => (c.beats || []).some((b) => b.kind === 'ui'));
+}
+
+export const requiredGates = (spec, ratio) => {
+  if (creativeMode(spec) === 'verified-demo') {
+    return [...new Set([...(spec?.qa?.required || DEFAULT_REQUIRED), ...CHAIN_GATES, 'wordSync', 'transcript'])];
+  }
+  // Concept/fiction/vision films are still fully reviewed on encoded output
+  // but cannot be failed for having no real product capture/pointer traces.
+  // Keep the independent audio/word/transcript, frame, marketing, story,
+  // vision, and release evidence floors; don't silently re-add UI gates.
+  // A film with captured interface beats (a hybrid, or an explainer that shows the product) keeps the gates that bind
+  // those captures; only the screen-share ratio check is specific to a product demo.
+  const neverForConcept = new Set(hasCapture(spec, ratio) ? ['picture'] : ['picture', 'integrity', 'pointer', 'sync']);
+  const required = spec?.qa?.required || DEFAULT_REQUIRED;
+  return [...new Set([...required, ...CHAIN_GATES, 'wordSync', 'transcript'])]
+    .filter(name => !neverForConcept.has(name));
+};
 
 const seconds = (value) => {
   const m = /^(\d{2}):(\d{2}):(\d{2})[,.](\d{3})$/.exec(value.trim());
@@ -54,20 +76,33 @@ export function captionsCheck(srtText, { maxWords = 7, minWords = 2 } = {}) {
  * Gate workspace for one ratio: just the files validate-sync / validate-viewer-release / build-cue-sheet read.
  * Clip ids are remapped to the beat ids so clips from different film workspaces never collide.
  */
-export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs }) {
+export function buildGateWorkspace({ root, spec, brand, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs }) {
   const frame = FRAMES[ratio];
   mkdirSync(join(root, 'story'), { recursive: true });
   mkdirSync(join(root, 'capture', 'clips'), { recursive: true });
   mkdirSync(join(root, 'voice', 'asr'), { recursive: true });
   mkdirSync(join(root, 'qa'), { recursive: true });
   mkdirSync(join(root, 'output'), { recursive: true });
+  const isVerified = creativeMode(spec) === 'verified-demo' || (cut.beats || []).some((b) => b.kind === 'ui');
+  // The product's brand file decides whether every film carries a disclosure
+  // line; a spec can also declare synthetic data for one film. Either way the
+  // narration and release checks are told, in every creative mode.
+  const disclosureRequired = brand?.disclosure?.required === true || spec.syntheticData === true;
   writeJson(join(root, 'job.json'), {
-    jobId: `mvg-${spec.id}-${ratio}`, product: spec.product, title: spec.title, kind: 'product-screencast', programForm: 'outcome-workflow', intent: 'viewer-facing',
+    jobId: `mvg-${spec.id}-${ratio}`, product: spec.product, title: spec.title,
+    kind: isVerified ? 'product-screencast' : 'animation',
+    programForm: isVerified ? 'outcome-workflow' : 'social-clip',
+    creativeMode: creativeMode(spec), conceptDisclosure: spec.conceptDisclosure,
+    intent: 'viewer-facing',
     craftScoreMin: spec.qa?.storyMin ?? 85, deliveryProfile: frame.profile, repositoryWritePolicy: 'read-only', workspace: root,
     // A paid ad competes in a feed: validate-marketing-readiness and viewer-release apply the marketing floor to marketing: true
     // (programForm stays outcome-workflow, see README deviation 8). Each portrait or square ratio is captured at its own frame.
-    marketing: true, syncClock: 'forced-aligner', captureViewports: captureViewportsFor(ratio, frame),
-    dataClass: 'synthetic only', label: spec.labels, syntheticDisclosure: { mode: 'end-card', text: spec.labels }, loudnessTargetLufs: loudnessLufs, recastFallbackAllowed: false, generator: 'media-studio/mvg',
+    marketing: true, syncClock: isVerified ? 'forced-aligner' : undefined,
+    captureViewports: isVerified ? captureViewportsFor(ratio, frame) : {},
+    dataClass: disclosureRequired ? 'synthetic only' : undefined,
+    label: spec.labels,
+    syntheticDisclosure: disclosureRequired ? { mode: brand?.disclosure?.mode || 'end-card', text: spec.labels } : undefined,
+    loudnessTargetLufs: loudnessLufs, recastFallbackAllowed: false, generator: 'media-studio/mvg',
   });
   // A beat with no narration (the opening title card, an end card with only on-screen text) is a silent beat: it has no words and
   // no timing precision to ask for. The cue sheet (build-cue-sheet.mjs) makes one row per segment of this file and, with no ASR
@@ -79,7 +114,7 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     segments: timeline.segments.filter((s) => s.text).map((s) => ({ id: s.id, scene: s.id, text: s.text, startSeconds: s.startSeconds, durationSeconds: s.durationSeconds, speechSeconds: s.speechSeconds })),
   });
   writeJson(join(root, 'story', 'storyboard.json'), {
-    title: `${spec.title} - storyboard`, kind: 'product-screencast', deliveryProfile: frame.profile, scenarioId: spec.id,
+    title: `${spec.title} - storyboard`, kind: isVerified ? 'product-screencast' : 'animation', deliveryProfile: frame.profile, scenarioId: spec.id, creativeMode: creativeMode(spec),
     beats: cut.beats.map((b, i) => ({ id: b.id, order: i + 1, narration: b.narration || '', visualMode: b.kind === 'ui' ? 'screen' : b.kind === 'broll' ? 'broll' : 'card', resultHoldSeconds: 1.6 })),
   });
   // Inputs a listen review of the speech needs (the retired Local-AI listen gate read the same files): the segments for a

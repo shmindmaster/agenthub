@@ -15,8 +15,8 @@ Usage:
 Two kinds of check, and the tool never blurs them:
 
   MECHANICAL (computed from the files, evidence cites scene ids):
-    hook               S01 is a `hook`, no greeting/agenda opener, first sentence <= 25 words (~8 s at 150 wpm);
-                       26-35 words is a 5-point rhythm miss, beyond 35 (or wrong role / greeting) the hook is missing (-20)
+    hook               S01 is a `hook`, no greeting/agenda opener, first sentence <= 12 words (~5 s at 150 wpm);
+                       13-18 words is a 5-point rhythm miss, beyond 18 (or wrong role / greeting) the hook is missing (-20)
     one-hero           exactly one scene has heroMoment=true, it matches screenplay.heroSceneId and
                        storyboard.protectedHeroBeatId, it is not in the first 3 scenes, holdAfterSeconds >= 1.0
     silence-hero       the hero scene has silenceOnReveal or a silence/sting/duck music cue
@@ -78,8 +78,8 @@ ROLE_VOCAB = {"hook", "before", "bridge", "tension", "reveal", "proof", "trust",
               "explain", "problem", "close", "cta"}
 GREETING_RE = re.compile(r"\b(welcome|hello|hi there|hey everyone|my name is|in this (video|episode|film)|"
                          r"today (we|i)('ll| will| am|'re)|agenda|let'?s (get started|begin|dive in))\b", re.I)
-HOOK_MAX_WORDS = 25
-HOOK_LONG_WORDS = 35   # beyond this the hook is judged missing, not merely long
+HOOK_MAX_WORDS = 12
+HOOK_LONG_WORDS = 18   # 13-18 words is a rhythm miss; beyond that the opening is not a hook
 HERO_MIN_HOLD = 1.0
 LAST_MIN_HOLD = 1.0
 DENSE_ROWS = 8
@@ -148,6 +148,74 @@ def visual_text(visual) -> tuple[list[str], int]:
     return rows, len(words(" ".join(leaves(visual))))
 
 
+FLEXIBLE_MODES = {"hybrid", "future-vision", "concept-film", "fictional-story", "explainer",
+                  "documentary", "educational", "abstract"}
+FLEXIBLE_JUDGMENTS = ("audience", "form-fit", "visual-story", "representation")
+
+
+def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_path,
+                         craft_min, show=False):
+    """Form-aware *pre-capture* lint. Does not replace the encoded-film critic.
+
+    A visual poem, fictional family story or future-vision film is not a failed
+    six-beat product demo. Require specific reviewer evidence for its actual form
+    and keep the same score/evidence/report contract.
+    """
+    mode = job.get("creativeMode")
+    script_path = root / "story" / "screenplay.json"
+    board_path = root / "story" / "storyboard.json"
+    candidate = root.name + "@flexible:" + hashlib.sha256(
+        (sha(script_path) + sha(board_path)).encode()).hexdigest()[:16]
+    scenes = screenplay.get("scenes") or []
+    beats = storyboard.get("beats") or storyboard.get("episodes") or []
+    verdicts = load(judgments_path) if judgments_path.exists() else {}
+    judged = verdicts.get("judgments") or {}
+    missing = []
+    if not scenes and not beats:
+        missing.append("a screenplay scene or a storyboard visual beat")
+    if mode in {"hybrid", "future-vision", "concept-film"} and not (
+        job.get("conceptDisclosure") or screenplay.get("conceptDisclosure")):
+        missing.append("film-level conceptDisclosure to distinguish envisioned from current functionality")
+    for name in FLEXIBLE_JUDGMENTS:
+        item = judged.get(name) or {}
+        if item.get("verdict") not in ("pass", "fail", "n/a") or not str(item.get("evidence") or "").strip():
+            missing.append("creative judgment " + name + " with scene/frame-cited evidence")
+    # A review in which nothing applied is not a review: n/a on every judgment would score a perfect 100.
+    if judged and all((judged.get(name) or {}).get("verdict") == "n/a" for name in FLEXIBLE_JUDGMENTS):
+        missing.append("at least one creative judgment that applies to this film (every judgment is n/a)")
+    checks = {name: (judged.get(name) or {}).get("verdict", "n/a") for name in FLEXIBLE_JUDGMENTS}
+    findings = []
+    for index, name in enumerate(FLEXIBLE_JUDGMENTS, 1):
+        item = judged.get(name) or {}
+        if item.get("verdict") == "fail":
+            findings.append({
+                "id": "FLEX-" + str(index), "severity": "major",
+                "location": item.get("location", "story"),
+                "evidence": item.get("evidence", "Creative form review failed"),
+                "fix": item.get("fix", "Revise the pictured scene or script for its declared format."),
+                "owner": item.get("owner", "media-writer")})
+    score = max(0, 100 - 15 * len(findings))
+    if missing:
+        result = {"status": "MALFORMED_INPUT", "candidateId": candidate, "pass": False,
+                  "missingEvidence": missing,
+                  "reason": "Form-aware review has missing inputs or reviewer judgments; no approval issued.",
+                  "checks": checks, "findings": findings, "reviseSceneIds": []}
+    else:
+        result = {"status": "COMPLETE", "candidateId": candidate,
+                  "score": score, "pass": score >= craft_min and not findings,
+                  "reason": "Pre-capture creative-form lint for " + mode
+                            + "; no mandatory product UI, adult-only actors, six-beat template,"
+                              " or fixed hero position. Encoded candidate still requires critic.",
+                  "checks": checks, "findings": findings, "reviseSceneIds": []}
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(result if show else {
+        "status": result["status"], "pass": result["pass"],
+        "mode": mode, "score": result.get("score"),
+        "missingEvidence": result.get("missingEvidence", [])}, ensure_ascii=False))
+    return 0 if result.get("pass") else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("job_root")
@@ -180,6 +248,8 @@ def main() -> int:
         return 1
 
     sp, sb = load(sp_p), load(sb_p)
+    if job.get("creativeMode") in FLEXIBLE_MODES:
+        return flexible_form_review(root, job, sp, sb, jd_p, out_p, craft_min, args.print)
     scenes = sp.get("scenes") or []
     ids = [s["id"] for s in scenes]
     judgments = load(jd_p) if jd_p.exists() else {}
@@ -213,10 +283,10 @@ def main() -> int:
                         + (" (greeting/agenda opener)" if greeting else "") + (f" (over {HOOK_MAX_WORDS}: rhythm miss)" if hook_long else ""))
     if hook_missing:
         finding("major", s1.get("id", "S01"), evidence["hook"],
-                "Open on the payoff or the pain in one sentence of <= 25 words; no greeting, logo or agenda.", "media-writer", 20)
+                f"Open on the payoff or the pain in one sentence of <= {HOOK_MAX_WORDS} words; no greeting, logo or agenda.", "media-writer", 20)
         revise.append(s1.get("id", "S01"))
     elif hook_long:
-        finding("minor", s1.get("id", "S01"), evidence["hook"], f"Trim the opening sentence to <= {HOOK_MAX_WORDS} words (~8 s).", "media-writer", 5)
+        finding("minor", s1.get("id", "S01"), evidence["hook"], f"Trim the opening sentence to <= {HOOK_MAX_WORDS} words (~5 s).", "media-writer", 5)
 
     # ---- hero -----------------------------------------------------------------------------------------------------
     heroes = [s for s in scenes if s.get("heroMoment")]
