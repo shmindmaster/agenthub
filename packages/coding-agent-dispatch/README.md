@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.6.0 (the root `plugin.json` is the single version authority; `SKILL.md`
+Version 0.7.0 (the root `plugin.json` is the single version authority; `SKILL.md`
 metadata and every host projection carry the same number and
 `tests/validate-dispatch.ps1` enforces parity). The package is a full plugin:
 `.claude-plugin`, `.codex-plugin`, `.cursor-plugin`, `.devin-plugin` and
@@ -132,6 +132,22 @@ a `token-plan-<region>.xiaomimimo.com` host, and `MIMO_API_KEY`, when set, must
 start with `tp-` or `ttp-`. A refusal names the variable and never prints its
 value. Details are in `skills/dispatch/references/hosts.md`.
 
+`-Role` (SH-4418) picks a Kiro profile: `peer`, the default, keeps the guarded
+`ah-peer` command; `engineer`, `reviewer`, `tester`, `architect` and `incident`
+run the V3 engine on `ah-<role>` from `kiro/agents/`, recorded in
+`dispatchPolicy.kiro.roles`. A role whose profile is missing from
+`~/.kiro/agents` is refused, and so is a role other than `peer` on any other
+host.
+
+`-ReadOnly` runs a host in a read-only mode the host itself enforces, never
+through prompt wording: claude (`--permission-mode plan`), codex
+(`--sandbox read-only`), factory (`exec` without `--auto`) and kiro (the
+`ah-readonly` profile). `dispatchPolicy.<host>.readOnly` records the flags, or
+`false` (checked, none) or `null` (not established), with the dated help text
+in `readOnlyNote`. Every other host refuses `-ReadOnly` with exit 3; there is
+no fallback to a writable run. `-List -ReadOnly` prints the supported hosts.
+No read-only mode has been exercised with a model run.
+
 Codex accepts non-repository working directories without creating Git state.
 Antigravity uses attached `--print=<prompt>`. Long or shell-sensitive argument
 prompts use temporary UTF-8 task files. Children, including batch shims and
@@ -162,7 +178,8 @@ own those two files.
 
 `tests/Test-CodingAgentDispatch.ps1` uses synthetic native argument recorders
 and never consumes a model run. It covers the command fixes, new hosts,
-model pass-through, malformed-id and subscription-only refusals,
+model pass-through, malformed-id and subscription-only refusals, Kiro roles,
+the enforced read-only mode and its refusals,
 Unicode/multiline transport, alias policy gates, missing binaries and bounded
 hidden process-tree termination. `-DispatcherPath` can demonstrate regression
 failures against an older copy without changing installed hosts.
@@ -172,15 +189,16 @@ failures against an older copy without changing installed hosts.
 `reviewer/Invoke-PrReview.ps1` reviews one pull request through this
 package's dispatcher on a host different from the one that authored the PR
 (branch prefix or a `[host: <id>]` PR-body marker). The script issues no
-write command, but this does not make the model run read-only: the
-dispatcher has no enforced read-only mode. The reviewer fences the pull
-request's text as data with a per-run delimiter, withholds GitHub tokens and
+write command, and the model run is host-enforced read-only on claude,
+codex, factory and kiro: every dispatcher call carries `-ReadOnly` (and
+`-Role reviewer` on Kiro), the reviewer host is chosen only among hosts
+whose `dispatchPolicy.<host>.readOnly` in `registry/fleet-profile.json`
+records an enforced read-only mode, and the run ends BLOCKED, with no model
+run, when none is available. The reviewer also fences the pull request's
+text as data with a per-run delimiter, withholds GitHub tokens and
 `*_API_KEY` / `*_TOKEN` / `*_SECRET` variables from the dispatcher process
-and runs it in an empty temporary directory, and a model that follows
-injected text can still write wherever its host's permissions allow.
-Automatic triggering must not be enabled until the dispatcher has an
-enforced read-only mode; until then the tool is run manually by the owner's
-session. Review markers are trusted only at the start of a comment authored
+and runs it in an empty temporary directory. Automatic triggering is still
+not wired (SH-4411). Review markers are trusted only at the start of a comment authored
 by the reviewer's own GitHub login (`gh api user` or `-ReviewerLogin`). It refuses a
 draft (exit 3), skips a head SHA that already carries a review verdict unless
 `-Force`, never reviews on `synchronize`, retries a malformed answer once and
