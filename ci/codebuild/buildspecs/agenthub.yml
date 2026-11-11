@@ -1,0 +1,116 @@
+version: 0.2
+
+# AgentHub Linux pull-request checks for native CodeBuild webhook mode.
+# Mirrors .github/workflows/ci.yml job powershell-tests, not the doctor job.
+#
+# aws/codebuild/standard:8.0 (Ubuntu 24.04) already contains Node.js 22, 24,
+# and 26. Node.js 24 is that image's default. It also contains Python 3.11,
+# 3.12, 3.13, 3.14, and 3.15. Python 3.14 is that image's default. The install
+# phase selects nodejs: 22 and python: 3.12 from those cached copies. This
+# file does not download Node.js.
+#
+# PowerShell is not in that image. The commands install the PowerShell 7.7.0
+# Ubuntu package from the GitHub release and check its SHA256 before apt
+# installs it. The digests are the v7.7.0 hashes.sha256 published with that
+# release on 2026-11-10:
+#   powershell_7.7.0-1.deb_amd64.deb becb565095ba0569e1b6d18055ce1114a426523145e6e5ac856928f6b9b013c4
+#   powershell_7.7.0-1.deb_arm64.deb 5756f51b51dd9d7895b178e80bbb65bd2f481d8c036cb2d5f8c284368f5040a2
+# Any other image id fails closed. Use aws/codebuild/standard:8.0.
+#
+# CodeBuild replaces each $$ in this file with a single $ before the shell runs.
+# The pwsh command lines are written without an extra dollar sign so they match CI.
+
+env:
+  variables:
+    CI: "true"
+    DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    POWERSHELL_TELEMETRY_OPTOUT: "1"
+    npm_config_update_notifier: "false"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+      python: 3.12
+  build:
+    commands:
+      - |
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+        if [ "$$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+        . /etc/os-release
+        if [ "$${ID}" != "ubuntu" ]; then
+          echo "This buildspec installs PowerShell 7.7.0 for Ubuntu only. Use aws/codebuild/standard:8.0." >&2
+          exit 1
+        fi
+
+        need_pwsh=1
+        if command -v pwsh >/dev/null 2>&1; then
+          if pwsh -NoProfile -Command 'if ([string]$$PSVersionTable.PSVersion -eq "7.7.0") { exit 0 } else { exit 1 }'; then
+            need_pwsh=0
+          fi
+        fi
+        if [ "$$need_pwsh" -eq 1 ]; then
+          pkgdir="$$(mktemp -d)"
+          case "$$(uname -m)" in
+            x86_64)
+              pwsh_deb="powershell_7.7.0-1.deb_amd64.deb"
+              pwsh_sha="becb565095ba0569e1b6d18055ce1114a426523145e6e5ac856928f6b9b013c4"
+              ;;
+            aarch64|arm64)
+              pwsh_deb="powershell_7.7.0-1.deb_arm64.deb"
+              pwsh_sha="5756f51b51dd9d7895b178e80bbb65bd2f481d8c036cb2d5f8c284368f5040a2"
+              ;;
+            *)
+              echo "unsupported architecture" >&2
+              exit 1
+              ;;
+          esac
+          curl -fsSL -o "$$pkgdir/$$pwsh_deb" "https://github.com/PowerShell/PowerShell/releases/download/v7.7.0/$$pwsh_deb"
+          echo "$$pwsh_sha  $$pkgdir/$$pwsh_deb" | sha256sum -c -
+          $$SUDO apt-get update -q
+          $$SUDO apt-get install -y -q "$$pkgdir/$$pwsh_deb"
+          rm -rf "$$pkgdir"
+          hash -r
+        fi
+        pwsh -NoProfile -Command '[string]$$PSVersionTable.PSVersion'
+
+        $$SUDO apt-get update -q
+        $$SUDO apt-get install -y -q ripgrep ffmpeg curl ca-certificates
+        python3 --version | grep -F 'Python 3.12.'
+        py="$$(command -v python3)"
+        $$SUDO ln -sfn "$$py" /usr/local/bin/python3
+        $$SUDO ln -sfn "$$py" /usr/local/bin/python
+        if command -v python3.12 >/dev/null 2>&1; then
+          $$SUDO ln -sfn "$$(command -v python3.12)" /usr/local/bin/python3.12
+        else
+          $$SUDO ln -sfn "$$py" /usr/local/bin/python3.12
+        fi
+        node --version | grep -E '^v22\.'
+        npm --version
+
+        npm install -g @anthropic-ai/claude-code@2.1.310
+        kit="$$(mktemp -d)"
+        npm install --no-audit --no-fund --prefix "$$kit" typescript@5.9.3 @types/node@24.10.1
+        export EXECUTION_CONTROLS_TSC="$$kit/node_modules/typescript/bin/tsc"
+        export EXECUTION_CONTROLS_TYPE_ROOTS="$$kit/node_modules/@types"
+
+        git config --global --add safe.directory "$$(pwd)"
+        echo "CODEBUILD_SOURCE_VERSION=$${CODEBUILD_SOURCE_VERSION-}"
+        echo "CODEBUILD_RESOLVED_SOURCE_VERSION=$${CODEBUILD_RESOLVED_SOURCE_VERSION-}"
+        echo "CODEBUILD_WEBHOOK_EVENT=$${CODEBUILD_WEBHOOK_EVENT-}"
+        echo "CODEBUILD_WEBHOOK_HEAD_REF=$${CODEBUILD_WEBHOOK_HEAD_REF-}"
+        echo "CODEBUILD_WEBHOOK_BASE_REF=$${CODEBUILD_WEBHOOK_BASE_REF-}"
+
+        pwsh -NoProfile -File ./scripts/Validate-AgentHub.ps1
+        profile_dir="$$(mktemp -d)"
+        pwsh -NoProfile -File ./scripts/AgentHub.ps1 sync -UserProfile "$$profile_dir"
+        pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath ./tests/ci-skip.json
+
+        mkdir -p ci-out
+        printf '%s\n' "$${CODEBUILD_RESOLVED_SOURCE_VERSION-}" > ci-out/source-version.txt
+
+artifacts:
+  files:
+    - ci-out/source-version.txt
+  discard-paths: yes

@@ -1,0 +1,407 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Pull-request CI for one GitHub repository on CodeBuild. The build role can write one log group, one artifact prefix, and use one CodeConnections connection. It is not a deployment role. See docs/runbooks/codebuild-pr-ci.md.'
+
+Parameters:
+  ProjectName:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9][A-Za-z0-9_-]{1,47}$'
+    ConstraintDescription: '2 to 48 letters, digits, hyphens, or underscores. The role name appends -build and must fit in 64 characters.'
+    Description: 'CodeBuild project name. Unique in the account.'
+  GitHubOwner:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$'
+    Description: 'GitHub organization or user that owns the repository.'
+  GitHubRepository:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9._-]{1,100}$'
+    Description: 'GitHub repository name, without the owner.'
+  RepositoryNamePattern:
+    Type: String
+    AllowedPattern: '^\^.+\$$'
+    Description: 'Anchored repository-name regex. The parameter writer builds this from GitHubRepository. The runner webhook filter uses it.'
+  ConnectionArn:
+    Type: String
+    AllowedPattern: '^arn:(aws|aws-us-gov|aws-cn):(codeconnections|codestar-connections):[a-z0-9-]+:[0-9]{12}:connection/[0-9a-fA-F-]{36}$'
+    Description: 'CodeConnections or CodeStar Connections ARN for the GitHub App. The stack does not create the connection.'
+  BuildSpecPath:
+    Type: String
+    Default: buildspec.yml
+    AllowedPattern: '^([A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*\.ya?ml$'
+    Description: 'Buildspec path inside the repository. Ignored when CiMode is runner.'
+  ComputeType:
+    Type: String
+    Default: BUILD_GENERAL1_SMALL
+    AllowedValues:
+      - BUILD_GENERAL1_SMALL
+      - BUILD_GENERAL1_MEDIUM
+      - BUILD_GENERAL1_LARGE
+      - BUILD_GENERAL1_XLARGE
+      - BUILD_GENERAL1_2XLARGE
+    Description: 'On-demand compute size. SMALL is the cheapest general-purpose size.'
+  Image:
+    Type: String
+    Default: 'aws/codebuild/standard:8.0'
+    AllowedPattern: '^aws/codebuild/[A-Za-z0-9._:/-]+$'
+    Description: 'Curated CodeBuild image. The build role has no ECR permissions, so a private ECR image is rejected.'
+  PrivilegedMode:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: 'Docker daemon inside the build. Off unless a repository build needs it.'
+  TimeoutInMinutes:
+    Type: Number
+    Default: 90
+    MinValue: 5
+    MaxValue: 480
+    Description: 'Build timeout. 90 matches the AgentHub GitHub Actions job timeout.'
+  QueuedTimeoutInMinutes:
+    Type: Number
+    Default: 30
+    MinValue: 5
+    MaxValue: 480
+    Description: 'How long a build may wait in the queue.'
+  ConcurrentBuildLimit:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 20
+    Description: 'Per-project cap. The account quota can be lower. The preflight prints that quota.'
+  LogRetentionInDays:
+    Type: Number
+    Default: 14
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1096
+      - 1827
+      - 2192
+      - 2557
+      - 2922
+      - 3288
+      - 3653
+    Description: 'CloudWatch Logs retention for this project log group.'
+  ArtifactBucketName:
+    Type: String
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+    Description: 'Existing bucket for cache and artifacts. The stack does not create it. Use SSE-S3, not a customer managed key.'
+  ArtifactPrefix:
+    Type: String
+    AllowedPattern: '^[a-z0-9]([a-z0-9-]{0,62})(/[a-z0-9][a-z0-9-]{0,62})*$'
+    Description: 'Key prefix inside the bucket. Artifacts are stored under this prefix and the build id. The cache prefix is separate and off unless EnableSharedCache is true.'
+  EnableSharedCache:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: 'Shared S3 cache for every build of this project. Off by default. Must not be enabled for a repository that accepts outside pull requests.'
+  BaseBranchPattern:
+    Type: String
+    Default: '^refs/heads/main$'
+    AllowedPattern: '^\^refs/heads/\S+\$$'
+    Description: 'Anchored base-ref regex. The parameter writer builds this from branch names.'
+  CiMode:
+    Type: String
+    Default: native
+    AllowedValues:
+      - native
+      - runner
+    Description: 'native builds pull requests from the buildspec. runner starts an ephemeral GitHub Actions runner on WORKFLOW_JOB_QUEUED.'
+  RequiresCommentApproval:
+    Type: String
+    Default: FORK_PULL_REQUESTS
+    AllowedValues:
+      - DISABLED
+      - ALL_PULL_REQUESTS
+      - FORK_PULL_REQUESTS
+    Description: 'Who must be approved before a pull request builds. Used only when CiMode is native.'
+  ApproverRoles:
+    Type: CommaDelimitedList
+    Default: 'GITHUB_WRITE,GITHUB_MAINTAIN,GITHUB_ADMIN'
+    Description: 'GitHub roles treated as trusted pull-request authors and comment approvers. The parameter writer checks each role. This parameter has no AllowedPattern because CloudFormation may apply that pattern to the whole comma-delimited string.'
+  PermissionsBoundaryArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:(aws|aws-us-gov|aws-cn):iam::[0-9]{12}:policy/[A-Za-z0-9+=,.@_/-]+$'
+    Description: 'Optional IAM permissions boundary policy ARN. A role ARN is not accepted.'
+
+Conditions:
+  UsePrivilegedMode:
+    Fn::Equals:
+      - Ref: PrivilegedMode
+      - 'true'
+  UseSharedCache:
+    Fn::Equals:
+      - Ref: EnableSharedCache
+      - 'true'
+  UseRunnerMode:
+    Fn::Equals:
+      - Ref: CiMode
+      - runner
+  HasPermissionsBoundary:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: PermissionsBoundaryArn
+          - ''
+
+Resources:
+  BuildRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      RoleName:
+        Fn::Sub: '${ProjectName}-build'
+      PermissionsBoundary:
+        Fn::If:
+          - HasPermissionsBoundary
+          - Ref: PermissionsBoundaryArn
+          - Ref: AWS::NoValue
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceArn:
+                  Fn::Sub: 'arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/${ProjectName}'
+                aws:SourceAccount:
+                  Ref: AWS::AccountId
+      Policies:
+        - PolicyName: build-only
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: WriteLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - Fn::Sub: 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}'
+                  - Fn::Sub: 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}:*'
+              - Sid: ReadWriteArtifactObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                  - s3:ListMultipartUploadParts
+                Resource:
+                  Fn::If:
+                    - UseSharedCache
+                    -
+                      - Fn::Sub: 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}/${ArtifactPrefix}/artifacts/*'
+                      - Fn::Sub: 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}/${ArtifactPrefix}/cache/*'
+                    -
+                      - Fn::Sub: 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}/${ArtifactPrefix}/artifacts/*'
+              - Sid: ReadArtifactBucket
+                Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetEncryptionConfiguration
+                Resource:
+                  - Fn::Sub: 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}'
+              - Sid: ListArtifactPrefix
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - Fn::Sub: 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}'
+                Condition:
+                  StringLike:
+                    's3:prefix':
+                      Fn::If:
+                        - UseSharedCache
+                        -
+                          - Fn::Sub: '${ArtifactPrefix}/artifacts'
+                          - Fn::Sub: '${ArtifactPrefix}/artifacts/*'
+                          - Fn::Sub: '${ArtifactPrefix}/cache'
+                          - Fn::Sub: '${ArtifactPrefix}/cache/*'
+                        -
+                          - Fn::Sub: '${ArtifactPrefix}/artifacts'
+                          - Fn::Sub: '${ArtifactPrefix}/artifacts/*'
+              - Sid: UseGitHubConnection
+                Effect: Allow
+                Action:
+                  - codeconnections:GetConnectionToken
+                  - codeconnections:GetConnection
+                  - codeconnections:UseConnection
+                  - codestar-connections:GetConnectionToken
+                  - codestar-connections:GetConnection
+                  - codestar-connections:UseConnection
+                Resource:
+                  - Ref: ConnectionArn
+      Tags:
+        - Key: ManagedBy
+          Value: agenthub-codebuild-pr-ci
+        - Key: GitHubRepository
+          Value:
+            Fn::Sub: '${GitHubOwner}/${GitHubRepository}'
+
+  BuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName:
+        Fn::Sub: '/aws/codebuild/${ProjectName}'
+      RetentionInDays:
+        Ref: LogRetentionInDays
+      Tags:
+        - Key: ManagedBy
+          Value: agenthub-codebuild-pr-ci
+
+  PrCiProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn:
+      - BuildRole
+      - BuildLogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Name:
+        Ref: ProjectName
+      Description:
+        Fn::Sub: 'Pull request CI for ${GitHubOwner}/${GitHubRepository}'
+      ServiceRole:
+        Fn::GetAtt:
+          - BuildRole
+          - Arn
+      Visibility: PRIVATE
+      BadgeEnabled: false
+      TimeoutInMinutes:
+        Ref: TimeoutInMinutes
+      QueuedTimeoutInMinutes:
+        Ref: QueuedTimeoutInMinutes
+      ConcurrentBuildLimit:
+        Ref: ConcurrentBuildLimit
+      Source:
+        Type: GITHUB
+        Location:
+          Fn::Sub: 'https://github.com/${GitHubOwner}/${GitHubRepository}.git'
+        BuildSpec:
+          Ref: BuildSpecPath
+        ReportBuildStatus: true
+        BuildStatusConfig:
+          Context:
+            Fn::Sub: 'codebuild/${ProjectName}'
+        Auth:
+          Type: CODECONNECTIONS
+          Resource:
+            Ref: ConnectionArn
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType:
+          Ref: ComputeType
+        Image:
+          Ref: Image
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode:
+          Fn::If:
+            - UsePrivilegedMode
+            - true
+            - false
+      Cache:
+        Type:
+          Fn::If:
+            - UseSharedCache
+            - S3
+            - NO_CACHE
+        Location:
+          Fn::If:
+            - UseSharedCache
+            - Fn::Sub: '${ArtifactBucketName}/${ArtifactPrefix}/cache'
+            - Ref: AWS::NoValue
+      Artifacts:
+        Type: S3
+        Location:
+          Ref: ArtifactBucketName
+        Path:
+          Fn::Sub: '${ArtifactPrefix}/artifacts'
+        Name: source-version
+        Packaging: ZIP
+        NamespaceType: BUILD_ID
+        EncryptionDisabled: false
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName:
+            Ref: BuildLogGroup
+      Triggers:
+        Webhook: true
+        BuildType: BUILD
+        FilterGroups:
+          Fn::If:
+            - UseRunnerMode
+            -
+              -
+                - Type: EVENT
+                  Pattern: WORKFLOW_JOB_QUEUED
+                - Type: REPOSITORY_NAME
+                  Pattern:
+                    Ref: RepositoryNamePattern
+                  ExcludeMatchedPattern: false
+            -
+              -
+                - Type: EVENT
+                  Pattern: PULL_REQUEST_CREATED,PULL_REQUEST_UPDATED,PULL_REQUEST_REOPENED
+                - Type: BASE_REF
+                  Pattern:
+                    Ref: BaseBranchPattern
+                  ExcludeMatchedPattern: false
+        PullRequestBuildPolicy:
+          Fn::If:
+            - UseRunnerMode
+            - Ref: AWS::NoValue
+            - RequiresCommentApproval:
+                Ref: RequiresCommentApproval
+              ApproverRoles:
+                Ref: ApproverRoles
+      Tags:
+        - Key: ManagedBy
+          Value: agenthub-codebuild-pr-ci
+        - Key: CiMode
+          Value:
+            Ref: CiMode
+
+Outputs:
+  ProjectName:
+    Value:
+      Ref: PrCiProject
+  ProjectArn:
+    Value:
+      Fn::GetAtt:
+        - PrCiProject
+        - Arn
+  BuildRoleArn:
+    Value:
+      Fn::GetAtt:
+        - BuildRole
+        - Arn
+  LogGroupName:
+    Value:
+      Ref: BuildLogGroup
+  RunnerRunsOnPrefix:
+    Description: 'Prefix only. The workflow label adds the GitHub run id and run attempt. See the runbook.'
+    Value:
+      Fn::Sub: 'codebuild-${ProjectName}-'

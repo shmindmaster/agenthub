@@ -48,6 +48,8 @@ stranger-safe first run. For this private fleet checkout, also use
   each agent keeps them.
 - [runbooks/hosting-routing.md](./runbooks/hosting-routing.md) — deployment
   provider selection and retained-integration rules.
+- [runbooks/codebuild-pr-ci.md](./runbooks/codebuild-pr-ci.md) — reusable
+  CodeBuild pull-request CI template, read-only preflight, and IAM boundary.
 
 ## Execution
 
