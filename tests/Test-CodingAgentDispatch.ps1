@@ -208,13 +208,14 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     foreach ($roleName in $roleNames) {
         Copy-Item -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\kiro\agents\ah-$roleName.json") -Destination $kiroAgentsDir
     }
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'packages\coding-agent-dispatch\kiro\agents\ah-readonly.json') -Destination $kiroAgentsDir
     if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $fixture } else { $env:HOME = $fixture }
-    $fleet.dispatchPolicy.kiro['roles'] = @{ engineer = 'ah-engineer'; reviewer = 'ah-reviewer'; tester = 'ah-tester'; architect = 'ah-architect'; incident = 'ah-incident' }
+    $fleet.dispatchPolicy.kiro['roles'] = @{ engineer = 'ah-engineer'; reviewer = 'ah-reviewer'; readonly = 'ah-readonly'; tester = 'ah-tester'; architect = 'ah-architect'; incident = 'ah-incident' }
     $readOnlyFixture = @{
         claude  = @{ flags = @('--permission-mode', 'plan', '--permission-prompts', 'none'); omits = @('bypassPermissions') }
         codex   = @{ flags = @('--sandbox', 'read-only'); omits = @() }
         factory = @{ flags = @(); omits = @('--auto') }
-        kiro    = @{ flags = @('--v3', '--agent', 'ah-reviewer'); omits = @() }
+        kiro    = @{ flags = @('--v3', '--agent', 'ah-readonly'); omits = @() }
     }
     $allDispatchHosts = @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro')
     $createdPolicy = @()
@@ -274,22 +275,28 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'Factory without -ReadOnly keeps the existing command' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq $factoryWritable) ((ShowArgs $r) + $r.Err)
     foreach ($roleArgs in @(@(), @('-Role', 'reviewer'), @('-Role', 'peer'))) {
         $r = Run (@('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly') + $roleArgs)
-        Check "Kiro -ReadOnly $($roleArgs -join ' ') runs the V3 reviewer profile" ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=chat --v3 --no-interactive --trust-all-tools --agent ah-reviewer --model auto ok' -and $r.Out -match '(?m)^stdin=no') ($r.Out + $r.Err)
+        Check "Kiro -ReadOnly $($roleArgs -join ' ') runs the V3 reviewer profile" ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=chat --v3 --no-interactive --trust-all-tools --agent ah-readonly --model auto ok' -and $r.Out -match '(?m)^stdin=no') ($r.Out + $r.Err)
     }
     foreach ($writingRole in @('engineer', 'architect', 'incident')) {
         $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly','-Role',$writingRole)
         Check "Kiro refuses -ReadOnly with -Role $writingRole" ($r.Exit -eq 3 -and $r.Err -match 'writing role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     }
-    $reviewerProfile = Join-Path $kiroAgentsDir 'ah-reviewer.json'
+    $reviewerProfile = Join-Path $kiroAgentsDir 'ah-readonly.json'
     $reviewerProfileText = [IO.File]::ReadAllText($reviewerProfile)
     [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText.Replace('"read",', '"read", "write",'))
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
     Check 'Kiro refuses -ReadOnly when the installed reviewer profile grants a write tool' ($r.Exit -eq 3 -and $r.Err -match 'grants a write tool' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
     Check 'the write-tool check belongs to -ReadOnly, not to the role' ($r.Exit -eq 0) ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText.Replace('"read",', '"read", "shell",'))
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'Kiro refuses -ReadOnly when the installed profile grants a shell' ($r.Exit -eq 3 -and $r.Err -match 'shell' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText.Replace('"read",', '"read", "@linear",'))
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'Kiro refuses -ReadOnly when the installed profile grants an MCP server' ($r.Exit -eq 3 -and $r.Err -match '@linear' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     Remove-Item -LiteralPath $reviewerProfile -Force
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
-    Check 'Kiro refuses -ReadOnly when the reviewer profile is not installed' ($r.Exit -eq 3 -and $r.Err -match 'ah-reviewer\.json' -and $r.Err -match 'missing' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    Check 'Kiro refuses -ReadOnly when the reviewer profile is not installed' ($r.Exit -eq 3 -and $r.Err -match 'ah-readonly\.json' -and $r.Err -match 'missing' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText)
 
     foreach ($id in @('cursor-agent','grok','opencode','antigravity','cline','copilot','amp','devin','warp','kilo','mimo-code','cursor','windsurf')) {

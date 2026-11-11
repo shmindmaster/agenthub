@@ -50,11 +50,11 @@ writable run starts. `-List -ReadOnly` prints the supported hosts.
 | claude | `--print --permission-mode plan --permission-prompts none` in place of `--permission-mode bypassPermissions` |
 | codex | `exec --sandbox read-only --skip-git-repo-check -` |
 | factory | `exec` without `--auto`, which is Droid's read-only default |
-| kiro | `chat --v3 --no-interactive --trust-all-tools --agent ah-reviewer`: the reviewer profile has no write tool and denies `fs_write` and outward shell commands |
+| kiro | `chat --v3 --no-interactive --trust-all-tools --agent ah-readonly`: that profile has only read, glob, grep, thinking and todo tools (no shell, no write, no MCP server); the dispatcher refuses when the installed profile lists any other tool |
 
 Kiro notes: `-ReadOnly` always runs the reviewer profile, so it is refused
 with `-Role engineer`, `tester`, `architect` or `incident`. It is also
-refused when the installed `~/.kiro/agents/ah-reviewer.json` is missing or
+refused when the installed `~/.kiro/agents/ah-readonly.json` is missing or
 lists a write tool. The profile keeps the shell tool for running checks, so
 this is a profile guard and not an operating-system sandbox.
 

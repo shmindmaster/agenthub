@@ -142,7 +142,7 @@ host.
 `-ReadOnly` runs a host in a read-only mode the host itself enforces, never
 through prompt wording: claude (`--permission-mode plan`), codex
 (`--sandbox read-only`), factory (`exec` without `--auto`) and kiro (the
-`ah-reviewer` profile). `dispatchPolicy.<host>.readOnly` records the flags, or
+`ah-readonly` profile). `dispatchPolicy.<host>.readOnly` records the flags, or
 `false` (checked, none) or `null` (not established), with the dated help text
 in `readOnlyNote`. Every other host refuses `-ReadOnly` with exit 3; there is
 no fallback to a writable run. `-List -ReadOnly` prints the supported hosts.

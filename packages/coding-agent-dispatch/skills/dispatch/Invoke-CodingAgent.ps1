@@ -416,10 +416,12 @@ function Get-DispatchTable {
                 $kiroModel = if ($script:KiroModel) { $script:KiroModel } else { [string]$kiroPolicy.model }
                 Assert-DispatchModelId -Id 'kiro' -ModelId $kiroModel -Source 'model'
                 Write-UnlistedModelNote -Id 'kiro' -ModelId $kiroModel
-                # -ReadOnly always runs the reviewer profile: it has no write
-                # tool and denies fs_write and outward shell commands. The gate
-                # before Build has already refused a writing role.
-                $kiroRole = if ($ReadOnly) { 'reviewer' } else { $script:DispatchRole }
+                # -ReadOnly always runs the ah-readonly profile: its tools are
+                # read, glob, grep, thinking and todo only (no shell, no write,
+                # no MCP server), so the profile itself cannot change anything.
+                # The reviewer role keeps a shell and is NOT a read-only run.
+                # The gate before Build has already refused a writing role.
+                $kiroRole = if ($ReadOnly) { 'readonly' } else { $script:DispatchRole }
                 if ($kiroRole -eq 'peer') {
                     $kiroAgent = [string]$kiroPolicy.agent
                     if ($kiroAgent -notmatch '^[A-Za-z0-9_-]+$') {
@@ -450,7 +452,9 @@ function Get-DispatchTable {
                     if ($null -eq $profileTools -or $profileTools.Count -eq 0) {
                         Write-Refusal 3 "refused kiro: the installed profile $roleAgent.json could not be read as a tool list, so a read-only run cannot be established"
                     }
-                    $writeTools = @($profileTools | Where-Object { $_ -in @('write', 'fs_write', '*', '@builtin') })
+                    # Allow-list, not deny-list: a shell, an MCP server or any
+                    # tool not known to be read-only makes the profile writable.
+                    $writeTools = @($profileTools | Where-Object { $_ -cnotin @('read', 'glob', 'grep', 'thinking', 'todo') })
                     if ($writeTools.Count -gt 0) {
                         Write-Refusal 3 "refused kiro: the installed profile $roleAgent.json grants a write tool ($($writeTools -join ', ')); it is not a read-only profile"
                     }

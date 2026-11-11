@@ -653,15 +653,16 @@
     "kiro": {
       "enabled": true,
       "readOnly": {
-        "flags": ["--v3", "--agent", "ah-reviewer"],
+        "flags": ["--v3", "--agent", "ah-readonly"],
         "omits": []
       },
-      "readOnlyNote": "2026-11-11 `kiro-cli chat --help`: \"--v3 Launch the next generation Kiro agent\" and \"--agent <AGENT> Context profile to use\". Help has no read-only flag; the mechanism is the ah-reviewer profile (packages/coding-agent-dispatch/kiro/agents/ah-reviewer.json): its tools list has no write tool, fs_write is denied under C:/Repos, C:/wt and the listed home paths, and shell denies commit, push, add, merge and the outward commands. The dispatcher refuses the run when the installed ~/.kiro/agents/ah-reviewer.json is missing or lists a write tool. The shell tool stays available, so a shell command outside the deny list can still write a file; this is a profile guard, not an operating-system sandbox. No model run exercised this mode; the flags come from help text only.",
+      "readOnlyNote": "2026-11-11 `kiro-cli chat --help`: \"--v3 Launch the next generation Kiro agent\" and \"--agent <AGENT> Context profile to use\". Help has no read-only flag; the mechanism is the ah-readonly profile (packages/coding-agent-dispatch/kiro/agents/ah-readonly.json): its tools are read, glob, grep, thinking and todo only, with no shell, no write tool and no MCP server, and the dispatcher refuses a read-only run when the installed profile lists any other tool. An independent review on 2026-11-11 found the first choice, ah-reviewer, was not read-only (it keeps a shell and the Linear server), so it is no longer used for -ReadOnly. Not exercised with a model run.",
       "model": "auto",
       "agent": "ah-peer",
       "roles": {
         "engineer": "ah-engineer",
         "reviewer": "ah-reviewer",
+        "readonly": "ah-readonly",
         "tester": "ah-tester",
         "architect": "ah-architect",
         "incident": "ah-incident"
