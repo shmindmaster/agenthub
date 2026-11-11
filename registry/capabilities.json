@@ -780,7 +780,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "F016F296990BB4CB4A36C1BF7102A01B8C225D752E9AF697415B229F88073E81",
+      "contentHash": "3435385B2658B5529A5D9371F32AD8E74206A997A0E22AE5DDF8924A87A9DC8A",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -815,7 +815,22 @@
         },
         {
           "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "copilot"
+        },
+        {
+          "hostId": "kilo",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "mimo-code",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
         },
         {
           "hostId": "opencode",

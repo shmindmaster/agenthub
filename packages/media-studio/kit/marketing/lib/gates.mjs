@@ -14,7 +14,14 @@ import { fileSha, readJson, round, writeJson } from './util.mjs';
 export const DEFAULT_REQUIRED = ['picture', 'integrity', 'pointer', 'frameIntegrity', 'captions', 'loudness', 'sync', 'listen', 'vision', 'marketing', 'story', 'viewerRelease', 'wordSync', 'transcript'];
 
 /** The gates deliver requires: the spec's list (or the default), always including the film-chain gates. */
-export const requiredGates = (spec) => {
+/** Does this ratio's cut (or, with no ratio, any cut) contain captured interface? */
+export function hasCapture(spec, ratio) {
+  const cuts = Array.isArray(spec?.cuts) && spec.cuts.length ? spec.cuts : [{ ratios: spec?.ratios, beats: spec?.beats || [] }];
+  const scoped = ratio ? cuts.filter((c) => (c.ratios || []).includes(ratio)) : cuts;
+  return (scoped.length ? scoped : cuts).some((c) => (c.beats || []).some((b) => b.kind === 'ui'));
+}
+
+export const requiredGates = (spec, ratio) => {
   if (creativeMode(spec) === 'verified-demo') {
     return [...new Set([...(spec?.qa?.required || DEFAULT_REQUIRED), ...CHAIN_GATES, 'wordSync', 'transcript'])];
   }
@@ -24,8 +31,7 @@ export const requiredGates = (spec) => {
   // vision, and release evidence floors; don't silently re-add UI gates.
   // A film with captured interface beats (a hybrid, or an explainer that shows the product) keeps the gates that bind
   // those captures; only the screen-share ratio check is specific to a product demo.
-  const hasCapture = (spec?.cuts?.flatMap((c) => c.beats || []) || spec?.beats || []).some((b) => b.kind === 'ui');
-  const neverForConcept = new Set(hasCapture ? ['picture'] : ['picture', 'integrity', 'pointer', 'sync']);
+  const neverForConcept = new Set(hasCapture(spec, ratio) ? ['picture'] : ['picture', 'integrity', 'pointer', 'sync']);
   const required = spec?.qa?.required || DEFAULT_REQUIRED;
   return [...new Set([...required, ...CHAIN_GATES, 'wordSync', 'transcript'])]
     .filter(name => !neverForConcept.has(name));

@@ -62,7 +62,7 @@
       "properties": {
         "required": { "type": "boolean" },
         "mustInclude": { "type": "array", "items": { "type": "string", "minLength": 2 }, "description": "Phrases the film's labels line must contain, compared without case or punctuation." },
-        "mode": { "enum": ["end-card", "film-level"], "description": "Where the line is shown. Default end-card." }
+        "mode": { "enum": ["end-card", "caption"], "description": "Where the line is shown. Default end-card." }
       }
     },
     "generatedPeople": { "enum": ["any", "adults-only", "none"], "description": "Whether generated people may appear in this product's films. Default any. In a film about the current product they must still be classified as fictional or illustrative." },

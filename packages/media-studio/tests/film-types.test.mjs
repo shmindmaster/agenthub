@@ -304,3 +304,107 @@ test('a cut is judged by how long it runs, and long films are allowed', () => {
   long.cuts[0].targetSeconds = 240;
   assert.deepEqual(validate(adSchema, long), [], 'a four-minute film is a valid spec');
 });
+
+// ---- gaps found by an independent review of this gate ---------------------------------------------------------
+
+test('a label does not turn a product claim into fiction, in any mode', () => {
+  // "illustrative" on a card that says what the product does: still a claim, still checked.
+  const spec = fullSpec();
+  spec.cuts[0].beats[1] = { id: 'B2', kind: 'card', storyRole: 'explanation', truthStatus: 'illustrative', narration: 'ABACare submits every claim to the payer, guarantees approval, and is HIPAA certified.' };
+  for (const mode of ['explainer', 'verified-demo']) {
+    spec.creativeMode = mode; spec.filmType = 'explainer';
+    const result = lint(spec);
+    assert.equal(result.ok, false, mode);
+    assert.ok(codes(result).includes('claim-unmapped'), `${mode}: evidence is still required`);
+    for (const id of ['sent-to-payer', 'guarantee', 'hipaa-status']) assert.ok(result.errors.some((e) => e.code === 'banned-phrase' && e.message.includes(id)), `${mode}: ${id}`);
+  }
+  // An invented film that names the product is held to the claim wording too.
+  const story = fullSpec();
+  story.creativeMode = 'fictional-story'; story.labels = 'SYNTHETIC · NO PHI · a fictional story';
+  story.narrative = { persona: 'a clinic owner', situation: 'a late evening at the desk', emotionalBefore: 'tired and behind', emotionalAfter: 'relieved and caught up' };
+  story.cuts[0].beats = [{ id: 'B1', kind: 'card', narration: 'ABACare is HIPAA certified and guarantees approval by the payer.' }];
+  const fiction = lint(story);
+  assert.ok(fiction.errors.some((e) => e.code === 'banned-phrase' && e.message.includes('guarantee')));
+  assert.ok(fiction.errors.some((e) => e.code === 'banned-phrase' && e.message.includes('hipaa-status')));
+  // A scene that does not speak about the product stays free.
+  assert.equal(beatIsFactual({ kind: 'broll', truthStatus: 'illustrative', narration: 'A family arrives at the clinic.' }, 'verified-demo', ['abacare']), false);
+  assert.equal(beatIsFactual({ kind: 'card', truthStatus: 'illustrative', narration: 'ABACare files it for you.' }, 'explainer', ['abacare']), true);
+});
+
+test('a product named with an ordinary word is matched as a name, not as the word', () => {
+  const spec = fullSpec();
+  spec.product = 'Linear'; spec.labels = 'Brand film'; spec.creativeMode = 'documentary';
+  spec.cuts[0].beats[1].narration = 'Growth in a young company is rarely linear.';
+  assert.equal(lint(spec).ok, true, JSON.stringify(lint(spec).errors));
+  spec.cuts[0].beats[1].narration = 'Teams plan the week in Linear.';
+  assert.ok(codes(lint(spec)).includes('claim-unmapped'));
+});
+
+test('the product profile is found however the name is spaced, and a broken profile file stops the run', () => {
+  for (const name of ['ABA Care', 'abacareai', 'Abacare, Inc.', 'ABACare AI']) assert.equal(productProfile(name)?.id, 'abacare', name);
+  assert.equal(withProductProfile({ id: 'abacare-channel', product: 'ABACare AI' }, { product: 'Our platform' }).disclosure.required, true, 'found from the brand file when the spec uses another name');
+  assert.equal(productProfile('Abacus'), null);
+});
+
+test('a waiver is logged by the full lint, covers capitalised rule ids, and can be a wildcard', () => {
+  const spec = fullSpec();
+  spec.product = 'Revolva'; spec.labels = 'Brand film';
+  delete spec.narrative;
+  assert.ok(lint(spec).errors.some((e) => e.rule === 'story.narrative'));
+  spec.storyOverrides = [{ rule: 'story.narrative', reason: 'Owner 2026-11-10: cut from an approved film, brief is on that issue.' }];
+  assert.deepEqual(validate(adSchema, spec), []);
+  const waived = lint(spec);
+  assert.equal(waived.ok, true, JSON.stringify(waived.errors));
+  assert.ok(waived.warnings.some((w) => w.code === 'story-override' && /story\.narrative waived: Owner 2026-11-10/.test(w.message)));
+  assert.deepEqual(validate(adSchema, { ...spec, storyOverrides: [{ rule: 'story.narrative.emotionalBefore', reason: 'Owner 2026-11-10: a reference clip, no arc intended.' }] }), []);
+  spec.storyOverrides = [{ rule: 'story.*', reason: 'Owner 2026-11-10: legacy spec, predates the story gate.' }];
+  spec.cuts[0].beats.forEach((b) => { delete b.storyRole; });
+  const blanket = lint(spec);
+  assert.equal(blanket.ok, true);
+  assert.ok(blanket.warnings.filter((w) => w.code === 'story-override').length >= 2, 'every waived rule is listed');
+});
+
+test('each film type rejects a film that lacks its own spine', () => {
+  const beat = (role, line) => ({ role, line });
+  const missing = {
+    'feature-demo': [[beat('demonstration', 'Revolva lists the affected commitments.')], 'story.context'],
+    'social-cut': [[beat('demonstration', 'Revolva: three commitments on one screen.')], 'story.hook'],
+    'founder-pitch': [[beat('hook', 'Plans change overnight.'), beat('cta', 'Talk to us.')], 'story.problem'],
+    'internal-update': [[beat('demonstration', 'A scan becomes rows.')], 'story.context'],
+    explainer: [[beat('explanation', 'Timing moves a total.')], 'story.hook'],
+  };
+  for (const [filmType, [beats, rule]] of Object.entries(missing)) {
+    const report = checkStory({ product: 'Revolva', filmType, targetSeconds: 40, beats });
+    assert.ok(rules(report).includes(rule), `${filmType}: expected ${rule}, got ${rules(report).join(', ')}`);
+  }
+});
+
+test('a muted opening is planned by its on-screen text, and a planned concept shot is not a capture', () => {
+  const muted = revolvaMarketing();
+  muted.hookPlan = { visual: 'A revision notice on a delivery plan', onScreen: 'One revision. Which commitments broke?', viewerQuestion: 'Which commitments did it break?' };
+  muted.beats[0] = { role: 'hook', onScreen: 'One revision. Which commitments broke?' };
+  const report = checkStory(muted);
+  assert.equal(report.ok, true, JSON.stringify(report.cuts[0].failures));
+  const vision = checkStory({ product: 'Revolva', creativeMode: 'future-vision', conceptDisclosure: 'Concept: not a current feature', targetSeconds: 40,
+    narrative: { persona: 'an operations lead', situation: 'a planning morning next year', emotionalBefore: 'guarded about the week', emotionalAfter: 'curious and hopeful' },
+    beats: [{ role: 'demonstration', truthStatus: 'proposed', line: 'Imagine the plan repairing itself.' }] });
+  assert.equal(vision.ok, true, JSON.stringify(vision.cuts[0].failures));
+  assert.throws(() => checkStory({ product: 'Revolva', beats: {} }), /beats must be an array/);
+  assert.throws(() => checkStory(null), /JSON object/);
+});
+
+test('capture gates follow the cut being judged', async () => {
+  const { requiredGates, hasCapture } = await import('../kit/marketing/lib/gates.mjs');
+  const spec = { creativeMode: 'hybrid', cuts: [
+    { id: 'main', ratios: ['16x9'], beats: [{ kind: 'ui' }, { kind: 'broll' }] },
+    { id: 'mood', ratios: ['9x16'], beats: [{ kind: 'broll' }] },
+  ] };
+  assert.equal(hasCapture(spec, '16x9'), true);
+  assert.equal(hasCapture(spec, '9x16'), false);
+  assert.ok(requiredGates(spec, '16x9').includes('pointer'), 'the cut with captured interface keeps its capture gates');
+  assert.equal(requiredGates(spec, '9x16').includes('pointer'), false, 'a generated-only cut is not asked for a pointer trace it cannot have');
+  assert.equal(requiredGates(spec, '9x16').includes('integrity'), false);
+  const brandWithMode = (mode) => ({ id: 'x1', product: 'X', colors: { primary: '#000000', foreground: '#ffffff', background: '#000000', accent: '#ffffff' }, fonts: { display: 'Inter', body: 'Inter' }, safeZones: {}, forbiddenNames: [], budgets: { elevenlabsCredits: 0, openaiUsd: 1 }, deliver: { dir: '/t' }, loudness: { social: -14, web: -16 }, disclosure: { required: true, mode } });
+  assert.deepEqual(validate(brandSchema, brandWithMode('end-card')), []);
+  assert.ok(validate(brandSchema, brandWithMode('film-level')).length > 0, 'only disclosure modes the narration gate accepts');
+});

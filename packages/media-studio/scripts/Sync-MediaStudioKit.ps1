@@ -154,7 +154,9 @@ $gateScripts = @('queue-qwen-alignment-clock.mjs', 'derived-audio-clock.mjs', 'h
     # model-written layers (SH-4317): the gate and its resolver; the gate reads the model-facing schemas from model-specs-schemas beside it
     'validate-model-specs.mjs', 'model-specs-resolve.mjs',
     # public, no-key model catalogue and price quotation, shared with all media hosts
-    'quote-runware-models.mjs')
+    'quote-runware-models.mjs',
+    # the pre-capture story gate for any product and film type; it loads the kit library from briefing-kit\marketing\lib
+    'check-story.mjs')
 $sharedTools = Join-Path (Join-Path (Split-Path -Parent $RuntimeKit) '_shared') 'tools'
 New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null
 foreach ($name in $gateScripts) {

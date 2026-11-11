@@ -47,7 +47,7 @@ export async function deliverStage(ctx) {
       const ad = named.ad;
       if (!existsSync(gp) || !existsSync(ad)) throw new Error(`deliver: ${ratio} has no gated candidate; run compose and qa first`);
       const g = readJson(gp);
-      const measured = releasable(g.gates || {}, requiredGates(ctx.spec));
+      const measured = releasable(g.gates || {}, requiredGates(ctx.spec, ratio));
       if (!measured.ok || Object.values(g.gates || {}).some((gate) => gate.candidateSha256 !== named.sha256)) throw new Error(`deliver refused for ${ratio}: missing, failing or stale per-gate candidate binding`);
       if (!g.ok) throw new Error(`deliver refused for ${ratio}: ${g.failing.join('; ')}`);
       if (g.specSha256 !== ctx.specSha || g.brandSha256 !== ctx.brandSha) throw new Error(`deliver refused for ${ratio}: QA used different spec or brand inputs`);

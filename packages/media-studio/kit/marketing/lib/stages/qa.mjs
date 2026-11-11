@@ -7,7 +7,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:
 import { join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
 import { runFrameIntegrityGate, runIntegrityGate, runMarketingGate, runPointerGate } from '../chain-gates.mjs';
-import { assembleEvidence, buildGateWorkspace, captionsCheck, readReviews, releasable, requiredGates } from '../gates.mjs';
+import { assembleEvidence, buildGateWorkspace, captionsCheck, hasCapture, readReviews, releasable, requiredGates } from '../gates.mjs';
 import { measureLoudness, gateScript, runSyncGates } from '../gate-runners.mjs';
 import { loudnessTarget, run } from '../mix.mjs';
 import { runPictureGate } from '../picture-gate.mjs';
@@ -92,7 +92,7 @@ async function syncGates(ctx, { ws, candidate, cdir, gates }) {
 // receipt; the marketing floor counts only a reviewer's qa/<ratio>/marketing-readiness.json that names this candidate.
 async function chainGates(ctx, { ws, qdir, ratio, candidate, sha, gates }) {
   const composeMapRel = `output/${ctx.spec.id}-compose-map.json`;
-  if (creativeMode(ctx.spec) === 'verified-demo' || normalizeCuts(ctx.spec).some((c) => c.beats.some((b) => b.kind === 'ui'))) {
+  if (creativeMode(ctx.spec) === 'verified-demo' || hasCapture(ctx.spec, ratio)) {
     gates.integrity = await runIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
     gates.pointer = await runPointerGate({ ws, moduleRoot: MODULE_ROOT });
   } else {
@@ -182,13 +182,12 @@ async function qaCandidate(ctx, { cut, ratio, timeline, capture, required }) {
 }
 
 export async function qaStage(ctx) {
-  const required = requiredGates(ctx.spec);
   const out = {};
   for (const cut of selectedCuts(ctx, normalizeCuts(ctx.spec))) {
     const timeline = readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
     const capture = existsSync(join(ctx.jobDir, 'capture', `${cut.id}.json`)) ? readJson(join(ctx.jobDir, 'capture', `${cut.id}.json`)).clips : [];
     for (const ratio of cut.ratios) {
-      out[ratio] = await qaCandidate(ctx, { cut, ratio, timeline, capture, required });
+      out[ratio] = await qaCandidate(ctx, { cut, ratio, timeline, capture, required: requiredGates(ctx.spec, ratio) });
     }
   }
   const allOk = Object.values(out).every((r) => r.ok);

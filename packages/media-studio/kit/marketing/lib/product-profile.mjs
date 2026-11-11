@@ -16,18 +16,21 @@ const union = (...lists) => [...new Set(lists.flatMap((l) => l || []))];
 let cached = null;
 export function loadProfiles(path = join(here, '..', 'product-profiles.json')) {
   if (path === join(here, '..', 'product-profiles.json') && cached) return cached;
-  let parsed = { profiles: {} };
-  try { parsed = JSON.parse(readFileSync(path, 'utf8')); } catch { parsed = { profiles: {} }; }
+  // A missing or unreadable profile file would silently drop a product's standing policy, so it stops the run.
+  let parsed;
+  try { parsed = JSON.parse(readFileSync(path, 'utf8')); } catch (error) { throw new Error(`product-profiles.json could not be read (${error.message}); a product's policy would be lost. Re-run Sync-MediaStudioKit.ps1.`); }
   if (path === join(here, '..', 'product-profiles.json')) cached = parsed;
   return parsed;
 }
 
 /** The profile for a product name or brand id, or null. */
-export function productProfile(product, brandId, profiles = loadProfiles()) {
-  const wanted = [clean(product), clean(brandId)].filter(Boolean);
+export function productProfile(product, brandId, profiles = loadProfiles(), ...more) {
+  // Compared with spaces and punctuation removed, so "ABA Care", "abacareai" and "Abacare, Inc." all find ABACare.
+  const squash = (v) => clean(v).replace(/ /g, '');
+  const wanted = [product, brandId, ...more].map(squash).filter(Boolean);
   for (const [id, profile] of Object.entries(profiles.profiles || {})) {
-    const keys = [id, ...(profile.match || [])].map(clean);
-    if (wanted.some((w) => keys.includes(w))) return { id, ...profile };
+    const keys = [id, ...(profile.match || [])].map(squash).filter(Boolean);
+    if (wanted.some((w) => keys.some((k) => w === k || (k.length >= 6 && w.startsWith(k))))) return { id, ...profile };
   }
   return null;
 }
@@ -38,7 +41,7 @@ export function productProfile(product, brandId, profiles = loadProfiles()) {
  * Idempotent, and returns the brand unchanged when the product has no profile.
  */
 export function withProductProfile(brand, spec, profiles = loadProfiles()) {
-  const profile = productProfile(spec?.product || brand?.product, brand?.id, profiles);
+  const profile = productProfile(spec?.product, brand?.id, profiles, brand?.product);
   if (!profile) return brand;
   const merged = { ...(brand || {}) };
   const names = union(profile.productNames, brand?.productNames);

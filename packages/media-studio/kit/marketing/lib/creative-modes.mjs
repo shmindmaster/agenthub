@@ -17,7 +17,23 @@ export const DECLARATION = /\b(concept(?:ual)?|proposed|envision(?:ed|ing)?|illu
 export const INVENTED_MODES = new Set(['fictional-story', 'future-vision', 'concept-film', 'abstract']);
 
 const cleanText = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-const mentions = (text, names) => { const t = ` ${cleanText(text)} `; return (names || []).some((n) => n && t.includes(` ${n} `)); };
+/**
+ * Does the text name the product? A one-word name must appear with a capital
+ * first letter, as a name is written, so a product called "Linear" is not
+ * found in "growth is rarely linear". A longer name is matched without case.
+ */
+export function mentions(text, names) {
+  const raw = String(text || '');
+  const flat = ` ${cleanText(raw)} `;
+  return (names || []).some((name) => {
+    const n = cleanText(name);
+    if (!n) return false;
+    if (n.includes(' ')) return flat.includes(` ${n} `);
+    const pattern = new RegExp(`(^|[^A-Za-z0-9])(${n})(?![A-Za-z0-9])`, 'gi');
+    for (const match of raw.matchAll(pattern)) if (/^[A-Z]/.test(match[2])) return true;
+    return false;
+  });
+}
 
 /**
  * Does this beat state something as true today? Factual beats need evidence
@@ -32,10 +48,14 @@ export function beatIsFactual(beat = {}, mode = 'verified-demo', names = []) {
   // Captured interface is the product as it is. No label turns it into fiction.
   if (beat.kind === 'ui') return true;
   if (beat.truthStatus === 'verified') return true;
-  if (CONCEPT_STATUSES.has(beat.truthStatus)) return false;
+  // "Proposed" is a claim about the future and is covered by the concept disclosure.
+  if (beat.truthStatus === 'proposed') return false;
+  const named = mentions(`${beat.narration || ''} ${beat.onScreenText || ''}`, names);
+  // A scene may be fictional or illustrative. A sentence about what the product does is not made so by a label.
+  if (CONCEPT_STATUSES.has(beat.truthStatus)) return named && !INVENTED_MODES.has(mode);
   if (mode === 'verified-demo') return true;
   if (INVENTED_MODES.has(mode)) return false;
-  return mentions(`${beat.narration || ''} ${beat.onScreenText || ''}`, names);
+  return named;
 }
 
 export function creativeMode(spec = {}) {

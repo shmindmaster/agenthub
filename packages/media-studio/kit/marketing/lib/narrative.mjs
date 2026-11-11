@@ -123,7 +123,11 @@ export function inspectNarrativeArc(spec, cut, estimateBeatSeconds, options = {}
     if (!hookPlan || typeof hookPlan !== 'object' || Array.isArray(hookPlan)) {
       add('hook-plan', 'The first five seconds need hookPlan { visual, onScreen, spoken, viewerQuestion } so picture, text and voice establish a shared reason to watch.');
     } else {
-      for (const field of Object.keys(HOOK_ALIASES)) if (!meaningful(planned(field))) add(`hook-plan.${field}`, `hookPlan.${field} must describe its own clear opening component.`);
+      const muted = !String((Array.isArray(cut.beats) ? cut.beats[0] : null)?.narration || '').trim();
+      for (const field of Object.keys(HOOK_ALIASES)) {
+        if (field === 'spoken' && muted && meaningful(planned('onScreen'))) continue; // a muted opening is carried by its text
+        if (!meaningful(planned(field))) add(`hook-plan.${field}`, `hookPlan.${field} must describe its own clear opening component.`);
+      }
     }
   }
 
@@ -155,7 +159,7 @@ export function inspectNarrativeArc(spec, cut, estimateBeatSeconds, options = {}
   const hookMatches = openingSpoken
     ? openingSpoken.startsWith(clean(planned('spoken')))
     : clean(opening.onScreenText || '').startsWith(clean(planned('onScreen'))) && Boolean(clean(planned('onScreen')));
-  if (rules.hookPlan && meaningful(planned('spoken')) && !hookMatches) {
+  if (rules.hookPlan && (meaningful(planned('spoken')) || !openingSpoken) && hookPlan && !hookMatches) {
     add('hook-plan.match', 'The hookPlan spoken line must match the actual beginning of the first narration beat; a proposed hook alone is not a rendered hook.', `${cut.id}/${opening.id}`);
   }
 

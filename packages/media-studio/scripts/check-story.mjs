@@ -17,12 +17,16 @@
 // A planning document's spine is accepted as written: each beat may use
 // role/storyRole, line/narration, onScreen/onScreenText, and start/end seconds.
 // Exit code 0 when the story passes, 1 when a rule fails, 2 on bad input.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const lib = (name) => pathToFileURL(resolve(here, '..', 'kit', 'marketing', 'lib', name)).href;
+// The kit sits beside this script in the package, and elsewhere once deployed (briefing-kit\screencast, _shared\tools).
+const libRoot = [['..', 'kit', 'marketing', 'lib'], ['..', 'marketing', 'lib'], ['..', '..', 'briefing-kit', 'marketing', 'lib']]
+  .map((parts) => resolve(here, ...parts)).find((dir) => existsSync(resolve(dir, 'narrative.mjs')));
+if (!libRoot) { console.error('check-story: the marketing kit library was not found beside this script; run Sync-MediaStudioKit.ps1.'); process.exit(2); }
+const lib = (name) => pathToFileURL(resolve(libRoot, name)).href;
 const { inspectNarrativeArc, describeFilmType } = await import(lib('narrative.mjs'));
 const { FILM_TYPES, resolveFilmType } = await import(lib('story-profiles.mjs'));
 const { creativeMode } = await import(lib('creative-modes.mjs'));
@@ -44,7 +48,8 @@ export function normalizeBeat(raw, index) {
     storyRole,
     narration,
     // A plan has no capture yet, so kind is the declared intent: the product is shown where the role shows it.
-    kind: raw.kind || (SHOWS_PRODUCT.has(role) ? 'ui' : 'card'),
+    // A shot classified as proposed, fictional or illustrative is a generated shot, never a capture.
+    kind: raw.kind || (SHOWS_PRODUCT.has(role) && !['proposed', 'fictional', 'illustrative'].includes(raw.truthStatus) ? 'ui' : 'card'),
   };
   if (onScreenText) beat.onScreenText = onScreenText;
   if (raw.truthStatus) beat.truthStatus = raw.truthStatus;
@@ -71,6 +76,9 @@ const seconds = (beat) => (Number.isFinite(beat.minSeconds) ? Math.max(beat.minS
 
 /** Run the gate. Pure: returns the report. */
 export function checkStory(brief, brand = {}) {
+  if (!brief || typeof brief !== 'object' || Array.isArray(brief)) throw new TypeError('the brief must be a JSON object');
+  for (const key of ['beats', 'spine', 'cuts']) if (brief[key] !== undefined && !Array.isArray(brief[key])) throw new TypeError(`${key} must be an array`);
+  for (const cut of brief.cuts || []) for (const key of ['beats', 'spine']) if (cut && cut[key] !== undefined && !Array.isArray(cut[key])) throw new TypeError(`cuts[].${key} must be an array`);
   const spec = { ...brief };
   const merged = withProductProfile(brand, spec);
   const mode = creativeMode(spec);
@@ -103,7 +111,8 @@ function print(report) {
   if (!report.ok) console.log('To waive a story rule for a reason, add { "rule": "<rule id>", "reason": "<who decided and why>" } to storyOverrides. Truth and evidence rules cannot be waived.');
 }
 
-const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+// Compared by real path: through a junction or a symlink the two spellings differ, and the gate must still run.
+const invoked = (() => { try { return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; } })();
 if (invoked) {
   const args = process.argv.slice(2);
   const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
@@ -122,7 +131,8 @@ if (invoked) {
     const brandPath = flag('--brand');
     if (brandPath) brand = JSON.parse(readFileSync(brandPath, 'utf8'));
   } catch (error) { console.error(`check-story: ${error.message}`); process.exit(2); }
-  const report = checkStory(brief, brand);
+  let report;
+  try { report = checkStory(brief, brand); } catch (error) { console.error(`check-story: ${error.message}`); process.exit(2); }
   if (flag('--out')) writeFileSync(flag('--out'), `${JSON.stringify(report, null, 2)}\n`);
   if (json) console.log(JSON.stringify(report, null, 2)); else print(report);
   process.exit(report.ok ? 0 : 1);

@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { validate } from './schema.mjs';
 import { inspectNarrativeArc, productNames } from './narrative.mjs';
-import { beatIsFactual, creativeMode } from './creative-modes.mjs';
+import { beatIsFactual, creativeMode, mentions } from './creative-modes.mjs';
 import { withProductProfile } from './product-profile.mjs';
 import { fileSha, readJson, sentences, words } from './util.mjs';
 
@@ -261,7 +261,9 @@ function lintBeatShape(beat, where, err) {
 function lintBeatText(beat, where, claimsById, err, warn, scanText, mode, names) {
   const texts = [...sentences(beat.narration || ''), ...(beat.onScreenText ? [beat.onScreenText] : [])];
   const verified = beatIsFactual(beat, mode, names);
-  for (const t of texts) scanText(t, where, verified);
+  // Claim wording is checked on every factual line and on every line that names the product, in any mode and
+  // under any label: "guaranteed" said of the product is a claim even inside a story.
+  for (const t of texts) scanText(t, where, verified || mentions(t, names));
   const fluff = FLUFF.exec(beat.narration || '');
   if (fluff && mode === 'verified-demo') err('narration-fluff', `narration spends words on "${fluff[0]}"; say what the viewer gains, and leave data disclosure to an end card`, where);
   if (beat.onScreenText && words(beat.onScreenText).length > 8) warn('on-screen-length', 'on-screen text longer than 8 words may not survive phone-size reading', where);
