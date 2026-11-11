@@ -50,6 +50,8 @@ stranger-safe first run. For this private fleet checkout, also use
   provider selection and retained-integration rules.
 - [runbooks/codebuild-pr-ci.md](./runbooks/codebuild-pr-ci.md) — reusable
   CodeBuild pull-request CI template, read-only preflight, and IAM boundary.
+- [runbooks/do-interim-release.md](./runbooks/do-interim-release.md) — DigitalOcean
+  CI runner kit (`ci/do-runner`), SHA-tag image releases, rollback, and AWS target.
 
 ## Execution
 

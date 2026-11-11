@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# sh-ci: per-repository persistent GitHub Actions runners on sh-build-02.
+# Usage (on the droplet, as root):
+#   sh-ci up <repo> [--postgres | --pgvector] [--valkey]   (bootstrap token on stdin the first time)
+#   sh-ci down <repo> | rm <repo> | status | logs <repo>
+# Each repo gets compose project sh-ci-<repo>: runner + its own BuildKit daemon (+ optional
+# Postgres 18 / Valkey 8 on tmpfs), on its own network, no Docker socket, no app secrets.
+set -euo pipefail
+ROOT=/srv/work/sh-ci
+OWNER=${SH_CI_OWNER:-shmindmaster}
+RUNNER_IMAGE='ghcr.io/actions/actions-runner:2.338.2@sha256:6d0b2d80d80f143f77dcb676e50920100bbb547e39e883454d57f45ab8c31300'
+BUILDKIT_IMAGE='moby/buildkit:v0.35.0@sha256:aa632b921ef07411d2cb77292cd34213d4f7b384001d6fceef1e1f25bf9752bb'
+PG_IMAGE='postgres:18@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42'
+PGVECTOR_IMAGE='pgvector/pgvector:0.8.7-pg18@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47'
+VALKEY_IMAGE='valkey/valkey:8@sha256:8f836008e0986c36adf50da714c7060cf689dbb335f61fe077939d90fa650809'
+cmd=${1:-status}; repo=${2:-}
+need_repo() { [[ "$repo" =~ ^[a-z0-9-]+$ ]] || { echo "repo slug required"; exit 2; }; }
+dir() { echo "$ROOT/repos/$repo"; }
+case "$cmd" in
+up)
+  need_repo; shift 2; pg=0; vk=0
+  pgimg=$PG_IMAGE; for a in "$@"; do case $a in --postgres) pg=1;; --pgvector) pg=1; pgimg=$PGVECTOR_IMAGE;; --valkey) vk=1;; esac; done
+  d=$(dir); install -d -m 0700 "$d" "$d/state"; chown 1001:1001 "$d/state"
+  if [ ! -t 0 ]; then tok=$(cat); if [ -n "$tok" ]; then umask 077; printf '%s' "$tok" > "$d/state/bootstrap-token"; chown 1001:1001 "$d/state/bootstrap-token"; fi; fi
+  {
+  echo "name: sh-ci-$repo"
+  echo "services:"
+  echo "  runner:"
+  echo "    image: $RUNNER_IMAGE"
+  echo "    entrypoint: [\"/opt/sh-ci/entrypoint.sh\"]"
+  echo "    restart: on-failure:5"
+  echo "    environment:"
+  echo "      SH_CI_REPO: $OWNER/$repo"
+  echo "      SH_CI_RUNNER_NAME: do-sh-build-$repo"
+  echo "      SH_CI_LABELS: do-sh-build,sh-ci-$repo"
+  echo "      BUILDKIT_HOST: tcp://buildkitd:1234"
+  echo "      TEST_POSTGRES_URL: $( [ $pg = 1 ] && echo postgresql://postgres@postgres:5432/ci || echo '' )"
+  echo "      TEST_REDIS_URL: $( [ $vk = 1 ] && echo redis://valkey:6379/0 || echo '' )"
+  echo "    volumes: [\"./state:/state\", \"$ROOT/runner:/opt/sh-ci:ro\", \"$ROOT/security:/opt/sh-security:ro\"]"
+  echo "    tmpfs: [\"/home/runner/_work:size=24g,uid=1001,gid=1001,exec\", \"/tmp:size=4g,exec\"]"
+  echo "    cpus: 8"
+  echo "    mem_limit: 16g"
+  echo "    pids_limit: 8192"
+  echo "  buildkitd:"
+  echo "    image: $BUILDKIT_IMAGE"
+  echo "    command: [\"--addr\", \"tcp://0.0.0.0:1234\"]"
+  echo "    restart: on-failure:5"
+  echo "    privileged: true   # daemon only; build steps run in BuildKit's own unprivileged runc sandboxes, insecure entitlements off"
+  echo "    volumes: [\"buildkit:/var/lib/buildkit\"]"
+  echo "    cpus: 8"
+  echo "    mem_limit: 12g"
+  if [ $pg = 1 ]; then
+  echo "  postgres:"
+  echo "    image: $pgimg"
+  echo "    restart: on-failure:5"
+  echo "    environment: {POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: ci}"
+  echo "    tmpfs: [\"/var/lib/postgresql:size=3g\"]"
+  echo "    healthcheck: {test: [\"CMD\", \"pg_isready\", \"-U\", \"postgres\"], interval: 5s, retries: 10}"
+  fi
+  if [ $vk = 1 ]; then
+  echo "  valkey:"
+  echo "    image: $VALKEY_IMAGE"
+  echo "    restart: on-failure:5"
+  echo "    command: [\"valkey-server\", \"--save\", \"\", \"--appendonly\", \"no\"]"
+  fi
+  echo "volumes: {buildkit: {}}"
+  } > "$d/compose.yml"
+  docker compose -f "$d/compose.yml" up -d --remove-orphans ;;
+down) need_repo; docker compose -f "$(dir)/compose.yml" down ;;
+rm)   need_repo; docker compose -f "$(dir)/compose.yml" down -v; rm -rf "$(dir)" ;;
+logs) need_repo; docker compose -f "$(dir)/compose.yml" logs --tail 60 ;;
+status) for c in "$ROOT"/repos/*/compose.yml; do [ -f "$c" ] && docker compose -f "$c" ps --format '{{.Name}} {{.Status}}'; done ;;
+*) echo "unknown command"; exit 2 ;;
+esac
