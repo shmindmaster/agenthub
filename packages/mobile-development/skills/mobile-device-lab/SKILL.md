@@ -50,7 +50,7 @@ Hold the lease around anything that mutates a shared emulator or Simulator: buil
 
 - `references/inner-loop.md`. Read when choosing rebuild vs reload, building or syncing the app under test, build speed, test tools, or web targets.
 - `references/lab-operations.md`. Read for the lease and idle-check commands, a guest that will not start, Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
-- `references/physical-iphone.md`. Read when driving the iPhone attached to Windows.
+- `references/physical-iphone.md`. Read when driving the iPhone attached to Windows: tap, type, swipe and read the screen through WebDriverAgent, with `scripts/wda_client.py`.
 - `references/remote-android.md`. Read when building, running or testing Android without loading this PC, registering another app, or letting the owner view the emulator.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

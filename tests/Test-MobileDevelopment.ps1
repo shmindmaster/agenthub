@@ -692,6 +692,20 @@ Report 'the deployer still refuses every generated tree the parity walk skips' (
     $deployerPatterns.Count -gt 0 -and $unrefused.Count -eq 0
 ) "deployer -notmatch patterns: $($deployerPatterns -join ' | '); not refused: $($unrefused -join ',')"
 
+# The physical-iPhone helper is exercised offline against a loopback stand-in for the WebDriverAgent runner: no phone,
+# no network. -B keeps Python from writing __pycache__ into the package, which the parity walk would then see.
+$pythonCommand = @('python', 'python3', 'py') | Where-Object { Get-Command $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+$wdaTests = Join-Path $packageRoot 'tests'
+if ($pythonCommand) {
+    $wdaOutput = @(& $pythonCommand -B -m unittest discover -s $wdaTests -p 'test_*.py' 2>&1)
+    $wdaExit = $LASTEXITCODE
+    Report 'physical-iPhone WebDriverAgent helper passes its offline tests' (
+        $wdaExit -eq 0 -and (($wdaOutput -join "`n") -match 'Ran [1-9]\d* tests?') -and (($wdaOutput -join "`n") -match '(?m)^OK')
+    ) "exit=$wdaExit output=$(($wdaOutput | Select-Object -Last 4) -join ' | ')"
+} else {
+    Report 'physical-iPhone WebDriverAgent helper passes its offline tests' $false 'No python, python3 or py on PATH; the helper could not be exercised.'
+}
+
 if ($failures.Count) {
     Write-Host "`nRESULT: $($reported - $failures.Count) passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1
