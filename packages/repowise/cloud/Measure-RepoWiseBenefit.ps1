@@ -28,8 +28,8 @@
 .EXAMPLE
   pwsh -NoProfile -File Measure-RepoWiseBenefit.ps1 `
       -TaskListPath .\samples\benchmark\tasks.json `
-      -NativeLogPath .\samples\benchmark\native.log `
-      -RepoWiseLogPath .\samples\benchmark\repowise.log
+      -NativeLogPath .\samples\benchmark\native.bench.txt `
+      -RepoWiseLogPath .\samples\benchmark\repowise.bench.txt
 #>
 [CmdletBinding()]
 param(

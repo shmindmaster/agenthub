@@ -157,8 +157,8 @@ print("PROBE-OK")
 $samples = Join-Path $cloud 'samples\benchmark'
 $benchOut = & $hostExe -NoProfile -File (Join-Path $cloud 'Measure-RepoWiseBenefit.ps1') `
     -TaskListPath (Join-Path $samples 'tasks.json') `
-    -NativeLogPath (Join-Path $samples 'native.log') `
-    -RepoWiseLogPath (Join-Path $samples 'repowise.log') 2>&1 | Out-String
+    -NativeLogPath (Join-Path $samples 'native.bench.txt') `
+    -RepoWiseLogPath (Join-Path $samples 'repowise.bench.txt') 2>&1 | Out-String
 $benchOk = $LASTEXITCODE -eq 0
 Report 'benchmark harness exits 0 on the sample logs' $benchOk $benchOut
 Report 'benchmark table lists every task in the task list' `
