@@ -1,8 +1,10 @@
 // ElevenLabs speech, sound effects and music through the governed adapter at
 // packages/media-studio/scripts/elevenlabs_cli.py, named by MVG_ELEVENLABS_CLI. Every lane runs for owner-authorized
-// jobs only: the immutable manifest must name the exact request and job workspace (MVG_ELEVENLABS_AUTHORIZATION or
-// o.authorizationManifest), or the adapter refuses before any network call. Every paid call reserves credits in that
-// job's ledger and is receipt-bound; mvg never talks to the REST API directly.
+// jobs only: the immutable manifest must name the exact request and job workspace, or the adapter refuses before any
+// network call. Each lane takes its own manifest — o.authorizationManifest, or MVG_ELEVENLABS_AUTHORIZATION for
+// speech, MVG_ELEVENLABS_SFX_AUTHORIZATION for sound effects, MVG_ELEVENLABS_MUSIC_AUTHORIZATION for music — because a
+// manifest's kind matches exactly one lane. Every paid call reserves credits in that job's ledger and is
+// receipt-bound; mvg never talks to the REST API directly.
 // Run with plain `python`, never `python -I` (isolated mode drops the script folder and the adapter import fails).
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -37,8 +39,8 @@ function parseResult(res, what) {
 
 const readReceipt = (out) => JSON.parse(readFileSync(`${out}.provenance.json`, 'utf8'));
 
-const manifestArgs = (o) => {
-  const manifest = o.authorizationManifest ?? process.env.MVG_ELEVENLABS_AUTHORIZATION;
+const manifestArgs = (o, env) => {
+  const manifest = o.authorizationManifest ?? process.env[env];
   return manifest ? ['--authorization-manifest', manifest] : [];
 };
 
@@ -55,7 +57,7 @@ export async function speech(cli, o) {
   if (o.previousText) args.push('--previous-text', o.previousText);
   if (o.nextText) args.push('--next-text', o.nextText);
   for (const d of o.dictionaries || []) args.push('--pronunciation-dictionary', `${d.id}:${d.version}`);
-  args.push(...manifestArgs(o));
+  args.push(...manifestArgs(o, 'MVG_ELEVENLABS_AUTHORIZATION'));
   const result = parseResult(await (o.run || runCli)(cli, args), 'speech');
   return { ...result, receipt: readReceipt(o.output) };
 }
@@ -66,7 +68,7 @@ export async function soundEffect(cli, o) {
   if (o.durationSeconds !== undefined) args.push('--duration-seconds', String(o.durationSeconds));
   if (o.promptInfluence !== undefined) args.push('--prompt-influence', String(o.promptInfluence));
   if (o.loop !== undefined) args.push(o.loop ? '--loop' : '--no-loop');
-  args.push(...manifestArgs(o));
+  args.push(...manifestArgs(o, 'MVG_ELEVENLABS_SFX_AUTHORIZATION'));
   const result = parseResult(await (o.run || runCli)(cli, args), 'sound effect');
   return { ...result, receipt: readReceipt(o.output) };
 }
@@ -74,7 +76,8 @@ export async function soundEffect(cli, o) {
 export async function music(cli, o) {
   const args = ['music', '--prompt', o.prompt, '--output', o.output, '--model-id', o.model || 'music_v2_5',
     '--music-length-ms', String(o.lengthMs), '--max-credits', String(o.maxCredits),
-    '--cache-workspace', o.workspace, '--cache-revision', o.revision, ...manifestArgs(o)];
+    '--cache-workspace', o.workspace, '--cache-revision', o.revision,
+    ...manifestArgs(o, 'MVG_ELEVENLABS_MUSIC_AUTHORIZATION')];
   const result = parseResult(await (o.run || runCli)(cli, args), 'music');
   return { ...result, receipt: readReceipt(o.output) };
 }

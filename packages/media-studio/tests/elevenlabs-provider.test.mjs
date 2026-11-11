@@ -10,6 +10,8 @@ import { music, resolveCli, runCli, soundEffect, speech } from '../kit/marketing
 
 delete process.env.ELEVENLABS_API_KEY;
 delete process.env.MVG_ELEVENLABS_AUTHORIZATION;
+delete process.env.MVG_ELEVENLABS_SFX_AUTHORIZATION;
+delete process.env.MVG_ELEVENLABS_MUSIC_AUTHORIZATION;
 
 const adapter = resolve(dirname(fileURLToPath(import.meta.url)), '../scripts/elevenlabs_cli.py');
 const python = process.env.MVG_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
@@ -82,6 +84,16 @@ test('music hands the music lane to the adapter pinned to music_v2_5', async (t)
   for (const [flag, value] of [['--prompt', 'bed'], ['--model-id', 'music_v2_5'], ['--music-length-ms', '30000'], ['--max-credits', '500'], ['--authorization-manifest', 'C:/private/music.json']]) {
     assert.equal(args[args.indexOf(flag) + 1], value, flag);
   }
+});
+
+test('each lane takes its own manifest environment variable, not the speech one', async (t) => {
+  const output = join(workspace(t), 'tick.mp3');
+  const { seen, run } = capture(output);
+  process.env.MVG_ELEVENLABS_AUTHORIZATION = 'C:/private/speech.json';
+  process.env.MVG_ELEVENLABS_SFX_AUTHORIZATION = 'C:/private/sfx.json';
+  t.after(() => { delete process.env.MVG_ELEVENLABS_AUTHORIZATION; delete process.env.MVG_ELEVENLABS_SFX_AUTHORIZATION; });
+  await soundEffect({}, { prompt: 'tick', output, durationSeconds: 1, maxCredits: 200, workspace: 'w', revision: 'r', run });
+  assert.equal(seen[0][seen[0].indexOf('--authorization-manifest') + 1], 'C:/private/sfx.json');
 });
 
 test('sfx and music without owner authorization are refused by the real adapter before any network call', async (t) => {

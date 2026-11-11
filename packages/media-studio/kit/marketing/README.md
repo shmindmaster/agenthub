@@ -202,7 +202,7 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
   Eleven Music needs a `licenseBasis` (its terms limit Creator to individual use and never name advertising; confirm in
   writing before paid media).
 - Budgets: the per-run and the cumulative cap are checked before each paid call, and spend is recorded after it.
-  ElevenLabs speech goes only through the governed adapter named by `MVG_ELEVENLABS_CLI`, with the job's owner manifest in `MVG_ELEVENLABS_AUTHORIZATION` (`skills/generate/references/content-controls.md`). Without both it fails closed. The job's ledger holds a reservation at about
+  ElevenLabs speech goes only through the governed adapter named by `MVG_ELEVENLABS_CLI`, with the job's owner manifest in `MVG_ELEVENLABS_AUTHORIZATION` (`skills/generate/references/content-controls.md`). The `sfx` and `music` lanes take their own manifests in `MVG_ELEVENLABS_SFX_AUTHORIZATION` and `MVG_ELEVENLABS_MUSIC_AUTHORIZATION` — each manifest's `kind` matches exactly one lane. Without both it fails closed. The job's ledger holds a reservation at about
   1.2x characters, receipts and no repeat purchase; run it with plain `python`, never `python -I`. Cumulative spend is in
   `_spend\ledger.jsonl`.
 
