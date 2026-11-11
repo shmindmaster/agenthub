@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.6.0"
+  version: "0.7.0"
 ---
 
 # Dispatch to another coding agent
@@ -58,6 +58,17 @@ the missing installation; do not search credentials or guess a cache version.
    subscription-only rules in `references/hosts.md` (no `opencode/` Zen
    wallet, MiMo on the Token Plan only).
 
+   `-Role <role>` picks a Kiro profile: `peer` (default), `engineer`,
+   `reviewer`, `tester`, `architect` or `incident`. Every other host refuses
+   a role other than `peer`.
+
+   `-ReadOnly` runs the task in a read-only mode the host itself enforces.
+   It works on claude, codex, factory and kiro; every other host refuses it
+   with exit 3 and never falls back to a writable run. Use it for reviews and
+   audits, and never rely on prompt wording to keep a run read-only.
+   `-List -ReadOnly` prints the hosts that support it. Details are in
+   `references/hosts.md`.
+
 3. Return the child's output and exit code. Do not restate its flags.
    Remove only task files and scratch created for this dispatch after reading
    the result. Preserve the caller's files and any evidence needed for a failure.
@@ -104,4 +115,4 @@ unrelated host or service to recover.
 
 ## Host details
 
-Read `references/hosts.md` when choosing a model, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, resuming a Cline session, or auditing a host plugin (`Install-*.ps1`).
+Read `references/hosts.md` when choosing a model, a Kiro role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, resuming a Cline session, or auditing a host plugin (`Install-*.ps1`).

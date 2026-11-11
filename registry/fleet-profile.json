@@ -393,11 +393,18 @@
     },
     "cursor-agent": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `cursor-agent --help`: \"--mode <mode> ... plan: read-only/planning (analyze, propose plans, no edits). ask: Q&A style for explanations and questions (read-only).\" The dispatcher already passes --mode ask, but the registered ~/bin/cursor-agent.cmd shim also passes --yolo --sandbox disabled --approve-mcps (\"-f, --force Force allow commands unless explicitly denied\"), and help does not say which wins. -ReadOnly is refused until that is settled.",
       "reason": "account smoke ok 2026-10-22",
       "verifiedOn": "2026-10-22"
     },
     "factory": {
       "enabled": true,
+      "readOnly": {
+        "flags": [],
+        "omits": ["--auto"]
+      },
+      "readOnlyNote": "2026-11-11 `droid exec --help`: \"By default, it runs in read-only mode, requiring explicit flags to enable modifications.\" and \"DEFAULT (no flags) Read-only mode ... No modifications to files or system\". The mode is the absence of --auto, so -ReadOnly leaves --auto out and adds no flag; --settings still passes the repo-owned rules file. No model run exercised this mode; the flags come from help text only.",
       "model": "gpt-6-luna",
       "allowedModels": [
         "gpt-6-luna",
@@ -416,6 +423,8 @@
     },
     "amp": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `amp --help` has no read-only, plan or sandbox flag (\"-m, --mode\" picks low, medium, high, ultra or claude-code). The amp.permissions and amp.tools.disable settings could express a read-only rule set through the per-run settings file; none is written or verified. -ReadOnly is refused.",
       "reason": "account smoke ok 2026-10-22",
       "verifiedOn": "2026-10-22",
       "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled.",
@@ -423,6 +432,11 @@
     },
     "claude": {
       "enabled": true,
+      "readOnly": {
+        "flags": ["--permission-mode", "plan", "--permission-prompts", "none"],
+        "omits": ["bypassPermissions"]
+      },
+      "readOnlyNote": "2026-11-11 `claude --help`: \"--permission-mode <mode> Permission mode to use for the session (choices: \"acceptEdits\", \"auto\", \"bypassPermissions\", \"manual\", \"dontAsk\", \"plan\")\" and \"--permission-prompts <target> Who answers permission prompts with --print: ... \"none\" (nobody: anything that would prompt is denied automatically; the permission mode still decides everything else)\". Help lists plan but does not describe it; that plan mode makes no edits is Claude Code's documented behaviour, not a line of this help output. -ReadOnly replaces bypassPermissions with plan and adds --permission-prompts none. No model run exercised this mode; the flags come from help text only.",
       "reason": "Account login is established (claude auth status: claude.ai, firstParty). 2026-10-22 smoke `claude -p` on claude-haiku-5-5 returned 'You've hit your weekly limit, resets Oct 26 9am America/Chicago'; no included allowance for dispatch until then.",
       "ownerAction": "Account route: after 2026-10-26 09:00 CT run one smoke; enable only if it returns text. API-key route: per-call opt-in only, pass -AnthropicApiKey; it is never automatic and never a fallback.",
       "verifiedOn": "2026-10-22",
@@ -440,12 +454,19 @@
     },
     "codex": {
       "enabled": true,
+      "readOnly": {
+        "flags": ["--sandbox", "read-only"],
+        "omits": []
+      },
+      "readOnlyNote": "2026-11-11 `codex exec --help`: \"-s, --sandbox <SANDBOX_MODE> Select the sandbox policy to use when executing model-generated shell commands [possible values: read-only, workspace-write, danger-full-access]\". The ~/bin/codex.cmd shim adds no flags of its own. Help does not say how the sandbox is enforced on Windows. No model run exercised this mode; the flags come from help text only.",
       "reason": "2026-11-10: standalone `codex exec --skip-git-repo-check -` captured a response ('READY', session 01a1c62b-7356-7160-9b9c-efeecb274bd2, exit 0, 32,069 tokens). Account quota permitted the smoke; the prior enablement condition is met. Two MCP workers failed at session start (assemblyai OAuth invalid_token; one remote MCP redirect-origin block) -- MCP health issues, not dispatch readiness; recorded for repair.",
       "verifiedOn": "2026-11-10",
       "knownIssue": "RESOLVED 2026-11-10 by the smoke above. History: 2026-10-21 smoke captured no response text; ChatGPT-plan quota was exhausted at 22:00 CT."
     },
     "warp": {
       "enabled": true,
+      "readOnly": false,
+      "readOnlyNote": "2026-11-11 checked, none. `warp agent run --help` (WARP_CLI_MODE=1), every option read: no read-only, plan, sandbox or permission flag. The one lever is \"--profile <ID> Agent profile to configure the terminal session\", and Warp execution profiles are cloud-synced with no CLI edit (see guard). -ReadOnly is refused.",
       "scope": "local-only: oz agent run with --no-snapshot. run-cloud, cloud environments, schedules, handoff and Factories stay prohibited.",
       "model": "glm-5.3-flash-fireworks",
       "allowedModels": [
@@ -486,6 +507,8 @@
     },
     "devin": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `devin --help`: \"--permission-mode ... \"auto\" auto-approves read-only tools, ..., \"dangerous\" auto-approves all tools\" and \"--sandbox [Research Preview] Sandbox exec-tool processes (macOS seatbelt / Linux bwrap+seccomp)\". Help does not say what a non-interactive run does with a tool that auto does not approve, and the sandbox is not offered on Windows. -ReadOnly is refused.",
       "scope": "local-only: devin -p in C:\\wt worktrees. --cloud, /handoff, /cloud, devin connect (Local Hands) and the Devin API session routes stay prohibited while dispatchPolicy.devin-cloud is disabled.",
       "model": "swe-2-medium",
       "allowedModels": [
@@ -504,6 +527,8 @@
     },
     "opencode": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `opencode run --help`: \"--agent string Agent to use\" and \"--auto Auto-approve permissions that are not explicitly denied\". Help names no built-in agent and no read-only flag, and no document in this repository confirms a read-only plan agent or what a non-interactive run does with an ask rule when --auto is left out. -ReadOnly is refused.",
       "model": "opencode-go/glm-5.3-flash",
       "agent": "peer",
       "agentNote": "~/.config/opencode/agents/peer.md: allow-all local development, deny .env/auth reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo, npm publish, railway, az, doctl, vercel and opencode auth. Needed because run --auto approves every ask rule. Global opencode.json policies additionally deny force-push, reset --hard, git clean, branch -D, recursive root deletes, disk formatting, scheduled-task/service/Run-key creation, cloud deletes and credential export for every agent.",
@@ -527,6 +552,8 @@
     },
     "antigravity": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `agy --help`: \"--mode Set the agent execution mode for this session (accept-edits, auto, plan)\" and \"--sandbox Run in a sandbox with terminal restrictions enabled\". Help does not say that plan makes no edits or what the sandbox restricts. -ReadOnly is refused.",
       "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 9 s, returned ok; G1 credits stay off.",
       "verifiedOn": "2026-10-14",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
@@ -535,6 +562,8 @@
     },
     "cline": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `cline --help`: \"-p, --plan Run in plan mode\" and \"--auto-approve <boolean> Set tool auto-approval for all tools (default: true)\". Help does not say plan mode blocks writes. -ReadOnly is refused.",
       "reason": "2026-10-26 (CLI 3.0.71): one-word and small-coding-task probes. openai-compatible qwen3.8-max (Alibaba Model Studio) answered, cost 0, then at 23:07Z returned 'The free quota has been exhausted' after ~400k tokens: the endpoint runs a free-tier quota in free-tier-only mode and fails closed. Free models on provider cline passed a write-and-test task at totalCost 0: nvidia/nemotron-3-ultra-550b-a55b:free, poolside/laguna-s-2.1:free, cohere/north-mini-code:free; thinkingmachines/inkling:free returned 429 (daily cap). cline-pass returned 'weekly Clinepass limit reached, resets in 2d 1h' at 2026-10-26 22:45Z; its suggested fallback (--provider cline with a paid model) is usage-billed and must not be used. Unattended runs need AGENTHUB_PEER_GUARD=1 and CLINE_SESSION_BACKEND_MODE=local so ~/.cline/plugins/peer-guard.js runs in-process; in hub mode the guard never sees the variable (verified: push went through).",
       "allowedModels": [
         "openai-compatible:qwen3.8-max-0902",
@@ -565,6 +594,8 @@
     },
     "copilot": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `copilot --help`: \"--mode <mode> Set the initial agent mode [possible values: interactive, plan, autopilot]\", \"--plan Start in plan mode\", \"--deny-tool\", \"--available-tools\". Help does not say plan mode blocks writes, and the registered ~/bin/copilot.cmd shim passes --allow-all --autopilot. -ReadOnly is refused.",
       "reason": "Paid plan; model auto",
       "verifiedOn": "2026-10-21",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
@@ -579,12 +610,16 @@
     },
     "grok": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `grok --help`: \"--permission-mode <MODE> Permission mode [possible values: default, acceptEdits, auto, dontAsk, bypassPermissions, plan]\" and \"--sandbox <PROFILE> Sandbox profile for filesystem and network access\". Help describes neither plan nor any sandbox profile, so no enforced read-only command is confirmed. -ReadOnly is refused.",
       "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 11 s, returned ok.",
       "verifiedOn": "2026-10-14",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     },
     "kilo": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `kilo run --help`: \"--agent agent to use\" and \"--auto auto-approve permissions that are not explicitly denied (dangerous!)\"; no read-only flag, and no read-only agent is recorded for this host. -ReadOnly is refused.",
       "model": "mimo/mimo-v2.6-pro",
       "agent": "peer",
       "agentNote": "~/.config/kilo/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, kilo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --auto approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
@@ -600,6 +635,8 @@
     },
     "mimo-code": {
       "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-11 not established. `mimo run --help`: \"--agent agent to use\" and \"--dangerously-skip-permissions, --yolo auto-approve permissions that are not explicitly denied (dangerous!)\"; no read-only flag, and no read-only agent is recorded for this host. -ReadOnly is refused.",
       "model": "xiaomi-token-plan-sgp/mimo-v2.6-pro",
       "agent": "peer",
       "agentNote": "~/.config/mimocode/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, mimo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --yolo approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
@@ -615,8 +652,21 @@
     },
     "kiro": {
       "enabled": true,
+      "readOnly": {
+        "flags": ["--v3", "--agent", "ah-reviewer"],
+        "omits": []
+      },
+      "readOnlyNote": "2026-11-11 `kiro-cli chat --help`: \"--v3 Launch the next generation Kiro agent\" and \"--agent <AGENT> Context profile to use\". Help has no read-only flag; the mechanism is the ah-reviewer profile (packages/coding-agent-dispatch/kiro/agents/ah-reviewer.json): its tools list has no write tool, fs_write is denied under C:/Repos, C:/wt and the listed home paths, and shell denies commit, push, add, merge and the outward commands. The dispatcher refuses the run when the installed ~/.kiro/agents/ah-reviewer.json is missing or lists a write tool. The shell tool stays available, so a shell command outside the deny list can still write a file; this is a profile guard, not an operating-system sandbox. No model run exercised this mode; the flags come from help text only.",
       "model": "auto",
       "agent": "ah-peer",
+      "roles": {
+        "engineer": "ah-engineer",
+        "reviewer": "ah-reviewer",
+        "tester": "ah-tester",
+        "architect": "ah-architect",
+        "incident": "ah-incident"
+      },
+      "rolesNote": "2026-11-11 (Linear SH-4418): -Role on the dispatcher. peer, the default, keeps the guarded agent above and its exact command. Every other role runs `kiro-cli chat --v3 --no-interactive --trust-all-tools --agent <profile> --model <model> <prompt>` on the profile named here; the sources are packages/coding-agent-dispatch/kiro/agents/ah-<role>.json. The dispatcher refuses a role whose profile file is missing from ~/.kiro/agents, and refuses -Role other than peer on every other host. -ReadOnly runs the reviewer profile and refuses engineer, tester, architect and incident, whose profiles carry a write tool. No role command was exercised with a model run.",
       "agentNote": "~/.kiro/agents/ah-peer.json: read, write, shell, grep, glob, thinking and todo tools only, with the host's own MCP file not loaded. Shell denies git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, aws, doctl, vercel, kiro-cli login/logout/user, reset --hard, git clean, branch -D, schtasks and sc create. Reads of .env files, ~/.kiro/settings and ~/.aws are denied, as are writes under D:/Local-AI and ~/.kiro. Needed because --trust-all-tools approves every tool call.",
       "allowedModels": [
         "auto",

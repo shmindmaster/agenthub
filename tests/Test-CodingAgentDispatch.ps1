@@ -197,9 +197,183 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         Check "$guarded refuses a shell-unsafe agent name" ($r.Exit -eq 3 -and $r.Err -match 'guarded agent') $r.Err
         $fleet.dispatchPolicy.$guarded.agent = $(if ($guarded -eq 'kiro') { 'ah-peer' } else { 'peer' }); Save-Fixture
     }
+    # ---------- SH-4418: Kiro roles and the enforced read-only mode ----------
+    # -ShowCommand prints the command and starts nothing. The Kiro profiles are
+    # looked up under the invoking user's home, pointed at the fixture here.
+    function ShowArgs($Result) { return [string](@(($Result.Out -split '\r?\n') -match '^args=')[0]) }
+    function Arg([string]$Value) { if ($Value -match '[\s"]') { return (Quote $Value) } return $Value }
+    $roleNames = @('engineer', 'reviewer', 'tester', 'architect', 'incident')
+    $kiroAgentsDir = Join-Path (Join-Path $fixture '.kiro') 'agents'
+    $null = New-Item -ItemType Directory -Path $kiroAgentsDir -Force
+    foreach ($roleName in $roleNames) {
+        Copy-Item -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\kiro\agents\ah-$roleName.json") -Destination $kiroAgentsDir
+    }
+    if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $fixture } else { $env:HOME = $fixture }
+    $fleet.dispatchPolicy.kiro['roles'] = @{ engineer = 'ah-engineer'; reviewer = 'ah-reviewer'; tester = 'ah-tester'; architect = 'ah-architect'; incident = 'ah-incident' }
+    $readOnlyFixture = @{
+        claude  = @{ flags = @('--permission-mode', 'plan', '--permission-prompts', 'none'); omits = @('bypassPermissions') }
+        codex   = @{ flags = @('--sandbox', 'read-only'); omits = @() }
+        factory = @{ flags = @(); omits = @('--auto') }
+        kiro    = @{ flags = @('--v3', '--agent', 'ah-reviewer'); omits = @() }
+    }
+    $allDispatchHosts = @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro')
+    $createdPolicy = @()
+    foreach ($id in $allDispatchHosts) {
+        if (-not $fleet.dispatchPolicy.ContainsKey($id)) { $fleet.dispatchPolicy[$id] = @{}; $createdPolicy += $id }
+    }
+    foreach ($id in $readOnlyFixture.Keys) { $fleet.dispatchPolicy[$id]['readOnly'] = $readOnlyFixture[$id] }
+    $fleet.dispatchPolicy['warp']['readOnly'] = $false
+    $fleet.dispatchPolicy['grok']['readOnly'] = $null
+    Save-Fixture
+
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand')
+    Check 'Kiro without -Role keeps the exact guarded ah-peer command' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=chat --no-interactive --trust-all-tools --agent ah-peer --model auto ok') $r.Out
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','peer')
+    Check 'Kiro -Role peer is the same guarded ah-peer command' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=chat --no-interactive --trust-all-tools --agent ah-peer --model auto ok') $r.Out
+    foreach ($roleName in $roleNames) {
+        $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role',$roleName)
+        Check "Kiro -Role $roleName runs the V3 engine on ah-$roleName" ($r.Exit -eq 0 -and (ShowArgs $r) -ceq "args=chat --v3 --no-interactive --trust-all-tools --agent ah-$roleName --model auto ok") ($r.Out + $r.Err)
+    }
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Role','Engineer','-Model','claude-sonnet-5.5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Kiro role run reaches the child with the role profile, the model and the prompt last' ($null -ne $d -and (@($d.Arguments) -join ' ') -ceq 'chat --v3 --no-interactive --trust-all-tools --agent ah-engineer --model claude-sonnet-5.5 ok') $r.Err
+    Remove-Item -LiteralPath (Join-Path $kiroAgentsDir 'ah-tester.json') -Force
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','tester')
+    Check 'Kiro refuses a role whose profile file is missing' ($r.Exit -eq 3 -and $r.Err -match 'ah-tester\.json' -and $r.Err -match 'missing' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','architect')
+    Check 'a missing profile refuses only its own role' ($r.Exit -eq 0 -and (ShowArgs $r) -match 'ah-architect') ($r.Out + $r.Err)
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','boss')
+    Check 'Kiro refuses an unknown role' ($r.Exit -eq 3 -and $r.Err -match 'is not a role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $fleet.dispatchPolicy.kiro.roles.Remove('incident'); Save-Fixture
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','incident')
+    Check 'Kiro refuses a role that policy does not record' ($r.Exit -eq 3 -and $r.Err -match 'roles\.incident' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $fleet.dispatchPolicy.kiro.roles['incident'] = 'ah-incident'; Save-Fixture
+    foreach ($id in @('codex', 'claude', 'opencode', 'cursor')) {
+        $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','engineer')
+        Check "$id refuses -Role engineer and names the hosts that support roles" ($r.Exit -eq 3 -and $r.Err -match 'roles are supported only on: kiro' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    }
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','peer')
+    Check 'the default role is accepted on a host without roles' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=exec --skip-git-repo-check -') ($r.Out + $r.Err)
+
+    $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'Claude -ReadOnly runs plan mode with prompts denied, never the bypass mode' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=--print --permission-mode plan --permission-prompts none' -and $r.Out -match '(?m)^stdin=yes') ($r.Out + $r.Err)
+    $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch,'-ShowCommand')
+    Check 'Claude without -ReadOnly keeps the existing command' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=--print --permission-mode bypassPermissions') ($r.Out + $r.Err)
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'Codex -ReadOnly selects the read-only sandbox' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=exec --sandbox read-only --skip-git-repo-check -' -and $r.Out -match '(?m)^stdin=yes') ($r.Out + $r.Err)
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly','-Model','gpt-6.1-sol')
+    Check 'Codex -ReadOnly keeps an explicit model' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=exec -m gpt-6.1-sol --sandbox read-only --skip-git-repo-check -') ($r.Out + $r.Err)
+    $factorySettings = Join-Path (Resolve-Path -LiteralPath $fixture).Path 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json'
+    $showPrompt = Join-Path (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch') 'prompt-show.txt'
+    $scratchShown = (Resolve-Path -LiteralPath $scratch).Path
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    $factoryExpected = 'args=' + ((@('exec', '--cwd', $scratchShown, '-o', 'json', '--settings', $factorySettings, '-m', 'gpt-6-luna', '-f', $showPrompt) | ForEach-Object { Arg $_ }) -join ' ')
+    Check 'Factory -ReadOnly leaves --auto out, which is its read-only default' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq $factoryExpected -and (ShowArgs $r) -notmatch '--auto') ((ShowArgs $r) + ' expected ' + $factoryExpected + $r.Err)
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand')
+    $factoryWritable = 'args=' + ((@('exec', '--cwd', $scratchShown, '--auto', 'medium', '-o', 'json', '--settings', $factorySettings, '-m', 'gpt-6-luna', '-f', $showPrompt) | ForEach-Object { Arg $_ }) -join ' ')
+    Check 'Factory without -ReadOnly keeps the existing command' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq $factoryWritable) ((ShowArgs $r) + $r.Err)
+    foreach ($roleArgs in @(@(), @('-Role', 'reviewer'), @('-Role', 'peer'))) {
+        $r = Run (@('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly') + $roleArgs)
+        Check "Kiro -ReadOnly $($roleArgs -join ' ') runs the V3 reviewer profile" ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=chat --v3 --no-interactive --trust-all-tools --agent ah-reviewer --model auto ok' -and $r.Out -match '(?m)^stdin=no') ($r.Out + $r.Err)
+    }
+    foreach ($writingRole in @('engineer', 'architect', 'incident')) {
+        $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly','-Role',$writingRole)
+        Check "Kiro refuses -ReadOnly with -Role $writingRole" ($r.Exit -eq 3 -and $r.Err -match 'writing role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    }
+    $reviewerProfile = Join-Path $kiroAgentsDir 'ah-reviewer.json'
+    $reviewerProfileText = [IO.File]::ReadAllText($reviewerProfile)
+    [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText.Replace('"read",', '"read", "write",'))
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'Kiro refuses -ReadOnly when the installed reviewer profile grants a write tool' ($r.Exit -eq 3 -and $r.Err -match 'grants a write tool' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
+    Check 'the write-tool check belongs to -ReadOnly, not to the role' ($r.Exit -eq 0) ($r.Out + $r.Err)
+    Remove-Item -LiteralPath $reviewerProfile -Force
+    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'Kiro refuses -ReadOnly when the reviewer profile is not installed' ($r.Exit -eq 3 -and $r.Err -match 'ah-reviewer\.json' -and $r.Err -match 'missing' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText)
+
+    foreach ($id in @('cursor-agent','grok','opencode','antigravity','cline','copilot','amp','devin','warp','kilo','mimo-code','cursor','windsurf')) {
+        $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+        Check "$id refuses -ReadOnly: no enforced read-only mode, no command" ($r.Exit -eq 3 -and $r.Err -match 'has no enforced read-only mode' -and $r.Err -match 'never falls back to a writable run' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+        $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
+        Check "$id starts no child under -ReadOnly" ($r.Exit -eq 3 -and $r.Out -notmatch '"Arguments"') ($r.Out + $r.Err)
+    }
+    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'a recorded false is reported as checked, none' ($r.Exit -eq 3 -and $r.Err -match 'readOnly is false: checked, none') $r.Err
+    $r = Run @('-HostId','grok','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'a recorded null is reported as not established' ($r.Exit -eq 3 -and $r.Err -match 'readOnly is not established') $r.Err
+    # Both gates can fail: a registry record without a verified command, and a
+    # verified command without a registry record.
+    $fleet.dispatchPolicy['grok']['readOnly'] = @{ flags = @('--permission-mode', 'plan'); omits = @() }; Save-Fixture
+    $r = Run @('-HostId','grok','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'a registry record alone does not make a host read-only' ($r.Exit -eq 3 -and $r.Err -match 'no verified read-only command' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $fleet.dispatchPolicy['grok']['readOnly'] = $null
+    foreach ($unrecorded in @($false, $null, 'absent')) {
+        if ($unrecorded -is [string]) { $fleet.dispatchPolicy['codex'].Remove('readOnly') } else { $fleet.dispatchPolicy['codex']['readOnly'] = $unrecorded }
+        Save-Fixture
+        $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+        Check "Codex refuses -ReadOnly when its registry record is $(if ($null -eq $unrecorded) { 'null' } else { $unrecorded })" ($r.Exit -eq 3 -and $r.Err -match 'has no enforced read-only mode' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    }
+    $fleet.dispatchPolicy['codex']['readOnly'] = $readOnlyFixture['codex']; Save-Fixture
+    $r = Run @('-HostId','cline','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly','-SessionId','abc')
+    Check 'a Cline session resume is refused under -ReadOnly' ($r.Exit -eq 3 -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+
+    # A real launch of the synthetic child: the flags reach the process.
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Codex -ReadOnly child receives the read-only sandbox and the task on stdin' ($null -ne $d -and (@($d.Arguments) -join ' ') -ceq 'exec --sandbox read-only --skip-git-repo-check -' -and $d.Input -eq 'ok') $r.Err
+    $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Claude -ReadOnly child never receives the bypass mode' ($null -ne $d -and (@($d.Arguments) -join ' ') -ceq '--print --permission-mode plan --permission-prompts none' -and $d.Input -eq 'ok') $r.Err
+
+    # -List stays as it was; -List -ReadOnly narrows it to read-only hosts.
+    $r = Run @('-List')
+    $listRows = @(($r.Out -split '\r?\n') | Where-Object { $_ })
+    Check '-List still prints one three-column row per registered host' ($r.Exit -eq 0 -and $listRows.Count -eq $ids.Count -and @($listRows | Where-Object { @($_ -split "`t").Count -ne 3 }).Count -eq 0 -and $r.Out -match "(?m)^grok\tcallable\tfile") $r.Out
+    $r = Run @('-List','-ReadOnly')
+    $readOnlyRows = @(($r.Out -split '\r?\n') | Where-Object { $_ } | ForEach-Object { ($_ -split "`t")[0] })
+    Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,factory,kiro') ($r.Out + $r.Err)
+    $fleet.dispatchPolicy['codex']['enabled'] = $false; Save-Fixture
+    $r = Run @('-List','-ReadOnly')
+    Check '-List -ReadOnly leaves out a read-only host that policy disables' ($r.Exit -eq 0 -and $r.Out -notmatch '(?m)^codex\t' -and $r.Out -match '(?m)^claude\t') $r.Out
+    $fleet.dispatchPolicy['codex'].Remove('enabled'); Save-Fixture
+
+    # The checked-in registry and the dispatcher agree: every dispatchable host
+    # records readOnly, a recorded mode yields its flags, anything else refuses.
+    $realPolicy = (Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json).dispatchPolicy
+    foreach ($id in $allDispatchHosts) {
+        $realEntry = $realPolicy.PSObject.Properties[$id]
+        $hasRecord = $null -ne $realEntry -and $null -ne $realEntry.Value.PSObject.Properties['readOnly']
+        Check "registry records readOnly and a dated note for $id" ($hasRecord -and [string]$realEntry.Value.readOnlyNote -match '^\d{4}-\d{2}-\d{2} ') "dispatchPolicy.$id"
+        if (-not $hasRecord) { continue }
+        $realRecord = $realEntry.Value.readOnly
+        $fixtureBefore = $fleet.dispatchPolicy[$id]['readOnly']
+        $supported = $realRecord -is [pscustomobject]
+        $fleet.dispatchPolicy[$id]['readOnly'] = if ($supported) { @{ flags = @($realRecord.flags); omits = @($realRecord.omits) } } else { $realRecord }
+        Save-Fixture
+        $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+        if ($supported) {
+            $shown = ' ' + (ShowArgs $r).Substring([Math]::Min(5, (ShowArgs $r).Length)) + ' '
+            $missingFlags = @(@($realRecord.flags) | Where-Object { -not $shown.Contains(" $_ ") })
+            $presentOmits = @(@($realRecord.omits) | Where-Object { $shown.Contains(" $_ ") })
+            Check "registry read-only flags for $id are the flags the dispatcher runs" ($r.Exit -eq 0 -and $missingFlags.Count -eq 0 -and $presentOmits.Count -eq 0) ("missing=$($missingFlags -join ',') present=$($presentOmits -join ',') $($r.Out) $($r.Err)")
+        } else {
+            Check "registry records no read-only mode for $id and the dispatcher refuses it" ($r.Exit -eq 3 -and $r.Err -match 'has no enforced read-only mode') ($r.Out + $r.Err)
+        }
+        $fleet.dispatchPolicy[$id]['readOnly'] = $fixtureBefore
+    }
+    $realRoles = $realPolicy.kiro.roles
+    Check 'registry records the Kiro role profiles next to the guarded agent' ([string]$realPolicy.kiro.agent -ceq 'ah-peer' -and @($roleNames | Where-Object { [string]$realRoles.$_ -cne "ah-$_" }).Count -eq 0 -and @($roleNames | Where-Object { -not (Test-Path -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\kiro\agents\ah-$_.json")) }).Count -eq 0) ($realRoles | Out-String)
+
+    # Back to the state the rest of this file expects.
+    foreach ($id in $allDispatchHosts) { if ($fleet.dispatchPolicy.ContainsKey($id)) { $fleet.dispatchPolicy[$id].Remove('readOnly') } }
+    foreach ($id in $createdPolicy) { $fleet.dispatchPolicy.Remove($id) }
+    $fleet.dispatchPolicy.kiro.Remove('roles'); Save-Fixture
+    if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $oldWindowsHome } else { $env:HOME = $oldPosixHome }
+
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','claude-sonnet-5.5')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'Kiro routes a listed explicit model without a note' ($null -ne $d -and $d.Arguments -contains 'claude-sonnet-5.5' -and $d.Arguments -notcontains 'auto' -and $r.Err -notmatch 'note:') $r.Err
+    Check 'Kiro routes a listed explicit model without a note'($null -ne $d -and $d.Arguments -contains 'claude-sonnet-5.5' -and $d.Arguments -notcontains 'auto' -and $r.Err -notmatch 'note:') $r.Err
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','claude-opus-5.5')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }

@@ -3,7 +3,9 @@
    Covers the SH-4416 ready-only PR reviewer: draft refusal, idempotence,
    stale PASS status, malformed answer retry then BLOCKED, oversized diff
    per-file grouping, author-host routing, and that no write command
-   (gh pr merge, gh pr review --approve, git push) is ever issued. #>
+   (gh pr merge, gh pr review --approve, git push) is ever issued.
+   SH-4418: every dispatcher call carries -ReadOnly, the reviewer host comes
+   only from hosts with a recorded read-only mode, and none means BLOCKED. #>
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'
@@ -273,6 +275,12 @@ process.stdout.write(response);
         $lastWins = ConvertFrom-PrReviewAnswer -ExpectedHeadSha $h -Text $twoBlocks
         Check 'the last fenced block is the answer, not an earlier quoted one' ($lastWins -and $lastWins.verdict -ceq 'BLOCKED') ($lastWins | Out-String)
 
+        # SH-4418: only a readOnly object with a flags list makes a reviewer host.
+        $policyJson = '{"codex":{"enabled":true,"readOnly":{"flags":["--sandbox","read-only"],"omits":[]}},"zeta":{"readOnly":{"flags":[],"omits":["--auto"]}},"kiro":{"enabled":true,"readOnly":{"flags":["--v3"],"omits":[]}},"alpha":{"readOnly":{"flags":["-x"]}},"grok":{"enabled":true,"readOnly":null},"warp":{"enabled":true,"readOnly":false},"amp":{"enabled":true},"claude":{"enabled":false,"readOnly":{"flags":["--permission-mode","plan"]}},"devin":{"readOnly":true},"cline":{"readOnly":{"note":"no flags list"}},"cursor":"alias"}'
+        $roHosts = @(Get-PrReviewReadOnlyHosts -DispatchPolicy ($policyJson | ConvertFrom-Json))
+        Check 'read-only reviewer hosts: recorded flags only, preferred order first, disabled hosts left out' (($roHosts -join ',') -ceq 'codex,kiro,alpha,zeta') ($roHosts -join ',')
+        Check 'read-only reviewer hosts: nothing recorded yields none' (@(Get-PrReviewReadOnlyHosts -DispatchPolicy ('{"grok":{"readOnly":null},"warp":{"readOnly":false}}' | ConvertFrom-Json)).Count -eq 0 -and @(Get-PrReviewReadOnlyHosts -DispatchPolicy $null).Count -eq 0)
+
         $sections = 1..6 | ForEach-Object {
             "diff --git a/file$_.txt b/file$_.txt`n--- a/file$_.txt`n+++ b/file$_.txt`n" + (('x' * 600) + "`n")
         }
@@ -292,8 +300,21 @@ process.stdout.write(response);
     $runDir = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'AgentHub\runtime\pr-review'
     Remove-Item (Join-Path $runDir 'brief-*.txt') -Force -ErrorAction SilentlyContinue
 
+    # Synthetic registry: which hosts record an enforced read-only mode.
+    function Write-FleetFixture([string]$Name, [hashtable]$Policy) {
+        $path = Join-Path $fixture ("fleet-$Name.json")
+        [IO.File]::WriteAllText($path, (@{ dispatchPolicy = $Policy } | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+        return $path
+    }
+    $roRecord = @{ flags = @('--synthetic-read-only'); omits = @() }
+    $fleetDefault = Write-FleetFixture 'default' @{
+        codex = @{ enabled = $true; readOnly = $roRecord }; claude = @{ enabled = $true; readOnly = $roRecord }
+        kiro = @{ enabled = $true; readOnly = $roRecord }; grok = @{ enabled = $true; readOnly = $null }
+        warp = @{ enabled = $true; readOnly = $false }
+    }
+
     function Invoke-Scenario {
-        param([string]$Name, [string[]]$Extra = @(), [hashtable]$Files = @{}, [hashtable]$EnvVars = @{}, [string]$GhLogin = '')
+        param([string]$Name, [string[]]$Extra = @(), [hashtable]$Files = @{}, [hashtable]$EnvVars = @{}, [string]$GhLogin = '', [string]$FleetPath = $fleetDefault)
         $dir = New-Scenario $Name
         $f = @{ Draft = $false; Head = $headMain; Branch = 'feature/thing'; Body = 'Does the thing. SH-4416'; Comments = @(); Diff = "diff --git a/src/a.js b/src/a.js`n--- a/src/a.js`n+++ b/src/a.js`n@@ -1 +1 @@`n-old`n+new`n"; HasAgentsMd = $true; Responses = @($validAnswer) }
         foreach ($k in $Files.Keys) { $f[$k] = $Files[$k] }
@@ -304,7 +325,7 @@ process.stdout.write(response);
         $oldEnv = @{}
         foreach ($k in $EnvVars.Keys) { $oldEnv[$k] = [Environment]::GetEnvironmentVariable($k, 'Process'); [Environment]::SetEnvironmentVariable($k, [string]$EnvVars[$k], 'Process') }
         try {
-            return Run-Reviewer (@('-Repo', $repo, '-Pr', '7', '-GhPath', $ghCmd, '-DispatcherPath', $dispCmd, '-ReviewerInstructionsPath', $riFile) + $Extra)
+            return Run-Reviewer (@('-Repo', $repo, '-Pr', '7', '-GhPath', $ghCmd, '-DispatcherPath', $dispCmd, '-ReviewerInstructionsPath', $riFile, '-FleetProfilePath', $FleetPath) + $Extra)
         } finally {
             $env:PRREVIEW_GH_DIR = $oldGh; $env:PRREVIEW_DISPATCH_DIR = $oldDisp
             foreach ($k in $EnvVars.Keys) {
@@ -363,8 +384,9 @@ process.stdout.write(response);
     # [Console]::Out, as the real dispatcher does. The answer must be captured.
     $ps1Disp = Join-Path $fixture 'dispatcher-console.ps1'
     $ps1Body = @'
-param([string]$HostId, [string]$PromptFile, [string]$Cwd, [int]$TimeoutSec, [string]$Model)
+param([string]$HostId, [string]$PromptFile, [string]$Cwd, [int]$TimeoutSec, [string]$Model, [string]$Role, [switch]$ReadOnly)
 if ([string]::IsNullOrWhiteSpace($HostId) -or $HostId.StartsWith('-') -or -not (Test-Path -LiteralPath $PromptFile)) { exit 9 }
+if (-not $ReadOnly) { exit 8 }
 [Console]::Out.Write($env:PRREVIEW_PS1_ANSWER)
 exit 0
 '@
@@ -373,9 +395,9 @@ exit 0
     Write-Scenario -Dir $ps1Dir -Draft $false -Head $headMain -Branch 'feature/thing' -Body 'Does the thing. SH-4416' -Comments @() -Diff "diff --git a/src/a.js b/src/a.js`n--- a/src/a.js`n+++ b/src/a.js`n@@ -1 +1 @@`n-old`n+new`n" -HasAgentsMd $true -Responses @($validAnswer)
     $oldGh = $env:PRREVIEW_GH_DIR; $env:PRREVIEW_GH_DIR = $ps1Dir; $env:PRREVIEW_PS1_ANSWER = $validAnswer
     try {
-        $r = Run-Reviewer @('-Repo', $repo, '-Pr', '7', '-GhPath', $ghCmd, '-DispatcherPath', $ps1Disp, '-ReviewerInstructionsPath', $riFile)
+        $r = Run-Reviewer @('-Repo', $repo, '-Pr', '7', '-GhPath', $ghCmd, '-DispatcherPath', $ps1Disp, '-ReviewerInstructionsPath', $riFile, '-FleetProfilePath', $fleetDefault)
     } finally { $env:PRREVIEW_GH_DIR = $oldGh; Remove-Item Env:PRREVIEW_PS1_ANSWER -ErrorAction SilentlyContinue }
-    Check 'a .ps1 dispatcher binds by name and its console output is captured' ($r.Exit -eq 0 -and $r.Out -match 'PR review result: PASS') ("exit=$($r.Exit) out=$($r.Out)")
+    Check 'a .ps1 dispatcher binds by name, receives the -ReadOnly switch and its console output is captured' ($r.Exit -eq 0 -and $r.Out -match 'PR review result: PASS') ("exit=$($r.Exit) out=$($r.Out)")
 
     # Happy path with -Post: one bounded comment carrying the hidden marker.
     $r = Invoke-Scenario 'post' -Extra @('-Post')
@@ -471,10 +493,51 @@ exit 0
     Check 'the dispatcher runs in a new empty directory under the pr-review runtime folder' $cwdOk ("cwd=$cwdSeen exists=$($dispLog[0].cwdExists) entries=$($dispLog[0].cwdEntries)")
     Check 'the dispatcher working directory is removed after the run' ($cwdSeen -and -not (Test-Path -LiteralPath $cwdSeen)) ("cwd=$cwdSeen")
 
-    # Finding 2d: the runbook and README do not claim an enforced read-only run.
+    # SH-4418: every dispatcher call carries -ReadOnly, including a retry.
+    $dispLog = Read-JsonLines (Join-Path (New-Scenario 'post') 'dispatcher-log.jsonl')
+    Check 'the reviewer passes -ReadOnly to the dispatcher and no role on a host without roles' (@($dispLog).Count -eq 1 -and $dispLog[0].host -eq 'codex' -and @($dispLog[0].args) -ccontains '-ReadOnly' -and @($dispLog[0].args) -notcontains '-Role') ($dispLog[0].args -join ' ')
+    $dispLog = Read-JsonLines (Join-Path (New-Scenario 'malformed-once') 'dispatcher-log.jsonl')
+    Check 'a retry after a malformed answer is also a -ReadOnly call' (@($dispLog).Count -eq 2 -and @($dispLog | Where-Object { @($_.args) -ccontains '-ReadOnly' }).Count -eq 2) (($dispLog | ForEach-Object { $_.args -join ' ' }) -join ' | ')
+    $dispLog = Read-JsonLines (Join-Path (New-Scenario 'oversized') 'dispatcher-log.jsonl')
+    Check 'every file-group call is a -ReadOnly call' (@($dispLog).Count -eq 5 -and @($dispLog | Where-Object { @($_.args) -ccontains '-ReadOnly' }).Count -eq 5) ("calls=$(@($dispLog).Count)")
+    $r = Invoke-Scenario 'kiro-reviewer' -Extra @('-HostId', 'kiro')
+    $dispLog = Read-JsonLines (Join-Path (New-Scenario 'kiro-reviewer') 'dispatcher-log.jsonl')
+    $roleIndex = if (@($dispLog).Count -eq 1) { [Array]::IndexOf(@($dispLog[0].args), '-Role') } else { -1 }
+    Check 'a Kiro review passes -ReadOnly and -Role reviewer' ($r.Exit -eq 0 -and @($dispLog).Count -eq 1 -and @($dispLog[0].args) -ccontains '-ReadOnly' -and $roleIndex -ge 0 -and $dispLog[0].args[$roleIndex + 1] -ceq 'reviewer') ("exit=$($r.Exit) args=$($dispLog[0].args -join ' ')")
+
+    # SH-4418: the reviewer host comes only from hosts with a recorded
+    # read-only mode; with none the run is BLOCKED before any model call.
+    $fleetNone = Write-FleetFixture 'none' @{ codex = @{ enabled = $true; readOnly = $false }; claude = @{ enabled = $true; readOnly = $null }; grok = @{ enabled = $true } }
+    $r = Invoke-Scenario 'no-readonly-host' -Extra @('-Post') -FleetPath $fleetNone
+    $ghLog = Read-JsonLines (Join-Path (New-Scenario 'no-readonly-host') 'gh-log.jsonl')
+    Check 'no read-only host: BLOCKED, exit 3, clear message, no model run' ($r.Exit -eq 3 -and $r.Out -match 'PR review result: BLOCKED' -and $r.Out -notmatch 'PR review result: PASS' -and $r.Err -match 'no host has an enforced read-only mode' -and (Read-JsonLines (Join-Path (New-Scenario 'no-readonly-host') 'dispatcher-log.jsonl')).Count -eq 0) ("exit=$($r.Exit) out=$($r.Out) err=$($r.Err)")
+    Check 'no read-only host: nothing is posted even with -Post' (@($ghLog | Where-Object { $_.args[1] -eq 'comment' }).Count -eq 0) ("gh=$(@($ghLog).Count)")
+    $r = Invoke-Scenario 'no-readonly-explicit' -Extra @('-HostId', 'codex') -FleetPath $fleetNone
+    Check 'no read-only host: an explicit -HostId is BLOCKED too' ($r.Exit -eq 3 -and $r.Out -match 'PR review result: BLOCKED' -and (Read-JsonLines (Join-Path (New-Scenario 'no-readonly-explicit') 'dispatcher-log.jsonl')).Count -eq 0) ("exit=$($r.Exit) out=$($r.Out) err=$($r.Err)")
+    $r = Invoke-Scenario 'unsupported-explicit' -Extra @('-HostId', 'grok')
+    Check 'an explicit host without a recorded read-only mode is BLOCKED and names the hosts that have one' ($r.Exit -eq 3 -and $r.Out -match 'PR review result: BLOCKED' -and $r.Err -match "reviewer host 'grok' has no enforced read-only mode" -and $r.Err -match 'codex, claude, kiro' -and (Read-JsonLines (Join-Path (New-Scenario 'unsupported-explicit') 'dispatcher-log.jsonl')).Count -eq 0) ("exit=$($r.Exit) err=$($r.Err)")
+    $fleetClaudeOnly = Write-FleetFixture 'claude-only' @{ codex = @{ enabled = $true; readOnly = $false }; claude = @{ enabled = $true; readOnly = $roRecord } }
+    $r = Invoke-Scenario 'default-skips-unsupported' -FleetPath $fleetClaudeOnly
+    $dispLog = Read-JsonLines (Join-Path (New-Scenario 'default-skips-unsupported') 'dispatcher-log.jsonl')
+    Check 'the default reviewer host skips a host without a read-only mode' ($r.Exit -eq 0 -and @($dispLog).Count -eq 1 -and $dispLog[0].host -eq 'claude') ("exit=$($r.Exit) host=$($dispLog[0].host)")
+    $r = Invoke-Scenario 'author-is-only-readonly' -FleetPath $fleetClaudeOnly -Files @{ Body = 'Does the thing. [host: claude]' }
+    Check 'BLOCKED when the only read-only host is the author host' ($r.Exit -eq 3 -and $r.Out -match 'PR review result: BLOCKED' -and $r.Err -match 'also the author host' -and (Read-JsonLines (Join-Path (New-Scenario 'author-is-only-readonly') 'dispatcher-log.jsonl')).Count -eq 0) ("exit=$($r.Exit) err=$($r.Err)")
+    $r = Invoke-Scenario 'fleet-missing' -FleetPath (Join-Path $fixture 'fleet-absent.json')
+    Check 'BLOCKED when the registry cannot be read' ($r.Exit -eq 3 -and $r.Out -match 'PR review result: BLOCKED' -and $r.Err -match 'fleet-profile\.json was not found' -and (Read-JsonLines (Join-Path (New-Scenario 'fleet-missing') 'dispatcher-log.jsonl')).Count -eq 0) ("exit=$($r.Exit) err=$($r.Err)")
+    $r = Invoke-Scenario 'draft-before-blocked' -FleetPath $fleetNone -Files @{ Draft = $true }
+    Check 'a draft is still refused as a draft when no read-only host exists' ($r.Exit -eq 3 -and $r.Err -match 'draft' -and $r.Out -notmatch 'BLOCKED') ("exit=$($r.Exit) err=$($r.Err)")
+
+    # SH-4418: the runbook and README name the recorded read-only hosts and
+    # say that automatic triggering is not wired, and no longer the reverse.
+    $realPolicy = ([IO.File]::ReadAllText((Join-Path $repoRoot 'registry\fleet-profile.json')) | ConvertFrom-Json).dispatchPolicy
+    $realReadOnly = @(Get-PrReviewReadOnlyHosts -DispatchPolicy $realPolicy | Sort-Object)
+    Check 'the checked-in registry records a default reviewer host with a read-only mode' ($realReadOnly.Count -ge 1 -and (@(Get-PrReviewReadOnlyHosts -DispatchPolicy $realPolicy)[0] -in @('codex', 'claude'))) ($realReadOnly -join ',')
     foreach ($doc in @((Join-Path $repoRoot 'docs\runbooks\pr-review.md'), (Join-Path $packageRoot 'README.md'))) {
         $docText = ([IO.File]::ReadAllText($doc)) -replace '\s+', ' '
-        Check "$(Split-Path -Leaf $doc) says the model run is not enforced read-only and must stay manual" ($docText -match 'does not make the model run read-only' -and $docText -match 'automatic triggering must not be enabled' -and $docText -match 'manually by the owner') ($doc)
+        $named = [regex]::Match($docText, 'model run is host-enforced read-only on ([a-z0-9, -]+?)[.:]')
+        $namedHosts = @([regex]::Matches($named.Groups[1].Value, '[a-z][a-z0-9-]*') | ForEach-Object { $_.Value } | Where-Object { $_ -ne 'and' } | Sort-Object)
+        Check "$(Split-Path -Leaf $doc) names exactly the hosts the registry records as read-only" ($named.Success -and ($namedHosts -join ',') -ceq ($realReadOnly -join ',')) ("doc=$($namedHosts -join ',') registry=$($realReadOnly -join ',')")
+        Check "$(Split-Path -Leaf $doc) says automatic triggering is still not wired and drops the old claim" ($docText -match 'Automatic triggering is still not wired \(SH-4411\)' -and $docText -notmatch 'does not make the model run read-only' -and $docText -notmatch 'has no enforced read-only mode' -and $docText -notmatch 'must not be enabled') ($doc)
     }
 
     # Finding 5: an over-bound diff with no file header produces no review
