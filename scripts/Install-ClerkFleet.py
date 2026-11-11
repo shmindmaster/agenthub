@@ -40,6 +40,8 @@ ALIASES = {"cursor-agent": "cursor", "opencode-desktop": "opencode",
 BLOCKED = {
     "kiro": "Clerk route discovery-required: Kiro loads skills, powers and an owner-authored MCP file, and no Clerk "
             "mapping or direct MCP exception has been approved for it.",
+    "qwen": "Clerk route discovery-required: Qwen Code became a dispatch host on 2026-11-11; whether it loads the "
+            "Clerk skills or an MCP server has not been established, and no mapping has been approved for it.",
 }
 
 
