@@ -1,8 +1,8 @@
 # Host details
 
-Read when: choosing a model, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
+Read when: choosing a model, a Kiro role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
 
-Contents: Models, Account hosts, New plan hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
+Contents: Models, Kiro roles, Read-only runs, Account hosts, New plan hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
 
 ## Models
 
@@ -18,6 +18,49 @@ Subscriptions only, never a pay-as-you-go wallet (owner direction 2026-11-10). T
 
 - OpenCode: provider `opencode/` is the pay-as-you-go Zen wallet and is refused. Use `opencode-go/<model>`, the Go subscription on the stored Go workspace login.
 - MiMo, on every host (kilo `mimo/*`, mimo-code `xiaomi-token-plan-*/*`, opencode `mimo-token-plan/*`, cline `mimo-token-plan:*`, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider `xiaomi/` (the pay-as-you-go API in MiMo Code's model listing) is refused. If `MIMO_BASE_URL` is set, its host must be `token-plan-<region>.xiaomimimo.com`; pay-as-you-go is `api.xiaomimimo.com`. If `MIMO_API_KEY` is set, it must start with `tp-` or `ttp-`; pay-as-you-go keys start with `sk-`. The refusal names the variable and never prints its value.
+
+## Kiro roles
+
+`-Role` applies to Kiro only. Any other host refuses a role other than `peer`
+with exit 3.
+
+| Role | Profile | Command |
+| --- | --- | --- |
+| `peer` (default) | `dispatchPolicy.kiro.agent` (`ah-peer`) | `kiro-cli chat --no-interactive --trust-all-tools --agent ah-peer --model <m> <prompt>` |
+| `engineer`, `reviewer`, `tester`, `architect`, `incident` | `dispatchPolicy.kiro.roles.<role>` (`ah-<role>`) | `kiro-cli chat --v3 --no-interactive --trust-all-tools --agent ah-<role> --model <m> <prompt>` |
+
+The role profiles are `packages/coding-agent-dispatch/kiro/agents/ah-<role>.json`.
+A role is refused with exit 3 when its profile file is missing from
+`~/.kiro/agents` or when `dispatchPolicy.kiro.roles` does not name it. The
+dispatcher does not install profiles.
+
+## Read-only runs
+
+`-ReadOnly` maps to a mode the host enforces, never to prompt wording. A host
+qualifies only when the dispatcher has a verified read-only command for it
+and `dispatchPolicy.<host>.readOnly` in `registry/fleet-profile.json` records
+it. There `readOnly` is an object with `flags` and `omits` when supported,
+`false` when checked and absent, and `null` when not established;
+`readOnlyNote` holds the dated help text behind each value. Any other host
+refuses `-ReadOnly` with exit 3 ("has no enforced read-only mode") and no
+writable run starts. `-List -ReadOnly` prints the supported hosts.
+
+| Host | Read-only command |
+| --- | --- |
+| claude | `--print --permission-mode plan --permission-prompts none` in place of `--permission-mode bypassPermissions` |
+| codex | `exec --sandbox read-only --skip-git-repo-check -` |
+| factory | `exec` without `--auto`, which is Droid's read-only default |
+| kiro | `chat --v3 --no-interactive --trust-all-tools --agent ah-readonly`: that profile has only read, glob, grep, thinking and todo tools (no shell, no write, no MCP server); the dispatcher refuses when the installed profile lists any other tool |
+
+Kiro notes: `-ReadOnly` always runs the reviewer profile, so it is refused
+with `-Role engineer`, `tester`, `architect` or `incident`. It is also
+refused when the installed `~/.kiro/agents/ah-readonly.json` is missing or
+lists a write tool. The profile keeps the shell tool for running checks, so
+this is a profile guard and not an operating-system sandbox.
+
+`-ReadOnly` cannot be combined with `-SessionId`. No host's read-only mode
+has been exercised with a model run; the commands come from each CLI's help
+text on 2026-11-11.
 
 ## Account hosts
 

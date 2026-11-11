@@ -28,6 +28,8 @@
 
 .PARAMETER List
   Print each host as id, state, detail. States are callable, routed, refused.
+  With -ReadOnly, print only the callable and routed hosts that have an
+  enforced read-only mode (same three columns).
 
 .PARAMETER ShowCommand
   Print the file and arguments that would run, then exit. No process starts.
@@ -83,6 +85,22 @@
 .PARAMETER SessionId
   Continue an existing Cline session through ACP. Policy gates still apply.
 
+.PARAMETER Role
+  Kiro only: peer (default), engineer, reviewer, tester, architect or
+  incident. peer runs the guarded dispatchPolicy.kiro.agent profile. Every
+  other role runs the V3 engine on the profile named by
+  dispatchPolicy.kiro.roles.<role> (ah-<role>) and is refused when that
+  profile file is missing from ~/.kiro/agents. Any other host refuses a role
+  other than peer.
+
+.PARAMETER ReadOnly
+  Run the host in a read-only mode the host itself enforces; prompt wording
+  is never the mechanism. A host qualifies only when this script has a
+  verified read-only command for it and dispatchPolicy.<host>.readOnly
+  records the flags. Every other host is refused with exit 3; there is no
+  fallback to a writable run. Kiro runs the reviewer profile, so -ReadOnly
+  with a writing role is refused. -ReadOnly cannot resume a Cline session.
+
 #>
 [CmdletBinding()]
 param(
@@ -95,6 +113,8 @@ param(
     [string]$Model,
     [string]$Title,
     [string]$SessionId,
+    [string]$Role,
+    [switch]$ReadOnly,
     [switch]$List,
     [switch]$ShowCommand
 )
@@ -248,15 +268,21 @@ function Get-DispatchTable {
     return @{
         'claude' = @{
             Mode = 'stdin'
+            ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
-                $args = @('--print', '--permission-mode', 'bypassPermissions')
+                # claude --help 2026-11-11: --permission-mode lists plan, and
+                # --permission-prompts none denies anything that would prompt
+                # under --print. -ReadOnly swaps the bypass mode for both.
+                $args = if ($ReadOnly) { @('--print', '--permission-mode', 'plan', '--permission-prompts', 'none') }
+                    else { @('--print', '--permission-mode', 'bypassPermissions') }
                 if ($script:ClaudeApiKeyModel) { $args += @('--model', $script:ClaudeApiKeyModel) }
                 @{ Args = $args; Stdin = $PromptText; PromptFile = $null }
             }
         }
         'codex' = @{
             Mode = 'stdin'
+            ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
                 # The shim selects a profile; cwd may legitimately be a
@@ -265,6 +291,9 @@ function Get-DispatchTable {
                 # task names one; otherwise the shim's profile picks the model.
                 $args = @('exec')
                 if ($script:CodexModel) { $args += @('-m', $script:CodexModel) }
+                # codex exec --help 2026-11-11: -s, --sandbox <SANDBOX_MODE>,
+                # possible values read-only, workspace-write, danger-full-access.
+                if ($ReadOnly) { $args += @('--sandbox', 'read-only') }
                 $args += @('--skip-git-repo-check', '-')
                 @{ Args = $args; Stdin = $PromptText; PromptFile = $null }
             }
@@ -375,6 +404,7 @@ function Get-DispatchTable {
         }
         'kiro' = @{
             Mode = 'argument'
+            ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
                 # Kiro CLI has no directory flag; the child process working
@@ -386,15 +416,55 @@ function Get-DispatchTable {
                 $kiroModel = if ($script:KiroModel) { $script:KiroModel } else { [string]$kiroPolicy.model }
                 Assert-DispatchModelId -Id 'kiro' -ModelId $kiroModel -Source 'model'
                 Write-UnlistedModelNote -Id 'kiro' -ModelId $kiroModel
-                $kiroAgent = [string]$kiroPolicy.agent
-                if ($kiroAgent -notmatch '^[A-Za-z0-9_-]+$') {
-                    Write-Refusal 3 "refused kiro: dispatchPolicy.kiro.agent must name the guarded agent for unattended runs"
+                # -ReadOnly always runs the ah-readonly profile: its tools are
+                # read, glob, grep, thinking and todo only (no shell, no write,
+                # no MCP server), so the profile itself cannot change anything.
+                # The reviewer role keeps a shell and is NOT a read-only run.
+                # The gate before Build has already refused a writing role.
+                $kiroRole = if ($ReadOnly) { 'readonly' } else { $script:DispatchRole }
+                if ($kiroRole -eq 'peer') {
+                    $kiroAgent = [string]$kiroPolicy.agent
+                    if ($kiroAgent -notmatch '^[A-Za-z0-9_-]+$') {
+                        Write-Refusal 3 "refused kiro: dispatchPolicy.kiro.agent must name the guarded agent for unattended runs"
+                    }
+                    return @{ Args = @('chat', '--no-interactive', '--trust-all-tools', '--agent', $kiroAgent, '--model', $kiroModel, $PromptText); Stdin = $null; PromptFile = $null }
                 }
-                @{ Args = @('chat', '--no-interactive', '--trust-all-tools', '--agent', $kiroAgent, '--model', $kiroModel, $PromptText); Stdin = $null; PromptFile = $null }
+                # Role profiles (Linear SH-4418) are written for the V3 engine
+                # (kiro-cli chat --help: --v3). The profile is the guard under
+                # --trust-all-tools, so a run without its file is refused.
+                $roleAgent = ''
+                if ($kiroPolicy -and $kiroPolicy.PSObject.Properties['roles'] -and $kiroPolicy.roles -and $kiroPolicy.roles.PSObject.Properties[$kiroRole]) {
+                    $roleAgent = [string]$kiroPolicy.roles.$kiroRole
+                }
+                if ($roleAgent -notmatch '^[A-Za-z0-9_-]+$') {
+                    Write-Refusal 3 "refused kiro: dispatchPolicy.kiro.roles.$kiroRole must name the profile for role '$kiroRole'"
+                }
+                $kiroAgentsDir = Join-Path (Join-Path (Get-AgentHubDefaultHome) '.kiro') 'agents'
+                $roleProfile = Join-Path $kiroAgentsDir "$roleAgent.json"
+                if (-not (Test-Path -LiteralPath $roleProfile -PathType Leaf)) {
+                    Write-Refusal 3 "refused kiro: role '$kiroRole' needs the profile $roleAgent.json, which is missing from $kiroAgentsDir; install it from packages/coding-agent-dispatch/kiro/agents"
+                }
+                if ($ReadOnly) {
+                    # The installed file is what Kiro enforces, so it is the one
+                    # checked: a read-only run is refused if it grants a write tool.
+                    $profileTools = $null
+                    try { $profileTools = @((Get-Content -LiteralPath $roleProfile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop).tools | ForEach-Object { [string]$_ }) } catch { $profileTools = $null }
+                    if ($null -eq $profileTools -or $profileTools.Count -eq 0) {
+                        Write-Refusal 3 "refused kiro: the installed profile $roleAgent.json could not be read as a tool list, so a read-only run cannot be established"
+                    }
+                    # Allow-list, not deny-list: a shell, an MCP server or any
+                    # tool not known to be read-only makes the profile writable.
+                    $writeTools = @($profileTools | Where-Object { $_ -cnotin @('read', 'glob', 'grep', 'thinking', 'todo') })
+                    if ($writeTools.Count -gt 0) {
+                        Write-Refusal 3 "refused kiro: the installed profile $roleAgent.json grants a write tool ($($writeTools -join ', ')); it is not a read-only profile"
+                    }
+                }
+                @{ Args = @('chat', '--v3', '--no-interactive', '--trust-all-tools', '--agent', $roleAgent, '--model', $kiroModel, $PromptText); Stdin = $null; PromptFile = $null }
             }
         }
         'factory' = @{
             Mode = 'file'
+            ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
                 # Governed dispatch: autonomy is capped at medium (`high` permits
@@ -410,7 +480,12 @@ function Get-DispatchTable {
                 if (-not (Test-Path -LiteralPath $runtimeSettings -PathType Leaf)) {
                     Write-Refusal 3 "refused factory: dispatchPolicy.factory.runtimeSettings not found: $runtimeSettings"
                 }
-                $args = @('exec', '--cwd', $Work, '--auto', $autonomy, '-o', 'json', '--settings', $runtimeSettings)
+                # droid exec --help 2026-11-11: with no --auto flag exec runs in
+                # read-only mode ("No modifications to files or system"), so
+                # -ReadOnly leaves --auto out instead of adding a flag.
+                $args = @('exec', '--cwd', $Work)
+                if (-not $ReadOnly) { $args += @('--auto', $autonomy) }
+                $args += @('-o', 'json', '--settings', $runtimeSettings)
                 $factoryModel = if ($script:FactoryModel) { $script:FactoryModel } else { [string]$factoryPolicy.model }
                 Assert-SubscriptionRoute -Id 'factory' -ModelId $factoryModel
                 if ($factoryModel) { $args += @('-m', $factoryModel) }
@@ -576,6 +651,37 @@ function Resolve-DeclaredExecutable {
     return $null
 }
 
+# -Role names a per-host profile. Only the hosts listed here have any.
+$script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'architect', 'incident')
+$script:RoleHosts = @('kiro')
+$script:DispatchRole = 'peer'
+
+# dispatchPolicy.<host>.readOnly: an object with a flags list when the host has
+# an enforced read-only mode, false when it was checked and has none, null or
+# absent when that is not established.
+function Get-ReadOnlyRecord {
+    param([string]$Id)
+    if ($null -eq $dispatchPolicy) { return $null }
+    $entry = $dispatchPolicy.PSObject.Properties[$Id]
+    if ($null -eq $entry -or $null -eq $entry.Value -or $entry.Value -is [string]) { return $null }
+    $record = $entry.Value.PSObject.Properties['readOnly']
+    if ($null -eq $record) { return $null }
+    return $record.Value
+}
+
+# Both must hold: this script has a verified read-only command for the host,
+# and the registry records it. Anything else is a refusal, never a writable run.
+function Get-ReadOnlyRefusal {
+    param([string]$Id)
+    $record = Get-ReadOnlyRecord $Id
+    $recorded = $record -is [pscustomobject] -and $null -ne $record.PSObject.Properties['flags']
+    if ($recorded -and $table.ContainsKey($Id) -and $table[$Id].ReadOnly) { return $null }
+    $why = if ($record -is [bool] -and -not $record) { "dispatchPolicy.$Id.readOnly is false: checked, none" }
+        elseif ($recorded) { 'the dispatcher has no verified read-only command for it' }
+        else { "dispatchPolicy.$Id.readOnly is not established" }
+    return "host $Id has no enforced read-only mode ($why); -ReadOnly never falls back to a writable run"
+}
+
 function Get-HostRow {
     param($Agent)
     $id = [string]$Agent.id
@@ -620,6 +726,11 @@ function Get-HostRow {
 if ($List) {
     foreach ($agent in ($agents | Sort-Object { [string]$_.id })) {
         $row = Get-HostRow -Agent $agent
+        if ($ReadOnly) {
+            if ($row.State -eq 'refused') { continue }
+            $readOnlyTarget = if ($row.State -eq 'routed') { [string]$row.Detail } else { [string]$row.Id }
+            if (Get-ReadOnlyRefusal $readOnlyTarget) { continue }
+        }
         Write-Output ("{0}`t{1}`t{2}" -f $row.Id, $row.State, $row.Detail)
     }
     exit 0
@@ -634,6 +745,15 @@ if ($requested -in @('devin-cloud', 'jules', 'cursor-cloud', 'copilot-agent')) {
 }
 $agent = Get-AgentRecord -Agents $agents -Id $requested
 if (-not $agent) { Write-Refusal 3 "refused ${requested}: unknown host" }
+if (-not [string]::IsNullOrWhiteSpace($Role)) {
+    $script:DispatchRole = $Role.Trim().ToLowerInvariant()
+    if ($script:DispatchRole -notin $script:DispatchRoles) {
+        Write-Refusal 3 "refused ${requested}: -Role '$($Role.Trim())' is not a role; use one of: $($script:DispatchRoles -join ', ')"
+    }
+    if ($script:DispatchRole -ne 'peer' -and $requested -notin $script:RoleHosts) {
+        Write-Refusal 3 "refused ${requested}: -Role $($script:DispatchRole) is not supported on this host; roles are supported only on: $($script:RoleHosts -join ', ')"
+    }
+}
 
 $script:ClineGuardEnv = @{ AGENTHUB_PEER_GUARD = '1'; CLINE_SESSION_BACKEND_MODE = 'local' }
 if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
@@ -695,6 +815,17 @@ if ($PSBoundParameters.ContainsKey('SessionId') -and ($requested -ne 'cline' -or
 }
 
 $targetId = if ($row.State -eq 'routed') { $row.Detail } else { $requested }
+if ($ReadOnly) {
+    # A read-only run is a mechanism the host enforces or it does not happen.
+    $readOnlyRefusal = Get-ReadOnlyRefusal $targetId
+    if ($readOnlyRefusal) { Write-Refusal 3 "refused ${requested}: $readOnlyRefusal" }
+    if ($PSBoundParameters.ContainsKey('SessionId')) {
+        Write-Refusal 3 "refused ${requested}: -ReadOnly cannot resume a session; the ACP resume path has no enforced read-only mode"
+    }
+    if ($targetId -eq 'kiro' -and $script:DispatchRole -notin @('peer', 'reviewer')) {
+        Write-Refusal 3 "refused kiro: -ReadOnly cannot be combined with -Role $($script:DispatchRole), a writing role; a read-only Kiro run uses the reviewer profile"
+    }
+}
 $targetAgent = Get-AgentRecord -Agents $agents -Id $targetId
 $executable = Resolve-DeclaredExecutable -Declared ([string]$targetAgent.executable)
 if (-not $executable) { Write-Refusal 2 "refused ${targetId}: executable is absent" }
