@@ -230,6 +230,7 @@ function Assert-MimoPlanEnvironment {
     } else {
         $parsed = $null
         $isTokenPlanHost = [Uri]::TryCreate($baseUrl.Trim(), [UriKind]::Absolute, [ref]$parsed) -and
+            $parsed.Scheme -ceq 'https' -and
             $parsed.Host.ToLowerInvariant() -match '^token-plan-[a-z0-9-]+\.xiaomimimo\.com$'
         if (-not $isTokenPlanHost) {
             Write-Refusal 3 "refused ${Id}: MIMO_BASE_URL does not name a Xiaomi Token Plan host (token-plan-<region>.xiaomimimo.com); a MiMo model runs on the Token Plan only, never the pay-as-you-go API"
@@ -417,7 +418,13 @@ function Get-DispatchTable {
             }
         }
         'qwen' = @{
-            Mode = 'argument'
+            # The prompt goes on stdin. With an argument prompt, a long or
+            # multi-line task becomes a pointer to a file under the dispatcher
+            # runtime folder, and in plan (read-only) mode qwen refuses to read
+            # outside the task directory (observed 2026-11-11: "Blocked: cannot
+            # read the task file"). qwen reads a one-shot prompt from stdin, so
+            # no file is needed in either mode.
+            Mode = 'stdin'
             ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
@@ -458,8 +465,8 @@ function Get-DispatchTable {
                     $qwenEnv["GIT_CONFIG_VALUE_$i"] = $schemes[$i]
                 }
                 $qwenApproval = if ($ReadOnly) { 'plan' } else { 'yolo' }
-                @{ Args = @('--auth-type', 'openai', '-m', $qwenModel, '--approval-mode', $qwenApproval, '-o', 'json', $PromptText)
-                    Stdin = $null; PromptFile = $null; Env = $qwenEnv }
+                @{ Args = @('--auth-type', 'openai', '-m', $qwenModel, '--approval-mode', $qwenApproval, '-o', 'json')
+                    Stdin = $PromptText; PromptFile = $null; Env = $qwenEnv }
             }
         }
         'kiro' = @{
@@ -1008,7 +1015,7 @@ $accountScrub = @{
     # or billing away from the Token Plan is removed, along with the GitHub
     # tokens behind its GIT_CONFIG_*/GH_CONFIG_DIR push guard. MIMO_* stay:
     # they are the plan's own variables and nothing else consumes them.
-    'qwen'         = @('OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'DASHSCOPE_API_KEY', 'MODELSCOPE_API_KEY', 'QWEN_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
+    'qwen'         = @('OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'DASHSCOPE_API_KEY', 'MODELSCOPE_API_KEY', 'QWEN_API_KEY', 'OPENROUTER_API_KEY', 'NVIDIA_API_KEY', 'AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'OPENAI_ORG_ID', 'OPENAI_PROJECT', 'GH_TOKEN', 'GITHUB_TOKEN')
 }
 if ($accountScrub.ContainsKey($targetId)) {
     foreach ($name in $accountScrub[$targetId]) {

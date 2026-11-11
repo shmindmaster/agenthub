@@ -178,7 +178,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'MiMo runs unattended only under the policy-named guarded agent' ($agentIndex -ge 0 -and $d.Arguments[$agentIndex + 1] -eq 'peer')
         }
         if ($id -eq 'qwen') {
-            Check 'Qwen runs the one-shot openai-auth command on the plan model' ($d.Arguments -contains '--auth-type' -and $d.Arguments -contains 'openai' -and $d.Arguments -contains '-m' -and $d.Arguments -contains 'mimo-v2.6-pro' -and $d.Arguments -contains '--approval-mode' -and $d.Arguments -contains 'yolo' -and $d.Arguments -contains '-o' -and $d.Arguments -contains 'json' -and $d.Arguments[-1] -eq 'ok' -and $d.Cwd -in @($scratch, $scratchReal))
+            Check 'Qwen runs the one-shot openai-auth command on the plan model' ($d.Arguments -contains '--auth-type' -and $d.Arguments -contains 'openai' -and $d.Arguments -contains '-m' -and $d.Arguments -contains 'mimo-v2.6-pro' -and $d.Arguments -contains '--approval-mode' -and $d.Arguments -contains 'yolo' -and $d.Arguments -contains '-o' -and $d.Arguments -contains 'json' -and $d.Arguments[-1] -eq 'json' -and $d.Arguments -notcontains 'ok' -and $d.Cwd -in @($scratch, $scratchReal))
             Check 'Qwen child carries the Token Plan as OPENAI_* names mapped from MIMO_*' ($d.QwenRoute.openAiKeyPresent -and $d.QwenRoute.openAiKeyIsMimo -and $d.QwenRoute.openAiBaseUrl -eq 'https://token-plan-sgp.xiaomimimo.com/v1' -and $d.QwenRoute.openAiModel -eq 'mimo-v2.6-pro')
             Check 'Qwen child cannot push or call gh under the peer guard env' ($d.QwenRoute.gitPushRewrite -match 'pushInsteadOf$' -and $d.QwenRoute.ghConfigDir -match 'qwen-peer-gh$' -and -not $d.QwenRoute.ghTokenPresent)
             Check 'Qwen child drops other provider keys that could retarget billing' (-not $d.ApiKeyVars.DASHSCOPE_API_KEY -and -not $d.ApiKeyVars.GEMINI_API_KEY -and -not $d.ApiKeyVars.GOOGLE_API_KEY -and -not $d.ApiKeyVars.GOOGLE_GENERATIVE_AI_API_KEY -and -not $d.ApiKeyVars.ANTHROPIC_API_KEY -and -not $d.ApiKeyVars.ANTHROPIC_BASE_URL -and -not $d.ApiKeyVars.QWEN_API_KEY -and -not $d.ApiKeyVars.MODELSCOPE_API_KEY)
@@ -340,10 +340,10 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     Check 'Claude -ReadOnly child never receives the bypass mode' ($null -ne $d -and (@($d.Arguments) -join ' ') -ceq '--print --permission-mode plan --permission-prompts none' -and $d.Input -eq 'ok') $r.Err
     $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
-    Check 'Qwen -ReadOnly swaps the yolo approval mode for plan' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=--auth-type openai -m mimo-v2.6-pro --approval-mode plan -o json ok') ($r.Out + $r.Err)
+    Check 'Qwen -ReadOnly swaps the yolo approval mode for plan' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=--auth-type openai -m mimo-v2.6-pro --approval-mode plan -o json' -and $r.Out -match '(?m)^stdin=yes') ($r.Out + $r.Err)
     $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'Qwen -ReadOnly child receives plan and never yolo' ($null -ne $d -and (@($d.Arguments) -join ' ') -ceq '--auth-type openai -m mimo-v2.6-pro --approval-mode plan -o json ok' -and $d.QwenRoute.openAiKeyIsMimo) $r.Err
+    Check 'Qwen -ReadOnly child receives plan and never yolo' ($null -ne $d -and (@($d.Arguments) -join ' ') -ceq '--auth-type openai -m mimo-v2.6-pro --approval-mode plan -o json' -and $d.QwenRoute.openAiKeyIsMimo) $r.Err
 
     # -List stays as it was; -List -ReadOnly narrows it to read-only hosts.
     $r = Run @('-List')
@@ -570,7 +570,13 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 
     # ---------- SH-4421: Qwen Code on the Xiaomi MiMo Token Plan ----------
     $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-ShowCommand')
-    Check 'Qwen -ShowCommand prints the exact command and child env names, never the key' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=--auth-type openai -m mimo-v2.6-pro --approval-mode yolo -o json ok' -and $r.Out -match '(?m)^env=' -and $r.Out -match 'OPENAI_API_KEY' -and $r.Out -match 'OPENAI_BASE_URL' -and $r.Out -match 'OPENAI_MODEL' -and $r.Out -notmatch 'tp-synthetic-dispatch-fixture' -and $r.Err -notmatch 'tp-synthetic-dispatch-fixture') ($r.Out + $r.Err)
+    Check 'Qwen -ShowCommand prints the exact command and child env names, never the key' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=--auth-type openai -m mimo-v2.6-pro --approval-mode yolo -o json' -and $r.Out -match '(?m)^stdin=yes' -and $r.Out -match '(?m)^env=' -and $r.Out -match 'OPENAI_API_KEY' -and $r.Out -match 'OPENAI_BASE_URL' -and $r.Out -match 'OPENAI_MODEL' -and $r.Out -notmatch 'tp-synthetic-dispatch-fixture' -and $r.Err -notmatch 'tp-synthetic-dispatch-fixture') ($r.Out + $r.Err)
+    $savedMimoUrl = $env:MIMO_BASE_URL
+    try {
+        $env:MIMO_BASE_URL = 'http://token-plan-sgp.xiaomimimo.com/v1'
+        $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-ShowCommand')
+        Check 'Qwen refuses a Token Plan host over plain http' ($r.Exit -eq 3 -and $r.Err -match 'MIMO_BASE_URL' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    } finally { $env:MIMO_BASE_URL = $savedMimoUrl }
     # The plan credential is this route's whole auth, so absent variables are a
     # refusal, not a pass-through like mimo-code's stored credential.
     $env:MIMO_API_KEY = $null; $env:MIMO_BASE_URL = $null

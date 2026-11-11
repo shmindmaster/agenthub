@@ -106,6 +106,8 @@ IDE and KiroCrew are not dispatch targets.
 
 ## Qwen
 
+The prompt is passed on stdin, not as an argument: in plan (read-only) mode Qwen refuses to read a prompt file outside the task directory. Smoke-verified 2026-11-11 through the dispatcher on the Token Plan in both the normal and the `-ReadOnly` route; in plan mode a request to create a file wrote nothing. `MIMO_BASE_URL` must be https.
+
 Qwen Code 0.27.1 is dispatchable on the Xiaomi MiMo Token Plan (owner
 direction 2026-11-11, SH-4421). The command, from `qwen --help`:
 
