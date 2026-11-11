@@ -1,4 +1,4 @@
-// The kit's ElevenLabs provider against the real speech adapter. Offline: the real credential is removed and every
+// The kit's ElevenLabs provider against the real governed adapter. Offline: the real credential is removed and every
 // process spawned here is refused before it could reach the network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,6 +10,8 @@ import { music, resolveCli, runCli, soundEffect, speech } from '../kit/marketing
 
 delete process.env.ELEVENLABS_API_KEY;
 delete process.env.MVG_ELEVENLABS_AUTHORIZATION;
+delete process.env.MVG_ELEVENLABS_SFX_AUTHORIZATION;
+delete process.env.MVG_ELEVENLABS_MUSIC_AUTHORIZATION;
 
 const adapter = resolve(dirname(fileURLToPath(import.meta.url)), '../scripts/elevenlabs_cli.py');
 const python = process.env.MVG_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
@@ -60,19 +62,47 @@ test('speech without owner authorization is refused by the real adapter, and not
   assert.equal(existsSync(`${output}.provenance.json`), false);
 });
 
-test('sound effects and music fail closed without starting the adapter', async () => {
-  const run = async () => { throw new Error('the adapter must not start'); };
-  await assert.rejects(soundEffect({}, { prompt: 'tick', output: 'x.mp3', durationSeconds: 1, maxCredits: 200, workspace: 'w', revision: 'r', run }), /speech only/);
-  await assert.rejects(music({}, { prompt: 'bed', output: 'y.mp3', lengthMs: 30000, maxCredits: 500, workspace: 'w', revision: 'r', run }), /speech only/);
+test('sound effects hand the sfx lane to the adapter with its manifest and receipt', async (t) => {
+  const output = join(workspace(t), 'tick.mp3');
+  const { seen, run } = capture(output);
+  const res = await soundEffect({}, { prompt: 'tick', output, durationSeconds: 1, promptInfluence: 0.5, loop: false, maxCredits: 200, workspace: 'w', revision: 'r', run, authorizationManifest: 'C:/private/sfx.json' });
+  const args = seen[0];
+  assert.equal(args[0], 'sfx');
+  for (const [flag, value] of [['--prompt', 'tick'], ['--output', output], ['--model-id', 'eleven_text_to_sound_v3'], ['--duration-seconds', '1'], ['--prompt-influence', '0.5'], ['--max-credits', '200'], ['--cache-workspace', 'w'], ['--authorization-manifest', 'C:/private/sfx.json']]) {
+    assert.equal(args[args.indexOf(flag) + 1], value, flag);
+  }
+  assert.ok(args.includes('--no-loop'));
+  assert.equal(res.receipt.request_id, 'fixture-request');
 });
 
-test('the real adapter has no sfx or music command', async () => {
-  const cli = { python, script: adapter, cwd: dirname(adapter) };
-  for (const args of [['sfx', '--text', 'a', '--output', 'b'], ['music', '--prompt', 'a', '--output', 'b']]) {
-    const res = await runCli(cli, args);
-    assert.equal(res.code, 2);
-    assert.match(res.stderr, /invalid choice/);
+test('music hands the music lane to the adapter pinned to music_v2_5', async (t) => {
+  const output = join(workspace(t), 'bed.mp3');
+  const { seen, run } = capture(output);
+  await music({}, { prompt: 'bed', output, lengthMs: 30000, model: 'music_v2_5', maxCredits: 500, workspace: 'w', revision: 'r', run, authorizationManifest: 'C:/private/music.json' });
+  const args = seen[0];
+  assert.equal(args[0], 'music');
+  for (const [flag, value] of [['--prompt', 'bed'], ['--model-id', 'music_v2_5'], ['--music-length-ms', '30000'], ['--max-credits', '500'], ['--authorization-manifest', 'C:/private/music.json']]) {
+    assert.equal(args[args.indexOf(flag) + 1], value, flag);
   }
+});
+
+test('each lane takes its own manifest environment variable, not the speech one', async (t) => {
+  const output = join(workspace(t), 'tick.mp3');
+  const { seen, run } = capture(output);
+  process.env.MVG_ELEVENLABS_AUTHORIZATION = 'C:/private/speech.json';
+  process.env.MVG_ELEVENLABS_SFX_AUTHORIZATION = 'C:/private/sfx.json';
+  t.after(() => { delete process.env.MVG_ELEVENLABS_AUTHORIZATION; delete process.env.MVG_ELEVENLABS_SFX_AUTHORIZATION; });
+  await soundEffect({}, { prompt: 'tick', output, durationSeconds: 1, maxCredits: 200, workspace: 'w', revision: 'r', run });
+  assert.equal(seen[0][seen[0].indexOf('--authorization-manifest') + 1], 'C:/private/sfx.json');
+});
+
+test('sfx and music without owner authorization are refused by the real adapter before any network call', async (t) => {
+  const cli = { python, script: adapter, cwd: dirname(adapter) };
+  const output = join(workspace(t), 'x.mp3');
+  await assert.rejects(soundEffect(cli, { prompt: 'tick', output, durationSeconds: 1, maxCredits: 200, workspace: 'w', revision: 'r' }), /owner authorization manifest/);
+  await assert.rejects(music(cli, { prompt: 'bed', output, lengthMs: 30000, maxCredits: 500, workspace: 'w', revision: 'r' }), /owner authorization manifest/);
+  assert.equal(existsSync(output), false);
+  assert.equal(existsSync(`${output}.provenance.json`), false);
 });
 
 test('resolveCli still requires an explicit adapter path', () => {

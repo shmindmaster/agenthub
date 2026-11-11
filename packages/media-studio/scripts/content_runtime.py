@@ -27,6 +27,23 @@ ADVISORY_GATES = frozenset({"identity"})
 VOICE_GATES = ("content", "pronunciation", "listening", "artifact")
 MAX_INTEGER = 2 ** 53 - 1
 
+# Owner-authorized non-speech lanes (owner direction 2026-11-11, Revolva film session): dialogue,
+# sound effects and music run the same manifest/ledger/fence/accept controls as project v2 speech.
+# Each kind pins its own epoch-id prefix, model and total credit ceiling; grants are variable,
+# like eleven_v4 speech: maximum_credits is any integer from 1 to the limit and the approval
+# string reads "Approve <n> existing credits".
+LANE_EPOCHS = {
+    "elevenlabs-owner-authorized-dialogue-epoch-v1": {
+        "prefix": "elevenlabs-dialogue-", "model": "eleven_v4",
+        "operation": "text-to-dialogue", "limit": 4200, "voices": True},
+    "elevenlabs-owner-authorized-sfx-epoch-v1": {
+        "prefix": "elevenlabs-sfx-", "model": "eleven_text_to_sound_v3",
+        "operation": "sound-generation", "limit": 4000, "voices": False},
+    "elevenlabs-owner-authorized-music-epoch-v1": {
+        "prefix": "elevenlabs-music-", "model": "music_v2_5",
+        "operation": "music", "limit": 9000, "voices": False},
+}
+
 
 def integer(value, allow_zero=False):
     if type(value) is not int or not (0 if allow_zero else 1) <= value <= MAX_INTEGER:
@@ -211,6 +228,35 @@ def project_v2_ledger(raw, workspace, text, model_id, request):
     return _epoch_ledger(raw, workspace, text, model_id, request)
 
 
+def lane_epoch_ledger(raw, workspace, text, model_id, request):
+    """The same checks on the exact bytes a caller's gate already read, for governed lane kinds only."""
+    policy = json.loads(raw)
+    if not isinstance(policy, dict) or policy.get("kind") not in LANE_EPOCHS:
+        raise RuntimeError("This route requires an owner-authorized dialogue, sfx or music lane manifest")
+    return _epoch_ledger(raw, workspace, text, model_id, request)
+
+
+def _check_inventory_proof(policy, allowed_requests, correction_raw=None):
+    proof_ref = policy.get("inventory_proof", {})
+    proof_path = pathlib.Path(proof_ref.get("path", ""))
+    proof_bytes = (proof_path.read_bytes() if proof_path.is_absolute() and proof_path.is_file()
+                   and not linked_path(proof_path) else None)
+    if proof_bytes is None or hashlib.sha256(proof_bytes).hexdigest() != proof_ref.get("sha256"):
+        raise RuntimeError("Project epoch requires intact external new-input inventory proof")
+    proof = json.loads(proof_bytes)
+    if (proof.get("kind") != "elevenlabs-new-input-inventory"
+            or not proof.get("enumerated_scopes")
+            or not all(isinstance(proof.get(k), list) for k in
+                       ("new_text_sha256", "historical_text_sha256", "ambiguous_text_sha256"))
+            or set(policy.get("allowed_text_sha256", [])) != set(proof["new_text_sha256"])
+            or (correction_raw is not None and
+                {r["text_sha256"] for r in allowed_requests} &
+                (set(proof["historical_text_sha256"]) | set(proof["ambiguous_text_sha256"])))
+            or set(proof["new_text_sha256"]) &
+               (set(proof["historical_text_sha256"]) | set(proof["ambiguous_text_sha256"]))):
+        raise RuntimeError("Project inventory must fence historical and ambiguous inputs")
+
+
 def _epoch_ledger(raw, workspace, text, model_id, request):
     policy = json.loads(raw)
     correction_raw = None
@@ -228,12 +274,13 @@ def _epoch_ledger(raw, workspace, text, model_id, request):
             raise RuntimeError("Delivery corrections require original project v2 authority")
     ceiling = integer(policy.get("maximum_credits"))
     epoch = policy.get("epoch_id", "")
+    lane = LANE_EPOCHS.get(policy.get("kind"))
     project_v2 = policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v2"
     project = project_v2 or policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v1"
     project_limit = 4200 if project_v2 else 12000
     # A new project v2 job pins one of these in its immutable manifest; anything else stays refused below.
     project_v4 = project_v2 and policy.get("model_id") == "eleven_v4"
-    selected_model = ("eleven_v4" if project_v4
+    selected_model = (lane["model"] if lane else "eleven_v4" if project_v4
                       else "eleven_multilingual_v2" if project_v2 else "eleven_flash_v2_5")
     # Only a v4 manifest may approve less than the limit; every other kind keeps its one fixed grant.
     project_grant = ceiling if project_v4 else project_limit
@@ -274,26 +321,48 @@ def _epoch_ledger(raw, workspace, text, model_id, request):
                 or not any(isinstance(r, dict) and r.get("text_sha256") == text_hash
                            and r.get("request_sha256") == request_key(request) for r in allowed_requests)):
             raise RuntimeError("Speech request is outside the project epoch allowlist")
-        proof_ref = policy.get("inventory_proof", {})
-        proof_path = pathlib.Path(proof_ref.get("path", ""))
-        proof_bytes = (proof_path.read_bytes() if proof_path.is_absolute() and proof_path.is_file()
-                       and not linked_path(proof_path) else None)
-        if proof_bytes is None or hashlib.sha256(proof_bytes).hexdigest() != proof_ref.get("sha256"):
-            raise RuntimeError("Project epoch requires intact external new-input inventory proof")
-        proof = json.loads(proof_bytes)
-        if (proof.get("kind") != "elevenlabs-new-input-inventory"
-                or not proof.get("enumerated_scopes")
-                or not all(isinstance(proof.get(k), list) for k in
-                           ("new_text_sha256", "historical_text_sha256", "ambiguous_text_sha256"))
-                or set(policy.get("allowed_text_sha256", [])) != set(proof["new_text_sha256"])
-                or (correction_raw is not None and
-                    {r["text_sha256"] for r in allowed_requests} &
-                    (set(proof["historical_text_sha256"]) | set(proof["ambiguous_text_sha256"])))
-                or set(proof["new_text_sha256"]) &
-                   (set(proof["historical_text_sha256"]) | set(proof["ambiguous_text_sha256"]))):
-            raise RuntimeError("Project inventory must fence historical and ambiguous inputs")
+        _check_inventory_proof(policy, allowed_requests, correction_raw)
+    if lane:
+        # A lane manifest pins its own operation, model, request shape and ceiling. The grant is
+        # variable like eleven_v4: any integer up to the lane limit, approved exactly.
+        if (ceiling > lane["limit"]
+                or type(policy.get("owner_authorized_maximum_credits")) is not int
+                or policy.get("owner_authorized_maximum_credits") != ceiling
+                or policy.get("owner_authorization") != f"Approve {ceiling:,} existing credits"
+                or not epoch.startswith(lane["prefix"])
+                or policy.get("additional_batch_id") is not None
+                or not isinstance(request, dict)
+                or request.get("provider") != "elevenlabs/rest/v1"
+                or request.get("operation") != lane["operation"]
+                or request.get("payload", {}).get("model_id") != lane["model"]
+                or request.get("output_format") != policy.get("output_format")
+                or request.get("model_id") != model_id
+                or request.get("revision") != policy.get("request_revision")
+                or request.get("content") != text
+                or request_key(request.get("payload", {}).get("pronunciation_dictionary_locators", []))
+                   != policy.get("pronunciation_locators_sha256")):
+            raise RuntimeError("Lane epoch requires exact owner approval and pinned request")
+        payload = request.get("payload", {})
+        named = policy.get("voice_ids")
+        if lane["voices"]:
+            used = {item.get("voice_id") for item in payload.get("inputs", []) if isinstance(item, dict)}
+            if (not isinstance(named, list) or not 1 <= len(named) <= 10
+                    or len(set(named)) != len(named)
+                    or any(not isinstance(voice, str) or not voice for voice in named)
+                    or not used or used - set(named)):
+                raise RuntimeError("Dialogue epoch must name every requested voice exactly")
+        elif named is not None or policy.get("voice_id") is not None or "voice_id" in payload:
+            raise RuntimeError("This lane pins no voice")
+        allowed_requests = policy.get("allowed_requests", [])
+        lane_text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        if (not isinstance(allowed_requests, list) or not 1 <= len(allowed_requests) <= 20
+                or not any(isinstance(r, dict) and r.get("text_sha256") == lane_text_hash
+                           and r.get("request_sha256") == request_key(request) for r in allowed_requests)):
+            raise RuntimeError("Lane request is outside the epoch allowlist")
+        _check_inventory_proof(policy, allowed_requests)
     if (not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", epoch)
-            or ceiling > (project_limit if project else 1000) or policy.get("historical_accounting") != "UNKNOWN"
+            or ceiling > (project_limit if project else lane["limit"] if lane else 1000)
+            or policy.get("historical_accounting") != "UNKNOWN"
             or policy.get("historical_requests") != "FENCED"
             or not policy.get("owner_authorization")
             or policy.get("workspace") != workspace
@@ -306,23 +375,23 @@ def _epoch_ledger(raw, workspace, text, model_id, request):
             or any(not re.fullmatch(r"[0-9a-f]{64}", item) for item in allowed)
             or text_hash in policy.get("ambiguous_text_sha256", [])):
         raise RuntimeError("Speech is outside this recovery epoch's new/unsubmitted allowlist")
-    if project_v2:
+    if project_v2 or lane:
         parent = stable_epoch_parent()
     else:
         base = os.environ.get("LOCALAPPDATA") if running_on_windows() else str(pathlib.Path.home() / ".local/share")
         if not base:
             raise RuntimeError("Cannot resolve private local runtime directory")
         parent = pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs"
-    if project_v2 and any(linked_path(p) for p in (parent, *parent.parents)):
+    if (project_v2 or lane) and any(linked_path(p) for p in (parent, *parent.parents)):
         raise RuntimeError("Project v2 refuses linked epoch accounting")
     root = parent.resolve() / epoch
-    if project_v2 and not os.environ.get("ELEVENLABS_API_KEY"):
+    if (project_v2 or lane) and not os.environ.get("ELEVENLABS_API_KEY"):
         raise RuntimeError("Project v2 requires its explicit provider credential before initialization")
-    if project_v2 and root.exists() and not (root / "authorization.json").exists():
+    if (project_v2 or lane) and root.exists() and not (root / "authorization.json").exists():
         raise RuntimeError("Project v2 initialization incomplete; inspect existing accounting")
     secure_directory(root)
     lock = root / "authorization.json"
-    existing_v2 = project_v2 and lock.exists()
+    existing_v2 = (project_v2 or lane) and lock.exists()
     if existing_v2:
         files = [root / name for name in ("ledger.sqlite3", "namespace-salt")]
         if (not all(p.is_file() and not linked_path(p) for p in files)
@@ -392,7 +461,7 @@ def _epoch_ledger(raw, workspace, text, model_id, request):
     except FileExistsError:
         if lock.read_bytes() != raw:
             raise RuntimeError("Recovery epoch authorization is immutable; no cap/allowlist reset")
-        if project_v2 and not existing_v2:
+        if (project_v2 or lane) and not existing_v2:
             raise RuntimeError("Project v2 initialization busy or interrupted; inspect before retry")
     if correction_raw is not None:
         # Never configure/recreate: original lock, ledger, salt, assets and budget
@@ -426,7 +495,7 @@ def _epoch_ledger(raw, workspace, text, model_id, request):
         ledger.configure("elevenlabs/credits", ceiling)
     elif budget[0] != ceiling:
         raise RuntimeError("Recovery epoch ceiling changed; inspect accounting before submission")
-    if project_v2:
+    if project_v2 or lane:
         ledger.namespace(os.environ["ELEVENLABS_API_KEY"], workspace)
     ledger.recovery_epoch = epoch
     return ledger

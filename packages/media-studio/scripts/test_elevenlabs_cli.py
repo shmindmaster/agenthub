@@ -184,9 +184,9 @@ class WithoutOwnerAuthorization(OfflineCase):
         self.assert_nothing_happened()
 
 
-class SpeechOnly(OfflineCase):
+class BoundedSurfaces(OfflineCase):
     def test_the_cli_implements_no_other_provider_surface(self):
-        for command in ("sfx", "music", "transcribe", "voices", "models", "account", "health", "voice-status"):
+        for command in ("transcribe", "voices", "models", "account", "health", "voice-status"):
             with self.subTest(command=command):
                 self.assertEqual(self.invoke(command, "--text", "a", "--output", "b"), 2)
                 self.assertIn("invalid choice", self.err)
@@ -398,12 +398,22 @@ class Preflight(OfflineCase):
                 cli._request_full("/fixture")
         self.assertNotIn("private", str(caught.exception))
 
-    def test_non_speech_posts_are_disabled_at_the_transport(self):
-        for path in ("/sound-generation", "/music", "/speech-to-text", "/forced-alignment"):
+    def test_ungoverned_posts_are_disabled_at_the_transport(self):
+        for path in ("/speech-to-text", "/forced-alignment", "/dubbing", "/text-to-dialogue/extra"):
             with self.subTest(path=path), patch.object(cli.urllib.request, "build_opener") as sent:
                 with self.assertRaisesRegex(RuntimeError, "disabled"):
                     cli._request_full(path, method="POST", governed_submission=True)
                 sent.assert_not_called()
+
+    def test_governed_lane_posts_reach_the_opener(self):
+        opener = SimpleNamespace(open=Mock(side_effect=urllib.error.URLError("synthetic offline")))
+        for path in ("/text-to-speech/fixture", "/text-to-dialogue", "/sound-generation", "/music"):
+            with self.subTest(path=path), \
+                    patch.object(cli.urllib.request, "build_opener", return_value=opener) as build, \
+                    patch.dict(os.environ, {"ELEVENLABS_API_KEY": "synthetic-credential"}):
+                with self.assertRaisesRegex(RuntimeError, "request failed"):
+                    cli._request_full(path, method="POST", governed_submission=True)
+                build.assert_called_once()
 
     def test_ungoverned_speech_post_is_disabled_at_the_transport(self):
         with patch.object(cli.urllib.request, "build_opener") as sent, self.assertRaisesRegex(RuntimeError, "disabled"):

@@ -174,7 +174,7 @@ loudness targets, the vision and image models, the timing provider, the demo URL
 | 1 | `lint` | Schema, claims and evidence, narration/on-screen coverage, figures, banned phrases, forbidden names, people/children b-roll, voice and music policy, label, clip validity, length estimate, planned spend vs caps. Fails closed before any paid call. | none |
 | 2 | `voice` | One line per narrated beat. ElevenLabs REST through the governed adapter for an owner-authorized job (request stitching, versioned pronunciation dictionary, text normalization) or OpenAI `gpt-4o-mini-tts` with `instructions` (the retired `local` provider refuses). Keyed by (text, voice, model, settings, neighbors). | ElevenLabs credits / OpenAI USD |
 | 3 | `timing` | Forced alignment of each accepted take and authored line, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. `--whisper-timing` explicitly selects the configured Whisper fallback. Fails if a cut runs more than 1.5 s over target. | aligner provider; fallback whisper-1 ~$0.006/min |
-| 4 | `assets` | Sound effects and a music bed need accepted, licensed assets: the ElevenLabs `soundEffect` and `music` calls fail closed, because the adapter is speech only. OpenAI `gpt-image` abstract stills, ElevenLabs video only if the API exposes it (it does not: recorded as skipped with the reason). Every generated asset is `aiGenerated: true` in `assets\manifest.json`. | credits / USD |
+| 4 | `assets` | Sound effects and a music bed go through the governed adapter's `sfx` and `music` lanes for an owner-authorized job, and fail closed without its manifest. OpenAI `gpt-image` abstract stills, ElevenLabs video only if the API exposes it (it does not: recorded as skipped with the reason). Every generated asset is `aiGenerated: true` in `assets\manifest.json`. | credits / USD |
 | 5 | `capture` | Reuses a receipt-bound clip (sha256 re-checked against its capture receipt) or records it with `record-job.mjs` (`ui.record` plus `--allow-capture`). | none |
 | 6 | `compose` | Per ratio: layout, focus-follow camera, captions, compose map, FFmpeg mix plan, Remotion render of the `MarketingAd` composition (picture only), audio mix with the bed ducked under the voice, two-pass loudnorm (-14 LUFS social, -16 web) and the encode. `--prepare-only` writes `props.json`, `compose-map.json`, `mix-plan.json` and `render-command.json` and stops. | none (local CPU) |
 | 7 | `qa` | Selects a named, hash-verified candidate without composing: picture, captions, loudness, sync, forced word-sync and independent transcript (only with a provided aligner and encoded transcript), listen (no runner: pending), vision, marketing, story and viewer-release. Missing checks stay pending. | explicit `--vision-provider openai` is paid |
@@ -202,7 +202,7 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
   Eleven Music needs a `licenseBasis` (its terms limit Creator to individual use and never name advertising; confirm in
   writing before paid media).
 - Budgets: the per-run and the cumulative cap are checked before each paid call, and spend is recorded after it.
-  ElevenLabs speech goes only through the governed adapter named by `MVG_ELEVENLABS_CLI`, with the job's owner manifest in `MVG_ELEVENLABS_AUTHORIZATION` (`skills/generate/references/content-controls.md`). Without both it fails closed. The job's ledger holds a reservation at about
+  ElevenLabs speech goes only through the governed adapter named by `MVG_ELEVENLABS_CLI`, with the job's owner manifest in `MVG_ELEVENLABS_AUTHORIZATION` (`skills/generate/references/content-controls.md`). The `sfx` and `music` lanes take their own manifests in `MVG_ELEVENLABS_SFX_AUTHORIZATION` and `MVG_ELEVENLABS_MUSIC_AUTHORIZATION` — each manifest's `kind` matches exactly one lane. Without both it fails closed. The job's ledger holds a reservation at about
   1.2x characters, receipts and no repeat purchase; run it with plain `python`, never `python -I`. Cumulative spend is in
   `_spend\ledger.jsonl`.
 
@@ -210,8 +210,8 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 
 | Provider | Used for | Cost basis |
 | --- | --- | --- |
-| ElevenLabs `eleven_v4` (default) | Narration, request stitching works | 1 credit/char, reserved at 1.2x |
-| ElevenLabs sound effects, ElevenLabs Music | Disabled: the adapter is speech only, and the planning estimates are not an approved route | |
+| ElevenLabs `eleven_v4` (default) | Narration, request stitching works; `dialogue` lane for multi-voice scenes | 1 credit/char, reserved at 1.2x |
+| ElevenLabs sound effects (`eleven_text_to_sound_v3`), ElevenLabs Music (`music_v2_5`, instrumental) | Owner-authorized jobs only through the governed adapter, each with its own manifest and epoch | 200 credits/generation; 900 credits/minute |
 | OpenAI `whisper-1` | Transcript check; explicit `--whisper-timing` fallback when no aligner is available | $0.006/min |
 | Azure `gpt-image-2.5-flare` (default; `gpt-image-2.5-sunburst` alternate) | Abstract stills only (default quality medium) | ~$0.07 per 1536x1024 (padded estimate, unverified; token-priced) |
 | OpenAI `gpt-5.6-sol` (brand `vision.model`) | Vision QA on sampled frames | $4 / $20 per 1M tokens |
@@ -287,8 +287,9 @@ narration that spends words on the demo data or on the film itself (`synthetic`,
    `loudnessTargetLufs` (mvg sets it per ratio); the default is unchanged.
 4. **Audio outside Remotion.** The composition renders the picture only. Voice placement, sound effects, ducking
    (`sidechaincompress`), the two-pass loudness normalization and the mux are FFmpeg (`lib/mix.mjs`).
-5. **ElevenLabs sound effects and music** left with `packages/elevenlabs` (retired 2026-10-30). The adapter that returned
-   in 2.1.2 is speech only, so `soundEffect` and `music` fail closed.
+5. **ElevenLabs sound effects and music** left with `packages/elevenlabs` (retired 2026-10-30). In 2.9.0 the governed
+   adapter grew `sfx` and `music` lanes (`eleven_text_to_sound_v3`, `music_v2_5`), so `soundEffect` and `music` run
+   owner-authorized jobs through the same manifest, reservation and receipt controls as speech.
 6. **Focus windows are piecewise static with eased transitions** so the encoded-picture binding can compare a stable crop
    at each beat midpoint. Recast zoom is declared with `sourceZoom` because the clip is already magnified there.
 7. **No chip over the product picture.** The synthetic-data label is one line on the end card, beside the logo and the

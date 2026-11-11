@@ -6,9 +6,9 @@ Paid speech runs only through a governed adapter, which reserves the maximum in 
 |---|---|---|---|
 | Azure TTS | `scripts/governed_azure_speech.py` | `azure-speech/usd-micros`, per workspace under `%LOCALAPPDATA%/AgentHub/runtime/azure-speech-jobs` | `azure-speech-new-provider-job` $1. `azure-speech-bounded-standard-job` at most 150,000 microdollars. Extension at most $0.69 inside the $1 |
 | Deepgram Flux batch TTS | `scripts/deepgram_cli.py` | `deepgram/usd-micros` under `%LOCALAPPDATA%/AgentHub/runtime/content-controls` | No budget row means disabled. Recovery epoch at most $3 |
-| ElevenLabs speech | `scripts/elevenlabs_cli.py` | `elevenlabs/credits`, per job under `<RuntimeRoot>/content-recovery-epochs/<epoch_id>` | Owner-authorized jobs only. With no manifest it refuses before any network call. The manifest sets the ceiling inside the limit below |
+| ElevenLabs speech, dialogue, sound effects, music | `scripts/elevenlabs_cli.py` | `elevenlabs/credits`, per job under `<RuntimeRoot>/content-recovery-epochs/<epoch_id>` | Owner-authorized jobs only. With no manifest it refuses before any network call. The manifest sets the ceiling inside the limit below |
 
-Disabled: speech-to-text adapters, sound effects, music, avatar submission, voice fallback, automatic retry. `kit/marketing/lib/providers/elevenlabs.mjs` throws on sound effects and music, and the adapter has no such command. `cloud-ai.mjs align` is outside the spend record, so report it. On Codex, `scripts/content_host_controls.py --apply` blocks the ElevenLabs app; it needs a new session.
+Disabled: speech-to-text adapters, avatar submission, voice fallback, automatic retry. `cloud-ai.mjs align` is outside the spend record, so report it. On Codex, `scripts/content_host_controls.py --apply` blocks the ElevenLabs app; it needs a new session.
 
 ## Quote, then execute
 
@@ -61,13 +61,29 @@ The first paid call copies the manifest into the epoch and creates its ledger; a
 
 A request hash is one purchase. Before any paid call the adapter reads every other epoch under the root, and every old epoch this launch route can see, and refuses a hash it finds there, whether purchased, unresolved or fenced, and it refuses if another epoch's accounting can't be read. A rotated key gets no second purchase of a hash in the same epoch either. A retake needs a changed request, such as a new `--cache-revision`, quoted into a new manifest. That is a new purchase, so it is an owner decision: the fence matches exact hashes and can't tell it is the same line. The check across epochs isn't atomic, so run one new epoch's first purchase at a time.
 
-`mvg` keeps its `speech()` call. Set `MVG_ELEVENLABS_CLI` to this script in the AgentHub checkout and `MVG_ELEVENLABS_AUTHORIZATION` to the manifest. Quote with the job's workspace ID and `--cache-revision mvg-voice-v1`. For a clone, set `voice.ownerVoice` to true and state it in `voice.disclosure`: lint reads the same manifest and passes only that exact voice ID, and the delivery note says it is a clone.
+`mvg` keeps its `speech()` call. Set `MVG_ELEVENLABS_CLI` to this script in the AgentHub checkout and `MVG_ELEVENLABS_AUTHORIZATION` to the manifest. Quote with the job's workspace ID and `--cache-revision mvg-voice-v1`. For a clone, set `voice.ownerVoice` to true and state it in `voice.disclosure`: lint reads the same manifest and passes only that exact voice ID, and the delivery note says it is a clone. The other lanes take their own manifest variables, `MVG_ELEVENLABS_SFX_AUTHORIZATION` and `MVG_ELEVENLABS_MUSIC_AUTHORIZATION`, or a per-call `authorizationManifest`, because each manifest's `kind` matches exactly one lane.
 
 After a failure, `python scripts/elevenlabs_cli.py reconcile --authorization-manifest <original-manifest> --namespace <n> --cache-workspace <w> --cache-key <k> --history-id <h>` recovers exact bytes with GET requests and settles actual credits. It needs the provider history ID and intact accounting, and never resubmits. `content_control.py status`, `accept` and `release-prepared` read only the default ledger.
 
 Rotating the key: `reconcile` and `accept` match the key that submitted, so they refuse under a new key, and the new key can't buy that hash. Keep the old key until the job is reconciled.
 
 Stranded credits: `reconcile` needs the request ID bound at submission. A response lost before its headers arrive leaves no receipt, so that request can't be reconciled. It stays fenced and keeps its full reservation, whether or not the provider charged. Report those credits as stranded. Never buy the request again to clear them.
+
+## ElevenLabs dialogue, sound effects and music lanes
+
+Owner direction 2026-11-11, Revolva film session: owner-authorized jobs may use ElevenLabs dialogue, sound effects and music. They run through the same adapter with the same controls as speech — exact allowed request hashes, `maximum_credits`, `owner_authorization` reading `Approve <n> existing credits`, the inventory proof, the cross-epoch fence, reservation before submit, receipt-bound output plus provenance JSON, `accept` with gates, no retry, no fallback, refusal before any network call. Each lane has its own manifest `kind` and `epoch_id` prefix:
+
+| Lane | Manifest `kind` / `epoch_id` prefix | Model | Ceiling limit | Credit estimate |
+|---|---|---|---|---|
+| `dialogue` / `dialogue-quote` | `elevenlabs-owner-authorized-dialogue-epoch-v1` / `elevenlabs-dialogue-` | `eleven_v4` | 4,200 | 1 credit per character of all `inputs[].text` |
+| `sfx` / `sfx-quote` | `elevenlabs-owner-authorized-sfx-epoch-v1` / `elevenlabs-sfx-` | `eleven_text_to_sound_v3` | 4,000 | 200 per generation |
+| `music` / `music-quote` | `elevenlabs-owner-authorized-music-epoch-v1` / `elevenlabs-music-` | `music_v2_5` | 9,000 | `ceil(900 * seconds / 60)` |
+
+The quote subcommands are offline and print `text_sha256` (the dialogue inputs JSON, the sfx prompt, or the music prompt/plan JSON) and `request_sha256`, hashing every field that changes the output: voices, `audio_effects`, `seed`, `duration_seconds`, `prompt_influence`, `loop`, `music_length_ms` and the composition plan. A lane manifest carries the same fields as a project v2 manifest — `allowed_text_sha256`, `allowed_requests`, `inventory_proof`, `output_format`, `request_revision`, `pronunciation_locators_sha256`, `historical_accounting` `UNKNOWN`, `historical_requests` `FENCED` — plus `model_id`, and a dialogue manifest also lists `voice_ids` naming every voice the request uses (up to 10, per the API). A sfx or music manifest pins no voice field at all.
+
+Dialogue takes `--turn VOICE_ID TEXT` per input (total text at most 2,000 characters), optional `--seed` and the speech `audio_effects` flags (`--filter-preset-id`, `--environment-id`, `--background-noise-id`, `--distance`, `--send-level`, `--pan`). Owner direction 2026-11-03, media.md: the Deloitte pursuit films for Revolva, Empowera and CoLedger may use the owner PVC on Eleven v4; every other film keeps the no-clone rule, and the owner PVC may appear only when the job's manifest names it.
+
+Sfx takes `--prompt` with optional `--duration-seconds` (0.5–30), `--prompt-influence` (0–1) and `--loop`/`--no-loop`. Music takes `--prompt` only; the request pins `force_instrumental` and sets `--music-length-ms` (3,000–600,000). `--composition-plan` is refused before any network call, because the API cannot force an instrumental result on a plan (chunk text is sung as lyrics, and audio-reference chunks can carry vocals), and `--seed` is refused with it. A paid call that returns audio without any provider identifier keeps the reservation and leaves the bytes unaccepted in the ledger's `quarantine/` folder for inspection. A prompt without `--music-length-ms` cannot be priced, so the adapter refuses it.
 
 ## Blocked or failed call
 

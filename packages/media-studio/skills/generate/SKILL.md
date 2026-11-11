@@ -63,8 +63,9 @@ current live catalogue; only individually governed and authorized lanes
 can generate. ElevenLabs offers high-quality expressive voice, Scribe
 transcription, Music v2.5, SFX v3 and specialist editing/dubbing, but
 the direct ElevenLabs account and API remain excluded from new
-recipes until authorization. ElevenLabs sound effects, music and STT
-stay disabled. An available model, accessible API key or reported
+recipes until authorization. The governed adapter covers speech,
+dialogue, sound effects and music for owner-authorized jobs;
+ElevenLabs STT stays disabled. An available model, accessible API key or reported
 credit is not an authorization. Higgsfield and Runway credits are frozen until the owner approves. Local AI is off. Use `AZURE_OPENAI_*` and `FOUNDRY_*` only while the endpoint host is `mt-foundary-resource` (MahumTech); never use `AZURE_OPENAI_PNDH_*`, `aif-pndh-*` or any `pndh` host (Pendoah client infrastructure).
 
 ## Voice
