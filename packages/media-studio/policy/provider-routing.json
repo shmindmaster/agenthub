@@ -1,7 +1,7 @@
 {
   "schema": "media-studio/provider-routing/1",
-  "revision": "provider-routing-2026-11-10-4",
-  "asOf": "2026-11-10",
+  "revision": "provider-routing-2026-11-11-1",
+  "asOf": "2026-11-11",
   "basis": "Provider capabilities and public pricing docs reviewed 2026-11-10; balances and plans remain as recorded in the Linear credits ledger 2026-11-04 to 2026-11-06 and were not reverified in any vendor console. Re-check a balance before a paid run that depends on it.",
   "rules": [
     "Credits are a temporary subsidy, not permission to raise spending caps.",
@@ -14,7 +14,7 @@
     "Cheapest lane that passes QA wins for a picture. A free picture lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid picture lane. Voice has no free lane.",
     "Narration, dialogue, rehearsal, draft and audition speech follow skills/generate/references/voice-recipes.md. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2. Deepgram Haley batch synthesis serves prepared support prompts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
     "Azure first (MahumTech resource mt-foundary-resource). Other providers are fallbacks or specialist lanes.",
-    "The direct ElevenLabs account and API are excluded from recipe defaults. The governed adapter remains in the package and is not a film voice. No voice clone of the owner.",
+    "The direct ElevenLabs account and API are excluded from recipe defaults. The governed adapter remains in the package and is not a film voice. No voice clone of the owner, except the manifest-named Deloitte pursuit films for Revolva, Empowera and CoLedger (owner direction 2026-11-03).",
     "Higgsfield, Runway and Google Vertex spend stays frozen until the owner approves it in the current task. The funded generative-video lane is IrukaDark (approved hero shots only).",
     "Local AI is off on this PC: no local models, TTS, STT or embedders. Self-hosted models on cloud GPUs are allowed inside the compute caps.",
     "The owner picks the entity each film is made for and uses whatever credit fits. Name the identity in the quote; never stop on ownership.",
@@ -103,8 +103,8 @@
       "status": "frozen",
       "cost": "Creator plan, about 116,400 characters left, resets 2026-11-13",
       "identity": "mahumtech",
-      "how": "Do not call it. The direct ElevenLabs account and API are excluded from recipe defaults.",
-      "notes": "Excluded 2026-11-06. Model eleven_v4 and scripts/governed_elevenlabs.py stay in the package for an already authorized historical job. They are not a film default. Music and sound effects stay disabled."
+      "how": "Do not call it. The direct ElevenLabs account and API are excluded from recipe defaults. Owner-authorized jobs run scripts/elevenlabs_cli.py: `tts` for single-voice speech and `dialogue` for multi-voice text-to-dialogue on eleven_v4, each with its own immutable manifest kind and epoch ledger.",
+      "notes": "Excluded 2026-11-06. Model eleven_v4 and scripts/governed_elevenlabs.py stay in the package for already authorized jobs; they are not a film default. Owner direction 2026-11-03 (overlays/personal/guidance/media.md): the Deloitte pursuit films for Revolva, Empowera and CoLedger may use the owner PVC on Eleven v4; every other film keeps the no-clone rule. Owner direction 2026-11-11 (Revolva film session): owner-authorized jobs may use ElevenLabs dialogue, sound effects and music under the same manifest, ledger, fence and acceptance controls as speech."
     },
     {
       "id": "deepgram-flux",
@@ -267,10 +267,10 @@
       "needs": ["music", "sound-effect", "video-to-music"],
       "status": "frozen",
       "mode": "api",
-      "cost": "ElevenLabs Creator plan, about 116,400 characters left (speech); music and sound-effect usage is not separately recorded",
+      "cost": "ElevenLabs Creator plan, about 116,400 characters left (speech); music and sound-effect usage is not separately recorded. Adapter pricing: 200 credits per sound-generation call, 900 credits per minute of music",
       "identity": "mahumtech",
-      "how": "ElevenLabs Video to Music and Sound Effects v3 APIs (v2 shuts off 2027-02-01), through the full ElevenLabs connector at https://api.elevenlabs.io/v1/mcp or a governed adapter. The connector in this session is the restricted one with no music.",
-      "notes": "Frozen by the standing rule that media-studio disables music and sound effects. It unfreezes only when the owner lifts that rule in the current task. A Professional Voice Clone named SH exists on the account; never use it, per the no-owner-clone rule."
+      "how": "Do not call it by default. Owner-authorized jobs run scripts/elevenlabs_cli.py `sfx` (model eleven_text_to_sound_v3) and `music` (model music_v2_5, prompt or composition plan, force_instrumental) with their own immutable manifest kinds, offline `sfx-quote`/`music-quote` first. Video to Music stays without a governed lane.",
+      "notes": "Owner direction 2026-11-11 (Revolva film session): owner-authorized jobs may use ElevenLabs dialogue, sound effects and music. Every paid call still needs that job's own manifest and stays frozen until the owner grants it in the current task. A Professional Voice Clone named SH exists on the account; it runs only for the manifest-named Deloitte pursuit films (owner direction 2026-11-03); every other film keeps the no-clone rule."
     },
     {
       "id": "assemblyai-stt",

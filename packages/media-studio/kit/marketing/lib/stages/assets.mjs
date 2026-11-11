@@ -74,7 +74,7 @@ export async function assetsStage(ctx) {
       receipt = res.receipt;
       ctx.ledger.charge({ stage: 'assets', provider: 'elevenlabs', service: 'sfx', units: receipt.actual_credits ?? credits, estimated: receipt.actual_credits == null, cached: !!receipt.reused, ref: s.key.slice(0, 12) });
     } else ctx.ledger.charge({ stage: 'assets', provider: 'elevenlabs', service: 'sfx', units: 0, cached: true, ref: s.key.slice(0, 12) });
-    items.push({ kind: 'sfx', key: s.key, path: rel.replace(/\\/g, '/'), sha256: fileSha(out), provider: 'elevenlabs', model: 'eleven_text_to_sound_v2', prompt: s.prompt, durationSeconds: s.durationSeconds, aiGenerated: true, usedBy: s.beats, receipt });
+    items.push({ kind: 'sfx', key: s.key, path: rel.replace(/\\/g, '/'), sha256: fileSha(out), provider: 'elevenlabs', model: 'eleven_text_to_sound_v3', prompt: s.prompt, durationSeconds: s.durationSeconds, aiGenerated: true, usedBy: s.beats, receipt });
   }
 
   if (musicOn) {

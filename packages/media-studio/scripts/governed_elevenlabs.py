@@ -18,6 +18,17 @@ import content_runtime as runtime
 PROJECT_KIND = "elevenlabs-owner-authorized-project-epoch-v2"
 CORRECTION_KIND = "elevenlabs-project-delivery-correction-v1"
 BUCKET = "elevenlabs/credits"
+# Provider request-id headers are not enumerated in the API reference for these endpoints; the
+# receipt binds the first provider-issued identifier the response carries.
+LANE_RECEIPT_HEADERS = ("request-id", "song-id", "history-item-id")
+
+
+def lane_spec(operation):
+    """The manifest kind and lane constants for one provider operation."""
+    for kind, spec in runtime.LANE_EPOCHS.items():
+        if spec["operation"] == operation:
+            return kind, spec
+    raise RuntimeError(f"Unknown governed lane {operation!r}")
 
 
 def speech_request(args, voice_id, model_id, output_format, payload):
@@ -67,6 +78,45 @@ def authorized_policy(manifest, voice_id, workspace, model_id):
         raise RuntimeError("Owner authorization does not name this exact voice and job workspace")
     if (pinned_model or policy.get("model_id")) != model_id:
         raise RuntimeError("Owner authorization pins a different model")
+    return checked, policy
+
+
+def lane_request(args, operation, content, output_format, payload):
+    return {"provider": "elevenlabs/rest/v1", "operation": operation, "model_id": lane_spec(operation)[1]["model"],
+            "output_format": output_format, "revision": args.cache_revision, "content": content,
+            "payload": payload, "quality_policy": "owner-lane-five-gates-v1"}
+
+
+def lane_quote(args, operation, content, output_format, payload):
+    """Everything an owner lane manifest pins for this exact request. No credential, no request, no state."""
+    return {"operation": operation, "workspace": args.cache_workspace,
+            "model_id": lane_spec(operation)[1]["model"],
+            "output_format": output_format, "request_revision": args.cache_revision,
+            "text_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            "request_sha256": runtime.request_key(lane_request(args, operation, content, output_format, payload)),
+            "pronunciation_locators_sha256": runtime.request_key(payload.get("pronunciation_dictionary_locators", []))}
+
+
+def authorized_lane_policy(manifest, operation, workspace, voice_ids=()):
+    """The lane gate: the manifest must carry this lane's kind, workspace, model and named voices."""
+    kind, spec = lane_spec(operation)
+    refusal = "Owner authorization must be an absolute, unlinked lane manifest"
+    checked = _manifest_bytes(manifest, refusal)
+    policy = json.loads(checked)
+    if not isinstance(policy, dict) or policy.get("kind") != kind:
+        raise RuntimeError(refusal)
+    if policy.get("workspace") != workspace:
+        raise RuntimeError("Owner authorization does not name this job workspace")
+    if policy.get("model_id") != spec["model"]:
+        raise RuntimeError("Owner authorization pins a different model")
+    named = policy.get("voice_ids")
+    if spec["voices"]:
+        if (not isinstance(named, list) or not 1 <= len(named) <= 10 or len(set(named)) != len(named)
+                or any(not isinstance(voice, str) or not voice for voice in named)
+                or not voice_ids or set(voice_ids) - set(named)):
+            raise RuntimeError("Owner authorization does not name every requested voice")
+    elif named is not None or policy.get("voice_id") is not None:
+        raise RuntimeError("This lane manifest must not pin a voice")
     return checked, policy
 
 
@@ -135,11 +185,44 @@ def generate(cli, args, authorized, voice_id, model_id, output_format, payload):
     checked, policy = authorized
     refuse_bought_elsewhere(runtime.request_key(request), policy.get("epoch_id"))
     ledger = runtime.project_v2_ledger(checked, args.cache_workspace, args.text, model_id, request)
+
+    def preflight(maximum):
+        return cli.tts_preflight(voice_id, model_id, args.text, maximum)
+
+    def submit(received):
+        query = urllib.parse.urlencode({"output_format": output_format})
+        return cli._request_full(
+            f"/text-to-speech/{urllib.parse.quote(voice_id, safe='')}?{query}",
+            method="POST", body=json.dumps(payload).encode("utf-8"),
+            content_type="application/json", timeout=300, on_headers=received,
+            governed_submission=True)
+
     with ledger.session() as ledger:
-        return _generate(ledger, cli, args, voice_id, model_id, output_format, payload, request)
+        return _run(ledger, cli, args, model_id, output_format, request, args.text,
+                    preflight, submit, ("request-id",), {"voice_id": voice_id})
 
 
-def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, request):
+def generate_lane(cli, args, authorized, operation, content, output_format, payload, preflight, extra):
+    """The same spend mechanics for the dialogue, sfx and music lanes, inside the lane's own epoch."""
+    request = lane_request(args, operation, content, output_format, payload)
+    checked, policy = authorized
+    refuse_bought_elsewhere(runtime.request_key(request), policy.get("epoch_id"))
+    _, spec = lane_spec(operation)
+    ledger = runtime.lane_epoch_ledger(checked, args.cache_workspace, content, spec["model"], request)
+
+    def submit(received):
+        query = urllib.parse.urlencode({"output_format": output_format})
+        return cli._request_full(
+            f"/{operation}?{query}", method="POST", body=json.dumps(payload).encode("utf-8"),
+            content_type="application/json", timeout=300, on_headers=received,
+            governed_submission=True)
+
+    with ledger.session() as ledger:
+        return _run(ledger, cli, args, spec["model"], output_format, request, content,
+                    preflight, submit, LANE_RECEIPT_HEADERS, {"operation": operation, **extra})
+
+
+def _run(ledger, cli, args, model_id, output_format, request, text, preflight, submit, receipt_headers, extra):
     namespace = ledger.namespace(os.environ.get("ELEVENLABS_API_KEY", ""), args.cache_workspace)
     key = runtime.request_key(request)
     maximum = int(args.max_credits)
@@ -151,30 +234,29 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, req
             try:
                 # A replacement of a never-submitted lease inherits its original
                 # reservation, even if this caller offers a larger maximum.
-                preflight = cli.tts_preflight(voice_id, model_id, args.text, row["maximum"])
-                if preflight.get("can_extend_character_limit") is not False:
-                    raise RuntimeError("Owner-authorized speech requires live overages disabled")
+                result = preflight(row["maximum"])
+                if result.get("can_extend_character_limit") is not False:
+                    raise RuntimeError("Owner-authorized generation requires live overages disabled")
             except BaseException:
                 ledger.cancel_prepared(row)
                 raise
             ledger.submitted(row)
             reused = False
+            bound = []
 
             def received(headers):
-                if headers.get("request-id"):
-                    ledger.bind_receipt(row, headers.get("request-id"))
+                for name in receipt_headers:
+                    if headers.get(name):
+                        bound[:] = [headers.get(name)]
+                        ledger.bind_receipt(row, bound[0])
+                        break
 
             try:
-                query = urllib.parse.urlencode({"output_format": output_format})
-                _, ctype, raw, headers = cli._request_full(
-                    f"/text-to-speech/{urllib.parse.quote(voice_id, safe='')}?{query}",
-                    method="POST", body=json.dumps(payload).encode("utf-8"),
-                    content_type="application/json", timeout=300, on_headers=received,
-                    governed_submission=True)
+                _, ctype, raw, headers = submit(received)
                 received(headers)
                 if not raw or not (ctype.startswith("audio/") or ctype == "application/octet-stream"):
                     raise RuntimeError("Provider returned no audio")
-                row = ledger.complete(row, raw, ctype, headers.get("request-id"))
+                row = ledger.complete(row, raw, ctype, bound[0] if bound else None)
             except BaseException as exc:
                 # Every failure, HTTP 429 included, fences this request. Nothing here retries or releases it.
                 status = f"{exc}. " if isinstance(exc, cli.ProviderHTTPError) else ""
@@ -185,14 +267,15 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, req
         if row["state"] in ("pending", "accepted"):
             raw = ledger.read_asset(row)
             return raw, {"provider": "elevenlabs", "namespace": namespace, "cache_key": key,
-                         "request_id": row["receipt"], "model_id": model_id, "voice_id": voice_id,
+                         "request_id": row["receipt"], "model_id": model_id,
                          "output_format": output_format, "output_sha256": row["sha256"],
                          "content_type": row["content_type"], "output_bytes": len(raw),
                          "maximum_reserved_credits": row["maximum"], "actual_credits": row["actual"],
                          "recovery_epoch": ledger.recovery_epoch,
                          "historical_accounting": "UNKNOWN", "historical_requests": "FENCED",
                          "acceptance_state": row["state"], "acceptance": json.loads(row["acceptance"] or "null"),
-                         "reused": reused, "text_sha256": hashlib.sha256(args.text.encode("utf-8")).hexdigest()}
+                         "reused": reused, "text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                         **extra}
         if row["state"] == "unknown":
             raise RuntimeError(f"Existing submission unresolved (cache_key {key}); recover its provider receipt. "
                                "No repeat purchase allowed.")
