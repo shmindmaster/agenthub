@@ -122,7 +122,10 @@ const loadJson = (p, label) => { try { return readJson(p); } catch (e) { errors.
 const screenplay = existsSync(screenplayPath) ? loadJson(screenplayPath, 'screenplay') : null;
 const timeline = existsSync(timelinePath) ? loadJson(timelinePath, 'timeline') : null;
 const job = existsSync(jobPath) ? loadJson(jobPath, 'job') : null;
-const flexibleCreativeForm = !!job?.creativeMode && job.creativeMode !== 'verified-demo';
+const communicationProfile = screenplay?.communicationProfile || job?.communicationProfile;
+const knownCommunicationProfile = ['consulting-demo', 'technical-walkthrough', 'product-update'].includes(communicationProfile);
+if (communicationProfile && !knownCommunicationProfile) errors.push(`unknown communicationProfile: ${communicationProfile}`);
+const flexibleCreativeForm = !communicationProfile && !!job?.creativeMode && job.creativeMode !== 'verified-demo';
 let lines = [];
 let source = null;
 // The locked timeline is what the voice actually speaks, so it is the text checked whenever it exists; the screenplay
@@ -206,11 +209,20 @@ for (const { sceneId, line } of lines) {
     last = h.index + h.match.length;
     const reason = ALLOWLISTABLE.has(h.class) ? allow.get(phraseKey(h.match)) : undefined;
     if (reason) allowlisted.push({ sceneId, class: h.class, match: h.match, line, reason });
-    else hits.push({ sceneId, class: h.class, match: h.match, line });
+    else if (knownCommunicationProfile && h.class === 'version'
+      && !/\b(?:video|film|render|narration|footage|take|cut)\b/i.test(line)
+      && (/^revis(?:ion|ions|ed)$/i.test(h.match) || (communicationProfile === 'product-update' && /^(?:what changed|what's new|release notes|changelog|previously)$/i.test(h.match)))) {
+      allowlisted.push({ sceneId, class: h.class, match: h.match, line, reason: 'Profile-specific domain or release explanation; no film-production commentary.' });
+    } else if (knownCommunicationProfile && h.class === 'recap') {
+      warnings.push(`${sceneId}: review whether this conclusion adds meaning: ${line}`);
+    } else hits.push({ sceneId, class: h.class, match: h.match, line });
   }
   const cw = contentWords(line);
   const redundantWith = !flexibleCreativeForm && cw.length >= REDUNDANT_MIN_WORDS ? seen.findIndex((prev) => overlap(cw, prev) >= REDUNDANT_OVERLAP) : -1;
-  if (redundantWith >= 0) {
+  const exactRepeat = lines.slice(0, seen.length).some((previous) => phraseKey(previous.line) === phraseKey(line));
+  if (knownCommunicationProfile && !exactRepeat && (redundantWith >= 0 || (cw.length >= NO_NEW_INFO_MIN_WORDS && cw.every((w) => seenPool.some((p) => L.wordMatches(w, p)))))) {
+    warnings.push(`${sceneId}: lexical reuse requires reviewer judgment of added meaning: ${line}`);
+  } else if (redundantWith >= 0) {
     hits.push({ sceneId, class: 'redundant', match: `${Math.round(overlap(cw, seen[redundantWith]) * 100)}% of its content words repeat ${lines[redundantWith].sceneId}`, line });
   } else if (!flexibleCreativeForm && cw.length >= NO_NEW_INFO_MIN_WORDS && cw.every((w) => seenPool.some((p) => L.wordMatches(w, p)))) {
     const adjudication = scopeQualifications.get(`${sceneId}\u0000${line}`);
@@ -252,6 +264,15 @@ if (flexibleCreativeForm) {
   if (!promiseNamed) errors.push(`promise-5s: none of the promise's content words (${promiseWords.join(', ')}) is spoken in the first ${HOOK_SECONDS} seconds (${windowWords.length} words): "${windowWords.join(' ')}"`);
 }
 const hook = { firstSentence, words: hookWords, seconds: hookSeconds, ok: hookOk, promiseNamed };
+
+// The short hook and the decision answer are separate checks. Before alignment
+// this is a words/wpm estimate; final exact-file review must verify actual timing.
+if (knownCommunicationProfile) {
+  const takeaway = phraseKey(screenplay?.primaryTakeaway || job?.primaryTakeaway);
+  const opening = phraseKey(L.textWords(lines.map((l) => l.line).join(' ')).slice(0, Math.floor(wpm / 4)).join(' '));
+  const answerWords = L.textWords(takeaway).join(' ').toLowerCase();
+  if (!answerWords || !opening.includes(answerWords)) errors.push('answer-15s: the primaryTakeaway must be spoken within the first 15 seconds (words/wpm estimate; verify actual timing on the final export)');
+}
 
 // ---- synthetic data: a caption or an end card, never narration -------------------------------------------------------
 // The storyboard schema carries the caption / end-card declaration too (skills/video/references/scenes.md).

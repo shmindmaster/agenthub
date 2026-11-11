@@ -447,7 +447,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+skills",
       "canonicalSource": "packages/product",
-      "contentHash": "3089F71EA0F73618A711D5A3E62B18D2068D16212C064545E5EB7EE7FE19DED1",
+      "contentHash": "1919DB41ACDC1DE892B1831161B08DE06DAADCC303687948FE16D53594C83BEE",
       "hashBasis": "packages/product",
       "status": "active-canonical",
       "notes": "Owns the product skills audit, design, build, verify and demo and the reviewer agent (2.1.2, no hooks). verify and demo load references/authenticated-acceptance.md, which carries the session, role, denial and data-boundary evidence an authenticated journey needs; the fleet's provider-specific contract stays in docs/runbooks/clerk-auth.md. Also owns the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
@@ -788,7 +788,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "0605A3C7CC0DA134C6F41D175FB6A4E59DF22AEC79D1F45F9E72BE8BEB609AA2",
+      "contentHash": "8F6612AA224A7938A9AC74A8D96C3B3993C2EFFCABFDEAFFFCB609018BB2FC96",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1349,7 +1349,7 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "A3CFA6321837D9ADF2F60E2C22E8D6DB830077C1A1183EDDF552ECB4BA0DEEE3",
+      "contentHash": "F3F875D6467C224916D890CF13DCBF161223D28EA0077739E0068890D1D5FDBA",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [

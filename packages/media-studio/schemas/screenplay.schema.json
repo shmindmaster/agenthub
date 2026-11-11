@@ -6,6 +6,19 @@
   "additionalProperties": false,
   "required": ["title", "scenes"],
   "properties": {
+    "communicationProfile": {"enum": ["consulting-demo", "technical-walkthrough", "product-update"]},
+    "primaryAudience": {"type": "string", "minLength": 1},
+    "viewerDecision": {"type": "string", "minLength": 1},
+    "primaryTakeaway": {"type": "string", "minLength": 1},
+    "audienceContext": {"type": "object", "additionalProperties": false, "required": ["problemStatus", "sourceRefs"], "properties": {"problemStatus": {"enum": ["confirmed-discovery", "hypothesis", "fictional-scenario"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
+    "nextStep": {"type": "object", "additionalProperties": false, "required": ["action", "owner", "agreedDate"], "properties": {"action": {"type": "string", "minLength": 1}, "owner": {"type": "string", "minLength": 1}, "agreedDate": {"type": ["string", "null"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
+    "maxDurationSeconds": {"type": "number", "minimum": 1},
+    "captionPolicy": {"type": "object", "additionalProperties": false, "required": ["mode", "deliverySurface"], "properties": {"mode": {"enum": ["selectable", "open", "sidecar"]}, "deliverySurface": {"type": "string", "minLength": 1}}},
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "scenarioRecord": {"type": "string", "minLength": 1},
+    "integrationFlow": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "integrationStatus": {"enum": ["demonstrated-adapter", "file-import", "proposed"]},
+    "audioDirection": {"type": "object", "additionalProperties": false, "required": ["narratorIdentity", "pronunciationRefs", "delivery", "emphasis", "pauses", "musicTreatment"], "properties": {"narratorIdentity": {"type": "string", "minLength": 1}, "pronunciationRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}, "delivery": {"type": "string", "minLength": 1}, "emphasis": {"type": "array", "items": {"type": "string", "minLength": 1}}, "pauses": {"type": "string", "minLength": 1}, "musicTreatment": {"enum": ["none", "restrained-bed", "compare-bed-and-silence"]}}},
     "title": { "type": "string", "minLength": 1 },
     "kind": { "type": "string" },
     "voice": { "type": "string" },
@@ -59,6 +72,7 @@
     "sceneRole": {
       "type": "string",
       "enum": [
+        "context", "problem", "solution", "demonstration", "goal", "step", "explanation", "takeaway", "recap", "next-step",
         "hook",
         "before",
         "tension",
@@ -100,6 +114,10 @@
       "additionalProperties": false,
       "required": ["id", "narration"],
       "properties": {
+        "actionTitle": {"type": "string", "minLength": 12, "maxLength": 160},
+        "supportingArgument": {"type": "string", "minLength": 1},
+        "proofRefs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "evidenceClaims": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["text", "scope", "sourceRefs", "implementationState", "dataType", "aiExecutionMode", "businessValidation"], "properties": {"text": {"type": "string", "minLength": 1}, "scope": {"enum": ["product-behavior", "measured-benefit", "proposed-interface", "customer-priority", "illustrative-scenario"]}, "sourceRefs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}, "implementationState": {"enum": ["implemented", "proposed"]}, "dataType": {"enum": ["synthetic", "customer", "public"]}, "aiExecutionMode": {"enum": ["live", "recorded", "stubbed", "none"]}, "businessValidation": {"enum": ["unvalidated", "measured", "discovery-confirmed"]}, "visibleLabel": {"type": "string", "minLength": 1}, "measurement": {"type": "object", "additionalProperties": false, "required": ["baseline", "comparison", "population", "method", "timeWindow"], "properties": {"baseline": {"type": "string", "minLength": 1}, "comparison": {"type": "string", "minLength": 1}, "population": {"type": "string", "minLength": 1}, "method": {"type": "string", "minLength": 1}, "timeWindow": {"type": "string", "minLength": 1}}}}}},
         "id": { "type": "string", "minLength": 1 },
         "slug": { "type": "string" },
         "sceneRole": { "$ref": "#/$defs/sceneRole" },
@@ -139,6 +157,9 @@
           "additionalProperties": false,
           "description": "On product-screencast, the on-screen proof of this spoken claim (product-picture.md).",
           "properties": {
+            "actor": {"type": "string"},
+            "object": {"type": "string"},
+            "significance": {"type": "string"},
             "screen": { "type": "string" },
             "control": { "type": "string" },
             "action": { "type": "string" },

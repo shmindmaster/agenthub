@@ -812,3 +812,14 @@ pwsh -NoProfile -File .\tests\Run-AllTests.ps1
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All
 repowise status -w   # from C:\Repos
 ```
+
+## Consulting communication extension
+
+Media Studio 2.10.0 adds optional consulting-demo, technical-walkthrough and
+product-update communication profiles over the existing film types. Decision
+briefs, action-title storyboards, scoped evidenceClaims and causal uiProof are
+checked by the existing story/lint gates; narration rules recognize procedure
+revision and release context. One on-demand consulting reference carries the
+comprehension rubric and Go/No-Go, Pink, Red and Gold stage mapping. Product
+2.2.1 and Browser 1.3.3 extend their existing capture handoffs. Source versions
+and test results do not establish that every installed host has updated.

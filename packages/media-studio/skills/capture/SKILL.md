@@ -29,3 +29,5 @@ Deterministic takes are Playwright CLI or Test from the external workspace. Expl
 - `references/abacare-lexicon.json`: Read when checking ABACare pronunciation.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+
+For consulting profiles, load [consulting communication](../video/references/consulting-communication.md). Capture source, action, human decision and held result legibly at the delivered viewing size. Carry actor/object/action/response/result/significance from uiProof. Keep proposed diagrams visibly distinct from supported connections.

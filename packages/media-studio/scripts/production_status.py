@@ -20,6 +20,7 @@ a provider. Exit 0 always, 1 with --strict when any phase is not PASS.
 from __future__ import annotations
 
 import argparse
+import hashlib
 from datetime import date
 import json
 from pathlib import Path
@@ -27,6 +28,7 @@ import re
 import sys
 
 PHASES = ["develop", "preproduction", "production", "post", "delivery"]
+REVIEW_STAGES = {"develop": "Go/No-Go", "preproduction": "Pink", "production": "Red", "post": "Gold", "delivery": "Gold"}
 NEXT = {
     "develop": "Use the develop skill: fill the case, treatment, beat sheet and screenplay, run validate-narration.mjs, then ask the owner to approve.",
     "preproduction": "Use the plan skill: write the picture plan, run screenplay_breakdown.py, check_picture_relevance.py and check_visual_variety.py, show the owner the picture table and the cost.",
@@ -85,8 +87,10 @@ def check_develop(root, prod):
         r.append("missing story/beat-sheet.json")
     else:
         beats = jload(bs).get("beats") or []
-        if len(beats) < 3 or any(not (b.get("id") and b.get("role") and b.get("summary") and b.get("picture")) for b in beats) or "TODO" in bs.read_text(encoding="utf-8"):
-            r.append("story/beat-sheet.json needs 3+ beats with id, role, summary and picture, and no TODO")
+        job = jload(root / "job.json") if (root / "job.json").exists() else {}
+        minimum = 1 if job.get("communicationProfile") == "product-update" else 3
+        if len(beats) < minimum or any(not (b.get("id") and b.get("role") and b.get("summary") and b.get("picture")) for b in beats) or "TODO" in bs.read_text(encoding="utf-8"):
+            r.append(f"story/beat-sheet.json needs {minimum}+ beats with id, role, summary and picture, and no TODO")
     sp = root / "story/screenplay.json"
     if not sp.exists():
         r.append("missing story/screenplay.json")
@@ -173,8 +177,23 @@ def check_post(root, prod):
 
 def check_delivery(root, prod):
     r = []
-    if not list((root / "out").glob("*.srt")):
+    job = jload(root / "job.json") if (root / "job.json").exists() else {}
+    policy = job.get("captionPolicy", {}).get("mode", "sidecar")
+    if policy == "sidecar" and not list((root / "out").glob("*.srt")):
         r.append("no captions sidecar (.srt) in out/")
+    elif policy not in ("sidecar", "selectable", "open"):
+        r.append("unknown captionPolicy mode")
+    elif policy in ("selectable", "open"):
+        review_path = root / "qa/story-experience-review.json"
+        review = jload(review_path) if review_path.exists() else {}
+        captions = review.get("captions", {})
+        artifact = root / str(captions.get("artifactPath", ""))
+        safe = artifact.resolve().is_relative_to(root.resolve())
+        if not (safe and artifact.is_file() and captions.get("mode") == policy
+                and captions.get("deliverySurface") == job.get("captionPolicy", {}).get("deliverySurface")
+                and captions.get("verdict") == "PASS"
+                and captions.get("sha256") == hashlib.sha256(artifact.read_bytes()).hexdigest()):
+            r.append("consolidated story review needs a matching, exact-artifact caption/player check")
     if not prod["approvals"].get("delivered"):
         r.append("owner has not recorded delivery")
     return r
@@ -196,6 +215,8 @@ def status(root):
         out.append({"phase": ph, "state": "PASS" if not reasons else "FAIL", "reasons": reasons})
         blocked = bool(reasons)
     cur = next((p for p in out if p["state"] != "PASS"), None)
+    for phase in out:
+        phase["reviewStage"] = REVIEW_STAGES[phase["phase"]]
     return {"title": prod.get("title"), "phases": out, "current": cur["phase"] if cur else None,
             "next": NEXT[cur["phase"]] if cur else "All phases pass.", "complete": cur is None}
 

@@ -259,7 +259,7 @@ function lintBeatShape(beat, where, err) {
 }
 
 function lintBeatText(beat, where, claimsById, err, warn, scanText, mode, names) {
-  const texts = [...sentences(beat.narration || ''), ...(beat.onScreenText ? [beat.onScreenText] : [])];
+  const texts = [...sentences(beat.narration || ''), ...(beat.onScreenText ? [beat.onScreenText] : []), ...(beat.actionTitle ? [beat.actionTitle] : [])];
   const verified = beatIsFactual(beat, mode, names);
   // Claim wording is checked on every factual line and on every line that names the product, in any mode and
   // under any label: "guaranteed" said of the product is a claim even inside a story.

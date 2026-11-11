@@ -22,3 +22,13 @@ Mark each cell PASS, FAIL or NOT RUN. For every FAIL give the numbered steps to 
 ## Keep the checks
 
 Journeys worth repeating become specs for the project's own test runner. With Playwright: `trace: 'retain-on-failure'`, `video: 'retain-on-failure'`, `screenshot: 'only-on-failure'`, and web-first assertions such as `await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()`. Run `npx playwright test`; read the project's existing config before adding one.
+
+## Evidence capture handoff
+
+For a consulting product capture, use an isolated session. Receive the intended
+viewport and delivery size, target control, expected response, readable held
+result, and recovery/reset instructions from the existing product/media handoff.
+Keep source, action, decision and result understandable. Report actual response
+and deviations; a file upload must not be described as live integration. Reset
+only through the authorized product-owned procedure. Return capture evidence to
+Media Studio; composition, narration and final video review stay there.

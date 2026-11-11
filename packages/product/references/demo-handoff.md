@@ -63,3 +63,18 @@ Use these headings, in order:
 - `shortestPathToReady`, when `verdict` is `FAIL`
 
 `media-studio` consumes this handoff and fails closed on a stale revision, a missing criterion or an open `product-fix-required` defect.
+
+## Consulting proof handoff
+
+For a consulting-demo, add the viewer's business question and three complementary
+proof moments in one workflow (updates need only their relevant proof). For each,
+record source/integration status, actor, object, action, expected visible response,
+result and limitations. Distinguish a file import, demonstrated adapter and proposed
+interface. Record implementation state, data type, AI execution mode and business
+validation independently. Include discovery references only when attributable;
+synthetic success does not establish customer adoption, ROI or priority.
+
+Keep these in the existing handoff, not another evidence manifest. The eleven
+readiness criteria and open-product-defect block still apply. Media Studio reads
+product repositories; product code, fixtures and engineering defects remain owned
+by product work. It must not alter the application to make a recording succeed.

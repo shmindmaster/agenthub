@@ -1,5 +1,5 @@
 import { creativeMode, inspectRepresentation } from './creative-modes.mjs';
-import { FILM_TYPES, HOOK_ALIASES, NARRATIVE_ALIASES, fills, isKnownRole, pick, resolveFilmType, rolesOf } from './story-profiles.mjs';
+import { FILM_TYPES, HOOK_ALIASES, NARRATIVE_ALIASES, fills, isKnownRole, pick, resolveFilmType, rolesOf, inspectCommunication } from './story-profiles.mjs';
 
 // Structural story gate. Runs before any paid media call.
 //
@@ -18,7 +18,7 @@ const clean = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').t
 const meaningful = (v) => words(v).length >= 2 && !/^(?:tbd|n\/a|placeholder|todo|unknown|lorem)\b/i.test(String(v).trim());
 /** The first sentence, split on sentence ends and not on the dot in "$1.5" or "Dr.". */
 const firstSentence = (v) => String(v || '').trim().split(/(?<=[.!?])\s+(?=[A-Z0-9"'“(])/)[0] || '';
-const beatText = (beat) => `${beat?.narration || ''} ${beat?.onScreenText || ''}`;
+const beatText = (beat) => `${beat?.narration || ''} ${beat?.onScreenText || ''} ${beat?.actionTitle || ''}`;
 
 /** Every name the product may be introduced by: the spec's, plus the brand file's spoken or written variants. */
 export function productNames(spec, brand) {
@@ -42,6 +42,7 @@ const overrideFor = (overrides, rule) => overrides.find((o) => o.rule === rule |
  */
 export function inspectNarrativeArc(spec, cut, estimateBeatSeconds, options = {}) {
   const findings = inspectRepresentation(spec, cut, productNames(spec, options.brand)).map((f) => ({ rule: `truth.${f.code}`, ...f }));
+  findings.push(...inspectCommunication(spec, cut, estimateBeatSeconds));
   const mode = creativeMode(spec);
   const overrides = storyOverrides(spec, cut);
   const add = (rule, message, where = cut.id) => findings.push({ code: 'narrative-arc', rule: `story.${rule}`, message, where });

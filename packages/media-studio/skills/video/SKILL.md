@@ -43,3 +43,5 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 - `references/operations.md`: Read when needing workspace or tool paths, paid spend, review repairs or a short ad.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+
+For consulting product proof, technical walkthroughs or release highlights, load [consulting communication](references/consulting-communication.md). Select the communicationProfile in the existing brief and pass it through development, capture and review; reuse accepted proof for audience variants while retaining limitations.

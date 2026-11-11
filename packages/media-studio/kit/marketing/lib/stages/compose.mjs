@@ -132,7 +132,7 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
   const lastIndex = cut.beats.length - 1;
   cut.beats.forEach((beat, i) => {
     const seg = timeline.segments.find((s) => s.id === beat.id);
-    const base = { id: beat.id, kind: beat.kind, startSec: seg.startSeconds, durationSec: seg.durationSeconds, headline: beat.onScreenText };
+    const base = { id: beat.id, kind: beat.kind, startSec: seg.startSeconds, durationSec: seg.durationSeconds, headline: beat.actionTitle || beat.onScreenText };
     if (beat.kind === 'ui') {
       const clip = capture.find((c) => c.beatId === beat.id);
       const { entry } = resolveClip(ctx, beat);

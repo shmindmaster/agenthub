@@ -50,3 +50,5 @@ Pin each name in `scripts/pronunciation_lexicon.json` before any voice is genera
 Show the owner the logline, the beat sheet table (beat, role, picture) and the first and last lines. When they say yes, record it: `py -3 scripts/production_status.py <jobRoot> --approve case` and `--approve screenplay`. Then `plan`.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+
+For a consulting demo, technical walkthrough or product update, load [consulting communication](../video/references/consulting-communication.md). Write actionTitle conclusions first, attach supportingArgument, proofRefs, scoped claims and uiProof, then run check-story on the brief. Review its titlesOnly output at Pink; lock the argument and visible proof before narration or recapture.

@@ -99,7 +99,7 @@ export function build(JOBROOT) {
     if (!d) { errors.push(`no scene in the picture plan for cue ${c.id}`); return null; }
     if (!d.visual || !d.visual.kind) errors.push(`scene ${c.id} has no visual.kind`);
     const visual = resolveAnchors(d.visual, c.id, resolve1, counter);
-    return { id: c.id, kicker: d.kicker ?? "", title: d.title ?? "", bullets: [], accent: d.accent ?? "#3DDC84", visual,
+    return { id: c.id, kicker: d.kicker ?? "", title: d.actionTitle ?? d.title ?? "", bullets: [], accent: d.accent ?? "#3DDC84", visual,
       visualScale: d.visualScale ?? DEFAULT_SCALE[visual?.kind] ?? 1,
       durationSeconds: +((Math.round(edges[i + 1] * FPS) - Math.round(edges[i] * FPS)) / FPS).toFixed(6) };
   }).filter(Boolean);

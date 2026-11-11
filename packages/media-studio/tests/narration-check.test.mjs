@@ -52,6 +52,38 @@ function makeJob(name, { lines, sp, job = { kind: "explainer", syntheticData: tr
 // Replace one scene's narration in the clean script.
 const withLine = (index, text) => CLEAN.map((l, i) => (i === index ? text : l));
 
+test('consulting narration permits procedure revision and a meaningful conclusion, but keeps exact-repeat failures', () => {
+  const lines = withLine(2, 'The procedure revision changes the assessment requirement.');
+  const extra = { communicationProfile: 'consulting-demo', primaryTakeaway: CLEAN[0] };
+  let root = makeJob('consulting-domain', { sp: screenplay(lines, extra) });
+  assert.equal(run([root]).code, 0, JSON.stringify(report(root).errors));
+  root = makeJob('consulting-film-process', { sp: screenplay(withLine(2, 'The video revision changes the assessment requirement.'), extra) });
+  assert.equal(run([root]).code, 1);
+  assert.ok(report(root).errors.some((e) => e.includes('version')));
+  root = makeJob('consulting-repeat', { sp: screenplay(withLine(5, CLEAN[3]), extra) });
+  assert.equal(run([root]).code, 1);
+  assert.ok(report(root).errors.some((e) => e.includes('redundant')));
+});
+
+test('update narration can explain what changed; creative mode cannot bypass profile narration rules', () => {
+  const extra = { communicationProfile: 'product-update', primaryTakeaway: CLEAN[0] };
+  let root = makeJob('update-change', { sp: screenplay(withLine(2, 'What changed: the request now retains its source.'), extra) });
+  assert.equal(run([root]).code, 0, JSON.stringify(report(root).errors));
+  root = makeJob('profile-mode-bypass', { sp: screenplay(withLine(2, 'Welcome back, this footage shows the video revision.'), extra), job: { creativeMode: 'fictional-story' } });
+  assert.equal(run([root]).code, 1);
+  assert.ok(report(root).errors.some((e) => e.includes('greeting')));
+});
+
+test('a short hook does not substitute for the answer within fifteen seconds, including in locked timelines', () => {
+  const extra = { communicationProfile: 'consulting-demo', primaryTakeaway: CLEAN[4] };
+  const root = makeJob('answer-late', { sp: screenplay(CLEAN, extra) });
+  assert.equal(run([root]).code, 1);
+  assert.ok(report(root).errors.some((e) => e.includes('answer-15s')));
+  const locked = makeJob('answer-timeline', { sp: screenplay(CLEAN, { ...extra, primaryTakeaway: CLEAN[0] }), timeline: { durationSeconds: 60, segments: [{ id: 'S01', text: 'The queue contains requests.' }] } });
+  assert.equal(run([locked]).code, 1);
+  assert.ok(report(locked).errors.some((e) => e.includes('answer-15s')));
+});
+
 test("clean script passes: hook fits five seconds, names the promise, end-card disclosure, zero fluff", () => {
   const root = makeJob("pass");
   const r = run([root]);

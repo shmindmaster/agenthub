@@ -48,3 +48,5 @@ A failing gate goes back to the table, never to the threshold.
 `compose` delivers. A film that has not been viewed as frames is not filed as final.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+
+For consulting profiles, load [consulting communication](../video/references/consulting-communication.md). Carry the decision brief, actionTitle, claim scope and proofRefs through the picture plan. Pink reviews titles alone and the claim-to-scene map; calculate scene totals against the approved ceiling before voice generation.

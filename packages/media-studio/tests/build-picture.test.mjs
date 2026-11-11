@@ -45,12 +45,13 @@ test("a resolver places a merged-boundary word and a percent number", () => {
 
 test("builds props with word-anchored reveals and exact scene lengths", () => {
   const root = job({ scenes: [
-    { id: "a", title: "Trucks", visual: { kind: "svg", groups: [{ at: "@declined", svg: "<text>Penske declined</text>" }, { at: "@November", svg: "<text>November 19</text>" }] } },
+    { id: "a", title: "Trucks", actionTitle: "The carrier declined four trucks.", visual: { kind: "svg", groups: [{ at: "@declined", svg: "<text>Penske declined</text>" }, { at: "@November", svg: "<text>November 19</text>" }] } },
     { id: "b", title: "Share", visual: { kind: "chart", form: "waffle", items: [{ label: "of the volume", value: 37, at: "@37" }] } } ] });
   const r = run(root);
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const props = JSON.parse(readFileSync(join(root, "picture/briefing-props.json"), "utf8"));
   assert.equal(props.scenes.length, 2);
+  assert.equal(props.scenes[0].title, "The carrier declined four trucks.");
   const g = props.scenes[0].visual.groups;
   assert.ok(g[0].at < g[1].at, "reveals follow the order the words are spoken");
   assert.equal(typeof g[0].at, "number");

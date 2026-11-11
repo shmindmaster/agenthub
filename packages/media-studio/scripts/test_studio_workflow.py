@@ -1,6 +1,7 @@
 """Offline lifecycle test: scaffold a production and walk it through every phase with fabricated evidence."""
 from datetime import date
 import json
+import hashlib
 import os
 from pathlib import Path
 import tempfile
@@ -87,6 +88,22 @@ class Lifecycle(unittest.TestCase):
     def test_unknown_approval_is_refused(self):
         with self.assertRaises(SystemExit):
             ps.approve(self.root, "shipit")
+
+    def test_review_stage_names_share_the_existing_status(self):
+        self.assertEqual([p['reviewStage'] for p in ps.status(self.root)['phases']],
+                         ['Go/No-Go', 'Pink', 'Red', 'Gold', 'Gold'])
+
+    def test_selectable_captions_require_the_exact_export_and_player_in_the_consolidated_review(self):
+        w(self.root, 'job.json', {'captionPolicy': {'mode': 'selectable', 'deliverySurface': 'web player'}})
+        prod = {'approvals': {'delivered': '2026-11-11'}}
+        self.assertTrue(ps.check_delivery(self.root, prod))
+        artifact = w(self.root, 'out/film.mp4', 'fixture')
+        review = {'captions': {'mode': 'selectable', 'deliverySurface': 'web player', 'verdict': 'PASS',
+                              'artifactPath': 'out/film.mp4', 'sha256': hashlib.sha256(artifact.read_bytes()).hexdigest()}}
+        w(self.root, 'qa/story-experience-review.json', review)
+        self.assertEqual(ps.check_delivery(self.root, prod), [])
+        artifact.write_text('recut', encoding='utf-8')
+        self.assertTrue(ps.check_delivery(self.root, prod))
 
     def test_full_walk_to_complete(self):
         self.fill_develop()

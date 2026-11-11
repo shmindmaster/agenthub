@@ -19,7 +19,7 @@ Check the runtime first; repair a stale one from `MEDIA_STUDIO_PACKAGE_ROOT`; ne
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/briefing-kit'
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '2.9.0') { throw "Stale runtime: $m" } }
+foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '2.10.0') { throw "Stale runtime: $m" } }
 ```
 
 ## Pick the tool
@@ -54,3 +54,5 @@ Use a new id and checksum for each render; never overwrite a reviewed candidate.
 - `../video/references/product-picture.md`: Read when any beat is `screen`.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+
+For consulting profiles, load [consulting communication](../video/references/consulting-communication.md). Preserve readable proof and approved audio direction across takes and derived cuts. Compare a restrained bed with silence when requested. Each export retains limitations and its own caption policy, framing and review.

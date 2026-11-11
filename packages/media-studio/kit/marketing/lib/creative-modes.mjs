@@ -50,7 +50,7 @@ export function beatIsFactual(beat = {}, mode = 'verified-demo', names = []) {
   if (beat.truthStatus === 'verified') return true;
   // "Proposed" is a claim about the future and is covered by the concept disclosure.
   if (beat.truthStatus === 'proposed') return false;
-  const named = mentions(`${beat.narration || ''} ${beat.onScreenText || ''}`, names);
+  const named = mentions(`${beat.narration || ''} ${beat.onScreenText || ''} ${beat.actionTitle || ''}`, names);
   // A scene may be fictional or illustrative. A sentence about what the product does is not made so by a label.
   if (CONCEPT_STATUSES.has(beat.truthStatus)) return named && !INVENTED_MODES.has(mode);
   if (mode === 'verified-demo') return true;
@@ -102,7 +102,7 @@ export function inspectRepresentation(spec, cut, names = []) {
     }
   }
   if (INVENTED_MODES.has(mode) && !isConceptPresentation(spec, cut) && names.length
-      && beats.some((b) => !b.truthStatus && mentions(`${b.narration || ''} ${b.onScreenText || ''}`, names))) {
+      && beats.some((b) => !b.truthStatus && mentions(`${b.narration || ''} ${b.onScreenText || ''} ${b.actionTitle || ''}`, names))) {
     const label = [spec.conceptDisclosure, spec.labels].filter(Boolean).join(' ');
     if (!DECLARATION.test(label)) {
       add('concept-disclosure', 'This invented film names the product. Say that it is fiction or a concept (conceptDisclosure or labels), or classify the beats that describe what the product does today as verified and give them evidence.');

@@ -37,13 +37,14 @@ const SHOWS_PRODUCT = new Set(['demonstration', 'demo', 'proof', 'step', 'steps'
 
 /** One beat in the kit's shape, from whatever a planner wrote. */
 export function normalizeBeat(raw, index) {
-  const storyRole = raw.storyRole ?? raw.role;
+  const storyRole = raw.storyRole ?? raw.role ?? raw.sceneRole;
   const narration = raw.narration ?? raw.line ?? raw.spoken ?? '';
   const onScreenText = raw.onScreenText ?? raw.onScreen ?? raw.text;
   const role = String(storyRole || '').trim().toLowerCase();
   const start = Number(raw.start ?? raw.startSeconds);
   const end = Number(raw.end ?? raw.endSeconds);
   const beat = {
+    ...raw,
     id: raw.id || `B${index + 1}`,
     storyRole,
     narration,
@@ -63,7 +64,7 @@ export function normalizeBeat(raw, index) {
 export function normalizeCuts(brief) {
   const cuts = Array.isArray(brief.cuts) && brief.cuts.length
     ? brief.cuts
-    : [{ id: 'main', targetSeconds: brief.targetSeconds, beats: brief.beats || brief.spine || [], filmType: undefined }];
+    : [{ id: 'main', targetSeconds: brief.targetSeconds, beats: brief.beats || brief.spine || brief.scenes || [], filmType: undefined }];
   return cuts.map((cut, i) => ({
     ...cut,
     id: cut.id || `cut-${i + 1}`,
@@ -95,6 +96,7 @@ export function checkStory(brief, brand = {}) {
       id: cut.id, filmType: type.id, compact: Boolean(type.compact), seconds: Math.round(Math.max(cut.targetSeconds, estimated)),
       requires: type.unknown ? null : describeFilmType(type.id),
       failures, waived,
+      titlesOnly: cut.beats.filter((b) => b.actionTitle).map((b) => ({ id: b.id, actionTitle: b.actionTitle })),
     });
   }
   return report;
