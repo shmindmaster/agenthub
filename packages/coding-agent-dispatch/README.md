@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.5.0 (the root `plugin.json` is the single version authority; `SKILL.md`
+Version 0.6.0 (the root `plugin.json` is the single version authority; `SKILL.md`
 metadata and every host projection carry the same number and
 `tests/validate-dispatch.ps1` enforces parity). The package is a full plugin:
 `.claude-plugin`, `.codex-plugin`, `.cursor-plugin`, `.devin-plugin` and
@@ -166,3 +166,43 @@ model pass-through, malformed-id and subscription-only refusals,
 Unicode/multiline transport, alias policy gates, missing binaries and bounded
 hidden process-tree termination. `-DispatcherPath` can demonstrate regression
 failures against an older copy without changing installed hosts.
+
+## reviewer/ — the ready-only independent PR reviewer (SH-4416)
+
+`reviewer/Invoke-PrReview.ps1` reviews one pull request through this
+package's dispatcher on a host different from the one that authored the PR
+(branch prefix or a `[host: <id>]` PR-body marker). The script issues no
+write command, but this does not make the model run read-only: the
+dispatcher has no enforced read-only mode. The reviewer fences the pull
+request's text as data with a per-run delimiter, withholds GitHub tokens and
+`*_API_KEY` / `*_TOKEN` / `*_SECRET` variables from the dispatcher process
+and runs it in an empty temporary directory, and a model that follows
+injected text can still write wherever its host's permissions allow.
+Automatic triggering must not be enabled until the dispatcher has an
+enforced read-only mode; until then the tool is run manually by the owner's
+session. Review markers are trusted only at the start of a comment authored
+by the reviewer's own GitHub login (`gh api user` or `-ReviewerLogin`). It refuses a
+draft (exit 3), skips a head SHA that already carries a review verdict unless
+`-Force`, never reviews on `synchronize`, retries a malformed answer once and
+then reports BLOCKED, and never approves, merges, pushes or edits. It posts
+at most one bounded summary comment carrying a hidden idempotence marker, and
+only with `-Post`. The owner keeps merge control.
+
+```powershell
+pwsh -NoProfile -File .\packages\coding-agent-dispatch\reviewer\Invoke-PrReview.ps1 `
+  -Repo shmindmaster/agenthub -Pr 110 -Trigger ready_for_review -Post
+pwsh -NoProfile -File .\packages\coding-agent-dispatch\reviewer\Invoke-PrReview.ps1 `
+  -Repo shmindmaster/agenthub -Pr 110 -Status
+```
+
+The review brief carries the PR title/body, linked issue ids, the
+base-to-head diff (bounded at 50000 characters per file group, 8 groups,
+with everything beyond that reported as not covered), the repo's `AGENTS.md`
+at the reviewed head, and the reviewer instructions in
+`packages/product/agents/reviewer.agent.md`. Subscription routes only: the
+model choice is passed to the dispatcher, which enforces the
+subscription-only refusals. `tests/Test-PrReview.ps1` runs the whole
+behavior with a stubbed `gh` and dispatcher — no network, no model run.
+How this will later be triggered (GitHub `pull_request` `ready_for_review`
+through AWS CodeBuild, SH-4411), rollback and the run instructions are in
+`docs/runbooks/pr-review.md`.
