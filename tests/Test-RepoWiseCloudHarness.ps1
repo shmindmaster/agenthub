@@ -28,7 +28,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$cloud = Join-Path $repoRoot 'packages\repowise\cloud'
+$cloud = (Join-Path (Join-Path (Join-Path $repoRoot 'packages') 'repowise') 'cloud')
 $hostExe = (Get-Process -Id $PID).Path
 
 $failures = [Collections.Generic.List[string]]::new()
@@ -41,7 +41,7 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 
 # A real installed interpreter (the Microsoft Store stub is refused, same as
 # the bounded-index test).
-$python = Get-Command python.exe -All -CommandType Application | ForEach-Object {
+$python = Get-Command python.exe, python3, python -All -CommandType Application -ErrorAction SilentlyContinue | ForEach-Object {
     try { & $_.Source -c 'import sys; print(sys.executable)' 2>$null | Select-Object -Last 1 } catch { }
 } | Where-Object { $_ -and $_ -notlike '*\WindowsApps\*' -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
 
@@ -144,7 +144,7 @@ print("PROBE-OK")
             ($LASTEXITCODE -eq 0 -and $capOut -match 'PROBE-OK') $capOut
         # Second review: no field (_meta and the like) may carry an uncapped
         # payload, and the size is measured as written on the wire.
-        $wireProbe = Join-Path $cloud 'samples\context_cap_probe.py'
+        $wireProbe = (Join-Path (Join-Path $cloud 'samples') 'context_cap_probe.py')
         $wireOut = & $python $wireProbe ($cloud -replace '\\', '/') 2>&1 | Out-String
         Report 'context_cap holds the wire size under the cap for every field, non-ASCII text and batches' `
             ($LASTEXITCODE -eq 0 -and $wireOut -match '(?m)^ALL OK' -and $wireOut -notmatch 'BAD') $wireOut
@@ -154,7 +154,7 @@ print("PROBE-OK")
 }
 
 # --- 3. benchmark harness produces the table from the sample logs ------------
-$samples = Join-Path $cloud 'samples\benchmark'
+$samples = (Join-Path (Join-Path $cloud 'samples') 'benchmark')
 $benchOut = & $hostExe -NoProfile -File (Join-Path $cloud 'Measure-RepoWiseBenefit.ps1') `
     -TaskListPath (Join-Path $samples 'tasks.json') `
     -NativeLogPath (Join-Path $samples 'native.bench.txt') `
@@ -177,7 +177,7 @@ $findingsScratch = Join-Path ([IO.Path]::GetTempPath()) ('rwcloud-findings-' + [
 New-Item -ItemType Directory -Path $findingsScratch | Out-Null
 try {
     $outFile = Join-Path $findingsScratch 'findings.json'
-    $samplesF = Join-Path $cloud 'samples\findings'
+    $samplesF = (Join-Path (Join-Path $cloud 'samples') 'findings')
     $findOut = & $hostExe -NoProfile -File (Join-Path $cloud 'New-RepoWiseFindings.ps1') `
         -Repository 'example-repo-a' -Revision 'aaaa1111bbbb2222' -RepoWiseVersion '0.60.1' `
         -HealthPath (Join-Path $samplesF 'health.json') `

@@ -44,7 +44,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$cloud = Join-Path $repoRoot 'packages\repowise\cloud'
+$cloud = (Join-Path (Join-Path (Join-Path $repoRoot 'packages') 'repowise') 'cloud')
 
 $failures = [Collections.Generic.List[string]]::new()
 $script:reported = 0
