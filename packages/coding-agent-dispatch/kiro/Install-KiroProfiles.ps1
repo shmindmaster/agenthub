@@ -38,11 +38,19 @@ $changed = 0
 foreach ($dir in $ManagedFiles.Keys) {
     $srcDir = Join-Path $source $dir
     $dstDir = Join-Path $target $dir
+    $dirItem = Get-Item -LiteralPath $dstDir -Force -ErrorAction SilentlyContinue
+    if ($dirItem -and ($dirItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        Write-Host ("note: {0} is a junction or link; managed files are written to its target" -f $dir)
+    }
     foreach ($name in $ManagedFiles[$dir]) {
         $src = Join-Path $srcDir $name
         $dst = Join-Path $dstDir $name
         $srcHash = Get-Sha256 $src
         if (-not $srcHash) { Write-Host ("missing-in-repo  {0}/{1}" -f $dir, $name); continue }
+        # A managed name that is a directory, or a link pointing elsewhere, is never written through.
+        $existing = Get-Item -LiteralPath $dst -Force -ErrorAction SilentlyContinue
+        if ($existing -and $existing.PSIsContainer) { Write-Host ("refused-dir      {0}/{1}" -f $dir, $name); continue }
+        if ($existing -and ($existing.Attributes -band [IO.FileAttributes]::ReparsePoint)) { Write-Host ("refused-link     {0}/{1}" -f $dir, $name); continue }
         $dstHash = Get-Sha256 $dst
         $state = if (-not $dstHash) { 'missing' } elseif ($dstHash -eq $srcHash) { 'current' } else { 'drift' }
         Write-Host ("{0,-16} {1}/{2}" -f $state, $dir, $name)

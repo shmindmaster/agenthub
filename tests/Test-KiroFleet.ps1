@@ -37,7 +37,8 @@ try {
     Check 'audit is default and exits 0' ($r.Exit -eq 0) $r.Text
     Check 'audit reports missing' ($r.Text -match 'missing\s+agents/ah-readonly.json')
     Check 'audit reports owner-authored' ($r.Text -match 'owner-authored\s+agents/owner-custom.json')
-    Check 'audit writes nothing' (-not (Test-Path (Join-Path $temp '.kiro\agents\ah-readonly.json')))
+    $afterAudit = @(Get-ChildItem (Join-Path $temp '.kiro') -Recurse -File | ForEach-Object FullName)
+    Check 'audit writes nothing' ($afterAudit.Count -eq 2 -and -not (Test-Path (Join-Path $temp '.kiro\steering'))) ($afterAudit -join ', ')
 
     $r = RunInstaller @('-Apply', '-UserProfile', $temp)
     Check 'apply exits 0' ($r.Exit -eq 0) $r.Text
@@ -66,6 +67,35 @@ try {
     $r = RunInstaller @('-Apply', '-UserProfile', $temp)
     Check 'apply replaces drifted file' ((Sha $drifted) -eq $before)
     Check 'apply prints both hashes' ($r.Text -match "before=$drifthash after=$before")
+
+    # An owner-authored steering file is left alone.
+    $ownerSteer = Join-Path $temp '.kiro\steering\owner-notes.md'
+    "---`ninclusion: manual`n---`nowner" | Set-Content -Path $ownerSteer -Encoding ascii
+    $ownerSteerHash = Sha $ownerSteer
+    $r = RunInstaller @('-Apply', '-UserProfile', $temp)
+    Check 'apply leaves owner-authored steering untouched' ((Sha $ownerSteer) -eq $ownerSteerHash -and $r.Text -match 'owner-authored\s+steering/owner-notes.md')
+
+    # A directory at a managed name is refused, not written into.
+    $asDir = Join-Path $ownerAgents 'ah-architect.json'
+    Remove-Item -LiteralPath $asDir -Force
+    New-Item -ItemType Directory -Path $asDir | Out-Null
+    $r = RunInstaller @('-Apply', '-UserProfile', $temp)
+    Check 'apply refuses a directory at a managed name' ($r.Text -match 'refused-dir\s+agents/ah-architect.json' -and @(Get-ChildItem $asDir -Force).Count -eq 0) $r.Text
+    Remove-Item -LiteralPath $asDir -Recurse -Force
+
+    # A file link at a managed name is refused, so a file outside the profile is never overwritten.
+    $outside = Join-Path $temp 'outside.json'
+    'outside' | Set-Content -Path $outside -Encoding ascii
+    $outsideHash = Sha $outside
+    $linkPath = Join-Path $ownerAgents 'ah-architect.json'
+    $linked = $false
+    try { New-Item -ItemType SymbolicLink -Path $linkPath -Target $outside -ErrorAction Stop | Out-Null; $linked = $true } catch { }
+    if ($linked) {
+        $r = RunInstaller @('-Apply', '-UserProfile', $temp)
+        Check 'apply refuses a link at a managed name' ($r.Text -match 'refused-link\s+agents/ah-architect.json' -and (Sha $outside) -eq $outsideHash) $r.Text
+    } else {
+        Write-Host 'SKIP: symbolic links cannot be created here (no Developer Mode or privilege)'
+    }
 } finally {
     if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }
 }
@@ -101,7 +131,20 @@ foreach ($w in $recipes) {
     Check "recipe parses with steps: $($w.Name)" ($j -and $j.name -and @($j.steps).Count -gt 0)
     Check "recipe states three-iteration limit: $($w.Name)" ($text -match 'at most three remediation iterations')
     Check "recipe states no merge: $($w.Name)" ($text -match 'Never merge')
+    # A step that must run a command cannot go to an agent without a shell tool.
+    foreach ($s in @($j.steps)) {
+        $needsShell = $s.prompt -match '(?i)\b(using gh|run (the|a)\b|gh pr|repowise (status|health|update)|Invoke-\w+\.ps1)'
+        $profilePath = Join-Path $kiro "agents\$($s.agent).json"
+        if ($needsShell -and (Test-Path $profilePath)) {
+            $tools = @((Get-Content $profilePath -Raw | ConvertFrom-Json).tools)
+            Check "step $($w.BaseName)/$($s.id) has a shell agent" ($tools -contains 'shell') "$($s.agent)"
+        }
+    }
 }
+$knownBuiltIns = @('wf-planner', 'wf-coder', 'semantic_reviewer')
+$unknown = @(foreach ($w in $recipes) { foreach ($s in @((Get-Content $w.FullName -Raw | ConvertFrom-Json).steps)) {
+    if (-not (Test-Path (Join-Path $kiro "agents\$($s.agent).json")) -and $s.agent -notin $knownBuiltIns) { "$($w.Name):$($s.agent)" } } })
+Check 'every recipe agent is a managed profile or a listed workflow built-in' ($unknown.Count -eq 0) ($unknown -join ', ')
 
 # Public safety
 $secret = '(?i)(AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY|(api[_-]?key|secret|token|password)\s*[:=]\s*["''][^"'']{12,})'

@@ -83,6 +83,14 @@ Format verified from the Kiro workflow authoring documentation (https://kiro.dev
 
 Every recipe states: at most three remediation iterations, no merge, release or deploy, no expensive review while the pull request is a draft, a new head commit invalidates an earlier PASS, and the reviewer is never the author. The limit is enforced by prompt text and the recipe's sequential shape, not by a loop construct.
 
+## Installer and recipe safeguards (added after review)
+
+- Managed names are matched without regard to case, as NTFS does. An owner file named `AH-INVARIANTS.md` counts as the managed `ah-invariants.md` and is replaced on `-Apply`. Do not give owner files a managed name in any case.
+- `-Apply` refuses (`refused-dir`, `refused-link`) a managed name that is a directory or a symbolic link, so it never writes through a link to a file outside the profile. A junction on the `agents` or `steering` directory itself is followed and reported with a note.
+- Recipe steps that must run `gh`, RepoWise or a script use an agent with the `shell` tool (`ah-reviewer`, `ah-engineer`). `ah-readonly` is used only for reasoning over text it is given.
+- `ah-incident` has no Sentry tool. The Sentry recipe takes `sentry_event_file`: the caller exports the issue and one complete event first, and the recipe stops BLOCKED without it.
+- `wf-planner`, `wf-coder` and `semantic_reviewer` are not listed by `kiro-cli agent list`. Their only evidence is the owner's existing `ah-project-delivery` recipe, which uses them, so they are treated as workflow built-ins. NOT ESTABLISHED against Kiro documentation.
+
 ## Not done
 
 - Nothing was installed: `-Apply` was never run against a real profile (only a temporary one in the tests); the real profile was only audited.
