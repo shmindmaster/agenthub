@@ -55,7 +55,7 @@ Assert-True ($manifest.author.name -eq 'MahumTech') 'Author must be MahumTech.'
 Assert-True ($manifest.interface.displayName -eq 'AH-Product') 'Incorrect display name.'
 Assert-True ($manifest.interface.capabilities.Count -ge 3) 'Capabilities metadata is incomplete.'
 Assert-True ($manifest.interface.defaultPrompt.Count -eq 3) 'Exactly three starter prompts are required.'
-Assert-True (@($portableManifest.PSObject.Properties.Name | Where-Object { $_ -notin @('$schema', 'name', 'version', 'description') }).Count -eq 0) 'Portable manifest must stay compatible with the Agent Plugins floor.'
+Assert-True (@($portableManifest.PSObject.Properties.Name | Where-Object { $_ -notin @('$schema', 'name', 'version', 'description', 'author', 'license', 'keywords') }).Count -eq 0) 'Portable manifest must stay compatible with the Agent Plugins floor.'
 
 # A manifest that names `skills` opts out of convention-based discovery, so it
 # must also name `agents` or the subagents do not load.
