@@ -16,7 +16,7 @@ const profile = (communicationProfile = 'consulting-demo') => ({
   audienceContext: { problemStatus: 'hypothesis', sourceRefs: [] },
   nextStep: { action: 'discuss one representative handoff', owner: 'presenter', agreedDate: null },
   captionPolicy: { mode: 'sidecar', deliverySurface: 'web player' },
-  audioDirection: { narratorIdentity: 'approved narrator', delivery: 'calm and precise', musicTreatment: 'none' },
+  audioDirection: { narratorIdentity: 'approved narrator', pronunciationRefs: [], delivery: 'calm and precise', emphasis: [], pauses: 'hold the visible result', musicTreatment: 'none' },
   limitations: ['Synthetic case; customer benefit has not been measured.'],
   narrative: { persona: 'operations reviewer', problem: 'two sources disagree', payoff: 'the supported decision is recorded', goal: 'resolve the case', change: 'source conflicts now block approval' },
 });
@@ -95,6 +95,9 @@ test('screenplay and marketing schemas accept scoped scene evidence and reject i
   const screenplay = JSON.parse(readFileSync(new URL('../schemas/screenplay.schema.json', import.meta.url), 'utf8'));
   assert.ok(screenplay.properties.communicationProfile);
   assert.ok(screenplay.$defs.scene.properties.evidenceClaims);
+  const job = JSON.parse(readFileSync(new URL('../schemas/job.schema.json', import.meta.url), 'utf8'));
+  const { product, targetSeconds, narrative, ...decisionBrief } = profile();
+  assert.deepEqual(validate(job, { ...decisionBrief, kind: 'product-screencast', title: 'Resolve one case', workspace: '/tmp/job', repositoryWritePolicy: 'read-only' }), []);
 });
 
 test('fresh copied package resolves the existing story gate without installed-host state', () => {
