@@ -613,7 +613,7 @@
     {
       "id": "vscode-insiders",
       "name": "VS Code Insiders",
-      "version": "1.146.0-insider",
+      "version": "1.147.0-insider",
       "executable": "{userHome}/AppData/Local/Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd",
       "nativePaths": {
         "mcp": "{roamingConfig}/Code - Insiders/User/mcp.json",
