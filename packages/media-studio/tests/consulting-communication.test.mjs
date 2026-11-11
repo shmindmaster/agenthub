@@ -97,6 +97,9 @@ test('screenplay and marketing schemas accept scoped scene evidence and reject i
   const screenplay = JSON.parse(readFileSync(new URL('../schemas/screenplay.schema.json', import.meta.url), 'utf8'));
   assert.ok(screenplay.properties.communicationProfile);
   assert.ok(screenplay.$defs.scene.properties.evidenceClaims);
+  const storyboard = JSON.parse(readFileSync(new URL('../schemas/storyboard.schema.json', import.meta.url), 'utf8'));
+  assert.ok(storyboard.properties.beats.items.properties.actionTitle);
+  assert.ok(storyboard.properties.beats.items.properties.sceneRole.enum.includes('demonstration'));
   const job = JSON.parse(readFileSync(new URL('../schemas/job.schema.json', import.meta.url), 'utf8'));
   const { product, targetSeconds, narrative, ...decisionBrief } = profile();
   assert.deepEqual(validate(job, { ...decisionBrief, kind: 'product-screencast', title: 'Resolve one case', workspace: '/tmp/job', repositoryWritePolicy: 'read-only' }), []);

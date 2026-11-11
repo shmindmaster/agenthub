@@ -6,6 +6,7 @@
   "additionalProperties": false,
   "required": ["title", "chosenHook", "beats"],
   "properties": {
+    "communicationProfile": {"enum": ["consulting-demo", "technical-walkthrough", "product-update"]},
     "title": { "type": "string", "minLength": 1 },
     "screenplayTitle": { "type": "string" },
     "kind": { "type": "string" },
@@ -57,11 +58,17 @@
           "sound"
         ],
         "properties": {
+          "actionTitle": {"type": "string", "minLength": 12, "maxLength": 160},
+          "supportingArgument": {"type": "string", "minLength": 1},
+          "proofRefs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "evidenceClaims": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["text", "scope", "sourceRefs", "implementationState", "dataType", "aiExecutionMode", "businessValidation"], "properties": {"text": {"type": "string", "minLength": 1}, "scope": {"enum": ["product-behavior", "measured-benefit", "proposed-interface", "customer-priority", "illustrative-scenario"]}, "sourceRefs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}, "implementationState": {"enum": ["implemented", "proposed"]}, "dataType": {"enum": ["synthetic", "customer", "public"]}, "aiExecutionMode": {"enum": ["live", "recorded", "stubbed", "none"]}, "businessValidation": {"enum": ["unvalidated", "measured", "discovery-confirmed"]}, "visibleLabel": {"type": "string", "minLength": 1}, "measurement": {"type": "object", "additionalProperties": false, "required": ["baseline", "comparison", "population", "method", "timeWindow"], "properties": {"baseline": {"type": "string", "minLength": 1}, "comparison": {"type": "string", "minLength": 1}, "population": {"type": "string", "minLength": 1}, "method": {"type": "string", "minLength": 1}, "timeWindow": {"type": "string", "minLength": 1}}}}}},
+          "uiProof": {"type": "object", "additionalProperties": false, "description": "On product-screencast, the on-screen proof of this spoken claim (product-picture.md).", "properties": {"actor": {"type": "string"}, "object": {"type": "string"}, "significance": {"type": "string"}, "screen": {"type": "string"}, "control": {"type": "string"}, "action": {"type": "string"}, "systemResponse": {"type": "string"}, "result": {"type": "string"}}},
           "id": { "type": "string", "minLength": 1 },
           "order": { "type": "integer", "minimum": 1 },
           "sceneRole": {
             "type": "string",
             "enum": [
+              "context", "problem", "solution", "demonstration", "goal", "step", "explanation", "takeaway", "recap", "next-step",
               "hook",
               "before",
               "tension",
