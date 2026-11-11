@@ -1,8 +1,11 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-browser",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "Use an existing Chrome or Edge profile for signed-in work. Run clean-state testing and capture in an isolated browser.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
   "license": "MIT",
   "keywords": [
     "browser",

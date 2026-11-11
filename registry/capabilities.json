@@ -447,7 +447,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+skills",
       "canonicalSource": "packages/product",
-      "contentHash": "1919DB41ACDC1DE892B1831161B08DE06DAADCC303687948FE16D53594C83BEE",
+      "contentHash": "E5E6F6077FEF208ABFEBE25ABC3C2F2242CE832C0B915DD1A65C4831E7A81441",
       "hashBasis": "packages/product",
       "status": "active-canonical",
       "notes": "Owns the product skills audit, design, build, verify and demo and the reviewer agent (2.1.2, no hooks). verify and demo load references/authenticated-acceptance.md, which carries the session, role, denial and data-boundary evidence an authenticated journey needs; the fleet's provider-specific contract stays in docs/runbooks/clerk-auth.md. Also owns the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
@@ -511,6 +511,14 @@
         {
           "hostId": "cline",
           "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ]
     },
@@ -522,7 +530,7 @@
       "managedSkillNames": [
         "repowise"
       ],
-      "contentHash": "DD08CCE6DDC567A121748C3815C15FEB494650F6C68D46C10378C25CCCD1269D",
+      "contentHash": "84CDEE4766AADEDD05A1B494B4C4B2B3515B0713AF1C9830A015267A0329C89A",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -613,7 +621,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "4F81431124E514CBC2BD4EFE0844522487ABD39B62DF99F6D97F4E5C155F94E6",
+      "contentHash": "E743A44FFA19EF26B4A3B762E0A929768A4E67408D41C59F1E25EC06DD52E911",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -743,14 +751,6 @@
           ]
         },
         {
-          "hostId": "kiro",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills",
-            "catalog"
-          ]
-        },
-        {
           "hostId": "mimo-code",
           "deploymentStatus": "managed-loose-skills",
           "components": [
@@ -765,6 +765,14 @@
             "skills",
             "catalog"
           ]
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the source public contract at packages/mobile-development/mobile.ps1, the AgentHub-managed deployed runtime package, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",
@@ -788,7 +796,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "0FA41F107DC03BE5F85C1715AB89728F1E03A7CF907964DA10307EF708083E7A",
+      "contentHash": "D44BD1677C7426491D78EBC2BE5A6215D21A990061F92E77D63D5B2C4C0D8970",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -875,6 +883,14 @@
         {
           "hostId": "devin",
           "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "notes": "Current public pack 2.10.0 extends the existing pipeline with consulting-demo, technical-walkthrough and product-update communication profiles, decision briefs, action titles, scoped evidenceClaims, profile-aware narration and the existing form-aware Pink review. Prior 2.9.0 added governed ElevenLabs audio lanes. Added 2026-08-25; prior public pack 2.8.0 (2026-11-10 SH-4395 story gate keyed by film type with recorded waivers, product profiles and brand-file policy for disclosure, claim wording and generated people, scripts/check-story.mjs for any product; includes 2.7.0 SH-4317 governed model-specs adapter: scripts/generate_specs.py quotes by default and spends only with --run, one structured-output request per layer (moments, overlays, captions, diagram) to the Messages API over the standard library, request-hash cache, a qa/spend-ledger.jsonl line per request, --max-usd bound, refusal recorded and never resent unchanged, one retry then fallback-needed and a non-zero exit; model-facing schemas in schemas/model-specs/ with named regions and cue-sheet anchors; deterministic resolver scripts/model-specs-resolve.mjs to timed-graphics overlays; gate scripts/validate-model-specs.mjs writes qa/model-specs-report.json and validate-viewer-release.mjs requires it only for jobs with plan/model-specs/; one Lottie rule: this lane never writes Lottie JSON; ANTHROPIC_API_KEY_BACKUP by name, admin and SDK-default key names refused; offline tests only, no provider call made). Prior 2.6.0 (2026-11-10 SH-4317 model-written specs: conditional lane claude-haiku-specs in policy/provider-routing.json and skills/visuals/references/model-written-specs.md; Claude Haiku 5.5 writes diagram source, staged scene specs and caption chunks and the kit renders them; ANTHROPIC_API_KEY_BACKUP by name only, the Admin key never generates; guidance and routing only, no new provider script). Prior 2.5.0 (workflow handoffs and recovery contracts). Prior 2.4.6 (listing and icon update). Prior 2.4.5 (2026-11-06 governed Emma2 and Andrew2 for walkthroughs, explicit Deepgram Haley batch selection with Sienna cache compatibility, and gated Azure voice guidance. Prior 2.4.4 voice recipes: Fish Laura, Seed Audio 1.0, Azure OpenAI gpt-4o-mini-tts 2025-12-15 Marin with GA Ava DragonHD fallback; live catalog names gpt-realtime-2.1 and 2.1-mini voice marin, gpt-live-1 voice marin, and azure-realtime native ava, all frozen; gpt-audio-1.5 has no confirmed English voice list; MAI-Voice-2.1 and MAI Flash stay public preview and off the adapter; direct ElevenLabs excluded. Prior 2.4.3, 2026-11-06 Windows Narrator, SAPI and OneCore voices removed and forbidden; voice has no free lane. Prior 2.4.2, 2026-11-06 quoted visuals description; SDK retake preflight follows the real transport. Prior 2.4.1, 2026-11-06 one measured IrukaDark Seedance clip, 232 credits, balance 12,568; 2.4.0 same day IrukaDark by-hand generative-clip lane in policy/provider-routing.json with credits quoted in the breakdown, priced stills generator generate_stills.py on Azure and Runware, full-bleed photo scene in the kit, stills and irukadark references); prior 2.1.3 (2026-11-04 SH-3723 Runware training-still adapter kit/cloud/runware-image.mjs via cloud-ai.mjs illustration: one model runware:z-image@0, synthetic sources only, one paid request per job with getResponse recovery, $1 per-job estimate bound, hash-bound PNG ingestion, SME review and a content-hashed output inventory jobs/runware/<id>/inventory.json schema media-studio/runware-output-inventory/1; RUNWARE_API_KEY by name only); prior 2.1.2 (2026-11-04 owner-authorized ElevenLabs speech adapter scripts/elevenlabs_cli.py inside this package, speech only, with no elevenlabs package, plugin, skill or MCP server; content_runtime project v2 epochs may pin eleven_v4); prior 2.1.0 (2026-11-03 rewrite: five skills video, generate, capture, compose, review replace media-studio, media-studio-generate, -capture, -compose and -qa; commands/video.md removed; Azure resource mt-foundary-resource with current chat, image, STT and TTS deployments; plugin.json $schema agent-plugins.org); prior 2.0.46 (2026-11-03 AssemblyAI provider and provider map; expressive meeting rehearsal recipe documents correspondence grounding, per-turn auditions, pronunciation and synchronized avatar composition, with governed-adapter limits and price caveats; documentation only, no new generation route; prior 2.0.44 (2026-10-29 Local-AI retired from the package: no local model, TTS or ASR runtime, no retired-runtime paths, MEDIA_STUDIO_ROOT media root, hosted-only defaults refuse with a clear message, historical alignment receipts stay readable, media-capabilities.md one-page reference; prior pack 2.0.42 (2026-10-29 Azure AI Services is the default provider for TTS, STT, images and avatar clips; media-studio-generate/references/azure-ai-services.md holds the capability table, eastus2 prices from the Retail Prices API, voice cast and cheapest-first routing; ElevenLabs, Deepgram and Gemini are fallbacks; no Sarosh clone in films; prior 2.0.28 (2026-10-28 fail-closed encoded input reports and exact square delivery frame; prior 2.0.27 (2026-10-27 receipt-bound Azure HD and standard-voice speech on one $1 ledger; Deepgram additional batches keep the original ledger, legacy inventory receipts and inherited ambiguity; a hero count other than exactly one scores like a missing hero; prior 2.0.26 (2026-10-27 owner direction: speaker identity is advisory only; never fail, block or re-voice on speaker similarity; Generate/ReGate-OwnerVoice verdict is integrity + ASR only, voice score is opt-in -AdvisoryIdentity and recorded for information, the content ledger no longer requires an identity acceptance gate; prior 2.0.20 (2026-10-25 native receipt-relative capture clip resolution; hash-bound missing/tampered capture evidence fails despite a matching job-root decoy; 27 focused sync CPU tests); prior 2.0.19 (2026-10-24 receipt- and clip-hash-bound pointer-arrival and existing-state observation semantics; strict transition and maximum-hold gates retained; 55 CPU tests); prior 2.0.18 response evidence quarantine and strict parsing; prior 2.0.17 (2026-10-24 governed Deepgram Sienna exact-cache TTS with shared conservative microdollar reservations and explicitly authorized bounded recovery epochs; offline tests only, no provider verification); prior 2.0.9 (2026-10-23 shared content ledger: Ledger.reject lets a worker release its own submission when the provider refuses it before generating, used by the ElevenLabs adapter for HTTP 429); 2.0.8 (2026-10-22 pre-render picture gates: validate-picture-inputs refuses a non-aligner clock, fact-lock number drift, off-word or out-of-order spotlight anchors, mp3 or PASS-less takes and an undisclosed role voice; render-program is the single Remotion entry and deletes a picture whose duration misses the voice; lock-facts, write-captions with a hash-bound rate-bound report, merge-designed-cuts; build-cue-sheet prefers voice/align and refuses Whisper on forced-aligner jobs; owner voice renders each scene on its allowlisted voiceStyle reference); 2.0.7 (2026-10-22 timing uses accepted-take/script-bound forced-alignment onsets by default; Whisper timing requires the explicit --whisper-timing compatibility flag; aligner script words tokenized like sync-lib); 2.0.6 (2026-10-22 one flat folder per product directly under F:/My Drive/Videos, no subfolders); 2.0.5 (2026-10-21 isolated immutable-candidate QA, forced-alignment word clock, transcript-only Whisper, local vision with explicit paid fallback, optional clean caption layer); 2.0.4 (2026-10-21 kit lockfile takes hono 4.13.13, a transitive patch release via the MCP SDK); 2.0.3 (2026-10-21 owner-voice take reuse is keyed on a content fingerprint, not the segment id: OwnerVoice-TakeReuse.ps1 is shared by Generate-OwnerVoice.ps1 and ReGate-OwnerVoice.ps1 and deployed to _shared/tools; listen rejections persist in REJECTED.json and re-gate no longer skips a rejected segment); 2.0.2 (2026-10-21 Sync-MediaStudioKit mirrors kit/marketing in place with robocopy /MIR and refuses while an mvg job runs from the target unless -Force); 2.0.1 (2026-10-21 review fixes on PRs 41-42: taps count as interactions, --ratio takes record at viewport x DSF, validate-narration checks the locked timeline and storyboard disclosure, viewer-release requires canonical gate thresholds, marketing qa names media-studio-qa). 2.0.0 (2026-10-21 consolidation P1-P8: one producer skill with writer/storyboard/visuals/direction/series/campaigns references plus capture, generate, compose, qa; story-series-studio and technical-storytelling retired into it; descript a compose reference; story-experience review inside qa). 1.8.0 (2026-10-20 video standard, owner direction: validate-narration no-fluff check, capture pre-flight in record-job, validate-pointer-path, validate-frame-integrity, validate-picture-integrity and per-ratio capture, validate-marketing-readiness feed test, build-contact-sheet, freeze gate accepts declared holds; validate-viewer-release requires their reports; the deploy list must add the seven new gate scripts). 1.7.6 (2026-10-20: delivery review roots repointed to F:/My Drive/Videos/<Product>; Sync-MediaStudioKit.ps1 deploys Inspect-MediaVisualQuality.ps1, scaffold-video-workspace.mjs and product's demo-stack.mjs to _shared/tools and reports unmanaged files left there). 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
@@ -913,7 +929,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "4489566851CB4FE3932DB90FD885F6FA9B25F8DE806E994C911FAA766DD587A6",
+      "contentHash": "3F0D6E474716CB3AFF1A8DE6F015908816B85F54D91042AD4B7051113A42983E",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1025,6 +1041,14 @@
           "components": [
             "skills"
           ]
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "hostMappingsNote": "2026-11-10: packaging upgraded to the media-studio pattern -- root plugin.json is the version authority, with .claude-plugin, .codex-plugin, .cursor-plugin, .devin-plugin and .antigravity-plugin projections plus an empty .mcp.json. Native plugin install on claude and codex (the primary orchestrators, through the agenthub marketplace), native local plugin on cursor, devin, factory, antigravity and amp, extension junction on cline; the shared loose skill library is disabled; other mapped surfaces require an explicitly supported host-local route or remain blocked. 0.4.1: cursor-agent observes cursor's native-local-plugin install and vscode-insiders observes the Copilot marketplace install through the nativeOwnerHost alias, so each owner installs once for its surface. kilo, mimo-code and qwen receive only the dispatch skill as a host-local junction under ~/.kilocode/skills, ~/.mimocode/skills and ~/.qwen/skills (native skill projection, not an ah-* plugin; installed by Sync-Plugins through Install-WarpSkills.ps1). The callable set is Invoke-CodingAgent.ps1 -List, not this host list. GUI and unverified hosts stay refused inside the script.",
@@ -1141,6 +1165,15 @@
           "components": [
             "skills"
           ]
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "dependencies": {
@@ -1163,7 +1196,7 @@
       "managedSkillNames": [
         "search"
       ],
-      "contentHash": "32473E30C05DEEC45F4D0E4B0E598C56E8060039D04AD6DA555A9827816FA935",
+      "contentHash": "44760CC261DA9A916FF552FE695FC68E02E91F4A7BBF7624108CAEEF85750A1E",
       "hashBasis": "packages/brave-search",
       "status": "active-canonical",
       "hostMappings": [
@@ -1250,6 +1283,14 @@
           "components": [
             "skills"
           ]
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "dependencies": {
@@ -1270,7 +1311,7 @@
       "managedSkillNames": [
         "daytona"
       ],
-      "contentHash": "09235B10A78A7F0B8BC3125F9AC1108049C7EE9AD9DE538B849BC910660C6CB5",
+      "contentHash": "EC9CAB16DF985ECE5F0D60040349569649DF85ACA9319C516FCE9AFD13532EE5",
       "hashBasis": "packages/daytona",
       "status": "active-canonical",
       "hostMappings": [
@@ -1349,7 +1390,7 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "ACE64F51747D0A4987636DB829A5EEAB73CD84D40CCB7B7B9E19EB45E31A3C2C",
+      "contentHash": "830761A0C4C0BB946DA10CE1FAEC2BE5C5DD3BBF44BFCCB8B19F242B0AEE21E6",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [
@@ -1443,6 +1484,14 @@
           "components": [
             "skills"
           ]
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "dependencies": {
@@ -1464,7 +1513,7 @@
       "managedSkillNames": [
         "docs"
       ],
-      "contentHash": "24927481175B6B478E242762D31153CE1EBEEC36F5F90636A1E1950BA701C2FD",
+      "contentHash": "96069061286B35B67AE168B700112F73CF644B3B79C0B46C9E1525EEBD32F61B",
       "hashBasis": "packages/context7",
       "status": "active-canonical",
       "hostMappings": [
@@ -1491,7 +1540,7 @@
       "managedSkillNames": [
         "issues"
       ],
-      "contentHash": "FC8278E6AEE9C47168C54FF7569E50B9815CDE1149B7CE19742C09B6FA223058",
+      "contentHash": "3E68F3C522F19520DD08D57CB7E5CBBBE2BEC0F1A339F5E3B7BF9690D450C51D",
       "hashBasis": "packages/linear",
       "status": "active-canonical",
       "hostMappings": [
@@ -1518,7 +1567,7 @@
       "managedSkillNames": [
         "cloud"
       ],
-      "contentHash": "C04CE96EFE4B1EB1386CB239C90F6E40DD460E9EC00956691B157659B243E65E",
+      "contentHash": "52D3D3DC8AC8CB4D1714076465B7EEA0DAEB97CC1EFCDE33E2C2C468E3B63DC8",
       "hashBasis": "packages/aws",
       "status": "active-canonical",
       "hostMappings": [
@@ -1585,7 +1634,7 @@
       "managedSkillNames": [
         "workspace"
       ],
-      "contentHash": "B2E8C8D306135220D202AE6D8BAF20A9A6BC1250BCA1DE78AB6E8168AECFACA3",
+      "contentHash": "32699A249D320A9C59F8BDA149DF8609F258DF8D56F2A8BFFCCB95702417557D",
       "hashBasis": "packages/notion",
       "status": "active-canonical",
       "hostMappings": [
@@ -1600,6 +1649,15 @@
         {
           "hostId": "warp",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "dependencies": {
@@ -1620,7 +1678,7 @@
       "managedSkillNames": [
         "research"
       ],
-      "contentHash": "22505E9203FB438C59AD40A899D01EF59B46502ADC7FB08DDB34CD17E338CB53",
+      "contentHash": "81ADE5380F635BFD862FAFF758D529000B6CAEB804DC8FD82F7A205268ADE3AE",
       "hashBasis": "packages/exa",
       "status": "active-canonical",
       "hostMappings": [
@@ -1655,7 +1713,7 @@
       "managedSkillNames": [
         "edit"
       ],
-      "contentHash": "76963D89A7F5A7D411A4FB712568FF7AE694A12D615A954967F05ED8DD61D0BA",
+      "contentHash": "D9A9578C3DE4CF40834523421637BF4463187FA63DE9FF3EA76BE565FA1CA1E4",
       "hashBasis": "packages/descript",
       "status": "active-canonical",
       "hostMappings": [
@@ -1690,6 +1748,15 @@
         {
           "hostId": "warp",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "dependencies": {
@@ -1712,7 +1779,7 @@
         "prioritize",
         "plan-application"
       ],
-      "contentHash": "0B9811C7267B16F59AD4C44D9845C4CC7D9C460E267484C04DA35CF4435EEB24",
+      "contentHash": "7925DCCCA7B5E5272B0B81FD1D2FC34EF80B687C7FE04E404D4274FF31EC5326",
       "hashBasis": "packages/funding",
       "status": "active-canonical",
       "hostMappings": [
@@ -1813,6 +1880,14 @@
           "components": [
             "skills"
           ]
+        },
+        {
+          "hostId": "kiro",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "hostMappingsNote": "The mapping names each host's packaging route. No host has the plugin installed until the plugin deployment runbook is run after merge. Cursor Agent reads the Cursor copy, and the desktop and IDE aliases share their primary host's configuration. Kilo and MiMo Code get host-local skill links under ~/.kilocode/skills and ~/.mimocode/skills, which works because this package has no MCP server. Gemini CLI was retired from the fleet on 2026-11-10; Antigravity carries the Google route.",

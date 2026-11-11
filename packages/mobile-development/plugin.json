@@ -1,6 +1,20 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-mobile-development",
-  "version": "2.4.0",
-  "description": "Plan mobile development, test platform behavior, and activate the device lab and Appium when a task requires them."
+  "version": "2.4.1",
+  "description": "Plan mobile development, test platform behavior, and activate the device lab and Appium when a task requires them.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "mobile",
+    "ios",
+    "android",
+    "react-native",
+    "expo",
+    "appium",
+    "simulator",
+    "device-lab"
+  ]
 }
