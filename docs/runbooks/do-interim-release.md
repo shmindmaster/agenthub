@@ -38,7 +38,7 @@ This is how a DigitalOcean-hosted personal product builds, tests and deploys unt
 | --- | --- |
 | `runner` | `ghcr.io/actions/actions-runner`, pinned by digest. Persistent registration `do-sh-build-<repo>`, labels `self-hosted, do-sh-build, sh-ci-<repo>`. `_work` is on tmpfs and wiped at every job start by `job-started.sh`. 8 CPUs, 16 GB. |
 | `buildkitd` | The repository's own BuildKit daemon. The daemon is privileged, but build steps run in BuildKit's unprivileged sandboxes with insecure entitlements off. It is reachable only on the project network. |
-| `postgres` (`--postgres` / `--pgvector`) | Postgres 18, or pgvector on Postgres 18, on tmpfs with trust auth: `TEST_POSTGRES_URL=postgresql://postgres@postgres:5432/ci` |
+| `postgres` (`--postgres` / `--pgvector` / `--pg-image=sh-ci/<name>:<tag>` or `@sha256`-pinned) | Postgres 18, pgvector on Postgres 18, or a repository-built image, on tmpfs with trust auth: `TEST_POSTGRES_URL=postgresql://postgres@postgres:5432/ci` |
 | `valkey` (`--valkey`) | Valkey 8, no persistence: `TEST_REDIS_URL=redis://valkey:6379/0` |
 
 Register or update from a workstation with repository admin:

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # sh-ci: per-repository persistent GitHub Actions runners on sh-build-02.
 # Usage (on the droplet, as root):
-#   sh-ci up <repo> [--postgres | --pgvector] [--valkey]   (bootstrap token on stdin the first time)
+#   sh-ci up <repo> [--postgres | --pgvector | --pg-image=<ref>] [--valkey]   (bootstrap token on stdin the first time)
 #   sh-ci down <repo> | rm <repo> | status | logs <repo>
 # Each repo gets compose project sh-ci-<repo>: runner + its own BuildKit daemon (+ optional
 # Postgres 18 / Valkey 8 on tmpfs), on its own network, no Docker socket, no app secrets.
@@ -19,7 +19,11 @@ dir() { echo "$ROOT/repos/$repo"; }
 case "$cmd" in
 up)
   need_repo; shift 2; pg=0; vk=0
-  pgimg=$PG_IMAGE; for a in "$@"; do case $a in --postgres) pg=1;; --pgvector) pg=1; pgimg=$PGVECTOR_IMAGE;; --valkey) vk=1;; esac; done
+  pgimg=$PG_IMAGE; for a in "$@"; do case $a in --postgres) pg=1;; --pgvector) pg=1; pgimg=$PGVECTOR_IMAGE;; --pg-image=*) pg=1; pgimg=${a#--pg-image=};; --valkey) vk=1;;
+    *) echo "unknown option: $a"; exit 2;; esac; done
+  # --pg-image accepts only a locally built sh-ci/<name>:<tag> or a digest-pinned reference.
+  if [ "$pgimg" != "$PG_IMAGE" ] && [ "$pgimg" != "$PGVECTOR_IMAGE" ] && ! [[ "$pgimg" =~ ^sh-ci/[a-z0-9._-]+:[A-Za-z0-9._-]+$ || "$pgimg" == *@sha256:* ]]; then
+    echo "--pg-image must be sh-ci/<name>:<tag> or pinned @sha256"; exit 2; fi
   d=$(dir); install -d -m 0700 "$d" "$d/state"; chown 1001:1001 "$d/state"
   if [ ! -t 0 ]; then tok=$(cat); if [ -n "$tok" ]; then umask 077; printf '%s' "$tok" > "$d/state/bootstrap-token"; chown 1001:1001 "$d/state/bootstrap-token"; fi; fi
   {
