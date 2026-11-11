@@ -2,6 +2,11 @@
   "description": "Tests CI does not run, each with the reason. Entries without 'platforms' read the owner's machine or private overlay and are skipped on every runner; entries with 'platforms' exercise a Windows-host feature and are skipped only on the listed operating systems. Used only by Run-AllTests.ps1 -SkipListPath; local runs execute everything.",
   "skip": [
     {
+      "file": "tests/Test-KiroFleet.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "Exercises the Windows Kiro profile installer: backslash profile paths and Windows file links. Runs on Windows."
+    },
+    {
       "file": "tests/Test-AgentVersionAccuracy.ps1",
       "reason": "Probes the installed host CLIs (copilot, grok, cursor, code-insiders, ...) with --version; CI runners have none of them."
     },

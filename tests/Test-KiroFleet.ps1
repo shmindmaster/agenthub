@@ -103,21 +103,21 @@ try {
 # Profile JSON shape
 foreach ($f in Get-ChildItem (Join-Path $kiro 'agents') -Filter *.json) {
     $j = $null
-    try { $j = Get-Content $f.FullName -Raw | ConvertFrom-Json } catch { }
+    try { $j = Get-Content $f.FullName -Raw -Encoding utf8 | ConvertFrom-Json } catch { }
     Check "profile parses with tools list: $($f.Name)" ($j -and $j.tools -and @($j.tools).Count -gt 0)
 }
-$ro = Get-Content (Join-Path $kiro 'agents\ah-readonly.json') -Raw | ConvertFrom-Json
+$ro = Get-Content (Join-Path $kiro 'agents\ah-readonly.json') -Raw -Encoding utf8 | ConvertFrom-Json
 $bad = @($ro.tools | Where-Object { $_ -notin @('read', 'glob', 'grep', 'thinking', 'todo') })
 Check 'ah-readonly has only read-type tools' ($bad.Count -eq 0) ($bad -join ',')
 
 # Steering
 $always = Join-Path $kiro 'steering\ah-invariants.md'
-$lines = @(Get-Content $always)
+$lines = @(Get-Content $always -Encoding utf8)
 Check 'always-on steering is under 60 lines' ($lines.Count -lt 60) "$($lines.Count) lines"
 Check 'always-on steering has inclusion: always' ($lines[1] -eq 'inclusion: always')
 Check 'always-on steering has the pull-request rule' ((($lines -join "`n") -match 'gh pr ready') -and (($lines -join "`n") -match 'draft'))
 foreach ($s in Get-ChildItem (Join-Path $kiro 'steering') -Filter *.md) {
-    $first = (Get-Content $s.FullName -TotalCount 1)
+    $first = (Get-Content $s.FullName -TotalCount 1 -Encoding utf8)
     Check "steering has front matter: $($s.Name)" ($first -eq '---')
 }
 
@@ -126,8 +126,8 @@ $recipes = @(Get-ChildItem (Join-Path $kiro 'workflows') -Filter *.workflow.json
 Check 'six workflow recipes exist' ($recipes.Count -eq 6) "$($recipes.Count)"
 foreach ($w in $recipes) {
     $j = $null
-    try { $j = Get-Content $w.FullName -Raw | ConvertFrom-Json } catch { }
-    $text = Get-Content $w.FullName -Raw
+    try { $j = Get-Content $w.FullName -Raw -Encoding utf8 | ConvertFrom-Json } catch { }
+    $text = Get-Content $w.FullName -Raw -Encoding utf8
     Check "recipe parses with steps: $($w.Name)" ($j -and $j.name -and @($j.steps).Count -gt 0)
     Check "recipe states three-iteration limit: $($w.Name)" ($text -match 'at most three remediation iterations')
     Check "recipe states no merge: $($w.Name)" ($text -match 'Never merge')
@@ -136,13 +136,13 @@ foreach ($w in $recipes) {
         $needsShell = $s.prompt -match '(?i)\b(using gh|run (the|a)\b|gh pr|repowise (status|health|update)|Invoke-\w+\.ps1)'
         $profilePath = Join-Path $kiro "agents\$($s.agent).json"
         if ($needsShell -and (Test-Path $profilePath)) {
-            $tools = @((Get-Content $profilePath -Raw | ConvertFrom-Json).tools)
+            $tools = @((Get-Content $profilePath -Raw -Encoding utf8 | ConvertFrom-Json).tools)
             Check "step $($w.BaseName)/$($s.id) has a shell agent" ($tools -contains 'shell') "$($s.agent)"
         }
     }
 }
 $knownBuiltIns = @('wf-planner', 'wf-coder', 'semantic_reviewer')
-$unknown = @(foreach ($w in $recipes) { foreach ($s in @((Get-Content $w.FullName -Raw | ConvertFrom-Json).steps)) {
+$unknown = @(foreach ($w in $recipes) { foreach ($s in @((Get-Content $w.FullName -Raw -Encoding utf8 | ConvertFrom-Json).steps)) {
     if (-not (Test-Path (Join-Path $kiro "agents\$($s.agent).json")) -and $s.agent -notin $knownBuiltIns) { "$($w.Name):$($s.agent)" } } })
 Check 'every recipe agent is a managed profile or a listed workflow built-in' ($unknown.Count -eq 0) ($unknown -join ', ')
 
@@ -153,7 +153,7 @@ $userPath = '(?i)(C:\\Users\\[^\\\s%$<]+|/Users/[a-z]|/home/[a-z])'
 $files = @(Get-ChildItem $kiro -Recurse -File) + @(Get-Item (Join-Path $repoRoot 'docs\runbooks\kiro-fleet.md'))
 $hits = @()
 foreach ($f in $files) {
-    $t = Get-Content $f.FullName -Raw
+    $t = Get-Content $f.FullName -Raw -Encoding utf8
     if ($t -match $secret) { $hits += "secret-like: $($f.Name)" }
     if ($t -match $userPath) { $hits += "user path: $($f.Name)" }
     if ($t -match [regex]::Escape($env:USERNAME) -and $env:USERNAME.Length -gt 3) { $hits += "user name: $($f.Name)" }
