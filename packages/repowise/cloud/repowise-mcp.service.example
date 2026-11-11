@@ -1,0 +1,45 @@
+# repowise-mcp.service -- systemd USER unit example for the RepoWise cloud
+# index host (SH-4410). Copy to ~/.config/systemd/user/repowise-mcp.service,
+# adjust the paths marked <...>, then: systemctl --user daemon-reload &&
+# systemctl --user enable --now repowise-mcp.service
+#
+# SECURITY BOUNDARY: the server binds 127.0.0.1 inside shared_server.py and
+# this unit must never override that (no REPOWISE_HOST, no proxy, no extra
+# listener). Workstations reach it only through an SSH tunnel. Do not add a
+# socket unit, an iptables exception or a reverse proxy in front of it.
+#
+# The embedder values live OUTSIDE this file: EnvironmentFile points at an
+# owner-created file (mode 0600) holding the three NAMES documented in the
+# runbook. Keep no key material in this unit.
+
+[Unit]
+Description=RepoWise workspace MCP server (loopback only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# <deploy-root> is where packages/repowise/cloud/ lives on the host.
+ExecStart=/usr/bin/env bash <deploy-root>/cloud/repowise-mcp-serve.sh --workspace %h/.local/share/repowise-cloud/index --port 7339
+# Owner-created file (chmod 600) with the embedder environment NAMES:
+#   FOUNDRY_OPENAI_BASE_URL=<https azure openai /openai/v1 endpoint>
+#   FOUNDRY_API_KEY=<key>
+#   FOUNDRY_EMBEDDING_DEPLOYMENT=<deployment name>
+EnvironmentFile=-%h/.config/repowise-cloud/embedder.env
+Restart=on-failure
+RestartSec=10
+
+# Hardening. The index state under .local/share stays writable; everything
+# else the process might touch is read-only or absent.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/repowise-cloud
+# Loopback-only service; it still needs outbound https to the embedder.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=2G
+TasksMax=64
+
+[Install]
+WantedBy=default.target

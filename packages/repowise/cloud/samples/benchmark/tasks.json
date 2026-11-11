@@ -1,0 +1,12 @@
+{
+  "repositories": [
+    {
+      "alias": "example-repo-a",
+      "tasks": [
+        { "id": "t1-entry-point", "title": "Find where request handling starts", "correctFile": "src/server/entry.ts" },
+        { "id": "t2-retry-policy", "title": "Find the retry/backoff policy implementation", "correctFile": "src/net/retry.ts" },
+        { "id": "t3-config-load", "title": "Find where configuration is loaded and validated", "correctFile": "src/config/load.ts" }
+      ]
+    }
+  ]
+}

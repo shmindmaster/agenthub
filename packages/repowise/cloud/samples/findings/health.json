@@ -1,0 +1,4 @@
+[
+  { "metric": "complexity", "severity": "warn", "summary": "cyclomatic complexity above threshold", "file": "src/net/retry.ts", "line": 88 },
+  { "metric": "nesting", "severity": "info", "summary": "nesting depth 5", "file": "src/config/load.ts", "line": 41 }
+]
