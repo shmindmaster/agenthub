@@ -252,7 +252,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # an inactive host, or one with an uncaptured response; those stay out and are pinned
     # below, because "nothing should be disabled" is not a budget authorization.
     $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin',
-        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'kiro')
+        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'kiro', 'qwen')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -314,7 +314,7 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add("$($entry.Name) has no loginCommand")
         }
     }
-    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code', 'kiro')
+    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code', 'kiro', 'qwen')
     foreach ($id in $dispatchHosts) {
         if ($profile.hostSettings.PSObject.Properties.Name -notcontains $id) {
             $violations.Add("$id has no hostSettings authentication record")

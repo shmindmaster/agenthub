@@ -57,8 +57,8 @@
 
 .PARAMETER Model
   Model for an -AnthropicApiKey run. Defaults to apiKeyOptIn.model.
-  For codex, grok, opencode, cline, warp, factory, devin, kilo, mimo-code and
-  kiro, the model the host should run this task on. Any model the host can
+  For codex, grok, opencode, cline, warp, factory, devin, kilo, mimo-code, qwen
+  and kiro, the model the host should run this task on. Any model the host can
   reach is accepted and passed through (owner direction 2026-11-10: a model or
   coding plan is allowed wherever it can be integrated and supported).
   dispatchPolicy.<host>.allowedModels records the smoke-verified models; it
@@ -213,20 +213,35 @@ function Assert-SubscriptionRoute {
     if ($provider -eq 'xiaomi') {
         Write-Refusal 3 "refused ${Id}: model '$ModelId' uses provider xiaomi/, the pay-as-you-go MiMo API; use the Token Plan provider (subscriptions only, owner direction 2026-11-10)"
     }
-    # Xiaomi: the Token Plan serves from token-plan-<region>.xiaomimimo.com with
-    # tp-/ttp- keys; pay-as-you-go uses api.xiaomimimo.com with sk- keys. Only
-    # the variable name is ever reported.
+    Assert-MimoPlanEnvironment -Id $Id
+}
+
+# Xiaomi: the Token Plan serves from token-plan-<region>.xiaomimimo.com with
+# tp-/ttp- keys; pay-as-you-go uses api.xiaomimimo.com with sk- keys. Only the
+# variable name is ever reported. -Required is for a host whose whole route is
+# this environment (qwen): the variables must then be present, not only shaped.
+function Assert-MimoPlanEnvironment {
+    param([string]$Id, [switch]$Required)
     $baseUrl = [Environment]::GetEnvironmentVariable('MIMO_BASE_URL')
-    if (-not [string]::IsNullOrWhiteSpace($baseUrl)) {
+    if ([string]::IsNullOrWhiteSpace($baseUrl)) {
+        if ($Required) {
+            Write-Refusal 3 "refused ${Id}: MIMO_BASE_URL is not set; this host reaches the Xiaomi Token Plan only through the child environment"
+        }
+    } else {
         $parsed = $null
         $isTokenPlanHost = [Uri]::TryCreate($baseUrl.Trim(), [UriKind]::Absolute, [ref]$parsed) -and
+            $parsed.Scheme -ceq 'https' -and
             $parsed.Host.ToLowerInvariant() -match '^token-plan-[a-z0-9-]+\.xiaomimimo\.com$'
         if (-not $isTokenPlanHost) {
             Write-Refusal 3 "refused ${Id}: MIMO_BASE_URL does not name a Xiaomi Token Plan host (token-plan-<region>.xiaomimimo.com); a MiMo model runs on the Token Plan only, never the pay-as-you-go API"
         }
     }
     $planKey = [Environment]::GetEnvironmentVariable('MIMO_API_KEY')
-    if (-not [string]::IsNullOrWhiteSpace($planKey) -and -not ($planKey.StartsWith('tp-', [StringComparison]::Ordinal) -or $planKey.StartsWith('ttp-', [StringComparison]::Ordinal))) {
+    if ([string]::IsNullOrWhiteSpace($planKey)) {
+        if ($Required) {
+            Write-Refusal 3 "refused ${Id}: MIMO_API_KEY is not set; this host reaches the Xiaomi Token Plan only through the child environment"
+        }
+    } elseif (-not ($planKey.StartsWith('tp-', [StringComparison]::Ordinal) -or $planKey.StartsWith('ttp-', [StringComparison]::Ordinal))) {
         Write-Refusal 3 "refused ${Id}: MIMO_API_KEY is not a Xiaomi Token Plan key (tp- or ttp- prefix); a MiMo model runs on the Token Plan only, never a pay-as-you-go key"
     }
 }
@@ -400,6 +415,58 @@ function Get-DispatchTable {
                 $args += @('--agent', $mimoAgent)
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
+            }
+        }
+        'qwen' = @{
+            # The prompt goes on stdin. With an argument prompt, a long or
+            # multi-line task becomes a pointer to a file under the dispatcher
+            # runtime folder, and in plan (read-only) mode qwen refuses to read
+            # outside the task directory (observed 2026-11-11: "Blocked: cannot
+            # read the task file"). qwen reads a one-shot prompt from stdin, so
+            # no file is needed in either mode.
+            Mode = 'stdin'
+            ReadOnly = $true
+            Build = {
+                param($PromptText, $Work, $File)
+                # qwen --help 0.27.1 (2026-11-11): a positional query is already a
+                # one-shot headless run (-p/--prompt is deprecated), --approval-mode
+                # yolo automatically approves all tools, and plan "does not modify
+                # files or execute commands" (the enforced read-only mode). There
+                # is no directory flag: the child process working directory is the
+                # task directory. The vendor Token Plan page configures an
+                # OpenAI-compatible provider whose key is referenced by env name;
+                # --auth-type openai plus the OPENAI_* variables below select that
+                # route per run, so the stored settings (selectedType nvidia) are
+                # not used and no ~/.qwen file is written.
+                $qwenPolicy = $fleet.dispatchPolicy.qwen
+                $qwenModel = if ($script:QwenModel) { $script:QwenModel } else { [string]$qwenPolicy.model }
+                Assert-DispatchModelId -Id 'qwen' -ModelId $qwenModel -Source 'model'
+                Assert-SubscriptionRoute -Id 'qwen' -ModelId $qwenModel
+                # The plan credential is the whole route on this host -- nothing is
+                # stored -- so both variables must be present, not only shaped.
+                Assert-MimoPlanEnvironment -Id 'qwen' -Required
+                Write-UnlistedModelNote -Id 'qwen' -ModelId $qwenModel
+                # --approval-mode yolo approves every tool call and this host has
+                # no agent-profile denylist, so the warp guard repeats here:
+                # pushes fail on an unhandled scheme and gh reads an empty config
+                # directory while fetch and local git keep working.
+                $ghDir = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\runtime\coding-agent-dispatch\qwen-peer-gh'
+                New-Item -ItemType Directory -Force -Path $ghDir | Out-Null
+                $qwenEnv = @{
+                    OPENAI_API_KEY   = [Environment]::GetEnvironmentVariable('MIMO_API_KEY')
+                    OPENAI_BASE_URL  = [Environment]::GetEnvironmentVariable('MIMO_BASE_URL')
+                    OPENAI_MODEL     = $qwenModel
+                    GH_CONFIG_DIR    = $ghDir
+                    GIT_CONFIG_COUNT = '3'
+                }
+                $schemes = @('https://', 'git@', 'ssh://')
+                for ($i = 0; $i -lt $schemes.Count; $i++) {
+                    $qwenEnv["GIT_CONFIG_KEY_$i"] = 'url.agenthub-peer-no-push://blocked/.pushInsteadOf'
+                    $qwenEnv["GIT_CONFIG_VALUE_$i"] = $schemes[$i]
+                }
+                $qwenApproval = if ($ReadOnly) { 'plan' } else { 'yolo' }
+                @{ Args = @('--auth-type', 'openai', '-m', $qwenModel, '--approval-mode', $qwenApproval, '-o', 'json')
+                    Stdin = $PromptText; PromptFile = $null; Env = $qwenEnv }
             }
         }
         'kiro' = @{
@@ -761,8 +828,8 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
     # can be integrated and supported. -Model is passed through to every host
     # whose CLI takes a model flag; allowedModels records the smoke-verified
     # models and no longer restricts the choice. Only the shape is enforced.
-    if ($requested -notin @('codex', 'grok', 'opencode', 'cline', 'warp', 'factory', 'devin', 'kilo', 'mimo-code', 'kiro')) {
-        Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or to Codex, Grok, OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo or Kiro.'
+    if ($requested -notin @('codex', 'grok', 'opencode', 'cline', 'warp', 'factory', 'devin', 'kilo', 'mimo-code', 'qwen', 'kiro')) {
+        Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or to Codex, Grok, OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo, Qwen or Kiro.'
     }
     $choice = $Model.Trim()
     Assert-DispatchModelId -Id $requested -ModelId $choice
@@ -777,6 +844,7 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
         'devin'     { $script:DevinModel = $choice }
         'kilo'      { $script:KiloModel = $choice }
         'mimo-code' { $script:MimoCodeModel = $choice }
+        'qwen'      { $script:QwenModel = $choice }
         'kiro'      { $script:KiroModel = $choice }
         'cline'     {
             $split = $choice.IndexOf(':')
@@ -895,6 +963,10 @@ if ($ShowCommand) {
     Write-Output ("file={0}" -f $executable)
     Write-Output ("args={0}" -f (Join-WindowsArguments $built.Args))
     Write-Output ("stdin={0}" -f ($(if ($built.Stdin) { 'yes' } else { 'no' })))
+    if ($built.Env -and @($built.Env.Keys).Count -gt 0) {
+        # Names only: values can hold credentials (qwen's OPENAI_API_KEY, for one).
+        Write-Output ("env={0}" -f ((@($built.Env.Keys) | Sort-Object) -join ' '))
+    }
     exit 0
 }
 
@@ -938,6 +1010,12 @@ $accountScrub = @{
     # key in the environment must not override it. kilo is the opposite case:
     # its credential IS MIMO_API_KEY, so it is deliberately absent here.
     'mimo-code'    = @('MIMO_API_KEY')
+    # qwen's plan credential reaches the child as OPENAI_* set from MIMO_* after
+    # this scrub. Every other provider key or base URL that could retarget auth
+    # or billing away from the Token Plan is removed, along with the GitHub
+    # tokens behind its GIT_CONFIG_*/GH_CONFIG_DIR push guard. MIMO_* stay:
+    # they are the plan's own variables and nothing else consumes them.
+    'qwen'         = @('OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'DASHSCOPE_API_KEY', 'MODELSCOPE_API_KEY', 'QWEN_API_KEY', 'OPENROUTER_API_KEY', 'NVIDIA_API_KEY', 'AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'OPENAI_ORG_ID', 'OPENAI_PROJECT', 'GH_TOKEN', 'GITHUB_TOKEN')
 }
 if ($accountScrub.ContainsKey($targetId)) {
     foreach ($name in $accountScrub[$targetId]) {

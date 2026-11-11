@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.7.0"
+  version: "0.8.0"
 ---
 
 # Dispatch to another coding agent
@@ -51,7 +51,7 @@ the missing installation; do not search credentials or guess a cache version.
    without starting anything. It does not prove that a host will execute it.
 
    `-Model <id>` picks the model for codex, grok, opencode, cline, warp,
-   factory, devin, kilo, mimo-code and kiro. Any model the host can reach is
+   factory, devin, kilo, mimo-code, qwen and kiro. Any model the host can reach is
    accepted: `allowedModels` in `dispatchPolicy` records the smoke-verified
    models and does not limit the choice. An unlisted model adds one stderr
    note and runs. Only a malformed id is refused, plus the two
@@ -63,7 +63,7 @@ the missing installation; do not search credentials or guess a cache version.
    a role other than `peer`.
 
    `-ReadOnly` runs the task in a read-only mode the host itself enforces.
-   It works on claude, codex, factory and kiro; every other host refuses it
+   It works on claude, codex, factory, kiro and qwen; every other host refuses it
    with exit 3 and never falls back to a writable run. Use it for reviews and
    audits, and never rely on prompt wording to keep a run read-only.
    `-List -ReadOnly` prints the hosts that support it. Details are in
@@ -100,6 +100,12 @@ Exit codes: 0 child succeeded; 2 launch failure; 3 refusal (policy, autonomy, in
 - Account-authenticated children have their host-specific provider-key overrides
   stripped. A separately authorized plan credential is not an account login or
   permission to use another paid provider. Never print credential values.
+- Qwen's route carries the MiMo Token Plan in the child environment only:
+  `MIMO_API_KEY` and `MIMO_BASE_URL` become `OPENAI_API_KEY`, `OPENAI_BASE_URL`
+  and `OPENAI_MODEL`, both `MIMO_*` variables must be present and plan-shaped,
+  and the other providers' keys are scrubbed first. `-ShowCommand` prints the
+  variable names, never values. The stored `~/.qwen` configuration is not read
+  or written.
 - A local headless command does not authorize cloud execution. `devin-cloud`, `jules`, `cursor-cloud` and `copilot-agent` are refused.
 - A dispatch does not authorize client access, external messages or deployment.
 - An ACP command listed in help proves only an entry point. Record protocol
