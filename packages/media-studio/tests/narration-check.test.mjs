@@ -74,6 +74,15 @@ test('update narration can explain what changed; creative mode cannot bypass pro
   assert.ok(report(root).errors.some((e) => e.includes('greeting')));
 });
 
+test('answer-first matching ignores punctuation, whitespace and case, but preserves word boundaries', () => {
+  const extra = { communicationProfile: 'consulting-demo', primaryTakeaway: 'STALLED approvals cost clinics days — one click clears them!' };
+  let root = makeJob('answer-punctuation', { sp: screenplay(CLEAN, extra) });
+  assert.equal(run([root]).code, 0, JSON.stringify(report(root).errors));
+  root = makeJob('answer-partial-word', { sp: screenplay(CLEAN, { ...extra, primaryTakeaway: 'click clears the' }) });
+  assert.equal(run([root]).code, 1);
+  assert.ok(report(root).errors.some((e) => e.includes('answer-15s')));
+});
+
 test('a short hook does not substitute for the answer within fifteen seconds, including in locked timelines', () => {
   const extra = { communicationProfile: 'consulting-demo', primaryTakeaway: CLEAN[4] };
   const root = makeJob('answer-late', { sp: screenplay(CLEAN, extra) });

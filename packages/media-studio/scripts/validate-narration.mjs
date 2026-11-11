@@ -268,10 +268,10 @@ const hook = { firstSentence, words: hookWords, seconds: hookSeconds, ok: hookOk
 // The short hook and the decision answer are separate checks. Before alignment
 // this is a words/wpm estimate; final exact-file review must verify actual timing.
 if (knownCommunicationProfile) {
-  const takeaway = phraseKey(screenplay?.primaryTakeaway || job?.primaryTakeaway);
-  const opening = phraseKey(L.textWords(lines.map((l) => l.line).join(' ')).slice(0, Math.floor(wpm / 4)).join(' '));
-  const answerWords = L.textWords(takeaway).join(' ').toLowerCase();
-  if (!answerWords || !opening.includes(answerWords)) errors.push('answer-15s: the primaryTakeaway must be spoken within the first 15 seconds (words/wpm estimate; verify actual timing on the final export)');
+  const spokenWords = (value) => String(value || '').toLowerCase().replace(/['’‘]/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const opening = spokenWords(L.textWords(lines.map((l) => l.line).join(' ')).slice(0, Math.floor(wpm / 4)).join(' '));
+  const answerWords = spokenWords(screenplay?.primaryTakeaway || job?.primaryTakeaway);
+  if (!answerWords || !` ${opening} `.includes(` ${answerWords} `)) errors.push('answer-15s: the primaryTakeaway must be spoken within the first 15 seconds (words/wpm estimate; verify actual timing on the final export)');
 }
 
 // ---- synthetic data: a caption or an end card, never narration -------------------------------------------------------
