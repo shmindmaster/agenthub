@@ -1,0 +1,22 @@
+{
+    "name":  "ah-sentry-rca",
+    "description":  "Sentry issue root-cause analysis, read-only until a fix is requested. Limits: at most three remediation iterations, then stop and report BLOCKED. Never merge, release or deploy. No expensive review while the pull request is a draft. A new head commit invalidates any earlier PASS. The reviewer is never the agent that wrote the change.",
+    "inputs":  {
+                   "repository":  "string",
+                   "sentry_issue":  "string"
+               },
+    "steps":  [
+                  {
+                      "type":  "step",
+                      "id":  "evidence",
+                      "agent":  "ah-incident",
+                      "prompt":  "Read Sentry issue {{sentry_issue}} in full, including one complete event with all fields, before interpreting it. Find the code path in {{repository}}. Do not edit files. State which cause is confirmed by data and label the rest unverified. Limits: at most three remediation iterations, then stop and report BLOCKED. Never merge, release or deploy. No expensive review while the pull request is a draft. A new head commit invalidates any earlier PASS. The reviewer is never the agent that wrote the change."
+                  },
+                  {
+                      "type":  "step",
+                      "id":  "report",
+                      "agent":  "ah-readonly",
+                      "prompt":  "From {{previous.output}}, write the root cause, the evidence field and value for each claim, and a proposed minimal fix. If a fix is wanted, hand off to ah-issue-to-draft-pr; do not change code here. Limits: at most three remediation iterations, then stop and report BLOCKED. Never merge, release or deploy. No expensive review while the pull request is a draft. A new head commit invalidates any earlier PASS. The reviewer is never the agent that wrote the change."
+                  }
+              ]
+}

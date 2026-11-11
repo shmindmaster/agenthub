@@ -1,0 +1,22 @@
+{
+    "name":  "ah-independent-review",
+    "description":  "Independent read-only review of a diff or pull request by ah-reviewer. Limits: at most three remediation iterations, then stop and report BLOCKED. Never merge, release or deploy. No expensive review while the pull request is a draft. A new head commit invalidates any earlier PASS. The reviewer is never the agent that wrote the change.",
+    "inputs":  {
+                   "repository":  "string",
+                   "target":  "string"
+               },
+    "steps":  [
+                  {
+                      "type":  "step",
+                      "id":  "review",
+                      "agent":  "ah-reviewer",
+                      "prompt":  "Review {{target}} in {{repository}}. Read the diff and run the repository checks. Do not edit, commit or merge. Record the head SHA you reviewed and return Pass, Fail or Blocked with file and line findings. Refuse to review a change you authored. Limits: at most three remediation iterations, then stop and report BLOCKED. Never merge, release or deploy. No expensive review while the pull request is a draft. A new head commit invalidates any earlier PASS. The reviewer is never the agent that wrote the change."
+                  },
+                  {
+                      "type":  "step",
+                      "id":  "confirm",
+                      "agent":  "semantic_reviewer",
+                      "prompt":  "Check that the verdict in {{previous.output}} names the current head SHA and that each finding cites evidence. Return Pass only if the verdict is for the current head; otherwise return Fail and say it is stale. Limits: at most three remediation iterations, then stop and report BLOCKED. Never merge, release or deploy. No expensive review while the pull request is a draft. A new head commit invalidates any earlier PASS. The reviewer is never the agent that wrote the change."
+                  }
+              ]
+}
