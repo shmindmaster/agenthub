@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # sh-ci: per-repository persistent GitHub Actions runners on sh-build-02.
 # Usage (on the droplet, as root):
-#   sh-ci up <repo> [--postgres | --pgvector | --pg-image=<ref>] [--valkey | --valkey=2] [--buildkit]
+#   sh-ci up <repo> [--postgres | --pgvector | --pg-image=<ref>] [--valkey | --valkey=2] [--buildkit] [--sole-label]
 #   (bootstrap token on stdin the first time; pass </dev/null on later re-ups; a re-up with no
 #   options reuses the saved ones, --reset clears them)
 #   sh-ci down <repo> | rm <repo> | status | logs <repo>
@@ -9,6 +9,8 @@
 # tmpfs, on its own network, no Docker socket, no app secrets. Native-first: runners exist only for
 # pre-merge tests a platform-native build cannot run (database, tenant, security integration).
 # --buildkit adds a private BuildKit daemon, only for a repository that must build images in CI.
+# --sole-label registers as sh-ci-<repo> with only that label, for a repository that also has a
+# non-kit runner named do-sh-build-<repo> or labelled do-sh-build (config.sh --replace would take it over).
 set -euo pipefail
 ROOT=/srv/work/sh-ci
 OWNER=${SH_CI_OWNER:-shmindmaster}
@@ -22,12 +24,12 @@ need_repo() { [[ "$repo" =~ ^[a-z0-9-]+$ ]] || { echo "repo slug required"; exit
 dir() { echo "$ROOT/repos/$repo"; }
 case "$cmd" in
 up)
-  need_repo; shift 2; pg=0; vk=0; bk=0; d=$(dir)
+  need_repo; shift 2; pg=0; vk=0; bk=0; sole=0; d=$(dir)
   # With no options, reuse the options this repository was last brought up with, so a plain
   # re-up never drops its Postgres/Valkey sidecars. --reset starts from no options.
   if [ $# -eq 0 ] && [ -f "$d/options" ]; then read -r -a saved < "$d/options"; set -- "${saved[@]}"; fi
   if [ "${1:-}" = --reset ]; then shift; fi
-  pgimg=$PG_IMAGE; for a in "$@"; do case $a in --postgres) pg=1;; --pgvector) pg=1; pgimg=$PGVECTOR_IMAGE;; --pg-image=*) pg=1; pgimg=${a#--pg-image=};; --valkey) vk=1;; --valkey=2) vk=2;; --buildkit) bk=1;;
+  pgimg=$PG_IMAGE; for a in "$@"; do case $a in --postgres) pg=1;; --pgvector) pg=1; pgimg=$PGVECTOR_IMAGE;; --pg-image=*) pg=1; pgimg=${a#--pg-image=};; --valkey) vk=1;; --valkey=2) vk=2;; --buildkit) bk=1;; --sole-label) sole=1;;
     *) echo "unknown option: $a"; exit 2;; esac; done
   # --pg-image accepts only a locally built sh-ci/<name>:<tag> or a digest-pinned reference.
   if [ "$pgimg" != "$PG_IMAGE" ] && [ "$pgimg" != "$PGVECTOR_IMAGE" ] && ! [[ "$pgimg" =~ ^sh-ci/[a-z0-9._-]+:[A-Za-z0-9._-]+$ || "$pgimg" == *@sha256:* ]]; then
@@ -45,8 +47,9 @@ up)
   echo "    restart: on-failure:5"
   echo "    environment:"
   echo "      SH_CI_REPO: $OWNER/$repo"
-  echo "      SH_CI_RUNNER_NAME: do-sh-build-$repo"
-  echo "      SH_CI_LABELS: do-sh-build,sh-ci-$repo"
+  if [ $sole = 1 ]; then rname=sh-ci-$repo; labels=sh-ci-$repo; else rname=do-sh-build-$repo; labels=do-sh-build,sh-ci-$repo; fi
+  echo "      SH_CI_RUNNER_NAME: $rname"
+  echo "      SH_CI_LABELS: $labels"
   if [ $bk = 1 ]; then echo "      BUILDKIT_HOST: tcp://buildkitd:1234"; fi
   echo "      TEST_POSTGRES_URL: $( [ $pg = 1 ] && echo postgresql://postgres@postgres:5432/ci || echo '' )"
   echo "      TEST_REDIS_URL: $( [ $vk -ge 1 ] && echo redis://valkey:6379/0 || echo '' )"

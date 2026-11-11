@@ -69,7 +69,8 @@ gh api -X POST repos/<owner>/<repo>/actions/runners/registration-token --jq .tok
 ssh <build-host> /srv/work/sh-ci/bin/sh-ci status
 ```
 
-- The one-hour bootstrap token is read from stdin, used once and deleted. On later re-ups, pass `</dev/null`.
+- The one-hour bootstrap token is read from stdin, used once and deleted. On later re-ups, pass `</dev/null`. A re-up with no options reuses the saved ones; `--reset` clears them.
+- If the repository already has a runner named `do-sh-build-<repo>` or labelled `do-sh-build` outside the kit, use `--sole-label`. The kit runner then registers as `sh-ci-<repo>` with only that label. Without it, `config.sh --replace` takes over the existing registration.
 - Runners are persistent. A personal account supports repository-level runners only, and ephemeral or JIT registration needs an admin credential for every job. With a GitHub App holding Administration: write, switch to `generate-jitconfig` per job.
 - Runners are registered with `--disableupdate`. GitHub stops dispatching to a runner more than 63 days behind the latest release, which is longer than the droplet's remaining life.
 - Containers use `restart: on-failure`, and no unit is enabled at boot. Run `sh-ci up <repo>` after a droplet reboot.
