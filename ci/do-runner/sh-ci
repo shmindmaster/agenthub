@@ -2,7 +2,8 @@
 # sh-ci: per-repository persistent GitHub Actions runners on sh-build-02.
 # Usage (on the droplet, as root):
 #   sh-ci up <repo> [--postgres | --pgvector | --pg-image=<ref>] [--valkey | --valkey=2] [--buildkit]
-#   (bootstrap token on stdin the first time; pass </dev/null on later re-ups)
+#   (bootstrap token on stdin the first time; pass </dev/null on later re-ups; a re-up with no
+#   options reuses the saved ones, --reset clears them)
 #   sh-ci down <repo> | rm <repo> | status | logs <repo>
 # Each repo gets compose project sh-ci-<repo>: a runner plus optional Postgres 18 / Valkey 8 on
 # tmpfs, on its own network, no Docker socket, no app secrets. Native-first: runners exist only for
@@ -21,13 +22,19 @@ need_repo() { [[ "$repo" =~ ^[a-z0-9-]+$ ]] || { echo "repo slug required"; exit
 dir() { echo "$ROOT/repos/$repo"; }
 case "$cmd" in
 up)
-  need_repo; shift 2; pg=0; vk=0; bk=0
+  need_repo; shift 2; pg=0; vk=0; bk=0; d=$(dir)
+  # With no options, reuse the options this repository was last brought up with, so a plain
+  # re-up never drops its Postgres/Valkey sidecars. --reset starts from no options.
+  if [ $# -eq 0 ] && [ -f "$d/options" ]; then read -r -a saved < "$d/options"; set -- "${saved[@]}"; fi
+  if [ "${1:-}" = --reset ]; then shift; fi
   pgimg=$PG_IMAGE; for a in "$@"; do case $a in --postgres) pg=1;; --pgvector) pg=1; pgimg=$PGVECTOR_IMAGE;; --pg-image=*) pg=1; pgimg=${a#--pg-image=};; --valkey) vk=1;; --valkey=2) vk=2;; --buildkit) bk=1;;
     *) echo "unknown option: $a"; exit 2;; esac; done
   # --pg-image accepts only a locally built sh-ci/<name>:<tag> or a digest-pinned reference.
   if [ "$pgimg" != "$PG_IMAGE" ] && [ "$pgimg" != "$PGVECTOR_IMAGE" ] && ! [[ "$pgimg" =~ ^sh-ci/[a-z0-9._-]+:[A-Za-z0-9._-]+$ || "$pgimg" == *@sha256:* ]]; then
     echo "--pg-image must be sh-ci/<name>:<tag> or pinned @sha256"; exit 2; fi
-  d=$(dir); install -d -m 0700 "$d" "$d/state"; chown 1001:1001 "$d/state"
+  install -d -m 0700 "$d" "$d/state"; chown 1001:1001 "$d/state"
+  printf '%s
+' "$*" > "$d/options"
   if [ ! -t 0 ]; then tok=$(cat); if [ -n "$tok" ]; then umask 077; printf '%s' "$tok" > "$d/state/bootstrap-token"; chown 1001:1001 "$d/state/bootstrap-token"; fi; fi
   {
   echo "name: sh-ci-$repo"

@@ -10,9 +10,10 @@ if [ ! -f /state/.runner ]; then
     --url "https://github.com/${SH_CI_REPO}" --token "$(cat /state/bootstrap-token)" \
     --name "${SH_CI_RUNNER_NAME}" --labels "${SH_CI_LABELS}" --work /home/runner/_work
   cp .runner .credentials .credentials_rsaparams /state/
-  rm -f /state/bootstrap-token
 else
   cp /state/.runner /state/.credentials /state/.credentials_rsaparams .
 fi
+# A token passed to an already registered runner is unused; never leave one behind.
+rm -f /state/bootstrap-token
 export ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/sh-ci/job-started.sh
 exec ./run.sh
