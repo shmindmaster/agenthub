@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.7.0 (the root `plugin.json` is the single version authority; `SKILL.md`
+Version 0.8.0 (the root `plugin.json` is the single version authority; `SKILL.md`
 metadata and every host projection carry the same number and
 `tests/validate-dispatch.ps1` enforces parity). The package is a full plugin:
 `.claude-plugin`, `.codex-plugin`, `.cursor-plugin`, `.devin-plugin` and
@@ -116,7 +116,7 @@ output alone do not prove working inference.
 is shared promotional credit; the skill documents when to use it.
 
 `-Model` chooses the model per task for codex, grok, opencode, cline, warp,
-factory, devin, kilo, mimo-code and kiro. Owner direction 2026-11-10: a model
+factory, devin, kilo, mimo-code, qwen and kiro. Owner direction 2026-11-10: a model
 or coding plan is allowed on any host where it can be integrated and
 supported. `dispatchPolicy.<host>.allowedModels` records the smoke-verified
 models and does not limit the choice; an unlisted model is passed through with
@@ -129,8 +129,23 @@ OpenCode provider `opencode/` is the Zen wallet and is refused; use
 `opencode-go/<model>`. A MiMo-routed model on any host must run on the Xiaomi
 Token Plan: provider `xiaomi/` is refused, `MIMO_BASE_URL`, when set, must name
 a `token-plan-<region>.xiaomimimo.com` host, and `MIMO_API_KEY`, when set, must
-start with `tp-` or `ttp-`. A refusal names the variable and never prints its
-value. Details are in `skills/dispatch/references/hosts.md`.
+start with `tp-` or `ttp-` — on qwen both must be present, since the child
+environment is that route's only credential. A refusal names the variable and
+never prints its value. Details are in `skills/dispatch/references/hosts.md`.
+
+`-HostId qwen` (SH-4421) runs Qwen Code 0.27.1 headless on that plan:
+`qwen --auth-type openai -m <model> --approval-mode yolo -o json <prompt>`
+with the task directory as the child's working directory (qwen has no
+directory flag). `MIMO_API_KEY` and `MIMO_BASE_URL` become `OPENAI_API_KEY`,
+`OPENAI_BASE_URL` and `OPENAI_MODEL` in the child; the parent's `OPENAI_*`
+and the other providers' keys (`ANTHROPIC_*`, `GEMINI`, `GOOGLE_*`,
+`DASHSCOPE_API_KEY`, `QWEN_API_KEY`, `MODELSCOPE_API_KEY`, GitHub tokens) are
+scrubbed first so a stray variable cannot retarget billing. The default model
+is `mimo-v2.6-pro`, confirmed on the vendor Token Plan page, not
+smoke-verified. The stored `~/.qwen` configuration is neither read nor
+written; `-ShowCommand` prints the child variable names, never the key. As
+with warp, yolo mode has no agent-profile denylist, so the child carries the
+`GIT_CONFIG_*`/`GH_CONFIG_DIR` push guard.
 
 `-Role` (SH-4418) picks a Kiro profile: `peer`, the default, keeps the guarded
 `ah-peer` command; `engineer`, `reviewer`, `tester`, `architect` and `incident`
@@ -141,8 +156,9 @@ host.
 
 `-ReadOnly` runs a host in a read-only mode the host itself enforces, never
 through prompt wording: claude (`--permission-mode plan`), codex
-(`--sandbox read-only`), factory (`exec` without `--auto`) and kiro (the
-`ah-readonly` profile). `dispatchPolicy.<host>.readOnly` records the flags, or
+(`--sandbox read-only`), factory (`exec` without `--auto`), kiro (the
+`ah-readonly` profile) and qwen (`--approval-mode plan` in place of `yolo`).
+`dispatchPolicy.<host>.readOnly` records the flags, or
 `false` (checked, none) or `null` (not established), with the dated help text
 in `readOnlyNote`. Every other host refuses `-ReadOnly` with exit 3; there is
 no fallback to a writable run. `-List -ReadOnly` prints the supported hosts.
@@ -163,9 +179,9 @@ Deployment is a separate gate. Audit the fleet rows with
 and install onto hosts with the same command plus `-Apply` once the audit is
 clean; `-Apply` deploys the published source into host caches and requires
 the clean published main checkout and green CI (pushing the commit is what
-publishes). Kilo and
-MiMo Code receive skills as host-local junctions under
-`~/.kilocode/skills` and `~/.mimocode/skills` -- a native skill projection,
+publishes). Kilo, MiMo Code and
+Qwen Code receive skills as host-local junctions under
+`~/.kilocode/skills`, `~/.mimocode/skills` and `~/.qwen/skills` -- a native skill projection,
 not an `ah-*` plugin. `cursor-agent` and `vscode-insiders` declare
 `nativeOwnerHost`, so their rows observe the Cursor local plugin and the
 Copilot marketplace install instead of installing twice. The shared
@@ -190,7 +206,7 @@ failures against an older copy without changing installed hosts.
 package's dispatcher on a host different from the one that authored the PR
 (branch prefix or a `[host: <id>]` PR-body marker). The script issues no
 write command, and the model run is host-enforced read-only on claude,
-codex, factory and kiro: every dispatcher call carries `-ReadOnly` (and
+codex, factory, kiro and qwen: every dispatcher call carries `-ReadOnly` (and
 `-Role reviewer` on Kiro), the reviewer host is chosen only among hosts
 whose `dispatchPolicy.<host>.readOnly` in `registry/fleet-profile.json`
 records an enforced read-only mode, and the run ends BLOCKED, with no model
