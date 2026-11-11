@@ -263,6 +263,31 @@ process.stdout.write(response);
     $dispLog = Read-JsonLines (Join-Path (New-Scenario 'oversized') 'dispatcher-log.jsonl')
     Check 'oversized diff reviews per file group bounded by -MaxGroups' ($r.Exit -eq 0 -and @($dispLog).Count -eq 5) ("exit=$($r.Exit) calls=$(@($dispLog).Count)")
     Check 'oversized diff says what was not covered' ($r.Out -match 'not covered' -and $r.Out -match 'file25\.txt') ($r.Out)
+    Check 'a review that left files uncovered is never PASS' ($r.Out -match 'PR review result: BLOCKED' -and $r.Out -notmatch 'PR review result: PASS') ($r.Out)
+
+    # Numeric bound: a 600-character diff is under a 5000 bound even though
+    # '600' sorts after '5000' as text.
+    $numDiff = "diff --git a/n.txt b/n.txt`n--- a/n.txt`n+++ b/n.txt`n" + ('y' * 560) + "`n"
+    $numSplit = Split-PrReviewDiff -DiffText $numDiff -MaxChars 5000 -MaxGroups 4
+    Check 'chunker compares the diff length as a number' (@($numSplit.Groups).Count -eq 1 -and @($numSplit.NotCovered).Count -eq 0 -and $numSplit.Groups[0].Text.Length -eq $numDiff.Length) ("groups=$(@($numSplit.Groups).Count) notCovered=$(@($numSplit.NotCovered).Count)")
+
+    # A .ps1 dispatcher takes named parameters and writes its answer with
+    # [Console]::Out, as the real dispatcher does. The answer must be captured.
+    $ps1Disp = Join-Path $fixture 'dispatcher-console.ps1'
+    $ps1Body = @'
+param([string]$HostId, [string]$PromptFile, [string]$Cwd, [int]$TimeoutSec, [string]$Model)
+if ([string]::IsNullOrWhiteSpace($HostId) -or $HostId.StartsWith('-') -or -not (Test-Path -LiteralPath $PromptFile)) { exit 9 }
+[Console]::Out.Write($env:PRREVIEW_PS1_ANSWER)
+exit 0
+'@
+    Set-Content -LiteralPath $ps1Disp -Value $ps1Body -Encoding utf8
+    $ps1Dir = New-Scenario 'ps1dispatcher'
+    Write-Scenario -Dir $ps1Dir -Draft $false -Head $headMain -Branch 'feature/thing' -Body 'Does the thing. SH-4416' -Comments @() -Diff '' -HasAgentsMd $true -Responses @($validAnswer)
+    $oldGh = $env:PRREVIEW_GH_DIR; $env:PRREVIEW_GH_DIR = $ps1Dir; $env:PRREVIEW_PS1_ANSWER = $validAnswer
+    try {
+        $r = Run-Reviewer @('-Repo', $repo, '-Pr', '7', '-GhPath', $ghCmd, '-DispatcherPath', $ps1Disp, '-ReviewerInstructionsPath', $riFile)
+    } finally { $env:PRREVIEW_GH_DIR = $oldGh; Remove-Item Env:PRREVIEW_PS1_ANSWER -ErrorAction SilentlyContinue }
+    Check 'a .ps1 dispatcher binds by name and its console output is captured' ($r.Exit -eq 0 -and $r.Out -match 'PR review result: PASS') ("exit=$($r.Exit) out=$($r.Out)")
 
     # Happy path with -Post: one bounded comment carrying the hidden marker.
     $r = Invoke-Scenario 'post' -Extra @('-Post')

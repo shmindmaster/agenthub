@@ -139,7 +139,7 @@ function Split-PrReviewDiff {
     }
     if ($null -ne $current) { $sections += $current }
 
-    if ([string]$DiffText.Length -le $MaxChars) {
+    if (([string]$DiffText).Length -le $MaxChars) {
         return [pscustomobject]@{
             Groups = @(@{ Files = @($sections | ForEach-Object { $_.File }); Text = [string]$DiffText })
             NotCovered = @()

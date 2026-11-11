@@ -278,7 +278,17 @@ function Invoke-PrReviewDispatch {
     try {
         $dispatchArgs = @('-HostId', $reviewerHost, '-PromptFile', $briefFile, '-Cwd', $runDir, '-TimeoutSec', [string]$TimeoutSec)
         if (-not [string]::IsNullOrWhiteSpace($Model)) { $dispatchArgs += @('-Model', $Model) }
-        $output = & $DispatcherPath @dispatchArgs 2>$null
+        # A .ps1 dispatcher runs in a child pwsh: an array splatted into a
+        # script binds positionally (the names would arrive as values), and
+        # the real dispatcher writes the child's answer with [Console]::Out,
+        # which an in-process call cannot capture. A native or .cmd
+        # dispatcher takes the same arguments directly.
+        if ([IO.Path]::GetExtension($DispatcherPath) -ieq '.ps1') {
+            $pwshExe = (Get-Process -Id $PID).Path
+            $output = & $pwshExe -NoProfile -File $DispatcherPath @dispatchArgs 2>$null
+        } else {
+            $output = & $DispatcherPath @dispatchArgs 2>$null
+        }
         return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output | Out-String) }
     } finally {
         Remove-Item -LiteralPath $briefFile -Force -ErrorAction SilentlyContinue
@@ -327,7 +337,10 @@ foreach ($group in @($split.Groups)) {
     if ([int]$rank[$groupVerdict] -gt [int]$rank[$overallVerdict]) { $overallVerdict = $groupVerdict }
 }
 $covered = @($covered | Select-Object -Unique)
-$notCovered = @($notCovered | Select-Object -Unique)
+$notCovered = @($notCovered | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
+# A PASS only covers what was read. When any file was truncated or left out,
+# the overall verdict cannot be PASS.
+if ($overallVerdict -eq 'PASS' -and @($notCovered).Count -gt 0) { $overallVerdict = 'BLOCKED' }
 
 # 9. The result, printed always, posted only with -Post.
 Write-Output ("PR review result: {0}" -f $overallVerdict)
