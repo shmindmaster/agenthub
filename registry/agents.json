@@ -820,7 +820,7 @@
       "id": "qwen",
       "name": "Qwen Code",
       "version": "0.27.1",
-      "versionObserved": "2026-11-10: `qwen --version` printed 0.27.1 (npm global shim). `qwen -p` smoke the same day failed in resolveModelConfig although settings carry selectedType nvidia and a configured model; inference is unverified.",
+      "versionObserved": "2026-11-11: `qwen --version` printed 0.27.1 (npm global shim). `qwen --help` the same day documented the OpenAI-compatible auth path (--auth-type openai, OPENAI_* variables, --openai-api-key/--openai-base-url), --approval-mode plan|yolo and the positional one-shot prompt the dispatch route uses.",
       "executable": "{userHome}/AppData/Roaming/npm/qwen.cmd",
       "nativePaths": {
         "config": "{userHome}/.qwen/settings.json",
@@ -833,8 +833,9 @@
         "mcp",
         "acp"
       ],
-      "status": "inactive",
-      "notes": "Installed (npm @qwen-code/qwen-code 0.27.1). Gemini-CLI-family fork: -p/--prompt headless and --acp both verified in --help 2026-11-10. A `qwen -p` smoke crashed in resolveModelConfig even though ~/.qwen/settings.json exists with selectedType nvidia and a configured model, so auth/model resolution is not established rather than absent. `qwen auth` is a removed command. Not a dispatch target until the owner establishes auth and a smoke returns a response; no automatic login."
+      "status": "active",
+      "notes": "Installed (npm @qwen-code/qwen-code 0.27.1). Gemini-CLI-family fork: -p/--prompt headless and --acp both verified in --help 2026-11-10. A `qwen -p` smoke crashed in resolveModelConfig even though ~/.qwen/settings.json exists with selectedType nvidia and a configured model, so the stored configuration is not trusted. `qwen auth` is a removed command. Promoted to active and dispatchable 2026-11-11 on owner direction (Linear SH-4421): the route bypasses the stored settings entirely and carries the Xiaomi Token Plan credential in the child environment only; a real model run through it is still unverified.",
+      "headlessDispatchNote": "`qwen --auth-type openai -m mimo-v2.6-pro --approval-mode yolo -o json <prompt>` built from `qwen --help` 0.27.1 and the vendor Token Plan integration page on 2026-11-11; not exercised with a model run. -ReadOnly swaps yolo for plan (help: 'Analyze only, do not modify files or execute commands'). Auth: MIMO_API_KEY and MIMO_BASE_URL in the dispatcher environment become OPENAI_API_KEY, OPENAI_BASE_URL and OPENAI_MODEL in the child; both must be present and plan-shaped. The child also carries the same GIT_CONFIG_*/GH_CONFIG_DIR push guard as warp."
     },
     {
       "id": "coderabbit",

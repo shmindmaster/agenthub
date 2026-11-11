@@ -200,8 +200,8 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
             return $candidates | Sort-Object { [version]$_.version } -Descending | Select-Object -First 1
         }
         'cline' { return Get-LinkedObservation (Join-Path $UserProfile ".agents/plugins/$name") $source }
-        { $_ -in 'opencode', 'warp', 'kilo', 'mimo-code' } {
-            $hostHome = switch ($_) { 'warp' { '.warp' } 'kilo' { '.kilocode' } 'mimo-code' { '.mimocode' } default { '.config/opencode' } }
+        { $_ -in 'opencode', 'warp', 'kilo', 'mimo-code', 'qwen' } {
+            $hostHome = switch ($_) { 'warp' { '.warp' } 'kilo' { '.kilocode' } 'mimo-code' { '.mimocode' } 'qwen' { '.qwen' } default { '.config/opencode' } }
             $expectedLinks = @{}
             foreach ($skill in Get-ChildItem -LiteralPath (Join-Path $source 'skills') -Directory) {
                 if (Test-Path (Join-Path $skill.FullName 'SKILL.md')) { $expectedLinks["skills/$($skill.Name)"] = $skill.FullName }
@@ -272,7 +272,7 @@ function Test-SkillCopy([string]$Source, [string]$Destination, [string]$Client) 
     return -not @(Compare-Object $sourceSkills $installedSkills).Count
 }
 
-$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders'; kilo='kilo'; 'mimo-code'='mimo' }
+$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders'; kilo='kilo'; 'mimo-code'='mimo'; qwen='qwen' }
 
 # A mapping may declare nativeOwnerHost: the surface row is reported under its
 # own hostId but every observation, client call and install resolves through
@@ -301,7 +301,7 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     if ($Row.route -eq 'preprovisioned-loose-skills' -or $nativeHost -eq 'windsurf') {
         $Row.status = 'blocked'; $Row.detail = 'Legacy surface. Use the managed Devin host when available.'; return
     }
-    if ($Row.route -eq 'managed-loose-skills' -and $nativeHost -notin 'opencode','warp','copilot','kilo','mimo-code') {
+    if ($Row.route -eq 'managed-loose-skills' -and $nativeHost -notin 'opencode','warp','copilot','kilo','mimo-code','qwen') {
         $Row.status = 'blocked'; $Row.detail = 'Registry maps loose skills on a plugin-only host. Reconcile its approved native owner before installing.'; return
     }
     if ($live -and $clients.ContainsKey($nativeHost) -and
@@ -314,7 +314,7 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     $Row.observed = if ($observation.version) { $observation.version } elseif ($observation.status -eq 'current') { $Row.expected } else { $null }
     $Row.previousPath = $observation.path
     $Row.detail = $observation.detail
-    if (-not $observation -and $nativeHost -notin 'cursor','amp','cline','opencode','warp','kilo','mimo-code') {
+    if (-not $observation -and $nativeHost -notin 'cursor','amp','cline','opencode','warp','kilo','mimo-code','qwen') {
         $Row.status = 'blocked'
         $Row.detail = 'Native registration is absent. First install requires verified host activation and ownership.'
         return
@@ -465,8 +465,8 @@ function Invoke-PluginInstall($Row) {
             [void][IO.Directory]::CreateDirectory((Split-Path -Parent $dest))
             New-Item -ItemType Junction -Path $dest -Target $source | Out-Null
         }
-        { $_ -in 'opencode','warp','kilo','mimo-code' } {
-            $dest = switch ($_) { 'warp' { '.warp' } 'kilo' { '.kilocode' } 'mimo-code' { '.mimocode' } default { '.config/opencode' } }
+        { $_ -in 'opencode','warp','kilo','mimo-code','qwen' } {
+            $dest = switch ($_) { 'warp' { '.warp' } 'kilo' { '.kilocode' } 'mimo-code' { '.mimocode' } 'qwen' { '.qwen' } default { '.config/opencode' } }
             Invoke-Client pwsh @('-NoProfile','-File',(Join-Path $PSScriptRoot 'Install-WarpSkills.ps1'),'-Root',$root,'-WarpHome',(Join-Path $UserProfile $dest),'-PluginId',$Row.capability) | Out-Null
         }
         default { throw 'No supported installer for this host mapping.' }

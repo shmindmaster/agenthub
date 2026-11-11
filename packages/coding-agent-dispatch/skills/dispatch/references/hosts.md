@@ -1,14 +1,14 @@
 # Host details
 
-Read when: choosing a model, a Kiro role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo or MiMo eligibility, resuming a Cline session, or auditing a host plugin.
+Read when: choosing a model, a Kiro role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo, MiMo or Qwen eligibility, resuming a Cline session, or auditing a host plugin.
 
-Contents: Models, Kiro roles, Read-only runs, Account hosts, New plan hosts, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
+Contents: Models, Kiro roles, Read-only runs, Account hosts, New plan hosts, Qwen, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
 
 ## Models
 
 Owner direction 2026-11-10: a model or coding plan is allowed on any host where it can be integrated and supported.
 
-- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, warp, factory, devin, kilo, mimo-code and kiro. Other hosts take no `-Model`.
+- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, warp, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment) and kiro. Other hosts take no `-Model`.
 - `dispatchPolicy.<host>.allowedModels` records the smoke-verified models. It does not limit the choice. An unlisted model adds one stderr line, `note: <host> model '<id>' is not in the smoke-verified list; passing it through`, and the run continues. The host and its plan decide what the model costs; check the cost before routing an expensive one.
 - The id must be well formed: no whitespace or shell metacharacters; `provider/model` for opencode, kilo and mimo-code; `provider:model` for cline. A malformed id is refused with exit 3.
 
@@ -17,7 +17,7 @@ Both rules are recorded in `registry/fleet-profile.json` -> `dispatchModelPolicy
 Subscriptions only, never a pay-as-you-go wallet (owner direction 2026-11-10). These two refusals stay:
 
 - OpenCode: provider `opencode/` is the pay-as-you-go Zen wallet and is refused. Use `opencode-go/<model>`, the Go subscription on the stored Go workspace login.
-- MiMo, on every host (kilo `mimo/*`, mimo-code `xiaomi-token-plan-*/*`, opencode `mimo-token-plan/*`, cline `mimo-token-plan:*`, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider `xiaomi/` (the pay-as-you-go API in MiMo Code's model listing) is refused. If `MIMO_BASE_URL` is set, its host must be `token-plan-<region>.xiaomimimo.com`; pay-as-you-go is `api.xiaomimimo.com`. If `MIMO_API_KEY` is set, it must start with `tp-` or `ttp-`; pay-as-you-go keys start with `sk-`. The refusal names the variable and never prints its value.
+- MiMo, on every host (kilo `mimo/*`, mimo-code `xiaomi-token-plan-*/*`, qwen's OpenAI-compatible child environment, opencode `mimo-token-plan/*`, cline `mimo-token-plan:*`, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider `xiaomi/` (the pay-as-you-go API in MiMo Code's model listing) is refused. If `MIMO_BASE_URL` is set, its host must be `token-plan-<region>.xiaomimimo.com`; pay-as-you-go is `api.xiaomimimo.com`. If `MIMO_API_KEY` is set, it must start with `tp-` or `ttp-`; pay-as-you-go keys start with `sk-`. On qwen both must be present, because the child environment is that route's only credential. The refusal names the variable and never prints its value.
 
 ## Kiro roles
 
@@ -51,6 +51,7 @@ writable run starts. `-List -ReadOnly` prints the supported hosts.
 | codex | `exec --sandbox read-only --skip-git-repo-check -` |
 | factory | `exec` without `--auto`, which is Droid's read-only default |
 | kiro | `chat --v3 --no-interactive --trust-all-tools --agent ah-readonly`: that profile has only read, glob, grep, thinking and todo tools (no shell, no write, no MCP server); the dispatcher refuses when the installed profile lists any other tool |
+| qwen | `--approval-mode plan` in place of `--approval-mode yolo` (help 0.27.1: "Analyze only, do not modify files or execute commands") |
 
 Kiro notes: `-ReadOnly` always runs the reviewer profile, so it is refused
 with `-Role engineer`, `tester`, `architect` or `incident`. It is also
@@ -103,9 +104,45 @@ and does not load the host's MCP file. Every Kiro model spends plan credits at
 its own multiplier; any model Kiro offers may be routed with `-Model`. The Kiro
 IDE and KiroCrew are not dispatch targets.
 
-Qwen has a saved configuration, but its observed run failed in
-`resolveModelConfig`. Do not describe it as callable or change its credentials
-to make a check pass.
+## Qwen
+
+Qwen Code 0.27.1 is dispatchable on the Xiaomi MiMo Token Plan (owner
+direction 2026-11-11, SH-4421). The command, from `qwen --help`:
+
+```
+qwen --auth-type openai -m <model> --approval-mode yolo -o json <prompt>
+```
+
+A positional query is already a one-shot headless run (`-p/--prompt` is
+deprecated) and there is no directory flag, so the child's working directory
+is the task directory. The stored `~/.qwen` configuration is not used or
+written: `--auth-type openai` selects the OpenAI-compatible auth that the
+vendor Token Plan page documents, and the credential travels in the child
+environment only.
+
+- Auth: `MIMO_API_KEY` and `MIMO_BASE_URL` in the dispatcher's environment
+  become `OPENAI_API_KEY`, `OPENAI_BASE_URL` and `OPENAI_MODEL` in the child.
+  Both `MIMO_*` variables must be present and plan-shaped (the host pattern
+  and `tp-`/`ttp-` key above); a missing or pay-as-you-go value refuses with
+  exit 3. `-ShowCommand` prints the child variable names, never the key.
+- Default model `mimo-v2.6-pro`, the Token Plan default on the vendor page
+  (recorded as page-confirmed, not smoke-verified). `-Model` accepts a bare
+  model id and is copied into `-m` and `OPENAI_MODEL`.
+- Scrub: the parent's `OPENAI_API_KEY`/`OPENAI_BASE_URL`/`OPENAI_MODEL` are
+  removed before the child values are set, and `ANTHROPIC_*`, `GEMINI`,
+  `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `DASHSCOPE_API_KEY`,
+  `MODELSCOPE_API_KEY`, `QWEN_API_KEY`, `GH_TOKEN` and `GITHUB_TOKEN` are
+  dropped so a stray provider variable cannot retarget auth or billing.
+- Qwen has no agent-profile denylist, so `--approval-mode yolo` approves
+  every tool call. The child carries the same guard as warp: `GIT_CONFIG_*`
+  push rewrites to an unhandled scheme, an empty `GH_CONFIG_DIR`, and no
+  GitHub tokens. It is not a shell denylist; run qwen only in worktrees.
+- `qwen auth` is a removed command and `qwen -p` under the stored
+  `selectedType nvidia` settings crashed in `resolveModelConfig` on
+  2026-11-10; the route was assembled from help and the vendor page and has
+  not been exercised with a model run. Do not change its stored credentials
+  to make a check pass: the route's plan variables live in the dispatcher's
+  environment, and the child never reads the saved configuration.
 
 ## Factory
 

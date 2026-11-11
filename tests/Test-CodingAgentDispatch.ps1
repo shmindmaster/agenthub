@@ -34,7 +34,7 @@ function PassNote([string]$HostName, [string]$ModelId) {
 $oldRoot = $env:AGENTHUB_ROOT; $oldLocal = $env:LOCALAPPDATA
 $oldWindowsHome = $env:USERPROFILE; $oldPosixHome = $env:HOME
 $oldApiKeyVars = @{}
-foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN')) {
+foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN')) {
     $oldApiKeyVars[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     [Environment]::SetEnvironmentVariable($name, 'synthetic-dispatch-fixture', 'Process')
 }
@@ -64,7 +64,7 @@ for (const arg of args) {
 }
 const settingsIndex = args.indexOf('--settings-file');
 if (settingsIndex >= 0 && fs.existsSync(args[settingsIndex + 1])) ampSettings = JSON.parse(fs.readFileSync(args[settingsIndex + 1], 'utf8'));
-console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
+console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN'].map(name => [name, Object.hasOwn(process.env, name)])), QwenRoute: { openAiKeyPresent: Object.hasOwn(process.env, 'OPENAI_API_KEY'), openAiKeyIsMimo: process.env.OPENAI_API_KEY !== undefined && process.env.OPENAI_API_KEY === process.env.MIMO_API_KEY, openAiBaseUrl: process.env.OPENAI_BASE_URL ?? null, openAiModel: process.env.OPENAI_MODEL ?? null, ghTokenPresent: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN'), gitPushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null }}));
 if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
     $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
@@ -78,9 +78,9 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         [IO.File]::WriteAllText($stub, "#!/bin/sh`nexec '$node' '$recorder' `"`$@`"`n")
         [IO.File]::SetUnixFileMode($stub, [IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
     }
-    $ids = @('claude','codex','cursor','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code','kiro')
+    $ids = @('claude','codex','cursor','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code','kiro','qwen')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode-go/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; kiro = @{ enabled = $true; agent = 'ah-peer'; model = 'auto'; allowedModels = @('auto', 'claude-sonnet-5.5') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
+    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode-go/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; kiro = @{ enabled = $true; agent = 'ah-peer'; model = 'auto'; allowedModels = @('auto', 'claude-sonnet-5.5') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; qwen = @{ enabled = $true; model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -97,14 +97,14 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'disabled Codex policy refuses a dispatch' ($r.Exit -eq 3 -and $r.Err -match 'response capture is not verified' -and $r.Err -match 'bounded smoke')
     $fleet.dispatchPolicy.Remove('codex'); Save-Fixture
     $r = Run @('-List')
-    foreach ($id in @('claude','codex','amp','devin','warp')) { Check "$id headless contract" ($r.Out -match "(?m)^$id\tcallable\t") }
+    foreach ($id in @('claude','codex','amp','devin','warp','qwen')) { Check "$id headless contract" ($r.Out -match "(?m)^$id\tcallable\t") }
     foreach ($id in @('cursor','windsurf')) { Check "$id routes to CLI" ($r.Out -match "(?m)^$id\trouted\t") }
     foreach ($id in @('antigravity-desktop')) { Check "$id refuses" ($r.Out -match "(?m)^$id\trefused\t") }
     $r = Run @('-HostId','unknown','-Prompt','ok'); Check 'unknown host refuses' ($r.Exit -eq 3 -and $r.Err -match 'unknown host')
     foreach ($id in @('devin-cloud','jules','cursor-cloud','copilot-agent')) {
         $r = Run @('-HostId',$id,'-Prompt','ok'); Check "$id cloud refuses" ($r.Exit -eq 3 -and $r.Err -match 'hosted cloud execution')
     }
-    foreach ($id in @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro')) {
+    foreach ($id in @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro','qwen')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         if ($id -eq 'copilot' -and $r.Exit -eq 3 -and $r.Err -match 'gh has no token for account sh-pendoah') {
             # Copilot dispatch reads the owner's sh-pendoah gh login; without it the
@@ -177,6 +177,12 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             $agentIndex = [Array]::IndexOf($d.Arguments, '--agent')
             Check 'MiMo runs unattended only under the policy-named guarded agent' ($agentIndex -ge 0 -and $d.Arguments[$agentIndex + 1] -eq 'peer')
         }
+        if ($id -eq 'qwen') {
+            Check 'Qwen runs the one-shot openai-auth command on the plan model' ($d.Arguments -contains '--auth-type' -and $d.Arguments -contains 'openai' -and $d.Arguments -contains '-m' -and $d.Arguments -contains 'mimo-v2.6-pro' -and $d.Arguments -contains '--approval-mode' -and $d.Arguments -contains 'yolo' -and $d.Arguments -contains '-o' -and $d.Arguments -contains 'json' -and $d.Arguments[-1] -eq 'ok' -and $d.Cwd -in @($scratch, $scratchReal))
+            Check 'Qwen child carries the Token Plan as OPENAI_* names mapped from MIMO_*' ($d.QwenRoute.openAiKeyPresent -and $d.QwenRoute.openAiKeyIsMimo -and $d.QwenRoute.openAiBaseUrl -eq 'https://token-plan-sgp.xiaomimimo.com/v1' -and $d.QwenRoute.openAiModel -eq 'mimo-v2.6-pro')
+            Check 'Qwen child cannot push or call gh under the peer guard env' ($d.QwenRoute.gitPushRewrite -match 'pushInsteadOf$' -and $d.QwenRoute.ghConfigDir -match 'qwen-peer-gh$' -and -not $d.QwenRoute.ghTokenPresent)
+            Check 'Qwen child drops other provider keys that could retarget billing' (-not $d.ApiKeyVars.DASHSCOPE_API_KEY -and -not $d.ApiKeyVars.GEMINI_API_KEY -and -not $d.ApiKeyVars.GOOGLE_API_KEY -and -not $d.ApiKeyVars.GOOGLE_GENERATIVE_AI_API_KEY -and -not $d.ApiKeyVars.ANTHROPIC_API_KEY -and -not $d.ApiKeyVars.ANTHROPIC_BASE_URL -and -not $d.ApiKeyVars.QWEN_API_KEY -and -not $d.ApiKeyVars.MODELSCOPE_API_KEY)
+        }
         if ($id -eq 'amp') {
             $settingsIndex = [Array]::IndexOf($d.Arguments, '--settings-file')
             $settingsPath = if ($settingsIndex -ge 0) { $d.Arguments[$settingsIndex + 1] } else { $null }
@@ -216,8 +222,9 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         codex   = @{ flags = @('--sandbox', 'read-only'); omits = @() }
         factory = @{ flags = @(); omits = @('--auto') }
         kiro    = @{ flags = @('--v3', '--agent', 'ah-readonly'); omits = @() }
+        qwen    = @{ flags = @('--approval-mode', 'plan'); omits = @('yolo') }
     }
-    $allDispatchHosts = @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro')
+    $allDispatchHosts = @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro','qwen')
     $createdPolicy = @()
     foreach ($id in $allDispatchHosts) {
         if (-not $fleet.dispatchPolicy.ContainsKey($id)) { $fleet.dispatchPolicy[$id] = @{}; $createdPolicy += $id }
@@ -249,7 +256,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','incident')
     Check 'Kiro refuses a role that policy does not record' ($r.Exit -eq 3 -and $r.Err -match 'roles\.incident' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     $fleet.dispatchPolicy.kiro.roles['incident'] = 'ah-incident'; Save-Fixture
-    foreach ($id in @('codex', 'claude', 'opencode', 'cursor')) {
+    foreach ($id in @('codex', 'claude', 'opencode', 'cursor', 'qwen')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','engineer')
         Check "$id refuses -Role engineer and names the hosts that support roles" ($r.Exit -eq 3 -and $r.Err -match 'roles are supported only on: kiro' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     }
@@ -332,6 +339,11 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     Check 'Claude -ReadOnly child never receives the bypass mode' ($null -ne $d -and (@($d.Arguments) -join ' ') -ceq '--print --permission-mode plan --permission-prompts none' -and $d.Input -eq 'ok') $r.Err
+    $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'Qwen -ReadOnly swaps the yolo approval mode for plan' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=--auth-type openai -m mimo-v2.6-pro --approval-mode plan -o json ok') ($r.Out + $r.Err)
+    $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Qwen -ReadOnly child receives plan and never yolo' ($null -ne $d -and (@($d.Arguments) -join ' ') -ceq '--auth-type openai -m mimo-v2.6-pro --approval-mode plan -o json ok' -and $d.QwenRoute.openAiKeyIsMimo) $r.Err
 
     # -List stays as it was; -List -ReadOnly narrows it to read-only hosts.
     $r = Run @('-List')
@@ -339,7 +351,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check '-List still prints one three-column row per registered host' ($r.Exit -eq 0 -and $listRows.Count -eq $ids.Count -and @($listRows | Where-Object { @($_ -split "`t").Count -ne 3 }).Count -eq 0 -and $r.Out -match "(?m)^grok\tcallable\tfile") $r.Out
     $r = Run @('-List','-ReadOnly')
     $readOnlyRows = @(($r.Out -split '\r?\n') | Where-Object { $_ } | ForEach-Object { ($_ -split "`t")[0] })
-    Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,factory,kiro') ($r.Out + $r.Err)
+    Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,factory,kiro,qwen') ($r.Out + $r.Err)
     $fleet.dispatchPolicy['codex']['enabled'] = $false; Save-Fixture
     $r = Run @('-List','-ReadOnly')
     Check '-List -ReadOnly leaves out a read-only host that policy disables' ($r.Exit -eq 0 -and $r.Out -notmatch '(?m)^codex\t' -and $r.Out -match '(?m)^claude\t') $r.Out
@@ -523,7 +535,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         @('mimo-code', 'xiaomi-token-plan-sgp/mimo-v2.6-pro'),
         @('opencode', 'mimo-token-plan/mimo-v2.6-pro'),
         @('cline', 'mimo-token-plan:mimo-v2.6-pro'),
-        @('factory', 'custom-mimo-v2.6-pro')
+        @('factory', 'custom-mimo-v2.6-pro'),
+        @('qwen', 'mimo-v2.6-pro')
     )
     foreach ($route in $mimoRoutes) {
         $routeHost = $route[0]; $routeModel = $route[1]
@@ -554,6 +567,27 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','opencode-go/mimo-v2.6-pro')
     Check 'A MiMo model on the OpenCode Go subscription is not a MiMo API route' ($r.Exit -eq 0) $r.Err
     $env:MIMO_API_KEY = 'tp-synthetic-dispatch-fixture'
+
+    # ---------- SH-4421: Qwen Code on the Xiaomi MiMo Token Plan ----------
+    $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-ShowCommand')
+    Check 'Qwen -ShowCommand prints the exact command and child env names, never the key' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=--auth-type openai -m mimo-v2.6-pro --approval-mode yolo -o json ok' -and $r.Out -match '(?m)^env=' -and $r.Out -match 'OPENAI_API_KEY' -and $r.Out -match 'OPENAI_BASE_URL' -and $r.Out -match 'OPENAI_MODEL' -and $r.Out -notmatch 'tp-synthetic-dispatch-fixture' -and $r.Err -notmatch 'tp-synthetic-dispatch-fixture') ($r.Out + $r.Err)
+    # The plan credential is this route's whole auth, so absent variables are a
+    # refusal, not a pass-through like mimo-code's stored credential.
+    $env:MIMO_API_KEY = $null; $env:MIMO_BASE_URL = $null
+    $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'Qwen refuses when the plan variables are absent and starts no child' ($r.Exit -eq 3 -and $r.Err -match 'MIMO_BASE_URL is not set' -and $r.Out -notmatch '"Arguments"') ($r.Out + $r.Err)
+    $env:MIMO_BASE_URL = 'https://token-plan-sgp.xiaomimimo.com/v1'
+    $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'Qwen refuses when only the plan key is absent' ($r.Exit -eq 3 -and $r.Err -match 'MIMO_API_KEY is not set') ($r.Out + $r.Err)
+    $env:MIMO_API_KEY = 'tp-synthetic-dispatch-fixture'
+    $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','mimo-v2.6-pro')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Qwen routes a listed explicit model without a note' ($null -ne $d -and $d.Arguments -contains 'mimo-v2.6-pro' -and $r.Err -notmatch 'note:') $r.Err
+    $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','mimo-v2.6-flash')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Qwen passes an unlisted plan model through with a note and remaps it' ($null -ne $d -and $d.Arguments -contains 'mimo-v2.6-flash' -and $d.QwenRoute.openAiModel -eq 'mimo-v2.6-flash' -and $r.Err -match (PassNote 'qwen' 'mimo-v2.6-flash')) $r.Err
+    $r = Run @('-HostId','qwen','-Prompt','ok','-Cwd',$scratch,'-Model','mimo v2&echo')
+    Check 'Qwen refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-Model','kimi-k3')
     Check 'OpenCode refuses a bare model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-Model','opencode-go/x&echo')

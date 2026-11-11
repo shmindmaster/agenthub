@@ -21,7 +21,8 @@
     "vscode-insiders",
     "kilo",
     "mimo-code",
-    "kiro"
+    "kiro",
+    "qwen"
   ],
   "launchDefaults": {
     "copilot": [
@@ -275,6 +276,19 @@
           ]
         },
         "note": "Promoted to active 2026-11-10 on owner direction. repo-autonomous since the governed command was exercised the same day under the guarded ah-peer agent: it returned READY, and a denied command stayed blocked with all tools trusted. The dispatcher refuses the host without that agent."
+      },
+      {
+        "hostId": "qwen",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "flags": [
+            "--auth-type",
+            "openai",
+            "--approval-mode",
+            "yolo"
+          ]
+        },
+        "note": "Promoted to active 2026-11-11 on owner direction (use OpenCode, Qwen Code, MiMo Code, Kilo Code and Cline with the MiMo Token Plan; Linear SH-4421). repo-autonomous on the `qwen --help` 0.27.1 command contract; the route was NOT exercised with a model run. This host has no agent-profile denylist, so the dispatcher carries the same GIT_CONFIG_*/GH_CONFIG_DIR push guard in the child environment as warp."
       }
     ],
     "exemptions": [],
@@ -378,12 +392,19 @@
       "authMode": "account",
       "loginCommand": "kiro-cli login",
       "modelNote": "2026-11-10: `kiro-cli whoami` reports a Builder ID login. auto lets Kiro choose the model per task at 1.00x credits and is the default; dispatchPolicy.kiro.allowedModels lists the smoke-verified models; a task may name any model Kiro offers."
+    },
+    "qwen": {
+      "model": "mimo-v2.6-pro",
+      "authMode": "apiKey",
+      "authEnv": "MIMO_API_KEY",
+      "loginCommand": "none; `qwen auth` is a removed command in 0.27.1, so the Token Plan credential travels in the child environment instead",
+      "modelNote": "2026-11-11, confirmed from the vendor Qwen Code Token Plan integration page (mimo.mi.com), not smoke-verified: an OpenAI-compatible provider at token-plan-<region>.xiaomimimo.com/v1 with the tp-/ttp- plan key. The dispatcher passes --auth-type openai -m <model> and sets OPENAI_API_KEY/OPENAI_BASE_URL/OPENAI_MODEL in the child environment from MIMO_API_KEY and MIMO_BASE_URL. The stored ~/.qwen settings (selectedType nvidia, which crashed resolveModelConfig on 2026-11-10) are not used by this route."
     }
   },
   "dispatchModelPolicy": {
     "appliesTo": "dispatchPolicy.<host>.allowedModels and the -Model argument of Invoke-CodingAgent.ps1. Recorded beside dispatchPolicy because every dispatchPolicy entry is a host record with an enabled flag.",
     "modelPolicyNote": "Owner direction 2026-11-10: a model or coding plan is allowed on any host where it can be integrated and supported. allowedModels lists the models recorded as smoke-verified (or, where its note says so, confirmed in the host's own model listing); it does not limit -Model. The dispatcher checks only the shape of a model id, passes an unlisted one through, and writes one stderr note. The earlier allow-list refusals were a session's cost guard, not an owner rule. Host enablement, guarded agents, credential stripping, cloud refusals and the Claude API-key opt-in are unchanged. The two money refusals that remain are in subscriptionOnly below.",
-    "subscriptionOnly": "Owner direction 2026-11-10: subscriptions only, never a pay-as-you-go wallet. These are the only model refusals besides a malformed id. (1) OpenCode: provider opencode/ is the pay-as-you-go Zen wallet and is refused; use opencode-go/<model>, the Go subscription. (2) MiMo on every host (kilo, mimo-code, opencode mimo-token-plan/*, cline mimo-token-plan:*, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider xiaomi/ (the pay-as-you-go API in MiMo Code's model listing) is refused; MIMO_BASE_URL, when set, must name a token-plan-<region>.xiaomimimo.com host (pay-as-you-go is api.xiaomimimo.com); MIMO_API_KEY, when set, must start with tp- or ttp- (pay-as-you-go keys start with sk-). The dispatcher names the variable and never prints its value."
+    "subscriptionOnly": "Owner direction 2026-11-10: subscriptions only, never a pay-as-you-go wallet. These are the only model refusals besides a malformed id. (1) OpenCode: provider opencode/ is the pay-as-you-go Zen wallet and is refused; use opencode-go/<model>, the Go subscription. (2) MiMo on every host (kilo, mimo-code, qwen on its OpenAI-compatible child environment, opencode mimo-token-plan/*, cline mimo-token-plan:*, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider xiaomi/ (the pay-as-you-go API in MiMo Code's model listing) is refused; MIMO_BASE_URL, when set, must name a token-plan-<region>.xiaomimimo.com host (pay-as-you-go is api.xiaomimimo.com); MIMO_API_KEY, when set, must start with tp- or ttp- (pay-as-you-go keys start with sk-); on qwen both must be present because that route's only credential is the child environment. The dispatcher names the variable and never prints its value."
   },
   "dispatchPolicy": {
     "cursor": {
@@ -680,6 +701,23 @@
       "ownerAction": null,
       "verifiedOn": "2026-11-10",
       "ownerDirection": "2026-11-10: owner directed integrating the Kiro stack into the agent fleet so its agents can be given major tasks. Same day: default to capable models, not the cheapest."
+    },
+    "qwen": {
+      "enabled": true,
+      "readOnly": {
+        "flags": ["--approval-mode", "plan"],
+        "omits": ["yolo"]
+      },
+      "readOnlyNote": "2026-11-11 `qwen --help` (0.27.1): \"--approval-mode <mode> Set the approval mode: plan (Analyze only, do not modify files or execute commands), default (Require approval for file edits or shell commands), auto-edit (Automatically approve file edits), auto (LLM classifier auto-approves safe actions, blocks risky ones), yolo (Automatically approve all tools)\". -ReadOnly replaces yolo with plan. No model run exercised this mode; the flags come from help text only.",
+      "model": "mimo-v2.6-pro",
+      "allowedModels": [
+        "mimo-v2.6-pro"
+      ],
+      "allowedModelsNote": "Recorded models, not a limit on -Model. mimo-v2.6-pro is confirmed as a Token Plan model on the vendor Qwen Code integration page (mimo.mi.com, read 2026-11-11); it is not smoke-verified. mimo-v2.6-flash also exists on the plan per the OpenCode and MiMo Code records and passes through with a stderr note when a task names it.",
+      "reason": "2026-11-11: the route was assembled from `qwen --help` 0.27.1 and the vendor Token Plan integration page. A model run was not exercised: a 2026-11-10 `qwen -p` smoke crashed in resolveModelConfig under the stored selectedType nvidia settings, and this route bypasses the stored configuration entirely. --auth-type openai selects the OpenAI-compatible auth and OPENAI_API_KEY, OPENAI_BASE_URL and OPENAI_MODEL are set in the child environment from MIMO_API_KEY and MIMO_BASE_URL, which must be present and plan-shaped: a token-plan-<region>.xiaomimimo.com host and a tp-/ttp- key.",
+      "guard": "qwen --approval-mode yolo approves every tool call and the host has no agent-profile denylist, so the child environment repeats the warp guard: GIT_CONFIG_* rewrites https://, git@ and ssh:// push URLs to an unhandled scheme, GH_CONFIG_DIR points at an empty directory, and GH_TOKEN/GITHUB_TOKEN are removed. Not guarded: local destructive commands and other cloud CLIs; run qwen only in C:\\wt worktrees.",
+      "verifiedOn": "2026-11-11",
+      "ownerDirection": "2026-11-11: use OpenCode, Qwen Code, MiMo Code, Kilo Code and Cline with the MiMo Token Plan (Linear SH-4421)."
     }
   },
   "hostSurfaces": {
