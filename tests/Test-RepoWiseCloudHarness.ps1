@@ -142,6 +142,12 @@ print("PROBE-OK")
         $capOut = & $python $probe ($cloud -replace '\\', '/') 2>&1 | Out-String
         Report 'context_cap bounds the whole result: content, structuredContent, batches, multi-byte safe' `
             ($LASTEXITCODE -eq 0 -and $capOut -match 'PROBE-OK') $capOut
+        # Second review: no field (_meta and the like) may carry an uncapped
+        # payload, and the size is measured as written on the wire.
+        $wireProbe = Join-Path $cloud 'samples\context_cap_probe.py'
+        $wireOut = & $python $wireProbe ($cloud -replace '\\', '/') 2>&1 | Out-String
+        Report 'context_cap holds the wire size under the cap for every field, non-ASCII text and batches' `
+            ($LASTEXITCODE -eq 0 -and $wireOut -match '(?m)^ALL OK' -and $wireOut -notmatch 'BAD') $wireOut
     } finally {
         Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
     }

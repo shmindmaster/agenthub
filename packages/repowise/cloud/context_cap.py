@@ -54,8 +54,8 @@ def _marker(kept_bytes: int, total_bytes: int, kept_items: int, total_items: int
     }
 
 
-def cap_tool_result(result: dict, max_bytes: int = DEFAULT_MAX_BYTES,
-                    max_items: int = DEFAULT_MAX_ITEMS) -> tuple[dict, dict]:
+def _cap_tool_result_inner(result: dict, max_bytes: int = DEFAULT_MAX_BYTES,
+                           max_items: int = DEFAULT_MAX_ITEMS) -> tuple[dict, dict]:
     """Cap one CallToolResult-shaped dict. Returns (result, stats).
 
     The byte budget covers the whole serialized result, so a result whose
@@ -121,6 +121,86 @@ def cap_tool_result(result: dict, max_bytes: int = DEFAULT_MAX_BYTES,
                             stats["kept_items"], stats["total_items"],
                             dropped_structured))
     capped["content"] = kept
+    return capped, stats
+
+
+# Fields of a CallToolResult that are kept when the result has to be cut down
+# to its essentials. Everything else (_meta, annotations, vendor extensions)
+# is dropped rather than allowed to carry an uncapped payload.
+_ESSENTIAL_FIELDS = ("content", "isError")
+
+
+def _wire_bytes(result) -> int:
+    """Size of the result exactly as the bridge writes it (json.dumps default
+    escaping, so non-ASCII text counts at its escaped length)."""
+    return len(json.dumps(result).encode("utf-8"))
+
+
+def cap_tool_result(result: dict, max_bytes: int = DEFAULT_MAX_BYTES,
+                    max_items: int = DEFAULT_MAX_ITEMS) -> tuple[dict, dict]:
+    """Cap one CallToolResult-shaped dict so its serialized size on the wire
+    never exceeds ``max_bytes``. Returns (result, stats).
+
+    Order of cuts: structuredContent, then the content list, then every
+    non-essential field (``_meta`` and the like), then the remaining text.
+    The last resort is a result holding only the truncation marker.
+    """
+    pre_dropped: list[str] = []
+    if isinstance(result, dict):
+        # Oversized side fields go first, so they cannot use up the budget
+        # that the actual answer (content) should get.
+        side = {k: v for k, v in result.items() if k not in _ESSENTIAL_FIELDS and k != "structuredContent"}
+        if side and _wire_bytes(side) > max_bytes // 4:
+            pre_dropped = sorted(side)
+            result = {k: v for k, v in result.items() if k not in side}
+    capped, stats = _cap_tool_result_inner(result, max_bytes, max_items)
+    if pre_dropped and isinstance(capped, dict):
+        stats["truncated"] = True
+        content = capped.get("content")
+        capped["content"] = (list(content) if isinstance(content, list) else []) + [{
+            "type": "text",
+            "text": f"{MARKER_PREFIX} dropped oversized result fields: {', '.join(pre_dropped)[:200]}."}]
+    if not isinstance(capped, dict) or _wire_bytes(capped) <= max_bytes:
+        return capped, stats
+
+    stats["truncated"] = True
+    extras = [k for k in capped if k not in _ESSENTIAL_FIELDS]
+    if extras:
+        capped = {k: v for k, v in capped.items() if k in _ESSENTIAL_FIELDS}
+        note = {"type": "text",
+                "text": f"{MARKER_PREFIX} dropped oversized result fields: {', '.join(sorted(extras))[:200]}."}
+        content = capped.get("content")
+        capped["content"] = (list(content) if isinstance(content, list) else []) + [note]
+
+    content = capped.get("content")
+    if not isinstance(content, list):
+        content = []
+    content = list(content)
+    # Shrink from the front of the payload items (markers sit at the end) until
+    # the wire size fits: cut text items in halves, then drop items.
+    guard = 0
+    while _wire_bytes({**capped, "content": content}) > max_bytes and guard < 10000:
+        guard += 1
+        payload = [i for i, item in enumerate(content)
+                   if not (isinstance(item, dict) and str(item.get("text", "")).startswith(MARKER_PREFIX))]
+        if not payload:
+            break
+        idx = payload[-1]
+        item = content[idx]
+        text = str(item.get("text", "")) if isinstance(item, dict) and item.get("type") == "text" else ""
+        if len(text) > 64:
+            trimmed = dict(item)
+            trimmed["text"] = text[: len(text) // 2]
+            content[idx] = trimmed
+        else:
+            del content[idx]
+    capped["content"] = content
+    if _wire_bytes(capped) > max_bytes:
+        capped = {"content": [{"type": "text", "text": f"{MARKER_PREFIX} response truncated."}]}
+        if result.get("isError") is not None:
+            capped["isError"] = result.get("isError")
+    stats["kept_items"] = sum(1 for item in capped["content"]
+                              if not (isinstance(item, dict) and str(item.get("text", "")).startswith(MARKER_PREFIX)))
     return capped, stats
 
 

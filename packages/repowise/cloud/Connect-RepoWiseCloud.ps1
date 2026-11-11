@@ -89,14 +89,14 @@ function Test-RepoWiseAlias {
     param([string]$Value)
     # -cmatch: aliases are lowercase by contract (same rule the bash side
     # applies); PowerShell's -match is case-insensitive.
-    return ($Value -cmatch '^[a-z0-9][a-z0-9._-]*$')
+    return ($Value -cmatch '\A[a-z0-9][a-z0-9._-]*\z')
 }
 
 function Test-SshTarget {
     # [user@]host restricted so it can never be read as an ssh option; the
     # first character deliberately excludes `-`.
     param([string]$Value)
-    return ($Value -match '^[A-Za-z0-9._][A-Za-z0-9._-]*(@[A-Za-z0-9._-]+)?$')
+    return ($Value -match '\A[A-Za-z0-9._][A-Za-z0-9._-]*(@[A-Za-z0-9._-]+)?\z')
 }
 
 function ConvertTo-RemoteStatusDir {
