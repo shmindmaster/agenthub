@@ -5,7 +5,7 @@
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.319",
+      "version": "2.1.321",
       "executable": "{userHome}/.local/bin/claude.exe",
       "platformPaths": {
         "darwin": {
@@ -192,7 +192,7 @@
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.5.3",
+      "version": "1.5.5",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
@@ -295,6 +295,7 @@
         "instructionHeader": "# Grok CLI Global Instructions",
         "instructionFormat": "markdown",
         "skillsDir": "{userHome}/.grok/skills",
+        "skillsDirNote": "Checked 2026-11-11: the path is absent on disk. It is the documented Grok user skills folder and stays declared; nothing is deployed there because the fleet is plugin-only, so Grok receives skills through its installed plugins. Correct but unused.",
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Grok loads ~/.grok/skills and is not documented as reading ~/.agents/skills. AgentHub deploys once to the master library; ~/.grok/skills is a directory junction to that library.",
         "agentsDir": "{userHome}/.grok/agents",
@@ -574,7 +575,7 @@
     {
       "id": "factory",
       "name": "Factory Droid",
-      "version": "1.6.0",
+      "version": "1.7.1",
       "versionNote": "Corrected 2026-10-14. The 2026-08-19 observation of 0.195.0 from app-0.152.0 is historical. The live binary is %USERPROFILE%\\bin\\droid.exe and `droid --version` returned 0.241.1. `droid update` reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/bin/droid.exe",
       "executableNote": "Corrected 2026-10-14. The versioned Factory\\app-0.152.0\\resources\\bin\\droid.exe path is absent. The installed CLI is %USERPROFILE%\\bin\\droid.exe. `droid --version` returned 0.241.1.",
@@ -699,8 +700,8 @@
     {
       "id": "kiro",
       "name": "Kiro IDE and Kiro CLI",
-      "version": "3.1.0",
-      "versionObserved": "2026-11-09: read-only `kiro-cli --version` printed kiro-cli 3.1.0. Kiro IDE 1.4.121 recorded from the same audit. An unattended `kiro-cli chat --no-interactive` run returned READY on 2026-11-10 under agent ah-peer.",
+      "version": "3.2.0",
+      "versionObserved": "2026-11-11: `kiro-cli --version` printed 3.2.0. Fresh V3 sessions without --trust-all-tools executed shell, read and write tools, invoked ah-project-reviewer, and read a Linear issue under the user allow rule. ACP V3 initialize and recipe discovery succeeded. IDE UI was not exercised.",
       "executable": "{userHome}/AppData/Local/Kiro-Cli/kiro-cli.exe",
       "nativePaths": {
         "configHome": "{userHome}/.kiro",
@@ -712,7 +713,7 @@
         "mcpKey": "mcpServers",
         "mcpNote": "Remote entries take url and headers, and ${VAR} is supported. The file holds owner-authored entries (a linear remote and an aws-mcp proxy). An auth header value is present and is not recorded here.",
         "instructions": null,
-        "instructionsNote": "steering/AGENTS.md is hand-written owner content, not AgentHub-managed and not in the AgentHub header format. Deployment is withheld until the owner approves."
+        "instructionsNote": "steering/AGENTS.md remains owner-authored, not bulk-sync-managed. Owner authorized Kiro development configuration on 2026-11-11: steering now routes to canonical fleet policy and Linear claims, and records no-routine-approval development. Preserve other owner content."
       },
       "supportedCapabilities": [
         "rules",
@@ -723,7 +724,7 @@
         "hooks"
       ],
       "status": "active",
-      "notes": "Kiro IDE (1.4.121, no user extensions; IDE executable %LOCALAPPDATA%\\Programs\\Kiro\\bin\\kiro) and Kiro CLI (3.1.0, Builder ID login) are recorded as one row because they share ~/.kiro. `kiro-cli chat --no-interactive --trust-all-tools --agent ah-peer --model <model>` verified 2026-11-10 on auto, claude-opus-5.5, claude-sonnet-5.5 and claude-haiku-5.5: returned READY, exit 0, and a denied shell command stayed blocked with all tools trusted (fleet-profile dispatchPolicy.kiro). The CLI is the dispatch surface; the IDE is not dispatched. Shared state on 2026-11-09: 28 skills, 8 powers, 2 steering files, 1 workflow. 24 AWS skills are duplicated in ~/.agents/skills. Powers are the plugin form and the native catalog was not listed. KiroCrew is a separate row and is not a dispatch target."
+      "notes": "IDE and CLI share ~/.kiro; CLI 3.2.0 measured 2026-11-11, IDE last recorded 1.4.121. Direct development defaults to ah-project-engineer on auto, with all tools, MCP/Powers, inherited guidance and source-referenced product, browser, RepoWise, mobile and official Clerk skills. User permissions.yaml grants capability all with effect allow; explicit denies and Kiro invariants remain. Eight existing Powers were discovered in a fresh repository-root session. The ah-project-delivery recipe loads through native ACP; workflow execution and third-party Power authentication are not claimed. See docs/runbooks/kiro-development.md. Dispatcher still selects guarded ah-peer explicitly; its verified model set and restrictions remain in fleet-profile dispatchPolicy.kiro. IDE UI, cloud sync and KiroCrew are separate and were not configured by this rollout."
     }
   ],
   "inactiveAgents": [
