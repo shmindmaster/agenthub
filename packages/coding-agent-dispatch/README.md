@@ -171,7 +171,17 @@ failures against an older copy without changing installed hosts.
 
 `reviewer/Invoke-PrReview.ps1` reviews one pull request through this
 package's dispatcher on a host different from the one that authored the PR
-(branch prefix or a `[host: <id>]` PR-body marker), read-only. It refuses a
+(branch prefix or a `[host: <id>]` PR-body marker). The script issues no
+write command, but this does not make the model run read-only: the
+dispatcher has no enforced read-only mode. The reviewer fences the pull
+request's text as data with a per-run delimiter, withholds GitHub tokens and
+`*_API_KEY` / `*_TOKEN` / `*_SECRET` variables from the dispatcher process
+and runs it in an empty temporary directory, and a model that follows
+injected text can still write wherever its host's permissions allow.
+Automatic triggering must not be enabled until the dispatcher has an
+enforced read-only mode; until then the tool is run manually by the owner's
+session. Review markers are trusted only at the start of a comment authored
+by the reviewer's own GitHub login (`gh api user` or `-ReviewerLogin`). It refuses a
 draft (exit 3), skips a head SHA that already carries a review verdict unless
 `-Force`, never reviews on `synchronize`, retries a malformed answer once and
 then reports BLOCKED, and never approves, merges, pushes or edits. It posts

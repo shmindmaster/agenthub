@@ -7,10 +7,19 @@
 .DESCRIPTION
   Reviews one pull request through the existing windowless dispatcher
   (skills/dispatch/Invoke-CodingAgent.ps1) on a host different from the one
-  that authored the PR. The reviewer itself is read-only: it never approves,
+  that authored the PR. This script itself is read-only: it never approves,
   never merges, never pushes and never edits the pull request. It publishes
   at most one bounded summary comment carrying a hidden idempotence marker,
   and only when -Post is passed.
+
+  The MODEL RUN IS NOT ENFORCED READ-ONLY. The brief tells the model to
+  write nothing, fences the pull request's own text as data, runs the model
+  in an empty directory and withholds GitHub tokens and key/token/secret
+  variables from its process, but the dispatcher has no enforced read-only
+  mode, so a model that follows text injected through a pull request can
+  still write wherever its host's own permissions allow. Do not trigger this
+  automatically until the dispatcher enforces read-only; until then the
+  owner's session runs it by hand.
 
   Flow: gh pr view (refuse a draft, exit 3) -> idempotence (any earlier
   review verdict for the same head SHA exits 0 without a new model run,
@@ -61,6 +70,11 @@
 .PARAMETER Status
   Print whether the latest verdict matches the current head; no review runs.
 
+.PARAMETER ReviewerLogin
+  GitHub login whose comments carry trusted review markers. Default: the
+  account gh is signed in as (gh api user). A marker in a comment by any
+  other author, or anywhere but the very start of a comment, is ignored.
+
 .PARAMETER GhPath
   Injectable gh command path (tests stub it). Defaults to gh on PATH.
 
@@ -96,6 +110,7 @@ param(
     [switch]$Force,
     [switch]$Post,
     [switch]$Status,
+    [string]$ReviewerLogin,
     [string]$GhPath,
     [string]$DispatcherPath,
     [string]$ReviewerInstructionsPath,
@@ -186,7 +201,19 @@ if ($head -notmatch '^[0-9a-fA-F]{40}$') {
 }
 $authorLogin = if ($prInfo.author -and $prInfo.author.login) { [string]$prInfo.author.login } else { 'unknown' }
 $comments = @($prInfo.comments | Where-Object { $_ })
-$toolComments = Get-PrReviewToolComments -Comments $comments -Repo $Repo -PrNumber $Pr
+
+# Earlier verdicts are trusted only from the reviewer's own GitHub login:
+# -ReviewerLogin when passed, otherwise the account gh is signed in as.
+# Without a login no marker can be trusted, so the run stops here.
+if ([string]::IsNullOrWhiteSpace($ReviewerLogin)) {
+    $loginResult = Invoke-PrGh @('api', 'user', '--jq', '.login')
+    $ReviewerLogin = if ($loginResult.Ok) { [string]$loginResult.Text } else { '' }
+}
+$ReviewerLogin = ([string]$ReviewerLogin).Trim()
+if ($ReviewerLogin -notmatch '^[A-Za-z0-9][A-Za-z0-9-]*(\[bot\])?$') {
+    Write-Refusal 2 'the reviewer GitHub login could not be resolved (gh api user); pass -ReviewerLogin with the login that posts the review comments.'
+}
+$toolComments = Get-PrReviewToolComments -Comments $comments -Repo $Repo -PrNumber $Pr -ReviewerLogin $ReviewerLogin
 
 # 2. -Status: does the latest verdict still match the current head?
 if ($Status) {
@@ -271,12 +298,29 @@ New-Item -ItemType Directory -Force -Path $runDir | Out-Null
 
 function Invoke-PrReviewDispatch {
     # One dispatcher run: the brief goes through a prompt file, the answer
-    # comes back on stdout. The brief file is removed in every path.
+    # comes back on stdout. The model's working directory is a new empty
+    # directory, never a repository checkout, and the child process does not
+    # inherit GitHub tokens or anything named like a key, token or secret.
+    # The brief file, the directory and the environment are put back in
+    # every path. None of this makes the model run read-only: the reviewed
+    # host can still write wherever its own permissions allow.
     param([string]$BriefText)
-    $briefFile = Join-Path $runDir ("brief-{0}.txt" -f [guid]::NewGuid().ToString('n'))
-    [IO.File]::WriteAllText($briefFile, $BriefText, [Text.UTF8Encoding]::new($false))
+    $callId = [guid]::NewGuid().ToString('n')
+    $briefFile = Join-Path $runDir ("brief-{0}.txt" -f $callId)
+    $workDir = Join-Path $runDir $callId
+    $withheld = @{}
     try {
-        $dispatchArgs = @('-HostId', $reviewerHost, '-PromptFile', $briefFile, '-Cwd', $runDir, '-TimeoutSec', [string]$TimeoutSec)
+        New-Item -ItemType Directory -Path $workDir | Out-Null
+        [IO.File]::WriteAllText($briefFile, $BriefText, [Text.UTF8Encoding]::new($false))
+        foreach ($entry in @(Get-ChildItem Env:)) {
+            if (Test-PrReviewSecretEnvName -Name ([string]$entry.Name)) {
+                $withheld[[string]$entry.Name] = [string]$entry.Value
+                # [NullString]: a plain $null becomes '' for a .NET string
+                # parameter, which sets an empty variable instead of removing it.
+                [Environment]::SetEnvironmentVariable([string]$entry.Name, [NullString]::Value, 'Process')
+            }
+        }
+        $dispatchArgs = @('-HostId', $reviewerHost, '-PromptFile', $briefFile, '-Cwd', $workDir, '-TimeoutSec', [string]$TimeoutSec)
         if (-not [string]::IsNullOrWhiteSpace($Model)) { $dispatchArgs += @('-Model', $Model) }
         # A .ps1 dispatcher runs in a child pwsh: an array splatted into a
         # script binds positionally (the names would arrive as values), and
@@ -291,7 +335,13 @@ function Invoke-PrReviewDispatch {
         }
         return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($output | Out-String) }
     } finally {
+        foreach ($name in @($withheld.Keys)) {
+            [Environment]::SetEnvironmentVariable($name, $withheld[$name], 'Process')
+        }
         Remove-Item -LiteralPath $briefFile -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $workDir) {
+            Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
@@ -303,6 +353,8 @@ $allFindings = @()
 $covered = @()
 $notCovered = @($split.NotCovered)
 $groupIndex = 0
+$acceptedAnswers = 0
+$delimiter = New-PrReviewDelimiter
 foreach ($group in @($split.Groups)) {
     $groupIndex++
     $filesLabel = (@($group.Files) -join ', ')
@@ -318,6 +370,7 @@ foreach ($group in @($split.Groups)) {
         DiffText = [string]$group.Text; GroupLabel = $groupLabel
         NotCoveredNote = $notCoveredNote
         RepoAgentsMd = $agentsMdText; ReviewerInstructions = $reviewerInstructions
+        Delimiter = $delimiter
     }
     $answer = $null
     $run = Invoke-PrReviewDispatch -BriefText (New-PrReviewBrief @briefParams)
@@ -330,11 +383,21 @@ foreach ($group in @($split.Groups)) {
     }
     $groupVerdict = if ($answer) { [string]$answer.verdict } else { 'BLOCKED' }
     if ($answer) {
+        $acceptedAnswers++
         $allFindings += @($answer.findings)
         $covered += @($answer.covered)
         $notCovered += @($answer.notCovered)
     }
     if ([int]$rank[$groupVerdict] -gt [int]$rank[$overallVerdict]) { $overallVerdict = $groupVerdict }
+}
+# A verdict needs a review behind it. A diff that produced no file group
+# (for example an over-bound diff with no "diff --git" header) or a run in
+# which no answer was accepted is BLOCKED, never PASS.
+if (@($split.Groups).Count -eq 0) {
+    $notCovered += 'the whole diff (it could not be split into file groups, so no review ran)'
+}
+if (@($split.Groups).Count -eq 0 -or $acceptedAnswers -eq 0) {
+    if ([int]$rank['BLOCKED'] -gt [int]$rank[$overallVerdict]) { $overallVerdict = 'BLOCKED' }
 }
 $covered = @($covered | Select-Object -Unique)
 $notCovered = @($notCovered | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
