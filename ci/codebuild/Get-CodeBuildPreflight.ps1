@@ -38,11 +38,11 @@ $script:MaxBuildPages = 20
 function Hide-AwsAccount {
     param([string]$Text)
     if ([string]::IsNullOrEmpty($Text)) { return $Text }
-    $arn = [regex]'arn:(aws|aws-us-gov|aws-cn):[a-z0-9-]+:[a-z0-9-]*:(\d{12}):'
+    $arn = [regex]'arn:[A-Za-z0-9-]+:[A-Za-z0-9-]+:[A-Za-z0-9-]*:(\d{12}):'
     $arnEvaluator = [Text.RegularExpressions.MatchEvaluator]{
         param($m)
-        $id = $m.Groups[2].Value
-        $start = $m.Groups[2].Index - $m.Index
+        $id = $m.Groups[1].Value
+        $start = $m.Groups[1].Index - $m.Index
         return $m.Value.Substring(0, $start) + ('********' + $id.Substring(8)) + $m.Value.Substring($start + 12)
     }
     $masked = $arn.Replace($Text, $arnEvaluator)
@@ -52,6 +52,11 @@ function Hide-AwsAccount {
         return '********' + $m.Groups[1].Value.Substring(8)
     }
     return $bare.Replace($masked, $bareEvaluator)
+}
+
+function Format-ReadOnlyAwsError {
+    param([string]$Service, [string]$Operation, [int]$Code, [string]$Detail)
+    return Hide-AwsAccount ("aws $Service $Operation exited $Code. " + $Detail)
 }
 
 function Write-InventoryLine {
@@ -104,14 +109,19 @@ function Use-ReadOnlyAws {
         } finally {
             $ErrorActionPreference = $previous
         }
+        $stdoutText = [IO.File]::ReadAllText($stdoutPath)
+        $stderrText = [IO.File]::ReadAllText($stderrPath)
         if ($code -ne 0) {
-            $detail = [IO.File]::ReadAllText($stderrPath).Trim()
-            if ([string]::IsNullOrWhiteSpace($detail)) { $detail = [IO.File]::ReadAllText($stdoutPath).Trim() }
-            throw "aws $service $operation exited $code. $detail"
+            $detail = $stderrText.Trim()
+            if ([string]::IsNullOrWhiteSpace($detail)) { $detail = $stdoutText.Trim() }
+            throw (Format-ReadOnlyAwsError -Service $service -Operation $operation -Code $code -Detail $detail)
         }
-        $json = [IO.File]::ReadAllText($stdoutPath)
-        if ([string]::IsNullOrWhiteSpace($json)) { return $null }
-        return ($json | ConvertFrom-Json)
+        if ([string]::IsNullOrWhiteSpace($stdoutText)) { return $null }
+        try {
+            return ($stdoutText | ConvertFrom-Json)
+        } catch {
+            throw (Hide-AwsAccount ("aws $service $operation returned text that was not JSON. " + $_.Exception.Message))
+        }
     } finally {
         [IO.File]::Delete($stdoutPath)
         [IO.File]::Delete($stderrPath)
@@ -126,6 +136,13 @@ function Invoke-PreflightSelfTest {
     $bare = Hide-AwsAccount 'account 000000000000 end'
     if ($bare -cne 'account ********0000 end') { throw 'account mask did not mask a bare 12 digit account' }
     if ($bare -match '000000000000') { throw 'account mask left a bare account id in place' }
+    $iso = Hide-AwsAccount 'arn:aws-iso:iam::000000000000:user/example'
+    if ($iso -cne 'arn:aws-iso:iam::********0000:user/example') { throw 'account mask did not mask an aws-iso ARN' }
+    $denied = Format-ReadOnlyAwsError -Service 'sts' -Operation 'get-caller-identity' -Code 254 -Detail 'User: arn:aws:iam::000000000000:user/example is not authorized'
+    if ($denied -match '000000000000') { throw 'error path left an account id in the message' }
+    if ($denied -notmatch 'arn:aws:iam::\*\*\*\*\*\*\*\*0000:user/example') { throw 'error path did not mask the caller ARN' }
+    $stdoutShaped = Format-ReadOnlyAwsError -Service 'sts' -Operation 'get-caller-identity' -Code 254 -Detail 'account 000000000000 end'
+    if ($stdoutShaped -match '000000000000') { throw 'stdout error path left a bare account id' }
     if ('list-projects' -notmatch $script:ReadOnlyOperationPattern) { throw 'guard blocked list-projects' }
     if ('batch-get-builds' -notmatch $script:ReadOnlyOperationPattern) { throw 'guard blocked batch-get-builds' }
     if ('get-caller-identity' -notmatch $script:ReadOnlyOperationPattern) { throw 'guard blocked get-caller-identity' }
@@ -147,7 +164,8 @@ if ($SelfTest) {
 if ([string]::IsNullOrWhiteSpace($Profile) -or [string]::IsNullOrWhiteSpace($Region)) {
     throw 'Profile and Region are required. Pass -SelfTest to run the local checks instead.'
 }
-if ($Profile -notmatch '^[A-Za-z0-9_+=,.@-]{1,64}$') { throw 'Profile contains unsupported characters' }
+if ($Profile.StartsWith('-')) { throw 'Profile must not start with a dash' }
+if ($Profile -notmatch '^[A-Za-z0-9_+=,.@][A-Za-z0-9_+=,.@-]{0,63}$') { throw 'Profile contains unsupported characters' }
 if ($Region -notmatch '^[a-z]{2}(-[a-z]+)+-\d+$') { throw 'Region is not an AWS region code' }
 if (-not (Get-Command aws -ErrorAction SilentlyContinue)) { throw 'aws CLI was not found on PATH' }
 

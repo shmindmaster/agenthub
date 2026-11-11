@@ -15,6 +15,10 @@ Parameters:
     Type: String
     AllowedPattern: '^[A-Za-z0-9._-]{1,100}$'
     Description: 'GitHub repository name, without the owner.'
+  RepositoryNamePattern:
+    Type: String
+    AllowedPattern: '^\^.+\$$'
+    Description: 'Anchored repository-name regex. The parameter writer builds this from GitHubRepository. The runner webhook filter uses it.'
   ConnectionArn:
     Type: String
     AllowedPattern: '^arn:(aws|aws-us-gov|aws-cn):(codeconnections|codestar-connections):[a-z0-9-]+:[0-9]{12}:connection/[0-9a-fA-F-]{36}$'
@@ -98,7 +102,14 @@ Parameters:
   ArtifactPrefix:
     Type: String
     AllowedPattern: '^[a-z0-9]([a-z0-9-]{0,62})(/[a-z0-9][a-z0-9-]{0,62})*$'
-    Description: 'Key prefix inside the bucket. The build role can use only this prefix.'
+    Description: 'Key prefix inside the bucket. Artifacts are stored under this prefix and the build id. The cache prefix is separate and off unless EnableSharedCache is true.'
+  EnableSharedCache:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: 'Shared S3 cache for every build of this project. Off by default. Must not be enabled for a repository that accepts outside pull requests.'
   BaseBranchPattern:
     Type: String
     Default: '^refs/heads/main$'
@@ -122,8 +133,7 @@ Parameters:
   ApproverRoles:
     Type: CommaDelimitedList
     Default: 'GITHUB_WRITE,GITHUB_MAINTAIN,GITHUB_ADMIN'
-    AllowedPattern: '^GITHUB_(READ|TRIAGE|WRITE|MAINTAIN|ADMIN)$'
-    Description: 'GitHub roles treated as trusted pull-request authors and comment approvers.'
+    Description: 'GitHub roles treated as trusted pull-request authors and comment approvers. The parameter writer checks each role. This parameter has no AllowedPattern because CloudFormation may apply that pattern to the whole comma-delimited string.'
   PermissionsBoundaryArn:
     Type: String
     Default: ''
@@ -134,6 +144,10 @@ Conditions:
   UsePrivilegedMode:
     Fn::Equals:
       - Ref: PrivilegedMode
+      - 'true'
+  UseSharedCache:
+    Fn::Equals:
+      - Ref: EnableSharedCache
       - 'true'
   UseRunnerMode:
     Fn::Equals:
@@ -165,6 +179,12 @@ Resources:
             Principal:
               Service: codebuild.amazonaws.com
             Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceArn:
+                  Fn::Sub: 'arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/${ProjectName}'
+                aws:SourceAccount:
+                  Ref: AWS::AccountId
       Policies:
         - PolicyName: build-only
           PolicyDocument:
@@ -187,7 +207,13 @@ Resources:
                   - s3:AbortMultipartUpload
                   - s3:ListMultipartUploadParts
                 Resource:
-                  - Fn::Sub: 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}/${ArtifactPrefix}/*'
+                  Fn::If:
+                    - UseSharedCache
+                    -
+                      - Fn::Sub: 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}/${ArtifactPrefix}/artifacts/*'
+                      - Fn::Sub: 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}/${ArtifactPrefix}/cache/*'
+                    -
+                      - Fn::Sub: 'arn:${AWS::Partition}:s3:::${ArtifactBucketName}/${ArtifactPrefix}/artifacts/*'
               - Sid: ReadArtifactBucket
                 Effect: Allow
                 Action:
@@ -204,8 +230,16 @@ Resources:
                 Condition:
                   StringLike:
                     's3:prefix':
-                      - Fn::Sub: '${ArtifactPrefix}'
-                      - Fn::Sub: '${ArtifactPrefix}/*'
+                      Fn::If:
+                        - UseSharedCache
+                        -
+                          - Fn::Sub: '${ArtifactPrefix}/artifacts'
+                          - Fn::Sub: '${ArtifactPrefix}/artifacts/*'
+                          - Fn::Sub: '${ArtifactPrefix}/cache'
+                          - Fn::Sub: '${ArtifactPrefix}/cache/*'
+                        -
+                          - Fn::Sub: '${ArtifactPrefix}/artifacts'
+                          - Fn::Sub: '${ArtifactPrefix}/artifacts/*'
               - Sid: UseGitHubConnection
                 Effect: Allow
                 Action:
@@ -288,9 +322,16 @@ Resources:
             - true
             - false
       Cache:
-        Type: S3
+        Type:
+          Fn::If:
+            - UseSharedCache
+            - S3
+            - NO_CACHE
         Location:
-          Fn::Sub: '${ArtifactBucketName}/${ArtifactPrefix}/cache'
+          Fn::If:
+            - UseSharedCache
+            - Fn::Sub: '${ArtifactBucketName}/${ArtifactPrefix}/cache'
+            - Ref: AWS::NoValue
       Artifacts:
         Type: S3
         Location:
@@ -316,6 +357,10 @@ Resources:
               -
                 - Type: EVENT
                   Pattern: WORKFLOW_JOB_QUEUED
+                - Type: REPOSITORY_NAME
+                  Pattern:
+                    Ref: RepositoryNamePattern
+                  ExcludeMatchedPattern: false
             -
               -
                 - Type: EVENT

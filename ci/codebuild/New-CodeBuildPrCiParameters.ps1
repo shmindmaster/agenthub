@@ -6,8 +6,12 @@
 .DESCRIPTION
   Reads one repository description JSON file and writes a CreateStack
   parameter document. Names are checked against the template constraints.
-  An IAM role ARN is refused. A field that supplies a deployment role or a
-  production role is refused. The template creates its own build-only role.
+  An IAM role ARN is refused in any partition, including an account-less
+  form. The field allowlist is the barrier for unknown names. A field that
+  supplies a deployment role or a production role is refused. The template
+  creates its own build-only role. Runner mode is refused unless
+  OutsideCollaboratorForkApproval confirms that GitHub requires approval for
+  all outside collaborators.
 
 .PARAMETER DescriptionPath
   Path of the repository description JSON.
@@ -36,8 +40,10 @@ $AllowedFields = @(
     'GitHubOwner', 'GitHubRepository', 'ConnectionArn', 'BuildSpecPath', 'ComputeType',
     'TimeoutInMinutes', 'QueuedTimeoutInMinutes', 'ConcurrentBuildLimit', 'LogRetentionInDays',
     'ArtifactBucketName', 'ArtifactPrefix', 'ProjectName', 'BaseBranches', 'PrivilegedMode',
-    'CiMode', 'RequiresCommentApproval', 'ApproverRoles', 'Image', 'PermissionsBoundaryArn'
+    'CiMode', 'RequiresCommentApproval', 'ApproverRoles', 'Image', 'PermissionsBoundaryArn',
+    'EnableSharedCache', 'OutsideCollaboratorForkApproval'
 )
+$OutsideCollaboratorConfirmation = 'require-approval-for-all-outside-collaborators'
 
 function Get-Field {
     param($Object, [string]$Name)
@@ -62,9 +68,10 @@ function Add-StringValue {
 
 function Assert-NoRoleArn {
     param([string]$Value)
-    $match = [regex]::Match($Value, 'arn:(aws|aws-us-gov|aws-cn):iam::\d{12}:role/([A-Za-z0-9+=,.@_\-/]+)')
+    # Any partition, and an empty account id. The field allowlist rejects unknown names first.
+    $match = [regex]::Match($Value, 'arn:[A-Za-z0-9-]+:iam::[0-9]*:role/([A-Za-z0-9+=,.@_\-/]+)')
     if (-not $match.Success) { return }
-    $path = $match.Groups[2].Value
+    $path = $match.Groups[1].Value
     if ($path -match '(?i)deploy') { throw "refusing a deployment role ARN: $path" }
     if ($path -match '(?i)(^|[^A-Za-z])prod(uction)?([^A-Za-z]|$)') { throw "refusing a production role ARN: $path" }
     throw "refusing a supplied IAM role ARN: $path. The stack creates a build-only role."
@@ -106,6 +113,11 @@ function Get-SafeToken {
     $safe = [regex]::Replace($safe, '-{2,}', '-').Trim('-')
     if ($safe.Length -lt 2) { throw "repository name does not yield a safe token: $Value" }
     return $safe
+}
+
+function ConvertTo-RepositoryNamePattern {
+    param([string]$Name)
+    return '^' + [regex]::Escape($Name) + '$'
 }
 
 function ConvertTo-BaseBranchPattern {
@@ -183,6 +195,14 @@ if ($image -notmatch '^aws/codebuild/[A-Za-z0-9._:/-]+$') { throw "invalid Image
 $privileged = if (Test-FieldPresent -Object $description -Name 'PrivilegedMode') { ConvertTo-StrictBool -Value (Get-Field -Object $description -Name 'PrivilegedMode') -Name 'PrivilegedMode' } else { $false }
 $mode = if (Test-FieldPresent -Object $description -Name 'CiMode') { [string](Get-Field -Object $description -Name 'CiMode') } else { 'native' }
 if (@('native', 'runner') -notcontains $mode) { throw "invalid CiMode: $mode" }
+$forkApproval = if (Test-FieldPresent -Object $description -Name 'OutsideCollaboratorForkApproval') { [string](Get-Field -Object $description -Name 'OutsideCollaboratorForkApproval') } else { '' }
+if (-not [string]::IsNullOrWhiteSpace($forkApproval) -and $forkApproval -ne $OutsideCollaboratorConfirmation) {
+    throw "OutsideCollaboratorForkApproval must be $OutsideCollaboratorConfirmation"
+}
+if ($mode -eq 'runner' -and $forkApproval -ne $OutsideCollaboratorConfirmation) {
+    throw "runner mode requires OutsideCollaboratorForkApproval set to $OutsideCollaboratorConfirmation. Fork approval in runner mode rests on the GitHub setting that requires approval for all outside collaborators."
+}
+$sharedCache = if (Test-FieldPresent -Object $description -Name 'EnableSharedCache') { ConvertTo-StrictBool -Value (Get-Field -Object $description -Name 'EnableSharedCache') -Name 'EnableSharedCache' } else { $false }
 $approval = if (Test-FieldPresent -Object $description -Name 'RequiresCommentApproval') { [string](Get-Field -Object $description -Name 'RequiresCommentApproval') } else { 'FORK_PULL_REQUESTS' }
 if (@('DISABLED', 'ALL_PULL_REQUESTS', 'FORK_PULL_REQUESTS') -notcontains $approval) { throw "invalid RequiresCommentApproval: $approval" }
 
@@ -214,6 +234,7 @@ function Add-Parameter {
 Add-Parameter 'ProjectName' $projectName
 Add-Parameter 'GitHubOwner' $owner
 Add-Parameter 'GitHubRepository' $repository
+Add-Parameter 'RepositoryNamePattern' (ConvertTo-RepositoryNamePattern -Name $repository)
 Add-Parameter 'ConnectionArn' $connection
 Add-Parameter 'BuildSpecPath' $buildspec
 Add-Parameter 'ComputeType' $compute
@@ -225,6 +246,7 @@ Add-Parameter 'ConcurrentBuildLimit' ([string]$concurrent)
 Add-Parameter 'LogRetentionInDays' ([string]$retention)
 Add-Parameter 'ArtifactBucketName' $bucket
 Add-Parameter 'ArtifactPrefix' $prefix
+Add-Parameter 'EnableSharedCache' $(if ($sharedCache) { 'true' } else { 'false' })
 Add-Parameter 'BaseBranchPattern' $branchPattern
 Add-Parameter 'CiMode' $mode
 Add-Parameter 'RequiresCommentApproval' $approval
@@ -240,5 +262,8 @@ $json = ($rows | ConvertTo-Json -Depth 4)
 if (-not $json.EndsWith("`n")) { $json += "`n" }
 $utf8 = New-Object System.Text.UTF8Encoding $false
 [IO.File]::WriteAllText($fullOut, $json, $utf8)
+if ($sharedCache) {
+    Write-Host 'EnableSharedCache is true. The cache prefix is shared by every build of the project. The cache must not be enabled for repositories that accept outside pull requests.'
+}
 Write-Host ("wrote {0} parameters to {1}" -f $rows.Count, $fullOut)
 exit 0
