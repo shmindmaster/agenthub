@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # sh-ci: per-repository persistent GitHub Actions runners on sh-build-02.
 # Usage (on the droplet, as root):
-#   sh-ci up <repo> [--postgres | --pgvector | --pg-image=<ref>] [--valkey | --valkey=2]   (bootstrap token on stdin the first time)
+#   sh-ci up <repo> [--postgres | --pgvector | --pg-image=<ref>] [--valkey | --valkey=2] [--buildkit]
+#   (bootstrap token on stdin the first time; pass </dev/null on later re-ups)
 #   sh-ci down <repo> | rm <repo> | status | logs <repo>
-# Each repo gets compose project sh-ci-<repo>: runner + its own BuildKit daemon (+ optional
-# Postgres 18 / Valkey 8 on tmpfs), on its own network, no Docker socket, no app secrets.
+# Each repo gets compose project sh-ci-<repo>: a runner plus optional Postgres 18 / Valkey 8 on
+# tmpfs, on its own network, no Docker socket, no app secrets. Native-first: runners exist only for
+# pre-merge tests a platform-native build cannot run (database, tenant, security integration).
+# --buildkit adds a private BuildKit daemon, only for a repository that must build images in CI.
 set -euo pipefail
 ROOT=/srv/work/sh-ci
 OWNER=${SH_CI_OWNER:-shmindmaster}
@@ -18,8 +21,8 @@ need_repo() { [[ "$repo" =~ ^[a-z0-9-]+$ ]] || { echo "repo slug required"; exit
 dir() { echo "$ROOT/repos/$repo"; }
 case "$cmd" in
 up)
-  need_repo; shift 2; pg=0; vk=0
-  pgimg=$PG_IMAGE; for a in "$@"; do case $a in --postgres) pg=1;; --pgvector) pg=1; pgimg=$PGVECTOR_IMAGE;; --pg-image=*) pg=1; pgimg=${a#--pg-image=};; --valkey) vk=1;; --valkey=2) vk=2;;
+  need_repo; shift 2; pg=0; vk=0; bk=0
+  pgimg=$PG_IMAGE; for a in "$@"; do case $a in --postgres) pg=1;; --pgvector) pg=1; pgimg=$PGVECTOR_IMAGE;; --pg-image=*) pg=1; pgimg=${a#--pg-image=};; --valkey) vk=1;; --valkey=2) vk=2;; --buildkit) bk=1;;
     *) echo "unknown option: $a"; exit 2;; esac; done
   # --pg-image accepts only a locally built sh-ci/<name>:<tag> or a digest-pinned reference.
   if [ "$pgimg" != "$PG_IMAGE" ] && [ "$pgimg" != "$PGVECTOR_IMAGE" ] && ! [[ "$pgimg" =~ ^sh-ci/[a-z0-9._-]+:[A-Za-z0-9._-]+$ || "$pgimg" == *@sha256:* ]]; then
@@ -37,7 +40,7 @@ up)
   echo "      SH_CI_REPO: $OWNER/$repo"
   echo "      SH_CI_RUNNER_NAME: do-sh-build-$repo"
   echo "      SH_CI_LABELS: do-sh-build,sh-ci-$repo"
-  echo "      BUILDKIT_HOST: tcp://buildkitd:1234"
+  if [ $bk = 1 ]; then echo "      BUILDKIT_HOST: tcp://buildkitd:1234"; fi
   echo "      TEST_POSTGRES_URL: $( [ $pg = 1 ] && echo postgresql://postgres@postgres:5432/ci || echo '' )"
   echo "      TEST_REDIS_URL: $( [ $vk -ge 1 ] && echo redis://valkey:6379/0 || echo '' )"
   echo "      TEST_REDIS_URL_B: $( [ $vk -ge 2 ] && echo redis://valkey-b:6379/0 || echo '' )"
@@ -46,6 +49,7 @@ up)
   echo "    cpus: 8"
   echo "    mem_limit: 16g"
   echo "    pids_limit: 8192"
+  if [ $bk = 1 ]; then
   echo "  buildkitd:"
   echo "    image: $BUILDKIT_IMAGE"
   echo "    command: [\"--addr\", \"tcp://0.0.0.0:1234\"]"
@@ -54,6 +58,7 @@ up)
   echo "    volumes: [\"buildkit:/var/lib/buildkit\"]"
   echo "    cpus: 8"
   echo "    mem_limit: 12g"
+  fi
   if [ $pg = 1 ]; then
   echo "  postgres:"
   echo "    image: $pgimg"
@@ -68,7 +73,7 @@ up)
   echo "    restart: on-failure:5"
   echo "    command: [\"valkey-server\", \"--save\", \"\", \"--appendonly\", \"no\"]"
   done
-  echo "volumes: {buildkit: {}}"
+  if [ $bk = 1 ]; then echo "volumes: {buildkit: {}}"; fi
   } > "$d/compose.yml"
   docker compose -f "$d/compose.yml" up -d --remove-orphans ;;
 down) need_repo; docker compose -f "$(dir)/compose.yml" down ;;
