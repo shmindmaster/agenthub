@@ -35,8 +35,6 @@ jobs:
     env:
       APP: ${{ inputs.app }}
       SOURCE_SHA: ${{ inputs.sha }}
-      SOURCE_DIR: ${{ runner.temp }}/factory-source
-      OUTPUT_DIR: ${{ runner.temp }}/factory-output
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -50,6 +48,8 @@ jobs:
           set -euo pipefail
           case "$APP" in abacare|empowera|revolva) ;; *) exit 2 ;; esac
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          echo "SOURCE_DIR=$RUNNER_TEMP/factory-source" >> "$GITHUB_ENV"
+          echo "OUTPUT_DIR=$RUNNER_TEMP/factory-output" >> "$GITHUB_ENV"
           echo "artifact=daytona-$APP-$SOURCE_SHA-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           echo "key=FACTORY_SOURCE_${APP^^}_SSH_KEY" >> "$GITHUB_OUTPUT"
       - name: Fetch and verify the exact source commit
