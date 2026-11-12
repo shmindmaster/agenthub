@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# sh-ci: per-repository persistent GitHub Actions runners on sh-build-02.
+# Usage (on the droplet, as root):
+#   sh-ci up <repo> [--postgres | --pgvector | --pg-image=<ref>] [--valkey | --valkey=2] [--buildkit] [--sole-label]
+#   (bootstrap token on stdin the first time; pass </dev/null on later re-ups; a re-up with no
+#   options reuses the saved ones, --reset clears them)
+#   sh-ci down <repo> | rm <repo> | status | logs <repo>
+# Each repo gets compose project sh-ci-<repo>: a runner plus optional Postgres 18 / Valkey 8 on
+# tmpfs, on its own network, no Docker socket, no app secrets. Native-first: runners exist only for
+# pre-merge tests a platform-native build cannot run (database, tenant, security integration).
+# --buildkit adds a private BuildKit daemon, only for a repository that must build images in CI.
+# --sole-label registers as sh-ci-<repo> with only that label, for a repository that also has a
+# non-kit runner named do-sh-build-<repo> or labelled do-sh-build (config.sh --replace would take it over).
+set -euo pipefail
+ROOT=/srv/work/sh-ci
+OWNER=${SH_CI_OWNER:-shmindmaster}
+RUNNER_IMAGE='ghcr.io/actions/actions-runner:2.338.2@sha256:6d0b2d80d80f143f77dcb676e50920100bbb547e39e883454d57f45ab8c31300'
+BUILDKIT_IMAGE='moby/buildkit:v0.35.0@sha256:aa632b921ef07411d2cb77292cd34213d4f7b384001d6fceef1e1f25bf9752bb'
+PG_IMAGE='postgres:18@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42'
+PGVECTOR_IMAGE='pgvector/pgvector:0.8.7-pg18@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47'
+VALKEY_IMAGE='valkey/valkey:8@sha256:8f836008e0986c36adf50da714c7060cf689dbb335f61fe077939d90fa650809'
+cmd=${1:-status}; repo=${2:-}
+need_repo() { [[ "$repo" =~ ^[a-z0-9-]+$ ]] || { echo "repo slug required"; exit 2; }; }
+dir() { echo "$ROOT/repos/$repo"; }
+case "$cmd" in
+up)
+  need_repo; shift 2; pg=0; vk=0; bk=0; sole=0; d=$(dir)
+  # With no options, reuse the options this repository was last brought up with, so a plain
+  # re-up never drops its Postgres/Valkey sidecars. --reset starts from no options.
+  if [ $# -eq 0 ] && [ -f "$d/options" ]; then read -r -a saved < "$d/options"; set -- "${saved[@]}"; fi
+  if [ "${1:-}" = --reset ]; then shift; fi
+  pgimg=$PG_IMAGE; for a in "$@"; do case $a in --postgres) pg=1;; --pgvector) pg=1; pgimg=$PGVECTOR_IMAGE;; --pg-image=*) pg=1; pgimg=${a#--pg-image=};; --valkey) vk=1;; --valkey=2) vk=2;; --buildkit) bk=1;; --sole-label) sole=1;;
+    *) echo "unknown option: $a"; exit 2;; esac; done
+  # --pg-image accepts only a locally built sh-ci/<name>:<tag> or a digest-pinned reference.
+  if [ "$pgimg" != "$PG_IMAGE" ] && [ "$pgimg" != "$PGVECTOR_IMAGE" ] && ! [[ "$pgimg" =~ ^sh-ci/[a-z0-9._-]+:[A-Za-z0-9._-]+$ || "$pgimg" == *@sha256:* ]]; then
+    echo "--pg-image must be sh-ci/<name>:<tag> or pinned @sha256"; exit 2; fi
+  install -d -m 0700 "$d" "$d/state"; chown 1001:1001 "$d/state"
+  printf '%s
+' "$*" > "$d/options"
+  if [ ! -t 0 ]; then tok=$(cat); if [ -n "$tok" ]; then umask 077; printf '%s' "$tok" > "$d/state/bootstrap-token"; chown 1001:1001 "$d/state/bootstrap-token"; fi; fi
+  {
+  echo "name: sh-ci-$repo"
+  echo "services:"
+  echo "  runner:"
+  echo "    image: $RUNNER_IMAGE"
+  echo "    entrypoint: [\"/opt/sh-ci/entrypoint.sh\"]"
+  echo "    restart: on-failure:5"
+  echo "    environment:"
+  echo "      SH_CI_REPO: $OWNER/$repo"
+  if [ $sole = 1 ]; then rname=sh-ci-$repo; labels=sh-ci-$repo; else rname=do-sh-build-$repo; labels=do-sh-build,sh-ci-$repo; fi
+  echo "      SH_CI_RUNNER_NAME: $rname"
+  echo "      SH_CI_LABELS: $labels"
+  if [ $bk = 1 ]; then echo "      BUILDKIT_HOST: tcp://buildkitd:1234"; fi
+  echo "      TEST_POSTGRES_URL: $( [ $pg = 1 ] && echo postgresql://postgres@postgres:5432/ci || echo '' )"
+  echo "      TEST_REDIS_URL: $( [ $vk -ge 1 ] && echo redis://valkey:6379/0 || echo '' )"
+  echo "      TEST_REDIS_URL_B: $( [ $vk -ge 2 ] && echo redis://valkey-b:6379/0 || echo '' )"
+  echo "    volumes: [\"./state:/state\", \"$ROOT/runner:/opt/sh-ci:ro\", \"$ROOT/security:/opt/sh-security:ro\"]"
+  echo "    tmpfs: [\"/home/runner/_work:size=24g,uid=1001,gid=1001,exec\", \"/tmp:size=4g,exec\"]"
+  echo "    cpus: 8"
+  echo "    mem_limit: 16g"
+  echo "    pids_limit: 8192"
+  if [ $bk = 1 ]; then
+  echo "  buildkitd:"
+  echo "    image: $BUILDKIT_IMAGE"
+  echo "    command: [\"--addr\", \"tcp://0.0.0.0:1234\"]"
+  echo "    restart: on-failure:5"
+  echo "    privileged: true   # daemon only; build steps run in BuildKit's own unprivileged runc sandboxes, insecure entitlements off"
+  echo "    volumes: [\"buildkit:/var/lib/buildkit\"]"
+  echo "    cpus: 8"
+  echo "    mem_limit: 12g"
+  fi
+  if [ $pg = 1 ]; then
+  echo "  postgres:"
+  echo "    image: $pgimg"
+  echo "    restart: on-failure:5"
+  echo "    environment: {POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: ci}"
+  echo "    tmpfs: [\"/var/lib/postgresql:size=3g\"]"
+  echo "    healthcheck: {test: [\"CMD\", \"pg_isready\", \"-U\", \"postgres\"], interval: 5s, retries: 10}"
+  fi
+  for vname in $( [ $vk -ge 1 ] && echo valkey ) $( [ $vk -ge 2 ] && echo valkey-b ); do
+  echo "  $vname:"
+  echo "    image: $VALKEY_IMAGE"
+  echo "    restart: on-failure:5"
+  echo "    command: [\"valkey-server\", \"--save\", \"\", \"--appendonly\", \"no\"]"
+  done
+  if [ $bk = 1 ]; then echo "volumes: {buildkit: {}}"; fi
+  } > "$d/compose.yml"
+  docker compose -f "$d/compose.yml" up -d --remove-orphans ;;
+down) need_repo; docker compose -f "$(dir)/compose.yml" down ;;
+rm)   need_repo; docker compose -f "$(dir)/compose.yml" down -v; rm -rf "$(dir)" ;;
+logs) need_repo; docker compose -f "$(dir)/compose.yml" logs --tail 60 ;;
+status) for c in "$ROOT"/repos/*/compose.yml; do [ -f "$c" ] && docker compose -f "$c" ps --format '{{.Name}} {{.Status}}'; done ;;
+*) echo "unknown command"; exit 2 ;;
+esac
