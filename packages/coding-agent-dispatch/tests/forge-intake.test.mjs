@@ -275,7 +275,8 @@ test('prompts carry the guardrails the wrapper relies on', () => {
   const implement = implementPrompt({ issue: 'SH-4512', title: 'T', branch: 'forge/sh-4512-t', repo });
   assert.match(implement, /Do not push/);
   assert.match(implement, /do not run git add or git commit/);
-  assert.match(implement, /Never edit a contentHash/);
+  assert.match(implement, /Never edit registry\/capabilities\.json or any version/);
+  assert.match(implement, /node scripts\/registry-content-hash\.mjs packages\/<name>/);
   assert.match(implement, /do not edit the issue/);
   const route = config.routes[0];
   assert.match(finishPrompt(config, { issue: 'SH-4512', ok: true, pr: 'https://x/pull/1', route, summary: 's' }), /Never set it Done/);

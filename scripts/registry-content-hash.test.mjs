@@ -21,6 +21,7 @@ import {
   isTextFilePath,
   main,
   stableFileHash,
+  TEXT_EXTENSIONS,
 } from './registry-content-hash.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -78,10 +79,27 @@ test('text files hash identically with LF, CRLF or lone CR', () => {
 });
 
 test('a file outside the text list is hashed as raw bytes, so line endings move it', () => {
-  const { packageDir } = newFixtureRepo({ files: { 'unit.service': '[Unit]\nDescription=x\n' } });
+  const { packageDir } = newFixtureRepo({ files: { 'notes.bin': 'a\nb\n' } });
   const lf = contentHashForPath(packageDir);
-  writeFile(packageDir, 'unit.service', '[Unit]\r\nDescription=x\r\n');
-  assert.notEqual(contentHashForPath(packageDir), lf, '.service is not in the text list; the hash must move');
+  writeFile(packageDir, 'notes.bin', 'a\r\nb\r\n');
+  assert.notEqual(contentHashForPath(packageDir), lf, '.bin is not in the text list; the hash must move');
+});
+
+test('systemd units (.service, .timer) normalize line endings like the PowerShell list', () => {
+  for (const name of ['unit.service', 'unit.timer']) {
+    const { packageDir } = newFixtureRepo({ files: { [name]: '[Unit]\nDescription=x\n' } });
+    const lf = contentHashForPath(packageDir);
+    writeFile(packageDir, name, '[Unit]\r\nDescription=x\r\n');
+    assert.equal(contentHashForPath(packageDir), lf, `${name}: CRLF and LF hash the same`);
+  }
+});
+
+test('the text-extension list matches scripts/RegistryContentHash.ps1 exactly', () => {
+  const source = readFileSync(path.join(repoRoot, 'scripts', 'RegistryContentHash.ps1'), 'utf8');
+  const block = source.match(/\$textExtensions = @\(([^)]*)\)/);
+  assert.ok(block, 'could not find $textExtensions in RegistryContentHash.ps1');
+  const powershell = [...block[1].matchAll(/'(\.[^']+)'/g)].map((match) => match[1]).sort();
+  assert.deepEqual([...TEXT_EXTENSIONS].sort(), powershell, 'Node and PowerShell must agree on which extensions are text');
 });
 
 test('an extension-less LICENSE counts as text, matching the PowerShell name list', () => {
