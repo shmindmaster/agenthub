@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import {
-  branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
+  acquireLock, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
 } from '../skills/dispatch/forge-intake.mjs';
 
 const config = loadConfig(join(fileURLToPath(new URL('../skills/dispatch/', import.meta.url)), 'forge-intake.json'));
@@ -138,10 +138,39 @@ test('protected paths hold even for non-ASCII file names that git would quote', 
   assert.match(checkDiff(seen, repo, config.limits).join(), /protected path/);
 });
 
+test('the single-run lock is atomic and recovers from a dead holder', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'intake-lock-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const lock = join(dir, 'lock');
+  assert.equal(acquireLock(lock), true);
+  assert.equal(acquireLock(lock), false, 'a live holder (this process) blocks a second run');
+  rmSync(lock);
+  writeFileSync(lock, '2147483646');
+  assert.equal(acquireLock(lock), true, 'a dead holder is taken over');
+});
+
+test('the status report counts runs, PRs, failures, retired issues and routes', () => {
+  const ledger = [
+    { ts: '2026-11-12T01:00:00.000Z', phase: 'run', issue: 'SH-1', outcome: 'pr', route: 'codex-zai', pr: 'https://x/pull/1', linearClosed: true },
+    { ts: '2026-11-12T02:00:00.000Z', phase: 'run', issue: 'SH-2', outcome: 'failed', route: 'codex-zai', reason: 'r', linearClosed: false },
+    { ts: '2026-11-12T03:00:00.000Z', phase: 'run', issue: 'SH-2', outcome: 'failed', route: 'codex-zai', linearClosed: true },
+  ];
+  const s = summarize(ledger, config, '2026-11-12T12:00:00.000Z');
+  assert.equal(s.runsToday, 3);
+  assert.equal(s.dailyCap, config.limits.maxRunsPerDay);
+  assert.deepEqual(s.draftPrs, [{ issue: 'SH-1', pr: 'https://x/pull/1' }]);
+  assert.equal(s.failed, 2);
+  assert.deepEqual(s.linearCloseOutUnconfirmed, ['SH-2']);
+  assert.deepEqual(s.retired.sort(), ['SH-1', 'SH-2']);
+  assert.deepEqual(s.byRoute, { 'codex-zai': 3 });
+  assert.deepEqual(s.enabledRoutes, ['codex-zai']);
+});
+
 test('prompts carry the guardrails the wrapper relies on', () => {
   const select = selectPrompt(config, ['SH-1'], null);
   assert.match(select, /SH-4063/);
   assert.match(select, /agent:forge/);
+  assert.match(select, /lost the claim race/);
   assert.match(select, /Never pick these issues: SH-1/);
   assert.match(selectPrompt(config, [], 'SH-4512'), /Take only SH-4512/);
   const implement = implementPrompt({ issue: 'SH-4512', title: 'T', branch: 'forge/sh-4512-t', repo });

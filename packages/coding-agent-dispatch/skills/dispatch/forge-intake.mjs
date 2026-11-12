@@ -108,7 +108,7 @@ ${claimRules(config)}
 ${skip.length ? `Never pick these issues: ${skip.join(', ')}.` : ''}
 First release stale claims: any issue labelled ${l(config).claimLabel} that is ${l(config).claimedState} and untouched for ${l(config).staleClaimHours}+ hours loses that label, returns to Backlog and gets a one-line comment saying the Forge claim expired.
 ${forcedIssue ? `Take only ${forcedIssue}, and only if it is eligible.` : 'Pick the single eligible issue with the highest priority (Urgent first, then oldest), skipping an issue another session claimed.'}
-If one qualifies: add the label ${l(config).claimLabel}, set it ${l(config).claimedState}, and reply with one JSON object and nothing else: {"outcome":"claimed","issue":"SH-123","title":"...","state_before":"Backlog","labels":["every label the issue had BEFORE you added ${l(config).claimLabel}"],"summary":"two sentences on what the issue asks"}.
+If one qualifies: add the label ${l(config).claimLabel} and set it ${l(config).claimedState}. Then read the issue again to detect a duplicate claim: if any other agent:* label or an assignee appeared, remove only ${l(config).claimLabel}, restore the earlier state and reply {"outcome":"none","reason":"lost the claim race"}. Otherwise reply with one JSON object and nothing else: {"outcome":"claimed","issue":"SH-123","title":"...","state_before":"Backlog","labels":["every label the issue had BEFORE you added ${l(config).claimLabel}"],"summary":"two sentences on what the issue asks"}.
 If none qualifies, change nothing and reply {"outcome":"none","reason":"..."}.`;
 
 export const implementPrompt = ({ issue, title, branch, repo }) => `You are an unattended coding agent on a Forge worktree of ${repo.repo}, on branch ${branch}. Implement Linear issue ${issue} ("${title}").
@@ -160,6 +160,34 @@ function runAgent({ route, cwd, sandbox, prompt, seconds, dir, name, linear }) {
 
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 
+// Atomic single-run lock. A lock whose process is gone (crash, kill, reboot) is taken over.
+export function acquireLock(path, pid = process.pid) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try { writeFileSync(path, String(pid), { flag: 'wx' }); return true; } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      if (alive(Number(readFileSync(path, 'utf8')))) return false;
+      rmSync(path, { force: true });
+    }
+  }
+  return false;
+}
+
+// What an operator needs from the ledger: caps, outcomes, retired issues and per-route use.
+export function summarize(ledger, config, now) {
+  const runs = ledger.filter((row) => row.phase === 'run');
+  const count = (pick) => runs.filter(pick).length;
+  const byRoute = {};
+  for (const row of runs) byRoute[row.route] = (byRoute[row.route] || 0) + 1;
+  return {
+    runsToday: runsToday(ledger, now), dailyCap: config.limits.maxRunsPerDay,
+    runsTotal: runs.length, draftPrs: runs.filter((row) => row.pr).map((row) => ({ issue: row.issue, pr: row.pr })),
+    failed: count((row) => row.outcome === 'failed'), linearCloseOutUnconfirmed: runs.filter((row) => row.linearClosed === false).map((row) => row.issue),
+    retired: skipList(ledger, config), byRoute,
+    enabledRoutes: config.routes.filter((route) => route.enabled).map((route) => route.id),
+    last: runs.slice(-3).map(({ ts, issue, outcome, route, pr, reason }) => ({ ts, issue, outcome, route, pr, reason })),
+  };
+}
+
 const readLedger = () => (existsSync(join(STATE, 'ledger.jsonl')) ? readFileSync(join(STATE, 'ledger.jsonl'), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : []);
 const record = (row) => appendFileSync(join(STATE, 'ledger.jsonl'), `${JSON.stringify({ ts: new Date().toISOString(), ...row })}\n`);
 
@@ -188,14 +216,18 @@ export function inspectWorktree(dir, repo) {
 export async function main(argv) {
   const config = loadConfig();
   const flag = (name) => { const i = argv.indexOf(name); return i === -1 ? null : argv[i + 1] ?? true; };
-  mkdirSync(STATE, { recursive: true }); mkdirSync(WORK, { recursive: true });
-  if (existsSync(KILL_SWITCH)) return console.log('forge-intake: disabled by kill switch');
-  if (userInfo().username !== 'agenthub-runner') throw new Error('run as agenthub-runner on Forge');
-  const lock = join(STATE, 'lock');
-  if (existsSync(lock) && alive(Number(readFileSync(lock, 'utf8')))) return console.log('forge-intake: another run holds the lock');
-  writeFileSync(lock, String(process.pid));
   const ledger = readLedger();
   const now = new Date().toISOString();
+  // Read-only report, safe as root or runner: nothing below this branch runs.
+  if (flag('--status') !== null) {
+    console.log(JSON.stringify({ disabled: existsSync(KILL_SWITCH), lockHeldBy: existsSync(join(STATE, 'lock')) ? readFileSync(join(STATE, 'lock'), 'utf8') : null, ...summarize(ledger, config, now) }, null, 2));
+    return 0;
+  }
+  if (existsSync(KILL_SWITCH)) return console.log('forge-intake: disabled by kill switch');
+  if (userInfo().username !== 'agenthub-runner') throw new Error('run as agenthub-runner on Forge');
+  mkdirSync(STATE, { recursive: true }); mkdirSync(WORK, { recursive: true });
+  const lock = join(STATE, 'lock');
+  if (!acquireLock(lock)) return console.log('forge-intake: another run holds the lock');
   const dir = join(STATE, 'runs', now.replace(/[:.]/g, '-')); mkdirSync(dir, { recursive: true });
   const row = { phase: 'run', outcome: 'none' };
   let claimed = null; let route = null; let pr = null; let reason = null; let checkout = null;
