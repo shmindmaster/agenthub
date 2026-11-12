@@ -195,9 +195,9 @@
       "installCommand": "kiro-cli powers install <package-root>",
       "uninstallCommand": "kiro-cli powers uninstall <name>",
       "subagents": "~/.kiro/agents/*.json (not carried by a Power)",
-      "mcpPath": "mcp.json at the package root (Agent Plugins MCP schema); ~/.kiro/settings/mcp.json for user servers",
+      "mcpPath": "~/.kiro/settings/mcp.json",
       "mcpKey": "mcpServers",
-      "mcpNote": "Kiro ignores .mcp.json and namespaces a Power server as power-<power>-<server>. A Power's MCP servers load with the Power, not at session start.",
+      "mcpNote": "mcpPath holds user servers. A Power carries its own servers in mcp.json at the package root (Agent Plugins MCP schema). Kiro ignores .mcp.json and namespaces a Power server as power-<power>-<server>. A Power's MCP servers load with the Power, not at session start.",
       "cloudProjection": "scripts/New-KiroCloudPowers.ps1. Kiro Web accepts a custom Power of at most 50 text files of at most 4,000,000 bytes each, uploaded by hand under Agent Config > Cloud Config.",
       "documentation": "https://kiro.dev/docs/powers/create/",
       "verifiedAgainst": "https://kiro.dev/docs/powers/create/ and https://kiro.dev/docs/web/cloud-configuration/, read 2026-11-11; kiro-cli 3.2.0 powers install and uninstall exercised the same day"

@@ -86,10 +86,15 @@ $report = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocume
         foreach ($file in $skill.Group) { [void]$keep.Remove($file) }
         $keep.Add("skills/$($skill.Name)/references/bundle.md")
     }
+    # A reference folded into a bundle.md is carried, not omitted.
+    $bundled = @($bundles.Values | ForEach-Object { $_ })
     foreach ($file in $files) {
-        if ($file -notin $keep -and $file -ne '.mcp.json' -and $file -notmatch '^\.[a-z-]+-plugin/' -and -not ($omitted | Where-Object { $_ -like "$file *" })) {
+        if ($file -notin $keep -and $file -notin $bundled -and $file -ne '.mcp.json' -and $file -notmatch '^\.[a-z-]+-plugin/' -and -not ($omitted | Where-Object { $_ -like "$file *" })) {
             $top = ($file -split '/')[0]
-            $label = if ($file -match '^skills/[^/]+/scripts/') { 'skill scripts' } else { $top }
+            $label = if ($file -match '^skills/[^/]+/scripts/') { 'skill scripts' }
+                elseif ($file -match '^skills/[^/]+/references/') { 'skill reference files that are not text' }
+                elseif ($file -match '^skills/') { 'other skill files' }
+                else { $top }
             if ($label -notin $omitted) { $omitted.Add($label) }
         }
     }

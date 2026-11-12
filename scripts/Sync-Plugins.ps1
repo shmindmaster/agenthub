@@ -475,7 +475,8 @@ function Invoke-PluginInstall($Row) {
         'kiro' {
             # A reinstall over an existing power is refused by the host, so update is
             # uninstall then install from the canonical package.
-            if ($present) { Invoke-Client kiro-cli @('powers','uninstall',$name) | Out-Null }
+            # A registration whose folder is gone is drift, not absence: uninstall it too.
+            if ($present -or $Row.status -eq 'drift') { Invoke-Client kiro-cli @('powers','uninstall',$name) | Out-Null }
             Invoke-Client kiro-cli @('powers','install',$Row.source) | Out-Null
         }
         'cline' {
