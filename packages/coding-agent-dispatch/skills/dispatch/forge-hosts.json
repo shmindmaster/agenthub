@@ -1,0 +1,20 @@
+{
+  "claude-qwen": {"argv": [".local/bin/claude-qwen"], "plan": "Qwen Token Plan"},
+  "claude-zai": {"argv": [".local/bin/claude-zai"], "plan": "Z.ai Coding Plan"},
+  "claude-mimo": {"argv": [".local/bin/claude-mimo"], "plan": "MiMo Token Plan"},
+  "claude-go": {"argv": [".local/bin/claude-go"], "plan": "OpenCode Go"},
+  "codex-qwen": {"argv": [".local/bin/codex-qwen"], "plan": "Qwen Token Plan"},
+  "codex-zai": {"argv": [".local/bin/codex-zai"], "plan": "Z.ai Coding Plan"},
+  "codex-mimo": {"argv": [".local/bin/codex-mimo"], "plan": "MiMo Token Plan"},
+  "codex-go": {"argv": [".local/bin/codex-go"], "plan": "OpenCode Go"},
+  "grok": {"argv": [".grok/bin/grok"]},
+  "grok-browser": {"argv": [".local/bin/grok-browser"]},
+  "kiro": {"argv": [".local/bin/kiro-cli"]},
+  "hermes": {"argv": [".local/bin/hermes"]},
+  "openclaw": {"argv": [".local/bin/openclaw", "tui", "--local"]},
+  "opencode": {"argv": [".local/bin/opencode"]},
+  "opencode-qwen": {"argv": [".local/bin/opencode-qwen"], "plan": "Qwen Token Plan"},
+  "opencode-zai": {"argv": [".local/bin/opencode-zai"], "plan": "Z.ai Coding Plan"},
+  "qwen": {"argv": [".local/bin/qwen"]},
+  "cline": {"argv": [".local/bin/cline"]}
+}

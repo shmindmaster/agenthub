@@ -58,6 +58,17 @@ try {
     Check 'Forge browser route uses the isolated browser launcher' ($r.Exit -eq 0 -and $r.Out -match '/\.local/bin/grok-browser')
     $r = Run @('-Forge','-HostId','opencode-zai','-Cwd',$forgeWorktree,'-ShowCommand')
     Check 'Forge Z.ai uses the isolated launcher' ($r.Exit -eq 0 -and $r.Out -match '/\.local/bin/opencode-zai\b')
+    foreach ($client in @('claude', 'codex')) {
+        foreach ($plan in @('qwen', 'zai', 'mimo', 'go')) {
+            $route = "$client-$plan"
+            $r = Run @('-Forge','-HostId',$route,'-Cwd',$forgeWorktree,'-ShowCommand')
+            Check "Forge $route selects an explicit provider launcher" ($r.Exit -eq 0 -and $r.Out -match "/\.local/bin/$route\b") $r.Err
+            $r = Run @('-Forge','-Auth','-HostId',$route)
+            Check "Forge $route identifies its runtime credential" ($r.Exit -eq 0 -and $r.Out -match 'runtime credential' -and $r.Out -notmatch 'device-auth') $r.Err
+        }
+        $r = Run @('-Forge','-HostId',$client,'-Cwd',$forgeWorktree,'-ShowCommand')
+        Check "Forge refuses an unqualified $client route" ($r.Exit -eq 3 -and $r.Err -match 'Select a Forge provider explicitly') $r.Err
+    }
     $r = Run @('-Forge','-Auth','-HostId','grok')
     Check 'Forge auth shows the browser device login command' ($r.Exit -eq 0 -and $r.Out -match 'grok login --device-auth' -and $r.Out -notmatch 'codex login')
     $r = Run @('-Auth','-HostId','codex')

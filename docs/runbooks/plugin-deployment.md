@@ -140,7 +140,10 @@ access under the runner account before pushing. Git and `gh` cover branch
 and pull request operations for clients with a shell.
 
 Choose `grok-browser` for Forge QA with an isolated local Chrome profile.
-Choose `codex-qwen` or `opencode-qwen` to use the runner's Qwen Token Plan.
+On Forge, use an explicit `claude-*` or `codex-*` route: `qwen`, `zai`,
+`mimo`, or `go` selects the corresponding subscription. Keep native Claude
+and Codex logins on Windows. Grok and Kiro use their native account logins
+on both hosts. Use `opencode-qwen` for Qwen in OpenCode.
 Choose `opencode-zai` for the runner's Z.ai Coding Plan and its four Z.ai
 MCPs. On Windows, select that plan with
 `-HostId opencode -Model zai-coding-plan/glm-5.3`. This Windows route
@@ -148,6 +151,9 @@ supports workspace edits and Z.ai MCPs, with shell tools disabled.
 On Windows use `codex --profile qwen` with the user environment reference.
 To keep an interactive task alive across SSH disconnects, start Herdr or
 tmux as `agenthub-runner` on Forge and launch the client inside its pane.
+From an existing Forge terminal, run the installed dispatch skill's
+`python3 forge-session.py --list` or
+`python3 forge-session.py --host <id> --cwd <Forge-worktree>`.
 
 Forge operator sessions are interactive. Unattended intake, Linux tool
 isolation, and exact-head review acceptance are tracked under

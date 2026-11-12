@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.8.5"
+  version: "0.8.6"
 ---
 
 # Dispatch to another coding agent
@@ -36,7 +36,17 @@ terminal. The directory must already exist on Forge. Select the authenticated
 provider and model in the native client. This route is interactive, including
 for the Xiaomi Token Plan. A binary listed as installed has not passed a
 provider, GitHub or Linear acceptance check. Use `-ShowCommand` to preview the
-SSH invocation without launching the client. Use `-Auth` or `-Forge -Auth` to show sign-in commands, and add `-HostId` to narrow the output. Forge routes include `grok-browser`, `codex-qwen`, and `opencode-qwen`.
+SSH invocation without launching the client. Use `-Auth` or `-Forge -Auth` to
+show sign-in commands, and add `-HostId` to narrow the output. Forge Claude
+and Codex require an explicit suffix: `-qwen`, `-zai`, `-mimo`, or `-go`.
+Grok and Kiro use their native sign-ins. On Windows, keep Claude and Codex
+on their native accounts by default.
+
+If already on Forge as `agenthub-runner`, use the adjacent
+`python3 forge-session.py --list` or
+`python3 forge-session.py --host <id> --cwd <Forge-worktree>`. Use a terminal
+or an attached Herdr/tmux pane for the latter. The same catalog drives both
+entry points. A listed launcher is not proof of a successful provider call.
 
 1. List callable hosts. Take "callable" from this output, not memory.
 

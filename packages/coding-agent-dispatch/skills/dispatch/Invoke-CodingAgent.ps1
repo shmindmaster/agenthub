@@ -168,6 +168,10 @@ function Join-WindowsArguments {
     return (($ArgumentList | ForEach-Object { Format-WindowsArgument $_ }) -join ' ')
 }
 
+if ($Forge) {
+    $forgeCatalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'forge-hosts.json') -Raw | ConvertFrom-Json -AsHashtable
+}
+
 if ($Auth) {
     if ($Prompt -or $PromptFile -or $Cwd -or $List -or $ShowCommand -or $ReadOnly -or
         $Role -or $Title -or $SessionId -or $Model -or $AnthropicApiKey -or
@@ -177,19 +181,21 @@ if ($Auth) {
     $authCommands = if ($Forge) {
         [ordered]@{
             grok = '/srv/work/agenthub-runner/.grok/bin/grok login --device-auth'
-            codex = '/srv/work/agenthub-runner/.local/bin/codex login --device-auth'
+            codex = 'Use a codex-qwen, codex-zai, codex-mimo or codex-go launcher; no personal OpenAI login on Forge.'
+            claude = 'Use a claude-qwen, claude-zai, claude-mimo or claude-go launcher; no personal Anthropic login on Forge.'
+            kiro = '/srv/work/agenthub-runner/.local/bin/kiro-cli login --use-device-flow'
             qwen = '/srv/work/agenthub-runner/.local/bin/qwen; run /auth and choose QwenCloud Token Plan'
             cline = '/srv/work/agenthub-runner/.local/bin/cline auth'
             opencode = '/srv/work/agenthub-runner/.local/bin/opencode; run /connect and choose the intended provider'
             github = 'gh auth status; gh auth login --hostname github.com --git-protocol https --web; gh auth setup-git'
             linear = '/srv/work/agenthub-runner/.local/bin/codex mcp login linear'
-            'codex-qwen' = '/srv/work/agenthub-runner/.local/bin/codex-qwen; uses the Forge Qwen runtime credential'
             'opencode-qwen' = '/srv/work/agenthub-runner/.local/bin/opencode-qwen; uses the Forge Qwen runtime credential'
             'opencode-zai' = '/srv/work/agenthub-runner/.local/bin/opencode-zai; uses the Forge Z.ai Coding Plan runtime credential'
         }
     } else {
         [ordered]@{
             grok = 'grok login'
+            kiro = 'kiro-cli login; check with kiro-cli whoami'
             codex = 'codex login; check with codex login status'
             claude = 'claude auth login; check with claude auth status'
             qwen = 'qwen; run /auth and choose QwenCloud Token Plan'
@@ -199,6 +205,13 @@ if ($Auth) {
             'opencode-zai' = 'Use -HostId opencode -Model zai-coding-plan/glm-5.3; the Windows launcher reads ZAI_CODING_PLAN_API_KEY.'
             github = 'gh auth status; gh auth login if needed'
             'codex-qwen' = 'codex --profile qwen; uses QWEN_TOKEN_PLAN_API_KEY'
+        }
+    }
+    if ($Forge) {
+        foreach ($entry in $forgeCatalog.GetEnumerator()) {
+            if ($entry.Value.plan) {
+                $authCommands[$entry.Key] = "/srv/work/agenthub-runner/$($entry.Value.argv[0]); uses the Forge $($entry.Value.plan) runtime credential."
+            }
         }
     }
     if ($HostId -and -not $authCommands.Contains($HostId)) {
@@ -222,18 +235,9 @@ if ($Forge) {
         $Model -or $AnthropicApiKey -or $PSBoundParameters.ContainsKey('TimeoutSec')) {
         Write-Refusal 3 'Forge supports interactive sessions only. Select the provider and model inside the agent.'
     }
-    $forgeHosts = [ordered]@{
-        codex = '.local/bin/codex'
-        grok = '.grok/bin/grok'
-        'grok-browser' = '.local/bin/grok-browser'
-        'codex-qwen' = '.local/bin/codex-qwen'
-        hermes = '.local/bin/hermes'
-        openclaw = '.local/bin/openclaw tui --local'
-        opencode = '.local/bin/opencode'
-        'opencode-qwen' = '.local/bin/opencode-qwen'
-        'opencode-zai' = '.local/bin/opencode-zai'
-        qwen = '.local/bin/qwen'
-        cline = '.local/bin/cline'
+    $forgeHosts = [ordered]@{}
+    foreach ($entry in $forgeCatalog.GetEnumerator()) {
+        $forgeHosts[$entry.Key] = $entry.Value.argv -join ' '
     }
     $forgeHome = '/srv/work/agenthub-runner'
     $runner = "runuser -u agenthub-runner -- env -i HOME=$forgeHome TERM=xterm-256color PATH=$forgeHome/.local/bin:/usr/bin:/bin"
@@ -271,6 +275,9 @@ if ($Forge) {
         }
     }
     if (-not $HostId -or -not $forgeHosts.Contains($HostId)) {
+        if ($HostId -in @('codex', 'claude')) {
+            Write-Refusal 3 "Select a Forge provider explicitly, for example '$HostId-zai'. Run -Forge -List."
+        }
         Write-Refusal 3 'Use -Forge -List to see supported Forge hosts.'
     }
     if ($Cwd -cnotmatch '^/srv/work/agenthub-runner/worktrees/[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\z') {
