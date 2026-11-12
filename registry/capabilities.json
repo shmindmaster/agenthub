@@ -621,7 +621,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "248DC86C46861C3B16BF14AEE231DCF0733D83E9E30CA7B3D7BDAB4726FB0951",
+      "contentHash": "284751C36E765C1648DC113537DD9B9AD852AB49F8B9C4D2781383CDC6B999A3",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -654,7 +654,7 @@
         },
         {
           "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills",
             "catalog",
@@ -671,7 +671,7 @@
         },
         {
           "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills",
             "catalog",
@@ -704,7 +704,7 @@
         },
         {
           "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills",
             "catalog"
@@ -915,7 +915,7 @@
       "owner": "packages/security",
       "capabilityType": "script+hook",
       "canonicalSource": "packages/security",
-      "contentHash": "2B87AD51482C07779E4FB13C5B95FB6C4A982806D6481F760A1048FA6C409CF3",
+      "contentHash": "F18B1763CDCCB6A0994DF64BF5F2BADA3C0C0B10D34FF1C2A331557F633089B5",
       "hashBasis": "packages/security",
       "status": "active-canonical",
       "notes": "Ships config-payload-scanner: the fleet-shared obfuscated-config malware detector (packages/security/scripts/check-config-payloads.mjs) and its pre-push hook template (packages/security/hooks/pre-push). Adopted 2026-09-07 from subops/scripts/check-config-payloads.mjs, which is the incident history this tool's signatures come from. Not a per-host skill deployment -- every repo installs the hook per packages/security/README.md and points it at this canonical script rather than forking a copy.",

@@ -243,7 +243,7 @@ test('flags legacy executable config filenames such as .eslintrc.js', () => {
   }
 });
 
-test('skips symbolic links to files and directories', () => {
+test('flags config symlinks without following them', () => {
   // Place the real payload outside the scan root so that the only way it
   // could be reached is through a symlink/junction from inside the root.
   const outside = mkdtempSync(join(tmpdir(), 'agenthub-config-payloads-outside-'));
@@ -260,17 +260,21 @@ test('skips symbolic links to files and directories', () => {
       "export default {};\nglobal['!']='9-0123-3';\n",
     );
 
-    // Symlink a directory that contains a flagged config file.
-    // Junctions work without special privileges on Windows; dir symlinks work
-    // on Unix. The scanner must skip either kind.
+    // Symlink a directory that contains a flagged config file. Directory
+    // links are not config files and remain skipped to prevent recursion.
     symlinkSync(realDir, symlinkDir, process.platform === 'win32' ? 'junction' : 'dir');
 
-    // Symlink a flagged config file directly.
+    // Symlink a flagged config file directly. The filesystem pass must not
+    // execute or resolve it, but also must not let the build tool's behavior
+    // bypass the scan.
     symlinkSync(realFile, join(root, 'postcss.config.mjs'), 'file');
 
     const findings = scanConfigPayloads({ root });
 
-    assert.deepEqual(findings, []);
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].file, 'postcss.config.mjs');
+    assert.equal(findings[0].signature, 'symlinked config requires explicit review');
+    assert.equal(findings[0].line, 1);
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(outside, { recursive: true, force: true });

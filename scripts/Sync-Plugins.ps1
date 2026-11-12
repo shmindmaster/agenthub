@@ -351,7 +351,9 @@ function Get-MappingRoute($Cap, [string]$OwnerHost, [string]$DeploymentStatus) {
     if ($Cap.id -eq 'repowise' -and $OwnerHost -in 'claude','codex') { return 'vendor' }
     # Kiro takes the package as a native Power; the host-independent catalog is deployed by the other hosts' runtime rows.
     if ($OwnerHost -eq 'kiro' -and $DeploymentStatus -eq 'native-local-plugin') { return $DeploymentStatus }
-    if ($Cap.deployedCatalog) { return 'runtime' }
+    # A deployed catalog travels on the loose-skill hosts' runtime rows; hosts with a native
+    # plugin install still get the plugin so it appears in their plugin picker.
+    if ($Cap.deployedCatalog -and $DeploymentStatus -eq 'managed-loose-skills') { return 'runtime' }
     if ($OwnerHost -eq 'grok' -and $Cap.id -in 'product', 'media-studio', 'sarosh', 'coding-agent-dispatch') { return 'native-local-plugin' }
     if ($OwnerHost -eq 'copilot' -and $Cap.id -in 'media-studio', 'repowise') { return 'native-local-plugin' }
     return $DeploymentStatus
