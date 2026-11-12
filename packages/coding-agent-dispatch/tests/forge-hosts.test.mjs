@@ -22,6 +22,37 @@ const LAUNCHER = /^\.local\/bin\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
 // and the hard-coded sign-in guidance in Invoke-CodingAgent.ps1 points there.
 const GROK_LAUNCHER = /^\.grok\/bin\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
+// JSON.parse keeps only the last of two equal keys, so a duplicate host id would
+// silently replace the earlier launcher. Scan the raw text for repeated keys at
+// the top level of the catalog object.
+export function duplicateHostIds(text) {
+  const seen = new Set();
+  const duplicates = new Set();
+  let depth = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '"') {
+      let end = i + 1;
+      while (end < text.length && text[end] !== '"') end += text[end] === '\\' ? 2 : 1;
+      if (depth === 1) {
+        let next = end + 1;
+        while (/\s/.test(text[next] ?? '')) next += 1;
+        if (text[next] === ':') {
+          const key = JSON.parse(text.slice(i, end + 1));
+          if (seen.has(key)) duplicates.add(key);
+          seen.add(key);
+        }
+      }
+      i = end;
+    } else if (char === '{' || char === '[') {
+      depth += 1;
+    } else if (char === '}' || char === ']') {
+      depth -= 1;
+    }
+  }
+  return [...duplicates];
+}
+
 export function validateForgeHosts(text) {
   const errors = [];
   let catalog;
@@ -33,6 +64,7 @@ export function validateForgeHosts(text) {
   if (catalog === null || typeof catalog !== 'object' || Array.isArray(catalog)) {
     return ['forge-hosts.json must be a JSON object'];
   }
+  for (const id of duplicateHostIds(text)) errors.push(`${id}: host id appears more than once; JSON.parse would keep only the last entry`);
   const ids = Object.keys(catalog);
   if (ids.length === 0) errors.push('forge-hosts.json must list at least one host');
   for (const id of ids) {
@@ -84,6 +116,16 @@ test('rule 1: the catalog parses as a JSON object with at least one host', () =>
   assert.deepEqual(validateForgeHosts('[{"argv": [".local/bin/x"]}]'), ['forge-hosts.json must be a JSON object']);
   assert.deepEqual(validateForgeHosts('"ok"'), ['forge-hosts.json must be a JSON object']);
   assert.ok(validateForgeHosts('{}').some((error) => error.includes('at least one host')));
+});
+
+test('rule 1b: a host id may appear only once (checked on the raw text)', () => {
+  const duplicated = '{"codex-go": {"argv": [".local/bin/a"], "plan": "OpenCode Go"}, "codex-go": {"argv": [".local/bin/b"], "plan": "OpenCode Go"}}';
+  assert.deepEqual(JSON.parse(duplicated)['codex-go'].argv, ['.local/bin/b'], 'JSON.parse silently keeps the last entry');
+  assert.deepEqual(duplicateHostIds(duplicated), ['codex-go']);
+  assert.ok(validateForgeHosts(duplicated).some((error) => error.startsWith('codex-go: host id appears more than once')));
+  // Keys nested inside an entry, and strings that merely look like keys, are not host ids.
+  const nested = '{"a": {"argv": ["x"], "plan": "p"}, "b": {"argv": ["x"], "plan": "a\\": "}}';
+  assert.deepEqual(duplicateHostIds(nested), []);
 });
 
 test('rule 2: every host id matches ^[a-z0-9][a-z0-9-]*$', () => {
