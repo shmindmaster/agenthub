@@ -152,6 +152,22 @@ function Write-Refusal {
     exit $Code
 }
 
+function Format-WindowsArgument {
+    param([string]$Value)
+    if ($null -eq $Value) { return '""' }
+    if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') { return $Value }
+    # CommandLineToArgvW quoting: double only backslashes before quotes and
+    # the closing quote, never ordinary path separators.
+    $escaped = [regex]::Replace($Value, '(\\*)"', { param($m) $m.Groups[1].Value + $m.Groups[1].Value + '\"' })
+    $escaped = [regex]::Replace($escaped, '(\\+)$', '$1$1')
+    return '"' + $escaped + '"'
+}
+
+function Join-WindowsArguments {
+    param([string[]]$ArgumentList)
+    return (($ArgumentList | ForEach-Object { Format-WindowsArgument $_ }) -join ' ')
+}
+
 if ($Auth) {
     if ($Prompt -or $PromptFile -or $Cwd -or $List -or $ShowCommand -or $ReadOnly -or
         $Role -or $Title -or $SessionId -or $Model -or $AnthropicApiKey -or
@@ -230,8 +246,11 @@ if ($Forge) {
         $inventory.CreateNoWindow = $true
         $inventory.RedirectStandardOutput = $true
         $inventory.RedirectStandardError = $true
-        foreach ($argument in @('-nT', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', 'forge', ($commands -join '; '))) {
-            $inventory.ArgumentList.Add($argument)
+        $inventoryArgs = @('-nT', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', 'forge', ($commands -join '; '))
+        if ($env:OS -eq 'Windows_NT') {
+            $inventory.Arguments = Join-WindowsArguments $inventoryArgs
+        } else {
+            foreach ($argument in $inventoryArgs) { $inventory.ArgumentList.Add($argument) }
         }
         $process = [Diagnostics.Process]::Start($inventory)
         try {
@@ -360,22 +379,6 @@ function Assert-MimoPlanEnvironment {
     } elseif (-not ($planKey.StartsWith('tp-', [StringComparison]::Ordinal) -or $planKey.StartsWith('ttp-', [StringComparison]::Ordinal))) {
         Write-Refusal 3 "refused ${Id}: MIMO_API_KEY is not a Xiaomi Token Plan key (tp- or ttp- prefix); a MiMo model runs on the Token Plan only, never a pay-as-you-go key"
     }
-}
-
-function Format-WindowsArgument {
-    param([string]$Value)
-    if ($null -eq $Value) { return '""' }
-    if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') { return $Value }
-    # CommandLineToArgvW quoting: double only backslashes before quotes and
-    # the closing quote, never ordinary path separators.
-    $escaped = [regex]::Replace($Value, '(\\*)"', { param($m) $m.Groups[1].Value + $m.Groups[1].Value + '\"' })
-    $escaped = [regex]::Replace($escaped, '(\\+)$', '$1$1')
-    return '"' + $escaped + '"'
-}
-
-function Join-WindowsArguments {
-    param([string[]]$ArgumentList)
-    return (($ArgumentList | ForEach-Object { Format-WindowsArgument $_ }) -join ' ')
 }
 
 # Argument prompts cannot carry quotes, newlines, or a long command line.
