@@ -13,6 +13,7 @@ const HOME = '/srv/work/agenthub-runner';
 const STATE = join(HOME, '.local/state/agenthub/forge-intake');
 const KILL_SWITCH = join(HOME, '.config/agenthub/forge-intake.disabled');
 const WORK = join(HOME, 'worktrees/intake');
+const COOLDOWN_MS = 3 * 3600_000; // Z.ai's window is 5 hours; the others reset sooner, so 3 hours is a middle value.
 const CONFIG_PATH = fileURLToPath(new URL('./forge-intake.json', import.meta.url));
 const SECRET_PATTERNS = [/gh[pousr]_[A-Za-z0-9]{20,}/, /github_pat_[A-Za-z0-9_]{20,}/, /\bsk-[A-Za-z0-9_-]{20,}/, /AKIA[0-9A-Z]{16}/, /xox[abprs]-[A-Za-z0-9-]{10,}/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /lin_(?:api|oauth)_[A-Za-z0-9]{20,}/];
 
@@ -67,16 +68,24 @@ export function runsToday(ledger, now) {
   return ledger.filter((row) => row.phase === 'run' && dayKey(row.ts) === dayKey(now)).length;
 }
 
-export const failedAttempts = (ledger, issue) => ledger.filter((row) => row.phase === 'run' && row.issue === issue && row.outcome !== 'pr').length;
+export const failedAttempts = (ledger, issue) => ledger.filter((row) => row.phase === 'run' && row.issue === issue && row.outcome === 'failed').length;
 
 export function skipList(ledger, config) {
   const ids = [...new Set(ledger.filter((row) => row.phase === 'run' && row.issue).map((row) => row.issue))];
   return ids.filter((id) => failedAttempts(ledger, id) >= config.limits.maxAttemptsPerIssue || ledger.some((row) => row.issue === id && row.outcome === 'pr'));
 }
 
-// Least recently used enabled route, so work spreads over the plans.
-export function pickRoute(config, ledger) {
-  const enabled = config.routes.filter((route) => route.enabled);
+// A plan that reports its quota or rate limit is not at fault for the issue: it cools down and the
+// attempt is not charged to the issue.
+export const LIMIT_PATTERN = /usage limit|rate limit|quota|too many requests|insufficient (?:balance|credit)|limit (?:has been )?reached/i;
+export const isProviderLimit = (text) => LIMIT_PATTERN.test(text || '');
+
+export const coolingRoutes = (ledger, now) => new Set(ledger.filter((row) => row.phase === 'cooldown' && row.until > now).map((row) => row.route));
+
+// Least recently used enabled route that is not cooling down, so work spreads over the plans.
+export function pickRoute(config, ledger, now = new Date().toISOString()) {
+  const cooling = coolingRoutes(ledger, now);
+  const enabled = config.routes.filter((route) => route.enabled && !cooling.has(route.id));
   if (!enabled.length) return null;
   const lastUse = (id) => ledger.map((row, i) => (row.phase === 'run' && row.route === id ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
   return [...enabled].sort((a, b) => lastUse(a.id) - lastUse(b.id))[0];
@@ -149,12 +158,17 @@ function runAgent({ route, cwd, sandbox, prompt, seconds, dir, name, linear }) {
   const env = { HOME, PATH: `${HOME}/.local/bin:/usr/bin:/bin`, TERM: 'dumb' };
   return new Promise((resolve) => {
     const child = spawn(join(HOME, route.launcher), args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    const sink = (chunk) => log(dir, `${name}.log`, chunk);
+    let tail = '';
+    const sink = (chunk) => { log(dir, `${name}.log`, chunk); tail = (tail + chunk).slice(-6000); };
     child.stdout.on('data', sink); child.stderr.on('data', sink);
     const timer = setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL'); } catch { /* gone */ } resolve({ code: 'timeout', reply: null }); }, seconds * 1000);
     // A missing or non-executable launcher must fail the phase, not crash the run before close-out.
     child.on('error', (error) => { clearTimeout(timer); log(dir, `${name}.log`, `spawn error: ${error.message}\n`); resolve({ code: 'spawn-error', reply: null }); });
-    child.on('close', (code) => { clearTimeout(timer); resolve({ code, reply: existsSync(out) ? parseAgentJson(readFileSync(out, 'utf8')) : null }); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      const reply = existsSync(out) ? parseAgentJson(readFileSync(out, 'utf8')) : null;
+      resolve({ code, reply, limited: !reply && code !== 0 && isProviderLimit(tail) });
+    });
   });
 }
 
@@ -179,7 +193,7 @@ export function summarize(ledger, config, now) {
   const byRoute = {};
   for (const row of runs) byRoute[row.route] = (byRoute[row.route] || 0) + 1;
   return {
-    runsToday: runsToday(ledger, now), dailyCap: config.limits.maxRunsPerDay,
+    runsToday: runsToday(ledger, now), dailyCap: config.limits.maxRunsPerDay, coolingRoutes: [...coolingRoutes(ledger, now)],
     runsTotal: runs.length, draftPrs: runs.filter((row) => row.pr).map((row) => ({ issue: row.issue, pr: row.pr })),
     failed: count((row) => row.outcome === 'failed'), linearCloseOutUnconfirmed: runs.filter((row) => row.linearClosed === false).map((row) => row.issue),
     retired: skipList(ledger, config), byRoute,
@@ -230,6 +244,7 @@ export async function main(argv) {
   if (!acquireLock(lock)) return console.log('forge-intake: another run holds the lock');
   const dir = join(STATE, 'runs', now.replace(/[:.]/g, '-')); mkdirSync(dir, { recursive: true });
   const row = { phase: 'run', outcome: 'none' };
+  const cool = (limitedRoute, phase) => record({ phase: 'cooldown', route: limitedRoute.id, during: phase, until: new Date(Date.now() + COOLDOWN_MS).toISOString() });
   let claimed = null; let route = null; let pr = null; let reason = null; let checkout = null;
   try {
     prune(config);
@@ -240,6 +255,7 @@ export async function main(argv) {
     row.route = route.id;
     // 1. select and claim
     const sel = await runAgent({ route, cwd: WORK, sandbox: 'read-only', prompt: selectPrompt(config, skipList(ledger, config), flag('--issue')), seconds: config.limits.selectSeconds, dir, name: 'select', linear: config.linear });
+    if (sel.limited) { cool(route, 'select'); return console.log(`forge-intake: ${route.id} is at its plan limit; cooling down`); }
     if (!sel.reply || sel.reply.outcome === 'none') { row.reason = sel.reply?.reason || `select failed (${sel.code})`; return console.log(`forge-intake: nothing taken: ${row.reason}`); }
     claimed = sel.reply; row.issue = claimed.issue;
     const labelsBefore = preClaimLabels(claimed.labels, config.linear);
@@ -254,6 +270,7 @@ export async function main(argv) {
     git(checkout, 'switch', '-c', branch);
     git(checkout, 'config', 'user.name', 'AgentHub Forge'); git(checkout, 'config', 'user.email', 'forge@users.noreply.github.com');
     const impl = await runAgent({ route, cwd: checkout, sandbox: 'workspace-write', prompt: implementPrompt({ issue: claimed.issue, title: claimed.title, branch, repo }), seconds: config.limits.implementSeconds, dir, name: 'implement', linear: config.linear });
+    if (impl.limited) { cool(route, 'implement'); const limit = new Error(`${route.id} hit its plan limit during implementation; the issue is released without charging an attempt`); limit.limited = true; throw limit; }
     if (!impl.reply || impl.reply.status !== 'done') throw new Error(`implementation ${impl.reply?.status || `failed (${impl.code})`}: ${impl.reply?.notes || impl.reply?.summary || ''}`.slice(0, 400));
     // 3. commit, verify the diff outside the model's control, then push and open a draft PR
     git(checkout, 'add', '-A');
@@ -276,7 +293,7 @@ export async function main(argv) {
     pr = created.stdout.trim().split('\n').pop(); row.pr = pr; row.outcome = 'pr';
     claimed.summary = impl.reply.summary;
   } catch (error) {
-    reason = String(error.message || error); row.outcome = 'failed'; row.reason = reason; console.error(`forge-intake: ${reason}`);
+    reason = String(error.message || error); row.outcome = error.limited ? 'limited' : 'failed'; row.reason = reason; console.error(`forge-intake: ${reason}`);
   } finally {
     if (claimed && route) {
       const fin = await runAgent({ route, cwd: WORK, sandbox: 'read-only', prompt: finishPrompt(config, { issue: claimed.issue, ok: Boolean(pr), pr, route, summary: claimed.summary, stateBefore: claimed.state_before, reason }), seconds: config.limits.finishSeconds, dir, name: 'finish', linear: config.linear });

@@ -6,15 +6,16 @@ import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import {
-  acquireLock, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
+  acquireLock, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
 } from '../skills/dispatch/forge-intake.mjs';
 
 const config = loadConfig(join(fileURLToPath(new URL('../skills/dispatch/', import.meta.url)), 'forge-intake.json'));
 const repo = config.repos['app:agenthub'];
 const bug = { state: 'Backlog', labels: ['from-execution', 'app:agenthub', 'type:bug'] };
 
-test('config enables exactly the verified Z.ai route and a repo allowlist', () => {
-  assert.deepEqual(config.routes.filter((r) => r.enabled).map((r) => r.id), ['codex-zai']);
+test('config enables the plan routes that passed execution smokes and a repo allowlist', () => {
+  assert.deepEqual(config.routes.filter((r) => r.enabled).map((r) => r.id), ['codex-zai', 'codex-qwen', 'codex-go']);
+  assert.ok(config.routes.every((r) => r.launcher.startsWith('.local/bin/codex-')), 'unattended routes are Codex launchers only');
   assert.deepEqual(Object.keys(config.repos), ['app:agenthub']);
   assert.equal(config.linear.claimLabel, 'agent:forge');
 });
@@ -73,6 +74,26 @@ test('route rotation picks the least recently used enabled plan', () => {
   assert.equal(pickRoute(two, [{ phase: 'run', route: 'codex-zai' }]).id, 'codex-qwen');
   assert.equal(pickRoute(two, [{ phase: 'run', route: 'codex-zai' }, { phase: 'run', route: 'codex-qwen' }]).id, 'codex-zai');
   assert.equal(pickRoute({ ...config, routes: [] }, []), null);
+});
+
+test('a plan at its limit cools down and is not charged to the issue', () => {
+  assert.equal(isProviderLimit('Error: Usage limit reached for 5 hour. Your limit will reset at 19:25'), true);
+  assert.equal(isProviderLimit("You've reached your additional usage limit for your plan"), true);
+  assert.equal(isProviderLimit('429 Too Many Requests'), true);
+  assert.equal(isProviderLimit('SyntaxError: unexpected token'), false);
+  const now = '2026-11-12T12:00:00.000Z';
+  const ledger = [
+    { phase: 'run', route: 'codex-qwen' }, { phase: 'run', route: 'codex-go' },
+    { phase: 'cooldown', route: 'codex-zai', until: '2026-11-12T13:00:00.000Z' },
+    { phase: 'cooldown', route: 'codex-go', until: '2026-11-12T11:00:00.000Z' },
+  ];
+  assert.deepEqual([...coolingRoutes(ledger, now)], ['codex-zai']);
+  assert.equal(pickRoute(config, ledger, now).id, 'codex-qwen', 'zai is cooling; qwen was used before go');
+  const allCooling = config.routes.filter((r) => r.enabled).map((r) => ({ phase: 'cooldown', route: r.id, until: '2026-11-12T13:00:00.000Z' }));
+  assert.equal(pickRoute(config, allCooling, now), null);
+  const failures = [{ phase: 'run', issue: 'SH-7', outcome: 'limited' }, { phase: 'run', issue: 'SH-7', outcome: 'limited' }, { phase: 'run', issue: 'SH-7', outcome: 'limited' }];
+  assert.equal(failedAttempts(failures, 'SH-7'), 0);
+  assert.deepEqual(skipList(failures, config), []);
 });
 
 test('diff gate refuses protected paths, secrets, empty and oversized changes', () => {
@@ -163,7 +184,8 @@ test('the status report counts runs, PRs, failures, retired issues and routes', 
   assert.deepEqual(s.linearCloseOutUnconfirmed, ['SH-2']);
   assert.deepEqual(s.retired.sort(), ['SH-1', 'SH-2']);
   assert.deepEqual(s.byRoute, { 'codex-zai': 3 });
-  assert.deepEqual(s.enabledRoutes, ['codex-zai']);
+  assert.deepEqual(s.enabledRoutes, ['codex-zai', 'codex-qwen', 'codex-go']);
+  assert.deepEqual(s.coolingRoutes, []);
 });
 
 test('prompts carry the guardrails the wrapper relies on', () => {

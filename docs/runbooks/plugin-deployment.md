@@ -236,11 +236,17 @@ cannot, none can delete).
 
 Limits: one issue per run, 6 runs a day, 2 attempts per issue (a PR or a second
 failure retires it from selection), one run at a time, free memory of at least
-4 GiB. Routes rotate least-recently-used over the enabled plans: Z.ai Coding
-Plan (`codex-zai`) is verified; enable another in `forge-intake.json` only
-after a headless smoke on it (`--route <id> --issue <id>` on a throwaway
-eligible issue). Logs and the ledger live in
+4 GiB. Routes rotate least-recently-used over the enabled plans: `codex-zai`
+(Z.ai Coding Plan, full cycle proven on SH-4512), `codex-qwen` and `codex-go`
+(Qwen Token Plan, OpenCode Go; both passed a headless execution smoke and a
+Linear read, not yet a full cycle). `codex-mimo` stays disabled: its turns end
+without a reply (SH-4421). A plan that reports a usage or rate limit cools down
+for 3 hours and the attempt is not charged to the issue (Z.ai's 5-hour limit
+was hit on 2026-11-12 during testing). Logs and the ledger live in
 `~/.local/state/agenthub/forge-intake`, pruned after 14 days.
+`node forge-intake.mjs --status` prints runs today, the cap, draft PRs,
+failures, retired issues, per-route use, cooling routes and Linear close-outs
+that were not confirmed.
 
 Operate it as root over the `forge` alias:
 
