@@ -654,7 +654,7 @@
         },
         {
           "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills",
             "catalog",
@@ -671,7 +671,7 @@
         },
         {
           "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills",
             "catalog",
@@ -704,7 +704,7 @@
         },
         {
           "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills",
             "catalog"
