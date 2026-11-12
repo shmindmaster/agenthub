@@ -220,6 +220,9 @@ keeps GitHub credentials away from the model:
    than 30 files or 1200 changed lines, a `.github/` change, secret-shaped
    paths or added lines, uncommitted leftovers and `git diff --check` failures.
    It pushes `forge/<issue>-<slug>`, opens a **draft** PR, and removes the clone.
+   Forge has no `pwsh`, so the agent never edits a registry `contentHash`
+   (a hand-computed one failed CI on the first PR, #125); the reviewer
+   recomputes it with `scripts/RegistryContentHash.ps1`.
 4. **Close out** (Linear write allowlist). Comments the PR link, removes
    `agent:forge`, and sets In Review, or on failure restores the earlier state
    with the reason. It never sets Done. CI on the PR is the verification.
