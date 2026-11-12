@@ -330,6 +330,15 @@ function Invoke-MobileLabVmrunStart {
         [Parameter(Mandatory)][string] $Vmx
     )
 
+    # Owner direction 2026-11-11: until 2026-12-01 heavy work runs on sh-forge
+    # (forge.shtrial.com), and the local VMware macOS VM is retired. Starting it is
+    # refused unless AGENTHUB_ALLOW_LOCAL_VM=1 names a deliberate exception.
+    if ($env:AGENTHUB_ALLOW_LOCAL_VM -ne '1') {
+        return [pscustomobject]@{
+            ExitCode = 3
+            Output   = @('Refused: the local VMware VM is retired; use the macOS container on sh-forge (ssh forge-mac). Set AGENTHUB_ALLOW_LOCAL_VM=1 for a deliberate exception.')
+        }
+    }
     $previousEap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {

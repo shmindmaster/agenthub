@@ -706,6 +706,17 @@ if ($pythonCommand) {
     Report 'physical-iPhone WebDriverAgent helper passes its offline tests' $false 'No python, python3 or py on PATH; the helper could not be exercised.'
 }
 
+# The retired local VM: starting it is refused unless the exception is named (2026-11-11).
+$guestModule = Import-Module (Join-Path $repoRoot 'packages/mobile-development/skills/mobile-device-lab/scripts/MobileLabGuest.psm1') -PassThru -Force
+$savedAllow = $env:AGENTHUB_ALLOW_LOCAL_VM
+try {
+    Remove-Item Env:AGENTHUB_ALLOW_LOCAL_VM -ErrorAction SilentlyContinue
+    $refused = & $guestModule { Invoke-MobileLabVmrunStart -VmrunPath 'C:\does-not-exist\vmrun.exe' -Vmx 'C:\does-not-exist\x.vmx' }
+    Report 'the retired local VM is never started without AGENTHUB_ALLOW_LOCAL_VM=1' ($refused.ExitCode -eq 3 -and "$($refused.Output)" -match 'sh-forge') "exit=$($refused.ExitCode) output=$($refused.Output)"
+} finally {
+    if ($null -ne $savedAllow) { $env:AGENTHUB_ALLOW_LOCAL_VM = $savedAllow }
+    Remove-Module $guestModule -Force -ErrorAction SilentlyContinue
+}
 if ($failures.Count) {
     Write-Host "`nRESULT: $($reported - $failures.Count) passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1
