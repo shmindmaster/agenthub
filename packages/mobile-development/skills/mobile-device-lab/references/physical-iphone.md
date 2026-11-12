@@ -1,6 +1,6 @@
 # Physical iPhone from Windows
 
-Read when driving the iPhone attached over USB: tap, type, swipe, read the screen. Needs no Mac, no Appium and no admin rights. Tool: `pymobiledevice3` (uv tool, `%USERPROFILE%/.local/bin/pymobiledevice3.exe`). On iOS 17+ developer commands open their own userspace tunnel; `remote tunneld` is not needed.
+Read when driving the iPhone attached over USB: tap, type, swipe, read the screen, and before saying a phone task cannot be done: the route below taps and reads any app. Needs no Mac and no Appium. Admin is needed only to start the Apple Mobile Device Service, which is Manual and often stopped (`Start-Service 'Apple Mobile Device Service'` in an elevated shell); nothing else is elevated. Tool: `pymobiledevice3` (uv tool, `%USERPROFILE%/.local/bin/pymobiledevice3.exe`). On iOS 17+ developer commands open their own userspace tunnel; `remote tunneld` is not needed.
 
 Exercised 2026-11-10 on iOS 27.2.1 from Windows, driving a third-party app end to end (rename, delete, reorder list entries).
 
@@ -67,7 +67,7 @@ wda.back()                                            # only if a real Back butt
 
 It refuses any address that is not the localhost forward. Its offline tests (`tests/test_wda_client.py`) run against a loopback stand-in; the class form has not been run against the phone, so read one screen with it before trusting a write.
 
-Prerequisites, all true on 2026-11-10 with `pymobiledevice3` 10.2.1: Apple Mobile Device Service running, phone unlocked and trusted, Developer Mode on, developer disk image mounted. Nothing was elevated and no tunnel was started by hand. When the runner's signing expires is not established; check its provisioning profile in the macOS guest before relying on a date.
+Prerequisites, all true on 2026-11-10 with `pymobiledevice3` 10.2.1 and again on 2026-11-12 with 11.52.1 (the runner still launched): use 11.52 or later on iOS 27.2.1, because 10.2.1 warns "Downloaded personalized image has unexpected ProductBuildVersion" and its screenshots time out. Stop every `pymobiledevice3` process before `uv tool upgrade pymobiledevice3`: a running tunnel locks a `.pyd` and leaves a half-upgraded tool (repair with `uv tool install --force pymobiledevice3`). Apple Mobile Device Service running, phone unlocked and trusted, Developer Mode on, developer disk image mounted. Nothing was elevated and no tunnel was started by hand. When the runner's signing expires is not established; check its provisioning profile in the macOS guest before relying on a date.
 
 ### What costs time
 
