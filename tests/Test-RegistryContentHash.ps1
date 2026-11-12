@@ -121,6 +121,25 @@ function Test-PowerShellModuleLineEndingsAreStable {
     }
 }
 
+# systemd units (forge-intake.service/.timer) were once hashed as binary, so Windows and Linux checkouts disagreed.
+function Test-SystemdUnitLineEndingsAreStable {
+    $fixture = New-HashFixtureRepo
+    try {
+        $unit = Join-Path $fixture.PackageDir 'job.service'
+        [IO.File]::WriteAllText($unit, "[Unit]`nDescription=fixture`n", [Text.UTF8Encoding]::new($false))
+        & git -C $fixture.WorkRoot add -A
+        $lfHash = Get-AgentHubRegistryHashBasisValue -Path $fixture.PackageDir
+        [IO.File]::WriteAllText($unit, "[Unit]`r`nDescription=fixture`r`n", [Text.UTF8Encoding]::new($false))
+        $crlfHash = Get-AgentHubRegistryHashBasisValue -Path $fixture.PackageDir
+        if ($lfHash -ne $crlfHash) {
+            return @{ Passed = $false; Detail = "systemd unit EOL changed hash: lf=$lfHash crlf=$crlfHash" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        if (Test-Path -LiteralPath $fixture.WorkRoot) { Remove-Item -LiteralPath $fixture.WorkRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # --- Behavior 4: if git is unavailable, fail loudly instead of returning a wrong hash. ---
 function Test-UnavailableGitFailsLoudly {
     $packageDir = Join-Path $repoRoot 'packages\repowise'
@@ -209,6 +228,9 @@ Report 'tracked file change moves the hash' $r2.Passed $r2.Detail
 
 $r3 = Test-PowerShellModuleLineEndingsAreStable
 Report 'PowerShell module line endings do not move the hash' $r3.Passed $r3.Detail
+
+$r3b = Test-SystemdUnitLineEndingsAreStable
+Report 'systemd unit line endings do not move the hash' $r3b.Passed $r3b.Detail
 
 $r4 = Test-UnavailableGitFailsLoudly
 Report 'unavailable git enumeration mechanism fails loudly' $r4.Passed $r4.Detail
