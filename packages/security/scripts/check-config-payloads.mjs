@@ -124,9 +124,19 @@ function walk(dir, root, found = []) {
     const stat = lstatSync(full, { throwIfNoEntry: false });
     if (!stat) continue;
 
-    // Never follow symbolic links; a directory symlink or junction could
-    // recurse, and a file symlink could smuggle a payload from outside the
-    // scan root.
+    // Treat every config symlink as a finding, as the committed-tree pass
+    // does. Resolving it could follow a payload outside the scan root, while
+    // skipping it lets a build tool execute that same payload.
+    if (stat.isSymbolicLink() && isConfigFile(full)) {
+      found.push({
+        file: full,
+        symlinked: true,
+        signature: 'symlinked config requires explicit review',
+        line: 1,
+      });
+      continue;
+    }
+
     if (stat.isSymbolicLink()) continue;
 
     if (stat.isDirectory()) {
@@ -148,7 +158,17 @@ export function scanConfigPayloads({ root = process.cwd() } = {}) {
 
   const findings = [];
 
-  for (const file of walk(resolvedRoot, resolvedRoot)) {
+  for (const entry of walk(resolvedRoot, resolvedRoot)) {
+    if (entry.symlinked) {
+      findings.push({
+        file: relative(resolvedRoot, entry.file).replace(/\\/g, '/'),
+        signature: entry.signature,
+        line: entry.line,
+      });
+      continue;
+    }
+
+    const file = entry;
     let src;
     try {
       src = readFileSync(file, 'utf8');

@@ -75,7 +75,8 @@ even when pushing from a linked worktree under `C:/wt`. A missing scanner,
 Node runtime, or unreadable commit object blocks the push. Restore the required
 capability before retrying; a missing check is not a passing check. Committed
 config blobs are read with Git object commands, so `export-ignore` attributes
-cannot hide them. Committed config symlinks fail for explicit review. Existing
+cannot hide them. Committed and on-disk config symlinks fail for explicit review.
+Existing
 `pre-push.original` receives the original ref input and arguments; its failure
 also blocks the push.
 
