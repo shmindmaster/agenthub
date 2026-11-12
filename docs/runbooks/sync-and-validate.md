@@ -52,5 +52,8 @@ documentation/agent-instruction change in a member repo.
 1. `pwsh -NoProfile -File .\scripts\RegistryContentHash.ps1` usage:
    dot-source it and call `Get-AgentHubRegistryHashBasisValue -Path packages\<name>`;
    write the value into `registry/capabilities.json` `contentHash`.
+   No `pwsh` on the host: `node scripts/registry-content-hash.mjs packages/<name>` prints
+   the same hash and `node scripts/registry-content-hash.mjs --check` re-verifies every
+   recorded `hashBasis`. It only reads and prints, so the `contentHash` still goes in by hand.
 2. Validate + affected tests.
 3. Sync audit to see deployment drift.

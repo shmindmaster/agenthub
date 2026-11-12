@@ -47,7 +47,8 @@ Sync-Capabilities.ps1            Sync-AgentHub.ps1
 - `scripts/Check-RepoStandard.ps1` sweeps every fleet repo for the knowledge
   standard; `registry/repo-standard.json` is its roster.
 - Content hashes are recomputed with `scripts/RegistryContentHash.ps1`
-  whenever package content changes.
+  whenever package content changes. `scripts/registry-content-hash.mjs` is the
+  byte-identical Node port, for hosts without PowerShell.
 
 ## RepoWise workspace
 

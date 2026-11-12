@@ -9,6 +9,14 @@ Before changing a capability, identify its single registry owner. Then:
 1. Update the canonical package content and every applicable host manifest.
 2. Bump package versions.
 3. Recompute the registry content hash with `scripts/RegistryContentHash.ps1`.
+   Where PowerShell is absent (a Forge runner, a plain Linux host), the Node port
+   `scripts/registry-content-hash.mjs` gives byte-identical hashes: `node
+   scripts/registry-content-hash.mjs --check` recomputes every `hashBasis` in
+   `registry/capabilities.json` and exits non-zero on drift; `node
+   scripts/registry-content-hash.mjs <path>` prints one hash. It only reads and
+   prints — recording a new `contentHash` is still a registry edit, so on a host
+   without `pwsh` list the packages you touched for the reviewer to recompute.
+   Behavior tests: `node --test scripts/registry-content-hash.test.mjs`.
 4. Run `scripts/Validate-AgentHub.ps1` plus the package's own validator.
 
 ## Lifecycle entry point
