@@ -241,6 +241,13 @@ export function acquireLock(path, pid = process.pid) {
   return false;
 }
 
+// Who holds the lock: a live PID, or a stale one a dead run left behind (the next run takes it over).
+export function lockState(path) {
+  if (!existsSync(path)) return { lockHeldBy: null, staleLock: null };
+  const pid = Number(readFileSync(path, 'utf8').trim());
+  return alive(pid) ? { lockHeldBy: pid, staleLock: null } : { lockHeldBy: null, staleLock: Number.isFinite(pid) ? pid : 'unreadable' };
+}
+
 // What an operator needs from the ledger: caps, outcomes, retired issues and per-route use.
 export function summarize(ledger, config, now) {
   const runs = ledger.filter((row) => row.phase === 'run');
@@ -301,7 +308,7 @@ export async function main(argv) {
   const now = new Date().toISOString();
   // Read-only report, safe as root or runner: nothing below this branch runs.
   if (flag('--status') !== null) {
-    console.log(JSON.stringify({ disabled: existsSync(KILL_SWITCH), lockHeldBy: existsSync(join(STATE, 'lock')) ? readFileSync(join(STATE, 'lock'), 'utf8') : null, ...summarize(ledger, config, now) }, null, 2));
+    console.log(JSON.stringify({ disabled: existsSync(KILL_SWITCH), ...lockState(join(STATE, 'lock')), ...summarize(ledger, config, now) }, null, 2));
     return 0;
   }
   if (existsSync(KILL_SWITCH)) return console.log('forge-intake: disabled by kill switch');

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import {
   GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday,
-  acquireLock, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
+  acquireLock, lockState, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
 } from '../skills/dispatch/forge-intake.mjs';
 
 const config = loadConfig(join(fileURLToPath(new URL('../skills/dispatch/', import.meta.url)), 'forge-intake.json'));
@@ -170,6 +170,19 @@ test('the single-run lock is atomic and recovers from a dead holder', (t) => {
   rmSync(lock);
   writeFileSync(lock, '2147483646');
   assert.equal(acquireLock(lock), true, 'a dead holder is taken over');
+});
+
+test('the status report names a live lock holder and flags a stale one', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'intake-lockstate-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const lock = join(dir, 'lock');
+  assert.deepEqual(lockState(lock), { lockHeldBy: null, staleLock: null }, 'no lock file');
+  writeFileSync(lock, `${process.pid}\n`);
+  assert.deepEqual(lockState(lock), { lockHeldBy: process.pid, staleLock: null }, 'a live holder is reported as a number');
+  writeFileSync(lock, '2147483646\n');
+  assert.deepEqual(lockState(lock), { lockHeldBy: null, staleLock: 2147483646 }, 'a dead holder is stale, not held');
+  writeFileSync(lock, 'garbage');
+  assert.deepEqual(lockState(lock), { lockHeldBy: null, staleLock: 'unreadable' }, 'an unreadable lock is stale');
 });
 
 test('the status report counts runs, PRs, failures, retired issues and routes', () => {
