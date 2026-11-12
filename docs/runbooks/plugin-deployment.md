@@ -134,6 +134,11 @@ Use `-Auth` for local sign-in commands, or `-Forge -Auth` for runner
 commands. Add `-HostId grok` or another listed ID to narrow the output.
 The command prints instructions for the operator to run.
 
+For GitHub, authorize the runner with `gh auth login --hostname github.com
+--git-protocol https --web` and run `gh auth setup-git`. Verify repository
+access under the runner account before pushing. Git and `gh` cover branch
+and pull request operations for clients with a shell.
+
 Choose `grok-browser` for Forge QA with an isolated local Chrome profile.
 Choose `codex-qwen` or `opencode-qwen` to use the runner's Qwen Token Plan.
 On Windows use `codex --profile qwen` with the user environment reference.

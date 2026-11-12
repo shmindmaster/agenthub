@@ -160,15 +160,15 @@ if ($Auth) {
     }
     $authCommands = if ($Forge) {
         [ordered]@{
-            grok = '.grok/bin/grok login --device-auth'
-            codex = '.local/bin/codex login --device-auth'
-            qwen = '.local/bin/qwen; run /auth and choose QwenCloud Token Plan'
-            cline = '.local/bin/cline auth'
-            opencode = '.local/bin/opencode; run /connect and choose the intended provider'
-            github = 'gh auth status; provision a scoped Forge identity for GitHub access'
-            linear = '.local/bin/codex mcp login linear'
-            'codex-qwen' = '.local/bin/codex-qwen; uses the Forge Qwen runtime credential'
-            'opencode-qwen' = '.local/bin/opencode-qwen; uses the Forge Qwen runtime credential'
+            grok = '/srv/work/agenthub-runner/.grok/bin/grok login --device-auth'
+            codex = '/srv/work/agenthub-runner/.local/bin/codex login --device-auth'
+            qwen = '/srv/work/agenthub-runner/.local/bin/qwen; run /auth and choose QwenCloud Token Plan'
+            cline = '/srv/work/agenthub-runner/.local/bin/cline auth'
+            opencode = '/srv/work/agenthub-runner/.local/bin/opencode; run /connect and choose the intended provider'
+            github = 'gh auth status; gh auth login --hostname github.com --git-protocol https --web; gh auth setup-git'
+            linear = '/srv/work/agenthub-runner/.local/bin/codex mcp login linear'
+            'codex-qwen' = '/srv/work/agenthub-runner/.local/bin/codex-qwen; uses the Forge Qwen runtime credential'
+            'opencode-qwen' = '/srv/work/agenthub-runner/.local/bin/opencode-qwen; uses the Forge Qwen runtime credential'
         }
     } else {
         [ordered]@{
@@ -224,8 +224,29 @@ if ($Forge) {
             $binary = ($entry.Value -split ' ')[0]
             "if test -x $forgeHome/$binary; then printf '%s\tinteractive\t%s\n' '$($entry.Key)' 'installed; auth unverified'; else printf '%s\trefused\t%s\n' '$($entry.Key)' 'executable absent'; fi"
         }
-        & ssh -o BatchMode=yes -o ConnectTimeout=10 forge ($commands -join '; ')
-        exit $LASTEXITCODE
+        $inventory = [Diagnostics.ProcessStartInfo]::new()
+        $inventory.FileName = (Get-Command ssh -CommandType Application).Source
+        $inventory.UseShellExecute = $false
+        $inventory.CreateNoWindow = $true
+        $inventory.RedirectStandardOutput = $true
+        $inventory.RedirectStandardError = $true
+        foreach ($argument in @('-nT', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', 'forge', ($commands -join '; '))) {
+            $inventory.ArgumentList.Add($argument)
+        }
+        $process = [Diagnostics.Process]::Start($inventory)
+        try {
+            $output = $process.StandardOutput.ReadToEndAsync()
+            $errors = $process.StandardError.ReadToEndAsync()
+            if (-not $process.WaitForExit(15000)) {
+                $process.Kill()
+                Write-Refusal 4 'Forge inventory timed out.'
+            }
+            [Console]::Error.Write($errors.GetAwaiter().GetResult())
+            Write-Output ($output.GetAwaiter().GetResult().TrimEnd())
+            exit $process.ExitCode
+        } finally {
+            $process.Dispose()
+        }
     }
     if (-not $HostId -or -not $forgeHosts.Contains($HostId)) {
         Write-Refusal 3 'Use -Forge -List to see supported Forge hosts.'
