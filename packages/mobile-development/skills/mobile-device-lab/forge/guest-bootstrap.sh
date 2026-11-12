@@ -49,5 +49,7 @@ fi
 # A headless build host: never sleep, restart after a power loss, no automatic OS updates.
 sudo -n pmset -a sleep 0 displaysleep 0 disksleep 0 standby 0 autorestart 1
 sudo -n softwareupdate --schedule off || true
+# Spotlight indexing takes most of a core after every boot; a build host needs no search index.
+sudo -n mdutil -a -i off >/dev/null || true
 for t in node eas ruby pod fastlane ccache xcodes; do printf '%s=%s\n' "$t" "$(command -v $t || echo MISSING)"; done
 echo GUEST-BOOTSTRAP-DONE

@@ -27,7 +27,13 @@ ssh forge mac status                       # container state, leases, SSH readin
 
 macOS 15.8.3 is installed, user `maclab`, no Apple Account. Its password is in `/root/.forge-mac-maclab-password` on forge (root only; never print or commit it), and `maclab` has passwordless sudo. The PC key `id_ed25519_macvm` is authorized, and `ssh forge-mac` works.
 
-- **Cores must be a power of two.** With `CPU_CORES: "14"` the installer spun every core with no disk I/O for more than 15 minutes. With 16 it finished. Keep 8, 16 or 32.
+- **Host side is `../forge/host-setup.sh` with `../forge/compose.yml`.** The image is pinned (`dockurr/macos:3.12`), because `boot.sh` is copied from that exact image. Two known issues are fixed there:
+  - [dockur/macos#572](https://github.com/dockur/macos/issues/572): `CPU_FLAGS: "+invtsc"`. Without it an Intel KVM guest can deadlock, with every vCPU at 100% and frozen block I/O. That is what hung the first install here; a restart only got past it by chance.
+  - [dockur/macos#583](https://github.com/dockur/macos/issues/583): QEMU's `isa-applesmc` is dropped from `boot.sh`, so `PerfPowerServices` no longer pins a core. OpenCore's VirtualSMC supplies the OSK.
+- **Resources:** 16 cores and 32 GB of the 32-core, 64 GB droplet; nothing else in the README bounds it on Intel. The "8 GB during installation" limit applies to AMD hosts only.
+- **Spotlight indexing is off** (`sudo mdutil -a -i off`): `mds_stores` took most of a core after boot, and a build host needs no search index.
+- **`mac` logs in as root on forge** with `/root/.ssh/forge-mac`, which is authorized in the guest. `mac status` reports "ssh: not ready" until that key is authorized.
+- **macOS licence:** dockur's README says Apple's licence permits macOS only on Apple hardware. Running it here is the owner's decision, recorded 2026-11-11.
 - **Remote Login** cannot be turned on with `systemsetup` (it needs Full Disk Access), so it was enabled with `sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist`.
 - **Toolchain:** `../forge/guest-bootstrap.sh`. Homebrew refuses Intel Macs, so it installs Node 24, Ruby 3.4 (conda-forge, for fastlane and CocoaPods), ccache and xcodes from their own releases. It is idempotent.
 - **Needs the owner:** Xcode (`ssh -t forge-mac 'xcodes install 26.6'`, Apple ID and 2FA) and an Expo session (`ssh -t forge-mac 'eas login'`), so `eas build --local` can fetch the EAS-managed signing credentials. An agent never holds either login.
