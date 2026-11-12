@@ -189,9 +189,72 @@ client's callback input when supported. Keep the listener private; never
 put the callback URL in chat, logs, or an issue. Verify the resulting
 session by reading a Linear issue from the client that signed in.
 
-Forge operator sessions are interactive. Unattended intake, Linux tool
-isolation, and exact-head review acceptance are tracked under
+Forge operator sessions are interactive. Linux tool isolation and exact-head
+review acceptance are tracked under
 [SH-4409](https://linear.app/shorg/issue/SH-4409).
+
+## Forge unattended intake
+
+`skills/dispatch/forge-intake.mjs` turns one eligible Linear issue into one
+draft pull request without any workstation online. A systemd timer on Forge
+(`forge-intake.timer`, 30 minutes after the previous run ends) starts
+`forge-intake.service` as `agenthub-runner`. It runs from the root-owned release
+catalog at `/opt/agenthub/current`, so the runner cannot edit its own
+allowlist, caps or routes. `forge-intake.json` holds all of them.
+
+A run has three headless Codex sessions on a token plan, and a wrapper that
+keeps GitHub credentials away from the model:
+
+1. **Select and claim** (read-only sandbox). Releases `agent:forge` claims that
+   are stale (8 h), then takes the best unclaimed issue: team Sh-org, state
+   Backlog or Todo, no assignee, labelled `type:bug`, `type:tech-debt` or
+   `area:docs`, labelled with a mapped app (today only `app:agenthub`), and
+   carrying none of `type:epic`, `type:research`, `attention:*`, `agent:*`,
+   `risk:compliance`, `risk:security`, `stage:*`, `lane:*`, `funding:*`. It adds
+   `agent:forge` and sets In Progress (SH-4063). The wrapper re-checks the
+   labels the agent reports and refuses an ineligible claim.
+2. **Implement** (workspace-write sandbox, network off, Linear read-only). The
+   agent works in a fresh clone, follows the repository's AGENTS.md, and
+   commits locally.
+3. **Verify, push, open the PR** (wrapper only). It refuses an empty diff, more
+   than 30 files or 1200 changed lines, a `.github/` change, secret-shaped
+   paths or added lines, uncommitted leftovers and `git diff --check` failures.
+   It pushes `forge/<issue>-<slug>`, opens a **draft** PR, and removes the clone.
+4. **Close out** (Linear write allowlist). Comments the PR link, removes
+   `agent:forge`, and sets In Review, or on failure restores the earlier state
+   with the reason. It never sets Done. CI on the PR is the verification.
+   A person or a different host reviews and marks it ready; nothing is merged
+   or deployed.
+
+Codex exposes only a handful of the Linear server's 78 tools to the model
+unless an allowlist names them, so each phase passes
+`mcp_servers.linear.enabled_tools` (select and close-out can write, implement
+cannot, none can delete).
+
+Limits: one issue per run, 6 runs a day, 2 attempts per issue (a PR or a second
+failure retires it from selection), one run at a time, free memory of at least
+4 GiB. Routes rotate least-recently-used over the enabled plans: Z.ai Coding
+Plan (`codex-zai`) is verified; enable another in `forge-intake.json` only
+after a headless smoke on it (`--route <id> --issue <id>` on a throwaway
+eligible issue). Logs and the ledger live in
+`~/.local/state/agenthub/forge-intake`, pruned after 14 days.
+
+Operate it as root over the `forge` alias:
+
+~~~bash
+systemctl status forge-intake.timer
+systemctl start forge-intake.service            # one run now
+touch /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled   # stop
+rm /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled      # resume
+~~~
+
+Install or update (root): put the released tree at
+`/opt/agenthub/catalogs/<sha>`, point `/opt/agenthub/current` at it, copy
+`forge-intake.service` and `forge-intake.timer` to `/etc/systemd/system`, then
+`systemctl daemon-reload && systemctl enable --now forge-intake.timer`. This is
+a standing schedule that the owner directed on 2026-11-12 for Forge only, so
+the "no scheduled jobs" rule for the workstation is unchanged. When Forge
+retires after 2026-12-01, move the same script to the successor host.
 
 ## Provider removal and presentation
 

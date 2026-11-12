@@ -1,0 +1,18 @@
+[Unit]
+Description=AgentHub Forge intake: one eligible Linear issue to one draft pull request
+Documentation=https://github.com/shmindmaster/agenthub/blob/main/docs/runbooks/plugin-deployment.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=agenthub-runner
+Group=agenthub-runner
+WorkingDirectory=/srv/work/agenthub-runner
+# The released, root-owned copy: the runner cannot edit its own allowlist, caps or routes.
+ExecStart=/usr/bin/node /opt/agenthub/current/packages/coding-agent-dispatch/skills/dispatch/forge-intake.mjs
+TimeoutStartSec=4h
+Nice=10
+MemoryMax=12G
+NoNewPrivileges=true
+PrivateTmp=true

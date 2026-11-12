@@ -1,7 +1,7 @@
 {
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-coding-agent-dispatch",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "Dispatch a task to another coding-agent host through the windowless fleet dispatcher, under registry policy and per-host guards.",
   "displayName": "AH-Coding-Agent-Dispatch",
   "logo": "assets/icon.svg"

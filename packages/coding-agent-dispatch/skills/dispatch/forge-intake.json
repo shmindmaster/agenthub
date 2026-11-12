@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "linear": {
+    "team": "Sh-org",
+    "claimLabel": "agent:forge",
+    "pickStates": ["Backlog", "Todo"],
+    "claimedState": "In Progress",
+    "reviewState": "In Review",
+    "includeLabelsAny": ["type:bug", "type:tech-debt", "area:docs"],
+    "excludeLabelPatterns": ["type:epic", "type:research", "attention:*", "agent:*", "risk:compliance", "risk:security", "stage:*", "lane:*", "funding:*"],
+    "staleClaimHours": 8,
+    "mcpUrl": "https://mcp.linear.app/mcp",
+    "toolsByPhase": {
+      "select": ["get_issue", "list_issues", "save_issue", "save_comment", "list_comments", "list_issue_statuses", "list_issue_labels"],
+      "implement": ["get_issue", "list_comments"],
+      "finish": ["get_issue", "save_issue", "save_comment", "list_comments", "list_issue_statuses"]
+    }
+  },
+  "repos": {
+    "app:agenthub": {
+      "repo": "shmindmaster/agenthub",
+      "base": "main",
+      "protectedPaths": [".github/"]
+    }
+  },
+  "limits": {
+    "maxRunsPerDay": 6,
+    "maxAttemptsPerIssue": 2,
+    "maxFiles": 30,
+    "maxChangedLines": 1200,
+    "minFreeMemMiB": 4096,
+    "selectSeconds": 600,
+    "implementSeconds": 2400,
+    "finishSeconds": 600,
+    "keepRunDays": 14
+  },
+  "routes": [
+    {"id": "codex-zai", "launcher": ".local/bin/codex-zai", "plan": "Z.ai Coding Plan", "enabled": true},
+    {"id": "codex-qwen", "launcher": ".local/bin/codex-qwen", "plan": "Qwen Token Plan", "enabled": false},
+    {"id": "codex-go", "launcher": ".local/bin/codex-go", "plan": "OpenCode Go", "enabled": false},
+    {"id": "codex-mimo", "launcher": ".local/bin/codex-mimo", "plan": "MiMo Token Plan", "enabled": false}
+  ]
+}

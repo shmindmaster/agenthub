@@ -1,0 +1,11 @@
+[Unit]
+Description=AgentHub Forge intake poll (stop with: touch /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled)
+
+[Timer]
+OnBootSec=10min
+# Counted from the end of the previous run, so a long run never overlaps the next poll.
+OnUnitInactiveSec=30min
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

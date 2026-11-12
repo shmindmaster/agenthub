@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.8.6"
+  version: "0.8.7"
 ---
 
 # Dispatch to another coding agent
@@ -47,6 +47,13 @@ If already on Forge as `agenthub-runner`, use the adjacent
 `python3 forge-session.py --host <id> --cwd <Forge-worktree>`. Use a terminal
 or an attached Herdr/tmux pane for the latter. The same catalog drives both
 entry points. A listed launcher is not proof of a successful provider call.
+
+Unattended backlog work on Forge does not go through this dispatcher. The
+`forge-intake` timer (`forge-intake.mjs`, `forge-intake.json`) claims one
+eligible Linear issue at a time, implements it with headless Codex on a token
+plan, and opens a draft PR. Do not start it by hand from an operator session or
+widen its allowlist in a brief; see "Forge unattended intake" in
+`docs/runbooks/plugin-deployment.md`.
 
 1. List callable hosts. Take "callable" from this output, not memory.
 
