@@ -12,7 +12,7 @@ description: Drives an Android emulator and iOS Simulator through Appium MCP to 
 3. Return the device, app identity, smoke verdict, evidence path, and cleanup result.
 4. If preflight, lease, or app identity fails, stop before driving the device and record the blocker.
 
-Android builds and Maestro runs go to the remote Linux worker by default (`mobile.ps1 remote run <productId>`); it keeps Gradle and the emulator off this PC. The Windows emulator remains for interactive Appium sessions. iOS runs in the macOS VM, driven remotely. Report results as "verified on simulator" or "verified on emulator", never "on device".
+Android builds and Maestro runs go to the remote Linux worker by default (`mobile.ps1 remote run <productId>`); it keeps Gradle and the emulator off this PC. The Windows emulator remains for interactive Appium sessions. iOS runs in the macOS VM on sh-forge, which starts on demand (`ssh forge mac run <cmd>`, `ssh forge-mac`) and stops itself 15 minutes after the last use; never start it any other way. Report results as "verified on simulator" or "verified on emulator", never "on device".
 
 ```powershell
 $mobile = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1"
@@ -48,6 +48,7 @@ Hold the lease around anything that mutates a shared emulator or Simulator: buil
 
 ## References
 
+- `references/forge-mac.md`. Read before any iOS, Simulator or Xcode work: starting, using and releasing the macOS VM on sh-forge.
 - `references/inner-loop.md`. Read when choosing rebuild vs reload, building or syncing the app under test, build speed, test tools, or web targets.
 - `references/lab-operations.md`. Read for the lease and idle-check commands, a guest that will not start, Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
 - `references/physical-iphone.md`. Read when driving the iPhone attached to Windows: tap, type, swipe and read the screen through WebDriverAgent, with `scripts/wda_client.py`.

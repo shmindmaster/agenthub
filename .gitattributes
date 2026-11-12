@@ -1,0 +1,2 @@
+# Shell scripts that run on Linux hosts keep LF in every checkout.
+packages/mobile-development/skills/mobile-device-lab/forge/mac text eol=lf
