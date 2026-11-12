@@ -149,11 +149,14 @@ access under the runner account before pushing. Git and `gh` cover branch
 and pull request operations for clients with a shell.
 
 Choose `grok-browser` for Forge QA with an isolated local Chrome profile.
-On Forge, use an explicit `claude-*` or `codex-*` route: `qwen`, `zai`,
-`mimo`, or `go` selects the corresponding subscription. Keep native Claude
-and Codex logins on Windows. Grok and Kiro use their native account logins
-on both hosts. In OpenCode, use `opencode-qwen` for Qwen or
-`opencode-go` for the Forge Go workspace and DeepSeek V4.1 Flash.
+Prefer each plan’s native client integration when it is available. Clients
+can also use the Anthropic or OpenAI compatible endpoint documented for the
+plan. On Forge, use an explicit `claude-*` or `codex-*`
+route: `qwen`, `zai`, `mimo`, or `go` selects the corresponding
+subscription. Keep native Claude and Codex logins on Windows. Grok and Kiro
+use their native account logins on both hosts. In OpenCode, use
+`opencode-qwen` for Qwen or `opencode-go` for the Forge Go workspace and
+DeepSeek V4.1 Flash.
 Choose `opencode-zai` for the runner's Z.ai Coding Plan and its four Z.ai
 MCPs. On Windows, select that plan with
 `-HostId opencode -Model zai-coding-plan/glm-5.3`. This Windows route
@@ -164,6 +167,12 @@ tmux as `agenthub-runner` on Forge and launch the client inside its pane.
 From an existing Forge terminal, run the installed dispatch skill's
 `python3 forge-session.py --list` or
 `python3 forge-session.py --host <id> --cwd <Forge-worktree>`.
+
+The official [Z.ai Cursor guide](https://docs.z.ai/devpack/tool/cursor) and
+[Qwen Cursor guide](https://docs.qwencloud.com/developer-guides/clients-and-developer-tools/cursor)
+describe Cursor editor model settings for vendor-compatible endpoints. Forge
+Cursor CLI does not consume those editor settings and instead requires Cursor
+credentials through its [native CLI authentication](https://cursor.com/docs/cli/reference/authentication).
 
 The Forge Codex sandbox uses the Ubuntu `bubblewrap` package. On Ubuntu
 24.04, allow user namespaces only for the root-owned `/usr/bin/bwrap` via
