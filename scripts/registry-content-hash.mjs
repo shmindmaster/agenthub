@@ -44,7 +44,7 @@
  */
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -102,7 +102,7 @@ export function stableFileHash(filePath) {
 }
 
 function runGit(dirPath, args, label) {
-  const result = spawnSync('git', ['-C', dirPath, ...args], { encoding: 'buffer', maxBuffer: 32 * 1024 * 1024 });
+  const result = spawnSync('git', ['-C', dirPath, ...args], { encoding: 'buffer', maxBuffer: 32 * 1024 * 1024, windowsHide: true });
   if (result.status !== 0) {
     const detail = result.status === null
       ? `git could not be run (${(result.error && result.error.code) || 'unknown error'})`
@@ -119,7 +119,7 @@ function runGit(dirPath, args, label) {
  * ever returning a hash that cannot prove it reflects committed content.
  */
 export function gitTrackedRelativeFiles(dirPath) {
-  if (spawnSync('git', ['--version'], { encoding: 'buffer' }).status !== 0) {
+  if (spawnSync('git', ['--version'], { encoding: 'buffer', windowsHide: true }).status !== 0) {
     throw new Error(`contentHashForPath requires 'git' on PATH to enumerate tracked files for '${dirPath}', and it was not found. Refusing to fall back to a filesystem walk, which would silently include untracked/ignored files and produce a wrong hash.`);
   }
   runGit(dirPath, ['rev-parse', '--show-toplevel'], 'contentHashForPath could not resolve a git work tree');
@@ -242,7 +242,9 @@ export function main(argv, {
   return 0;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Compare physical paths: a symlinked invocation must still run, not exit 0 silently.
+const physical = (target) => { try { return realpathSync(target); } catch { return path.resolve(target); } };
+if (process.argv[1] && physical(process.argv[1]) === physical(fileURLToPath(import.meta.url))) {
   // Piping into `head` closes the pipe early; that is a normal way to read a
   // tool, not a crash. EPIPE stays quiet -- the exit code carries the verdict.
   const ignoreEpipe = (error) => {

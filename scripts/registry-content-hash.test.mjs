@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
@@ -38,7 +38,7 @@ function makeScratch(prefix) {
 }
 
 function runGit(cwd, args) {
-  const result = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
+  const result = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8', windowsHide: true });
   assert.equal(result.status, 0, `git ${args.join(' ')} failed: ${(result.stderr || result.error || '').toString().trim()}`);
   return result.stdout;
 }
@@ -208,4 +208,21 @@ test('--check reports a drifted, missing or lowercase contentHash against a synt
 
   writeRegistry(null);
   assert.deepEqual(statusesFor(null), ['demo:drift'], 'a capability with no recorded contentHash is drift, not a pass');
+});
+
+test('the CLI still runs when invoked through a symlink', (t) => {
+  const directory = makeScratch('hash-symlink-');
+  const link = path.join(directory, 'registry-content-hash.mjs');
+  try {
+    symlinkSync(path.join(repoRoot, 'scripts', 'registry-content-hash.mjs'), link);
+  } catch (error) {
+    t.skip(`cannot create a symlink here (${error.code})`);
+    return;
+  }
+  const target = path.join(repoRoot, 'registry', 'capabilities.json');
+  const direct = spawnSync(process.execPath, [path.join(repoRoot, 'scripts', 'registry-content-hash.mjs'), target], { encoding: 'utf8', windowsHide: true });
+  const viaLink = spawnSync(process.execPath, [link, target], { encoding: 'utf8', windowsHide: true });
+  assert.equal(viaLink.status, 0, viaLink.stderr);
+  assert.match(viaLink.stdout.trim(), /^[0-9A-F]{64}$/, 'a symlinked invocation prints a hash instead of exiting 0 silently');
+  assert.equal(viaLink.stdout, direct.stdout);
 });
