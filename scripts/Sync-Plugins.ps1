@@ -250,7 +250,7 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
 
 function Test-SkillCopy([string]$Source, [string]$Destination, [string]$Client) {
     if (-not (Test-Path -LiteralPath (Join-Path $Destination 'skills'))) { return $false }
-    $gitFiles = if ($Source.Replace('\','/') -match '/overlays/personal/') {
+    $gitFiles = if ($Source.Replace('\','/') -match '/(overlays/personal|agenthub-private)/') {
         @(Get-AgentHubFilesystemRelativeFiles -Path $Source)
     } else { @(Get-AgentHubGitTrackedRelativeFiles -Path $Source) }
     # Antigravity installs a projection without other hosts' MCP files (see Invoke-PluginInstall),
@@ -458,7 +458,7 @@ function Invoke-PluginInstall($Row) {
                 # a projection of the tracked package without them.
                 $projection = [IO.Directory]::CreateTempSubdirectory('agenthub-antigravity-').FullName
                 try {
-                    $files = if ($source.Replace('\','/') -match '/overlays/personal/') {
+                    $files = if ($source.Replace('\','/') -match '/(overlays/personal|agenthub-private)/') {
                         @(Get-AgentHubFilesystemRelativeFiles -Path $source)
                     } else { @(Get-AgentHubGitTrackedRelativeFiles -Path $source) }
                     foreach ($relative in $files | Where-Object { $_ -notin 'plugin.json','mcp.json','.mcp.json' }) {

@@ -181,7 +181,7 @@
   "includeMcpJson": true,
   "includePowers": false,
   "resources": [
-    "file://C:/Repos/shmindmaster/agenthub/overlays/personal/global-agent-policy.md",
+    "file://C:/Repos/shmindmaster/agenthub-private/global-agent-policy.md",
     "skill://C:/Repos/shmindmaster/agenthub/packages/product/skills/**/SKILL.md",
     "skill://C:/Repos/shmindmaster/agenthub/packages/repowise/skills/**/SKILL.md",
     "skill://.kiro/skills/**/SKILL.md"

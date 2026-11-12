@@ -176,6 +176,6 @@
   "includeMcpJson": false,
   "includePowers": false,
   "resources": [
-    "file://C:/Repos/shmindmaster/agenthub/overlays/personal/global-agent-policy.md"
+    "file://C:/Repos/shmindmaster/agenthub-private/global-agent-policy.md"
   ]
 }

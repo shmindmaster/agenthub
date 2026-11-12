@@ -133,6 +133,30 @@ try {
     catch { $threw = $true }
     Report 'missing commondir returns null without throwing' `
         (-not $threw -and $null -eq $root) "threw=$threw; resolved '$root'"
+
+    $siblingBase = Join-Path $scratch 'sibling'
+    $siblingCheckout = Join-Path $siblingBase 'agenthub'
+    $siblingOverlay = Join-Path $siblingBase 'agenthub-private'
+    New-Item -ItemType Directory -Path $siblingCheckout, $siblingOverlay -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $siblingOverlay 'overlay.json') -Value '{"enabledCapabilityIds":[]}' -Encoding UTF8
+    $resolved = Get-AgentHubOverlayRoot -RepositoryRoot $siblingCheckout -PassThru
+    Report 'checkout resolves the agenthub-private clone beside it' `
+        ((Test-ResolvedPath $resolved.Root $siblingOverlay) -and $resolved.Source -eq 'sibling') `
+        "resolved '$($resolved.Root)' from $($resolved.Source)"
+
+    $nested = Join-Path $siblingCheckout 'overlays\personal'
+    New-Item -ItemType Directory -Path $nested -Force | Out-Null
+    $resolved = Get-AgentHubOverlayRoot -RepositoryRoot $siblingCheckout -PassThru
+    Report 'a nested overlays/personal still wins over the sibling clone' `
+        ((Test-ResolvedPath $resolved.Root $nested) -and $resolved.Source -eq 'checkout') `
+        "resolved '$($resolved.Root)' from $($resolved.Source)"
+
+    Remove-Item -LiteralPath (Join-Path $siblingOverlay 'overlay.json')
+    Remove-Item -LiteralPath $nested -Recurse -Force
+    $resolved = Get-AgentHubOverlayRoot -RepositoryRoot $siblingCheckout -PassThru
+    Report 'a sibling folder without overlay.json is not an overlay' `
+        ($null -eq $resolved.Root -and $resolved.Source -eq 'absent') `
+        "resolved '$($resolved.Root)' from $($resolved.Source)"
 } finally {
     if ($null -eq $previousOverlay) { Remove-Item Env:AGENTHUB_OVERLAY -ErrorAction SilentlyContinue }
     else { $env:AGENTHUB_OVERLAY = $previousOverlay }

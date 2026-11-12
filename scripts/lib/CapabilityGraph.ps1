@@ -54,6 +54,22 @@ function Get-AgentHubOverlayRoot {
                 }
             }
         }
+        # The overlay's own clone beside the checkout (C:\Repos\shmindmaster\agenthub-private
+        # next to ...\agenthub). A linked worktree looks beside its primary checkout.
+        if (-not $resolution.Root) {
+            $anchors = @($RepositoryRoot)
+            if ($primary) { $anchors += $primary }
+            foreach ($anchor in $anchors) {
+                $sibling = Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($anchor).TrimEnd('\', '/'))) 'agenthub-private'
+                if ($checked -contains $sibling) { continue }
+                $checked.Add($sibling)
+                if (Test-Path -LiteralPath (Join-Path $sibling 'overlay.json')) {
+                    $resolution.Root = $sibling
+                    $resolution.Source = 'sibling'
+                    break
+                }
+            }
+        }
     }
     $resolution.Checked = @($checked.ToArray())
     if ($PassThru) { return $resolution }

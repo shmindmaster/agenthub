@@ -4,7 +4,7 @@ Read this when you start work in agenthub, need to orient, or need to know which
 
 ## Public-first layout
 
-This checkout tracks only public packages under `packages/`. Private capability packages and registry rows live in the gitignored `overlays/personal/` tree on the operator machine. That tree has the same shape strangers get after `init`. There is no second AgentHub control-plane repo.
+This checkout tracks only public packages under `packages/`. Private capability packages and registry rows live in the private overlay on the operator machine: the `agenthub-private` clone beside this checkout, else the gitignored `overlays/personal/` tree, else `AGENTHUB_OVERLAY` (which wins when set). That tree has the same shape strangers get after `init`. There is no second AgentHub control-plane repo.
 
 ## Knowledge authority
 
