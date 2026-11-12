@@ -48,7 +48,7 @@ A failed build or a failed health check leaves the previous deployment serving, 
 
 Since 2026-11-12 every product shares one droplet, `sh-forge` (SSH alias `forge`, Docker context `forge`). It carries the CI lane, macOS and iOS builds, Android, renders and dev or test jobs. `sh-ci` runs there as root from `/srv/work/sh-ci/bin/sh-ci`. `/srv/work/sh-ci/OWNERS.md` on the box says who owns which lane.
 
-The systemd slice `sh-ci.slice` (`ci/do-runner/sh-ci.slice`, installed in `/etc/systemd/system/`) caps the whole CI lane at 12 CPUs and 24 GB, which is three concurrent 4-CPU / 8 GB jobs. That way CI never starves an iOS build or a render. Each repository that needs a runner gets a compose project `sh-ci-<repo>`:
+The systemd slice `sh-ci.slice` (`ci/do-runner/sh-ci.slice`, installed in `/etc/systemd/system/`) caps the whole CI lane at 12 CPUs and 24 GB, which is three concurrent 4-CPU / 8 GB jobs. That way CI never starves an iOS build or a render. The runners are overcommitted on purpose: there are more of them than the slice can hold at their 8 GB ceilings, because most sit idle at under 100 MB. If more than three heavy jobs run at once, the slice is throttled at 22 GB and then hits its 24 GB limit. At that point the kernel kills a job process, never a database: runners and BuildKit run with `oom_score_adj: 500` and the Postgres and Valkey sidecars with `-500`. The killed job fails visibly in GitHub and can be re-run. It never passes silently. If that happens often, raise the slice limits only together with the owners of the other lanes in `OWNERS.md`. Each repository that needs a runner gets a compose project `sh-ci-<repo>`:
 
 | Service | Purpose |
 | --- | --- |

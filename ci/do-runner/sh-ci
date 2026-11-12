@@ -62,6 +62,7 @@ up)
   echo "    mem_limit: 8g"
   echo "    pids_limit: 8192"
   echo "    cgroup_parent: sh-ci.slice"
+  echo "    oom_score_adj: 500"
   if [ $bk = 1 ]; then
   echo "  buildkitd:"
   echo "    image: $BUILDKIT_IMAGE"
@@ -72,6 +73,7 @@ up)
   echo "    cpus: 4"
   echo "    mem_limit: 8g"
   echo "    cgroup_parent: sh-ci.slice"
+  echo "    oom_score_adj: 500"
   fi
   if [ $pg = 1 ]; then
   echo "  postgres:"
@@ -80,6 +82,7 @@ up)
   echo "    environment: {POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: ci}"
   echo "    tmpfs: [\"/var/lib/postgresql:size=3g\"]"
   echo "    cgroup_parent: sh-ci.slice"
+  echo "    oom_score_adj: -500"
   echo "    healthcheck: {test: [\"CMD\", \"pg_isready\", \"-U\", \"postgres\"], interval: 5s, retries: 10}"
   fi
   for vname in $( [ $vk -ge 1 ] && echo valkey ) $( [ $vk -ge 2 ] && echo valkey-b ); do
@@ -88,6 +91,7 @@ up)
   echo "    restart: on-failure:5"
   echo "    command: [\"valkey-server\", \"--save\", \"\", \"--appendonly\", \"no\"]"
   echo "    cgroup_parent: sh-ci.slice"
+  echo "    oom_score_adj: -500"
   done
   if [ $bk = 1 ]; then echo "volumes: {buildkit: {}}"; fi
   } > "$d/compose.yml"
