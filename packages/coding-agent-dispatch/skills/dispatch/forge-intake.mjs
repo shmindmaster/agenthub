@@ -4,9 +4,9 @@
 // token plan; clone, push and `gh pr create` stay in this script so the model sandbox never holds
 // GitHub credentials. Nothing is merged, marked ready or deployed.
 import { spawn, spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { freemem, userInfo } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HOME = '/srv/work/agenthub-runner';
@@ -21,7 +21,19 @@ export const loadConfig = (path = CONFIG_PATH) => JSON.parse(readFileSync(path, 
 export const slugify = (text, max = 40) =>
   text.toLowerCase().replace(/^\[[^\]]*\]\s*/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max).replace(/-+$/, '');
 
-export const branchName = (id, title) => `forge/${id.toLowerCase()}-${slugify(title)}`.replace(/-+$/, '');
+// A retry gets its own branch: a first attempt may have pushed before a later step failed.
+export const branchName = (id, title, attempt = 1) => `forge/${id.toLowerCase()}-${slugify(title)}`.replace(/-+$/, '') + (attempt > 1 ? `-r${attempt}` : '');
+
+// The service starts this file through the /opt/agenthub/current symlink, so compare real paths.
+export const isMainModule = (metaUrl, argv1) => {
+  if (!argv1) return false;
+  try { return realpathSync(fileURLToPath(metaUrl)) === realpathSync(argv1); } catch { return false; }
+};
+
+export const splitNul = (text) => text.split('\0').filter(Boolean);
+
+// The claim label is added by the intake itself, so it is not evidence against eligibility.
+export const preClaimLabels = (labels, linear) => (labels || []).filter((label) => label !== linear.claimLabel);
 
 const globToRegExp = (glob) => new RegExp(`^${glob.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`);
 
@@ -96,7 +108,7 @@ ${claimRules(config)}
 ${skip.length ? `Never pick these issues: ${skip.join(', ')}.` : ''}
 First release stale claims: any issue labelled ${l(config).claimLabel} that is ${l(config).claimedState} and untouched for ${l(config).staleClaimHours}+ hours loses that label, returns to Backlog and gets a one-line comment saying the Forge claim expired.
 ${forcedIssue ? `Take only ${forcedIssue}, and only if it is eligible.` : 'Pick the single eligible issue with the highest priority (Urgent first, then oldest), skipping an issue another session claimed.'}
-If one qualifies: add the label ${l(config).claimLabel}, set it ${l(config).claimedState}, and reply with one JSON object and nothing else: {"outcome":"claimed","issue":"SH-123","title":"...","state_before":"Backlog","labels":["..."],"summary":"two sentences on what the issue asks"}.
+If one qualifies: add the label ${l(config).claimLabel}, set it ${l(config).claimedState}, and reply with one JSON object and nothing else: {"outcome":"claimed","issue":"SH-123","title":"...","state_before":"Backlog","labels":["every label the issue had BEFORE you added ${l(config).claimLabel}"],"summary":"two sentences on what the issue asks"}.
 If none qualifies, change nothing and reply {"outcome":"none","reason":"..."}.`;
 
 export const implementPrompt = ({ issue, title, branch, repo }) => `You are an unattended coding agent on a Forge worktree of ${repo.repo}, on branch ${branch}. Implement Linear issue ${issue} ("${title}").
@@ -140,6 +152,8 @@ function runAgent({ route, cwd, sandbox, prompt, seconds, dir, name, linear }) {
     const sink = (chunk) => log(dir, `${name}.log`, chunk);
     child.stdout.on('data', sink); child.stderr.on('data', sink);
     const timer = setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL'); } catch { /* gone */ } resolve({ code: 'timeout', reply: null }); }, seconds * 1000);
+    // A missing or non-executable launcher must fail the phase, not crash the run before close-out.
+    child.on('error', (error) => { clearTimeout(timer); log(dir, `${name}.log`, `spawn error: ${error.message}\n`); resolve({ code: 'spawn-error', reply: null }); });
     child.on('close', (code) => { clearTimeout(timer); resolve({ code, reply: existsSync(out) ? parseAgentJson(readFileSync(out, 'utf8')) : null }); });
   });
 }
@@ -160,10 +174,11 @@ function prune(config) {
   }
 }
 
-function inspectWorktree(dir, repo) {
+export function inspectWorktree(dir, repo) {
   const base = `origin/${repo.base}`;
-  const files = git(dir, 'diff', '--name-only', `${base}...HEAD`).stdout.split('\n').filter(Boolean);
-  const numstat = git(dir, 'diff', '--numstat', `${base}...HEAD`).stdout.split('\n').filter(Boolean).map((row) => row.split('\t').slice(0, 2).map((n) => Number(n) || 0));
+  // NUL-delimited and rename-free: git quotes non-ASCII paths otherwise, which would slip past the path checks.
+  const files = splitNul(git(dir, 'diff', '-z', '--no-renames', '--name-only', `${base}...HEAD`).stdout);
+  const numstat = splitNul(git(dir, 'diff', '-z', '--no-renames', '--numstat', `${base}...HEAD`).stdout).map((row) => row.split('\t').slice(0, 2).map((n) => Number(n) || 0));
   const addedLines = git(dir, 'diff', '-U0', `${base}...HEAD`).stdout.split('\n').filter((line) => line.startsWith('+') && !line.startsWith('+++'));
   const commits = Number(git(dir, 'rev-list', '--count', `${base}..HEAD`).stdout.trim() || 0);
   const whitespace = git(dir, 'diff', '--check', `${base}...HEAD`);
@@ -195,14 +210,15 @@ export async function main(argv) {
     const sel = await runAgent({ route, cwd: WORK, sandbox: 'read-only', prompt: selectPrompt(config, skipList(ledger, config), flag('--issue')), seconds: config.limits.selectSeconds, dir, name: 'select', linear: config.linear });
     if (!sel.reply || sel.reply.outcome === 'none') { row.reason = sel.reply?.reason || `select failed (${sel.code})`; return console.log(`forge-intake: nothing taken: ${row.reason}`); }
     claimed = sel.reply; row.issue = claimed.issue;
-    const bad = isEligible({ state: claimed.state_before, labels: claimed.labels || [] }, config.linear);
-    const repo = repoFor(claimed.labels || [], config);
+    const labelsBefore = preClaimLabels(claimed.labels, config.linear);
+    const bad = isEligible({ state: claimed.state_before, labels: labelsBefore }, config.linear);
+    const repo = repoFor(labelsBefore, config);
     if (bad || !repo) throw new Error(`claimed an ineligible issue (${bad || 'no mapped repo'})`);
     // 2. clone and implement
     checkout = join(WORK, `${claimed.issue.toLowerCase()}-${Date.now()}`);
     const clone = run('gh', ['repo', 'clone', repo.repo, checkout, '--', '--depth', '50', '--branch', repo.base]);
     if (clone.status !== 0) throw new Error(`clone failed: ${clone.stderr.trim().slice(0, 200)}`);
-    const branch = branchName(claimed.issue, claimed.title);
+    const branch = branchName(claimed.issue, claimed.title, failedAttempts(ledger, claimed.issue) + 1);
     git(checkout, 'switch', '-c', branch);
     git(checkout, 'config', 'user.name', 'AgentHub Forge'); git(checkout, 'config', 'user.email', 'forge@users.noreply.github.com');
     const impl = await runAgent({ route, cwd: checkout, sandbox: 'workspace-write', prompt: implementPrompt({ issue: claimed.issue, title: claimed.title, branch, repo }), seconds: config.limits.implementSeconds, dir, name: 'implement', linear: config.linear });
@@ -221,7 +237,10 @@ export async function main(argv) {
     if (push.status !== 0) throw new Error(`push failed: ${push.stderr.trim().slice(0, 200)}`);
     const body = `Linear: ${claimed.issue}\n\n${impl.reply.summary}\n\nTests reported by the agent: ${JSON.stringify(impl.reply.tests || [])}\n\nOpened unattended by Forge intake on ${route.plan} (${route.id}). Draft: no human has reviewed it, nothing is merged or deployed. CI on this PR is the verification.`;
     const created = run('gh', ['pr', 'create', '--repo', repo.repo, '--draft', '--base', repo.base, '--head', branch, '--title', `${claimed.issue}: ${claimed.title.replace(/^\[[^\]]*\]\s*/, '')}`, '--body', body], { cwd: checkout });
-    if (created.status !== 0) throw new Error(`gh pr create failed: ${created.stderr.trim().slice(0, 200)}`);
+    if (created.status !== 0) {
+      run('git', ['-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', 'origin', '--delete', branch], { cwd: checkout });
+      throw new Error(`gh pr create failed: ${created.stderr.trim().slice(0, 200)}`);
+    }
     pr = created.stdout.trim().split('\n').pop(); row.pr = pr; row.outcome = 'pr';
     claimed.summary = impl.reply.summary;
   } catch (error) {
@@ -243,6 +262,6 @@ export async function main(argv) {
   return row.outcome === 'failed' ? 1 : 0;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMainModule(import.meta.url, process.argv[1])) {
   main(process.argv.slice(2)).then((code) => process.exit(code || 0), (error) => { console.error(`forge-intake: ${error.message}`); process.exit(2); });
 }

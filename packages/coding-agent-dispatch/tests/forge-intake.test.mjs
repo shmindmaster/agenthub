@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join } from 'node:path';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import {
-  branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, isEligible, linearArgs, loadConfig, parseAgentJson, pickRoute, repoFor, runsToday, selectPrompt, skipList, slugify,
+  branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
 } from '../skills/dispatch/forge-intake.mjs';
 
 const config = loadConfig(join(fileURLToPath(new URL('../skills/dispatch/', import.meta.url)), 'forge-intake.json'));
@@ -97,6 +100,42 @@ test('each phase gets a Linear tool allowlist, and only select and finish can wr
   const select = linearArgs(config.linear, 'select').filter((a) => a !== '-c');
   assert.ok(select.includes('mcp_servers.linear.tools.save_issue.approval_mode="approve"'));
   assert.ok(!select.some((a) => a.includes('.tools.get_issue.')));
+});
+
+test('a retry gets a new branch and the claim label is not evidence against eligibility', () => {
+  assert.equal(branchName('SH-9', 'Fix it'), 'forge/sh-9-fix-it');
+  assert.equal(branchName('SH-9', 'Fix it', 2), 'forge/sh-9-fix-it-r2');
+  const labels = preClaimLabels([...bug.labels, 'agent:forge'], config.linear);
+  assert.deepEqual(labels, bug.labels);
+  assert.equal(isEligible({ state: 'Backlog', labels }, config.linear), null);
+  assert.equal(isEligible({ state: 'Backlog', labels: [...bug.labels, 'agent:forge'] }, config.linear), 'excluded label');
+  assert.deepEqual(preClaimLabels(undefined, config.linear), []);
+});
+
+test('the entry point guard works through a symlinked install path', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'intake-main-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const real = join(dir, 'real.mjs'); writeFileSync(real, '');
+  const link = join(dir, 'current.mjs');
+  try { symlinkSync(real, link); } catch { t.skip('symlinks unavailable on this runner'); return; }
+  assert.equal(isMainModule(pathToFileURL(real).href, link), true);
+  assert.equal(isMainModule(pathToFileURL(real).href, real), true);
+  assert.equal(isMainModule(pathToFileURL(real).href, join(dir, 'other.mjs')), false);
+  assert.equal(isMainModule(pathToFileURL(real).href, undefined), false);
+});
+
+test('protected paths hold even for non-ASCII file names that git would quote', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'intake-git-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const g = (...args) => assert.equal(spawnSync('git', args, { cwd: dir }).status, 0, args.join(' '));
+  g('init', '-q', '-b', 'main'); g('config', 'user.email', 't@example.invalid'); g('config', 'user.name', 't');
+  writeFileSync(join(dir, 'a.txt'), 'a\n'); g('add', '-A'); g('commit', '-q', '-m', 'base');
+  g('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  mkdirSync(join(dir, '.github/workflows'), { recursive: true });
+  writeFileSync(join(dir, '.github/workflows/café.yml'), 'on: push\n'); g('add', '-A'); g('commit', '-q', '-m', 'change');
+  const seen = inspectWorktree(dir, repo);
+  assert.deepEqual(seen.files, ['.github/workflows/café.yml']);
+  assert.match(checkDiff(seen, repo, config.limits).join(), /protected path/);
 });
 
 test('prompts carry the guardrails the wrapper relies on', () => {
