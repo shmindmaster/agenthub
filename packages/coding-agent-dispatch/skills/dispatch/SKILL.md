@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.8.10"
+  version: "0.8.11"
 ---
 
 # Dispatch to another coding agent
@@ -39,6 +39,9 @@ provider, GitHub or Linear acceptance check. Use `-ShowCommand` to preview the
 SSH invocation without launching the client. Use `-Auth` or `-Forge -Auth` to
 show sign-in commands, and add `-HostId` to narrow the output. Forge Claude
 and Codex require an explicit suffix: `-qwen`, `-zai`, `-mimo`, or `-go`.
+Plan routes beyond Claude and Codex are `opencode-`, `kilo-`, `cline-`,
+`qwen-` and `mimo-code-` launchers with a `-mimo` or `-qwen` suffix; headless
+one-shot commands and smoke results are in `references/forge-plan-routes.md`.
 Grok and Kiro use their native sign-ins. On Windows, keep Claude and Codex
 on their native accounts by default.
 
