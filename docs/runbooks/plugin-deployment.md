@@ -130,6 +130,16 @@ The SSH route does not forward workstation credentials. Complete provider
 and MCP authorization in the runner's native profile before using a client.
 An installed binary or registered MCP endpoint is not an authenticated smoke.
 
+Use `-Auth` for local sign-in commands, or `-Forge -Auth` for runner
+commands. Add `-HostId grok` or another listed ID to narrow the output.
+The command prints instructions for the operator to run.
+
+Choose `grok-browser` for Forge QA with an isolated local Chrome profile.
+Choose `codex-qwen` or `opencode-qwen` to use the runner's Qwen Token Plan.
+On Windows use `codex --profile qwen` with the user environment reference.
+To keep an interactive task alive across SSH disconnects, start Herdr or
+tmux as `agenthub-runner` on Forge and launch the client inside its pane.
+
 Forge operator sessions are interactive. Unattended intake, Linux tool
 isolation, and exact-head review acceptance are tracked under
 [SH-4409](https://linear.app/shorg/issue/SH-4409).

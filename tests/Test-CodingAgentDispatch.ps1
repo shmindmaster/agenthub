@@ -54,6 +54,14 @@ try {
     Check 'Forge refuses shell control characters in the worktree path' ($r.Exit -eq 3)
     $r = Run @('-Forge','-HostId','opencode','-Cwd',$forgeWorktree,'-Prompt','ok')
     Check 'Forge refuses unattended prompts' ($r.Exit -eq 3 -and $r.Err -match 'interactive sessions only')
+    $r = Run @('-Forge','-HostId','grok-browser','-Cwd',$forgeWorktree,'-ShowCommand')
+    Check 'Forge browser route uses the isolated browser launcher' ($r.Exit -eq 0 -and $r.Out -match '/\.local/bin/grok-browser')
+    $r = Run @('-Forge','-Auth','-HostId','grok')
+    Check 'Forge auth shows the browser device login command' ($r.Exit -eq 0 -and $r.Out -match 'grok login --device-auth' -and $r.Out -notmatch 'codex login')
+    $r = Run @('-Auth','-HostId','codex')
+    Check 'Local auth shows a status command' ($r.Exit -eq 0 -and $r.Out -match 'codex login status')
+    $r = Run @('-Auth','-Prompt','ok')
+    Check 'Auth guidance refuses a coding prompt' ($r.Exit -eq 3)
     foreach ($dir in @('registry','scripts\lib','scratch','logs')) { $null = New-Item -ItemType Directory -Path (Join-Path $fixture $dir) -Force }
     Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1') -Destination (Join-Path $fixture 'scripts\lib\PathBinding.ps1')
     $fixtureFactorySettings = Join-Path $fixture 'packages\coding-agent-dispatch\skills\dispatch\factory'

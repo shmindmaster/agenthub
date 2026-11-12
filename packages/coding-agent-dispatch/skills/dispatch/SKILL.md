@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.8.3"
+  version: "0.8.4"
 ---
 
 # Dispatch to another coding agent
@@ -30,13 +30,13 @@ the missing installation; do not search credentials or guess a cache version.
 ## Steps
 
 For an operator session on the existing Forge droplet, run the same entry point
-with `-Forge -List` to inventory the five remote clients. Then pass
+with `-Forge -List` to inventory the remote clients. Then pass
 `-Forge -HostId <id> -Cwd /srv/work/agenthub-runner/worktrees/<task>` in a
 terminal. The directory must already exist on Forge. Select the authenticated
 provider and model in the native client. This route is interactive, including
 for the Xiaomi Token Plan. A binary listed as installed has not passed a
 provider, GitHub or Linear acceptance check. Use `-ShowCommand` to preview the
-SSH invocation without launching the client.
+SSH invocation without launching the client. Use `-Auth` or `-Forge -Auth` to show sign-in commands, and add `-HostId` to narrow the output. Forge routes include `grok-browser`, `codex-qwen`, and `opencode-qwen`.
 
 1. List callable hosts. Take "callable" from this output, not memory.
 

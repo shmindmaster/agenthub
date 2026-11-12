@@ -34,6 +34,9 @@
 .PARAMETER ShowCommand
   Print the file and arguments that would run, then exit. No process starts.
 
+.PARAMETER Auth
+    Print sign-in or provider setup commands for the selected surface.
+
 .PARAMETER HostId
   agents.json id. cursor is accepted and runs cursor-agent.
 
@@ -117,7 +120,8 @@ param(
     [switch]$ReadOnly,
     [switch]$List,
     [switch]$ShowCommand,
-    [switch]$Forge
+    [switch]$Forge,
+    [switch]$Auth
 )
 
 $ErrorActionPreference = 'Stop'
@@ -148,6 +152,51 @@ function Write-Refusal {
     exit $Code
 }
 
+if ($Auth) {
+    if ($Prompt -or $PromptFile -or $Cwd -or $List -or $ShowCommand -or $ReadOnly -or
+        $Role -or $Title -or $SessionId -or $Model -or $AnthropicApiKey -or
+        $PSBoundParameters.ContainsKey('TimeoutSec')) {
+        Write-Refusal 3 'Use -Auth with only optional -Forge and -HostId.'
+    }
+    $authCommands = if ($Forge) {
+        [ordered]@{
+            grok = '.grok/bin/grok login --device-auth'
+            codex = '.local/bin/codex login --device-auth'
+            qwen = '.local/bin/qwen; run /auth and choose QwenCloud Token Plan'
+            cline = '.local/bin/cline auth'
+            opencode = '.local/bin/opencode; run /connect and choose the intended provider'
+            github = 'gh auth status; provision a scoped Forge identity for GitHub access'
+            linear = '.local/bin/codex mcp login linear'
+            'codex-qwen' = '.local/bin/codex-qwen; uses the Forge Qwen runtime credential'
+            'opencode-qwen' = '.local/bin/opencode-qwen; uses the Forge Qwen runtime credential'
+        }
+    } else {
+        [ordered]@{
+            grok = 'grok login'
+            codex = 'codex login; check with codex login status'
+            claude = 'claude auth login; check with claude auth status'
+            qwen = 'qwen; run /auth and choose QwenCloud Token Plan'
+            mimo = 'mimo providers; select the MiMo Token Plan'
+            cline = 'cline auth'
+            opencode = 'opencode; run /connect and choose the intended provider'
+            github = 'gh auth status; gh auth login if needed'
+            'codex-qwen' = 'codex --profile qwen; uses QWEN_TOKEN_PLAN_API_KEY'
+        }
+    }
+    if ($HostId -and -not $authCommands.Contains($HostId)) {
+        Write-Refusal 3 'No sign-in command recorded for this host. Run -Auth to list supported entries.'
+    }
+    if ($Forge) {
+        Write-Output 'Run these on Forge as agenthub-runner with HOME=/srv/work/agenthub-runner.'
+    }
+    foreach ($entry in $authCommands.GetEnumerator()) {
+        if (-not $HostId -or $entry.Key -eq $HostId) {
+            Write-Output "$($entry.Key)`t$($entry.Value)"
+        }
+    }
+    exit 0
+}
+
 if ($Forge) {
     # This route opens an operator session. Prompt-based jobs and reviewer
     # roles require a separate Linux worker contract and provider acceptance.
@@ -158,9 +207,14 @@ if ($Forge) {
     $forgeHosts = [ordered]@{
         codex = '.local/bin/codex'
         grok = '.grok/bin/grok'
+        'grok-browser' = '.local/bin/grok-browser'
+        'codex-qwen' = '.local/bin/codex-qwen'
         hermes = '.local/bin/hermes'
         openclaw = '.local/bin/openclaw tui --local'
         opencode = '.local/bin/opencode'
+        'opencode-qwen' = '.local/bin/opencode-qwen'
+        qwen = '.local/bin/qwen'
+        cline = '.local/bin/cline'
     }
     $forgeHome = '/srv/work/agenthub-runner'
     $runner = "runuser -u agenthub-runner -- env -i HOME=$forgeHome TERM=xterm-256color PATH=$forgeHome/.local/bin:/usr/bin:/bin"
