@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.8.4"
+  version: "0.8.5"
 ---
 
 # Dispatch to another coding agent
@@ -66,6 +66,10 @@ SSH invocation without launching the client. Use `-Auth` or `-Forge -Auth` to sh
    note and runs. Only a malformed id is refused, plus the two
    subscription-only rules in `references/hosts.md` (no `opencode/` Zen
    wallet, MiMo on the Token Plan only).
+
+   For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.3`
+   on Windows or `-Forge -HostId opencode-zai -Cwd <Forge-worktree>` for an
+   interactive session. See the host reference for the Windows tool limits.
 
    `-Role <role>` picks a Kiro profile: `peer` (default), `engineer`,
    `reviewer`, `tester`, `architect` or `incident`. Every other host refuses

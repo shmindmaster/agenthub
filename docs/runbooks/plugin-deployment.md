@@ -141,6 +141,10 @@ and pull request operations for clients with a shell.
 
 Choose `grok-browser` for Forge QA with an isolated local Chrome profile.
 Choose `codex-qwen` or `opencode-qwen` to use the runner's Qwen Token Plan.
+Choose `opencode-zai` for the runner's Z.ai Coding Plan and its four Z.ai
+MCPs. On Windows, select that plan with
+`-HostId opencode -Model zai-coding-plan/glm-5.3`. This Windows route
+supports workspace edits and Z.ai MCPs, with shell tools disabled.
 On Windows use `codex --profile qwen` with the user environment reference.
 To keep an interactive task alive across SSH disconnects, start Herdr or
 tmux as `agenthub-runner` on Forge and launch the client inside its pane.

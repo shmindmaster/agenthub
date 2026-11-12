@@ -185,6 +185,7 @@ if ($Auth) {
             linear = '/srv/work/agenthub-runner/.local/bin/codex mcp login linear'
             'codex-qwen' = '/srv/work/agenthub-runner/.local/bin/codex-qwen; uses the Forge Qwen runtime credential'
             'opencode-qwen' = '/srv/work/agenthub-runner/.local/bin/opencode-qwen; uses the Forge Qwen runtime credential'
+            'opencode-zai' = '/srv/work/agenthub-runner/.local/bin/opencode-zai; uses the Forge Z.ai Coding Plan runtime credential'
         }
     } else {
         [ordered]@{
@@ -195,6 +196,7 @@ if ($Auth) {
             mimo = 'mimo providers; select the MiMo Token Plan'
             cline = 'cline auth'
             opencode = 'opencode; run /connect and choose the intended provider'
+            'opencode-zai' = 'Use -HostId opencode -Model zai-coding-plan/glm-5.3; the Windows launcher reads ZAI_CODING_PLAN_API_KEY.'
             github = 'gh auth status; gh auth login if needed'
             'codex-qwen' = 'codex --profile qwen; uses QWEN_TOKEN_PLAN_API_KEY'
         }
@@ -229,6 +231,7 @@ if ($Forge) {
         openclaw = '.local/bin/openclaw tui --local'
         opencode = '.local/bin/opencode'
         'opencode-qwen' = '.local/bin/opencode-qwen'
+        'opencode-zai' = '.local/bin/opencode-zai'
         qwen = '.local/bin/qwen'
         cline = '.local/bin/cline'
     }
@@ -462,11 +465,20 @@ function Get-DispatchTable {
                 $args = @('run', '--auto', '--format', 'json')
                 $openCodeModel = if ($script:OpenCodeModel) { $script:OpenCodeModel } else { [string]$fleet.dispatchPolicy.opencode.model }
                 Assert-SubscriptionRoute -Id 'opencode' -ModelId $openCodeModel
+                if ($openCodeModel -like 'zai-coding-plan/*') {
+                    # The installed Z.ai profile uses OpenCode 1.x. Keep its
+                    # subscription and MCP settings separate from OpenCode Go.
+                    $args = @('run', '--format', 'json')
+                }
                 if ($openCodeModel) { $args += @('--model', $openCodeModel) }
                 # --auto approves every action a rule leaves at ask, so unattended
                 # runs use the policy-named agent whose rules deny outward actions.
-                if ($fleet.dispatchPolicy.opencode.agent) { $args += @('--agent', [string]$fleet.dispatchPolicy.opencode.agent) }
+                if (-not $zaiLauncher -and $fleet.dispatchPolicy.opencode.agent) { $args += @('--agent', [string]$fleet.dispatchPolicy.opencode.agent) }
                 if (-not [string]::IsNullOrWhiteSpace($Title)) { $args += @('--title', $Title.Trim()) }
+                if ($zaiLauncher -and $File) {
+                    $args += @('--file', $File, '--')
+                    $PromptText = 'Carry out the task in the attached prompt file.'
+                }
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
             }
@@ -1016,6 +1028,14 @@ if ($ReadOnly) {
 $targetAgent = Get-AgentRecord -Agents $agents -Id $targetId
 $executable = Resolve-DeclaredExecutable -Declared ([string]$targetAgent.executable)
 if (-not $executable) { Write-Refusal 2 "refused ${targetId}: executable is absent" }
+if ($targetId -eq 'opencode' -and $script:OpenCodeModel -like 'zai-coding-plan/*') {
+    $zaiLauncher = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\zai\opencode-zai.ps1'
+    if (-not (Test-Path -LiteralPath $zaiLauncher -PathType Leaf)) {
+        Write-Refusal 3 'refused opencode: the Windows Z.ai Coding Plan launcher is absent'
+    }
+    $executable = (Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+    if (-not $executable) { Write-Refusal 3 'refused opencode: the Windows Z.ai launcher requires pwsh' }
+}
 
 if ($ShowCommand -and [string]::IsNullOrWhiteSpace($Prompt) -and [string]::IsNullOrWhiteSpace($PromptFile)) {
     $Prompt = 'ping'
@@ -1057,6 +1077,25 @@ $taskText = $Prompt
 if ($pointer) { $Prompt = "Read the task from this UTF-8 file and carry it out: $promptFile" }
 
 $built = & $contract.Build $Prompt $Cwd $promptFile
+if ($zaiLauncher) {
+    $built.Args = @('-NoProfile', '-File', $zaiLauncher) + $built.Args
+    # The v2 peer profile is not a v1 permission contract. Isolate this
+    # route from ambient/project config and use native v1 tool rules.
+    $built.Env = @{
+        XDG_CONFIG_HOME = Join-Path (Split-Path -Parent $zaiLauncher) 'config'
+        OPENCODE_DISABLE_PROJECT_CONFIG = 'true'
+        OPENCODE_CONFIG_CONTENT = (@{
+            permission = [ordered]@{
+                '*' = 'deny'
+                read = [ordered]@{ '*' = 'allow'; '*.env*' = 'deny' }
+                glob = 'allow'
+                grep = 'allow'
+                edit = [ordered]@{ '*' = 'allow'; '*.env*' = 'deny' }
+                'zai-*' = 'allow'
+            }
+        } | ConvertTo-Json -Depth 5 -Compress)
+    }
+}
 # Write the task only after Build has accepted the policy: a refusing Build
 # must not leave a prompt file behind, and the run's finally block below does
 # not exist yet at that point. Pointer hosts write the task text captured
@@ -1124,7 +1163,7 @@ $accountScrub = @{
     'cursor-agent' = @('CURSOR_API_KEY')
     'amp'          = @('AMP_API_KEY')
     'copilot'      = @('GH_TOKEN', 'GITHUB_TOKEN')
-    'opencode'     = @('OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY')
+    'opencode'     = @('OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY', 'ZAI_API_KEY', 'Z_AI_API_KEY')
     # mimo-code runs on its stored Xiaomi Token Plan credential; a stray plan
     # key in the environment must not override it. kilo is the opposite case:
     # its credential IS MIMO_API_KEY, so it is deliberately absent here.
