@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import {
   GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday,
-  acquireLock, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
+  acquireLock, lockState, touchedPackages, packageFollowUp, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
 } from '../skills/dispatch/forge-intake.mjs';
 
 const config = loadConfig(join(fileURLToPath(new URL('../skills/dispatch/', import.meta.url)), 'forge-intake.json'));
@@ -172,6 +172,19 @@ test('the single-run lock is atomic and recovers from a dead holder', (t) => {
   assert.equal(acquireLock(lock), true, 'a dead holder is taken over');
 });
 
+test('the status report names a live lock holder and flags a stale one', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'intake-lockstate-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const lock = join(dir, 'lock');
+  assert.deepEqual(lockState(lock), { lockHeldBy: null, staleLock: null }, 'no lock file');
+  writeFileSync(lock, `${process.pid}\n`);
+  assert.deepEqual(lockState(lock), { lockHeldBy: process.pid, staleLock: null }, 'a live holder is reported as a number');
+  writeFileSync(lock, '2147483646\n');
+  assert.deepEqual(lockState(lock), { lockHeldBy: null, staleLock: 2147483646 }, 'a dead holder is stale, not held');
+  writeFileSync(lock, 'garbage');
+  assert.deepEqual(lockState(lock), { lockHeldBy: null, staleLock: 'unreadable' }, 'an unreadable lock is stale');
+});
+
 test('the status report counts runs, PRs, failures, retired issues and routes', () => {
   const ledger = [
     { ts: '2026-11-12T01:00:00.000Z', phase: 'run', issue: 'SH-1', outcome: 'pr', route: 'codex-zai', pr: 'https://x/pull/1', linearClosed: true },
@@ -262,7 +275,11 @@ test('prompts carry the guardrails the wrapper relies on', () => {
   const implement = implementPrompt({ issue: 'SH-4512', title: 'T', branch: 'forge/sh-4512-t', repo });
   assert.match(implement, /Do not push/);
   assert.match(implement, /do not run git add or git commit/);
-  assert.match(implement, /Never edit a contentHash/);
+  assert.match(implement, /Never edit registry\/capabilities\.json or any version/);
+  assert.doesNotMatch(implement, /registry-content-hash/, 'the agent computes no hash; the wrapper names the packages instead');
+  assert.deepEqual(touchedPackages(['packages/b/x.md', 'packages/a/y/z.mjs', 'packages/a/q.json', 'scripts/s.mjs', 'docs/d.md']), ['a', 'b']);
+  assert.equal(packageFollowUp(touchedPackages(['scripts/s.mjs'])), '');
+  assert.match(packageFollowUp(['a', 'b']), /Packages changed: a, b\. Reviewer follow-up before merge/);
   assert.match(implement, /do not edit the issue/);
   const route = config.routes[0];
   assert.match(finishPrompt(config, { issue: 'SH-4512', ok: true, pr: 'https://x/pull/1', route, summary: 's' }), /Never set it Done/);

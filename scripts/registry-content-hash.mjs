@@ -52,11 +52,11 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 
 // Keep these two lists in step with Get-AgentHubStableFileHash in
 // scripts/RegistryContentHash.ps1: the hash definition is shared, not forked.
-const TEXT_EXTENSIONS = new Set([
+export const TEXT_EXTENSIONS = new Set([
   '.cjs', '.cmd', '.css', '.cts', '.csv', '.editorconfig', '.eslintrc',
   '.example', '.gitattributes', '.gitignore', '.html', '.js', '.json', '.map',
   '.markdown', '.md', '.mdc', '.mjs', '.mts', '.npmignore', '.nycrc',
-  '.ps1', '.psm1', '.py', '.sh', '.svg', '.toml', '.ts', '.tsx', '.txt',
+  '.ps1', '.psm1', '.py', '.service', '.sh', '.svg', '.timer', '.toml', '.ts', '.tsx', '.txt',
   '.xml', '.yaml', '.yml',
 ]);
 // License files have no extension, and git checks them out with CRLF on Windows.
