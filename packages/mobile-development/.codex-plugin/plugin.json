@@ -1,6 +1,6 @@
 {
   "name": "ah-mobile-development",
-  "description": "Plan mobile development, test platform behavior, and activate the device lab and Appium when a task requires them.",
+  "description": "Plan mobile development, then drive real iPhones and Android devices with Mobile MCP, emulators and simulators with Appium, and iOS builds in the sh-forge macOS VM, each started only when a task needs it.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -17,7 +17,7 @@
   "interface": {
     "displayName": "AH-Mobile-Development",
     "shortDescription": "Build and verify mobile apps across platforms and devices.",
-    "longDescription": "Plan mobile development, test platform behavior, and activate the device lab and Appium when a task requires them.",
+    "longDescription": "Plan mobile development, then drive real iPhones and Android devices with Mobile MCP, emulators and simulators with Appium, and iOS builds in the sh-forge macOS VM, each started only when a task needs it.",
     "developerName": "Sarosh Hussain",
     "category": "Developer Tools",
     "capabilities": [
@@ -32,5 +32,5 @@
     "logo": "./assets/icon.svg",
     "screenshots": []
   },
-  "version": "2.4.3"
+  "version": "2.5.0"
 }

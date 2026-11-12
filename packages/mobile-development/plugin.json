@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-mobile-development",
-  "version": "2.4.3",
-  "description": "Plan mobile development, test platform behavior, and activate the device lab and Appium when a task requires them.",
+  "version": "2.5.0",
+  "description": "Plan mobile development, then drive real iPhones and Android devices with Mobile MCP, emulators and simulators with Appium, and iOS builds in the sh-forge macOS VM, each started only when a task needs it.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -15,6 +15,10 @@
     "expo",
     "appium",
     "simulator",
-    "device-lab"
+    "device-lab",
+    "mobile-mcp",
+    "real-device",
+    "iphone",
+    "xcode"
   ]
 }

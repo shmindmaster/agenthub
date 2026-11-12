@@ -520,6 +520,41 @@
       "notes": "Registered 2026-08-10. Windows-host only: it needs adb for Android, and its iOS half is a remote client to the macOS guest rather than a local driver, because Xcode and simctl do not exist on Windows. packages/mobile-development/mobile.ps1 and its retained lab scripts resolve guest and runtime expectations from registry/mobile-development.json. NO_UI is set per the package guidance to cut generated-UI token overhead."
     },
     {
+      "id": "mobile-mcp",
+      "name": "Mobile MCP (real iPhone and Android devices, emulators, simulators)",
+      "scope": "on-demand-desktop",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@mobilenext/mobile-mcp@1.0.17"
+      ],
+      "credentialPolicy": "none-in-config; no account or token. mobile_login_to_cloud_provider and the remote-device tools reach Mobile Next Cloud and are never used: devices are local or on sh-forge only.",
+      "providesCapabilities": [
+        "mobile.android.local"
+      ],
+      "providesCapabilitiesNote": "One API for iOS and Android: real devices on USB, Android emulators, iOS Simulators. On Windows it sees the USB iPhone through Apple Mobile Device Service with no Mac. Reading or tapping an iPhone screen needs its on-device agent installed once, re-signed on macOS (the forge guest) because re-signing calls /usr/bin/security; see packages/mobile-development/skills/mobile-device-lab/references/mobile-mcp.md.",
+      "protocol": {
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-11-11",
+        "verification": "stdio initialize against @mobilenext/mobile-mcp@1.0.17 on the owner PC returned protocolVersion 2025-11-25, serverInfo mobile-mcp 1.0.17 and 35 tools. mobile_list_available_devices listed the USB iPhone (Shash, iOS 27.2.1, type real, online) and mobile_launch_app launched app.shmindmaster.rexa on it. mobile_list_elements_on_screen failed: the on-device agent is not installed yet. No Android or Simulator run was made."
+      },
+      "localProcessPolicy": {
+        "instancing": "single-shared-process",
+        "note": "The exact package argument above is the pin; @latest is prohibited. The server starts only when a host opens it for a mobile task and starts no emulator, Simulator or VM itself. Hosts narrowed to claude and codex, the same reviewed set as appium-mobile."
+      },
+      "owner": {
+        "type": "capability",
+        "id": "mobile-development"
+      },
+      "hosts": [
+        "claude",
+        "codex"
+      ],
+      "notes": "Added 2026-11-11 (SH-4412) beside appium-mobile, which stays until mobile-mcp has proven the Android emulator and Simulator routes it would replace. MobileBuildMCP (getsentry) is macOS-only and runs inside the forge guest; it is documented in references/mobile-mcp.md and not registered until Xcode is installed there and a run is verified."
+    },
+    {
       "id": "assemblyai",
       "name": "AssemblyAI",
       "scope": "on-demand-desktop",

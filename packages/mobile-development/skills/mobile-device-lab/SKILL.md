@@ -1,6 +1,6 @@
 ---
 name: mobile-device-lab
-description: Drives an Android emulator and iOS Simulator through Appium MCP to launch, tap, inspect, screenshot and record. Use when testing or debugging a mobile or responsive web app on an emulator or simulator. Not for Expo, EAS or store work; use mobile-platform-standard.
+description: Drives real iPhones and Android devices (Mobile MCP) and emulators or simulators (Appium MCP): launch, tap, inspect, screenshot, record. Use when testing or debugging a mobile or responsive web app on a device, emulator or simulator. Not for Expo, EAS or store work; use mobile-platform-standard.
 ---
 
 # Mobile device lab
@@ -51,7 +51,7 @@ Hold the lease around anything that mutates a shared emulator or Simulator: buil
 - `references/forge-mac.md`. Read before any iOS, Simulator or Xcode work: starting, using and releasing the macOS VM on sh-forge.
 - `references/inner-loop.md`. Read when choosing rebuild vs reload, building or syncing the app under test, build speed, test tools, or web targets.
 - `references/lab-operations.md`. Read for the lease and idle-check commands, a guest that will not start, Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
-- `references/physical-iphone.md`. Read when driving the iPhone attached to Windows: tap, type, swipe and read the screen through WebDriverAgent, with `scripts/wda_client.py`.
+- `references/mobile-mcp.md`. Read before driving a real iPhone or Android device with Mobile MCP, or before iOS build and log work with MobileBuildMCP in the forge guest. Read when driving the iPhone attached to Windows: tap, type, swipe and read the screen through WebDriverAgent, with `scripts/wda_client.py`.
 - `references/remote-android.md`. Read when building, running or testing Android without loading this PC, registering another app, or letting the owner view the emulator.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
