@@ -621,7 +621,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "C82CFC070A00ED41D1F57A22E740CF7AD047B403894CE4C2D860D51DE13D2C36",
+      "contentHash": "B6CBA0537EC537D213AEFB3BDDAF89650D39AE6FA2CC14CAE618F0A23BE9256F",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
