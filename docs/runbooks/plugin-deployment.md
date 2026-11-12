@@ -213,12 +213,19 @@ keeps GitHub credentials away from the model:
    `risk:compliance`, `risk:security`, `stage:*`, `lane:*`, `funding:*`. It adds
    `agent:forge` and sets In Progress (SH-4063). The wrapper re-checks the
    labels the agent reports and refuses an ineligible claim.
-2. **Implement** (workspace-write sandbox, network off, Linear read-only). The
-   agent works in a fresh clone, follows the repository's AGENTS.md, and
-   commits locally.
-3. **Verify, push, open the PR** (wrapper only). It refuses an empty diff, more
-   than 30 files or 1200 changed lines, a `.github/` change, secret-shaped
-   paths or added lines, uncommitted leftovers and `git diff --check` failures.
+2. **Implement** (permission profile, network off, Linear read-only). The
+   agent works in a fresh clone, follows the repository's AGENTS.md, and leaves
+   its edits uncommitted: the wrapper commits.
+3. **Verify, push, open the PR** (wrapper only). Before committing it checks
+   that the agent left `.git` hooks and config untouched, and every wrapper git
+   call runs with hooks, fsmonitor, external diff, textconv and global config
+   disabled. It refuses an empty diff, more than 30 files or 1200 changed lines,
+   binary files, symlinks, submodules, mode changes, changes under `.github/`,
+   `registry/`, `.agents/`, `.claude-plugin/`, `AGENTS.md`, `CLAUDE.md`, any
+   `.mcp.json` or package `hooks/`, secret-shaped paths or added lines,
+   uncommitted leftovers and `git diff --check` failures. Agent-written text is
+   redacted for secret-shaped content before it reaches the PR or Linear, and the
+   issue id is validated (`SH-<digits>`) before it becomes a path or branch.
    It pushes `forge/<issue>-<slug>`, opens a **draft** PR, and removes the clone.
    Forge has no `pwsh`, so the agent never edits a registry `contentHash`
    (a hand-computed one failed CI on the first PR, #125); the reviewer
@@ -228,6 +235,19 @@ keeps GitHub credentials away from the model:
    with the reason. It never sets Done. CI on the PR is the verification.
    A person or a different host reviews and marks it ready; nothing is merged
    or deployed.
+
+The model runs under a Codex permission profile built per run: read the machine,
+write only the workspace (`.git` read-only), network off, and `deny` on every
+credential-bearing entry of the runner's home (the GitHub token, the Linear
+OAuth login, the plan keys, every other client's login). Measured on Forge on
+2026-11-12: before the profile, a sandboxed session could read `gh/hosts.yml`,
+`.codex/.credentials.json` and the plan key; with it, all three are denied, a
+write outside the workspace fails, and Codex itself is unaffected (its helper
+binaries under `.local/bin` and `.local/lib` stay readable). A profile cannot be
+mixed with `-s`, and `-c` cannot take quoted dotted keys, so it is passed as one
+inline table. The Linear OAuth session still belongs to the owner's identity, so
+the select and close-out sessions can write to any issue in the workspace; their
+tool lists exclude every delete.
 
 Codex exposes only a handful of the Linear server's 78 tools to the model
 unless an allowlist names them, so each phase passes

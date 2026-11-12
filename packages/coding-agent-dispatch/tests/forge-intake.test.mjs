@@ -6,6 +6,7 @@ import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import {
+  GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday,
   acquireLock, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
 } from '../skills/dispatch/forge-intake.mjs';
 
@@ -77,10 +78,11 @@ test('route rotation picks the least recently used enabled plan', () => {
 });
 
 test('a plan at its limit cools down and is not charged to the issue', () => {
-  assert.equal(isProviderLimit('Error: Usage limit reached for 5 hour. Your limit will reset at 19:25'), true);
-  assert.equal(isProviderLimit("You've reached your additional usage limit for your plan"), true);
-  assert.equal(isProviderLimit('429 Too Many Requests'), true);
+  assert.equal(isProviderLimit('ERROR: rate limit exceeded: Usage limit reached for 5 hour. Your limit will reset at 19:25'), true);
+  assert.equal(isProviderLimit("ERROR: You've reached your additional usage limit for your plan"), true);
+  assert.equal(isProviderLimit('ERROR: 429 Too Many Requests'), true);
   assert.equal(isProviderLimit('SyntaxError: unexpected token'), false);
+  assert.equal(isProviderLimit('user\nthis issue is about quota and rate limit handling'), false, 'echoed issue text is not a provider error');
   const now = '2026-11-12T12:00:00.000Z';
   const ledger = [
     { phase: 'run', route: 'codex-qwen' }, { phase: 'run', route: 'codex-go' },
@@ -186,6 +188,68 @@ test('the status report counts runs, PRs, failures, retired issues and routes', 
   assert.deepEqual(s.byRoute, { 'codex-zai': 3 });
   assert.deepEqual(s.enabledRoutes, ['codex-zai', 'codex-qwen', 'codex-go']);
   assert.deepEqual(s.coolingRoutes, []);
+});
+
+test('the permission profile denies every credential entry of the home and nothing Codex needs', () => {
+  const home = '/srv/work/agenthub-runner';
+  const listing = { [home]: ['.config', '.codex', '.claude', '.claude.json', '.ssh', '.local', 'worktrees', '.cache', '.npm', 'evidence'], [`${home}/.local`]: ['bin', 'lib', 'share', 'state'] };
+  const listDir = (dir) => { if (!listing[dir]) throw new Error('ENOENT'); return listing[dir]; };
+  const denied = denyPaths(home, listDir);
+  for (const must of ['.config', '.codex', '.claude', '.claude.json', '.ssh', 'evidence']) assert.ok(denied.includes(`${home}/${must}`), must);
+  for (const must of ['share', 'state']) assert.ok(denied.includes(`${home}/.local/${must}`), must);
+  for (const keep of ['.local', 'worktrees', '.cache', '.npm']) assert.ok(!denied.includes(`${home}/${keep}`), keep);
+  assert.ok(!denied.includes(`${home}/.local/bin`) && !denied.includes(`${home}/.local/lib`), 'Codex helper binaries stay readable');
+  const write = permissionArgs(home, 'write', listDir);
+  const read = permissionArgs(home, 'read', listDir);
+  assert.equal(write[1], 'default_permissions="intake"');
+  assert.ok(!write.includes('-s') && !write.includes('--sandbox'), 'a profile cannot be mixed with -s');
+  assert.match(write[3], /^permissions\.intake=\{"filesystem"=\{":root"="read"/);
+  assert.match(write[3], /":workspace_roots"=\{"\."="write",".git"="read"\}/);
+  assert.match(read[3], /":workspace_roots"=\{"\."="read"\}/);
+  assert.match(write[3], /"network"=\{"enabled"=false\}/);
+  assert.match(write[3], new RegExp(`"${home}/.config"="deny"`));
+});
+
+test('model-written text is redacted and issue ids are validated before use', () => {
+  assert.equal(redact('fixed the scanner'), 'fixed the scanner');
+  assert.equal(redact(`token ghp_${'a'.repeat(30)} leaked`), '[redacted: secret-shaped text]');
+  assert.equal(redact([{ command: 'x', result: `sk-${'b'.repeat(30)}` }]), '[redacted: secret-shaped text]');
+  assert.equal(redact(undefined), '""');
+  for (const ok of ['SH-4512', 'SH-1']) assert.equal(validIssueId(ok), true, ok);
+  for (const bad of ['SH-', '../SH-1', 'SH-1/../../x', 'sh-1', 'SH-12345678', 'SH-1; rm -rf /', '', null, undefined, 4512]) assert.equal(validIssueId(bad), false, String(bad));
+});
+
+test('the diff gate refuses binaries, symlinks, submodules, mode changes and sensitive directories', () => {
+  const ok = { files: ['docs/a.md'], addedLines: ['+x'], numstat: [[1, 0]], modes: [{ path: 'docs/a.md', oldMode: '100644', newMode: '100644' }] };
+  assert.deepEqual(checkDiff(ok, repo, config.limits), []);
+  assert.match(checkDiff({ ...ok, numstat: [[null, null]] }, repo, config.limits).join(), /binary file change/);
+  assert.match(checkDiff({ ...ok, modes: [{ path: 'l', oldMode: '000000', newMode: '120000' }] }, repo, config.limits).join(), /symlink l/);
+  assert.match(checkDiff({ ...ok, modes: [{ path: 'm', oldMode: '000000', newMode: '160000' }] }, repo, config.limits).join(), /submodule m/);
+  assert.match(checkDiff({ ...ok, modes: [{ path: 's.sh', oldMode: '100644', newMode: '100755' }] }, repo, config.limits).join(), /mode change s\.sh/);
+  assert.deepEqual(checkDiff({ ...ok, modes: [{ path: 'n', oldMode: '000000', newMode: '100644' }] }, repo, config.limits), [], 'a new regular file is fine');
+  for (const file of ['registry/capabilities.json', 'AGENTS.md', '.mcp.json', 'packages/x/hooks/pre-push', 'packages/x/.mcp.json', '.agents/plugins/marketplace.json', '.gitmodules', '.claude-plugin/marketplace.json']) {
+    assert.match(checkDiff({ ...ok, files: [file] }, repo, config.limits).join(), /protected path|submodule config/, file);
+  }
+  assert.equal(isProtected('docs/development/agent-change-contract.md', repo.protectedPaths), false);
+  assert.equal(isProtected('packages/security/scripts/check-config-payloads.mjs', repo.protectedPaths), false);
+  assert.deepEqual(parseRawModes(':100644 100755 aaa bbb M\0scripts/a.sh\0:000000 120000 000 ccc A\0link\0'), [
+    { oldMode: '100644', newMode: '100755', path: 'scripts/a.sh' }, { oldMode: '000000', newMode: '120000', path: 'link' }]);
+});
+
+test('a changed git hook or config in the agent tree is detected', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'intake-fp-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  mkdirSync(join(dir, '.git/hooks'), { recursive: true });
+  writeFileSync(join(dir, '.git/config'), '[core]\n');
+  const before = gitFingerprint(dir);
+  assert.equal(gitFingerprint(dir), before);
+  writeFileSync(join(dir, '.git/hooks/pre-commit'), '#!/bin/sh\n');
+  assert.notEqual(gitFingerprint(dir), before, 'a new hook changes the fingerprint');
+  rmSync(join(dir, '.git/hooks/pre-commit'));
+  writeFileSync(join(dir, '.git/config'), '[core]\n\tfsmonitor = evil\n');
+  assert.notEqual(gitFingerprint(dir), before, 'a config edit changes the fingerprint');
+  assert.ok(GIT_SAFE.includes('core.hooksPath=/dev/null') && GIT_SAFE.includes('core.fsmonitor=false'));
+  assert.equal(GIT_ENV.GIT_CONFIG_GLOBAL, '/dev/null');
 });
 
 test('prompts carry the guardrails the wrapper relies on', () => {

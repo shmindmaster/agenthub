@@ -64,9 +64,9 @@ export function parseAgentJson(text) {
 
 export const dayKey = (iso) => iso.slice(0, 10);
 
-export function runsToday(ledger, now) {
-  return ledger.filter((row) => row.phase === 'run' && dayKey(row.ts) === dayKey(now)).length;
-}
+export const countToday = (ledger, phase, now) => ledger.filter((row) => row.phase === phase && dayKey(row.ts) === dayKey(now)).length;
+
+export const runsToday = (ledger, now) => countToday(ledger, 'run', now);
 
 export const failedAttempts = (ledger, issue) => ledger.filter((row) => row.phase === 'run' && row.issue === issue && row.outcome === 'failed').length;
 
@@ -78,7 +78,16 @@ export function skipList(ledger, config) {
 // A plan that reports its quota or rate limit is not at fault for the issue: it cools down and the
 // attempt is not charged to the issue.
 export const LIMIT_PATTERN = /usage limit|rate limit|quota|too many requests|insufficient (?:balance|credit)|limit (?:has been )?reached/i;
-export const isProviderLimit = (text) => LIMIT_PATTERN.test(text || '');
+// Only Codex's own error lines count: issue text echoed into the log must not steer retry accounting.
+export const isProviderLimit = (text) => (text || '').split('\n').some((line) => /^\s*error/i.test(line) && LIMIT_PATTERN.test(line));
+
+// Model-written text is scanned before it reaches GitHub or Linear.
+export const redact = (value) => {
+  const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
+  return SECRET_PATTERNS.some((re) => re.test(text)) ? '[redacted: secret-shaped text]' : text;
+};
+
+export const validIssueId = (id) => typeof id === 'string' && /^SH-\d{1,7}$/.test(id);
 
 export const coolingRoutes = (ledger, now) => new Set(ledger.filter((row) => row.phase === 'cooldown' && row.until > now).map((row) => row.route));
 
@@ -91,14 +100,25 @@ export function pickRoute(config, ledger, now = new Date().toISOString()) {
   return [...enabled].sort((a, b) => lastUse(a.id) - lastUse(b.id))[0];
 }
 
-export function checkDiff({ files, addedLines, numstat }, repo, limits) {
+// A pattern ending in "/" is a directory prefix; any other pattern is a glob where * crosses "/".
+export const isProtected = (file, patterns) => patterns.some((p) => (p.endsWith('/') ? file.startsWith(p) : globToRegExp(p).test(file)));
+
+export function checkDiff({ files, addedLines, numstat, modes = [] }, repo, limits) {
   const problems = [];
   if (!files.length) problems.push('no changed files');
   if (files.length > limits.maxFiles) problems.push(`${files.length} files exceeds ${limits.maxFiles}`);
-  const changed = numstat.reduce((sum, [a, d]) => sum + a + d, 0);
+  // A binary row has null counts: neither its size nor its content can be gated, so it is refused.
+  if (numstat.some((row) => row.some((n) => n === null))) problems.push('binary file change');
+  const changed = numstat.reduce((sum, [a, d]) => sum + (a || 0) + (d || 0), 0);
   if (changed > limits.maxChangedLines) problems.push(`${changed} changed lines exceeds ${limits.maxChangedLines}`);
+  for (const { path, oldMode, newMode } of modes) {
+    if (newMode === '120000') problems.push(`symlink ${path}`);
+    if (newMode === '160000') problems.push(`submodule ${path}`);
+    if (oldMode !== '000000' && newMode !== '000000' && oldMode !== newMode) problems.push(`mode change ${path}`);
+  }
   for (const file of files) {
-    if (repo.protectedPaths.some((p) => file.startsWith(p))) problems.push(`protected path ${file}`);
+    if (isProtected(file, repo.protectedPaths)) problems.push(`protected path ${file}`);
+    if (/(^|\/)\.gitmodules$/.test(file)) problems.push(`submodule config ${file}`);
     if (/(^|\/)(\.env[^/]*|credentials?|[^/]*\.pem|[^/]*\.key)$/i.test(file)) problems.push(`secret-shaped path ${file}`);
   }
   if (addedLines.some((line) => SECRET_PATTERNS.some((re) => re.test(line)))) problems.push('secret-shaped content in added lines');
@@ -136,8 +156,43 @@ Reply with {"ok":true} when the issue reflects this, otherwise {"ok":false,"erro
 
 // ---- process helpers (not exercised by unit tests) ----
 const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts });
-const git = (cwd, ...args) => run('git', args, { cwd });
+// The wrapper runs git inside a tree the model wrote to. Nothing from that tree or from any git config
+// may run code: no hooks, no fsmonitor, no external diff or textconv, no global or system config.
+export const GIT_SAFE = ['-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', '-c', 'core.attributesFile=/dev/null', '-c', 'protocol.ext.allow=never', '-c', 'diff.external='];
+export const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0' };
+const git = (cwd, ...args) => run('git', [...GIT_SAFE, ...args], { cwd, env: GIT_ENV });
 const log = (dir, name, text) => appendFileSync(join(dir, name), text);
+
+// Files that decide what the wrapper's git would execute. If the agent changed any of them the run is refused.
+export function gitFingerprint(dir) {
+  const hooks = existsSync(join(dir, '.git/hooks')) ? readdirSync(join(dir, '.git/hooks')).filter((n) => !n.endsWith('.sample')).sort() : [];
+  const config = existsSync(join(dir, '.git/config')) ? readFileSync(join(dir, '.git/config'), 'utf8') : '';
+  return JSON.stringify({ hooks, config, modules: existsSync(join(dir, '.git/modules')) });
+}
+
+// Codex permission profile: read the machine, write only the workspace, deny every credential-bearing
+// entry of the runner's home (gh token, Linear OAuth, plan keys, other clients' logins), network off.
+// Codex's own helper binaries live in ~/.local/bin and ~/.local/lib, which must stay readable.
+const KEEP_HOME = new Set(['.local', 'worktrees', '.cache', '.npm']);
+const KEEP_LOCAL = new Set(['bin', 'lib']);
+export function denyPaths(home, listDir = (d) => readdirSync(d)) {
+  const out = listDir(home).filter((entry) => !KEEP_HOME.has(entry)).map((entry) => `${home}/${entry}`);
+  let local = [];
+  try { local = listDir(`${home}/.local`); } catch { /* none */ }
+  return [...out, ...local.filter((entry) => !KEEP_LOCAL.has(entry)).map((entry) => `${home}/.local/${entry}`)];
+}
+
+const toml = (value) => (value !== null && typeof value === 'object'
+  ? `{${Object.entries(value).map(([key, inner]) => `${JSON.stringify(key)}=${toml(inner)}`).join(',')}}`
+  : JSON.stringify(value));
+
+export function permissionArgs(home, access, listDir) {
+  const filesystem = { ':root': 'read', ':minimal': 'read' };
+  for (const path of denyPaths(home, listDir)) filesystem[path] = 'deny';
+  filesystem[':workspace_roots'] = access === 'write' ? { '.': 'write', '.git': 'read' } : { '.': 'read' };
+  // A permission profile cannot be mixed with -s/--sandbox, so none of the phases passes -s.
+  return ['-c', 'default_permissions="intake"', '-c', `permissions.intake=${toml({ filesystem, network: { enabled: false } })}`];
+}
 
 // Codex hides most of the Linear server's 78 tools from the model unless an allowlist names them, so the
 // allowlist both makes save_issue callable and keeps each phase to the tools it needs (no deletes).
@@ -152,9 +207,9 @@ export const linearArgs = (linear, phase) => {
   ];
 };
 
-function runAgent({ route, cwd, sandbox, prompt, seconds, dir, name, linear }) {
+function runAgent({ route, cwd, access, prompt, seconds, dir, name, linear }) {
   const out = join(dir, `${name}.last.txt`);
-  const args = ['exec', '--skip-git-repo-check', '--ephemeral', '-s', sandbox, '-C', cwd, ...linearArgs(linear, name), '-o', out, prompt];
+  const args = ['exec', '--skip-git-repo-check', '--ephemeral', '-C', cwd, ...permissionArgs(HOME, access), ...linearArgs(linear, name), '-o', out, prompt];
   const env = { HOME, PATH: `${HOME}/.local/bin:/usr/bin:/bin`, TERM: 'dumb' };
   return new Promise((resolve) => {
     const child = spawn(join(HOME, route.launcher), args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -216,15 +271,27 @@ function prune(config) {
   }
 }
 
+// `git diff --raw -z` is `:oldmode newmode oldsha newsha status\0path\0` per file.
+export function parseRawModes(raw) {
+  const parts = splitNul(raw);
+  const modes = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    const [oldMode, newMode] = (parts[i] || '').replace(/^:/, '').split(' ');
+    modes.push({ oldMode, newMode, path: parts[i + 1] });
+  }
+  return modes;
+}
+
 export function inspectWorktree(dir, repo) {
   const base = `origin/${repo.base}`;
   // NUL-delimited and rename-free: git quotes non-ASCII paths otherwise, which would slip past the path checks.
   const files = splitNul(git(dir, 'diff', '-z', '--no-renames', '--name-only', `${base}...HEAD`).stdout);
-  const numstat = splitNul(git(dir, 'diff', '-z', '--no-renames', '--numstat', `${base}...HEAD`).stdout).map((row) => row.split('\t').slice(0, 2).map((n) => Number(n) || 0));
-  const addedLines = git(dir, 'diff', '-U0', `${base}...HEAD`).stdout.split('\n').filter((line) => line.startsWith('+') && !line.startsWith('+++'));
+  const numstat = splitNul(git(dir, 'diff', '-z', '--no-renames', '--numstat', `${base}...HEAD`).stdout).map((row) => row.split('\t').slice(0, 2).map((n) => (n === '-' ? null : Number(n) || 0)));
+  const modes = parseRawModes(git(dir, 'diff', '-z', '--no-renames', '--raw', `${base}...HEAD`).stdout);
+  const addedLines = git(dir, 'diff', '--no-ext-diff', '--no-textconv', '-U0', `${base}...HEAD`).stdout.split('\n').filter((line) => line.startsWith('+') && !line.startsWith('+++'));
   const commits = Number(git(dir, 'rev-list', '--count', `${base}..HEAD`).stdout.trim() || 0);
   const whitespace = git(dir, 'diff', '--check', `${base}...HEAD`);
-  return { files, numstat, addedLines, commits, whitespaceOk: whitespace.status === 0, dirty: git(dir, 'status', '--porcelain').stdout.trim().length > 0 };
+  return { files, numstat, modes, addedLines, commits, whitespaceOk: whitespace.status === 0, dirty: git(dir, 'status', '--porcelain').stdout.trim().length > 0 };
 }
 
 export async function main(argv) {
@@ -245,19 +312,23 @@ export async function main(argv) {
   const dir = join(STATE, 'runs', now.replace(/[:.]/g, '-')); mkdirSync(dir, { recursive: true });
   const row = { phase: 'run', outcome: 'none' };
   const cool = (limitedRoute, phase) => record({ phase: 'cooldown', route: limitedRoute.id, during: phase, until: new Date(Date.now() + COOLDOWN_MS).toISOString() });
+  const gitPush = (checkout, ...rest) => run('git', [...GIT_SAFE, '-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', 'origin', ...rest], { cwd: checkout, env: GIT_ENV });
   let claimed = null; let route = null; let pr = null; let reason = null; let checkout = null;
   try {
     prune(config);
     if (runsToday(ledger, now) >= config.limits.maxRunsPerDay && !flag('--issue')) return console.log('forge-intake: daily cap reached');
+    if (countToday(ledger, 'select', now) >= config.limits.maxSelectsPerDay && !flag('--issue')) return console.log('forge-intake: daily select cap reached');
     if (freemem() / 1048576 < config.limits.minFreeMemMiB) return console.log('forge-intake: not enough free memory');
-    route = flag('--route') ? config.routes.find((r) => r.id === flag('--route')) : pickRoute(config, ledger);
-    if (!route) throw new Error('no enabled route');
+    route = flag('--route') ? config.routes.find((r) => r.id === flag('--route')) : pickRoute(config, ledger, now);
+    if (!route) { console.log('forge-intake: no enabled route is available (all cooling down or disabled)'); return 0; }
     row.route = route.id;
     // 1. select and claim
-    const sel = await runAgent({ route, cwd: WORK, sandbox: 'read-only', prompt: selectPrompt(config, skipList(ledger, config), flag('--issue')), seconds: config.limits.selectSeconds, dir, name: 'select', linear: config.linear });
+    const sel = await runAgent({ route, cwd: WORK, access: 'read', prompt: selectPrompt(config, skipList(ledger, config), flag('--issue')), seconds: config.limits.selectSeconds, dir, name: 'select', linear: config.linear });
     if (sel.limited) { cool(route, 'select'); return console.log(`forge-intake: ${route.id} is at its plan limit; cooling down`); }
-    if (!sel.reply || sel.reply.outcome === 'none') { row.reason = sel.reply?.reason || `select failed (${sel.code})`; return console.log(`forge-intake: nothing taken: ${row.reason}`); }
-    claimed = sel.reply; row.issue = claimed.issue;
+    if (!sel.reply || sel.reply.outcome !== 'claimed') { record({ phase: 'select', route: route.id, outcome: 'none' }); row.reason = sel.reply?.reason || `select failed (${sel.code})`; return console.log(`forge-intake: nothing taken: ${row.reason}`); }
+    // The id comes from the model. Anything but a plain issue id cannot be trusted as a path, branch or close-out target.
+    if (!validIssueId(sel.reply.issue)) { record({ phase: 'run', route: route.id, outcome: 'failed', reason: 'selector returned an invalid issue id', linearClosed: false }); console.error(`forge-intake: invalid issue id from selector; see ${dir}`); return 1; }
+    claimed = sel.reply; row.issue = claimed.issue; claimed.title = String(claimed.title || claimed.issue).slice(0, 160);
     const labelsBefore = preClaimLabels(claimed.labels, config.linear);
     const bad = isEligible({ state: claimed.state_before, labels: labelsBefore }, config.linear);
     const repo = repoFor(labelsBefore, config);
@@ -267,14 +338,16 @@ export async function main(argv) {
     const clone = run('gh', ['repo', 'clone', repo.repo, checkout, '--', '--depth', '50', '--branch', repo.base]);
     if (clone.status !== 0) throw new Error(`clone failed: ${clone.stderr.trim().slice(0, 200)}`);
     const branch = branchName(claimed.issue, claimed.title, failedAttempts(ledger, claimed.issue) + 1);
-    git(checkout, 'switch', '-c', branch);
-    git(checkout, 'config', 'user.name', 'AgentHub Forge'); git(checkout, 'config', 'user.email', 'forge@users.noreply.github.com');
-    const impl = await runAgent({ route, cwd: checkout, sandbox: 'workspace-write', prompt: implementPrompt({ issue: claimed.issue, title: claimed.title, branch, repo }), seconds: config.limits.implementSeconds, dir, name: 'implement', linear: config.linear });
+    if (git(checkout, 'switch', '-c', branch).status !== 0) throw new Error('could not create the work branch');
+    const before = gitFingerprint(checkout);
+    const impl = await runAgent({ route, cwd: checkout, access: 'write', prompt: implementPrompt({ issue: claimed.issue, title: claimed.title, branch, repo }), seconds: config.limits.implementSeconds, dir, name: 'implement', linear: config.linear });
     if (impl.limited) { cool(route, 'implement'); const limit = new Error(`${route.id} hit its plan limit during implementation; the issue is released without charging an attempt`); limit.limited = true; throw limit; }
-    if (!impl.reply || impl.reply.status !== 'done') throw new Error(`implementation ${impl.reply?.status || `failed (${impl.code})`}: ${impl.reply?.notes || impl.reply?.summary || ''}`.slice(0, 400));
+    if (!impl.reply || impl.reply.status !== 'done') throw new Error(redact(`implementation ${impl.reply?.status || `failed (${impl.code})`}: ${impl.reply?.notes || impl.reply?.summary || ''}`).slice(0, 400));
+    if (gitFingerprint(checkout) !== before) throw new Error('refused: the agent changed .git hooks or config');
     // 3. commit, verify the diff outside the model's control, then push and open a draft PR
     git(checkout, 'add', '-A');
-    const commit = git(checkout, 'commit', '-q', '-m', `${claimed.issue}: ${claimed.title.replace(/^\[[^\]]*\]\s*/, '')}\n\nLinear: ${claimed.issue}\nWritten unattended on ${route.plan} (${route.id}); see the pull request for review state.`);
+    const headline = `${claimed.issue}: ${claimed.title.replace(/^\[[^\]]*\]\s*/, '')}`;
+    const commit = git(checkout, '-c', 'user.name=AgentHub Forge', '-c', 'user.email=forge@users.noreply.github.com', 'commit', '-q', '-m', `${headline}\n\nLinear: ${claimed.issue}\nWritten unattended on ${route.plan} (${route.id}); see the pull request for review state.`);
     if (commit.status !== 0 && !/nothing to commit/.test(commit.stdout + commit.stderr)) throw new Error(`commit failed: ${commit.stderr.trim().slice(0, 200)}`);
     const seen = inspectWorktree(checkout, repo);
     const problems = checkDiff(seen, repo, config.limits);
@@ -282,26 +355,26 @@ export async function main(argv) {
     if (!seen.commits) problems.push('no commit');
     if (!seen.whitespaceOk) problems.push('git diff --check failed');
     if (problems.length) throw new Error(`diff refused: ${problems.join('; ')}`);
-    const push = run('git', ['-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', 'origin', `HEAD:refs/heads/${branch}`], { cwd: checkout });
+    const push = gitPush(checkout, `HEAD:refs/heads/${branch}`);
     if (push.status !== 0) throw new Error(`push failed: ${push.stderr.trim().slice(0, 200)}`);
-    const body = `Linear: ${claimed.issue}\n\n${impl.reply.summary}\n\nTests reported by the agent: ${JSON.stringify(impl.reply.tests || [])}\n\nOpened unattended by Forge intake on ${route.plan} (${route.id}). Draft: no human has reviewed it, nothing is merged or deployed. CI on this PR is the verification.`;
-    const created = run('gh', ['pr', 'create', '--repo', repo.repo, '--draft', '--base', repo.base, '--head', branch, '--title', `${claimed.issue}: ${claimed.title.replace(/^\[[^\]]*\]\s*/, '')}`, '--body', body], { cwd: checkout });
+    claimed.summary = redact(impl.reply.summary).slice(0, 2000);
+    const body = `Linear: ${claimed.issue}\n\n${claimed.summary}\n\nTests reported by the agent: ${redact(impl.reply.tests || []).slice(0, 2000)}\n\nNotes from the agent: ${redact(impl.reply.notes || 'none').slice(0, 1500)}\n\nOpened unattended by Forge intake on ${route.plan} (${route.id}). Draft: no human has reviewed it, nothing is merged or deployed. CI on this PR is the verification.`;
+    const created = run('gh', ['pr', 'create', '--repo', repo.repo, '--draft', '--base', repo.base, '--head', branch, '--title', headline, '--body', body], { cwd: WORK });
     if (created.status !== 0) {
-      run('git', ['-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', 'origin', '--delete', branch], { cwd: checkout });
+      gitPush(checkout, '--delete', branch);
       throw new Error(`gh pr create failed: ${created.stderr.trim().slice(0, 200)}`);
     }
     pr = created.stdout.trim().split('\n').pop(); row.pr = pr; row.outcome = 'pr';
-    claimed.summary = impl.reply.summary;
   } catch (error) {
-    reason = String(error.message || error); row.outcome = error.limited ? 'limited' : 'failed'; row.reason = reason; console.error(`forge-intake: ${reason}`);
+    reason = redact(String(error.message || error)); row.outcome = error.limited ? 'limited' : 'failed'; row.reason = reason; console.error(`forge-intake: ${reason}`);
   } finally {
     if (claimed && route) {
-      const fin = await runAgent({ route, cwd: WORK, sandbox: 'read-only', prompt: finishPrompt(config, { issue: claimed.issue, ok: Boolean(pr), pr, route, summary: claimed.summary, stateBefore: claimed.state_before, reason }), seconds: config.limits.finishSeconds, dir, name: 'finish', linear: config.linear });
+      const fin = await runAgent({ route, cwd: WORK, access: 'read', prompt: finishPrompt(config, { issue: claimed.issue, ok: Boolean(pr), pr, route, summary: claimed.summary, stateBefore: claimed.state_before, reason }), seconds: config.limits.finishSeconds, dir, name: 'finish', linear: config.linear });
       row.linearClosed = Boolean(fin.reply?.ok);
       if (!row.linearClosed) console.error(`forge-intake: Linear close-out for ${claimed.issue} not confirmed; see ${dir}`);
     }
     if (checkout && existsSync(checkout)) {
-      if (row.outcome !== 'pr') writeFileSync(join(dir, 'patch.diff'), git(checkout, 'diff', 'HEAD').stdout + git(checkout, 'log', '-p', '--stat', '-n', '3').stdout);
+      if (row.outcome !== 'pr') writeFileSync(join(dir, 'patch.diff'), git(checkout, 'diff', '--no-ext-diff', '--no-textconv', 'HEAD').stdout + git(checkout, 'log', '-p', '--no-ext-diff', '--no-textconv', '--stat', '-n', '3').stdout);
       rmSync(checkout, { recursive: true, force: true });
     }
     if (claimed) record(row);

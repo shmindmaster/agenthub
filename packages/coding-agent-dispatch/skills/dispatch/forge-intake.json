@@ -13,18 +13,19 @@
     "toolsByPhase": {
       "select": ["get_issue", "list_issues", "save_issue", "save_comment", "list_comments", "list_issue_statuses", "list_issue_labels"],
       "implement": ["get_issue", "list_comments"],
-      "finish": ["get_issue", "save_issue", "save_comment", "list_comments", "list_issue_statuses"]
+      "finish": ["save_issue", "save_comment", "list_issue_statuses"]
     }
   },
   "repos": {
     "app:agenthub": {
       "repo": "shmindmaster/agenthub",
       "base": "main",
-      "protectedPaths": [".github/"]
+      "protectedPaths": [".github/", "registry/", ".agents/", ".claude-plugin/", ".gitmodules", "AGENTS.md", "CLAUDE.md", ".mcp.json", "packages/*/hooks/*", "packages/*/.mcp.json", "packages/*/mcp.json", "packages/*/mcp_config.json"]
     }
   },
   "limits": {
     "maxRunsPerDay": 6,
+    "maxSelectsPerDay": 24,
     "maxAttemptsPerIssue": 2,
     "maxFiles": 30,
     "maxChangedLines": 1200,
