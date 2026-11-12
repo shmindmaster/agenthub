@@ -40,6 +40,12 @@ Run after a package or marketplace change. Version bumps matter only for hosts t
 | Warp | skill junctions and remote servers | Warp has no plugin format. Run `scripts/Install-WarpSkills.ps1` for the skills, and keep only the remote servers in `activationPolicy.pluginOnly` in `~/.warp/.mcp.json`. |
 | Kilo, MiMo Code | host-local skill junctions | Neither has an `ah-*` plugin format. `Sync-Plugins` links `skills/*` of a mapped package through `Install-WarpSkills.ps1 -WarpHome ~/.kilocode` or `~/.mimocode` (native skill projection; Kilo's root is documented in its vendor migration doc, MiMo's in the mimo-code README). `ah-coding-agent-dispatch`, `ah-funding` and `ah-media-studio` are mapped this way, because none needs an MCP server (Media Studio's tools are read from `%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools`, which `Sync-MediaStudioKit.ps1` fills for every host); a package with a server stays unmapped until a direct MCP exception is approved for these hosts. |
 
+## OpenCode Go on Forge
+
+On Forge, OpenCode 2.2.7 successfully ran `opencode-go/deepseek-v4.1-flash` with `OPENCODE_API_KEY` supplied at runtime. For a provider-only smoke test, use a synthetic prompt with tools and MCP servers disabled. Keep the key out of configuration files and logs.
+
+If you test OpenCode 1.19.5 alongside 2.x, use separate XDG data, state, and cache directories. The two versions use incompatible session databases.
+
 ## Session start
 
 A plugin is packaging, not on-demand. Grok, Claude and Codex start every enabled plugin's servers with a session, and hooks arrive inside plugins too. Plugin servers therefore stay off by default, with RepoWise kept on for Claude and Codex. `activationPolicy.sessionStart` in `registry/mcps.json` lists each host's off switch, including the hosts where none was applied.
