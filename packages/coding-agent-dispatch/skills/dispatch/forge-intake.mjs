@@ -143,7 +143,7 @@ If none qualifies, change nothing and reply {"outcome":"none","reason":"..."}.`;
 export const implementPrompt = ({ issue, title, branch, repo }) => `You are an unattended coding agent on a Forge worktree of ${repo.repo}, on branch ${branch}. Implement Linear issue ${issue} ("${title}").
 1. Read the issue with the Linear MCP (read only: do not edit the issue, comment or change labels; the intake wrapper does that).
 2. Read AGENTS.md in this repository and follow it, including the package change contract.
-3. Make the smallest change that fully resolves the issue, with a test that fails before and passes after. Run the focused tests the repository documents. The network is off and this checkout is the only writable place. Subprocess-spawning tests can fail under this sandbox with EPERM and pwsh is not installed: run what works, name what could not run, and leave the rest to the pull request's CI. Never edit registry/capabilities.json or any version: those are protected. For each package whose files you changed, if scripts/registry-content-hash.mjs exists run 'node scripts/registry-content-hash.mjs packages/<name>' and list "<name>: <HASH>" under "notes" (otherwise list just the package name) so the reviewer can record it.
+3. Make the smallest change that fully resolves the issue, with a test that fails before and passes after. Run the focused tests the repository documents. The network is off and this checkout is the only writable place. Subprocess-spawning tests can fail under this sandbox with EPERM and pwsh is not installed: run what works, name what could not run, and leave the rest to the pull request's CI. Never edit registry/capabilities.json or any version: those are protected, and the pull request body will tell the reviewer which packages to re-hash.
 4. Leave your edits in the working tree. The sandbox makes .git read-only, so do not run git add or git commit: the wrapper commits as "${issue}: ..." after checking the diff. Do not push, open a pull request, merge, change .github/, or touch credentials.
 If the issue is ambiguous, needs a decision from the owner, or needs access you do not have, make no edits and say so.
 Reply with one JSON object and nothing else: {"status":"done"|"blocked","summary":"what changed and why","tests":[{"command":"...","result":"pass|fail|not-run"}],"notes":"limits or follow-ups"}. Use "done" when the change is complete in the working tree, even if some tests could not run here.`;
@@ -228,6 +228,13 @@ function runAgent({ route, cwd, access, prompt, seconds, dir, name, linear }) {
 }
 
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+
+// Packages a diff touches, so the pull request can tell the reviewer what to re-hash. The agent computes no hash:
+// it cannot stage new files, and the reviewer's version bump changes the package files anyway.
+export const touchedPackages = (files) => [...new Set(files.map((file) => /^packages\/([^/]+)\//.exec(file)?.[1]).filter(Boolean))].sort();
+export const packageFollowUp = (names) => (names.length
+  ? '\n\nPackages changed: ' + names.join(', ') + '. Reviewer follow-up before merge: bump each version (scripts/Bump-PackageVersion.ps1), then recompute its contentHash with scripts/RegistryContentHash.ps1 or "node scripts/registry-content-hash.mjs packages/<name>" and record it in registry/capabilities.json. CI fails on drift until this is done.'
+  : '');
 
 // Atomic single-run lock. A lock whose process is gone (crash, kill, reboot) is taken over.
 export function acquireLock(path, pid = process.pid) {
@@ -365,7 +372,8 @@ export async function main(argv) {
     const push = gitPush(checkout, `HEAD:refs/heads/${branch}`);
     if (push.status !== 0) throw new Error(`push failed: ${push.stderr.trim().slice(0, 200)}`);
     claimed.summary = redact(impl.reply.summary).slice(0, 2000);
-    const body = `Linear: ${claimed.issue}\n\n${claimed.summary}\n\nTests reported by the agent: ${redact(impl.reply.tests || []).slice(0, 2000)}\n\nNotes from the agent: ${redact(impl.reply.notes || 'none').slice(0, 1500)}\n\nOpened unattended by Forge intake on ${route.plan} (${route.id}). Draft: no human has reviewed it, nothing is merged or deployed. CI on this PR is the verification.`;
+    const followUp = packageFollowUp(touchedPackages(seen.files));
+    const body = `Linear: ${claimed.issue}\n\n${claimed.summary}\n\nTests reported by the agent: ${redact(impl.reply.tests || []).slice(0, 2000)}\n\nNotes from the agent: ${redact(impl.reply.notes || 'none').slice(0, 1500)}\n\nOpened unattended by Forge intake on ${route.plan} (${route.id}). Draft: no human has reviewed it, nothing is merged or deployed. CI on this PR is the verification.${followUp}`;
     const created = run('gh', ['pr', 'create', '--repo', repo.repo, '--draft', '--base', repo.base, '--head', branch, '--title', headline, '--body', body], { cwd: WORK });
     if (created.status !== 0) {
       gitPush(checkout, '--delete', branch);
