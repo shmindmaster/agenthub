@@ -116,7 +116,8 @@ param(
     [string]$Role,
     [switch]$ReadOnly,
     [switch]$List,
-    [switch]$ShowCommand
+    [switch]$ShowCommand,
+    [switch]$Forge
 )
 
 $ErrorActionPreference = 'Stop'
@@ -145,6 +146,46 @@ function Write-Refusal {
     param([int]$Code, [string]$Message)
     [Console]::Error.WriteLine($Message)
     exit $Code
+}
+
+if ($Forge) {
+    # This route opens an operator session. Prompt-based jobs and reviewer
+    # roles require a separate Linux worker contract and provider acceptance.
+    if ($Prompt -or $PromptFile -or $ReadOnly -or $Role -or $Title -or $SessionId -or
+        $Model -or $AnthropicApiKey -or $PSBoundParameters.ContainsKey('TimeoutSec')) {
+        Write-Refusal 3 'Forge supports interactive sessions only. Select the provider and model inside the agent.'
+    }
+    $forgeHosts = [ordered]@{
+        codex = '.local/bin/codex'
+        grok = '.grok/bin/grok'
+        hermes = '.local/bin/hermes'
+        openclaw = '.local/bin/openclaw tui --local'
+        opencode = '.local/bin/opencode'
+    }
+    $forgeHome = '/srv/work/agenthub-runner'
+    $runner = "runuser -u agenthub-runner -- env -i HOME=$forgeHome TERM=xterm-256color PATH=$forgeHome/.local/bin:/usr/bin:/bin"
+    if ($List) {
+        if ($HostId -or $Cwd -or $ShowCommand) { Write-Refusal 3 'Use -Forge -List without a host, directory, or preview flag.' }
+        $commands = foreach ($entry in $forgeHosts.GetEnumerator()) {
+            $binary = ($entry.Value -split ' ')[0]
+            "if test -x $forgeHome/$binary; then printf '%s\tinteractive\t%s\n' '$($entry.Key)' 'installed; auth unverified'; else printf '%s\trefused\t%s\n' '$($entry.Key)' 'executable absent'; fi"
+        }
+        & ssh -o BatchMode=yes -o ConnectTimeout=10 forge ($commands -join '; ')
+        exit $LASTEXITCODE
+    }
+    if (-not $HostId -or -not $forgeHosts.Contains($HostId)) {
+        Write-Refusal 3 'Use -Forge -List to see supported Forge hosts.'
+    }
+    if ($Cwd -cnotmatch '^/srv/work/agenthub-runner/worktrees/[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\z') {
+        Write-Refusal 3 'Pass a Forge worktree path under /srv/work/agenthub-runner/worktrees using letters, digits, underscores or hyphens.'
+    }
+    $command = "$runner bash --noprofile --norc -c 'cd -- $Cwd && test `"`$(pwd -P)`" = $Cwd && exec $forgeHome/$($forgeHosts[$HostId])'"
+    if ($ShowCommand) {
+        Write-Output "ssh -t -o BatchMode=yes -o ConnectTimeout=10 forge $command"
+        exit 0
+    }
+    & ssh -t -o BatchMode=yes -o ConnectTimeout=10 forge $command
+    exit $LASTEXITCODE
 }
 
 # A model id only has to be safe on the command line and in the shape the host

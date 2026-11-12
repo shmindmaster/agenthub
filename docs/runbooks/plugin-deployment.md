@@ -118,6 +118,22 @@ The command records version and source-hash evidence under the local AgentHub ru
 
 An absent native registration stays blocked until its approved ownership and activation are established. The audit reports direct Claude MCP entries and loose shared skills as unmanaged conflicts. It preserves them. Unsupported legacy mappings stay blocked. Vendor RepoWise remains authoritative on Claude and Codex.
 
+## Forge operator sessions
+
+From a terminal with the existing `forge` SSH alias, run
+`Invoke-CodingAgent.ps1 -Forge -List` to see the installed Forge clients.
+Use `-Forge -HostId <id> -Cwd /srv/work/agenthub-runner/worktrees/<task>`
+to open a client as the unprivileged runner. Provision the worktree on Forge
+from a claimed Linear issue before launching. OpenClaw opens its local
+terminal UI, whose workspace is controlled by its native configuration.
+The SSH route does not forward workstation credentials. Complete provider
+and MCP authorization in the runner's native profile before using a client.
+An installed binary or registered MCP endpoint is not an authenticated smoke.
+
+Forge operator sessions are interactive. Unattended intake, Linux tool
+isolation, and exact-head review acceptance are tracked under
+[SH-4409](https://linear.app/shorg/issue/SH-4409).
+
 ## Provider removal and presentation
 
 Owner direction on 2026-11-06 removes Firecrawl and Supabase plugins, loose skills and MCP routes. Supabase credits do not imply current activation. The rollout now contains 14 public and three private plugins.
