@@ -37,4 +37,4 @@ When they disagree, investigate rather than silently choosing one.
 | `.agents/plugins/marketplace.json` | Public plugin catalog |
 | `.claude-plugin/marketplace.json` | Claude-format compatibility projection |
 
-The remote is `github.com/shmindmaster/agenthub` (public). The old `agenthub-internal` mirror is archived. Do not recreate a second control-plane checkout.
+The remote is `github.com/shmindmaster/agenthub`. The old `agenthub-internal` mirror is archived. Do not recreate a second control-plane checkout.
