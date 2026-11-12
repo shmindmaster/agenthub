@@ -212,7 +212,13 @@ keeps GitHub credentials away from the model:
    carrying none of `type:epic`, `type:research`, `attention:*`, `agent:*`,
    `risk:compliance`, `risk:security`, `stage:*`, `lane:*`, `funding:*`. It adds
    `agent:forge` and sets In Progress (SH-4063). The wrapper re-checks the
-   labels the agent reports and refuses an ineligible claim.
+   labels the agent reports and refuses an ineligible claim, and the selector is
+   told to query `list_issues` once for each mapped app label instead of
+   scanning the whole backlog. When the selector has claimed an issue the rules
+   exclude, the close-out restores it to its earlier state with a comment and
+   the wrapper retires it after that single run instead of burning a second
+   one: on 2026-11-12 an `app:empowera` bug was claimed by mistake, restored to
+   Backlog and retired.
 2. **Implement** (permission profile, network off, Linear read-only). The
    agent works in a fresh clone, follows the repository's AGENTS.md, and leaves
    its edits uncommitted: the wrapper commits.
@@ -227,9 +233,15 @@ keeps GitHub credentials away from the model:
    redacted for secret-shaped content before it reaches the PR or Linear, and the
    issue id is validated (`SH-<digits>`) before it becomes a path or branch.
    It pushes `forge/<issue>-<slug>`, opens a **draft** PR, and removes the clone.
-   Forge has no `pwsh`, so the agent never edits a registry `contentHash`
-   (a hand-computed one failed CI on the first PR, #125); the reviewer
-   recomputes it with `scripts/RegistryContentHash.ps1`.
+   The agent never edits `registry/capabilities.json` or any version: both are
+   protected, and a hand-computed hash failed CI on #125. When the diff touches
+   `packages/<name>/` the PR body ends with a note naming those packages, and
+   the reviewer bumps each version (`scripts/Bump-PackageVersion.ps1`, plus
+   `metadata.version` in that package's SKILL.md by hand) and recomputes the
+   contentHash with `scripts/RegistryContentHash.ps1` or, where there is no
+   `pwsh`, with `node scripts/registry-content-hash.mjs packages/<name>`: a
+   Node port that produces the same hash and is test-enforced by
+   `scripts/registry-content-hash.test.mjs`. CI fails on drift until then.
 4. **Close out** (Linear write allowlist). Comments the PR link, removes
    `agent:forge`, and sets In Review, or on failure restores the earlier state
    with the reason. It never sets Done. CI on the PR is the verification.
@@ -256,17 +268,20 @@ cannot, none can delete).
 
 Limits: one issue per run, 6 runs a day, 2 attempts per issue (a PR or a second
 failure retires it from selection), one run at a time, free memory of at least
-4 GiB. Routes rotate least-recently-used over the enabled plans: `codex-zai`
-(Z.ai Coding Plan, full cycle proven on SH-4512), `codex-qwen` and `codex-go`
-(Qwen Token Plan, OpenCode Go; both passed a headless execution smoke and a
-Linear read, not yet a full cycle). `codex-mimo` stays disabled: its turns end
-without a reply (SH-4421). A plan that reports a usage or rate limit cools down
-for 3 hours and the attempt is not charged to the issue (Z.ai's 5-hour limit
-was hit on 2026-11-12 during testing). Logs and the ledger live in
-`~/.local/state/agenthub/forge-intake`, pruned after 14 days.
+4 GiB. Routes rotate least-recently-used over the enabled plans, and every
+enabled route has a proven full cycle now: `codex-zai` (Z.ai Coding Plan)
+produced SH-4512 (#125), `codex-qwen` (Qwen Token Plan) produced SH-4576
+(#127) and `codex-go` (OpenCode Go) produced SH-4583 (#128); each was claimed,
+implemented and opened as a draft PR unattended, and merged after review.
+`codex-mimo` stays disabled: its turns end without a reply (SH-4421). A plan
+that reports a usage or rate limit cools down for 3 hours and the attempt is not
+charged to the issue (Z.ai's 5-hour limit was hit on 2026-11-12 during testing).
+Logs and the ledger live in `~/.local/state/agenthub/forge-intake`, pruned
+after 14 days.
 `node forge-intake.mjs --status` prints runs today, the cap, draft PRs,
-failures, retired issues, per-route use, cooling routes and Linear close-outs
-that were not confirmed.
+failures, retired issues, per-route use, cooling routes, Linear close-outs that
+were not confirmed, and the lock: `lockHeldBy` is the PID of a live run, or
+null, and `staleLock` is a dead or unreadable PID that the next run takes over.
 
 Operate it as root over the `forge` alias:
 
@@ -278,8 +293,21 @@ rm /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled      # resum
 ~~~
 
 Install or update (root): put the released tree at
-`/opt/agenthub/catalogs/<sha>`, point `/opt/agenthub/current` at it, copy
-`forge-intake.service` and `forge-intake.timer` to `/etc/systemd/system`, then
+`/opt/agenthub/catalogs/<sha>` and point `/opt/agenthub/current` at it. Then
+update the clients as `agenthub-runner`, with `HOME=/srv/work/agenthub-runner`
+and `~/.local/bin` on `PATH`. Removing a marketplace also uninstalls its
+plugins, so the reinstall step is required. For Claude:
+`claude plugin marketplace remove agenthub`,
+`claude plugin marketplace add /opt/agenthub/catalogs/<sha>`, then
+`claude plugin install <name>@agenthub` for each of ah-browser,
+ah-coding-agent-dispatch and ah-product. For Codex:
+`codex plugin marketplace remove agenthub`,
+`codex plugin marketplace add /opt/agenthub/catalogs/<sha>`, then
+`codex plugin add <name>@agenthub` for each of ah-product, ah-browser,
+ah-linear, ah-context7 and ah-coding-agent-dispatch. Copy
+`forge-intake.service` and `forge-intake.timer` to `/etc/systemd/system` again
+only when they changed (`cmp` them against the installed copies): a new catalog
+alone needs no timer restart. After a unit change run
 `systemctl daemon-reload && systemctl enable --now forge-intake.timer`. This is
 a standing schedule that the owner directed on 2026-11-12 for Forge only, so
 the "no scheduled jobs" rule for the workstation is unchanged. When Forge
