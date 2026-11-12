@@ -1,6 +1,6 @@
 ---
 name: mobile-device-lab
-description: Drives real iPhones and Android devices (Mobile MCP) and emulators or simulators (Appium MCP): launch, tap, inspect, screenshot, record. Use when testing or debugging a mobile or responsive web app on a device, emulator or simulator. Not for Expo, EAS or store work; use mobile-platform-standard.
+description: "Drives real iPhones and Android devices (Mobile MCP) and emulators or simulators (Appium MCP): launch, tap, inspect, screenshot, record. Use when testing or debugging a mobile or responsive web app on a device, emulator or simulator. Not for Expo, EAS or store work; use mobile-platform-standard."
 ---
 
 # Mobile device lab

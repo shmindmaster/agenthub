@@ -621,7 +621,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "924F42AA438B27A6711BE68D2EE6157B0E42C116303E170FA9A4DF40B44A8574",
+      "contentHash": "248DC86C46861C3B16BF14AEE231DCF0733D83E9E30CA7B3D7BDAB4726FB0951",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -929,7 +929,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "8FEDB2CA5CA67909EB54146581F9B9F4C76745630554E35F6C00C9E369F42F0A",
+      "contentHash": "F6FDC614273BC6FFC42DEF81AD8DF6FFDB5766C961B860CC6E71BF80BF00A09C",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [

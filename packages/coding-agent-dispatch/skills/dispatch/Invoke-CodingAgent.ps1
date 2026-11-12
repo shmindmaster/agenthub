@@ -169,7 +169,7 @@ function Join-WindowsArguments {
 }
 
 if ($Forge) {
-    $forgeCatalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'forge-hosts.json') -Raw | ConvertFrom-Json
+    $forgeCatalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'forge-hosts.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 }
 
 if ($Auth) {
