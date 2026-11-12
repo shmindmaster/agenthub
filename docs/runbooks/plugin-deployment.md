@@ -155,6 +155,19 @@ From an existing Forge terminal, run the installed dispatch skill's
 `python3 forge-session.py --list` or
 `python3 forge-session.py --host <id> --cwd <Forge-worktree>`.
 
+The Forge Codex sandbox uses the Ubuntu `bubblewrap` package. On Ubuntu
+24.04, allow user namespaces only for the root-owned `/usr/bin/bwrap` via
+AppArmor. Verify a read and a denied write with `codex sandbox -- <command>`;
+leave the system-wide AppArmor restriction enabled. In the MiMo Codex
+profile set `web_search = "disabled"`: its Responses gateway rejects the
+built-in web search tool. This does not disable browser QA or MCPs.
+
+OpenCode v2 stores remote MCP servers under `mcp.servers`. Forge Linear
+OAuth is per client: use `opencode mcp auth linear` for OpenCode and
+`codex mcp login linear` for Codex. An OpenCode SSH login can accept the final
+browser callback URL in its terminal prompt. Never put that URL in a log or
+issue.
+
 Forge operator sessions are interactive. Unattended intake, Linux tool
 isolation, and exact-head review acceptance are tracked under
 [SH-4409](https://linear.app/shorg/issue/SH-4409).

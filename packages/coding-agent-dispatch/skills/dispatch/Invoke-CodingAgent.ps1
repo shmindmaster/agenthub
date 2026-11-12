@@ -169,7 +169,7 @@ function Join-WindowsArguments {
 }
 
 if ($Forge) {
-    $forgeCatalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'forge-hosts.json') -Raw | ConvertFrom-Json -AsHashtable
+    $forgeCatalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'forge-hosts.json') -Raw | ConvertFrom-Json
 }
 
 if ($Auth) {
@@ -208,9 +208,9 @@ if ($Auth) {
         }
     }
     if ($Forge) {
-        foreach ($entry in $forgeCatalog.GetEnumerator()) {
+        foreach ($entry in $forgeCatalog.PSObject.Properties) {
             if ($entry.Value.plan) {
-                $authCommands[$entry.Key] = "/srv/work/agenthub-runner/$($entry.Value.argv[0]); uses the Forge $($entry.Value.plan) runtime credential."
+                $authCommands[$entry.Name] = "/srv/work/agenthub-runner/$($entry.Value.argv[0]); uses the Forge $($entry.Value.plan) runtime credential."
             }
         }
     }
@@ -236,8 +236,8 @@ if ($Forge) {
         Write-Refusal 3 'Forge supports interactive sessions only. Select the provider and model inside the agent.'
     }
     $forgeHosts = [ordered]@{}
-    foreach ($entry in $forgeCatalog.GetEnumerator()) {
-        $forgeHosts[$entry.Key] = $entry.Value.argv -join ' '
+    foreach ($entry in $forgeCatalog.PSObject.Properties) {
+        $forgeHosts[$entry.Name] = $entry.Value.argv -join ' '
     }
     $forgeHome = '/srv/work/agenthub-runner'
     $runner = "runuser -u agenthub-runner -- env -i HOME=$forgeHome TERM=xterm-256color PATH=$forgeHome/.local/bin:/usr/bin:/bin"
