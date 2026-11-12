@@ -203,7 +203,11 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
         'kiro' {
             # `kiro-cli powers install <path>` copies the package to powers/installed/<name>
             # and registers the name in powers/installed.json. Both must agree.
-            $powers = Join-Path $UserProfile '.kiro/powers'
+            # Kiro's CLI reads KIRO_HOME as its global directory, Powers included, and the
+            # kiro-cli install and uninstall calls inherit it, so the live profile observes
+            # the same home they change.
+            $kiroHome = if ($live -and $env:KIRO_HOME) { [IO.Path]::GetFullPath($env:KIRO_HOME) } else { Join-Path $UserProfile '.kiro' }
+            $powers = Join-Path $kiroHome 'powers'
             $registered = @((Read-Document (Join-Path $powers 'installed.json')).installedPowers.name) -contains $name
             $installed = Get-ManifestObservation (Join-Path $powers "installed/$name") 'plugin.json' $name
             if ($installed -and -not $registered) { return New-Observation '' '' 'unmanaged' 'Kiro power folder exists but installed.json does not register it.' }
