@@ -16,6 +16,14 @@
   "opencode-go": {"argv": [".local/bin/opencode-go"], "plan": "OpenCode Go"},
   "opencode-qwen": {"argv": [".local/bin/opencode-qwen"], "plan": "Qwen Token Plan"},
   "opencode-zai": {"argv": [".local/bin/opencode-zai"], "plan": "Z.ai Coding Plan"},
+  "cline-qwen": {"argv": [".local/bin/cline-qwen"], "plan": "Qwen Token Plan"},
+  "cline-mimo": {"argv": [".local/bin/cline-mimo"], "plan": "MiMo Token Plan"},
+  "kilo-qwen": {"argv": [".local/bin/kilo-qwen"], "plan": "Qwen Token Plan"},
+  "kilo-mimo": {"argv": [".local/bin/kilo-mimo"], "plan": "MiMo Token Plan"},
+  "mimo-code-mimo": {"argv": [".local/bin/mimo-code-mimo"], "plan": "MiMo Token Plan"},
+  "opencode-mimo": {"argv": [".local/bin/opencode-mimo"], "plan": "MiMo Token Plan"},
+  "qwen-mimo": {"argv": [".local/bin/qwen-mimo"], "plan": "MiMo Token Plan"},
+  "qwen-qwen": {"argv": [".local/bin/qwen-plan"], "plan": "Qwen Token Plan"},
   "qwen": {"argv": [".local/bin/qwen"]},
   "cline": {"argv": [".local/bin/cline"]}
 }
