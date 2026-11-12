@@ -1,8 +1,11 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-media-studio",
-  "version": "2.10.0",
+  "version": "2.10.1",
   "description": "Develop a creative brief, storyboard and narration, then capture, compose and review video or audio deliverables.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
   "license": "MIT",
   "keywords": [
     "video",
@@ -14,6 +17,13 @@
     "screenplay",
     "director",
     "explainer",
-    "lottie"
+    "lottie",
+    "narration",
+    "voiceover",
+    "storyboard",
+    "subtitles",
+    "render",
+    "film",
+    "podcast"
   ]
 }

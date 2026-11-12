@@ -61,6 +61,20 @@ Tool Search remains enabled with zero thresholds, automatic compaction remains o
 
 IDE UI, cloud synchronization, provider authentication for the eight Powers, production delivery and Crew were not exercised. No startup hook, schedule, local model, new credential or standing service was created.
 
+## Native AgentHub Powers
+
+Since 2026-11-11 (SH-4419) Kiro is a native plugin host. `kiro-cli powers install <package-root>` copies an Agent Plugins package to `~/.kiro/powers/installed/<name>` and registers the name in `~/.kiro/powers/installed.json`; `kiro-cli powers uninstall <name>` reverses both. Powers are user-scoped, so one install serves every repository, and a Power activates when a prompt matches its keywords. Kiro reads `mcp.json` at the package root and ignores `.mcp.json`.
+
+Thirteen capabilities carry a `kiro` row with `deploymentStatus: native-local-plugin`: media-studio, product, browser, mobile-development, coding-agent-dispatch, funding, assemblyai, brave-search, descript and notion from the public registry, and linkedin, sarosh and docwise from the private overlay. `Sync-Plugins.ps1` observes a Power as current only when `installed.json` and the folder agree and the folder's manifest names the same plugin; an update is uninstall, then install from the canonical package. Context7, Exa, Linear and AWS keep their existing Kiro Powers or MCP servers and get no AgentHub row, so nothing is installed twice.
+
+```powershell
+pwsh -NoProfile -File .\scripts\Sync-Plugins.ps1 -RepositoryRoot . -UserProfile $env:USERPROFILE -HostId kiro          # audit
+pwsh -NoProfile -File .\scripts\Sync-Plugins.ps1 -RepositoryRoot . -UserProfile $env:USERPROFILE -HostId kiro -Apply   # install, from clean published main only
+pwsh -NoProfile -File .\scripts\New-KiroCloudPowers.ps1 -RepositoryRoot .                                               # Kiro Web projections
+```
+
+Kiro Web cannot reach this machine. `New-KiroCloudPowers.ps1` writes text-only projections under `%LOCALAPPDATA%\AgentHub\kiro-cloud\powers`, at most 50 files each, with remote-only MCP servers kept and local ones, scripts, kits and tests left out; each projection's `CLOUD.md` names what stayed local. When a Power has more references than fit, one skill's references are folded into `references/bundle.md` and its links rewritten, so no guidance is dropped. Private overlay capabilities are never projected. Uploading is manual: drag the `powers` folder into Agent Config > Cloud Config.
+
 ## Official references
 
 - [ACP](https://kiro.dev/docs/acp/), [CLI ACP](https://kiro.dev/docs/cli/acp/), [permissions](https://kiro.dev/docs/permissions/), [settings](https://kiro.dev/docs/reference/settings/).
