@@ -132,7 +132,10 @@ An installed binary or registered MCP endpoint is not an authenticated smoke.
 
 Use `-Auth` for local sign-in commands, or `-Forge -Auth` for runner
 commands. Add `-HostId grok` or another listed ID to narrow the output.
-The command prints instructions for the operator to run.
+The command lists each client's native sign-in command. When operating for
+the user, start the login in the target client and open the provider's
+authorization URL in the user's browser. Leave sign-in and consent to the
+user. Keep the login process running until it confirms completion.
 
 For GitHub, authorize the runner with `gh auth login --hostname github.com
 --git-protocol https --web` and run `gh auth setup-git`. Verify repository
@@ -165,9 +168,11 @@ built-in web search tool. This does not disable browser QA or MCPs.
 
 OpenCode v2 stores remote MCP servers under `mcp.servers`. Forge Linear
 OAuth is per client: use `opencode mcp auth linear` for OpenCode and
-`codex mcp login linear` for Codex. An OpenCode SSH login can accept the final
-browser callback URL in its terminal prompt. Never put that URL in a log or
-issue.
+`codex mcp login linear` for Codex. If a Forge client uses a loopback
+callback, relay it to that client's active listener over SSH or use the
+client's callback input when supported. Keep the listener private; never
+put the callback URL in chat, logs, or an issue. Verify the resulting
+session by reading a Linear issue from the client that signed in.
 
 Forge operator sessions are interactive. Unattended intake, Linux tool
 isolation, and exact-head review acceptance are tracked under
