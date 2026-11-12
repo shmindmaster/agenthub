@@ -1,6 +1,6 @@
 # Interim release on DigitalOcean (until 2026-11-30)
 
-This is how a DigitalOcean-hosted personal product builds, tests and deploys until the build droplet is destroyed on 2026-11-30, and how it stays ready for AWS on 2026-12-01. The estate inventory (app IDs, owners, per-product state) lives in the private tracker, not here.
+This is how a DigitalOcean-hosted personal product builds, tests and deploys until DigitalOcean is retired on 2026-11-30, and how it stays ready for AWS on 2026-12-01. The estate inventory (app IDs, owners, per-product state) lives in the private tracker, not here.
 
 ## Default: the platform's native build, no extra CI
 
@@ -46,7 +46,9 @@ A failed build or a failed health check leaves the previous deployment serving, 
 
 ## Pre-merge runner (`ci/do-runner/`), only where rule 3 applies
 
-`sh-ci` runs on the build droplet as root from `/srv/work/sh-ci/bin/sh-ci`. It gives each repository that needs one a compose project `sh-ci-<repo>`:
+Since 2026-11-12 every product shares one droplet, `sh-forge` (SSH alias `forge`, Docker context `forge`). It carries the CI lane, macOS and iOS builds, Android, renders and dev or test jobs. `sh-ci` runs there as root from `/srv/work/sh-ci/bin/sh-ci`. `/srv/work/sh-ci/OWNERS.md` on the box says who owns which lane.
+
+The systemd slice `sh-ci.slice` (`ci/do-runner/sh-ci.slice`, installed in `/etc/systemd/system/`) caps the whole CI lane at 12 CPUs and 24 GB, which is three concurrent 4-CPU / 8 GB jobs. That way CI never starves an iOS build or a render. Each repository that needs a runner gets a compose project `sh-ci-<repo>`:
 
 | Service | Purpose |
 | --- | --- |
@@ -61,7 +63,7 @@ Write the job's label through a repository variable, so the move to AWS CodeBuil
 runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '["self-hosted","sh-ci-<repo>"]') }}
 ```
 
-Register or update the runner from a workstation with repository admin:
+Register or update the runner from a workstation with repository admin. Never copy a runner's state directory to another host; register there with a new token instead, because two hosts holding one registration fight over the session.
 
 ```bash
 gh api -X POST repos/<owner>/<repo>/actions/runners/registration-token --jq .token \
