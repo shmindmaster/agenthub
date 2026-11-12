@@ -21,7 +21,7 @@ Headless one-shot form (run as `agenthub-runner` in a Forge worktree under `/srv
 | `kilo-mimo` / `kilo-qwen` | `kilo-<plan> run -m <provider>/<model> [--agent plan] "<task>"` |
 | `mimo-code-mimo` | `mimo-code-mimo run -m mimo-token-plan/<model> [--agent plan] "<task>"` |
 | `qwen-mimo` / `qwen-qwen` | `qwen-mimo -p "<task>"` / `qwen-plan -p "<task>" -m <model>` (`--approval-mode plan` is read-only) |
-| `cline-mimo` / `cline-qwen` | `cline-<plan> -y -c <dir> "<task>"` (`-p` for plan mode) |
+| `cline-mimo` / `cline-qwen` | `cline-<plan> -c <dir> "<task>"` (act mode, auto-approve on by default; `-p` for plan mode; do not use `-y`, it restricts the toolset) |
 
 Not routed: MiMo Desktop and ZCode are GUI applications. ZCode on Forge is an AppImage that fails to start
 (`libfuse.so.2` missing) and has no CLI entry point. The Qwen `auto` model is refused on the Anthropic route used
