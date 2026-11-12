@@ -7,7 +7,7 @@ function Get-AgentHubStableFileHash {
         '.cjs', '.cmd', '.css', '.cts', '.csv', '.editorconfig', '.eslintrc',
         '.example', '.gitattributes', '.gitignore', '.html', '.js', '.json', '.map',
         '.markdown', '.md', '.mdc', '.mjs', '.mts', '.npmignore', '.nycrc',
-        '.ps1', '.psm1', '.py', '.sh', '.svg', '.toml', '.ts', '.tsx', '.txt',
+        '.ps1', '.psm1', '.py', '.service', '.sh', '.svg', '.timer', '.toml', '.ts', '.tsx', '.txt',
         '.xml', '.yaml', '.yml'
     )
     # License files have no extension, and git checks them out with CRLF on Windows.
