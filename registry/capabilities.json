@@ -1165,15 +1165,6 @@
           "components": [
             "skills"
           ]
-        },
-        {
-          "hostId": "kiro",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "dependencies": {
@@ -1649,15 +1640,6 @@
         {
           "hostId": "warp",
           "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "kiro",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "dependencies": {
@@ -1748,15 +1730,6 @@
         {
           "hostId": "warp",
           "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "kiro",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ],
       "dependencies": {
