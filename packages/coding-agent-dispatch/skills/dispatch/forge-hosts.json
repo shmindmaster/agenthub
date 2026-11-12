@@ -13,6 +13,7 @@
   "hermes": {"argv": [".local/bin/hermes"]},
   "openclaw": {"argv": [".local/bin/openclaw", "tui", "--local"]},
   "opencode": {"argv": [".local/bin/opencode"]},
+  "opencode-go": {"argv": [".local/bin/opencode-go"], "plan": "OpenCode Go"},
   "opencode-qwen": {"argv": [".local/bin/opencode-qwen"], "plan": "Qwen Token Plan"},
   "opencode-zai": {"argv": [".local/bin/opencode-zai"], "plan": "Z.ai Coding Plan"},
   "qwen": {"argv": [".local/bin/qwen"]},

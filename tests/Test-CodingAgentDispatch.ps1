@@ -58,6 +58,8 @@ try {
     Check 'Forge browser route uses the isolated browser launcher' ($r.Exit -eq 0 -and $r.Out -match '/\.local/bin/grok-browser')
     $r = Run @('-Forge','-HostId','opencode-zai','-Cwd',$forgeWorktree,'-ShowCommand')
     Check 'Forge Z.ai uses the isolated launcher' ($r.Exit -eq 0 -and $r.Out -match '/\.local/bin/opencode-zai\b')
+    $r = Run @('-Forge','-HostId','opencode-go','-Cwd',$forgeWorktree,'-ShowCommand')
+    Check 'Forge OpenCode Go uses the subscription launcher' ($r.Exit -eq 0 -and $r.Out -match '/\.local/bin/opencode-go\b')
     foreach ($client in @('claude', 'codex')) {
         foreach ($plan in @('qwen', 'zai', 'mimo', 'go')) {
             $route = "$client-$plan"

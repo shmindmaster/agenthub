@@ -143,7 +143,8 @@ Choose `grok-browser` for Forge QA with an isolated local Chrome profile.
 On Forge, use an explicit `claude-*` or `codex-*` route: `qwen`, `zai`,
 `mimo`, or `go` selects the corresponding subscription. Keep native Claude
 and Codex logins on Windows. Grok and Kiro use their native account logins
-on both hosts. Use `opencode-qwen` for Qwen in OpenCode.
+on both hosts. In OpenCode, use `opencode-qwen` for Qwen or
+`opencode-go` for the Forge Go workspace and DeepSeek V4.1 Flash.
 Choose `opencode-zai` for the runner's Z.ai Coding Plan and its four Z.ai
 MCPs. On Windows, select that plan with
 `-HostId opencode -Model zai-coding-plan/glm-5.3`. This Windows route
