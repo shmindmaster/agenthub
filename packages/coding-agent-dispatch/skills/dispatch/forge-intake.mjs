@@ -70,9 +70,13 @@ export const runsToday = (ledger, now) => countToday(ledger, 'run', now);
 
 export const failedAttempts = (ledger, issue) => ledger.filter((row) => row.phase === 'run' && row.issue === issue && row.outcome === 'failed').length;
 
+// The selector claimed an issue the rules exclude (no mapped app, an excluded label). A retry cannot change that, so
+// the issue is retired at once instead of burning a second run.
+export const wasIneligible = (row) => row.phase === 'run' && /^claimed an ineligible issue/.test(row.reason || '');
+
 export function skipList(ledger, config) {
   const ids = [...new Set(ledger.filter((row) => row.phase === 'run' && row.issue).map((row) => row.issue))];
-  return ids.filter((id) => failedAttempts(ledger, id) >= config.limits.maxAttemptsPerIssue || ledger.some((row) => row.issue === id && row.outcome === 'pr'));
+  return ids.filter((id) => failedAttempts(ledger, id) >= config.limits.maxAttemptsPerIssue || ledger.some((row) => row.issue === id && (row.outcome === 'pr' || wasIneligible(row))));
 }
 
 // A plan that reports its quota or rate limit is not at fault for the issue: it cools down and the
@@ -136,6 +140,7 @@ export const selectPrompt = (config, skip, forcedIssue) => `You are the unattend
 ${claimRules(config)}
 ${skip.length ? `Never pick these issues: ${skip.join(', ')}.` : ''}
 First release stale claims: any issue labelled ${l(config).claimLabel} that is ${l(config).claimedState} and untouched for ${l(config).staleClaimHours}+ hours loses that label, returns to Backlog and gets a one-line comment saying the Forge claim expired.
+Search by label: query list_issues once for each mapped app label (${Object.keys(config.repos).join(', ')}) instead of scanning the whole backlog. An issue that lacks a mapped app label is never eligible, however high its priority or however well it matches the other rules.
 ${forcedIssue ? `Take only ${forcedIssue}, and only if it is eligible.` : 'Pick the single eligible issue with the highest priority (Urgent first, then oldest), skipping an issue another session claimed.'}
 If one qualifies: add the label ${l(config).claimLabel} and set it ${l(config).claimedState}. Then read the issue again to detect a duplicate claim: if any other agent:* label or an assignee appeared, remove only ${l(config).claimLabel}, restore the earlier state and reply {"outcome":"none","reason":"lost the claim race"}. Otherwise reply with one JSON object and nothing else: {"outcome":"claimed","issue":"SH-123","title":"...","state_before":"Backlog","labels":["every label the issue had BEFORE you added ${l(config).claimLabel}"],"summary":"two sentences on what the issue asks"}.
 If none qualifies, change nothing and reply {"outcome":"none","reason":"..."}.`;

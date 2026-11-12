@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import {
   GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday,
-  acquireLock, lockState, touchedPackages, packageFollowUp, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify,
+  acquireLock, lockState, touchedPackages, packageFollowUp, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify, wasIneligible,
 } from '../skills/dispatch/forge-intake.mjs';
 
 const config = loadConfig(join(fileURLToPath(new URL('../skills/dispatch/', import.meta.url)), 'forge-intake.json'));
@@ -67,6 +67,13 @@ test('an issue is skipped after a PR or too many failures', () => {
   ];
   assert.equal(failedAttempts(ledger, 'SH-3'), 2);
   assert.deepEqual(skipList(ledger, config).sort(), ['SH-1', 'SH-3']);
+});
+
+test('an issue the selector claimed against the rules is retired after one run, not two', () => {
+  const ineligible = { phase: 'run', issue: 'SH-4529', outcome: 'failed', reason: 'claimed an ineligible issue (no mapped repo)' };
+  assert.equal(wasIneligible(ineligible), true);
+  assert.equal(wasIneligible({ phase: 'run', issue: 'SH-9', outcome: 'failed', reason: 'push failed: denied' }), false);
+  assert.deepEqual(skipList([ineligible, { phase: 'run', issue: 'SH-9', outcome: 'failed', reason: 'push failed: denied' }], config), ['SH-4529']);
 });
 
 test('route rotation picks the least recently used enabled plan', () => {
@@ -270,6 +277,8 @@ test('prompts carry the guardrails the wrapper relies on', () => {
   assert.match(select, /SH-4063/);
   assert.match(select, /agent:forge/);
   assert.match(select, /lost the claim race/);
+  assert.match(select, /query list_issues once for each mapped app label \(app:agenthub\)/);
+  assert.match(select, /lacks a mapped app label is never eligible/);
   assert.match(select, /Never pick these issues: SH-1/);
   assert.match(selectPrompt(config, [], 'SH-4512'), /Take only SH-4512/);
   const implement = implementPrompt({ issue: 'SH-4512', title: 'T', branch: 'forge/sh-4512-t', repo });
