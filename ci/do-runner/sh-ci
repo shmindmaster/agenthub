@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# sh-ci: per-repository persistent GitHub Actions runners on sh-build-02.
+# sh-ci: per-repository persistent GitHub Actions runners on the shared build droplet (sh-forge).
 # Usage (on the droplet, as root):
 #   sh-ci up <repo> [--postgres | --pgvector | --pg-image=<ref>] [--valkey | --valkey=2] [--buildkit] [--sole-label]
 #   (bootstrap token on stdin the first time; pass </dev/null on later re-ups; a re-up with no
 #   options reuses the saved ones, --reset clears them)
 #   sh-ci down <repo> | rm <repo> | status | logs <repo>
+# Every container joins the systemd slice sh-ci.slice, which caps the whole CI lane (see
+# ci/do-runner/sh-ci.slice) so CI can never starve the box's other lanes.
 # Each repo gets compose project sh-ci-<repo>: a runner plus optional Postgres 18 / Valkey 8 on
 # tmpfs, on its own network, no Docker socket, no app secrets. Native-first: runners exist only for
 # pre-merge tests a platform-native build cannot run (database, tenant, security integration).
@@ -56,9 +58,11 @@ up)
   echo "      TEST_REDIS_URL_B: $( [ $vk -ge 2 ] && echo redis://valkey-b:6379/0 || echo '' )"
   echo "    volumes: [\"./state:/state\", \"$ROOT/runner:/opt/sh-ci:ro\", \"$ROOT/security:/opt/sh-security:ro\"]"
   echo "    tmpfs: [\"/home/runner/_work:size=24g,uid=1001,gid=1001,exec\", \"/tmp:size=4g,exec\"]"
-  echo "    cpus: 8"
-  echo "    mem_limit: 16g"
+  echo "    cpus: 4"
+  echo "    mem_limit: 8g"
   echo "    pids_limit: 8192"
+  echo "    cgroup_parent: sh-ci.slice"
+  echo "    oom_score_adj: 500"
   if [ $bk = 1 ]; then
   echo "  buildkitd:"
   echo "    image: $BUILDKIT_IMAGE"
@@ -66,8 +70,10 @@ up)
   echo "    restart: on-failure:5"
   echo "    privileged: true   # daemon only; build steps run in BuildKit's own unprivileged runc sandboxes, insecure entitlements off"
   echo "    volumes: [\"buildkit:/var/lib/buildkit\"]"
-  echo "    cpus: 8"
-  echo "    mem_limit: 12g"
+  echo "    cpus: 4"
+  echo "    mem_limit: 8g"
+  echo "    cgroup_parent: sh-ci.slice"
+  echo "    oom_score_adj: 500"
   fi
   if [ $pg = 1 ]; then
   echo "  postgres:"
@@ -75,6 +81,8 @@ up)
   echo "    restart: on-failure:5"
   echo "    environment: {POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: ci}"
   echo "    tmpfs: [\"/var/lib/postgresql:size=3g\"]"
+  echo "    cgroup_parent: sh-ci.slice"
+  echo "    oom_score_adj: -500"
   echo "    healthcheck: {test: [\"CMD\", \"pg_isready\", \"-U\", \"postgres\"], interval: 5s, retries: 10}"
   fi
   for vname in $( [ $vk -ge 1 ] && echo valkey ) $( [ $vk -ge 2 ] && echo valkey-b ); do
@@ -82,6 +90,8 @@ up)
   echo "    image: $VALKEY_IMAGE"
   echo "    restart: on-failure:5"
   echo "    command: [\"valkey-server\", \"--save\", \"\", \"--appendonly\", \"no\"]"
+  echo "    cgroup_parent: sh-ci.slice"
+  echo "    oom_score_adj: -500"
   done
   if [ $bk = 1 ]; then echo "volumes: {buildkit: {}}"; fi
   } > "$d/compose.yml"
