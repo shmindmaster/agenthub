@@ -10,6 +10,10 @@
    `RESULT: N passed, M failed` and a matching exit code.
 3. **Package validators** — `packages/*/tests/validate-*.ps1`.
 4. **Node tests** — `packages/**/*.test.mjs`, run with `node --test`.
+   `Run-AllTests.ps1` discovers only `packages/**/*.test.mjs`; the other Node suites
+   are run directly: `node --test test/doctor/*.test.mjs` and
+   `node --test scripts/registry-content-hash.test.mjs` (the Node port of
+   `scripts/RegistryContentHash.ps1`, for hosts without `pwsh`).
 5. **Python tests** — `test_*.py` files, run with `python -m unittest` from a
    `tests/Test-*.ps1` wrapper through `tests/lib/PythonUnitTests.ps1`, which
    removes credential variables and points `LOCALAPPDATA` and `HOME` at a
