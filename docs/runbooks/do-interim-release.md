@@ -67,8 +67,8 @@ Register or update the runner from a workstation with repository admin. Never co
 
 ```bash
 gh api -X POST repos/<owner>/<repo>/actions/runners/registration-token --jq .token \
-  | ssh <build-host> /srv/work/sh-ci/bin/sh-ci up <repo> --postgres --valkey
-ssh <build-host> /srv/work/sh-ci/bin/sh-ci status
+  | ssh forge /srv/work/sh-ci/bin/sh-ci up <repo> --postgres --valkey
+ssh forge /srv/work/sh-ci/bin/sh-ci status
 ```
 
 - The one-hour bootstrap token is read from stdin, used once and deleted. On later re-ups, pass `</dev/null`. A re-up with no options reuses the saved ones; `--reset` clears them.

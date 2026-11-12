@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sh-ci: per-repository persistent GitHub Actions runners on sh-build-02.
+# sh-ci: per-repository persistent GitHub Actions runners on the shared build droplet (sh-forge).
 # Usage (on the droplet, as root):
 #   sh-ci up <repo> [--postgres | --pgvector | --pg-image=<ref>] [--valkey | --valkey=2] [--buildkit] [--sole-label]
 #   (bootstrap token on stdin the first time; pass </dev/null on later re-ups; a re-up with no
