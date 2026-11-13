@@ -42,15 +42,14 @@ loudly by design.
 
 ## CI selection
 
-CI compares the PR base or push before-SHA with the checked-out commit. Docs-only
-changes run privacy, registry, and documentation contract checks; Doctor-only
-changes run Doctor's matrix. A
-coding-agent-dispatch package change (including its content-hash-only registry
-update) runs its package tests and selected shared plugin contracts across Linux,
-macOS, and Windows. Other changes, missing history, and manual runs take the
-full suite across four platforms, split into eight independent file shards.
-Registry validation and synthetic sync run once per platform. The
-classifier deliberately falls back to full coverage for unrecognized changes;
-new narrow routes require explicit test mappings and classifier tests. Every
-change runs the public-repository privacy gate. Main push runs have separate
-concurrency groups so a later push cannot cancel checks for an earlier diff.
+Every change checks registry validation, hashes, public privacy, and the CI
+classifier. The classifier compares the PR base or push before-SHA with the
+checked-out commit and unions the checks for every changed area. Package
+changes run that package's tests and shared plugin checks on Linux. Media
+Studio tests run only for Media Studio changes, split into four shards.
+Doctor changes run its tests on Linux. Shared or unrecognized files run
+repository-level contracts on Linux, macOS and Windows in four shards per OS;
+the media-specific tests are excluded unless that package changed. Manual runs
+or unavailable history run shared and all package tests. Main pushes have
+separate concurrency groups so later pushes cannot cancel earlier checks.
+The full four-platform suite remains available locally via Run-AllTests.ps1.
