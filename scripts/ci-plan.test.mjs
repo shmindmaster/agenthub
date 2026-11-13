@@ -9,6 +9,7 @@ test('routes changes and unions independent checks', () => {
   assert.deepEqual(classify(['packages/coding-agent-dispatch/a','registry/capabilities.json'], true), {core:false,doctor:false,docs:false,packages:['coding-agent-dispatch']});
   assert.equal(classify(['packages/coding-agent-dispatch/a','registry/capabilities.json'], false).core,true);
   assert.equal(classify(['scripts/sync.ps1']).core,true);
+  assert.deepEqual(classify(['tests/Test-MediaStudioPython.ps1']).packages,['media-studio']);
   assert.equal(classify([]).core,true);
 });
 test('registry exception permits only changed packages hashes', () => {

@@ -18,9 +18,10 @@ export function hashOnlyForPackages(before, after, packages) {
 
 export function classify(paths, hashOnly = false) {
   if (!paths.length) return { core: true, doctor: true, docs: true, packages: [] };
-  const packages = [...new Set(paths.map(p => /^packages\/([a-z0-9-]+)\//.exec(p)?.[1]).filter(Boolean))].sort();
+  const packages = [...new Set(paths.map(p => /^tests\/Test-(MediaStudio|FinishMedia)/.test(p) ? 'media-studio' : /^packages\/([a-z0-9-]+)\//.exec(p)?.[1]).filter(Boolean))].sort();
   let core = false, doctor = false, docs = false;
   for (const path of paths) {
+    if (/^tests\/Test-(MediaStudio|FinishMedia)/.test(path)) continue;
     if (path.startsWith('packages/')) { if (!/^packages\/[a-z0-9-]+\//.test(path)) core = true; continue; }
     if (path === 'registry/capabilities.json' && packages.length && hashOnly) continue;
     if (/^(docs\/|README\.md$)/i.test(path)) { docs = true; continue; }
