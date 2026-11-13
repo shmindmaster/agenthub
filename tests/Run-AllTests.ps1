@@ -116,7 +116,7 @@ if ($Shard -ge $Shards) { throw "Shard must be less than Shards." }
 if ($Scope -eq 'core') {
     # Package tests run only for their package; shared scripts still exercise all
     # applicable repository-level contracts, except media-specific integration.
-    $allFiles = @($testFiles | Where-Object { [IO.Path]::GetFileName($_) -notmatch '^Test-(MediaStudio|FinishMedia)' })
+    $allFiles = @(($testFiles | Where-Object { [IO.Path]::GetFileName($_) -notmatch '^Test-(MediaStudio|FinishMedia)' }) + $validatorFiles)
 }
 if ($Scope -eq 'package') {
     if ($Package -notmatch '^[a-z0-9-]+$') { throw 'Invalid package name.' }

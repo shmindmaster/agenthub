@@ -125,7 +125,11 @@ jobs:
   docs:
     needs: plan
     if: needs.plan.outputs.docs == 'true'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -133,7 +137,12 @@ jobs:
         with:
           node-version: lts/*
       - name: Install ripgrep
-        run: sudo apt-get update -q && sudo apt-get install -y -q ripgrep
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ;;
+            Windows) choco install ripgrep -y --no-progress ;;
+          esac
       - name: Run documentation contracts
         shell: pwsh
         run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json -Scope docs
