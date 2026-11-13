@@ -39,3 +39,18 @@ loudly by design.
   parent-process capture (Run-AllTests, CI) can parse it.
 - Registry JSON is read with `-Encoding UTF8`; hashes normalize line endings
   (`scripts/RegistryContentHash.ps1`).
+
+## CI selection
+
+Every change checks registry validation, hashes, public privacy, and the CI
+classifier. The classifier compares the PR base or push before-SHA with the
+checked-out commit and unions the checks for every changed area. Package
+changes run that package's tests and shared plugin checks on Linux; dispatch,
+RepoWise, and mobile packages also run on Windows for host-specific checks. Media
+Studio tests run only for Media Studio changes, split into four shards.
+Doctor changes run its tests on Linux. Shared or unrecognized files run
+repository-level contracts and package validators on Linux, macOS and Windows in four shards per OS;
+the media-specific tests are excluded unless that package changed. Manual runs
+or unavailable history run shared and all package tests. Main pushes have
+separate concurrency groups so later pushes cannot cancel earlier checks.
+Run-AllTests.ps1 without a scope still runs the full suite on the local host.

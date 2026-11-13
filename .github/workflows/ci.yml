@@ -10,102 +10,155 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'push' && github.run_id || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # The sync engine and its full PowerShell suite on every OS coding agents
-  # run on. tests/ci-skip.json lists the only exclusions, each with its reason:
-  # tests that read the owner's machine, and Windows-host features on macOS/Linux.
-  powershell-tests:
-    name: PowerShell suite (${{ matrix.os }})
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.plan.outputs.core }}
+      doctor: ${{ steps.plan.outputs.doctor }}
+      docs: ${{ steps.plan.outputs.docs }}
+      packages: ${{ steps.plan.outputs.packages }}
+      package_matrix: ${{ steps.plan.outputs.package_matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Test change classifier
+        run: node --test scripts/ci-plan.test.mjs
+      - name: Check public repository privacy
+        shell: pwsh
+        run: pwsh -NoProfile -File ./tests/Test-PublicRepoPrivacy.ps1
+      - name: Install ripgrep
+        run: sudo apt-get update -q && sudo apt-get install -y -q ripgrep
+      - name: Validate registry and hashes
+        shell: pwsh
+        run: pwsh -NoProfile -File ./scripts/AgentHub.ps1 validate
+      - id: plan
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD_SHA: ${{ github.sha }}
+        run: node scripts/ci-plan.mjs
+
+  core:
+    needs: plan
+    if: needs.plan.outputs.core == 'true'
+    name: Shared contracts (${{ matrix.os }}, shard ${{ matrix.shard }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, macos-15-intel, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        shard: [0, 1, 2, 3]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v5
         with:
           node-version: lts/*
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
-      - name: Install ripgrep and ffmpeg
+      - name: Install test tools
         shell: bash
         run: |
           case "$RUNNER_OS" in
-            Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ffmpeg ;;
-            macOS) HOMEBREW_NO_AUTO_UPDATE=1 brew install --quiet ripgrep ffmpeg ;;
-            Windows) choco install ripgrep ffmpeg -y --no-progress ;;
+            Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ;;
+            macOS) HOMEBREW_NO_AUTO_UPDATE=1 brew install --quiet ripgrep ;;
+            Windows) choco install ripgrep -y --no-progress ;;
           esac
-
-      - name: Install the Claude Code CLI (plugin schema validator)
-        run: npm install -g @anthropic-ai/claude-code@2.1.310
-
-      - name: Install TypeScript for the strict kit typecheck
-        shell: bash
-        run: |
+          npm install -g @anthropic-ai/claude-code@2.1.310
           npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/kit-tsc" typescript@5.9.3 @types/node@24.10.1
           echo "EXECUTION_CONTROLS_TSC=$RUNNER_TEMP/kit-tsc/node_modules/typescript/bin/tsc" >> "$GITHUB_ENV"
           echo "EXECUTION_CONTROLS_TYPE_ROOTS=$RUNNER_TEMP/kit-tsc/node_modules/@types" >> "$GITHUB_ENV"
-
-      - name: Validate registry
-        shell: pwsh
-        run: pwsh -NoProfile -File ./scripts/AgentHub.ps1 validate
-
       - name: Sync audit against a synthetic profile
+        if: matrix.shard == 0
         shell: pwsh
         run: |
           $profileDir = Join-Path $env:RUNNER_TEMP 'agenthub-synthetic-profile'
           New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
           pwsh -NoProfile -File ./scripts/AgentHub.ps1 sync -UserProfile $profileDir
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Run tests
+      - name: Run shared contract tests
         shell: pwsh
-        run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json
+        run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json -Scope core -Shard ${{ matrix.shard }} -Shards 4
 
-  doctor:
-    name: Doctor (${{ matrix.os }}, Node ${{ matrix.node }})
+  package:
+    needs: plan
+    if: needs.plan.outputs.packages == 'true'
+    name: Package (${{ matrix.package }}, ${{ matrix.os }}, shard ${{ matrix.shard }})
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.package_matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test tools
+        shell: bash
+        env:
+          CI_PACKAGE_NAME: ${{ matrix.package }}
+        run: |
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ;;
+            Windows) choco install ripgrep -y --no-progress ;;
+          esac
+          if [ "$CI_PACKAGE_NAME" = media-studio ]; then sudo apt-get install -y -q ffmpeg; fi
+          npm install -g @anthropic-ai/claude-code@2.1.310
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/kit-tsc" typescript@5.9.3 @types/node@24.10.1
+          echo "EXECUTION_CONTROLS_TSC=$RUNNER_TEMP/kit-tsc/node_modules/typescript/bin/tsc" >> "$GITHUB_ENV"
+          echo "EXECUTION_CONTROLS_TYPE_ROOTS=$RUNNER_TEMP/kit-tsc/node_modules/@types" >> "$GITHUB_ENV"
+      - name: Run package and shared plugin tests
+        shell: pwsh
+        env:
+          CI_PACKAGE: ${{ matrix.package }}
+        run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json -Scope package -Package $env:CI_PACKAGE -Shard ${{ matrix.shard }} -Shards ${{ matrix.shards }}
+
+  docs:
+    needs: plan
+    if: needs.plan.outputs.docs == 'true'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [lts/*]
-        include:
-          - os: ubuntu-latest
-            node: '20'
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    defaults:
-      run:
-        shell: bash
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v5
         with:
-          node-version: ${{ matrix.node }}
-
-      - run: npm ci
-
-      - name: Type-check
-        run: npm run typecheck
-
-      - name: Unit and fixture-home tests
-        run: node --test test/doctor/*.test.mjs
-
-      - name: Smoke run against the runner's own home
+          node-version: lts/*
+      - name: Install ripgrep
+        shell: bash
         run: |
-          node scripts/agenthub-cli.mjs doctor --no-registry --all
-          node scripts/agenthub-cli.mjs doctor --no-registry --json > "$RUNNER_TEMP/doctor.json"
-          node -e "const r = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')); if (r.readOnly !== true || r.network !== 'none') process.exit(1)" "$RUNNER_TEMP/doctor.json"
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ;;
+            Windows) choco install ripgrep -y --no-progress ;;
+          esac
+      - name: Run documentation contracts
+        shell: pwsh
+        run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json -Scope docs
 
-      - name: Package contents
-        run: npm pack --dry-run
+  doctor:
+    needs: plan
+    if: needs.plan.outputs.doctor == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node --test test/doctor/*.test.mjs
+      - run: node scripts/agenthub-cli.mjs doctor --no-registry --all
+      - run: npm pack --dry-run

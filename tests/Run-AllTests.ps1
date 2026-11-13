@@ -29,7 +29,11 @@ Run: pwsh -NoProfile -File tests/Run-AllTests.ps1
 #>
 [CmdletBinding()]
 param(
-    [string]$SkipListPath
+    [string]$SkipListPath,
+    [ValidateSet('full', 'core', 'package', 'docs')] [string]$Scope = 'full',
+    [string]$Package = '',
+    [ValidateRange(0, 127)] [int]$Shard = 0,
+    [ValidateRange(1, 128)] [int]$Shards = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -107,6 +111,39 @@ if (-not [string]::IsNullOrWhiteSpace($SkipListPath)) {
         }
     }
 }
+
+if ($Shard -ge $Shards) { throw "Shard must be less than Shards." }
+if ($Scope -eq 'core') {
+    # Package tests run only for their package; shared scripts still exercise all
+    # applicable repository-level contracts, except media-specific integration.
+    $allFiles = @(($testFiles | Where-Object { [IO.Path]::GetFileName($_) -notmatch '^Test-(MediaStudio|FinishMedia)' }) + $validatorFiles)
+}
+if ($Scope -eq 'package') {
+    if ($Package -notmatch '^[a-z0-9-]+$') { throw 'Invalid package name.' }
+    $common = @('Test-AmpPlugins.ps1', 'Test-Bundles.ps1', 'Test-PortablePluginSchemas.ps1', 'Test-PluginPaths.ps1', 'Test-PluginTransaction.ps1', 'Test-CapabilityOwnership.ps1', 'Test-FileEncodingDiscipline.ps1', 'Test-SkillAuthoringStandard.ps1', 'Test-PluginManifests.ps1', 'Test-PluginDeployment.ps1', 'Test-PluginWorkflows.ps1')
+    $mapped = switch ($Package) {
+        'coding-agent-dispatch' { @('Test-CodeBuildPrCi.ps1', 'Test-PrReview.ps1', 'Test-KiroFleet.ps1') }
+        'media-studio' { @($testFiles | Where-Object { [IO.Path]::GetFileName($_) -match '^Test-(MediaStudio|FinishMedia)' } | ForEach-Object { [IO.Path]::GetFileName($_) }) }
+        'repowise' { @($testFiles | Where-Object { [IO.Path]::GetFileName($_) -match '^Test-(RepoWise|UpdateRepoWise)' } | ForEach-Object { [IO.Path]::GetFileName($_) }) }
+        'mobile-development' { @('Test-MobileDevelopment.ps1', 'Test-MobileLabGuestSetup.ps1', 'Test-MobileLabVmwareStartup.ps1', 'Test-MobileLabExclusivity.ps1', 'Test-SyncRepoToGuest.ps1', 'Test-MobileScope.ps1') }
+        default { @() }
+    }
+    $allFiles = @($allFiles | Where-Object {
+        $_.Replace('\', '/') -like "*/packages/$Package/*" -or
+        [IO.Path]::GetFileName($_) -in ($common + $mapped)
+    })
+    if ($allFiles.Count -eq 0) { throw 'Package scope selected no test files.' }
+}
+if ($Scope -eq 'docs') {
+    $docsTests = @('Test-AmpPlugins.ps1', 'Test-Bundles.ps1', 'Test-CodeBuildPrCi.ps1', 'Test-KiroFleet.ps1', 'Test-MobileDevelopment.ps1', 'Test-OptInDisabledMcp.ps1', 'Test-RegistryHostReferences.ps1', 'Test-RepoStandard.ps1', 'Test-PublicCoreExport.ps1', 'Test-PrReview.ps1', 'Test-SkillAuthoringStandard.ps1')
+    $allFiles = @($allFiles | Where-Object { [IO.Path]::GetFileName($_) -in $docsTests })
+    if ($allFiles.Count -ne $docsTests.Count) { throw 'Documentation test mapping is incomplete.' }
+}
+$selectedFiles = @($allFiles)
+$allFiles = @(for ($i = 0; $i -lt $selectedFiles.Count; $i++) {
+    if (($i % $Shards) -eq $Shard) { $selectedFiles[$i] }
+})
+Write-Host "Scope $Scope, shard $($Shard + 1)/${Shards}: $($allFiles.Count) assigned file(s)."
 
 $results = [Collections.Generic.List[object]]::new()
 $totalPassed = 0
