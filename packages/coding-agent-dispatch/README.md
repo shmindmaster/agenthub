@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.8.0 (the root `plugin.json` is the single version authority; `SKILL.md`
+Version 0.8.11 (the root `plugin.json` is the single version authority; `SKILL.md`
 metadata and every host projection carry the same number and
 `tests/validate-dispatch.ps1` enforces parity). The package is a full plugin:
 `.claude-plugin`, `.codex-plugin`, `.cursor-plugin`, `.devin-plugin` and
