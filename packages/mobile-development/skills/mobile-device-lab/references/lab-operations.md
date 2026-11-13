@@ -76,7 +76,7 @@ Always pass `--device`; bare `maestro test` silently picks the guest's iOS simul
 
 ## Lease and idle check
 
-Acquire before any build, install or session, and release in `finally`.
+Acquire before any build, install or session, and release in `finally`. A successful release confirms that the foreground mutex is free.
 
 ```powershell
 $root = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\skills\mobile-device-lab\scripts"

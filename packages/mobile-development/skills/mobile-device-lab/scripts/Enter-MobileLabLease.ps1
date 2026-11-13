@@ -68,6 +68,10 @@ try {
             while ([DateTimeOffset]::UtcNow -lt $expiresAt -and -not (Test-Path -LiteralPath $paths.Release)) {
                 Start-Sleep -Milliseconds 250
             }
+            # Publish release only after the mutex is actually free. A caller may
+            # act immediately on this status, including acquiring a new lease.
+            $mutex.ReleaseMutex()
+            $acquired = $false
             [IO.File]::WriteAllText($paths.Status, (@{ ok = $true; active = $false; state = 'released'; leaseId = $LeaseId; holderPid = $PID } | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
             exit 0
         }

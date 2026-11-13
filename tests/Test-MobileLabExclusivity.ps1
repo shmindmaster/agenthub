@@ -93,6 +93,24 @@ try {
         }
     }
 
+    # Force a scheduler pause after the holder publishes the released status.
+    # Release must not report success until the mutex can be acquired, even if
+    # the holder is descheduled immediately after its status write.
+    $fixtureLeaseTool = Join-Path $fixtureRoot 'lease-delayed.ps1'
+    $holderSource = [IO.File]::ReadAllText($leaseToolPath)
+    $statusLine = '[IO.File]::WriteAllText($paths.Status, (@{ ok = $true; active = $false; state = ''released''; leaseId = $LeaseId; holderPid = $PID } | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))'
+    if (-not $holderSource.Contains($statusLine)) { throw 'Could not install released-status scheduling fixture.' }
+    $holderSource = $holderSource.Replace($statusLine, ($statusLine + "`n            Start-Sleep -Seconds 3"))
+    [IO.File]::WriteAllText($fixtureLeaseTool, $holderSource, [Text.UTF8Encoding]::new($false))
+    $delayedMutex = 'Local\AgentHub.MobileDeviceLab.Test.' + [guid]::NewGuid().ToString('N')
+    $delayedLease = Invoke-JsonScript -Path $fixtureLeaseTool -Parameters @{ Action = 'Acquire'; TimeoutMinutes = 2; MutexName = $delayedMutex }
+    if (-not ($delayedLease.ExitCode -eq 0 -and $delayedLease.Result.ok)) { throw 'Delayed holder fixture could not acquire its isolated lease.' }
+    $delayedRelease = Invoke-JsonScript -Path $fixtureLeaseTool -Parameters @{ Action = 'Release'; LeaseId = [string]$delayedLease.Result.leaseId; MutexName = $delayedMutex }
+    $delayedProbe = Invoke-JsonScript -Path $idleProbePath -Parameters @{ LeaseOnly = $true; MutexName = $delayedMutex }
+    Report 'release success means the mutex is already free even if the holder pauses' (
+        $delayedRelease.ExitCode -eq 0 -and $delayedRelease.Result.ok -and $delayedProbe.ExitCode -eq 0 -and $delayedProbe.Result.idle
+    ) "release=$($delayedRelease.Output -join ' ') probe=$($delayedProbe.Output -join ' ')"
+
     # The override is test isolation, not a bypass: it admits only the
     # canonical name or a Local test name, and nothing outside the lease tool
     # itself (which forwards it to its own holder) ever passes it.
