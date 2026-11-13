@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 // an explicit test mapping and coverage for shared contracts.
 export function classify(paths, registryHashOnly = false) {
   if (!paths.length) return 'full';
-  const useful = paths.filter(p => !/^(docs\/|[^/]+\.md$)/i.test(p));
+  const useful = paths.filter(p => !/^(docs\/|README\.md$)/i.test(p));
   if (!useful.length) return 'docs';
   if (useful.every(p => /^(src\/doctor\/|test\/doctor\/)/.test(p))) return 'doctor';
   const dispatch = useful.some(p => p.startsWith('packages/coding-agent-dispatch/'));
