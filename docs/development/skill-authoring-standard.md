@@ -15,6 +15,30 @@ Applies to every managed skill under `packages/*/skills/*/SKILL.md` and `overlay
 - Name by what the agent does: verb or gerund first (`audit`, `search-docs`). One pattern per plugin.
 - Avoid vague names: `helper`, `utils`, `tools`, `docs`, `data`, `files`.
 
+### 2a. Which of those is enforced
+
+Section 1 rules are hard failures in `tests/Test-SkillAuthoringStandard.ps1`. Section 2 rules are reported only, because renaming a deployed skill is an identity change: it needs its own `retiredFleetSkills` row with `supersededBy`, a version bump through `scripts/Bump-PackageVersion.ps1`, every host projection, and a `RegistryContentHash.ps1` recompute. Promote the ban-list check to a hard failure once the names it reports have been renamed. The verb-first rule is a heuristic in the checker and will stay reported.
+
+### 2b. The plugin namespace must reach every surface
+
+Section 2 assumes the plugin qualifies each skill, so bare names like `plan` are safe. That assumption holds only where the host or installer actually applies the namespace. A surface that lists the bare skill names makes `plan`, `review`, `design` and `build` collide with anything else that wants those words. Before relying on a bare name, check the surface it deploys to: the namespace is part of the name's safety, not decoration. If a surface cannot carry it, qualify the name there.
+
+### 2c. Naming across the other surfaces
+
+The skill name is one of four surfaces. Keep them derived from one identity rather than invented separately.
+
+| Surface | Rule | Example |
+| --- | --- | --- |
+| Capability id | short lowercase word or hyphen phrase | `context7` |
+| Package directory | equals the capability id | `packages/context7` |
+| Plugin name / display | `ah-<id>` / `AH-<Title>` | `ah-context7` / `AH-Context7` |
+| Skill `name` | equals its directory; one or two words; verb or gerund first; does not repeat the plugin name | `lookup` |
+| MCP server id / display | `id` equals the capability id; display `AH-<Title>` | `context7` / `AH-Context7` |
+
+The `ah-*` / `AH-*` rule and the one-version authority across host projections are set in `docs/plans/active/plugin-redesign.md`. A host projection may add host-native fields but must not diverge on `name` or `version`; the allowed extra fields are listed under `canonicalPackage` in `registry/plugin-formats.json`. If a projection needs a field outside that list, amend the list deliberately rather than adding the field quietly.
+
+One capability owns one integration. Where both a package and an MCP server exist for the same thing, name the single owner in `registry/capabilities.json` and `registry/mcps.json` and keep them agreeing.
+
 ## 3. Descriptions
 
 - Third person. Outcome first, then `Use when` plus triggers. Put key trigger terms early because truncation cuts the end.
