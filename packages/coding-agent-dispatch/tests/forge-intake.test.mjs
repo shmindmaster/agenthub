@@ -144,7 +144,7 @@ test('a retry gets a new branch and the claim label is not evidence against elig
 
 test('the entry point guard works through a symlinked install path', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'intake-main-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* Windows EPERM on git/AV locks */ } });
   const real = join(dir, 'real.mjs'); writeFileSync(real, '');
   const link = join(dir, 'current.mjs');
   try { symlinkSync(real, link); } catch { t.skip('symlinks unavailable on this runner'); return; }
@@ -156,7 +156,7 @@ test('the entry point guard works through a symlinked install path', (t) => {
 
 test('protected paths hold even for non-ASCII file names that git would quote', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'intake-git-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* Windows EPERM on git/AV locks */ } });
   const g = (...args) => assert.equal(spawnSync('git', args, { cwd: dir }).status, 0, args.join(' '));
   g('init', '-q', '-b', 'main'); g('config', 'user.email', 't@example.invalid'); g('config', 'user.name', 't');
   writeFileSync(join(dir, 'a.txt'), 'a\n'); g('add', '-A'); g('commit', '-q', '-m', 'base');
@@ -170,7 +170,7 @@ test('protected paths hold even for non-ASCII file names that git would quote', 
 
 test('the single-run lock is atomic and recovers from a dead holder', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'intake-lock-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* Windows EPERM on git/AV locks */ } });
   const lock = join(dir, 'lock');
   assert.equal(acquireLock(lock), true);
   assert.equal(acquireLock(lock), false, 'a live holder (this process) blocks a second run');
@@ -181,7 +181,7 @@ test('the single-run lock is atomic and recovers from a dead holder', (t) => {
 
 test('the status report names a live lock holder and flags a stale one', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'intake-lockstate-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* Windows EPERM on git/AV locks */ } });
   const lock = join(dir, 'lock');
   assert.deepEqual(lockState(lock), { lockHeldBy: null, staleLock: null }, 'no lock file');
   writeFileSync(lock, `${process.pid}\n`);
@@ -258,7 +258,7 @@ test('the diff gate refuses binaries, symlinks, submodules, mode changes and sen
 
 test('a changed git hook or config in the agent tree is detected', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'intake-fp-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* Windows EPERM on git/AV locks */ } });
   mkdirSync(join(dir, '.git/hooks'), { recursive: true });
   writeFileSync(join(dir, '.git/config'), '[core]\n');
   const before = gitFingerprint(dir);
