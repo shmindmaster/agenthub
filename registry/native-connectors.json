@@ -1287,7 +1287,7 @@
           "command": "npx skills add slackapi/slack-skills-plugin",
           "docs": "https://docs.slack.dev/ai/slack-skills-plugin/"
         },
-        "note": "Optional UX. AgentHub owned Slack read/write via packages/slack until that capability was retired on 2026-10-30; Codex is skills-only; npx skills installs skills, not MCP. Do not republish as slack@agenthub. Do not install it to close a host MCP gap.",
+        "note": "Optional UX. AgentHub owned Slack read/write via packages/slack until that capability was retired on 2026-10-30; Codex is skills-only; npx skills installs skills, not MCP. Do not republish as slack@agenthub. Installing slackapi/slack-skills-plugin as optional UX is legitimate and, after the retirement, is the only available route to Slack MCP (aligned with registry/bundles.json slack-workspace note).",
         "observedAt": "2026-09-10",
         "hostChannels": [
           {

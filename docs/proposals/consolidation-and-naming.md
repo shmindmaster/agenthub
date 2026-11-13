@@ -128,24 +128,19 @@ resolves `AGENTHUB_OVERLAY` → `overlays/personal` → the sibling
 `agenthub-private` recognised by its `overlay.json`, then merges only
 `enabledCapabilityIds` rows. Public is the control plane; private is data. That
 matches AGENTS.md ("There is no second control-plane repo. Do not recreate
-one."). Capability ids do not collide (private: `sarosh`, `docwise`, `linkedin`).
+one."). Private capability ids are chosen not to collide with public ones.
 
-Drift toward a second control plane:
+Drift toward a second control plane (details live only in the private
+repository's own audit, not here):
 
-- **`global-agent-policy.md` exists in both repos and they disagree** —
-  similarity 0.337. Private has "Personal hosting" and "Load detailed policy"
-  that public lacks; public has "Mobile scope" that private lacks. Same
-  filename, two different truths, and the overlay-wins rule means hosts read the
-  private one.
-- **`packages/linkedin/mcp.json` restates** the public `registry/mcps.json`
-  linkedin row verbatim (same `uvx mcp-server-linkedin@4.24.0`, args, env).
-- **`overlay.json` claims `privateMarketplacePlugins: [sarosh, linkedin,
-  docwise]`** but both `.claude-plugin/marketplace.json` files omit `linkedin`.
-- **Misfiled product code.** `knowledge-os/` is a full Python 3.12 product
-  ("MahumTech Knowledge OS", ~35 modules, own `pyproject.toml`, migrations,
-  tests) referenced by **nothing** in either repo — grep-verified zero hits.
-  Also `plans/active/storage-closeout/` session scratch and `tests/sarosh/`
-  sitting at repo root instead of beside `packages/sarosh`.
+- **`global-agent-policy.md` exists in both repos and they disagree.** Same
+  filename, two different truths, and the overlay-wins rule means hosts can
+  read a stale private copy.
+- **The private marketplace plugin list and a private package's MCP stub can
+  disagree** with the public registry rows they claim to mirror.
+- **Misfiled product and session code** can sit at the private repo root
+  instead of inside the packages or guidance trees the overlay actually
+  consumes.
 
 ## Finding 5 — smaller surface issues
 
@@ -196,48 +191,44 @@ from a brief use the media-studio video skill").
 ### R2. Retire the wrappers a vendor plugin already covers
 
 This is **not** a blanket retirement. Per-host evidence gathered 2026-11-12
-from 
-egistry/mcps.json -> pluginOwnersByHost and
-
-egistry/capabilities.json -> hostMappings shows the AgentHub wrappers are
+from registry/mcps.json -> pluginOwnersByHost and
+registry/capabilities.json -> hostMappings shows the AgentHub wrappers are
 load-bearing on very few hosts:
 
-| MCP | h-* wrapper owns | Vendor owns | Wrapper hostMappings |
+| MCP | ah-* wrapper owns | Vendor owns | Wrapper hostMappings |
 | --- | --- | --- | --- |
-| linear | **amp** | antigravity, codex, copilot, cursor, devin, factory, grok, vscode-insiders (8) | mp only |
-| context7 | **amp** | antigravity, codex, copilot, cursor, devin, factory, grok, opencode, vscode-insiders (9) | mp only |
-| 
-otion | **amp, grok** | antigravity, claude, codex, copilot, cursor, devin, factory, vscode-insiders (8) | grok, amp, warp |
+| linear | **amp** | antigravity, codex, copilot, cursor, devin, factory, grok, vscode-insiders (8) | amp only |
+| context7 | **amp** | antigravity, codex, copilot, cursor, devin, factory, grok, opencode, vscode-insiders (9) | amp only |
+| notion | **amp, grok** | antigravity, claude, codex, copilot, cursor, devin, factory, vscode-insiders (8) | grok, amp, warp |
 | exa | **amp, antigravity** | codex, copilot, cursor, devin, factory, grok, vscode-insiders (7) | antigravity, amp, warp |
 | clerk | none | 9 hosts, all vendor | — |
 
-So retiring h-linear and h-context7 is a decision about **one host
-(mp)**, not the fleet.
+So retiring ah-linear and ah-context7 is a decision about **one host
+(amp)**, not the fleet.
 
-- **Retire, vendor replacement exists.** h-linear, h-context7 (each:
-  mp only), h-notion, h-exa. For each host that would lose a route,
+- **Retire, vendor replacement exists.** ah-linear, ah-context7 (each:
+  amp only), ah-notion, ah-exa. For each host that would lose a route,
   confirm the vendor plugin is installed and enabled — the registry records
   *ownership*, not installation state — then retire and record
-  
-etiredFleetSkills with supersededBy: external:<vendor>.
-- **Check one host live first.** h-daytona is mapped to 8 hosts in
+  retiredFleetSkills with supersededBy: external:<vendor>.
+- **Check one host live first.** ah-daytona is mapped to 8 hosts in
   hostMappings, yet the native-first audit says daytona is carried natively on
   most hosts. Either the registry deploys a wrapper nobody needs, or the vendor
   route is not actually wired. Separately it is 292 tracked files, of which
   ~268 are vendored SDK reference docs — waste either way.
-- **Owner call.** h-aws (skill-only, 11 hosts) and h-brave-search
+- **Owner call.** ah-aws (skill-only, 11 hosts) and ah-brave-search
   (skill-only, 13 hosts) wrap capabilities several hosts already have built in.
-- **Keep.** h-assemblyai, h-descript, h-media-studio, h-product,
-  h-browser, h-sarosh have no vendor equivalent (the audit's own list).
-  h-repowise is already correctly handled: Claude and Codex use the vendor
+- **Keep.** ah-assemblyai, ah-descript, ah-media-studio, ah-product,
+  ah-browser, ah-sarosh have no vendor equivalent (the audit's own list).
+  ah-repowise is already correctly handled: Claude and Codex use the vendor
   plugins and the AgentHub wrapper stays uninstalled there.
 
-Do not delete on the audit alone. Before retiring h-daytona, extract anything
+Do not delete on the audit alone. Before retiring ah-daytona, extract anything
 in its single script (skills/daytona/scripts/) that is not vendor
 documentation. Report before/after tracked file and line counts.
 
-Run the SH-4544 plugin redeploy first: 	ests/Test-InstalledPluginFreshness.ps1
-currently fails on exactly this class of drift (h-coding-agent-dispatch
+Run the SH-4544 plugin redeploy first: tests/Test-InstalledPluginFreshness.ps1
+currently fails on exactly this class of drift (ah-coding-agent-dispatch
 installed at 0.8.2/0.8.1/0.8.10 against source 0.8.11, 10 file differences per
 host), which would otherwise mask real drift behind stale installs.
 
@@ -265,28 +256,27 @@ browser stack.
 
 ### R5. Shrink `agenthub-private` to exactly what the overlay consumes
 
-Keep: `packages/{sarosh,docwise,linkedin}`, their three `capabilities.json`
-rows, `policy-fragment.md`, `guidance/`, `privacy-denylist.txt`, `overlay.json`,
-and the marketplace role (that is distribution, not registry).
+Keep only what the overlay mechanism reads: the private capability packages and
+their `capabilities.json` rows, `policy-fragment.md`, `guidance/`,
+`privacy-denylist.txt`, `overlay.json`, and the marketplace role (that is
+distribution, not registry). Exact package ids and root-level inventory stay in
+the private repository's audit — they are not public interface.
 
 Then:
 
-- **Delete `agenthub-private/global-agent-policy.md` as a stored copy.** Generate
+- **Stop storing a second full copy of `global-agent-policy.md`.** Generate
   it at sync time from `policy-core.md` + `policy-fragment.md`, or keep it but
-  mark it generated and validate it against sources. Right now it has already
-  diverged from public (missing "Mobile scope"), and overlay-wins means hosts
-  read the drifted version.
-- **Deduplicate the linkedin MCP contract.** `registry/mcps.json` is canonical;
-  `packages/linkedin/mcp.json` should reference it or be hash-validated against
-  it, not restate it.
-- **Move `knowledge-os/` to its own repository.** It is a Graph product with its
-  own packaging and tests, referenced by nothing here.
-- **Move `tests/sarosh/` beside `packages/sarosh/`**, and clear
-  `plans/active/storage-closeout/` session scratch per the leave-nothing-behind
-  rule.
+  mark it generated and validate it against sources. A drifted private copy
+  wins under overlay rules and hides the divergence.
+- **Deduplicate any private MCP stub** that restates a public
+  `registry/mcps.json` row verbatim; the public registry is canonical and the
+  stub should reference or hash-validate against it.
+- **Move product code and session scratch out of the private repo root** into
+  their own repositories or beside the packages they belong to, per
+  leave-nothing-behind.
 
-End state: public `agenthub` is the only control plane; private is three
-packages, three rows, a policy fragment and guidance.
+End state: public `agenthub` is the only control plane; private holds only the
+overlay-consumed packages, rows, policy fragment, and guidance.
 
 ### R6. Stop the sink from re-growing, and clean the small drift
 
