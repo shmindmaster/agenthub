@@ -14,11 +14,12 @@ import shutil
 import subprocess
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PACKAGES = {
+# Public packages are repo-relative. Private packages resolve through the same
+# overlay roots CapabilityGraph uses: AGENTHUB_OVERLAY, overlays/personal, then
+# the sibling agenthub-private clone (overlay.json marker).
+_PUBLIC_PACKAGES = {
     "ah-product": "packages/product",
     "ah-media-studio": "packages/media-studio",
-    "ah-sarosh": "overlays/personal/packages/sarosh",
-    "ah-docwise": "overlays/personal/packages/docwise",
     "ah-assemblyai": "packages/assemblyai",
     "ah-brave-search": "packages/brave-search",
     "ah-daytona": "packages/daytona",
@@ -33,6 +34,41 @@ PACKAGES = {
     "ah-coding-agent-dispatch": "packages/coding-agent-dispatch",
     "ah-funding": "packages/funding",
 }
+_PRIVATE_PACKAGES = ("ah-sarosh", "ah-docwise")
+
+
+def _overlay_root():
+    explicit = os.environ.get("AGENTHUB_OVERLAY", "").strip()
+    if explicit.lower() == "off":
+        return None
+    if explicit:
+        root = os.path.abspath(explicit)
+        if not os.path.isdir(root):
+            raise SystemExit(f"AGENTHUB_OVERLAY is '{root}' but that directory does not exist")
+        return root
+    default = os.path.join(REPO, "overlays", "personal")
+    if os.path.isdir(default):
+        return default
+    sibling = os.path.abspath(os.path.join(os.path.dirname(REPO), "agenthub-private"))
+    if os.path.isfile(os.path.join(sibling, "overlay.json")):
+        return sibling
+    return None
+
+
+def _package_paths():
+    packages = dict(_PUBLIC_PACKAGES)
+    overlay = _overlay_root()
+    for name in _PRIVATE_PACKAGES:
+        folder = name[len("ah-"):]
+        if overlay:
+            packages[name] = os.path.relpath(
+                os.path.join(overlay, "packages", folder), REPO
+            ).replace("\\", "/")
+        # Absent overlay: omit the private plugin rather than crash the public build.
+    return packages
+
+
+PACKAGES = _package_paths()
 # Package folders Amp must not read: host manifests, tests, agents, render scratch.
 SKIP_TOP = {
     ".claude-plugin", ".codex-plugin", ".cursor-plugin", ".antigravity-plugin", ".pytest_cache",
