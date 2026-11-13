@@ -114,7 +114,7 @@ if (-not [string]::IsNullOrWhiteSpace($SkipListPath)) {
 if ($Shard -ge $Shards) { throw "Shard must be less than Shards." }
 if ($Scope -eq 'dispatch') {
     # These exercise the dispatch package and the shared plugin contracts it changes.
-    $dispatchTests = @('Test-PluginManifests.ps1', 'Test-PluginDeployment.ps1', 'Test-PluginWorkflows.ps1', 'Test-CodeBuildPrCi.ps1', 'Test-PrReview.ps1', 'Test-KiroFleet.ps1')
+    $dispatchTests = @('Test-FileEncodingDiscipline.ps1', 'Test-SkillAuthoringStandard.ps1', 'Test-PluginManifests.ps1', 'Test-PluginDeployment.ps1', 'Test-PluginWorkflows.ps1', 'Test-CodeBuildPrCi.ps1', 'Test-PrReview.ps1', 'Test-KiroFleet.ps1')
     $allFiles = @($allFiles | Where-Object {
         $_.Replace('\', '/') -like '*/packages/coding-agent-dispatch/*' -or
         [IO.Path]::GetFileName($_) -in $dispatchTests
