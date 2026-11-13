@@ -36,16 +36,54 @@ function Test-SkippedPackagePart([string]$Part) {
     return ($Part -in $skipNames) -or $Part.StartsWith('.cloud-render-chunks-', [StringComparison]::Ordinal)
 }
 
+function Get-AgentHubOverlayRootForCursor([string]$RepoRoot) {
+    if ($env:AGENTHUB_OVERLAY -eq 'off') { return $null }
+    if (-not [string]::IsNullOrWhiteSpace($env:AGENTHUB_OVERLAY)) {
+        $explicit = [System.IO.Path]::GetFullPath($env:AGENTHUB_OVERLAY).TrimEnd('\', '/')
+        if (Test-Path -LiteralPath $explicit) { return $explicit }
+        return $null
+    }
+    $default = Join-Path $RepoRoot 'overlays\personal'
+    if (Test-Path -LiteralPath $default) { return $default }
+    $sibling = Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/'))) 'agenthub-private'
+    if (Test-Path -LiteralPath (Join-Path $sibling 'overlay.json')) { return $sibling }
+    return $null
+}
+
+function Resolve-AgentHubPackagePath([string]$RepoRoot, [string]$CanonicalSource) {
+    $canonical = ([string]$CanonicalSource).Replace('/', [IO.Path]::DirectorySeparatorChar)
+    $direct = Join-Path $RepoRoot $canonical
+    if (Test-Path -LiteralPath $direct) { return $direct }
+    if ($canonical.StartsWith('overlays\personal\', [StringComparison]::OrdinalIgnoreCase)) {
+        $overlay = Get-AgentHubOverlayRootForCursor $RepoRoot
+        if ($overlay) {
+            $relative = $canonical.Substring('overlays\personal\'.Length)
+            $resolved = Join-Path $overlay $relative
+            if (Test-Path -LiteralPath $resolved) { return $resolved }
+        }
+        # Sibling clone layout: agenthub-private/packages/<id>
+        $folder = Split-Path -Leaf $canonical
+        $siblingPkg = Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/'))) "agenthub-private\packages\$folder"
+        if (Test-Path -LiteralPath $siblingPkg) { return $siblingPkg }
+    }
+    return $direct
+}
+
 function Get-CursorPackagePaths([string]$RepoRoot) {
     $files = @('registry/capabilities.json', 'overlays/personal/capabilities.json') | ForEach-Object { Join-Path $RepoRoot $_ }
+    # Private capabilities also live in the overlay clone's capabilities.json
+    $overlay = Get-AgentHubOverlayRootForCursor $RepoRoot
+    if ($overlay) {
+        $overlayCaps = Join-Path $overlay 'capabilities.json'
+        if (Test-Path -LiteralPath $overlayCaps) { $files += $overlayCaps }
+    }
     foreach ($file in $files) {
         if (-not (Test-Path -LiteralPath $file)) { continue }
         $document = Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
         foreach ($capability in @($document.capabilities)) {
             $mapping = @($capability.hostMappings) | Where-Object { $_.hostId -eq 'cursor' -and $_.deploymentStatus -eq 'native-local-plugin' }
             if (-not $mapping) { continue }
-            # canonicalSource is relative to the repository root in both registries.
-            Join-Path $RepoRoot ([string]$capability.canonicalSource)
+            Resolve-AgentHubPackagePath $RepoRoot ([string]$capability.canonicalSource)
         }
     }
 }

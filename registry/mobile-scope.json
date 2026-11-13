@@ -310,6 +310,12 @@
       "repository": "shmindmaster/docwise",
       "bucket": "noNative",
       "note": "Local document index with a FastAPI web UI on loopback, a CLI and a stdio MCP server; no native mobile surface. Classified from repository evidence 2026-10-30."
+    },
+    {
+      "productId": "agenthub-private",
+      "repository": "shmindmaster/agenthub-private",
+      "bucket": "noNative",
+      "note": "Private AgentHub overlay clone beside agenthub at the fleet root (overlay.json present). Holds private capability packages and registry rows only; no product or native application surface. Classified 2026-11-12 for SH-4637 after Test-MobileScope reported it unclassified as a fleet-root git child."
     }
   ],
   "identifierConvention": {

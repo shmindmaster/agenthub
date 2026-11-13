@@ -500,9 +500,16 @@ function Test-RetiredPluginIdentitiesAreAbsent {
         }
         $claudeCache = Join-Path $HOME ".claude\plugins\cache\agenthub\$retiredName"
         if (Test-Path -LiteralPath $claudeCache) { $hits.Add("Claude cache: $claudeCache") }
+        # Codex layout is cache/agenthub/<plugin>/<ver>/... A skill folder named
+        # mobile-device-lab under a live ah-mobile-development install is the
+        # managed skill still shipping in that package — not a retired plugin
+        # cache. Only a directory whose parent is not skills/ counts.
         foreach ($directory in @($codexDirs | Where-Object Name -eq $retiredName)) {
+            if ($directory.Parent -and $directory.Parent.Name -eq 'skills') { continue }
             $hits.Add("Codex cache: $($directory.FullName)")
         }
+        $codexTopLevel = Join-Path $HOME ".codex\plugins\cache\agenthub\$retiredName"
+        if (Test-Path -LiteralPath $codexTopLevel) { $hits.Add("Codex cache: $codexTopLevel") }
     }
 
     if ($hits.Count -gt 0) { return @{ Passed = $false; Detail = ($hits -join '; ') } }

@@ -69,10 +69,8 @@
     {
       "id": "slack-workspace",
       "title": "Slack workspace (canonical)",
-      "summary": "One AgentHub Slack contract on every coding-agent host. Official Slack skills plugin is optional UX, not authority.",
-      "requires": [
-        "slack"
-      ],
+      "summary": "One AgentHub Slack contract on every coding-agent host. Official Slack skills plugin is optional UX, not authority. Currently requires nothing: the AgentHub Slack capability was retired 2026-10-30.",
+      "requires": [],
       "recommends": [],
       "thirdParty": {
         "recommends": [],
@@ -81,9 +79,9 @@
         ]
       },
       "notes": [
-        "packages/slack owns tools, schemas, identity, and the Web API bridge.",
-        "Do not install slackapi/slack-skills-plugin to close a host MCP gap; AgentHub supplies that MCP.",
-        "Gateway distribution (127.0.0.1:8811/mcp and a remote authenticated endpoint) is the production path once generationEnabled is proven."
+        "Checked and absent 2026-11-12: there is no packages/slack, no slack id in registry/capabilities.json, and no slack server in registry/mcps.json. registry/native-connectors.json records that the AgentHub slack bridge was retired with the slack capability on 2026-10-30 at owner direction. This bundle previously required 'slack' and asserted that packages/slack owned the Web API bridge; both were left behind by that retirement.",
+        "Correction 2026-11-12: an earlier note here read 'Do not install slackapi/slack-skills-plugin to close a host MCP gap; AgentHub supplies that MCP.' That became false and actively harmful after the retirement, because AgentHub supplies no Slack MCP today and the official plugin is the only available route. Installing slackapi/slack-skills-plugin as optional UX is legitimate.",
+        "Forward-looking design is still recorded in docs/plans/active/slack-canonical-capability.md: gateway distribution at 127.0.0.1:8811/mcp plus a remote authenticated endpoint, generationEnabled still false. Reconcile that plan before resuming: its milestone 1 is marked complete although packages/slack was retired afterwards. Test-Bundles.ps1 accepts an unregistered capability when any plan under docs/plans/active mentions the id, so a stale plan satisfies the guard; that gap is recorded in SH-4637."
       ]
     }
   ]

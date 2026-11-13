@@ -77,7 +77,7 @@
   "includeMcpJson": false,
   "includePowers": false,
   "resources": [
-    "file://C:/Repos/shmindmaster/agenthub-private/global-agent-policy.md",
+    "file://C:/Repos/shmindmaster/agenthub/global-agent-policy.md",
     "skill://C:/Repos/shmindmaster/agenthub/packages/product/skills/**/SKILL.md"
   ]
 }
