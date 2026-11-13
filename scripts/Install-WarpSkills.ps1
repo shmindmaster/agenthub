@@ -33,12 +33,36 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+function Get-AgentHubOverlayRootForWarp([string]$RepoRoot) {
+    if ($env:AGENTHUB_OVERLAY -eq 'off') { return $null }
+    if (-not [string]::IsNullOrWhiteSpace($env:AGENTHUB_OVERLAY)) {
+        $explicit = [System.IO.Path]::GetFullPath($env:AGENTHUB_OVERLAY).TrimEnd('\', '/')
+        if (Test-Path -LiteralPath $explicit) { return $explicit }
+        return $null
+    }
+    $default = Join-Path $RepoRoot 'overlays\personal'
+    if (Test-Path -LiteralPath $default) { return $default }
+    $sibling = Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/'))) 'agenthub-private'
+    if (Test-Path -LiteralPath (Join-Path $sibling 'overlay.json')) { return $sibling }
+    return $null
+}
+
 $packages = @(
     'packages/product', 'packages/media-studio', 'packages/brave-search', 'packages/daytona', 'packages/assemblyai',
     'packages/descript', 'packages/exa', 'packages/notion',
-    'packages/browser', 'packages/coding-agent-dispatch', 'packages/funding',
-    'overlays/personal/packages/sarosh', 'overlays/personal/packages/docwise'
+    'packages/browser', 'packages/coding-agent-dispatch', 'packages/funding'
 )
+# Private packages: prefer checkout overlays/personal, else sibling agenthub-private clone.
+$overlayRoot = Get-AgentHubOverlayRootForWarp $Root
+foreach ($privatePkg in @('sarosh', 'docwise')) {
+    $candidates = @()
+    if ($overlayRoot) { $candidates += (Join-Path $overlayRoot "packages\$privatePkg") }
+    $candidates += (Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($Root).TrimEnd('\', '/'))) "agenthub-private\packages\$privatePkg")
+    $resolved = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if ($resolved) {
+        $packages += ([IO.Path]::GetRelativePath($Root, $resolved)).Replace('\', '/')
+    }
+}
 
 if ($PluginId) {
     $packages = @($packages | Where-Object { (Split-Path -Leaf $_) -eq $PluginId })
