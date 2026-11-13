@@ -39,3 +39,15 @@ loudly by design.
   parent-process capture (Run-AllTests, CI) can parse it.
 - Registry JSON is read with `-Encoding UTF8`; hashes normalize line endings
   (`scripts/RegistryContentHash.ps1`).
+
+## CI selection
+
+CI compares the PR base or push before-SHA with the checked-out commit. Docs-only
+changes run the classifier tests; Doctor-only changes run Doctor's matrix. A
+coding-agent-dispatch package change (including its content-hash-only registry
+update) runs its package tests and selected shared plugin contracts across Linux,
+macOS, and Windows. Other changes, missing history, and manual runs take the
+full suite across four platforms, split into eight independent file shards.
+Registry validation and synthetic sync run once per platform. The
+classifier deliberately falls back to full coverage for unrecognized changes;
+new narrow routes require explicit test mappings and classifier tests.

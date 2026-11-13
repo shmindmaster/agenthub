@@ -29,7 +29,10 @@ Run: pwsh -NoProfile -File tests/Run-AllTests.ps1
 #>
 [CmdletBinding()]
 param(
-    [string]$SkipListPath
+    [string]$SkipListPath,
+    [ValidateSet('full', 'dispatch')] [string]$Scope = 'full',
+    [ValidateRange(0, 127)] [int]$Shard = 0,
+    [ValidateRange(1, 128)] [int]$Shards = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -107,6 +110,22 @@ if (-not [string]::IsNullOrWhiteSpace($SkipListPath)) {
         }
     }
 }
+
+if ($Shard -ge $Shards) { throw "Shard must be less than Shards." }
+if ($Scope -eq 'dispatch') {
+    # These exercise the dispatch package and the shared plugin contracts it changes.
+    $dispatchTests = @('Test-PluginManifests.ps1', 'Test-PluginDeployment.ps1', 'Test-PluginWorkflows.ps1', 'Test-CodeBuildPrCi.ps1', 'Test-PrReview.ps1', 'Test-KiroFleet.ps1')
+    $allFiles = @($allFiles | Where-Object {
+        $_.Replace('\', '/') -like '*/packages/coding-agent-dispatch/*' -or
+        [IO.Path]::GetFileName($_) -in $dispatchTests
+    })
+    if ($allFiles.Count -eq 0) { throw 'Dispatch scope selected no test files.' }
+}
+$selectedFiles = @($allFiles)
+$allFiles = @(for ($i = 0; $i -lt $selectedFiles.Count; $i++) {
+    if (($i % $Shards) -eq $Shard) { $selectedFiles[$i] }
+})
+Write-Host "Scope $Scope, shard $($Shard + 1)/${Shards}: $($allFiles.Count) assigned file(s)."
 
 $results = [Collections.Generic.List[object]]::new()
 $totalPassed = 0

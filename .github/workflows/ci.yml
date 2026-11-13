@@ -14,17 +14,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      scope: ${{ steps.plan.outputs.scope }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Test change classifier
+        run: node --test scripts/ci-plan.test.mjs
+      - id: plan
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD_SHA: ${{ github.sha }}
+        run: node scripts/ci-plan.mjs
+
   # The sync engine and its full PowerShell suite on every OS coding agents
   # run on. tests/ci-skip.json lists the only exclusions, each with its reason:
   # tests that read the owner's machine, and Windows-host features on macOS/Linux.
   powershell-tests:
-    name: PowerShell suite (${{ matrix.os }})
+    needs: plan
+    if: needs.plan.outputs.scope == 'full' || needs.plan.outputs.scope == 'dispatch'
+    name: PowerShell suite (${{ matrix.os }}, shard ${{ matrix.shard }})
     strategy:
       fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, macos-15-intel, windows-latest]
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
 
@@ -56,10 +74,12 @@ jobs:
           echo "EXECUTION_CONTROLS_TYPE_ROOTS=$RUNNER_TEMP/kit-tsc/node_modules/@types" >> "$GITHUB_ENV"
 
       - name: Validate registry
+        if: matrix.shard == 0
         shell: pwsh
         run: pwsh -NoProfile -File ./scripts/AgentHub.ps1 validate
 
       - name: Sync audit against a synthetic profile
+        if: matrix.shard == 0
         shell: pwsh
         run: |
           $profileDir = Join-Path $env:RUNNER_TEMP 'agenthub-synthetic-profile'
@@ -69,9 +89,11 @@ jobs:
 
       - name: Run tests
         shell: pwsh
-        run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json
+        run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json -Scope ${{ needs.plan.outputs.scope }} -Shard ${{ matrix.shard }} -Shards ${{ matrix.shards }}
 
   doctor:
+    needs: plan
+    if: needs.plan.outputs.scope == 'full' || needs.plan.outputs.scope == 'doctor'
     name: Doctor (${{ matrix.os }}, Node ${{ matrix.node }})
     strategy:
       fail-fast: false
