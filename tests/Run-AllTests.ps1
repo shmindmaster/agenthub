@@ -123,7 +123,7 @@ if ($Scope -eq 'dispatch') {
 }
 if ($Scope -eq 'docs') {
     # Documentation is public and is also read by these repository contracts.
-    $docsTests = @('Test-PublicRepoPrivacy.ps1', 'Test-AmpPlugins.ps1', 'Test-Bundles.ps1', 'Test-CodeBuildPrCi.ps1', 'Test-KiroFleet.ps1', 'Test-MediaStudioCraft.ps1', 'Test-MobileDevelopment.ps1', 'Test-OptInDisabledMcp.ps1', 'Test-RegistryHostReferences.ps1', 'Test-RepoStandard.ps1', 'Test-PublicCoreExport.ps1', 'Test-PrReview.ps1', 'Test-SkillAuthoringStandard.ps1')
+    $docsTests = @('Test-AmpPlugins.ps1', 'Test-Bundles.ps1', 'Test-CodeBuildPrCi.ps1', 'Test-KiroFleet.ps1', 'Test-MediaStudioCraft.ps1', 'Test-MobileDevelopment.ps1', 'Test-OptInDisabledMcp.ps1', 'Test-RegistryHostReferences.ps1', 'Test-RepoStandard.ps1', 'Test-PublicCoreExport.ps1', 'Test-PrReview.ps1', 'Test-SkillAuthoringStandard.ps1')
     $allFiles = @($allFiles | Where-Object { [IO.Path]::GetFileName($_) -in $docsTests })
     if ($allFiles.Count -ne $docsTests.Count) { throw 'Documentation test mapping is incomplete.' }
 }

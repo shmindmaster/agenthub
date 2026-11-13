@@ -51,4 +51,5 @@ macOS, and Windows. Other changes, missing history, and manual runs take the
 full suite across four platforms, split into eight independent file shards.
 Registry validation and synthetic sync run once per platform. The
 classifier deliberately falls back to full coverage for unrecognized changes;
-new narrow routes require explicit test mappings and classifier tests.
+new narrow routes require explicit test mappings and classifier tests. Every
+change runs the public-repository privacy gate.
