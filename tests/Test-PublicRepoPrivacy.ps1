@@ -79,7 +79,9 @@ $generic = @(
     @{ Name = 'no career or job-pursuit policy sections'; Pattern = '^#{1,4}\s*(Career (positioning|representation|production)|Role-specific positioning|Opportunity evidence|Portfolio materials)\b' }
     @{ Name = 'no job-posting or requisition identifiers tied to a pursuit'; Pattern = '(?i)\b(requisition|req(uisition)?\s*#|JD\s*#|job\s*id)\s*[:#]?\s*\d{5,}' }
     @{ Name = 'no US phone numbers'; Pattern = '(?<![\d.,-])(\+1[ .-]?)?(\(\d{3}\)[ .-]?\d{3}[ .-]\d{4}|\d{3}[.-]\d{3}[.-]\d{4})(?![\d-])' }
-    @{ Name = 'no non-example email addresses'; Pattern = '(?<![\w.-])[A-Za-z0-9._%+-]+@(?!example\.(com|org|net|test|invalid)\b|users\.noreply\.github\.com\b|noreply\.)(?:[A-Za-z0-9-]+\.)+(?!(md|json|js|mjs|cjs|ts|ps1|ya?ml|txt|exe|dll)\b)[A-Za-z]{2,}\b' }
+    # Trailing \b(?!:) excludes SSH remotes (git@github.com:org/repo.git): after
+    # the TLD, \b matches before ':', which made daytona-factory.yml a false hit.
+    @{ Name = 'no non-example email addresses'; Pattern = '(?<![\w.-])[A-Za-z0-9._%+-]+@(?!example\.(com|org|net|test|invalid)\b|users\.noreply\.github\.com\b|noreply\.)(?:[A-Za-z0-9-]+\.)+(?!(md|json|js|mjs|cjs|ts|ps1|ya?ml|txt|exe|dll)\b)[A-Za-z]{2,}\b(?!:)' }
     @{ Name = 'no credential-shaped strings'; Pattern = '(sk-[A-Za-z0-9_-]{24,}|ghp_[A-Za-z0-9]{24,}|github_pat_[A-Za-z0-9_]{24,}|AKIA[0-9A-Z]{16}|xox[bpa]-[0-9A-Za-z-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' }
 )
 foreach ($rule in $generic) {

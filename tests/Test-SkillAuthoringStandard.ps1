@@ -14,6 +14,12 @@ Reported only (never fails the run):
   - skills with no numbered sections (`## N. ...`) -- older skills predate
     the standard; a blanket rewrite is a separate task, not this checker's
     job.
+  - Section 2 name-shape rules: banned vague names (helper/utils/tools/docs/
+    data/files), a skill name that repeats its plugin name, and a plugin whose
+    skills mix verb-first and noun-first names. Reported only because §2 is
+    naming style and a rename is an identity change (retiredFleetSkills +
+    version bump + redeploy), which is a separate task. Promote the ban-list
+    check to a hard fail once the violations it lists have been renamed.
 
 Run: pwsh -NoProfile -File tests/Test-SkillAuthoringStandard.ps1
      powershell.exe -NoProfile -File tests/Test-SkillAuthoringStandard.ps1
@@ -51,6 +57,22 @@ $descriptionTooLong = [Collections.Generic.List[string]]::new()
 $reservedNames = [Collections.Generic.List[string]]::new()
 $yamlUnsafe = [Collections.Generic.List[string]]::new()
 $noNumberedSections = [Collections.Generic.List[string]]::new()
+$bannedNames = [Collections.Generic.List[string]]::new()
+$nameRepeatsPlugin = [Collections.Generic.List[string]]::new()
+$mixedNamePattern = [Collections.Generic.List[string]]::new()
+$namesByPlugin = [Collections.Generic.List[object]]::new()
+
+# Section 2 bans these as too vague to trigger on. Same list as the standard.
+$bannedNamePattern = '^(?i:helper|utils|tools|docs|data|files)$'
+# Section 2 "name by what the agent does: verb or gerund first". Heuristic only,
+# and reported never failing: the checker cannot decide a word's part of speech
+# reliably, so this list is the checker's own judgement, not the standard's.
+$verbFirstWords = @(
+    'audit', 'build', 'demo', 'design', 'verify', 'brief', 'capture', 'compose',
+    'develop', 'generate', 'plan', 'review', 'scout', 'prioritize', 'search',
+    'research', 'edit', 'automate', 'dispatch', 'write', 'find', 'check', 'run',
+    'create', 'manage', 'resolve', 'inspect', 'compare', 'rank', 'score'
+)
 
 foreach ($file in $skillFiles) {
     $skillDirName = Split-Path -Leaf (Split-Path -Parent $file.FullName)
@@ -66,6 +88,20 @@ foreach ($file in $skillFiles) {
         $actual = if ($nameMatch.Success) { $nameMatch.Groups[1].Value } else { '<missing>' }
         $nameMismatches.Add("$relativePath (name=$actual, expected=$skillDirName)")
     }
+
+    # Section 2 name shape, reported only (see the header).
+    $skillName = if ($nameMatch.Success) { $nameMatch.Groups[1].Value } else { $skillDirName }
+    if ($skillName -match $bannedNamePattern) {
+        $bannedNames.Add("$relativePath (name=$skillName)")
+    }
+    # The plugin directory is the identity the plugin namespace comes from.
+    $pluginDirName = Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $file.FullName)))
+    if ($skillName -and $pluginDirName -and ($skillName -eq $pluginDirName -or $skillName -like "*$pluginDirName*")) {
+        $nameRepeatsPlugin.Add("$relativePath (skill=$skillName, plugin=$pluginDirName)")
+    }
+    $firstWord = ($skillName -split '-')[0]
+    $kind = if ($verbFirstWords -contains $firstWord.ToLowerInvariant()) { 'verb-first' } else { 'noun-first' }
+    $namesByPlugin.Add([pscustomobject]@{ Plugin = $pluginDirName; Name = $skillName; Kind = $kind; Path = $relativePath })
 
     $descMatch = [regex]::Match($content, '(?m)^description:\s*(.*)$')
     # The description states the outcome first and then carries "Use when"; a YAML quote is syntax, not content.
@@ -149,6 +185,35 @@ if ($noNumberedSections.Count -gt 0) {
     $noNumberedSections | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
 } else {
     Write-Host "REPORT: every skill has at least one numbered section" -ForegroundColor Yellow
+}
+
+# Section 2 name shape. Reported only: a rename is an identity change and needs
+# its own retiredFleetSkills row, version bump and redeploy.
+foreach ($g in ($namesByPlugin | Group-Object Plugin)) {
+    $kinds = @($g.Group | Select-Object -ExpandProperty Kind -Unique)
+    if ($kinds.Count -gt 1) {
+        $detail = ($g.Group | ForEach-Object { "$($_.Name)[$($_.Kind)]" }) -join ', '
+        $mixedNamePattern.Add("$($g.Name): $detail")
+    }
+}
+Write-Host ''
+if ($bannedNames.Count -gt 0) {
+    Write-Host "REPORT (non-failing, section 2 ban list): $($bannedNames.Count) skill name(s) are on the banned vague-name list:" -ForegroundColor Yellow
+    $bannedNames | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+} else {
+    Write-Host "REPORT: no skill name is on the section 2 ban list" -ForegroundColor Yellow
+}
+if ($nameRepeatsPlugin.Count -gt 0) {
+    Write-Host "REPORT (non-failing, section 2 'never repeat the plugin name'): $($nameRepeatsPlugin.Count) skill(s):" -ForegroundColor Yellow
+    $nameRepeatsPlugin | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+} else {
+    Write-Host "REPORT: no skill name repeats its plugin name" -ForegroundColor Yellow
+}
+if ($mixedNamePattern.Count -gt 0) {
+    Write-Host "REPORT (non-failing, section 2 'one pattern per plugin'): $($mixedNamePattern.Count) plugin(s) mix verb-first and noun-first names (heuristic):" -ForegroundColor Yellow
+    $mixedNamePattern | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+} else {
+    Write-Host "REPORT: every plugin keeps one name pattern (heuristic)" -ForegroundColor Yellow
 }
 
 Write-Host ''
