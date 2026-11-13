@@ -84,7 +84,10 @@
         "mimo-code": {},
         "kiro": {
           "linear": "Owner-authored remote entry in ~/.kiro/settings/mcp.json that predates fleet management. Runs no local process.",
-          "aws-mcp": "Owner-authored local proxy entry that predates fleet management. Starts per session; the dispatch agent does not load this file. A permission, not a registration: the sync never generates it."
+          "aws-mcp": "Owner-authored local proxy entry that predates fleet management. Starts per session; the dispatch agent does not load this file. A permission, not a registration: the sync never generates it.",
+          "expo": "Kiro writes this Expo remote entry itself; not an AgentHub registration. Runs no local process.",
+          "kirocrew-core": "Kiro Crew product MCP (host-written). Left alone per docs/runbooks/kiro-fleet.md.",
+          "kirocrew-cron": "Kiro Crew product MCP (host-written). Left alone per docs/runbooks/kiro-fleet.md."
         }
       }
     },
