@@ -31,6 +31,8 @@ jobs:
       - name: Check public repository privacy
         shell: pwsh
         run: pwsh -NoProfile -File ./tests/Test-PublicRepoPrivacy.ps1
+      - name: Install ripgrep
+        run: sudo apt-get update -q && sudo apt-get install -y -q ripgrep
       - name: Validate registry and hashes
         shell: pwsh
         run: pwsh -NoProfile -File ./scripts/AgentHub.ps1 validate
@@ -124,6 +126,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: lts/*
+      - name: Install ripgrep
+        run: sudo apt-get update -q && sudo apt-get install -y -q ripgrep
       - name: Run documentation contracts
         shell: pwsh
         run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json -Scope docs
