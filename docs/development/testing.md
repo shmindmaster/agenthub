@@ -52,4 +52,4 @@ repository-level contracts on Linux, macOS and Windows in four shards per OS;
 the media-specific tests are excluded unless that package changed. Manual runs
 or unavailable history run shared and all package tests. Main pushes have
 separate concurrency groups so later pushes cannot cancel earlier checks.
-The full four-platform suite remains available locally via Run-AllTests.ps1.
+Run-AllTests.ps1 without a scope still runs the full suite on the local host.

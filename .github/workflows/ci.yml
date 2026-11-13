@@ -65,9 +65,9 @@ jobs:
         shell: bash
         run: |
           case "$RUNNER_OS" in
-            Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ffmpeg ;;
-            macOS) HOMEBREW_NO_AUTO_UPDATE=1 brew install --quiet ripgrep ffmpeg ;;
-            Windows) choco install ripgrep ffmpeg -y --no-progress ;;
+            Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ;;
+            macOS) HOMEBREW_NO_AUTO_UPDATE=1 brew install --quiet ripgrep ;;
+            Windows) choco install ripgrep -y --no-progress ;;
           esac
           npm install -g @anthropic-ai/claude-code@2.1.310
           npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/kit-tsc" typescript@5.9.3 @types/node@24.10.1
@@ -104,8 +104,11 @@ jobs:
           python-version: '3.12'
       - name: Install test tools
         shell: bash
+        env:
+          CI_PACKAGE_NAME: ${{ matrix.package }}
         run: |
-          sudo apt-get update -q && sudo apt-get install -y -q ripgrep ffmpeg
+          sudo apt-get update -q && sudo apt-get install -y -q ripgrep
+          if [ "$CI_PACKAGE_NAME" = media-studio ]; then sudo apt-get install -y -q ffmpeg; fi
           npm install -g @anthropic-ai/claude-code@2.1.310
           npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/kit-tsc" typescript@5.9.3 @types/node@24.10.1
           echo "EXECUTION_CONTROLS_TSC=$RUNNER_TEMP/kit-tsc/node_modules/typescript/bin/tsc" >> "$GITHUB_ENV"
