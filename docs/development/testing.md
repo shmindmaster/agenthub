@@ -43,7 +43,8 @@ loudly by design.
 ## CI selection
 
 CI compares the PR base or push before-SHA with the checked-out commit. Docs-only
-changes run the classifier tests; Doctor-only changes run Doctor's matrix. A
+changes run privacy, registry, and documentation contract checks; Doctor-only
+changes run Doctor's matrix. A
 coding-agent-dispatch package change (including its content-hash-only registry
 update) runs its package tests and selected shared plugin contracts across Linux,
 macOS, and Windows. Other changes, missing history, and manual runs take the

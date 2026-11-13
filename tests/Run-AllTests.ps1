@@ -30,7 +30,7 @@ Run: pwsh -NoProfile -File tests/Run-AllTests.ps1
 [CmdletBinding()]
 param(
     [string]$SkipListPath,
-    [ValidateSet('full', 'dispatch')] [string]$Scope = 'full',
+    [ValidateSet('full', 'dispatch', 'docs')] [string]$Scope = 'full',
     [ValidateRange(0, 127)] [int]$Shard = 0,
     [ValidateRange(1, 128)] [int]$Shards = 1
 )
@@ -120,6 +120,12 @@ if ($Scope -eq 'dispatch') {
         [IO.Path]::GetFileName($_) -in $dispatchTests
     })
     if ($allFiles.Count -eq 0) { throw 'Dispatch scope selected no test files.' }
+}
+if ($Scope -eq 'docs') {
+    # Documentation is public and is also read by these repository contracts.
+    $docsTests = @('Test-PublicRepoPrivacy.ps1', 'Test-AmpPlugins.ps1', 'Test-Bundles.ps1', 'Test-CodeBuildPrCi.ps1', 'Test-KiroFleet.ps1', 'Test-MediaStudioCraft.ps1', 'Test-MobileDevelopment.ps1', 'Test-OptInDisabledMcp.ps1', 'Test-RegistryHostReferences.ps1', 'Test-RepoStandard.ps1', 'Test-PublicCoreExport.ps1', 'Test-PrReview.ps1', 'Test-SkillAuthoringStandard.ps1')
+    $allFiles = @($allFiles | Where-Object { [IO.Path]::GetFileName($_) -in $docsTests })
+    if ($allFiles.Count -ne $docsTests.Count) { throw 'Documentation test mapping is incomplete.' }
 }
 $selectedFiles = @($allFiles)
 $allFiles = @(for ($i = 0; $i -lt $selectedFiles.Count; $i++) {

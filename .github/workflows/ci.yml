@@ -36,7 +36,7 @@ jobs:
   # tests that read the owner's machine, and Windows-host features on macOS/Linux.
   powershell-tests:
     needs: plan
-    if: needs.plan.outputs.scope == 'full' || needs.plan.outputs.scope == 'dispatch'
+    if: needs.plan.outputs.scope == 'full' || needs.plan.outputs.scope == 'dispatch' || needs.plan.outputs.scope == 'docs'
     name: PowerShell suite (${{ matrix.os }}, shard ${{ matrix.shard }})
     strategy:
       fail-fast: false
