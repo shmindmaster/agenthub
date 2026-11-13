@@ -52,4 +52,5 @@ full suite across four platforms, split into eight independent file shards.
 Registry validation and synthetic sync run once per platform. The
 classifier deliberately falls back to full coverage for unrecognized changes;
 new narrow routes require explicit test mappings and classifier tests. Every
-change runs the public-repository privacy gate.
+change runs the public-repository privacy gate. Main push runs have separate
+concurrency groups so a later push cannot cancel checks for an earlier diff.
