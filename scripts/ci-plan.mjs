@@ -30,6 +30,17 @@ export function classify(paths, hashOnly = false) {
   return { core, doctor: doctor || core, docs, packages };
 }
 
+export function packageMatrix(packages) {
+  return packages.flatMap(pkg => {
+    const shards = pkg === 'media-studio' ? 4 : 1;
+    const linux = Array.from({length:shards}, (_, shard) => ({package:pkg, os:'ubuntu-latest', shard, shards}));
+    if (['coding-agent-dispatch', 'repowise', 'mobile-development'].includes(pkg)) {
+      linux.push({package:pkg, os:'windows-latest', shard:0, shards:1});
+    }
+    return linux;
+  });
+}
+
 function main() {
   let plan;
   try {
@@ -48,7 +59,7 @@ function main() {
     console.log(`Full manual/fallback run: ${error.message}`);
     plan = { core: true, doctor: true, docs: true, packages: readdirSync('packages', {withFileTypes:true}).filter(x => x.isDirectory() && /^[a-z0-9-]+$/.test(x.name)).map(x => x.name) };
   }
-  const matrix = plan.packages.flatMap(pkg => Array.from({length: pkg === 'media-studio' ? 4 : 1}, (_, shard) => ({package:pkg, shard, shards:pkg === 'media-studio' ? 4 : 1})));
+  const matrix = packageMatrix(plan.packages);
   appendFileSync(process.env.GITHUB_OUTPUT, `core=${plan.core}\ndoctor=${plan.doctor}\ndocs=${plan.docs}\npackages=${matrix.length > 0}\npackage_matrix=${JSON.stringify({include:matrix})}\n`);
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

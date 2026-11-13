@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classify, hashOnlyForPackages } from './ci-plan.mjs';
+import { classify, hashOnlyForPackages, packageMatrix } from './ci-plan.mjs';
 
 test('routes changes and unions independent checks', () => {
   assert.deepEqual(classify(['docs/readme.md']), {core:false,doctor:false,docs:true,packages:[]});
@@ -17,4 +17,11 @@ test('registry exception permits only changed packages hashes', () => {
   assert.equal(hashOnlyForPackages(a,b,['a']),true);
   assert.equal(hashOnlyForPackages(a,b,['b']),false);
   b.rows[0].status='disabled'; assert.equal(hashOnlyForPackages(a,b,['a']),false);
+});
+
+test('platform specific packages retain Windows checks', () => {
+  for (const pkg of ['coding-agent-dispatch', 'repowise', 'mobile-development']) {
+    assert.ok(packageMatrix([pkg]).some(row => row.os === 'windows-latest'));
+  }
+  assert.equal(packageMatrix(['media-studio']).length, 4);
 });

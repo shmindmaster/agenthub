@@ -45,7 +45,8 @@ loudly by design.
 Every change checks registry validation, hashes, public privacy, and the CI
 classifier. The classifier compares the PR base or push before-SHA with the
 checked-out commit and unions the checks for every changed area. Package
-changes run that package's tests and shared plugin checks on Linux. Media
+changes run that package's tests and shared plugin checks on Linux; dispatch,
+RepoWise, and mobile packages also run on Windows for host-specific checks. Media
 Studio tests run only for Media Studio changes, split into four shards.
 Doctor changes run its tests on Linux. Shared or unrecognized files run
 repository-level contracts on Linux, macOS and Windows in four shards per OS;
