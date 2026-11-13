@@ -5,6 +5,7 @@ import { classify, onlyDispatchHashChanged } from './ci-plan.mjs';
 test('routes docs, doctor, dispatch and unknown changes conservatively', () => {
   assert.equal(classify(['docs/readme.md']), 'docs');
   assert.equal(classify(['global-agent-policy.md']), 'full');
+  assert.equal(classify(['docs/a.md','src/doctor/main.js']), 'full');
   assert.equal(classify(['AGENTS.md']), 'full');
   assert.equal(classify(['src/doctor/main.js']), 'doctor');
   assert.equal(classify(['packages/coding-agent-dispatch/tests/a.test.mjs','registry/capabilities.json'], true), 'dispatch');

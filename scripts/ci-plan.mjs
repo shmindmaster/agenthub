@@ -8,6 +8,7 @@ export function classify(paths, registryHashOnly = false) {
   if (!paths.length) return 'full';
   const useful = paths.filter(p => !/^(docs\/|README\.md$)/i.test(p));
   if (!useful.length) return 'docs';
+  if (useful.length !== paths.length) return 'full';
   if (useful.every(p => /^(src\/doctor\/|test\/doctor\/)/.test(p))) return 'doctor';
   const dispatch = useful.some(p => p.startsWith('packages/coding-agent-dispatch/'));
   if (dispatch && useful.every(p => p.startsWith('packages/coding-agent-dispatch/') || (p === 'registry/capabilities.json' && registryHashOnly))) return 'dispatch';
