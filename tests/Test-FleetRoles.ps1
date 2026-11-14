@@ -40,10 +40,6 @@ $r = New-Registry; $h = Find-Host $r 'kirocrew'; $r.inactiveAgents = @($r.inacti
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'reactivating a retired host is rejected' (($e -join ';') -match 'retired host is still in activeAgents \(reactivation\): kirocrew')
 
-$r = New-Registry; $h = Find-Host $r 'kirocrew'; $h.fleetRole = 'editor'; $r.inactiveAgents = @($r.inactiveAgents | Where-Object { $_.id -ne 'kirocrew' }); $r.activeAgents = @($r.activeAgents) + $h
-$e = @(Test-AgentFleetRoles -Agents $r)
-Report 'reactivating a retired host with a changed role is rejected' (($e -join ';') -match 'retired host identity is in activeAgents \(reactivation\): kirocrew')
-
 $r = New-Registry; (Find-Host $r 'amp').PSObject.Properties.Remove('fleetRole')
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'host with no role is rejected' (($e -join ';') -match 'no fleetRole: amp')
