@@ -17,7 +17,7 @@ Commit `5002737`. A cell says what exists in the repo. "Test: file exists, not r
 | Repo-standard checker | Fleet check | CLI report | `Check-RepoStandard.ps1` | other repos on disk | `Test-RepoStandard.ps1`; not run | none | n/a |
 | Slack capability | (external) | none | `packages/slack/mcp/*.mjs` | Slack Web API (live) | `contract.test.mjs`, `Test-SlackCapability.ps1`, `Test-SlackToolContract.ps1`, `Test-SlackHostParity.ps1`; not run | none | no SHA |
 | Media-studio gates | (media) | none | `packages/media-studio/scripts/*.mjs` | ffmpeg, Playwright, voice providers | 4 `*.test.mjs`, `Test-MediaStudio*.ps1`; not run | none | no SHA |
-| RepoWise bridge | (code intel) | none | `packages/repowise/` | RepoWise server, local | `Test-RepoWiseBridge.ps1` + `test_repowise_bridge.py`; not run | none | no SHA |
+| RepoWise bridge | (code intel) | none | `packages/repowise/` | RepoWise server, local | `Test-RepoWiseBridge.ps1` + `test_repowise_bridge.py`; not run | none | no SHA **Retired 2026-11-13 (SH-4670); no action.** |
 
 ## Integration map
 
@@ -40,7 +40,7 @@ All of it. Notably: dispatcher receipts, parity heatmap and MCP-migration lab ar
 
 ## Untested integrations (no executed result)
 
-Everything. Specifically no executed result for: host config emission per host, Slack bridge, dispatcher against any host, RepoWise bridge, media gates.
+Everything. Specifically no executed result for: host config emission per host, Slack bridge, dispatcher against any host, RepoWise bridge, media gates. (RepoWise retired 2026-11-13, SH-4670; no action.)
 
 ## Works-locally-only
 
@@ -49,6 +49,6 @@ The whole product. It acts on the operator machine's user-level paths. There is 
 ## Test-discovery gaps (found while building this matrix)
 
 - Closed 2026-11-03: `Run-AllTests.ps1` now discovers every `packages/*/tests/validate-*.ps1`, so `validate-runtime.ps1`, `validate-demo-readiness.ps1` and `validate-kits.ps1` (with `kit.test.ts`, `schema.test.ts` and `test_kit.py`) run in the aggregate suite. CI also runs the strict `tsc` check.
-- Closed 2026-11-03: `test_*.py` files the suite never reached now run through wrappers: `Test-MediaStudioPython.ps1`, `Test-AgentContextPython.ps1` and `Test-RepoWiseSharedServer.ps1`. The last needs the repowise uv tool environment, so `tests/ci-skip.json` lists it and it runs locally only.
+- Closed 2026-11-03: `test_*.py` files the suite never reached now run through wrappers: `Test-MediaStudioPython.ps1`, `Test-AgentContextPython.ps1` and `Test-RepoWiseSharedServer.ps1`. The last needs the repowise uv tool environment, so `tests/ci-skip.json` lists it and it runs locally only. (RepoWise retired 2026-11-13, SH-4670; no action.)
 - `Run-AllTests.ps1` does not discover `tests/Test-AppiumSessionCleanup.mjs` and `Test-MobileLabGuestStart.mjs` directly; `Test-MobileDevelopment.ps1:654,660` runs both. CI skips that test, so these two run locally only.
 - `test/doctor/*.test.mjs` are outside `Run-AllTests.ps1`; `npm test` and the CI Doctor job run them.
