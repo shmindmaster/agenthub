@@ -1,5 +1,7 @@
 # Plan: Fleet Repository Standardization (2026-08-08)
 
+> **2026-11-13:** RepoWise is retired (SH-4670). Every RepoWise step, check or handoff in this plan is dropped and must not be carried out.
+
 ## Purpose / outcome
 
 Every owned repo under `C:\Repos\shmindmaster` conforms to the fleet
@@ -50,7 +52,7 @@ indexed and fresh; one bootstrap commit per repo on `main`.
        verified here at **33 checks / 0 failures**. Clearing its last 3
        failures required fixing the checker itself, not the repo — see the
        `nested-refs-root` entry in `docs/current-state.md`.
-5. [ ] Fleet sweep: checker `-All` green, repowise doctor/status clean.
+5. [ ] Fleet sweep: checker `-All` green.
 6. [ ] Final evidence report.
 
 ## Validation per milestone
@@ -59,7 +61,7 @@ indexed and fresh; one bootstrap commit per repo on `main`.
 - M2: `tests/Test-RepoStandard.ps1` 11/11.
 - M3: `Validate-AgentHub.ps1` + `Run-AllTests.ps1` + checker self-check.
 - M4: per-repo checker pass + commit on `main`.
-- M5: checker `-All` exit 0; `repowise status -w` fresh.
+- M5: checker `-All` exit 0.
 
 ## Risks / rollback
 

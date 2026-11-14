@@ -37,7 +37,7 @@
       "node_repl"
     ],
     "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
-    "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright ships only in the browser-toolkit plugin .mcp.json for hosts without a native browser pane; enable it when needed, disable when done. Codex, Cursor and Claude use their native browser surface. Chrome DevTools MCP is retired and must not be registered. Same gate as appiumActivationRoute for mobile-development and repowiseActivationRoute for repowise-workspace.",
+    "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright ships only in the browser-toolkit plugin .mcp.json for hosts without a native browser pane; enable it when needed, disable when done. Codex, Cursor and Claude use their native browser surface. Chrome DevTools MCP is retired and must not be registered. Same gate as appiumActivationRoute for mobile-development.",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
     "onDemandLocalCoverage": {
