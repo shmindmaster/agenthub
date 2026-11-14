@@ -131,8 +131,8 @@ stay visible rather than being force-cleared or hidden by a broad exception.
 
 | Repo | Failure | Owner | Evidence / remediation |
 | --- | --- | --- | --- |
-| abacare | `repowise-freshness: index not at HEAD` | abacare | Refresh after its four active web-file changes are resolved or explicitly adopted. |
-| lienwise | `.gitignore` omits `.claude/CLAUDE.md`; RepoWise index is stale | lienwise | Resolve with the repository owner because `.claude/CLAUDE.md` is tracked and currently modified. |
+| abacare | `repowise-freshness: index not at HEAD` | abacare | Legacy RepoWise check; do not refresh. SH-4670 removes the check. |
+| lienwise | `.gitignore` omits `.claude/CLAUDE.md`; RepoWise index is stale (legacy, do not refresh) | lienwise | Resolve the `.gitignore` item with the repository owner because `.claude/CLAUDE.md` is tracked and currently modified. |
 
 ## Checker usage
 

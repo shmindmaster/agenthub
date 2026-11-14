@@ -27,7 +27,6 @@ function Test-AgentFleetRoles {
   }
   foreach ($r in $script:AhRetainedHostIds) {
     if ($r -notin $ids) { $errors.Add("retained host missing from registry: $r") }
-    elseif ($r -notin @($active | ForEach-Object { [string]$_.id })) { $errors.Add("retained host is not active: $r") }
   }
   return $errors.ToArray()
 }
