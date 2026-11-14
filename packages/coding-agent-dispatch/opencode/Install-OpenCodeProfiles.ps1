@@ -18,7 +18,7 @@ $ErrorActionPreference = 'Stop'
 
 # The only names this script may write. Everything else under the target is owner-authored.
 $ManagedFiles = [ordered]@{
-    'agents' = @('peer.md', 'engineer.md', 'reviewer.md', 'tester.md', 'researcher.md')
+    'agents' = @('peer.md', 'engineer.md', 'reviewer.md', 'tester.md', 'researcher.md', 'readonly.md')
 }
 
 if ($Audit -and $Apply) { throw 'Use either -Audit or -Apply, not both.' }

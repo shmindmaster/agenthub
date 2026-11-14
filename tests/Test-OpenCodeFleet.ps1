@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $openCode = Join-Path $repoRoot 'packages\coding-agent-dispatch\opencode'
 $installer = Join-Path $openCode 'Install-OpenCodeProfiles.ps1'
-$managedNames = @('peer.md', 'engineer.md', 'reviewer.md', 'tester.md', 'researcher.md')
+$managedNames = @('peer.md', 'engineer.md', 'reviewer.md', 'tester.md', 'researcher.md', 'readonly.md')
 $failed = 0; $passed = 0
 function Check([string]$Name, [bool]$Ok, [string]$Detail = '') {
     if ($Ok) { $script:passed++; Write-Host "PASS: $Name" } else { $script:failed++; Write-Host "FAIL: $Name -- $Detail" }
@@ -114,12 +114,19 @@ foreach ($name in $managedNames) {
     # No deprecated V1 fields.
     Check "agent has no deprecated V1 frontmatter: $name" (@($fm | Where-Object { $_ -match '^(tools|prompt|permission):' }).Count -eq 0)
 }
-foreach ($name in @('reviewer.md', 'tester.md', 'researcher.md')) {
+foreach ($name in @('reviewer.md', 'tester.md', 'researcher.md', 'readonly.md')) {
     $text = Get-Content (Join-Path $openCode "agents\$name") -Raw -Encoding utf8
-    # The dispatcher's -ReadOnly gate checks this exact rule in the installed reviewer file.
+    # The dispatcher's -ReadOnly gate parses the installed readonly profile's
+    # ordered frontmatter and requires both of these effective denies.
     Check "$name denies every edit by permission" ($text -match [regex]::Escape('{ action: edit, resource: "*", effect: deny }'))
     Check "$name denies interactive questions" ($text -match [regex]::Escape('{ action: question, resource: "*", effect: deny }'))
 }
+$readonlyText = Get-Content (Join-Path $openCode 'agents\readonly.md') -Raw -Encoding utf8
+Check 'readonly denies every shell command (no write-through-command)' ($readonlyText -match [regex]::Escape('{ action: shell, resource: "*", effect: deny }'))
+Check 'readonly denies subagent delegation (no writable child)' ($readonlyText -match [regex]::Escape('{ action: subagent, resource: "*", effect: deny }'))
+Check 'readonly denies the browser action' ($readonlyText -match [regex]::Escape('{ action: browser, resource: "*", effect: deny }'))
+$reviewerShell = Get-Content (Join-Path $openCode 'agents\reviewer.md') -Raw -Encoding utf8
+Check 'reviewer keeps a shell for tests and is not the read-only profile' ($reviewerShell -notmatch [regex]::Escape('{ action: shell, resource: "*", effect: deny }'))
 $reviewer = Get-Content (Join-Path $openCode 'agents\reviewer.md') -Raw -Encoding utf8
 Check 'reviewer denies git push and commits' ($reviewer -match [regex]::Escape('{ action: shell, resource: "git push*", effect: deny }') -and $reviewer -match [regex]::Escape('{ action: shell, resource: "git commit*", effect: deny }'))
 Check 'reviewer denies gh writes' ($reviewer -match [regex]::Escape('{ action: shell, resource: "gh pr *", effect: deny }'))
