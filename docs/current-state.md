@@ -797,10 +797,8 @@ added six more: **175 passed / 4 failed** across 28 files, still the same four.
 
 ## Known constraints
 
-- The checker compares the RepoWise index to `HEAD`; a repo with uncommitted
-  in-flight work may match that HEAD but is not necessarily indexed at its
-  working-tree state. After commit, refresh manually through the bounded entry
-  point. Do not restore disabled unbounded post-commit hooks.
+- RepoWise is retired (2026-11-13, SH-4409). Do not run or refresh it. The
+  checker's RepoWise rows are legacy until SH-4670 removes them.
 - `.claude/CLAUDE.md` is RepoWise-generated and gitignored. `.vscode/mcp.json`
   was removed 2026-09-02 (owner); do not recreate it as AgentHub-authored
   state. RepoWise may write a tool-managed copy; it is not a registry surface.
@@ -811,7 +809,6 @@ added six more: **175 passed / 4 failed** across 28 files, still the same four.
 pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1
 pwsh -NoProfile -File .\tests\Run-AllTests.ps1
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All
-repowise status -w   # from C:\Repos
 ```
 
 ## Consulting communication extension
