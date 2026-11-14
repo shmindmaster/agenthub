@@ -3,6 +3,7 @@
 # retained; other hosts are pending retirement, retired, or non-agent surfaces.
 # Returns error strings; an empty list means the registry satisfies the contract.
 $script:AhRetainedHostIds = @('claude', 'codex', 'opencode', 'kilo', 'kiro', 'factory')
+$script:AhRetiredHostIds = @('windsurf', 'mimo-desktop', 'kirocrew', 'coderabbit')
 $script:AhFleetRoles = @('retained', 'companion', 'editor', 'terminal-preserved', 'pending-retirement', 'retired')
 
 function Test-AgentFleetRoles {
@@ -24,6 +25,8 @@ function Test-AgentFleetRoles {
       $owner = [string]$h.fleetOwner
       if ($owner -notin $script:AhRetainedHostIds) { $errors.Add("companion surface must name a retained fleetOwner: $id -> '$owner'") }
     }
+    if ($id -in $script:AhRetiredHostIds -and $role -ne 'retired') { $errors.Add("retired host identity has a non-retired fleetRole (reactivation): $id") }
+    if ($id -in $script:AhRetiredHostIds -and $h -in $active) { $errors.Add("retired host identity is in activeAgents (reactivation): $id") }
     if ($role -eq 'retired' -and $h -in $active) { $errors.Add("retired host is still in activeAgents (reactivation): $id") }
   }
   foreach ($r in $script:AhRetainedHostIds) {
