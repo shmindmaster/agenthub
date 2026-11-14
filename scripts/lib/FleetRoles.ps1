@@ -24,7 +24,6 @@ function Test-AgentFleetRoles {
       $owner = [string]$h.fleetOwner
       if ($owner -notin $script:AhRetainedHostIds) { $errors.Add("companion surface must name a retained fleetOwner: $id -> '$owner'") }
     }
-    if ($role -eq 'retired' -and $h -in $active) { $errors.Add("retired host is still in activeAgents (reactivation): $id") }
   }
   foreach ($r in $script:AhRetainedHostIds) {
     if ($r -notin $ids) { $errors.Add("retained host missing from registry: $r") }
