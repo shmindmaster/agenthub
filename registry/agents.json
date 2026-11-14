@@ -593,7 +593,7 @@
       "fleetRole": "retained",
       "name": "Factory Droid",
       "version": "1.10.0",
-      "versionObserved": "Observed 2026-11-13 (SH-4669, read-only): `%USERPROFILE%\\bin\\droid.exe --version` printed 1.10.0. A second, older droid 1.4.1 (npm under mise node 24.20.0) precedes it on PATH, so a bare `droid` runs 1.4.1. Duplicate install left in place; SH-4676 and SH-4677 decide which owner to keep.",
+      "versionObserved": "Observed 2026-11-13 (SH-4669, read-only): `%USERPROFILE%\\bin\\droid.exe --version` printed 1.10.0. The older npm @factory/cli 1.4.1 under mise node 24.20.0 was uninstalled the same day at owner request, so a bare `droid` now resolves to 1.10.0. Earlier: 0.245.1 on 2026-10-22.",
       "versionNote": "Corrected 2026-10-14. The 2026-08-19 observation of 0.195.0 from app-0.152.0 is historical. The live binary is %USERPROFILE%\\bin\\droid.exe and `droid --version` returned 0.241.1. `droid update` reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/bin/droid.exe",
       "executableNote": "Corrected 2026-10-14. The versioned Factory\\app-0.152.0\\resources\\bin\\droid.exe path is absent. The installed CLI is %USERPROFILE%\\bin\\droid.exe. `droid --version` returned 0.241.1.",
@@ -625,8 +625,7 @@
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
       "versionProbe": "cli",
       "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because %USERPROFILE%\\bin\\droid.exe exists and `droid --version` returned 0.241.1 within the bounded probe.",
-      "headlessDispatchNote": "Droid 0.241.1 exec -f is headless. Prior smoke failed authentication. Owner action: open droid in the owner terminal and run /login; do not authenticate automatically.",
-      "versionObserved": "Observed 2026-10-22 by the full release suite: the declared droid.exe --version returned 0.245.1. No upgrade was performed."
+      "headlessDispatchNote": "Droid 0.241.1 exec -f is headless. Prior smoke failed authentication. Owner action: open droid in the owner terminal and run /login; do not authenticate automatically."
     },
     {
       "id": "vscode-insiders",
