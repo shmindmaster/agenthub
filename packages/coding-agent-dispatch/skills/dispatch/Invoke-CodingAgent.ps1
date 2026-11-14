@@ -1012,9 +1012,6 @@ if ($AnthropicApiKey) {
     $script:ClaudeApiKeyModel = if (-not [string]::IsNullOrWhiteSpace($Model)) { $Model.Trim() } else { [string]$optIn.model }
     if ([string]::IsNullOrWhiteSpace($script:ClaudeApiKeyModel)) { Write-Refusal 3 'refused claude: no model; pass -Model or record apiKeyOptIn.model' }
     $script:ClaudeApiKeyOptIn = $true
-    # The org behind the shared key is HIPAA-configured and rejects Claude Code beta features (advisor_tool,
-    # context_management); this documented switch keeps the run on generally available features.
-    $env:CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS = '1'
 }
 
 $row = Get-HostRow -Agent $agent
