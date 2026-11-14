@@ -3,7 +3,7 @@
 //
 //   node cloud-ai.mjs qa     --images <a.jpg> [<b.jpg>...] [--prompt <text|file>] --out <report.json>
 //   node cloud-ai.mjs review --files <script.md> [<more>...] [--rubric <text|file>] [--threshold 85] --out <review.json>
-//   node cloud-ai.mjs align  --take <take.wav> --script <locked-script.txt> --out <voice/align/<id>.json | qa/encoded-alignment.json>
+//   node cloud-ai.mjs align  --take <take.wav> --script <locked-script.txt> --out <voice/align/<id>.json | qa/encoded-alignment.json> [--ledger <job>/usage-ledger.jsonl]
 //                            [--provider azure|azure-s0|deepgram|assemblyai]   (default Azure F0 only; name another provider explicitly to use it)
 //   node cloud-ai.mjs illustration --provider runware --action prepare|submit|resume|status|inventory|cancel|review|purge-expired --input <private-job.json>
 //
@@ -455,6 +455,12 @@ export async function assemblyaiWords(buf, opts = {}) {
 
 export const alignOutPath = (out, ok) => (ok ? out : `${out}.failed.json`);
 
+/** What an alignment call cost. The free Azure tier is $0; S0 bills $0.27 an audio hour; other providers are unpriced here. */
+export function alignUsage(provider, audioSeconds) {
+  const seconds = Number(audioSeconds) || 0;
+  const estimatedUsd = provider === 'azure' ? 0 : provider === 'azure-s0' ? +((Math.ceil(seconds) / 3600) * 0.27).toFixed(6) : null;
+  return { service: 'align', provider, audioSeconds: +seconds.toFixed(3), tier: provider === 'azure' ? 'free' : 'paid', estimatedUsd, billedUsd: null, priced: estimatedUsd !== null };
+}
 export async function align(opts) {
   if (!opts.take || !opts.script) throw new Error('align: --take <audio> and --script <locked script> are required');
   const take = fs.readFileSync(opts.take);
@@ -502,7 +508,13 @@ export async function align(opts) {
     independentContentReviewRequired: true,
     words,
     heard: heard.words.map((w) => ({ key: w.key, start: +w.start.toFixed(3), end: +w.end.toFixed(3) })),
+    usage: alignUsage(p, durationSeconds),
   };
+  // Every alignment call lands in the job's usage ledger beside the voice and picture spend.
+  if (opts.ledger) {
+    fs.mkdirSync(path.dirname(path.resolve(opts.ledger)), { recursive: true });
+    fs.appendFileSync(path.resolve(opts.ledger), `${JSON.stringify({ at: report.createdAt, ...report.usage, take: report.take.sha256 })}\n`);
+  }
 
   // A report that fails the coverage limits never lands at the requested path: gates and cue-sheet builders read
   // that path as the picture clock. It is kept beside it as <out>.failed.json for diagnosis.

@@ -7,7 +7,7 @@ import { join, relative } from 'node:path';
 import { recordStage } from '../context.mjs';
 import { checkStage, stageKey, writeStage } from '../cache.mjs';
 import { normalizeCuts } from '../lint.mjs';
-import { estimateOpenAiSpeechUsd, estimateTtsCredits } from '../prices.mjs';
+import { estimateOpenAiSpeechUsd, estimateTtsCredits, realtimeUsdFromUsage } from '../prices.mjs';
 import { fileSha, hashOf, localAiOff, writeJson } from '../util.mjs';
 
 export function lineKey(spec, text, prev, next, take = 0) {
@@ -45,8 +45,10 @@ async function renderLine(ctx, { text, prev, next, out, key, take }) {
     const res = await openai.speech({ text, voice: v.voiceId, instructions: v.instructions, model: v.model });
     mkdirSync(join(out, '..'), { recursive: true });
     writeFileSync(out, res.bytes);
-    ctx.ledger.charge({ stage: 'voice', provider: 'openai', service: 'speech', units: usd, ref: key.slice(0, 12) });
-    return { receipt: { provider: 'openai', model: v.model, voice: v.voiceId, aiGenerated: true } };
+    // Charge what the response's usage says it cost; fall back to the estimate only when usage is missing, and say so.
+    const billed = realtimeUsdFromUsage(res.model || v.model, res.usage);
+    ctx.ledger.charge({ stage: 'voice', provider: 'openai', service: 'speech', units: billed ?? usd, estimated: billed == null, ref: key.slice(0, 12), note: res.usage ? `usage ${JSON.stringify(res.usage.output_token_details || {})}` : 'no usage returned' });
+    return { receipt: { provider: 'openai', model: res.model || v.model, voice: v.voiceId, aiGenerated: true, usage: res.usage ?? null, billedUsd: billed } };
   }
   if (v.provider === 'local') {
     const local = P.localVoice || localAiOff('local voice');

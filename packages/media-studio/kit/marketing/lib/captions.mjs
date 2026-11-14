@@ -7,19 +7,26 @@ const BREAK_BEFORE = new Set(['and', 'but', 'so', 'with', 'to', 'in', 'on', 'of'
 const norm = (w) => String(w).toLowerCase().replace(/[^a-z0-9']/g, '');
 const CLAUSE = /[,;:–—]["')\]]*$/;
 
-export function chunkWords(words, { minWords = 4, maxWords = 7, lead = 0.05, hold = 0.35, minSeconds = 1.0, maxCps = 18 } = {}) {
+export function chunkWords(words, { minWords = 4, maxWords = 7, lead = 0.05, hold = 0.35, minSeconds = 1.0, maxCps = 18, pauseBreak = 0.6, boundaries = [] } = {}) {
   if (!words.length) return [];
-  // 1) sentences
+  // 1) sentences. Aligner words often carry no punctuation, so a pause of `pauseBreak` seconds or a scene boundary
+  // (seconds, from `boundaries`) also ends one. A cue never shows a word from across a pause or a cut.
+  const cuts = [...boundaries].map(Number).filter(Number.isFinite);
+  const hardBreak = (w, next) => next && (next.start - w.end >= pauseBreak || cuts.some((b) => b > w.start && b <= next.start));
   const sentenceList = [];
   let cur = [];
-  for (const w of words) { cur.push(w); if (END.test(w.word)) { sentenceList.push(cur); cur = []; } }
+  words.forEach((w, i) => {
+    cur.push(w);
+    const hard = hardBreak(w, words[i + 1]);
+    if (hard || END.test(w.word)) { cur.hard = Boolean(hard); sentenceList.push(cur); cur = []; }
+  });
   if (cur.length) sentenceList.push(cur);
-  // 2) merge a short sentence into its neighbor when the result still fits
+  // 2) merge a short sentence into its neighbor when the result still fits, never across a pause or a cut
   const merged = [];
   for (const s of sentenceList) {
     const prev = merged[merged.length - 1];
-    if (prev && (s.length < minWords || prev.length < minWords) && prev.length + s.length <= maxWords) prev.push(...s);
-    else merged.push([...s]);
+    if (prev && !prev.hard && (s.length < minWords || prev.length < minWords) && prev.length + s.length <= maxWords) { prev.push(...s); prev.hard = s.hard; }
+    else { const copy = [...s]; copy.hard = s.hard; merged.push(copy); }
   }
   // 3) split long sentences at clause breaks, then before a conjunction or preposition, never leaving a stub
   const chunks = [];

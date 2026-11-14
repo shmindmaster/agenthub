@@ -25,4 +25,4 @@ pwsh -NoProfile -File "$tools/Finish-Media.ps1" -Action finish -Speech voice.wav
 
 Set `loudnessTargetLufs` in `job.json` to the same target. A job with a bed must finish from stems with `-Speech -Music` so the helper ducks the bed. Never mux an unducked bed. Never `-AllowDynamic` on TTS. Do not run a hosted enhancer on voice; regenerate the segment.
 
-Captions are a sidecar `.srt` from `write-captions.mjs`, built from the spoken words. Never embed or burn them in.
+Captions are a sidecar `.srt` from `write-captions.mjs`, built from the spoken words. Pass scene cut times with `--breaks`; a pause or a cut always ends a cue, and the script exits 1 when a cue shows a word more than 3.5 s before it is spoken. Never embed or burn them in.

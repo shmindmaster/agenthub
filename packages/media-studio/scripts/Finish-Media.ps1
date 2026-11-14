@@ -47,6 +47,10 @@
     Permit loudnorm to fall back to dynamic mode. Default off; that mode
     compresses TTS takes, which the narration contract forbids.
 
+.PARAMETER PreconditionVoice
+    For a voice-only TTS program whose peaks block a linear pass: apply a
+    fixed gain to the target loudness and a true-peak limiter 0.5 dB under
+    -TruePeak, then run the usual two-pass linear finish. No compression.
 .PARAMETER PlanOnly
     Print the JSON plan. Pass 1 still runs when an input exists (read-only).
 #>
@@ -74,6 +78,7 @@ param(
 
     [switch]$AllowDynamic,
 
+    [switch]$PreconditionVoice,
     [switch]$PlanOnly
 )
 
@@ -261,6 +266,7 @@ if ($Action -eq 'measure') {
 $scratchDir = [IO.Path]::GetTempPath()
 $mixWav = $null
 $normWav = $null
+$voiceWav = $null
 try {
     $sourceForLoudnorm = $programPath
     if ($useStems) {
@@ -284,6 +290,36 @@ try {
             '-hide_banner', '-nostats', '-i', $sourceForLoudnorm,
             '-af', $measureFilter, '-f', 'null', '-'
         )
+        $plan.pass1 = $pass1Args
+    }
+
+    if ($PreconditionVoice -and -not $PlanOnly) {
+        $rawRun = Invoke-NativeFfmpeg -FilePath $ffmpeg -Arguments $pass1Args
+        if ($rawRun.ExitCode -ne 0) { throw "FFmpeg precondition measure failed (exit $($rawRun.ExitCode)): $($rawRun.Output -join ' ')" }
+        $raw = ConvertFrom-LoudnormOutput -Lines $rawRun.Output
+        # The limiter takes back some of the gain and works on sample peaks, not true peaks. Re-measure and adjust until
+        # the take sits within 0.5 LU of target with its true peak at least 0.3 dB under the ceiling.
+        $gainDb = [math]::Round($Integrated - [double]$raw.input_i, 2)
+        $limitDb = $TruePeak - 1
+        $voiceWav = Get-ScratchWav -Directory $scratchDir -Name 'media-studio-voice'
+        $preFilter = $null
+        $after = $null
+        for ($round = 0; $round -lt 6; $round++) {
+            $limit = [math]::Round([math]::Pow(10, $limitDb / 20), 4)
+            $preFilter = 'volume={0}dB,alimiter=limit={1}:attack=5:release=50:level=disabled' -f $gainDb, $limit
+            $preRun = Invoke-NativeFfmpeg -FilePath $ffmpeg -Arguments @('-hide_banner', '-nostats', '-i', $sourceForLoudnorm, '-vn', '-af', $preFilter, '-ar', '48000', '-y', $voiceWav)
+            if ($preRun.ExitCode -ne 0) { throw "FFmpeg precondition failed (exit $($preRun.ExitCode)): $($preRun.Output -join ' ')" }
+            $afterRun = Invoke-NativeFfmpeg -FilePath $ffmpeg -Arguments @('-hide_banner', '-nostats', '-i', $voiceWav, '-af', $measureFilter, '-f', 'null', '-')
+            $after = ConvertFrom-LoudnormOutput -Lines $afterRun.Output
+            $short = $Integrated - [double]$after.input_i
+            $over = [double]$after.input_tp - ($TruePeak - 0.3)
+            if (([math]::Abs($short) -lt 0.5 -and $over -le 0) -or $round -eq 5) { break }
+            $gainDb = [math]::Round([math]::Min(30, $gainDb + $short), 2)
+            if ($over -gt 0) { $limitDb = [math]::Round($limitDb - $over - 0.2, 2) }
+        }
+        $plan.precondition = [ordered]@{ measuredI = $raw.input_i; measuredTP = $raw.input_tp; filter = $preFilter; resultI = $after.input_i; resultTP = $after.input_tp }
+        $sourceForLoudnorm = $voiceWav
+        $pass1Args = @('-hide_banner', '-nostats', '-i', $sourceForLoudnorm, '-af', $measureFilter, '-f', 'null', '-')
         $plan.pass1 = $pass1Args
     }
 
@@ -322,7 +358,7 @@ try {
     $pass2Json = ConvertFrom-LoudnormOutput -Lines $pass2.Output
     $plan.normalizationType = [string]$pass2Json.normalization_type
     if ($plan.normalizationType -and $plan.normalizationType -ne 'linear' -and -not $AllowDynamic) {
-        throw "loudnorm pass 2 used normalization_type='$($plan.normalizationType)' rather than linear (measured I=$($measured.input_i) LUFS, TP=$($measured.input_tp) dBTP, LRA=$($measured.input_lra) LU against I=$Integrated, TP=$TruePeak, LRA=$LoudnessRange). Refusing dynamic compression of the program. A TTS stem whose peak-to-loudness ratio exceeds $([math]::Round($TruePeak - $Integrated, 1)) dB cannot linear-scale: precondition the speech with a fixed gain plus a true-peak limiter first (the way Finish-BriefingStems.ps1 does), or raise -LoudnessRange when only LRA blocks the linear pass. Pass -AllowDynamic only for a non-TTS live mix that cannot linear-scale."
+        throw "loudnorm pass 2 used normalization_type='$($plan.normalizationType)' rather than linear (measured I=$($measured.input_i) LUFS, TP=$($measured.input_tp) dBTP, LRA=$($measured.input_lra) LU against I=$Integrated, TP=$TruePeak, LRA=$LoudnessRange). Refusing dynamic compression of the program. A TTS stem whose peak-to-loudness ratio exceeds $([math]::Round($TruePeak - $Integrated, 1)) dB cannot linear-scale: rerun with -PreconditionVoice for a voice-only program, or raise -LoudnessRange when only LRA blocks the linear pass. Pass -AllowDynamic only for a non-TTS live mix that cannot linear-scale."
     }
 
     $outDir = Split-Path -Parent $Output
@@ -376,7 +412,7 @@ try {
     $plan.length = (Get-Item -LiteralPath $Output).Length
     Write-PlanJson -Plan $plan
 } finally {
-    foreach ($temp in @($mixWav, $normWav)) {
+    foreach ($temp in @($mixWav, $normWav, $voiceWav)) {
         if ($temp -and (Test-Path -LiteralPath $temp)) {
             Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
         }

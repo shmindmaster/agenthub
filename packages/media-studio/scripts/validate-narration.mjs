@@ -287,9 +287,10 @@ const disclosureText = flat(disclosure?.text);
 const disclosureOk = !disclosureRequired || ((mode === 'caption' || mode === 'end-card') && !!disclosureText);
 if (!disclosureOk) {
   const why = !disclosure ? 'no syntheticDisclosure is declared'
+    : typeof disclosure === 'string' ? 'syntheticDisclosure is a string; it must be an object with mode and text'
     : mode === 'none' ? 'syntheticDisclosure.mode is "none"'
     : (mode !== 'caption' && mode !== 'end-card') ? `syntheticDisclosure.mode "${mode}" is not caption or end-card` : 'syntheticDisclosure.text is empty';
-  errors.push(`synthetic-disclosure: ${why}; truth needs a caption or end card, never narration`);
+  errors.push(`synthetic-disclosure: ${why}; truth needs a caption or end card, never narration. Shape: "syntheticDisclosure": { "mode": "caption", "text": "Synthetic demo data | AI narration" }`);
 }
 const syntheticDisclosure = { required: disclosureRequired, mode, text: disclosureText || null, ok: disclosureOk };
 

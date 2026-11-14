@@ -310,16 +310,21 @@ const stamp = (seconds) => {
  * Captions from aligned words. A cue that is still faster than 20 characters a second, because the next
  * word starts immediately, stays whole and is marked rate-bound. It is not split down to an orphan line.
  */
-export function captionCues(words) {
-  const chunks = chunkWords(words || [], { maxCps: 20 });
+export const MAX_CAPTION_LEAD = 3.5;
+export function captionCues(words, { boundaries = [] } = {}) {
+  const chunks = chunkWords(words || [], { maxCps: 20, boundaries });
   const rateBound = [];
+  const early = [];
   const cues = chunks.map((chunk, index) => {
     const duration = chunk.endSec - chunk.startSec;
     const fast = !(duration > 0) || chunk.text.length / duration > 20;
     if (fast) rateBound.push(index + 1);
+    // A word that appears more than MAX_CAPTION_LEAD seconds before it is spoken reads as a spoiler.
+    const late = chunk.words.find((word) => word.start - chunk.startSec > MAX_CAPTION_LEAD);
+    if (late) early.push({ cue: index + 1, word: late.word, shownAt: chunk.startSec, spokenAt: late.start });
     return { index: index + 1, lines: wrapLines(chunk.text), text: chunk.text, start: chunk.startSec, end: chunk.endSec, rateBound: fast };
   });
-  return { cues, rateBound };
+  return { cues, rateBound, early };
 }
 
 export function cuesToSrt(cues) {

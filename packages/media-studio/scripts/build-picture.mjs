@@ -82,6 +82,16 @@ export function resolveAnchors(node, sceneId, resolve1, counter) {
   return node;
 }
 
+// The kinds the composition plays from a file. Broll and screen-in-context take a still or a recorded take.
+const STILL = /\.(png|jpe?g|webp|gif)$/i;
+const VIDEO = /\.(webm|mp4|mov|m4v)$/i;
+export function checkMediaSource(visual) {
+  if (!visual || !["broll", "screen-in-context"].includes(visual.kind)) return null;
+  const src = String(visual.src ?? "");
+  if (!src) return `${visual.kind} has no src`;
+  if (!STILL.test(src) && !VIDEO.test(src)) return `${visual.kind} src "${src}" is neither a still (png, jpg, webp, gif) nor a video (webm, mp4, mov, m4v)`;
+  return null;
+}
 export function build(JOBROOT) {
   const cs = readJson(join(JOBROOT, "story/cue-sheet.json"));
   const plan = readJson(planPath);
@@ -98,6 +108,8 @@ export function build(JOBROOT) {
     const d = byId[c.id];
     if (!d) { errors.push(`no scene in the picture plan for cue ${c.id}`); return null; }
     if (!d.visual || !d.visual.kind) errors.push(`scene ${c.id} has no visual.kind`);
+    const mediaError = checkMediaSource(d.visual);
+    if (mediaError) errors.push(`scene ${c.id}: ${mediaError}`);
     const visual = resolveAnchors(d.visual, c.id, resolve1, counter);
     return { id: c.id, kicker: d.kicker ?? "", title: d.actionTitle ?? d.title ?? "", bullets: [], accent: d.accent ?? "#3DDC84", visual,
       visualScale: d.visualScale ?? DEFAULT_SCALE[visual?.kind] ?? 1,

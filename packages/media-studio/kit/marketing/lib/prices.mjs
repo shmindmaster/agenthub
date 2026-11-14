@@ -86,8 +86,27 @@ export const OPENAI_IMAGE_USD_PER_M = { textIn: 5, imageIn: 8, cachedTextIn: 1.2
  * depends on resolution, quality, complexity and edit inputs, so record the real usage.output_tokens after each call.
  */
 const IMAGE_OUT_TOKENS_EST = { low: 1100, medium: 4200, high: 6200, xhigh: 9500, max: 12000 };
-/** Realtime speech, USD per 1M audio tokens; about 1,200 audio output tokens per minute of speech (measured 2026-11-13). */
-export const OPENAI_REALTIME_USD_PER_M = { 'gpt-realtime-2.1-mini': { in: 10, out: 20 }, 'gpt-realtime-2.1': { in: 32, out: 64 } };
+/** Realtime, USD per 1M tokens: audio in/out, text in/out, cached input. About 1,200 audio output tokens per minute of
+ * speech (measured 2026-11-13). Source: developers.openai.com/api/docs/pricing, read 2026-11-14. */
+export const OPENAI_REALTIME_USD_PER_M = {
+  'gpt-realtime-2.1-mini': { in: 10, out: 20, textIn: 0.6, textOut: 2.4, cachedIn: 0.3, cachedTextIn: 0.06 },
+  'gpt-realtime-2.1': { in: 32, out: 64, textIn: 4, textOut: 24, cachedIn: 0.4, cachedTextIn: 0.4 },
+};
+/** Billed USD from a realtime response.done usage block, every dimension priced. Null when usage is missing. */
+export function realtimeUsdFromUsage(model, usage) {
+  if (!usage) return null;
+  const r = OPENAI_REALTIME_USD_PER_M[model] || OPENAI_REALTIME_USD_PER_M['gpt-realtime-2.1'];
+  const i = usage.input_token_details || {};
+  const o = usage.output_token_details || {};
+  const cached = i.cached_tokens_details || {};
+  const cachedAudio = Number(cached.audio_tokens ?? 0);
+  const cachedText = Number(cached.text_tokens ?? (i.cached_tokens && !cached.audio_tokens ? i.cached_tokens : 0));
+  const audioIn = Math.max(0, Number(i.audio_tokens ?? 0) - cachedAudio);
+  const textIn = Math.max(0, Number(i.text_tokens ?? 0) - cachedText);
+  const usd = audioIn * r.in + textIn * r.textIn + cachedAudio * r.cachedIn + cachedText * r.cachedTextIn
+    + Number(o.audio_tokens ?? 0) * r.out + Number(o.text_tokens ?? 0) * r.textOut;
+  return usd / 1e6;
+}
 const REALTIME_OUT_TOKENS_PER_MIN_EST = 1200;
 /** gpt-transcribe file transcription, USD per audio hour (same rate as the Azure deployment above). */
 const OPENAI_STT_USD_PER_HOUR = { 'gpt-transcribe': 0.27 };

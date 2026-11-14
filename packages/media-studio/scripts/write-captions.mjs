@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Sidecar captions from aligner words. Fast speech stays one cue and is marked rate-bound.
-// Usage: node write-captions.mjs <jobRoot> [--words story/narration-words.json] [--out qa/captions.srt]
+// A pause, or a scene cut passed as --breaks <seconds,...>, always ends a cue. Exits 1 when a cue shows a word early.
+// Usage: node write-captions.mjs <jobRoot> [--words story/narration-words.json] [--out qa/captions.srt] [--breaks 10.2,20.1]
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { captionCues, cuesToSrt, normalizeAlignWords } from './picture-gates.mjs';
@@ -12,7 +13,8 @@ if (!jobRoot) { console.error('Usage: node write-captions.mjs <jobRoot> [--words
 const root = resolve(jobRoot);
 const wordsPath = resolve(root, flag('--words', 'story/narration-words.json'));
 const raw = JSON.parse(readFileSync(wordsPath, 'utf8').replace(/^\uFEFF/, ''));
-const { cues, rateBound } = captionCues(normalizeAlignWords(raw).words.map((word) => ({ word: word.w, start: word.start, end: word.end })));
+const boundaries = String(flag('--breaks', '')).split(',').filter(Boolean).map(Number);
+const { cues, rateBound, early } = captionCues(normalizeAlignWords(raw).words.map((word) => ({ word: word.w, start: word.start, end: word.end })), { boundaries });
 const out = resolve(root, flag('--out', 'qa/captions.srt'));
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, cuesToSrt(cues));
@@ -21,4 +23,5 @@ for (const cue of cues) if (cue.rateBound) texts[String(cue.index)] = cue.text;
 const report = resolve(root, 'qa', 'caption-rate-bound.json');
 mkdirSync(dirname(report), { recursive: true });
 writeFileSync(report, `${JSON.stringify({ generator: 'media-studio/write-captions', cues: rateBound, texts, reason: 'speech is faster than 20 characters a second and the next word starts immediately' }, null, 2)}\n`);
-console.log(JSON.stringify({ ok: true, cues: cues.length, rateBound }));
+console.log(JSON.stringify({ ok: early.length === 0, cues: cues.length, rateBound, early }));
+if (early.length) process.exit(1);

@@ -16,7 +16,7 @@
  * correctly calls a still.
  */
 import type { FC } from "react";
-import { Easing, Img, Interactive, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { Easing, Img, Interactive, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { Chart, LottieScene, SvgScene, type ChartVisual, type LottieVisual, type SvgVisual } from "./RichVisuals";
 
 const MONO = '"JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace';
@@ -996,6 +996,8 @@ const Sidecar: FC<{ v: Extract<Visual, { kind: "sidecar" }>; accent: string; d: 
   );
 };
 
+export const VIDEO_SRC = /\.(webm|mp4|mov|m4v)$/i;
+export const isVideoSrc = (src: string) => VIDEO_SRC.test(src);
 const Broll: FC<{ v: Extract<Visual, { kind: "broll" | "screen-in-context" }>; accent: string; d: number }> = ({
   v,
   accent,
@@ -1005,6 +1007,7 @@ const Broll: FC<{ v: Extract<Visual, { kind: "broll" | "screen-in-context" }>; a
   const { fps } = useVideoConfig();
   const span = Math.max(1, d * fps);
   const framed = v.kind === "screen-in-context";
+  const fadeIn = interpolate(frame, [0, 0.35 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   // product-picture.md: Recast punch-in is the only zoom on product UI.
   // Ken Burns on screen-in-context turns a screenshot into fake motion.
   const motion = framed
@@ -1028,19 +1031,25 @@ const Broll: FC<{ v: Extract<Visual, { kind: "broll" | "screen-in-context" }>; a
           boxShadow: framed ? "0 24px 60px rgba(0,0,0,0.45)" : "none",
         }}
       >
-        <Img
-          src={staticFile(v.src)}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            opacity: interpolate(frame, [0, 0.35 * fps], [0, 1], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            }),
-            ...motion,
-          }}
-        />
+        {isVideoSrc(v.src) ? (
+          // Recorded screen takes play as moving footage, whole and uncropped (product-picture.md).
+          <OffthreadVideo
+            src={staticFile(v.src)}
+            muted
+            style={{ width: "100%", height: "100%", objectFit: framed ? "contain" : "cover", opacity: fadeIn }}
+          />
+        ) : (
+          <Img
+            src={staticFile(v.src)}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: fadeIn,
+              ...motion,
+            }}
+          />
+        )}
       </div>
     </div>
   );
