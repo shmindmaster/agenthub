@@ -82,10 +82,13 @@ $generic = @(
     # Trailing \b(?!:) excludes SSH remotes (git@github.com:org/repo.git): after
     # the TLD, \b matches before ':', which made daytona-factory.yml a false hit.
     @{ Name = 'no non-example email addresses'; Pattern = '(?<![\w.-])[A-Za-z0-9._%+-]+@(?!example\.(com|org|net|test|invalid)\b|users\.noreply\.github\.com\b|noreply\.)(?:[A-Za-z0-9-]+\.)+(?!(md|json|js|mjs|cjs|ts|ps1|ya?ml|txt|exe|dll)\b)[A-Za-z]{2,}\b(?!:)' }
-    @{ Name = 'no credential-shaped strings'; Pattern = '(sk-[A-Za-z0-9_-]{24,}|ghp_[A-Za-z0-9]{24,}|github_pat_[A-Za-z0-9_]{24,}|AKIA[0-9A-Z]{16}|xox[bpa]-[0-9A-Za-z-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' }
+    # scan-repo.test.mjs is the repo scanner's own test fixture: it carries a
+    # deliberately fake AKIA-shaped key so the scanner's detection stays tested.
+    @{ Name = 'no credential-shaped strings'; Pattern = '(sk-[A-Za-z0-9_-]{24,}|ghp_[A-Za-z0-9]{24,}|github_pat_[A-Za-z0-9_]{24,}|AKIA[0-9A-Z]{16}|xox[bpa]-[0-9A-Za-z-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'; Exempt = @('packages/product/skills/engineer/scripts/scan-repo.test.mjs') }
 )
 foreach ($rule in $generic) {
-    $hits = Find-Hits -Pattern $rule.Pattern
+    $exempt = [string[]]@($rule.Exempt | Where-Object { $_ })
+    $hits = Find-Hits -Pattern $rule.Pattern -ExemptFiles $exempt
     Report "tracked files: $($rule.Name)" ($hits.Count -eq 0) "found in: $($hits -join ', ')"
 }
 

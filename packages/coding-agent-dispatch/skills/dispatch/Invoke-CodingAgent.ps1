@@ -732,7 +732,10 @@ function Get-DispatchTable {
                         $droidRaw = Get-Content -LiteralPath $droidFile -Raw -Encoding UTF8
                         $toolsValue = $null
                         if ($droidRaw -match '(?s)^---\r?\n(.*?)\r?\n---' -and $Matches[1] -match '(?m)^tools:[ \t]*(.+?)[ \t]*$') {
-                            $toolsValue = $Matches[1]
+                            # Trim: in a CRLF droid file (?m)$ sits before \n, so
+                            # the capture keeps a trailing \r that would fail the
+                            # array/category checks below (Sentry 20251924/0).
+                            $toolsValue = $Matches[1].Trim()
                         }
                         $readOnlyToolAllow = @('Read', 'LS', 'Grep', 'Glob', 'Execute', 'WebSearch', 'FetchUrl')
                         $whyNotReadOnly = $null

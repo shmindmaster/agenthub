@@ -351,6 +351,11 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     [IO.File]::WriteAllText($reviewerDroid, ($reviewerDroidText -replace '(?m)^tools:.*$', ''))
     $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer','-ReadOnly')
     Check 'Factory refuses -ReadOnly when the reviewer droid omits its tools boundary' ($r.Exit -eq 3 -and $r.Err -match 'omits tools:' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    # A CRLF checkout must not smuggle a trailing \r into the tools value and
+    # fail the array check (Sentry 20251924/0, SH-4676 review).
+    [IO.File]::WriteAllText($reviewerDroid, (($reviewerDroidText -replace "`r`n", "`n").Replace("`n", "`r`n")))
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer','-ReadOnly')
+    Check 'Factory -ReadOnly validates a CRLF droid file without a carriage-return refusal' ($r.Exit -eq 0 -and (ShowArgs $r) -match '--only-tools' -and $r.Err -notmatch 'neither the read-only category') ((ShowArgs $r) + $r.Err)
     [IO.File]::WriteAllText($reviewerDroid, $reviewerDroidText)
     foreach ($roleArgs in @(@(), @('-Role', 'reviewer'), @('-Role', 'peer'))) {
         $r = Run (@('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly') + $roleArgs)

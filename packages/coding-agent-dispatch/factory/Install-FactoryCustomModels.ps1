@@ -37,6 +37,14 @@ $existing = @()
 if ($settings.PSObject.Properties['customModels'] -and $settings.customModels) { $existing = @($settings.customModels) }
 
 # Compare only the canonical fields; an owner entry may carry extra fields.
+# Never print a credential value: a ${VAR} reference is a name and is safe to
+# show, but an existing entry may carry a literal key, so anything else in a
+# key-like field is masked in diff output (Codex/Sentry review, SH-4676 PR).
+function Format-SafeValue([string]$Name, $Value) {
+    if ($null -eq $Value) { return $null }
+    if ($Name -match '(?i)^(apikey|api_key|token|secret)$' -and $Value -notmatch '^\$\{[A-Za-z_][A-Za-z0-9_]*\}$') { return '***' }
+    return $Value
+}
 function Get-FieldDiff($Canonical, $Existing) {
     $diff = @()
     foreach ($prop in $Canonical.PSObject.Properties) {
@@ -46,7 +54,7 @@ function Get-FieldDiff($Canonical, $Existing) {
         $have = if ($Existing.PSObject.Properties[$name]) {
             if ($Existing.$name -is [pscustomobject]) { $Existing.$name | ConvertTo-Json -Depth 10 -Compress } else { [string]$Existing.$name }
         } else { $null }
-        if ($want -cne $have) { $diff += "${name}: have '$have', want '$want'" }
+        if ($want -cne $have) { $diff += ("{0}: have '{1}', want '{2}'" -f $name, (Format-SafeValue $name $have), (Format-SafeValue $name $want)) }
     }
     return $diff
 }
@@ -94,7 +102,13 @@ foreach ($entry in $canonical) {
     $present = $existing | Where-Object { [string]$_.model -eq [string]$entry.model }
     if (-not $present) { $merged.Add($entry) }
 }
-$settings.customModels = $merged.ToArray()
+# A first-time install has no customModels property, and assigning a missing
+# property on a PSCustomObject throws; add it explicitly in that case.
+if ($settings.PSObject.Properties['customModels']) {
+    $settings.customModels = $merged.ToArray()
+} else {
+    $settings | Add-Member -NotePropertyName 'customModels' -NotePropertyValue $merged.ToArray()
+}
 
 [IO.File]::WriteAllText($settingsFile, ($settings | ConvertTo-Json -Depth 32), [Text.UTF8Encoding]::new($false))
 # Keep the config valid at every write: re-parse, and restore on any failure.
