@@ -54,4 +54,5 @@ Save to `_product-experience/02-design.md` only when the user asks for a file. T
 
 Next: `build`.
 
+Read for architecture, storage, workers, caching, email or product copy: [portfolio standard](../../references/portfolio-standard.md).
 Read when applying the detailed example. [Workflow detail](references/workflow-detail.md)
