@@ -580,16 +580,16 @@ function Test-VersionedCacheScanIsProvenSound {
 function Test-VersionCheckRejectsStaleCopy {
     $problems = [Collections.Generic.List[string]]::new()
     $stale = [pscustomobject]@{
-        Name             = 'ah-aws'
+        Name             = 'ah-browser'
         Host             = 'fixture'
         InstalledVersion = '0.0.1'
         InstallPath      = ''
-        SourcePackage    = (Join-Path $repoRoot 'packages\aws')
+        SourcePackage    = (Join-Path $repoRoot 'packages\browser')
         Remedy           = 'not applicable'
     }
     $result = Test-InstalledVersionMatchesSource -Plugins @($stale)
     if ($result.Passed) {
-        $problems.Add('the version check accepted a fabricated 0.0.1 copy of ah-aws, so it cannot detect a stale host')
+        $problems.Add('the version check accepted a fabricated 0.0.1 copy of ah-browser, so it cannot detect a stale host')
     }
     if ($result.Detail -notmatch '0\.0\.1') {
         $problems.Add("the version check failed without naming the stale version: $($result.Detail)")
