@@ -2,7 +2,8 @@
 <#
 Behavior tests for the six-host authority contract (SH-4669): the real registry
 satisfies it, and synthetic registries that add an unknown role, a seventh
-retained host, a mis-owned companion or a reactivated retired host are rejected.
+retained host, a mis-owned companion, a demoted family or a missing role are rejected.
+A retired-labelled host may be moved back to active (owner direction 2026-11-13: roles are labels, not blocks).
 Run: pwsh -NoProfile -File tests/Test-FleetRoles.ps1
 #>
 [CmdletBinding()]
@@ -36,6 +37,10 @@ $r = New-Registry; (Find-Host $r 'opencode-desktop').fleetOwner = 'cline'
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'companion owned by a non-retained host is rejected' (($e -join ';') -match 'companion surface must name a retained fleetOwner')
 
+
+$r = New-Registry; $h = Find-Host $r 'kirocrew'; $r.inactiveAgents = @($r.inactiveAgents | Where-Object { $_.id -ne 'kirocrew' }); $r.activeAgents = @($r.activeAgents) + $h
+$e = @(Test-AgentFleetRoles -Agents $r)
+Report 'a retired-labelled host may be reactivated' ($e.Count -eq 0) ($e -join '; ')
 
 $r = New-Registry; (Find-Host $r 'amp').PSObject.Properties.Remove('fleetRole')
 $e = @(Test-AgentFleetRoles -Agents $r)

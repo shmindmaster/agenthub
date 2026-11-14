@@ -10,7 +10,7 @@ This checkout tracks only public packages under `packages/`. Private capability 
 
 - Executable code, tests, and scripts describe implemented reality.
 - `docs/` holds intentional durable knowledge.
-- RepoWise holds derived codebase intelligence.
+- RepoWise is retired (SH-4409); `openwiki/` pages, where present, hold derived codebase notes. Source and tests stay authoritative.
 
 When they disagree, investigate rather than silently choosing one.
 
@@ -21,13 +21,13 @@ When they disagree, investigate rather than silently choosing one.
 3. `global-agent-policy.md`, the public global policy. An overlay host's effective policy is `overlays/personal/global-agent-policy.md`.
 4. `docs/development/repo-standard.md` when touching any other fleet repo.
 5. `registry/` entries relevant to the capability you are changing.
-6. RepoWise workspace context before broad exploration (see [`agent-repowise.md`](./agent-repowise.md)).
+6. Native source search, plus relevant `openwiki/` pages when present.
 
 ## Repository map
 
 | Path | Role |
 | --- | --- |
-| `packages/<name>/` | **Public** capability content (skill packs, plugins), including RepoWise |
+| `packages/<name>/` | **Public** capability content (skill packs, plugins), including the legacy RepoWise package until SH-4670 removes it |
 | `overlays/personal.example/` | Template for a local private overlay |
 | `overlays/personal/` | **Gitignored** local override: `packages/`, `capabilities.json`, `overlay.json` |
 | `registry/` | Public parity contract (no private capability rows) |
