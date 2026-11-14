@@ -80,7 +80,7 @@
   local models, embedders, rerankers or TTS/STT servers. The private `local-ai`
   capability (`local-ai-stack`, `gpu-cluster-inference`) is unregistered and both
   skills are in `retiredFleetSkills`. The H100 cluster is gone; compute is chosen
-  by capacity per the policy. Code retrieval is RepoWise, document retrieval is
+  by capacity per the policy. Code retrieval is native source search plus committed openwiki/ pages (RepoWise retired 2026-11-13), document retrieval is
   `docwise`. Older entries below that mention Local-AI describe history,
   not the current route. The `packages/media-studio` pack still carries Local-AI
   code paths and docs; retiring them needs a media-studio release that is
@@ -212,8 +212,8 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   packages and capability rows live under gitignored `overlays/personal/`
   (`packages/<id>/`, `capabilities.json`, `overlay.json`).
   `scripts/lib/CapabilityGraph.ps1` merges the overlay when present.
-  Validate fails if a private tree remains under `packages/`. RepoWise stays
-  a public package. `agenthub-internal` is archived; do not use a second
+  Validate fails if a private tree remains under `packages/`.
+  `agenthub-internal` is archived; do not use a second
   AgentHub checkout as a control plane. Host destinations in
   `registry/agents.json` remain `{userHome}` templates. `policy-core.md` is
   the portable core; `global-agent-policy.md` is the generic public policy, and owner-specific policy lives only in `overlays/personal/global-agent-policy.md`.
@@ -460,27 +460,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `_ENGAGEMENTS.md`. Portfolio Audit is not the retrieval skill for this
   tree. GPU embed/rerank stays native (`ai.ps1`); do not add a second
   Docker RAG container. Duckie keeps host `6333`.
-- **RepoWise workspace** at `C:\Repos` (relocated 2026-08-21 from
-  `C:\Repos\shmindmaster`; created 2026-08-08): covers git repos under
-  `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah` (**63
-  members** as of 2026-08-24). All 63 indexed, 0 stale vs HEAD. The
-  per-organization breakdown was removed from this public file on
-  2026-11-05: it was the only place publishing how many repositories belong to
-  a client organization, and the total plus the freshness claim are the
-  operative facts here. `repowise status -w` from `C:\Repos` reports the live
-  per-member breakdown locally. Nested fixture gits are not members
-  (`crewscore/.corpus-cache/*`, `duckie-app/deploy` which is
-  `duckie-deploy`). CLI 0.49.0 as of 2026-09-10 (was 0.48.0, behind PyPI),
-  kept on PyPI latest by `scripts/Update-RepoWise.ps1`. MCP is local stdio
-  `repowise mcp C:/Repos`. A member
-  `.vscode/mcp.json` that points at the repo instead of `C:/Repos` is
-  drift (`Check-RepoStandard.ps1` `repowise-mcp-workspace-scope`).
-  **Local-only:** not signed in to a hosted RepoWise account; telemetry
-  disabled 2026-08-24 (`repowise telemetry disable`); indexes stay in each
-  repo's `.repowise/` plus `C:\Repos\.repowise-workspace\`; default update
-  is `--index-only` (no LLM). Do not `repowise login`. agenthub is the
-  default/primary repo. On-demand-local: Claude is wired, other hosts use
-  the `repowise` skill plus CLI.
+- **RepoWise workspace:** retired 2026-11-13 (SH-4670). The `C:\Repos` workspace, its indexes and CLI were removed; see the entry at the top of this file.
 - **Fleet checker**: `scripts/Check-RepoStandard.ps1` with fixture tests in
   `tests/Test-RepoStandard.ps1` (11 behavior checks, passing 2026-08-08).
 - **Skill deployment ledger**: fixed 2026-08-08. `Sync-Capabilities.ps1` wrote
@@ -706,7 +686,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Provider removal
 
-Owner direction 2026-11-06 removes Firecrawl and Supabase plugins, skills and MCP routes. Firecrawl is absent from the AgentHub catalogs and active registries. Supabase startup credits do not require an active integration. RepoWise keeps vendor IDs on Claude and Codex and uses the local AH-RepoWise display alias. Clerk remains vendor-owned.
+Owner direction 2026-11-06 removes Firecrawl and Supabase plugins, skills and MCP routes. Firecrawl is absent from the AgentHub catalogs and active registries. Supabase startup credits do not require an active integration. RepoWise was retired on 2026-11-13 (SH-4670). Clerk remains vendor-owned.
 
 ## In progress
 
