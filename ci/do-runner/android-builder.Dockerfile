@@ -28,4 +28,7 @@ WORKDIR /work
 # Daemon off keeps a --rm container from leaking JVMs; heap sizing lives in the
 # persistent GRADLE_USER_HOME gradle.properties that android-setup.sh writes,
 # which overrides the generated project's 512 MB Metaspace cap.
+# GRADLE_USER_HOME already comes from the base image; restated so the lane never
+# silently loses the mounted cache (and the Metaspace override) if the base moves.
+ENV GRADLE_USER_HOME=/opt/gradle-home
 ENV GRADLE_OPTS="-Dorg.gradle.daemon=false"

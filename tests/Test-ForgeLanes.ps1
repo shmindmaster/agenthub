@@ -32,22 +32,30 @@ $laneFiles = @('android-build.sh', 'android-setup.sh', 'android-builder.Dockerfi
 $missing = @($laneFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $ciDir $_)) })
 Report 'ci/do-runner carries every forge lane file' ($missing.Count -eq 0) "missing: $($missing -join ', ')"
 
-# --- bash syntax (Git for Windows bash, never WSL) ---------------------------
-$bashCandidates = @()
-if ($env:ProgramFiles) { $bashCandidates += "$env:ProgramFiles\Git\bin\bash.exe" }
-if (${env:ProgramFiles(x86)}) { $bashCandidates += "${env:ProgramFiles(x86)}\Git\bin\bash.exe" }
-if ($env:LOCALAPPDATA) { $bashCandidates += "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe" }
-$gitBash = $bashCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not $gitBash) {
-    Report 'Git for Windows bash is available for syntax checks' $false 'no bash.exe found under Program Files'
+# --- bash syntax (Git for Windows bash on Windows, native bash elsewhere) ----
+$bashExe = $null
+if ($env:OS -eq 'Windows_NT') {
+    # Deliberately never a bare PATH lookup on Windows: `bash` there is WSL, which
+    # fleet policy keeps off this machine.
+    $bashCandidates = @()
+    if ($env:ProgramFiles) { $bashCandidates += "$env:ProgramFiles\Git\bin\bash.exe" }
+    if (${env:ProgramFiles(x86)}) { $bashCandidates += "${env:ProgramFiles(x86)}\Git\bin\bash.exe" }
+    if ($env:LOCALAPPDATA) { $bashCandidates += "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe" }
+    $bashExe = $bashCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+} else {
+    $nativeBash = Get-Command bash -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($nativeBash) { $bashExe = [string]$nativeBash.Source }
+}
+if (-not $bashExe) {
+    Report 'bash is available for syntax checks' $false 'no Git for Windows bash.exe (Windows) or native bash (Linux/macOS) found'
 } else {
     foreach ($script in @('android-build.sh', 'android-setup.sh')) {
         $path = (Join-Path $ciDir $script) -replace '\\', '/'
-        & $gitBash -n $path 2>&1 | Out-Null
+        & $bashExe -n $path 2>&1 | Out-Null
         Report "$script passes bash -n" ($LASTEXITCODE -eq 0) "bash -n exit=$LASTEXITCODE"
     }
     # The lane must refuse a missing repo before touching docker or the network.
-    & $gitBash ((Join-Path $ciDir 'android-build.sh') -replace '\\', '/') '/nonexistent-repo.git' 'somebranch' 2>&1 | Out-Null
+    & $bashExe ((Join-Path $ciDir 'android-build.sh') -replace '\\', '/') '/nonexistent-repo.git' 'somebranch' 2>&1 | Out-Null
     Report 'android-build.sh refuses a missing repo with exit 2' ($LASTEXITCODE -eq 2) "exit=$LASTEXITCODE"
 }
 

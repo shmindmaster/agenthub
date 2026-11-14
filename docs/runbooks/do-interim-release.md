@@ -98,7 +98,7 @@ ssh forge android-build /srv/abacare.git <branch> --app apps/mobile \
 ```
 
   The lane fetches only the pushed ref, runs the app's own `build-environment.cjs` gate when it ships one, `expo prebuild --platform android`, then `gradlew assembleRelease` (`--variant debug` for a debug APK). Working trees persist at `/srv/work/android/<repo>-<branch>` (node_modules and the generated `android/` survive between runs).
-- Output: `/srv/work/android/artifacts/<repo>-<branch>-<sha8>.apk` with its sha256 and the full build log beside it; exit 0 means the APK was built. The APK is unsigned: the lane holds no Android signing keys, and store builds still go through EAS.
+- Output: `/srv/work/android/artifacts/<repo>-<branch>-<sha8>-<app>-<variant>[-<envhash8>].apk` with its sha256 and the full build log under the same stem; exit 0 means the APK was built. The stem is the rerun key: identical identity replaces its own artifacts, and a different app, variant or `--env` set can never overwrite another build's evidence. The APK is unsigned: the lane holds no Android signing keys, and store builds still go through EAS.
 
 ## Jobs dashboard (`jobs.forge.shtrial.com`)
 

@@ -14,8 +14,10 @@
 #
 # The working tree lives at /srv/work/android/<repo>-<branch>; node_modules and the
 # generated android/ persist between runs, and the pnpm store and Gradle home are
-# shared under /opt/forge/android. The APK is copied to /srv/work/android/artifacts/
-# with its sha256, and the full build log lands beside it. Exit 0 = APK built.
+# shared under /opt/forge/android. The APK is copied to
+# /srv/work/android/artifacts/<repo>-<branch>-<sha8>-<app>-<variant>[-<envhash8>].apk
+# with its sha256, and the full build log lands beside it under the same stem.
+# Exit 0 = APK built.
 #
 # Canonical copy: AgentHub ci/do-runner/android-build.sh, installed at
 # /usr/local/bin/android-build by android-setup.sh.
@@ -56,14 +58,25 @@ git -C "$work" fetch -q origin "+refs/heads/$branch:refs/remotes/origin/$branch"
 git -C "$work" checkout -q -B "$safe" "origin/$branch"
 git -C "$work" clean -qfd
 sha=$(git -C "$work" rev-parse HEAD)
-stem="$name-$safe-${sha:0:8}"
-log="$artifacts/$stem.log"
 app_norm=${app#./}; app_norm=${app_norm%/}
 
 if [ -z "$filter" ]; then
   pkg=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' "$work/$app_norm/package.json")
   filter="$pkg..."
 fi
+
+# Artifact identity: repo, branch, commit, app, variant, and (when --env was used)
+# a hash of the sorted env, so two configurations of one commit never overwrite
+# each other's APK or log. A rebuild of the identical identity replaces its own
+# artifacts, which is the point: the stem is the rerun key.
+app_tag=${app_norm//\//-}; [ -n "$app_tag" ] || app_tag=root
+env_suffix=""
+if [ ${#envs[@]} -gt 0 ]; then
+  env_hash=$(printf '%s\n' "${envs[@]}" | LC_ALL=C sort | sha256sum | cut -c1-8)
+  env_suffix="-$env_hash"
+fi
+stem="$name-$safe-${sha:0:8}-$app_tag-$variant$env_suffix"
+log="$artifacts/$stem.log"
 
 main() {
   echo "== android-build repo=$repo branch=$branch sha=$sha app=$app_norm filter=$filter variant=$variant image=$image"
@@ -94,8 +107,7 @@ BUILD
   local apk
   apk=$(find "$work/$app_norm/android" -type f -path "*/outputs/apk/$variant/*.apk" | sort | head -1)
   [ -n "$apk" ] && [ -s "$apk" ] || { echo "android-build: no $variant APK under $work/$app_norm/android" >&2; return 1; }
-  local suffix=""; [ "$variant" = debug ] && suffix="-debug"
-  local out="$artifacts/$stem$suffix.apk"
+  local out="$artifacts/$stem.apk"
   cp -f "$apk" "$out"
   sha256sum "$out"
   ls -lh "$out"
