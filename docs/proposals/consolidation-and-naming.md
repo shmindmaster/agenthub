@@ -1,5 +1,7 @@
 # Consolidation and naming — review and recommendations
 
+> **Superseded 2026-11-13 (SH-4636):** the vendor-duplicated wrappers this proposal analyses (`ah-context7`, `ah-linear`, `ah-notion`, `ah-exa`, `ah-daytona`, `ah-aws`) are deleted; retained hosts use vendor plugins. RepoWise is retired (SH-4670). Tables and recommendations below are history, not current routes.
+
 Review of `packages/`, `registry/`, and the `agenthub-private` overlay from a
 simplification and consolidation standpoint. Evidence is file-linked; every
 claim below names where it was checked.
