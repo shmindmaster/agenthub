@@ -1,0 +1,4 @@
+interface:
+  display_name: "Engineer"
+  short_description: "Apply engineering rules and scan repos for quality problems"
+  default_prompt: "Use $engineer to scan this repository and rank its engineering problems."

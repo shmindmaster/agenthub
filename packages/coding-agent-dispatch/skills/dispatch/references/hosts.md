@@ -2,7 +2,7 @@
 
 Read when: choosing a model, a Kiro role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo, MiMo or Qwen eligibility, resuming a Cline session, or auditing a host plugin.
 
-Contents: Models, Kiro roles, Read-only runs, Account hosts, New plan hosts, Qwen, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
+Contents: Models, Kiro roles, Read-only runs, Account hosts, New plan hosts, Plan routes, Qwen, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
 
 ## Models
 
@@ -145,6 +145,20 @@ environment only.
   not been exercised with a model run. Do not change its stored credentials
   to make a check pass: the route's plan variables live in the dispatcher's
   environment, and the child never reads the saved configuration.
+
+## Plan routes
+
+Smoke-verified 2026-11-14 through `Invoke-CodingAgent.ps1` (`READY`, exit 0). Keys come from environment variables only.
+
+| Plan | Variable | opencode | kilo | factory |
+| --- | --- | --- | --- | --- |
+| Qwen Token Plan | `QWEN_TOKEN_PLAN_API_KEY` | `qwen-token-plan/qwen3.8-max`, `qwen-token-plan/qwen4-max-preview` | `qwen-token-plan/qwen3.8-max` | `custom:Qwen-38-Max-Token-Plan-5`, `custom:Qwen-4-Max-Preview-Token-Plan-6` |
+| Z.ai GLM Coding Plan | `ZAI_CODING_PLAN_API_KEY` | `zai-glm-plan/glm-5.3` (native), `zai-coding-plan/glm-5.3` (legacy launcher) | `zai-coding-plan/glm-5.3` | `custom:GLM-53-Zai-Coding-Plan-4` |
+| MiMo Token Plan | `MIMO_API_KEY` | `mimo-token-plan/mimo-v2.6-pro` | `mimo/mimo-v2.6-pro` | `custom:MiMo-V26-Pro-Token-Plan-2` |
+
+- Factory `custom:` ids end in the `customModels` array index in `~/.factory/settings.json`; reordering that file changes the id. Display names avoid parentheses because the dispatcher refuses them.
+- Qwen Token Plan terms allow AI coding tools only; never call its endpoint from scripts or app backends.
+- Unverified: Factory reported nonzero `factory_credits` on the Qwen 3.8 Max and GLM smoke runs.
 
 ## Factory
 
