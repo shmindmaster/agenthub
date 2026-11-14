@@ -19,7 +19,7 @@ export function lineKey(spec, text, prev, next, take = 0) {
   });
 }
 
-export const lineExt = (provider) => (provider === 'local' ? 'wav' : 'mp3');
+export const lineExt = (provider) => (provider === 'local' || provider === 'openai' ? 'wav' : 'mp3');
 
 async function renderLine(ctx, { text, prev, next, out, key, take }) {
   const v = ctx.spec.voice;

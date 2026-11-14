@@ -548,11 +548,11 @@
         "metadata",
         "captions-text"
       ],
-      "status": "conditional",
+      "status": "ready",
       "cost": "OpenAI direct, per token: Luna $0.10/$0.50, Terra $1/$5, Sol $2/$10, Astra $10/$50 per 1M in/out; Batch and Flex halve it; cached stable prefix 0.05-0.1x input",
       "identity": "any",
       "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. generateText({role}) with a cacheable stable prefix.",
-      "notes": "Models visible to the key on 2026-11-13. Studio tier picks the role: draft Luna/Terra, standard Sol/Terra, premium Astra/Sol. Escalate only when a review fails the cheaper model."
+      "notes": "Verified 2026-11-13: gpt-6-luna Responses call (29 in, 60 out tokens). Models visible to the key on 2026-11-13. Studio tier picks the role: draft Luna/Terra, standard Sol/Terra, premium Astra/Sol. Escalate only when a review fails the cheaper model."
     },
     {
       "id": "openai-image",
@@ -566,11 +566,11 @@
         "animated-gif",
         "image-edit"
       ],
-      "status": "conditional",
+      "status": "ready",
       "cost": "OpenAI direct gpt-image-2.6: $5 text in, $8 image in, $30 image out per 1M tokens; about $0.04 low to $0.37 max per 1536x1024 picture (planning estimate); Batch halves it",
       "identity": "any",
       "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. generateImage({model}) with gpt-image-2.6-flare (default) or gpt-image-2.6-sunburst (hero, precise edits).",
-      "notes": "Flare first, Sunburst as the precision escalation; azure-image and runware-image stay available. Not for exact product UI, charts or text: use capture and the kit."
+      "notes": "Verified 2026-11-13: gpt-image-2.6-flare low 1024x1024 (824 output tokens). Flare first, Sunburst as the precision escalation; azure-image and runware-image stay available. Not for exact product UI, charts or text: use capture and the kit."
     },
     {
       "id": "openai-speech",
@@ -579,11 +579,11 @@
         "narration",
         "tts"
       ],
-      "status": "conditional",
-      "cost": "gpt-realtime-2.1-mini about $20 per 1M audio output tokens (planning estimate about $0.016 per minute); gpt-realtime-2.1 $64",
+      "status": "ready",
+      "cost": "gpt-realtime-2.1-mini about $0.024 per minute of speech (measured); gpt-realtime-2.1 about 3.2x",
       "identity": "any",
-      "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. Built-in voices marin and cedar first.",
-      "notes": "Azure DragonHD stays the default for pre-recorded narration until an audition and measured cost pass. Prompt-designed voices work only with GPT-Live; recording-based custom voices need eligibility and consent records."
+      "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. speech() opens a Realtime session and returns WAV. Built-in voices marin and cedar first.",
+      "notes": "Verified 2026-11-13: Realtime API, gpt-realtime-2.1-mini, marin, 3.95 s for 79 audio tokens (about 1,200 tokens a minute). Azure DragonHD stays the default for pre-recorded narration until an audition and measured cost pass. Prompt-designed voices work only with GPT-Live; recording-based custom voices need eligibility and consent records."
     },
     {
       "id": "openai-transcribe",
@@ -592,11 +592,11 @@
         "stt",
         "captions"
       ],
-      "status": "conditional",
+      "status": "ready",
       "cost": "gpt-transcribe about $0.27 per audio hour",
       "identity": "any",
       "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. transcribeText(file).",
-      "notes": "Text transcription; word timing stays on the forced aligner. Word timing stays on the forced aligner."
+      "notes": "Verified 2026-11-13: gpt-transcribe returned the exact narration text. Text transcription; word timing stays on the forced aligner. Word timing stays on the forced aligner."
     },
     {
       "id": "openai-moderation",
@@ -608,7 +608,7 @@
       "cost": "none (free)",
       "identity": "any",
       "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. moderate(input) before publishing generated text or images.",
-      "notes": "omni-moderation-latest."
+      "notes": "Verified 2026-11-13: omni-moderation-latest. omni-moderation-latest."
     }
   ]
 }

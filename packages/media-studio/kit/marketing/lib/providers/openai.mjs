@@ -46,27 +46,46 @@ export async function generateImage({ prompt, model = OPENAI_MODELS.imageDefault
   return { bytes: Buffer.from(b64, 'base64'), usage: json.usage || null, model, size, quality };
 }
 
-export async function speech({ text, voice, instructions, model = OPENAI_MODELS.realtimeSpeech, format = 'mp3', fetchImpl }) {
-  const res = await call('/audio/speech', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, voice, input: text, response_format: format, ...(instructions ? { instructions } : {}) }),
-  }, { fetchImpl });
-  return { bytes: Buffer.from(await res.arrayBuffer()), model, voice };
-}
-
-/** Word-timestamped transcription (gpt-transcribe, verbose_json). Returns the raw payload. */
-export async function transcribeWords(file, { fetchImpl } = {}) {
-  const form = new FormData();
-  form.append('file', new Blob([readFileSync(file)]), basename(file));
-  form.append('model', OPENAI_MODELS.transcribe);
-  form.append('response_format', 'verbose_json');
-  form.append('timestamp_granularities[]', 'word');
-  form.append('language', 'en');
-  const res = await call('/audio/transcriptions', { method: 'POST', body: form }, { fetchImpl });
-  return res.json();
-}
-
 /**
+ * Narration through the Realtime API (gpt-realtime-2.1-mini; gpt-realtime-2.1 for complex direction). The session reads the
+ * line verbatim with the chosen voice and delivery instructions; audio comes back as 24 kHz mono PCM, returned as WAV.
+ */
+export async function speech({ text, voice = 'marin', instructions, model = OPENAI_MODELS.realtimeSpeech, timeoutMs = 60000, WebSocketImpl = globalThis.WebSocket }) {
+  if (!WebSocketImpl) throw new OpenAiError('This Node has no WebSocket; use Node 22 or later');
+  const ws = new WebSocketImpl(`wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`, { headers: { Authorization: `Bearer ${apiKey()}` } });
+  const chunks = [];
+  const usage = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { try { ws.close(); } catch { /* closing */ } reject(new OpenAiError('OpenAI realtime speech timed out')); }, timeoutMs);
+    ws.onopen = () => {
+      const rule = 'Read the user text aloud exactly as written. Do not add, answer or comment.';
+      ws.send(JSON.stringify({ type: 'session.update', session: { type: 'realtime', output_modalities: ['audio'], instructions: instructions ? `${rule} Delivery: ${instructions}` : rule, audio: { output: { voice, format: { type: 'audio/pcm', rate: 24000 } } } } }));
+      ws.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] } }));
+      ws.send(JSON.stringify({ type: 'response.create' }));
+    };
+    ws.onmessage = (e) => {
+      const m = JSON.parse(typeof e.data === 'string' ? e.data : Buffer.from(e.data).toString());
+      if (m.type === 'response.output_audio.delta') chunks.push(Buffer.from(m.delta, 'base64'));
+      else if (m.type === 'error') { clearTimeout(timer); ws.close(); reject(new OpenAiError(`OpenAI realtime error${m.error?.code ? ` (${String(m.error.code).slice(0, 60)})` : ''}`)); }
+      else if (m.type === 'response.done') { clearTimeout(timer); ws.close(); if (m.response?.status !== 'completed') reject(new OpenAiError(`OpenAI realtime response ${m.response?.status}`)); else resolve(m.response?.usage || null); }
+    };
+    ws.onerror = () => { clearTimeout(timer); reject(new OpenAiError('OpenAI realtime connection failed')); };
+  });
+  return { bytes: pcmToWav(Buffer.concat(chunks), 24000), usage, model, voice, format: 'wav' };
+}
+function pcmToWav(pcm, rate) {
+  const h = Buffer.alloc(44);
+  h.write('RIFF', 0); h.writeUInt32LE(36 + pcm.length, 4); h.write('WAVE', 8); h.write('fmt ', 12); h.writeUInt32LE(16, 16);
+  h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34);
+  h.write('data', 36); h.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([h, pcm]);
+}
+/**
+ * Hosted word timing. No current OpenAI transcription model returns word timestamps (gpt-transcribe returns text), so this
+ * refuses and word timing stays on the forced aligner (kit/cloud/cloud-ai.mjs align). Tests inject their own provider.
+ */
+export async function transcribeWords() {
+  throw new OpenAiError('No current OpenAI model returns word timestamps; use the forced aligner (kit/cloud/cloud-ai.mjs align)');
+}/**
  * Azure OpenAI speech-to-text through the MahumTech resource (mt-foundary-resource), deployment gpt-transcribe. It returns
  * text, not word timestamps, so word timing stays on the forced aligner. Endpoint and key come from
  * AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY by name; neither is printed.

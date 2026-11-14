@@ -13,10 +13,10 @@ export function estimateImageUsd(model, quality = 'medium') {
   return row[quality] ?? row.high;
 }
 
-/** OpenAI speech (gpt-realtime-2.1-mini): about $0.016 per minute of speech (planning estimate). */
+/** OpenAI speech (gpt-realtime-2.1-mini): about 1,200 audio tokens a minute at $20/1M, about $0.024 per minute (measured 2026-11-13). */
 export function estimateOpenAiSpeechUsd(text) {
   const wordCount = String(text).split(/\s+/).filter(Boolean).length;
-  return Math.max(0.002, (wordCount / 150) * 0.016);
+  return Math.max(0.002, (wordCount / 150) * 0.024);
 }
 
 /** Hosted word-timing transcription (gpt-transcribe): about $0.27 per audio hour. */
@@ -86,9 +86,9 @@ export const OPENAI_IMAGE_USD_PER_M = { textIn: 5, imageIn: 8, cachedTextIn: 1.2
  * depends on resolution, quality, complexity and edit inputs, so record the real usage.output_tokens after each call.
  */
 const IMAGE_OUT_TOKENS_EST = { low: 1100, medium: 4200, high: 6200, xhigh: 9500, max: 12000 };
-/** Realtime speech, USD per 1M audio tokens. About 800 audio output tokens per minute of speech is a planning estimate. */
+/** Realtime speech, USD per 1M audio tokens; about 1,200 audio output tokens per minute of speech (measured 2026-11-13). */
 export const OPENAI_REALTIME_USD_PER_M = { 'gpt-realtime-2.1-mini': { in: 10, out: 20 }, 'gpt-realtime-2.1': { in: 32, out: 64 } };
-const REALTIME_OUT_TOKENS_PER_MIN_EST = 800;
+const REALTIME_OUT_TOKENS_PER_MIN_EST = 1200;
 /** gpt-transcribe file transcription, USD per audio hour (same rate as the Azure deployment above). */
 const OPENAI_STT_USD_PER_HOUR = { 'gpt-transcribe': 0.27 };
 
