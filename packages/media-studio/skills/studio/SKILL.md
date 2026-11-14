@@ -5,7 +5,7 @@ description: Takes a video, screencast, explainer, ad or audio idea to a finishe
 # Studio
 ## Workflow contract
 1. Use the request and the job root if one exists. Read `production_status.py <jobRoot>` first and resume at the earliest missing or failed stage; reuse accepted assets.
-2. New job: run the intake below, then run `write`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.
+2. New job: run the intake below, then run `script`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.
 3. Return the delivered file and the review verdict, or the last passed stage and the exact next input.
 4. Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.
 ## Intake (new jobs only)

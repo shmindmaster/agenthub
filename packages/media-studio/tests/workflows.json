@@ -6,7 +6,7 @@
       "input": "Make a two-minute onboarding video for a synthetic product.",
       "expected": "Return the delivered file and the review verdict, or the last passed stage and the exact next input.",
       "evidence": [
-        "New job: run the intake below, then run `write`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.",
+        "New job: run the intake below, then run `script`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.",
         "Return the delivered file and the review verdict, or the last passed stage and the exact next input."
       ]
     },
@@ -21,7 +21,7 @@
       ]
     },
     {
-      "skill": "write",
+      "skill": "script",
       "kind": "workflow",
       "input": "Write the brief and storyboard for an approved video idea.",
       "expected": "Hand `produce` the approved storyboard, picture plan and work list.",
@@ -31,7 +31,7 @@
       ]
     },
     {
-      "skill": "write",
+      "skill": "script",
       "kind": "recovery",
       "input": "The storyboard fails the picture gate.",
       "expected": "If an approval or a passing picture gate is missing, stop and keep the draft.",
@@ -56,7 +56,7 @@
       "input": "The voice lane is frozen.",
       "expected": "If a lane is frozen, unpaid or failing, stop that asset and report the exact blocker; keep accepted assets.",
       "evidence": [
-        "Use the approved storyboard, picture plan and work list from `write`.",
+        "Use the approved storyboard, picture plan and work list from `script`.",
         "If a lane is frozen, unpaid or failing, stop that asset and report the exact blocker; keep accepted assets."
       ]
     },

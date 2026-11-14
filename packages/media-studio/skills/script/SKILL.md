@@ -1,8 +1,8 @@
 ---
-name: write
+name: script
 description: Turns an approved idea into a brief, story, script and storyboard with a picture for every line, gated before any spend. Use when a video needs its brief, logline, treatment, screenplay, beat sheet or storyboard. Not for recording, voices or rendering; use produce or finish.
 ---
-# Write
+# Script
 ## Workflow contract
 1. Use the studio intake answers, the request and any source material.
 2. Write the brief and get the owner's yes; then the story and locked script; then the storyboard and picture plan with priced lanes.

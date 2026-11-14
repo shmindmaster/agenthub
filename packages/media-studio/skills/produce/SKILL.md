@@ -4,7 +4,7 @@ description: Produces the accepted pieces a video needs (screen takes, narration
 ---
 # Produce
 ## Workflow contract
-1. Use the approved storyboard, picture plan and work list from `write`.
+1. Use the approved storyboard, picture plan and work list from `script`.
 2. Make each asset with the cheapest authorized lane that passes its gate, and record each take with its evidence.
 3. Hand `finish` the accepted voice, picture and plates.
 4. If a lane is frozen, unpaid or failing, stop that asset and report the exact blocker; keep accepted assets.

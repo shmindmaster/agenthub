@@ -703,11 +703,11 @@
       "canonicalSource": "packages/media-studio",
       "managedSkillNames": [
         "studio",
-        "write",
+        "script",
         "produce",
         "finish"
       ],
-      "contentHash": "C084238F7039893D1A22ED85ABC44184D89D326278668F982E0957ABAF4C9B60",
+      "contentHash": "3A8B5BCDD3AB24558568E74FDB7D3D5C5014BC957504AE00637E3DD2039258D1",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
