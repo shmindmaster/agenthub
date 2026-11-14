@@ -1,3 +1,4 @@
+- **Vendor-first plugins (2026-11-13, SH-4636):** AgentHub ships only plugins no vendor marketplace provides. `ah-context7`, `ah-linear`, `ah-notion`, `ah-exa`, `ah-daytona` and `ah-aws` (packages, capability rows, marketplace entries) are deleted. On this PC their installs were swapped for vendor plugins with each host's own command: Codex `daytona@daytona` and `aws-core@agent-toolkit-for-aws`; Claude, Factory and Grok `aws-core@claude-plugins-official`; Devin `aws-core` from `aws/agent-toolkit-for-aws`; Antigravity vendor `daytona`, `exa` and `aws-core`; Grok official `notion`. `ah-assemblyai`, `ah-brave-search` and `ah-descript` stay because no vendor plugin covers every retained host.
 - **RepoWise retired (2026-11-13, SH-4670):** `packages/repowise`, its capability, the `repowise-workspace` MCP, marketplace rows, Kiro `ah-repowise-health` recipe, `Update-RepoWise.ps1` and every RepoWise check in `Check-RepoStandard.ps1` are removed. `repowise` is in `retiredFleetSkills` and `repowise-workspace`/`repowise` in `retiredMcpIds`, so sync sweeps them. On this PC the vendor plugins (Claude `repowise@repowise`, Codex `codex@repowise`) and Factory `ah-repowise@agenthub` were uninstalled with each host's plugin command, the uv tool was removed, RepoWise MCP processes were stopped, and 80 owned `.repowise` indexes/workspace files (~4.9 GB) and the `REPOWISE_*` user variables were deleted. OpenWiki (SH-4410) is the replacement.
 - **Overlay beside the checkout (2026-11-11):** the private overlay is its own clone at `C:/Repos/shmindmaster/agenthub-private`, beside `agenthub`, no longer nested at `agenthub/overlays/personal`. `Get-AgentHubOverlayRoot` resolves `AGENTHUB_OVERLAY` first, then a nested `overlays/personal`, then the primary checkout's, then an `agenthub-private` folder holding `overlay.json` beside the checkout or its primary. The User variable `AGENTHUB_OVERLAY` is also set to that path. The Claude, Codex, Copilot and Factory marketplace entries and the Kiro agent resources point at the new path. Tested by `tests/Test-OverlayWorktreeResolution.ps1`.
 - **Dispatcher Kiro roles and enforced read-only mode (2026-11-11, SH-4418):** dispatch 0.7.0 adds `-Role` (Kiro `engineer`, `reviewer`, `tester`, `architect`, `incident` on the V3 engine; `peer` keeps the guarded `ah-peer` command) and `-ReadOnly`, which maps only to a mode the host enforces: claude, codex, factory and kiro. `dispatchPolicy.<host>.readOnly` records the flags, `false` (warp) or `null` (the other ten dispatchable hosts) with the dated help text; every unsupported host refuses `-ReadOnly` with exit 3. The PR reviewer always passes `-ReadOnly`, picks its host only among the recorded hosts and is BLOCKED when none is available. Implemented and tested with synthetic stubs on a branch; not merged or deployed. No read-only mode or role command has been exercised with a model run, and automatic triggering is still not wired (SH-4411).
@@ -17,14 +18,14 @@
   on each, with a reason. The sync writes nothing else there, and
   `tests/Test-PluginOnlyMcp.ps1` fails on any other entry in the real host configs. Gemini was
   not migrated and keeps the older behaviour. Native plugins were installed on every host,
-  with thin `ah-railway`, `ah-descript`, `ah-exa`, `ah-notion`, `ah-firecrawl`, `ah-aws`,
-  `ah-linear` and `ah-context7` plugins where no clean native one exists. Plugin registration
+  with thin `ah-*` plugins where no clean native one existed (most were later deleted;
+  see the 2026-11-13 vendor-first entry). Plugin registration
   is proven by each host's list command and Cline's own loader; loading inside a real session
   was not tested on any host. See [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
 - **Lean hosts and Daytona (2026-11-04):** unused vendor plugins came off every host and the
   shared policy dropped from about 20.8K to 12.4K characters, with detail moved to two on-demand
   guidance files. The one-host rule was replaced by a free-RAM check. Daytona reaches every host
-  through `ah-daytona` or the host's own catalog. On disk on this machine; not exercised in a
+  through the vendor plugin (`ah-daytona` was deleted on 2026-11-13). On disk on this machine; not exercised in a
   fresh session. See [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
 - **Video library layout (2026-11-04):** the library is now `Area/Customer or company/file`, two
   folder levels at most, replacing the flat rule. `media-studio` `compose/references/library.md`

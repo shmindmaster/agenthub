@@ -29,11 +29,11 @@ The skill name is one of four surfaces. Keep them derived from one identity rath
 
 | Surface | Rule | Example |
 | --- | --- | --- |
-| Capability id | short lowercase word or hyphen phrase | `context7` |
-| Package directory | equals the capability id | `packages/context7` |
-| Plugin name / display | `ah-<id>` / `AH-<Title>` | `ah-context7` / `AH-Context7` |
+| Capability id | short lowercase word or hyphen phrase | `browser` |
+| Package directory | equals the capability id | `packages/browser` |
+| Plugin name / display | `ah-<id>` / `AH-<Title>` | `ah-browser` / `AH-Browser` |
 | Skill `name` | equals its directory; one or two words; verb or gerund first; does not repeat the plugin name | `lookup` |
-| MCP server id / display | `id` equals the capability id; display `AH-<Title>` | `context7` / `AH-Context7` |
+| MCP server id / display | `id` equals the capability id; display `AH-<Title>` | `brave-search` / `AH-Brave-Search` |
 
 The `ah-*` / `AH-*` rule and the one-version authority across host projections are set in `docs/plans/active/plugin-redesign.md`. A host projection may add host-native fields but must not diverge on `name` or `version`; the allowed extra fields are listed under `canonicalPackage` in `registry/plugin-formats.json`. If a projection needs a field outside that list, amend the list deliberately rather than adding the field quietly.
 

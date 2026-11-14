@@ -39,11 +39,6 @@
       "source": "./packages/brave-search"
     },
     {
-      "name": "ah-daytona",
-      "displayName": "AH-Daytona",
-      "source": "./packages/daytona"
-    },
-    {
       "name": "ah-browser",
       "displayName": "AH-Browser",
       "source": "./packages/browser"
@@ -52,31 +47,6 @@
       "name": "ah-descript",
       "displayName": "AH-Descript",
       "source": "./packages/descript"
-    },
-    {
-      "name": "ah-exa",
-      "displayName": "AH-Exa",
-      "source": "./packages/exa"
-    },
-    {
-      "name": "ah-notion",
-      "displayName": "AH-Notion",
-      "source": "./packages/notion"
-    },
-    {
-      "name": "ah-aws",
-      "displayName": "AH-AWS",
-      "source": "./packages/aws"
-    },
-    {
-      "name": "ah-linear",
-      "displayName": "AH-Linear",
-      "source": "./packages/linear"
-    },
-    {
-      "name": "ah-context7",
-      "displayName": "AH-Context7",
-      "source": "./packages/context7"
     },
     {
       "name": "ah-coding-agent-dispatch",

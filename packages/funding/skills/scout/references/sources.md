@@ -6,7 +6,7 @@ Read when choosing where to search or how to call a source.
 
 1. Keyless public APIs below. They return structured records and cost nothing.
 2. The organizer's own site, found through the host's web search, for programs with no API: accelerators, foundations, state programs, corporate credits, pitch events.
-3. A semantic search plugin such as `ah-exa`, where the host has one, to find similar programs and investors by description.
+3. A semantic search plugin such as the vendor Exa plugin, where the host has one, to find similar programs and investors by description.
 4. Page extraction only for a page the host's own fetch cannot read.
 
 Whatever finds a program, the organizer's page or API record is what confirms it.

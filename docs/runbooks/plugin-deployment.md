@@ -10,7 +10,7 @@ Plugins come from one marketplace, `agenthub` (`C:/Repos/shmindmaster/agenthub`)
 
 ## Native first, no direct MCP
 
-Every coding host gets a capability from the first of these that exists: its own official marketplace, its official community marketplace, the vendor's plugin in a catalog the host can load, then an `ah-*` plugin. `ah-descript`, `ah-exa`, `ah-notion` and `ah-aws` are thin wrappers for that last step: one skill, one server, no hooks. Railway was removed on 2026-11-06: do not install `ah-railway` or any official Railway plugin.
+Every coding host gets a capability from the first of these that exists: its own official marketplace, its official community marketplace, the vendor's plugin in a catalog the host can load, then an `ah-*` plugin. AgentHub ships an `ah-*` plugin only when no vendor plugin exists for a retained host (owner direction 2026-11-13, SH-4636). `ah-descript`, `ah-assemblyai` and `ah-brave-search` are the remaining thin wrappers; Context7, Linear, Notion, Exa, Daytona and AWS come from their vendors. Railway was removed on 2026-11-06: do not install `ah-railway` or any official Railway plugin.
 
 `activationPolicy.pluginOnly` in `registry/mcps.json` lists each plugin-only host and the only direct entries allowed there, each with a reason. The sync writes nothing else to those hosts and removes any registry server already there. `pluginOwnersByHost` on each server records which plugin carries it. To add a server, give it an owner on every host, or a reason in `pluginOnly` for the hosts that cannot have one. `tests/Test-PluginOnlyMcp.ps1` fails on any other direct entry, and on anything in the shared `~/.agents/skills` folder.
 
@@ -59,7 +59,7 @@ A host that copies a plugin ignores a content change at the same version: `claud
 
 `removedPlugins` in `registry/context-limits.json` lists vendor plugins taken off every host on 2026-11-04, with the reason. `scripts/Set-ContextLimits.py` reports any that return on Claude, Codex or Factory. Reinstall one from the host's catalog when a task needs it. Every `ah-*` plugin stayed.
 
-Daytona reaches every host. Claude and Factory use `daytona-skills` from their catalog, Devin installs `daytona/skills` with `devin plugins install daytona/skills --yes --local`, and Grok imports Claude's copy. The other hosts use `ah-daytona`, which has one skill, no server and no hook. `packages/daytona/NOTICE` names the upstream commit.
+Daytona reaches every host. Claude and Factory use `daytona-skills` from their catalog, Devin installs `daytona/skills` with `devin plugins install daytona/skills --yes --local`, and Grok imports Claude's copy. Codex installs `daytona@daytona` after `codex plugin marketplace add https://github.com/daytona/skills.git`, and Antigravity runs `agy plugin install https://github.com/daytona/skills.git`. AgentHub no longer ships `ah-daytona`.
 
 Clerk also reaches every host, but only ever from its own upstream: there is no `ah-clerk` package and there must not be one. Run `python scripts/Install-ClerkFleet.py` for a read-only plan, add `--apply` to install, or pass `--host <id>` to repair one host. `--audit` reads back the official skill texts against the upstream checkout and checks that each host's entry names `https://mcp.clerk.com/mcp` exactly. Claude, Codex, Copilot, Factory and Devin install the vendor's own plugin through the host's plugin command; Grok and Antigravity install the upstream checkout; Cursor, Cline, Amp, VS Code Insiders, OpenCode and Warp get host-local adapters. Kilo and MiMo Code get the official skills only, with no Clerk server. Desktop and CLI aliases share their primary host's configuration, and nothing is written into `~/.agents/skills`. [clerk-auth.md](clerk-auth.md) carries the rollout detail and the acceptance contract.
 
@@ -302,8 +302,8 @@ plugins, so the reinstall step is required. For Claude:
 ah-coding-agent-dispatch and ah-product. For Codex:
 `codex plugin marketplace remove agenthub`,
 `codex plugin marketplace add /opt/agenthub/catalogs/<sha>`, then
-`codex plugin add <name>@agenthub` for each of ah-product, ah-browser,
-ah-linear, ah-context7 and ah-coding-agent-dispatch. Copy
+`codex plugin add <name>@agenthub` for each of ah-product, ah-browser
+and ah-coding-agent-dispatch. Copy
 `forge-intake.service` and `forge-intake.timer` to `/etc/systemd/system` again
 only when they changed (`cmp` them against the installed copies): a new catalog
 alone needs no timer restart. After a unit change run

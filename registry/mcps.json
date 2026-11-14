@@ -204,7 +204,6 @@
         "id": "mcp-registry"
       },
       "pluginOwnersByHost": {
-        "amp": "ah-linear@agenthub",
         "antigravity": "linear@agy-github-linear/antigravity-plugin",
         "codex": "linear@openai-curated-remote",
         "copilot": "linear@claude-plugins-official",
@@ -227,7 +226,6 @@
       "transport": "http",
       "activationMode": "shared-remote",
       "pluginOwnersByHost": {
-        "amp": "ah-context7@agenthub",
         "antigravity": "context7@agy-github-upstash/context7",
         "codex": "app-69ef18c674308191a2f952431f91ea61@openai-curated-remote",
         "copilot": "context7@claude-plugins-official",
@@ -272,7 +270,6 @@
         "id": "mcp-registry"
       },
       "pluginOwnersByHost": {
-        "amp": "ah-notion@agenthub",
         "antigravity": "notion@agy-github-makenotion/notion-cookbook",
         "claude": "notion@claude-plugins-official",
         "codex": "notion@openai-curated",
@@ -280,7 +277,6 @@
         "cursor": "notion-workspace@cursor-public",
         "devin": "notion@devin-marketplace",
         "factory": "notion@claude-plugins-official",
-        "grok": "ah-notion@agenthub",
         "vscode-insiders": "notion@claude-plugins-official"
       },
       "hostConfigOverrides": {
@@ -296,8 +292,6 @@
       "transport": "http",
       "activationMode": "shared-remote",
       "pluginOwnersByHost": {
-        "amp": "ah-exa@agenthub",
-        "antigravity": "ah-exa@agenthub",
         "codex": "app-69ea4ed2cf7c8191b742ef3622479ddd@openai-curated-remote",
         "copilot": "exa@claude-plugins-official",
         "cursor": "exa@cursor-public",

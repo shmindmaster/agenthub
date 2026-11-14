@@ -12,8 +12,7 @@ resolve to ~/.warp/<folder> from a linked skill, so those three are linked too.
 
 LinkedIn is mapped to Warp in the registry but deliberately not
 linked: each needs a local server Warp does not run under the plugin-only policy,
-so their skills would dead-end. ah-aws is not linked either, and needs no
-exclusion, because the registry does not map it to Warp at all.
+so their skills would dead-end.
 tests/Test-InstallerPackageLists.ps1 holds the authoritative exclusion list with
 a reason per entry, and fails if this array stops covering a mapped capability or
 if an exclusion outlives its registry row.
@@ -48,8 +47,8 @@ function Get-AgentHubOverlayRootForWarp([string]$RepoRoot) {
 }
 
 $packages = @(
-    'packages/product', 'packages/media-studio', 'packages/brave-search', 'packages/daytona', 'packages/assemblyai',
-    'packages/descript', 'packages/exa', 'packages/notion',
+    'packages/product', 'packages/media-studio', 'packages/brave-search', 'packages/assemblyai',
+    'packages/descript',
     'packages/browser', 'packages/coding-agent-dispatch', 'packages/funding'
 )
 # Private packages: prefer checkout overlays/personal, else sibling agenthub-private clone.

@@ -80,21 +80,6 @@
       }
     },
     {
-      "name": "ah-daytona",
-      "source": {
-        "source": "local",
-        "path": "./packages/daytona"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-Daytona"
-      }
-    },
-    {
       "name": "ah-browser",
       "source": {
         "source": "local",
@@ -122,81 +107,6 @@
       "category": "Developer Tools",
       "interface": {
         "displayName": "AH-Descript"
-      }
-    },
-    {
-      "name": "ah-exa",
-      "source": {
-        "source": "local",
-        "path": "./packages/exa"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-Exa"
-      }
-    },
-    {
-      "name": "ah-notion",
-      "source": {
-        "source": "local",
-        "path": "./packages/notion"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-Notion"
-      }
-    },
-    {
-      "name": "ah-aws",
-      "source": {
-        "source": "local",
-        "path": "./packages/aws"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-AWS"
-      }
-    },
-    {
-      "name": "ah-linear",
-      "source": {
-        "source": "local",
-        "path": "./packages/linear"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-Linear"
-      }
-    },
-    {
-      "name": "ah-context7",
-      "source": {
-        "source": "local",
-        "path": "./packages/context7"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-Context7"
       }
     },
     {
