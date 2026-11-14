@@ -168,7 +168,7 @@ if (Test-Path -LiteralPath $policyPath) {
 # bump is caught too: -ne '<v>', "skill's <v> release", "verified <v> package", "Media Studio <v>".
 $semver = '\d+\.\d+\.\d+'
 $pins = [regex]"((?<=-ne ')$semver(?='))|((?<=skill's )$semver(?= release))|((?<=verified )$semver(?= package))|((?<=Media Studio )$semver)"
-foreach ($skill in @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'skills') -Filter 'SKILL.md' -Recurse -File -ErrorAction SilentlyContinue)) {
+foreach ($skill in @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'skills') -Filter '*.md' -Recurse -File -ErrorAction SilentlyContinue)) {
     $raw = [IO.File]::ReadAllText($skill.FullName)
     $next = $pins.Replace($raw, $Version)
     if ($next -eq $raw) { continue }

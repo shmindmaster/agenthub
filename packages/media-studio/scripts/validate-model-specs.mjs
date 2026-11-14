@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Gate for model-written layers (skills/visuals/references/model-written-specs.md): generated visuals augment a real
+// Gate for model-written layers (skills/produce/references/model-written-specs.md): generated visuals augment a real
 // recording, its narration and its cue sheet and never replace them. A job has model-written layers when it has a
 // plan/model-specs/ directory; validate-viewer-release.mjs then requires this report as a PASS. Jobs without that
 // directory are not affected.

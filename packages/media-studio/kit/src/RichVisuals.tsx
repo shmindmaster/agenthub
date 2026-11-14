@@ -202,7 +202,7 @@ const FOCUS_DRIFT: Record<PhotoFocus, [number, number]> = {
  * A generated or captured photograph that owns the whole frame. The line is carried by the picture;
  * the title sits low on a gradient so the subject stays clear. A slow push and a small drift keep
  * the frame alive for as long as the voice is talking. Use for a place, an object or a mood that no
- * diagram can carry (skills/generate/references/stills.md). Text goes here, never inside the image.
+ * diagram can carry (skills/produce/references/stills.md). Text goes here, never inside the image.
  */
 export const PhotoScene: FC<{
   src: string;

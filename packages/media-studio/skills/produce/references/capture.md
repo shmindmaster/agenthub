@@ -1,8 +1,3 @@
----
-name: capture
-description: Produces hash-bound WebM takes of a live product with Recast pointer, click and zoom finishing. Use when a film needs real product footage, a screen recording, a Playwright take or a re-record of a beat. Not for stills or slides; use generate or compose.
----
-
 # Capture
 
 ## Workflow contract
@@ -28,6 +23,6 @@ Deterministic takes are Playwright CLI or Test from the external workspace. Expl
 - `references/abacare-local.md`: Read when capturing ABACare.
 - `references/abacare-lexicon.json`: Read when checking ABACare pronunciation.
 
-Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+Read when executing this skill for its detailed commands and gates. [Workflow detail](capture-detail.md)
 
-For consulting profiles, load [consulting communication](../video/references/consulting-communication.md). Capture source, action, human decision and held result legibly at the delivered viewing size. Carry actor/object/action/response/result/significance from uiProof. Keep proposed diagrams visibly distinct from supported connections.
+For consulting profiles, load [consulting communication](../../studio/references/consulting-communication.md). Capture source, action, human decision and held result legibly at the delivered viewing size. Carry actor/object/action/response/result/significance from uiProof. Keep proposed diagrams visibly distinct from supported connections.

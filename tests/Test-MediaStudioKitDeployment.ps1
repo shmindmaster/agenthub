@@ -99,12 +99,12 @@ try {
     $runtimeVersion = (Get-Content -LiteralPath (Join-Path $runtimeKit 'package.json') -Raw -Encoding utf8 | ConvertFrom-Json).version
     if ($runtimeVersion -ne $packageVersion) { throw "Runtime kit version $runtimeVersion does not match package $packageVersion" }
     $checks++
-    $composeGuide = Get-Content -LiteralPath (Join-Path $package 'skills\compose\SKILL.md') -Raw -Encoding utf8
+    $composeGuide = Get-Content -LiteralPath (Join-Path $package 'skills\finish\references\compose.md') -Raw -Encoding utf8
     if ($composeGuide -match 'C:\\Repos\\shmindmaster\\agenthub' -or $composeGuide -notmatch 'MEDIA_STUDIO_PACKAGE_ROOT' -or $composeGuide -notmatch 'Finish-Media.ps1' -or $composeGuide -notmatch [regex]::Escape("'$packageVersion'")) {
         throw 'Compose guide does not describe verified package and deployed finishing paths'
     }
     $checks++
-    $generateGuide = Get-Content -LiteralPath (Join-Path $package 'skills\generate\SKILL.md') -Raw -Encoding utf8
+    $generateGuide = Get-Content -LiteralPath (Join-Path $package 'skills\produce\references\generate.md') -Raw -Encoding utf8
     if ($generateGuide -match 'C:\\Repos\\shmindmaster\\agenthub') { throw 'Generate guide hardcodes a checkout path' }
     $checks++
     $retiredPattern = ($retiredOwnerVoice | ForEach-Object { [regex]::Escape($_) }) -join '|'

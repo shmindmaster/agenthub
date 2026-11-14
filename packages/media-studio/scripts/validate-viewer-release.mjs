@@ -177,7 +177,7 @@ if ((job.kind === 'product-screencast' && (!job.creativeMode || job.creativeMode
   boundToCandidate(canonical(boundReport('qa/picture-integrity.json', 'media-studio/validate-picture-integrity', 'product footage must pass the picture-integrity gate (validate-picture-integrity.mjs): no stretch, upscale, crop, bars or undeclared zoom, each ratio captured at its own viewport'), 'qa/picture-integrity.json',
     [['scaleTolerance', 'max', 0.005], ['barVariance', 'min', 4], ['barMinPx', 'max', 6], ['ratioTolerance', 'max', 0.02]]), 'qa/picture-integrity.json');
 }
-// Model-written layers (skills/visuals/references/model-written-specs.md): a job that has plan/model-specs/ releases only
+// Model-written layers (skills/produce/references/model-written-specs.md): a job that has plan/model-specs/ releases only
 // with a PASS from validate-model-specs.mjs bound to the cue sheet and to every layer file there. No directory, no change.
 const modelSpecsDir = join(root, 'plan', 'model-specs');
 if (existsSync(modelSpecsDir)) {

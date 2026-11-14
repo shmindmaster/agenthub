@@ -1,8 +1,3 @@
----
-name: compose
-description: Produces an encoded candidate and loudness-mastered delivery file from locked voice, picture and plates. Use when someone asks to assemble, render, cut, mux, duck music, fix loudness or deliver a film. Not for capture or generation; use capture or generate.
----
-
 # Compose
 
 ## Workflow contract
@@ -19,7 +14,7 @@ Check the runtime first; repair a stale one from `MEDIA_STUDIO_PACKAGE_ROOT`; ne
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/briefing-kit'
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '2.10.2') { throw "Stale runtime: $m" } }
+foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '3.0.0') { throw "Stale runtime: $m" } }
 ```
 
 ## Pick the tool
@@ -53,6 +48,6 @@ Use a new id and checksum for each render; never overwrite a reviewed candidate.
 - `references/descript.md`: Read when a job wants Descript finishing.
 - `../video/references/product-picture.md`: Read when any beat is `screen`.
 
-Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+Read when executing this skill for its detailed commands and gates. [Workflow detail](compose-detail.md)
 
-For consulting profiles, load [consulting communication](../video/references/consulting-communication.md). Preserve readable proof and approved audio direction across takes and derived cuts. Compare a restrained bed with silence when requested. Each export retains limitations and its own caption policy, framing and review.
+For consulting profiles, load [consulting communication](../../studio/references/consulting-communication.md). Preserve readable proof and approved audio direction across takes and derived cuts. Compare a restrained bed with silence when requested. Each export retains limitations and its own caption policy, framing and review.

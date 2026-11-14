@@ -1,8 +1,3 @@
----
-name: visuals
-description: "Chooses and builds each beat's picture: charts, hand-drawn diagrams, Lottie, generated stills, captured screens, NotebookLM drafts. Use when a scene needs something to look at, a draft is words in boxes, or diagrams or animation are asked for. Not narration; use generate."
----
-
 # Visuals
 
 ## Workflow contract

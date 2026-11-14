@@ -1,8 +1,3 @@
----
-name: review
-description: Decides whether an encoded candidate ships, with a score, defects and the scenes to revise. Use when someone asks to review, score, QA or verify a cut, check sync or ask if a film is ready. Not for fixing it; use compose or capture.
----
-
 # Review
 
 ## Workflow contract
@@ -31,6 +26,6 @@ Example: a slow-middle cut gives `score: 78, pass: false, reviseSceneIds: ["s4",
 - `references/story-review-rubric.md`: Read when scoring or judging a film.
 - `references/marketing-readiness.md`: Read when reviewing a marketing cut.
 
-Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+Read when executing this skill for its detailed commands and gates. [Workflow detail](review-detail.md)
 
-For consulting profiles, load [consulting communication](../video/references/consulting-communication.md). Use Go/No-Go, Pink, Red and Gold as stage names in the existing consolidated review. Judge titles-only coherence, proof scope, screen comprehension, the actual first-15-second answer, voice joins and captions in the intended player. Record stage, timestamp, scene, owner and repair in findings; misleading claims or unreadable key results block regardless of score.
+For consulting profiles, load [consulting communication](../../studio/references/consulting-communication.md). Use Go/No-Go, Pink, Red and Gold as stage names in the existing consolidated review. Judge titles-only coherence, proof scope, screen comprehension, the actual first-15-second answer, voice joins and captions in the intended player. Record stage, timestamp, scene, owner and repair in findings; misleading claims or unreadable key results block regardless of score.

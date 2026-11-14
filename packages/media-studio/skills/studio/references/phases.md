@@ -8,7 +8,7 @@ Concept refinement, the screenplay, and the package that lets it move forward.
 
 - **Concept:** is the idea clear, does the audience want it, is there a hook? Written as the case (`case/case.md`): audience, promise, logline, stakes, tone, facts, names, constraints, success check.
 - **Story:** the treatment and beat sheet decide what happens and in what order, with the picture for each beat.
-- **Screenplay:** the locked lines, one scene per beat or turn, written for the ear (`skills/video/references/story.md`).
+- **Screenplay:** the locked lines, one scene per beat or turn, written for the ear (`skills/studio/references/story.md`).
 - **Package:** the case and beat sheet are what the owner approves, the way a pitch package is.
 
 Light for a 60-second explainer: the case is half a page, the treatment 100 words, three to five beats.

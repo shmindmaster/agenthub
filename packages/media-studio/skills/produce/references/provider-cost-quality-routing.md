@@ -3,7 +3,7 @@ Verified against public Runware, AssemblyAI and ElevenLabs docs, 2026-11-10.
 This is a **planning and quote** reference. It does not unfreeze a provider,
 grant spend approval, establish remaining credits, or add a runtime adapter.
 Authoritative lane statuses are in `policy/provider-routing.json`.
-Always honor `skills/generate/references/content-controls.md`.
+Always honor `skills/produce/references/content-controls.md`.
 
 ## Responsibilities, not a universal generation provider
 

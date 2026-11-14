@@ -36,22 +36,24 @@ function Read-Pkg([string]$Relative) {
     if ([IO.Path]::GetFileName($path) -eq 'SKILL.md' -and $text -match '\(references/workflow-detail\.md\)') {
         $text += [Environment]::NewLine + [IO.File]::ReadAllText((Join-Path (Split-Path -Parent $path) 'references/workflow-detail.md'))
     }
+    $detail = Join-Path (Split-Path -Parent $path) ([IO.Path]::GetFileNameWithoutExtension($path) + '-detail.md')
+    if ([IO.Path]::GetFileName($path) -ne 'SKILL.md' -and (Test-Path -LiteralPath $detail)) { $text += [Environment]::NewLine + [IO.File]::ReadAllText($detail) }
     return $text
 }
 
-$engagement = Read-Pkg 'skills\video\references\story.md'
-$producer = Read-Pkg 'skills\video\SKILL.md'
+$engagement = Read-Pkg 'skills\studio\references\story.md'
+$producer = Read-Pkg 'skills\studio\references\video.md'
 # The script craft is one reference (story.md), storyboard, visuals and direction are one reference (scenes.md), and
 # the story-experience critic is a section of the review skill.
 $writer = $engagement
-$storyboard = Read-Pkg 'skills\video\references\scenes.md'
+$storyboard = Read-Pkg 'skills\studio\references\scenes.md'
 $visuals = $storyboard
 $director = $storyboard
-$generate = Read-Pkg 'skills\generate\SKILL.md'
-$compose = Read-Pkg 'skills\compose\SKILL.md'
-$qa = Read-Pkg 'skills\review\SKILL.md'
+$generate = Read-Pkg 'skills\produce\references\generate.md'
+$compose = Read-Pkg 'skills\finish\references\compose.md'
+$qa = Read-Pkg 'skills\finish\references\review.md'
 $critic = $qa
-$capture = Read-Pkg 'skills\capture\SKILL.md'
+$capture = Read-Pkg 'skills\produce\references\capture.md'
 $job = Read-Pkg 'schemas\job.schema.json'
 $play = Read-Pkg 'schemas\screenplay.schema.json'
 $board = Read-Pkg 'schemas\storyboard.schema.json'
@@ -59,10 +61,10 @@ $bible = Read-Pkg 'schemas\visual-bible.schema.json'
 $review = Read-Pkg 'schemas\story-experience-review.schema.json'
 $craft = $engagement
 $archetypes = $storyboard
-$rubric = Read-Pkg 'skills\review\references\story-review-rubric.md'
+$rubric = Read-Pkg 'skills\finish\references\story-review-rubric.md'
 $manifest = Read-Pkg 'plugin.json'
 
-Report 'story.md exists' (-not [string]::IsNullOrWhiteSpace($engagement)) 'missing skills/video/references/story.md'
+Report 'story.md exists' (-not [string]::IsNullOrWhiteSpace($engagement)) 'missing skills/studio/references/story.md'
 Report 'story.md diagnoses wall-to-wall speech and static picture' (
     $engagement -match 'Wall-to-wall speech' -and $engagement -match 'One visual held'
 ) 'Diagnose first must name those failure modes'
@@ -169,8 +171,8 @@ Report 'job schema has deliveryProfile and craftScoreMin' (
 Report 'job schema has programForm and webcast/teaser kinds' (
     $job -match '"programForm"' -and $job -match '"outcome-workflow"' -and $job -match '"webcast"' -and $job -match '"teaser"'
 ) 'job.schema.json missing library forms or broadcast kinds'
-$picture = Read-Pkg 'skills\video\references\product-picture.md'
-$forms = Read-Pkg 'skills\video\references\forms.md'
+$picture = Read-Pkg 'skills\studio\references\product-picture.md'
+$forms = Read-Pkg 'skills\studio\references\forms.md'
 $studio = $storyboard
 Report 'product-picture.md is the single interaction contract' (
     $picture -match 'start → locator → pointer lead → action → visible product response → result hold' -and

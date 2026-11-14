@@ -1,31 +1,31 @@
 ---
 name: studio
-description: Produces a whole film or audio piece from an idea, through development, pre-production, production, post and delivery, with a deliverable and gate at each phase. Use when someone brings an idea, topic or rough ask and wants the finished piece. Not for one step of a running job.
+description: Takes a video, screencast, explainer, ad or audio idea to a finished, reviewed piece, asking a few quick questions first to pick the approach. Use when someone wants any video or audio made, or brings an idea, topic or rough ask. Not for one step of a running job.
 ---
-
 # Studio
-
 ## Workflow contract
-
-1. Use the media request and the job root if one exists.
-2. Read the job status first, reuse passed artifacts, and resume at the earliest missing or invalid stage.
-3. Return the final candidate and review verdict, or the last completed stage and exact next input.
-4. If approval or a dependency is missing, preserve accepted assets and stop at that stage.
-
-One idea in, one finished film out. This skill is the conductor: it runs the filmmaking phases in order, makes each produce a file, checks the file, and stops at the owner's approvals. It calls the other skills for the craft.
-
+1. Use the request and the job root if one exists. Read `production_status.py <jobRoot>` first and resume at the earliest missing or failed stage; reuse accepted assets.
+2. New job: run the intake below, then run `write`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.
+3. Return the delivered file and the review verdict, or the last passed stage and the exact next input.
+4. Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.
+## Intake (new jobs only)
+Ask up to five quick multiple-choice questions in one message, each with a recommended answer, and skip any a file or the request already answers:
+1. Purpose and viewer: who watches and what they should do afterwards.
+2. Kind: verified product demo, training, explainer, story or concept, ad.
+3. Length and destination: YouTube, LinkedIn, website, internal or presentation.
+4. Voice: none (captions), AI narrator (recommended), or the owner.
+5. Picture: real product capture, concept or animated, or a mix.
+From the answers choose the kind, `programForm`, delivery profile and lanes, show the plan and price, and get one yes before spend. Rules for classifying films: [video](references/video.md), [creative formats](references/creative-formats.md), [forms](references/forms.md).
+## Uses other plugins
+- Screen capture and UX walkthroughs: `ah-browser` (agent-browser `record ... --cursor` for clean takes; BrowserSkill for the owner's signed-in browser).
+- Composition, animation, captions and render: the official Remotion plugin and skills; renders run on sh-forge in a disposable workspace, never on this PC.
+- Transcription: `ah-assemblyai`. Optional edit hand-off: Descript.
 ## Rules
-
 <HARD-GATE>
-No phase starts until the one before it shows PASS in `production_status.py`. An approval is recorded with `production_status.py <jobRoot> --approve <name>` only after the owner has said yes to that thing in this conversation. A yes to a different film or an earlier draft does not count.
+No stage starts until the previous one shows PASS in `production_status.py`. Record an approval with `production_status.py <jobRoot> --approve <name>` only after the owner said yes to that exact item in this conversation.
 </HARD-GATE>
-
-- **Decide, do not menu.** The owner gave an idea, not a questionnaire. Infer kind, form, voices and picture; ask one question only for what a file cannot answer, and prefer a choice with a recommendation.
-- **Picture first.** Every scene has what the viewer sees before it has a voice. Words in boxes fail `check_visual_variety.py`.
-- **Cheapest lane that passes.** Use `route_media.py` and the voice recipes in `generate/references/voice-recipes.md`. Pick the cheapest authorized lane that passes QA. Choose DragonHD Emma2 or Andrew2 for a new walkthrough and Ava as fallback. Use Deepgram Haley batch synthesis for prepared support prompts. Show the budget in `breakdown.json` before any paid step.
-- **Know every capability.** Run `route_media.py --catalog` before planning pictures: it lists every lane, scripted or by hand, with its mode (script, api, connector, browser), cost and how to run it. A browser lane (IrukaDark clips, Manus) is as legitimate as a scripted one: drive the owner's signed-in Chrome, never enter credentials or card details, ask before each download, judge the file before accepting it.
-- **Gates before spend, frames before claims.** Run the free offline gates before voice or image spend; look at the frames before anything is called good.
-- **Subagents with a ledger.** Independent parts (voice takes, assets) run in parallel, up to five at once; each task names its model; a fresh reviewer checks each deliverable; `plan/ledger.md` records task, agent, model, result and evidence.
-- **Resumable.** Everything lives in the workspace. A new session reads `production_status.py`, not the conversation.
-
-Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+- Picture first: every line has something to look at; words in boxes fail the picture gates.
+- Cheapest authorized lane that passes QA; show the budget before any paid step.
+- Never present concept or synthetic UI as verified current product behaviour.
+- Product repositories are read-only; all work lives in an external job workspace.
+Read when running a whole film: [conductor](references/conductor.md) and [phases](references/phases.md). Detail: [studio](references/studio-detail.md), [video](references/video-detail.md), [story](references/story.md), [scenes](references/scenes.md), [product picture](references/product-picture.md), [operations](references/operations.md), [consulting communication](references/consulting-communication.md).

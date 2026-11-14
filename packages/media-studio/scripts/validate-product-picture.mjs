@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fail-closed product-picture gate (plan + clips). Contract: skills/video/references/product-picture.md
+// Fail-closed product-picture gate (plan + clips). Contract: skills/studio/references/product-picture.md
 // Usage: node validate-product-picture.mjs <jobRoot> [--json]
 //
 // What it proves before compose is allowed to run:

@@ -7,12 +7,12 @@
     "Credits are a temporary subsidy, not permission to raise spending caps.",
     "Live Runware catalogue (2026-11-10): Seedream 5.5 is coming-soon; do not route or infer production availability from its public model page. MiniMax H3 Image promotion covers 4K only until November 17. MiniMax H3 Lite/Highspeed video pricing is promotional until December 31; P-Video-2-Pro-Replace discount until November 19 is for person replacement, not general text-to-video; Kling 4.0 Flash 15% discount expires November 10. Always re-quote live schemas and never hardcode promotions as evergreen defaults.",
     "Allow photorealistic synthetic people of any age, fictional patients, families, clinicians, unblurred synthetic data and fully designed speculative UIs where the story calls for them. No automatic blur or age restriction. Label proposed functionality rather than treating it as verified current behavior; live-product proof uses source-hashed capture.",
-    "Do not interpret route_media.py sorting by status/free as an actual numerical lowest-cost model ranking. It discovers usable lanes; model selection also requires current per-model price, actual task/configuration, truth/quality verification and consent. Read skills/generate/references/provider-cost-quality-routing.md.",
+    "Do not interpret route_media.py sorting by status/free as an actual numerical lowest-cost model ranking. It discovers usable lanes; model selection also requires current per-model price, actual task/configuration, truth/quality verification and consent. Read skills/produce/references/provider-cost-quality-routing.md.",
     "For Runware model research, use scripts/quote-runware-models.mjs against the canonical live model index and schemas with no key/spend; if pricing needs configuration or GPU-time measurements, report manual-quote instead of guessing. A quote does not authorize generation.",
     "AssemblyAI analyzes speech and can act as a second transcript or timestamp opinion when explicitly requested; it does not generate images/video. ElevenLabs offers premium voice and music/effects/ASR candidates, but frozen direct-account lanes remain frozen until governed adapter and owner authorization in that task.",
     "For every creative asset choose the approved film mode and storyboard goal first, then compare accepted media and available generation on equal quality and cost. Fully synthetic image/video/3D/UI and human scenes may be the whole movie in vision, fiction, abstract or conceptual modes. Only factual demonstrations of current functionality require real capture.",
     "Cheapest lane that passes QA wins for a picture. A free picture lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid picture lane. Voice has no free lane.",
-    "Narration, dialogue, rehearsal, draft and audition speech follow skills/generate/references/voice-recipes.md. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2. Deepgram Haley batch synthesis serves prepared support prompts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
+    "Narration, dialogue, rehearsal, draft and audition speech follow skills/produce/references/voice-recipes.md. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2. Deepgram Haley batch synthesis serves prepared support prompts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
     "Azure first (MahumTech resource mt-foundary-resource). Other providers are fallbacks or specialist lanes.",
     "The direct ElevenLabs account and API are excluded from recipe defaults. The governed adapter remains in the package and is not a film voice. No voice clone of the owner, except the manifest-named Deloitte pursuit films for Revolva, Empowera and CoLedger (owner direction 2026-11-03).",
     "Higgsfield, Runway and Google Vertex spend stays frozen until the owner approves it in the current task. The funded generative-video lane is IrukaDark (approved hero shots only).",
@@ -30,7 +30,7 @@
       "status": "ready",
       "cost": "none (local non-AI render)",
       "identity": "any",
-      "how": "Briefing composition in kit/, one visual kind per beat (skills/visuals/references/kit-visuals.md). Render with npx remotion render.",
+      "how": "Briefing composition in kit/, one visual kind per beat (skills/produce/references/kit-visuals.md). Render with npx remotion render.",
       "notes": "Remotion 4.0.517 pinned. Licence: free for individuals and for-profit companies of up to 3 people, otherwise a Company License is needed. Check headcount before client-facing use."
     },
     {
@@ -39,7 +39,7 @@
       "status": "ready",
       "cost": "none",
       "identity": "any",
-      "how": "Author or fetch Lottie JSON into kit/public/lottie/, use the lottie visual kind. Lottie JSON comes only from this lane's own tooling (skills/visuals/references/lottie.md: the diffusionstudio text-to-lottie skill, or a hand-authored or licensed file); claude-haiku-specs never writes Lottie JSON and may only place an existing mark by name.",
+      "how": "Author or fetch Lottie JSON into kit/public/lottie/, use the lottie visual kind. Lottie JSON comes only from this lane's own tooling (skills/produce/references/lottie.md: the diffusionstudio text-to-lottie skill, or a hand-authored or licensed file); claude-haiku-specs never writes Lottie JSON and may only place an existing mark by name.",
       "notes": "Skottie preview and lottie-web render can differ. Judge the Remotion frame, never the preview."
     },
     {
@@ -48,7 +48,7 @@
       "status": "ready",
       "cost": "none",
       "identity": "any",
-      "how": "Author inline SVG with the visual-explainer rules (skills/visuals/references/visual-bible.md) and use the svg visual kind.",
+      "how": "Author inline SVG with the visual-explainer rules (skills/produce/references/visual-bible.md) and use the svg visual kind.",
       "notes": "One claim per figure. Every arrow gets a verb."
     },
     {
@@ -58,7 +58,7 @@
       "mode": "api",
       "cost": "Anthropic API, Claude Haiku 5.5: $0.10 input and $0.50 output per million tokens (half in batch), read from the Claude Platform docs on 2026-11-10. A 2,000-token spec is about a tenth of a cent. Account balance not checked.",
       "identity": "any",
-      "how": "The model writes text only and the kit draws it: Mermaid or D2 source, a staged scene spec, caption chunks by word index, callout data. The producing agent sets the style and three to five worked examples first; Haiku fills them for many beats; kit code does layout and timing. Run scripts/generate_specs.py <jobRoot> (a quote by default; --run spends, one request per layer: moments, overlays, captions, diagram), cached by request hash so nothing is paid twice, with a line per request in qa/spend-ledger.jsonl. Structured outputs with the schemas in schemas/model-specs/; every item is anchored to a cue-sheet beat; scripts/validate-model-specs.mjs is the gate before any render. Key ANTHROPIC_API_KEY_BACKUP by name, passed explicitly. Read skills/visuals/references/model-written-specs.md.",
+      "how": "The model writes text only and the kit draws it: Mermaid or D2 source, a staged scene spec, caption chunks by word index, callout data. The producing agent sets the style and three to five worked examples first; Haiku fills them for many beats; kit code does layout and timing. Run scripts/generate_specs.py <jobRoot> (a quote by default; --run spends, one request per layer: moments, overlays, captions, diagram), cached by request hash so nothing is paid twice, with a line per request in qa/spend-ledger.jsonl. Structured outputs with the schemas in schemas/model-specs/; every item is anchored to a cue-sheet beat; scripts/validate-model-specs.mjs is the gate before any render. Key ANTHROPIC_API_KEY_BACKUP by name, passed explicitly. Read skills/produce/references/model-written-specs.md.",
       "notes": "Conditional: worth it when there are many pictures or a large context (a codebase, a transcript, a screen recording). A handful of pictures is quicker written straight into the kit, which stays the free default. It adds to captured screens, narration and the cue sheet and never replaces them: use it to set the scene, explain, label and summarise around real capture. Never a picture lane on its own: no photographs or illustrations, and no product claim or product screen (those come from capture). This lane never writes Lottie JSON: a short loop from it is a kit scene spec, and Lottie marks come only from lottie-via-remotion. ANTHROPIC_ADMIN_KEY is never used for generation, only to report what a run cost. Send synthetic or redacted frames only."
     },
     {
@@ -219,7 +219,7 @@
       "identity": "any",
       "creditsPerClip": 232,
       "clipSeconds": 5,
-      "how": "Driven by hand through the signed-in Chrome (Claude in Chrome), never an API: nothing in the app exposes one. Pages: https://irukadark.com/ai/video (Seedance 2.5, 5s, 16:9, 720p, audio on), https://irukadark.com/ai/image, and the Audio and Screenplay entries in the sidebar. Write the prompt from the scene's visual.prompt, generate one clip, look at it, then download it into <jobRoot>/assets/clips/ (ask before each download) and set visual.src. Append the credits spent to qa/spend-ledger.jsonl. Read skills/generate/references/irukadark.md.",
+      "how": "Driven by hand through the signed-in Chrome (Claude in Chrome), never an API: nothing in the app exposes one. Pages: https://irukadark.com/ai/video (Seedance 2.5, 5s, 16:9, 720p, audio on), https://irukadark.com/ai/image, and the Audio and Screenplay entries in the sidebar. Write the prompt from the scene's visual.prompt, generate one clip, look at it, then download it into <jobRoot>/assets/clips/ (ask before each download) and set visual.src. Append the credits spent to qa/spend-ledger.jsonl. Read skills/produce/references/irukadark.md.",
       "notes": "The credit sits on the abacare.ai Google login; the owner picks the entity per film, so name it in the quote and never stop on it. A free-plan balance can change without notice, so read the credit counter again before a run of clips. Approved hero shots only, one shot at a time, never a bulk run. Output is a generated clip: no real people, no logos, no claims about a real product. Verified by one real clip on 2026-11-06: 232 credits charged exactly (12,800 to 12,568), about 4 minutes to render, a 5 s 720p clip of a truck at a dawn dock with the prompt followed. Only the thumbnail frame was inspected, not a playback, and the file was not downloaded, so judge motion and audio on the downloaded file before accepting any clip. It stays conditional because it is by hand and slow."
     },
     {
@@ -249,7 +249,7 @@
       "mode": "connector",
       "cost": "Descript plan credits; cumulative accounting is recorded as unreconciled",
       "identity": "any",
-      "how": "Descript connector tools (create_social_clips, transcribe_audio_video, prompt_project_agent, publish_project). Existing recordings only. See skills/compose/references/descript.md.",
+      "how": "Descript connector tools (create_social_clips, transcribe_audio_video, prompt_project_agent, publish_project). Existing recordings only. See skills/finish/references/descript.md.",
       "notes": "Edits what already exists. Never a way to make a voice or a face. Burned-in captions conflict with the sidecar-only caption rule, so strip them."
     },
     {
@@ -315,7 +315,7 @@
       "cost": "free tier (about 3 audio and 3 video overviews a day)",
       "identity": "any",
       "draftOnly": true,
-      "how": "notebooklm-py CLI with --json. Source material in, draft overview, deck or infographic out. Read skills/visuals/references/notebooklm.md.",
+      "how": "notebooklm-py CLI with --json. Source material in, draft overview, deck or infographic out. Read skills/produce/references/notebooklm.md.",
       "notes": "Unofficial client of undocumented APIs, so it can break. Output is a draft to learn from, never the delivered picture or voice. Public and personal material only."
     },
     {

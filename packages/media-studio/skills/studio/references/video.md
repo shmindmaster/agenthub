@@ -1,8 +1,3 @@
----
-name: video
-description: Produces a finished film, screencast, explainer, ad or voiceover from a concept or outline. Use when someone wants any video or audio, a demo film, script, storyboard or series episode. Not for one step of a running job; use generate, capture, compose or review.
----
-
 # Video
 
 ## Workflow contract
@@ -42,6 +37,6 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 - `references/product-picture.md`: Read when the subject is a running product.
 - `references/operations.md`: Read when needing workspace or tool paths, paid spend, review repairs or a short ad.
 
-Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+Read when executing this skill for its detailed commands and gates. [Workflow detail](video-detail.md)
 
-For consulting product proof, technical walkthroughs or release highlights, load [consulting communication](references/consulting-communication.md). Select the communicationProfile in the existing brief and pass it through development, capture and review; reuse accepted proof for audience variants while retaining limitations.
+For consulting product proof, technical walkthroughs or release highlights, load [consulting communication](consulting-communication.md). Select the communicationProfile in the existing brief and pass it through development, capture and review; reuse accepted proof for audience variants while retaining limitations.

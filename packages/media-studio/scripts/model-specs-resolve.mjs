@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Deterministic resolver for model-written layers (skills/visuals/references/model-written-specs.md). The model names a
+// Deterministic resolver for model-written layers (skills/produce/references/model-written-specs.md). The model names a
 // region and an anchor; this code does the timing and the geometry. Anchors are a cue-sheet beat plus a recorded action
 // label (timed by its program action_time) or a range of that beat's word indexes (timed by the aligner's words). Regions
 // are a fixed vocabulary laid out on the delivery frame. Anything it cannot place is rejected, never guessed.

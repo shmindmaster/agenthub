@@ -27,11 +27,11 @@ function Read-Text([string]$Path) {
 
 . (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
 $policy = Read-AgentHubTestPolicy -PolicyPath (Get-AgentHubTestEffectivePolicy -RepositoryRoot $repoRoot).Path -Domains media
-$producer = Read-Text (Join-Path $media 'skills\video\SKILL.md')
-$capture = Read-Text (Join-Path $media 'skills\capture\SKILL.md')
-$compose = Read-Text (Join-Path $media 'skills\compose\SKILL.md')
-$generate = Read-Text (Join-Path $media 'skills\generate\SKILL.md')
-$forms = Read-Text (Join-Path $media 'skills\video\references\forms.md')
+$producer = Read-Text (Join-Path $media 'skills\studio\references\video.md')
+$capture = Read-Text (Join-Path $media 'skills\produce\references\capture.md')
+$compose = Read-Text (Join-Path $media 'skills\finish\references\compose.md')
+$generate = Read-Text (Join-Path $media 'skills\produce\references\generate.md')
+$forms = Read-Text (Join-Path $media 'skills\studio\references\forms.md')
 $recordJob = Read-Text (Join-Path $media 'kit\screencast\record-job.mjs')
 
 Report 'global policy makes product repositories read-only for media' (

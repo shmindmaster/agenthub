@@ -1,8 +1,3 @@
----
-name: develop
-description: Develops an approved case into a logline, treatment, beat sheet with a picture per beat, and a locked screenplay written for the ear. Use when a film has a case and needs its story, script, scenes and narrative. Not before a brief exists; use brief. Not for the picture plan; use plan.
----
-
 # Develop
 
 ## Workflow contract
@@ -49,6 +44,6 @@ Pin each name in `scripts/pronunciation_lexicon.json` before any voice is genera
 
 Show the owner the logline, the beat sheet table (beat, role, picture) and the first and last lines. When they say yes, record it: `py -3 scripts/production_status.py <jobRoot> --approve case` and `--approve screenplay`. Then `plan`.
 
-Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+Read when executing this skill for its detailed commands and gates. [Workflow detail](develop-detail.md)
 
-For a consulting demo, technical walkthrough or product update, load [consulting communication](../video/references/consulting-communication.md). Write actionTitle conclusions first, attach supportingArgument, proofRefs, scoped claims and uiProof, then run check-story on the brief. Review its titlesOnly output at Pink; lock the argument and visible proof before narration or recapture.
+For a consulting demo, technical walkthrough or product update, load [consulting communication](../../studio/references/consulting-communication.md). Write actionTitle conclusions first, attach supportingArgument, proofRefs, scoped claims and uiProof, then run check-story on the brief. Review its titlesOnly output at Pink; lock the argument and visible proof before narration or recapture.

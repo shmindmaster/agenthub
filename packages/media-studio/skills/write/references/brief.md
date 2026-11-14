@@ -1,8 +1,3 @@
----
-name: brief
-description: Turns a rough ask for video, audio, an explainer or a graphic into an approved written brief, with what the viewer will see, before any script or spend. Use when someone wants media and the ask is short or loose. Not once a brief is approved; use plan.
----
-
 # Brief
 
 ## Workflow contract
@@ -22,6 +17,6 @@ Do not write narration, call a voice or image provider, capture, or render until
 
 In a whole-film job the brief is `case/case.md` (the `studio` skill scaffolds it with `studio_init.py`); write it there and record the owner's yes with `production_status.py <jobRoot> --approve case`. Then `develop` for the story and screenplay, and `plan`.
 
-Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+Read when executing this skill for its detailed commands and gates. [Workflow detail](brief-detail.md)
 
-For consulting communication, load [consulting communication](../video/references/consulting-communication.md). Extend the existing brief with the decision, primary takeaway, problem status and sources, next step (unagreed date null), duration ceiling, caption policy and audio direction before its existing approval.
+For consulting communication, load [consulting communication](../../studio/references/consulting-communication.md). Extend the existing brief with the decision, primary takeaway, problem status and sources, next step (unagreed date null), duration ceiling, caption policy and audio direction before its existing approval.

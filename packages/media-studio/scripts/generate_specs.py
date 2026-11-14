@@ -5,7 +5,7 @@
                       [--model claude-haiku-5-5] [--max-usd 0.50] [--max-requests 12]
                       [--key-env ANTHROPIC_API_KEY_BACKUP] [--retry-fallbacks] [--run] [--json]
 
-Lane claude-haiku-specs (policy/provider-routing.json; skills/visuals/references/model-written-specs.md). The layers
+Lane claude-haiku-specs (policy/provider-routing.json; skills/produce/references/model-written-specs.md). The layers
 augment a real screen recording, its narration and its cue sheet; they never replace them. Each layer is its own request
 with its own schema under schemas/model-specs/:
 

@@ -1,8 +1,3 @@
----
-name: generate
-description: Produces accepted narration, character takes, stills and presenter clips under spend controls. Use when a job needs voices, TTS, images, a music bed, transcription or a provider choice. Not for mixing or encoding; use compose.
----
-
 # Generate
 
 ## Workflow contract
@@ -87,4 +82,4 @@ Use `references/voice-recipes.md` to select one voice per film or series. For ne
 - `references/irukadark.md`: Read when a scene needs a generated clip (approved hero shot) or a by-hand picture or track from IrukaDark.
 - `../capture/references/abacare-lexicon.json`: Read when pronouncing ABACare film names.
 
-Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
+Read when executing this skill for its detailed commands and gates. [Workflow detail](generate-detail.md)

@@ -77,8 +77,8 @@ foreach ($a in @($agents.activeAgents)) {
 }
 
 foreach ($pluginCompose in @(
-        (Join-Path $HOME '.claude\plugins\cache\agenthub\media-studio\*\skills\compose\SKILL.md'),
-        (Join-Path $HOME '.codex\plugins\cache\agenthub\media-studio\*\skills\compose\SKILL.md')
+        (Join-Path $HOME '.claude\plugins\cache\agenthub\media-studio\*\skills\finish\references\compose.md'),
+        (Join-Path $HOME '.codex\plugins\cache\agenthub\media-studio\*\skills\finish\references\compose.md')
     )) {
     foreach ($copy in @(Get-Item -Path $pluginCompose -ErrorAction SilentlyContinue)) {
         $composeHits++

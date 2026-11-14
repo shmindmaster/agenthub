@@ -8,7 +8,7 @@ records the speaker, the words and seconds, the picture kind and the funded lane
 Then it totals the cast, the assets that must exist, a priced budget and a build order. Free and offline: it estimates, it never
 calls a provider.
 
-Prices are the documented eastus2 list rates in skills/generate/references/azure.md: standard neural $15 per 1M characters, HD
+Prices are the documented eastus2 list rates in skills/produce/references/azure.md: standard neural $15 per 1M characters, HD
 $22 per 1M, transcription check $0.36 per hour. A generated still is priced by generate_stills.estimate_usd (an upper bound, at
 medium quality and 1536x1024 unless the scene says otherwise). A generated clip (broll) is counted in provider credits, not dollars:
 the lane's creditsPerClip per clipSeconds (IrukaDark), shown as clips and clipCredits. A lane with no known unit price is counted and marked unpriced,

@@ -8,11 +8,11 @@ workflow. Live-product screencasts are this pack (Playwright WebM + Recast), not
 
 Live-product screencasts use Playwright WebM + Recast in this pack (`kit/screencast/record-job.mjs`, `scripts/validate-product-picture.mjs`).
 
-**Viewer-facing** jobs apply `skills/video/references/story.md`. The screenplay carries story role, WIIFM, and tension; the storyboard carries shot plan, archetype, sound and one eye path per screen beat. Score < 85 from the story-experience review (`review`) does not ship. `intent: draft` skips generated plates and the critic gate. Product-screencast craft uses the product-picture contract. Before capture, `scripts/validate-narration.mjs` applies five-second hook/no-fluff/repetition constraints to **verified demos** but respects other declared creative modes (fiction, future-vision, documentary, abstract, education and hybrid). `scripts/write-story-review.py` similarly uses form-aware pre-capture judgments for non-verified films instead of enforcing an artificial six-beat product plot. For verified product demos, `scripts/validate-demo-scenario.mjs` requires a source-hashed scenario with persona, problem, visible product outcome and CTA; `record-job.mjs` runs `scripts/validate-capture-preflight.mjs` (scene ids, cue keywords, typing budgets) before the first take. After recording, `scripts/validate-pointer-path.mjs` fails any take whose cursor reversed, wandered, over-travelled or scrolled past and returned. Every ratio is captured at its own viewport with device emulation (`job.captureViewports`, `record-job.mjs --ratio`), never cropped out of a desktop take; `scripts/validate-picture-integrity.mjs` fails stretched, upscaled, cropped, barred or undeclared-zoom product footage and a vertical cut recorded at a desktop viewport. After every recut, `scripts/validate-viewer-release.mjs` requires exact-candidate captions, loudness, authored-script pronunciation, visual/title/action-result reviews, the narration check, frame integrity (`scripts/validate-frame-integrity.mjs`), picture integrity, the pointer-path report, the marketing floor on marketing cuts (`scripts/validate-marketing-readiness.mjs`, `references/marketing-readiness.md`) and a stitchable sequence before release. `scripts/build-contact-sheet.mjs` tiles the cue-sheet stills for the human watch-through.
+**Viewer-facing** jobs apply `skills/studio/references/story.md`. The screenplay carries story role, WIIFM, and tension; the storyboard carries shot plan, archetype, sound and one eye path per screen beat. Score < 85 from the story-experience review (`review`) does not ship. `intent: draft` skips generated plates and the critic gate. Product-screencast craft uses the product-picture contract. Before capture, `scripts/validate-narration.mjs` applies five-second hook/no-fluff/repetition constraints to **verified demos** but respects other declared creative modes (fiction, future-vision, documentary, abstract, education and hybrid). `scripts/write-story-review.py` similarly uses form-aware pre-capture judgments for non-verified films instead of enforcing an artificial six-beat product plot. For verified product demos, `scripts/validate-demo-scenario.mjs` requires a source-hashed scenario with persona, problem, visible product outcome and CTA; `record-job.mjs` runs `scripts/validate-capture-preflight.mjs` (scene ids, cue keywords, typing budgets) before the first take. After recording, `scripts/validate-pointer-path.mjs` fails any take whose cursor reversed, wandered, over-travelled or scrolled past and returned. Every ratio is captured at its own viewport with device emulation (`job.captureViewports`, `record-job.mjs --ratio`), never cropped out of a desktop take; `scripts/validate-picture-integrity.mjs` fails stretched, upscaled, cropped, barred or undeclared-zoom product footage and a vertical cut recorded at a desktop viewport. After every recut, `scripts/validate-viewer-release.mjs` requires exact-candidate captions, loudness, authored-script pronunciation, visual/title/action-result reviews, the narration check, frame integrity (`scripts/validate-frame-integrity.mjs`), picture integrity, the pointer-path report, the marketing floor on marketing cuts (`scripts/validate-marketing-readiness.mjs`, `references/marketing-readiness.md`) and a stitchable sequence before release. `scripts/build-contact-sheet.mjs` tiles the cue-sheet stills for the human watch-through.
 
-**Technical stories** (`programForm: technical-story`) are product or engineering changes told as 5–8 minute mini documentaries: `skills/video/references/story.md` holds the beat map and markup rules; `kit/screencast/` holds the compositor, annotation overlay, code-reveal and card renderers with their manifest hints. Product-specific capture notes live under `skills/capture/references/`.
+**Technical stories** (`programForm: technical-story`) are product or engineering changes told as 5–8 minute mini documentaries: `skills/studio/references/story.md` holds the beat map and markup rules; `kit/screencast/` holds the compositor, annotation overlay, code-reveal and card renderers with their manifest hints. Product-specific capture notes live under `skills/capture/references/`.
 
-**Product picture** (`skills/video/references/product-picture.md`): when the subject is a running product, the encoded film is Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards. `scripts/validate-product-picture.mjs` fails closed. Host projections must match `plugin.json`.
+**Product picture** (`skills/studio/references/product-picture.md`): when the subject is a running product, the encoded film is Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards. `scripts/validate-product-picture.mjs` fails closed. Host projections must match `plugin.json`.
 
 Version authority: root `plugin.json` (`2.10.0`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `MEDIA_STUDIO_ROOT`, default `D:\Media-Studio`). Private show bibles and customer recordings stay outside this repository.
@@ -20,7 +20,7 @@ Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and
 Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` compositor tooling). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.
 
 **Creative forms, not a single product template:** Read
-`skills/video/references/creative-formats.md`. Media Studio supports
+`skills/studio/references/creative-formats.md`. Media Studio supports
 verified current-product demos, hybrid films, fictional day-in-the-life
 stories, entirely synthetic human scenes, patients/children/families,
 documentary, education, abstract visuals and envisioned future interfaces.
@@ -48,7 +48,7 @@ current-product UI or a hero after scene three. The encoded viewer
 review remains mandatory before delivery.
 
 **Media-provider cost/quality selection:** For each missing story asset,
-read `skills/generate/references/provider-cost-quality-routing.md`. Reuse actual
+read `skills/produce/references/provider-cost-quality-routing.md`. Reuse actual
 product capture, designed diagrams and accepted assets before proposing new
 generation. `scripts/route_media.py --catalog` lists available/frozen local
 lanes; `scripts/quote-runware-models.mjs` compares **live Runware model
@@ -82,18 +82,12 @@ This package is the parent studio. Product Demo Studio remains the product-scree
 
 | Skill | Owns | Key references |
 | --- | --- | --- |
-| `studio` | Conductor: an idea in, a finished film out, through develop, pre-production, production, post and delivery, with state and approvals (`studio_init.py`, `production_status.py`) | `phases.md` |
-| `develop` | Case to logline, treatment, beat sheet and locked screenplay | none |
-| `brief` | Front door: turn a rough ask into an approved written brief, with what the viewer will SEE, before any script or spend | none |
-| `plan` | Beat-by-beat storyboard with the picture for every line, gates before spend, task ledger, fresh reviewer per task | none |
-| `visuals` | Choose and build the picture: charts, hand-drawn SVG, Lottie, stills, captured screens, NotebookLM drafts | `ladder.md`, `visual-bible.md`, `kit-visuals.md`, `lottie.md`, `notebooklm.md`, `browser-tools.md` |
-| `video` | Classify the job, write the script, storyboard, direct, run the pipeline | `story.md`, `forms.md`, `scenes.md`, `product-picture.md` |
-| `generate` | Azure-first voice, ASR and stills under spend controls; Deepgram as governed fallback; accepted music assets | `azure.md`, `content-controls.md`, `provider-plugins.md` |
-| `capture` | Playwright WebM + Recast | `recording.md`, `abacare-local.md` |
-| `compose` | Remotion, Recast, FFmpeg, `Finish-Media.ps1`, delivery, optional Descript finishing | `render-lanes.md`, `descript.md` |
-| `review` | Release gates, word clock, the 0-100 story-experience review (fail below 85) | `gates.md`, `word-clocks.md`, `story-review-rubric.md`, `marketing-readiness.md` |
+| `studio` | Single entry point. Asks up to five quick questions (purpose, kind, length and destination, voice, picture), picks the approach, then runs write, produce and finish with state and approvals (`studio_init.py`, `production_status.py`) | `conductor.md`, `video.md`, `forms.md`, `creative-formats.md`, `story.md`, `scenes.md` |
+| `write` | Brief, story and locked script, storyboard with a picture for every line; gates before spend | `brief.md`, `develop.md`, `plan.md` |
+| `produce` | Screen takes through `ah-browser` (agent-browser `--cursor` or BrowserSkill), governed voice, stills, diagrams, Lottie and music under spend controls | `capture.md`, `generate.md`, `visuals.md`, `voice-recipes.md` |
+| `finish` | Compose and render with the official Remotion plugin on sh-forge, loudness, delivery, then a fresh reviewer's score and ship decision | `compose.md`, `render-lanes.md`, `review.md`, `gates.md` |
 
-`brief` is the front door for any rough ask and `plan` follows it; `video` classifies and runs the pipeline; the others run single steps. `scripts/route_media.py` picks the funded lane for a need from `policy/provider-routing.json` (credits recorded in Linear, frozen lanes stay frozen). `scripts/check_visual_variety.py` fails a film that is words in boxes. The series and explanation schemas live in `schemas/series/` and `schemas/explanation.schema.json`.
+`studio` is the only front door; `write`, `produce` and `finish` also run alone for one stage of an existing job. `scripts/route_media.py` picks the funded lane for a need from `policy/provider-routing.json` (credits recorded in Linear, frozen lanes stay frozen). `scripts/check_visual_variety.py` fails a film that is words in boxes. The series and explanation schemas live in `schemas/series/` and `schemas/explanation.schema.json`.
 Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` require Remotion unless the user asked for a draft/basic cut. Do not vendor Remotion rules — resolve `video.programmatic-composition` to official `remotion-dev/skills`.
 
 ## Non-goals
@@ -102,7 +96,7 @@ Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` require 
 - Do not centralize credentials, customer data, or private evidence here.
 - Do not start local models, TTS/STT servers or embedders: Local AI is off. Hosted providers only, through the governed adapters. Never use Windows Narrator, SAPI, System.Speech or any other desktop voice.
 
-Governed Deepgram Flux batch TTS uses `scripts/deepgram_cli.py`. Select `--voice flux-haley-en` for prepared support prompts. Existing calls default to Sienna. The CLI quotes by default. Execution requires intact shared accounting or a reviewed owner-authorized bounded epoch. See `skills/generate/references/content-controls.md`.
+Governed Deepgram Flux batch TTS uses `scripts/deepgram_cli.py`. Select `--voice flux-haley-en` for prepared support prompts. Existing calls default to Sienna. The CLI quotes by default. Execution requires intact shared accounting or a reviewed owner-authorized bounded epoch. See `skills/produce/references/content-controls.md`.
 
 Cloud render: kit/cloud/cloud-render.mjs runs FFmpeg, Remotion and Recast jobs on a scale-to-zero Azure Container Apps job in the owner's own Azure tenant (upload -> render -> download). Provision with kit/cloud/Provision-CloudRender.ps1; see kit/cloud/README.md. Offline tests: node --test tests/cloud-render.test.mjs.
 

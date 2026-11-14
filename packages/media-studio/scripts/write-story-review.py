@@ -560,7 +560,7 @@ def main() -> int:
                   "checks": checks, "findings": findings, "reviseSceneIds": revise}
     out_p.write_text(json.dumps(review, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    rubric = sorted(Path.home().glob(".claude/plugins/cache/agenthub/media-studio/*/skills/review/references/story-review-rubric.md"))
+    rubric = sorted(Path.home().glob(".claude/plugins/cache/agenthub/media-studio/*/skills/finish/references/story-review-rubric.md"))
     prov = {"tool": "write-story-review.py", "toolVersion": TOOL_VERSION, "method": "pre-capture structural gate + recorded judgments",
             "inputs": {"screenplay": sha(sp_p), "storyboard": sha(sb_p), "job": sha(job_p) if job_p.exists() else None,
                        "judgments": sha(jd_p) if jd_p.exists() else None,

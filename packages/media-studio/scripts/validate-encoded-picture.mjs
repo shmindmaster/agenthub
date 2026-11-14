@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fail-closed product-picture gate on the ENCODED candidate. Contract: skills/video/references/product-picture.md
+// Fail-closed product-picture gate on the ENCODED candidate. Contract: skills/studio/references/product-picture.md
 // Usage: node validate-encoded-picture.mjs <jobRoot> <candidate.mp4> [--max-static 6] [--out qa/encoded-picture.json]
 //
 // The plan validator proves the clips are real captures. This one proves the file a viewer will watch is made of
