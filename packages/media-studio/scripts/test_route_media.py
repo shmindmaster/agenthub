@@ -106,7 +106,7 @@ class Routing(unittest.TestCase):
         self.assertEqual(blocked["windows-narrator"], "disabled")
         self.assertNotIn("windows-narrator", usable)
         for frozen_id in ("elevenlabs-speech", "runware-fish-s2", "runware-heygen-voice",
-                          "assemblyai-tts", "azure-openai-tts", "runware-seed-audio"):
+                          "assemblyai-tts", "runware-seed-audio"):
             self.assertEqual(blocked[frozen_id], "frozen")
             self.assertNotIn(frozen_id, usable)
         rules = " ".join(POLICY["rules"])

@@ -1,5 +1,5 @@
 // Stage 2: voice. One file per narrated beat; ElevenLabs (governed ledger, request stitching), OpenAI
-// gpt-4o-mini-tts (instructions) or an injected local voice (Local AI is off: the default refuses). Cached by
+// OpenAI speech (instructions) or an injected local voice (Local AI is off: the default refuses). Cached by
 // (text, voice, model, settings, neighbors), so an unchanged line never costs twice. A beat's `voiceTake` (1, 2, …) asks
 // for a fresh take of that one line (a new key and ledger revision) after a listen or review rejects the delivery.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';

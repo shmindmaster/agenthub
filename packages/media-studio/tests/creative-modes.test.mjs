@@ -8,7 +8,7 @@ import { creativeMode, inspectRepresentation } from '../kit/marketing/lib/creati
 const schema = JSON.parse(readFileSync(new URL('../kit/marketing/ad.schema.json', import.meta.url), 'utf8'));
 const io = { specDir: '/synthetic-film', exists: () => true, readText: () => 'approved',
   readJson: () => ({ clips: { C1: { valid: true, clipSeconds: 30, events: { clicks: 0 } } } }) };
-const narr = { provider: 'openai', voiceId: 'alloy', model: 'gpt-4o-mini-tts', disclosure: 'end card' };
+const narr = { provider: 'openai', voiceId: 'alloy', model: 'gpt-realtime-2.1-mini', disclosure: 'end card' };
 const truth = { id: 'proof', text: 'The operator can review the current result.', phrases: ['operator can review the current result'], evidence: 'approved:captured-product-workflow' };
 const broll = (prompt, truthStatus = 'fictional', extra = {}) =>
   ({ id: 'synthetic-scene', kind: 'broll', truthStatus, narration: 'A vivid hypothetical day unfolds.',

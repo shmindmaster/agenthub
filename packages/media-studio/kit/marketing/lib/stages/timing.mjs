@@ -60,7 +60,7 @@ async function whisperWordsFor(ctx, { audio, asrPath, duration, provider }) {
     return { payload, cached: false };
   }
   const usd = estimateWhisperUsd(duration);
-  ctx.ledger.check('openai', usd, 'whisper-1 timing');
+  ctx.ledger.check('openai', usd, 'hosted word timing');
   const transcribe = ctx.providers.transcribeWords || (await import('../providers/openai.mjs')).transcribeWords;
   const payload = await transcribe(audio);
   writeFileSync(asrPath, `${JSON.stringify(payload, null, 2)}\n`);

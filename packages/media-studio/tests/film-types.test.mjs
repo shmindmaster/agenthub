@@ -189,7 +189,7 @@ test('a story rule can be waived with a reason; the waiver is logged, and truth 
 // ---- declaring another mode is not a way out -------------------------------------------------------------------
 
 const io = { specDir: '/t', exists: () => true, readJson: () => ({ clips: { C1: { valid: true, clipSeconds: 60, events: { clicks: 0 } } } }) };
-const voice = { provider: 'openai', voiceId: 'alloy', model: 'gpt-4o-mini-tts', disclosure: 'end card' };
+const voice = { provider: 'openai', voiceId: 'alloy', model: 'gpt-realtime-2.1-mini', disclosure: 'end card' };
 function fullSpec() {
   return {
     id: 'explainer-dodge', title: 'How claims get paid', product: 'ABACare', creativeMode: 'explainer',

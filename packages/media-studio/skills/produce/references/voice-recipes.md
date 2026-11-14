@@ -24,16 +24,12 @@ For an Azure preview evaluation of expressive brand narration, shortlist `en-US-
 
 Use the actual ABACare screen recording and one short WAV narration segment per screen action. For new conversational walkthroughs select `en-US-Emma2:DragonHDLatestNeural`, or `en-US-Andrew2:DragonHDLatestNeural` for a male voice, with the existing Azure Speech authorization and no style argument. Ava remains the CLI default and fallback. Keep accepted takes and the selected voice for an existing film or series.
 
-For directed narration, the frozen `azure-openai-tts` lane specifies Azure OpenAI `gpt-4o-mini-tts`, deployment version `2025-12-15`, with Marin. Keep delivery instructions separate from spoken text, for example “Warm, clear, and conversational. Explain one action at a time at a moderate pace.” Use Cedar only if the walkthrough needs a second speaker. This option requires a governed MahumTech adapter. The marketing kit's direct OpenAI route is separate.
+For directed narration with delivery instructions, use OpenAI `marin` (Cedar only as a second speaker) through the `openai-speech` lane. Keep delivery instructions separate from spoken text, for example “Warm, clear, and conversational. Explain one action at a time at a moderate pace.”
 
 Catalog, Microsoft Learn, checked 2026-11-06:
 
 | Option | State | Use on this recipe |
 | --- | --- | --- |
-| `gpt-4o-mini-tts` `2025-12-15` | GA. Retirement 2027-06-15. Global Standard lists East US 2 in the Americas table (region page 2026-11-04). MahumTech is eastus2. | The walkthrough model. Voice Marin. |
-| `gpt-4o-mini-tts` `2025-03-20` | Preview. Retirement date 2026-10-15 is already past. | Do not deploy. |
-| Audio-out voices Alloy, Ash, Ballad, Coral, Echo, Sage, Shimmer, Verse, Marin, Cedar | Listed on the audio quickstart (2026-10-24) for the audio models. | Marin default. Cedar only as a second speaker. |
-| `tts`, `tts-hd` | The Foundry models page (2026-10-29) marks both preview. An older classic retirement table called version 001 generally available. | Not this recipe. |
 | `en-US-Ava:DragonHDLatestNeural` | GA DragonHD on the HD voices page. | Callable fallback. |
 | `en-US-Andrew:DragonHDLatestNeural` | GA DragonHD. | Callable second Azure voice. Not the Marin substitute. |
 | `en-US-Emma2:DragonHDLatestNeural`, `en-US-Andrew2:DragonHDLatestNeural` | GA, optimized for conversational content. | Governed conversational walkthrough voices. |
@@ -166,5 +162,5 @@ Music is MiniMax Music 2.6 through Runware, instrumental only, one track reused,
 ## OpenAI direct voices (OPENAI_API_KEY)
 - Built-in voices: `marin` and `cedar` first (OpenAI's best TTS quality), then `alloy`, `ash`, `ballad`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, `shimmer`, `verse`. Delivery instructions (tone, pacing, accent, emotion) work on compatible models.
 - Audition `marin` and `cedar` against Azure DragonHD Emma2 and Andrew2 on the same script before switching a production. Azure DragonHD stays the default for pre-recorded narration until a measured OpenAI take passes the voice gates at a comparable cost.
-- Migration: `gpt-4o-mini-tts`, `tts-1` and `tts-1-hd` shut down on 2027-01-06. The replacement is `gpt-realtime-2.1-mini` through the Realtime API, not a model-string change on `/v1/audio/speech`. Estimate with `scripts/estimate-job-cost.mjs --voice openai`.
+- Speech model: `gpt-realtime-2.1-mini` (`gpt-realtime-2.1` for complex direction). Estimate with `scripts/estimate-job-cost.mjs --voice openai`.
 - Prompt-designed voices (described in text) are free to create and work only with GPT-Live. Recording-based custom voices need an eligible organisation, a consent recording and a matching reference (60 seconds or less, 20 voices per organisation). Record voice ID, provider, supported models, approved use, consent evidence and samples before use. The no-owner-clone rule above still applies, and AI speech is disclosed to listeners.

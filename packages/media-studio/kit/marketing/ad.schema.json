@@ -216,7 +216,7 @@
             "apply_text_normalization": { "enum": ["auto", "on", "off"] }
           }
         },
-        "instructions": { "type": "string", "description": "OpenAI gpt-4o-mini-tts style instructions." },
+        "instructions": { "type": "string", "description": "OpenAI speech style instructions." },
         "stitching": { "type": "boolean", "description": "Send previous_text/next_text so prosody carries across lines (not on eleven_v3)." },
         "pronunciationDictionaries": {
           "type": "array", "maxItems": 3,

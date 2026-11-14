@@ -203,7 +203,7 @@ export async function runVisionQa(o) {
   if (!['local', 'openai'].includes(provider)) throw new Error('vision provider must be local or explicit paid openai');
   if (provider === 'openai' && (typeof o.ledger?.check !== 'function' || typeof o.ledger?.charge !== 'function')) throw new Error('paid OpenAI vision requires a governed cost ledger; use mvg --stage qa');
   if (provider === 'local' && typeof o.localVision !== 'function') throw new Error(`local vision: ${LOCAL_AI_OFF}; or pass --vision-provider openai (paid, ledger-governed)`);
-  let model = provider === 'openai' ? (o.brand?.vision?.model || 'gpt-5.6-sol') : null;
+  let model = provider === 'openai' ? (o.brand?.vision?.model || 'gpt-6.1-terra') : null;
   const every = o.spec?.qa?.visionEverySeconds || 1.5;
   const candidateSha = existsSync(o.candidate) ? fileSha(o.candidate) : null;
   const duration = o.duration ?? ffprobeDuration(o.candidate);

@@ -224,20 +224,6 @@
       "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. No emotion tags, SSML or speed parameter. Not the campaign narrator."
     },
     {
-      "id": "azure-openai-tts",
-      "needs": [
-        "voice",
-        "narration",
-        "dialogue",
-        "audio"
-      ],
-      "status": "frozen",
-      "cost": "Azure OpenAI gpt-4o-mini-tts, token priced; deployment rate not recorded",
-      "identity": "mahumtech",
-      "how": "Frozen option for directed narration. Azure OpenAI gpt-4o-mini-tts version 2025-12-15 (GA, retires 2027-06-15, Global Standard East US 2), Marin, WAV, with delivery instructions separate from spoken text. Cedar is a second speaker only.",
-      "notes": "Requires a governed MahumTech adapter and current owner authorization. For conversational walkthroughs use governed DragonHD Emma2 or Andrew2 with Ava as fallback. See the voice recipes for other Azure options."
-    },
-    {
       "id": "runware-seed-audio",
       "needs": [
         "voice",
@@ -597,7 +583,7 @@
       "cost": "gpt-realtime-2.1-mini about $20 per 1M audio output tokens (planning estimate about $0.016 per minute); gpt-realtime-2.1 $64",
       "identity": "any",
       "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. Built-in voices marin and cedar first.",
-      "notes": "gpt-4o-mini-tts, tts-1 and tts-1-hd shut down 2027-01-06; replacement is gpt-realtime-2.1-mini through the Realtime API. Azure DragonHD stays the default for pre-recorded narration until an audition and measured cost pass. Prompt-designed voices work only with GPT-Live; recording-based custom voices need eligibility and consent records."
+      "notes": "Azure DragonHD stays the default for pre-recorded narration until an audition and measured cost pass. Prompt-designed voices work only with GPT-Live; recording-based custom voices need eligibility and consent records."
     },
     {
       "id": "openai-transcribe",
@@ -610,7 +596,7 @@
       "cost": "gpt-transcribe about $0.27 per audio hour",
       "identity": "any",
       "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. transcribeText(file).",
-      "notes": "Text only, no word timestamps. whisper-1 (word timing) shuts down 2027-02-26; word timing stays on the forced aligner."
+      "notes": "Text transcription; word timing stays on the forced aligner. Word timing stays on the forced aligner."
     },
     {
       "id": "openai-moderation",

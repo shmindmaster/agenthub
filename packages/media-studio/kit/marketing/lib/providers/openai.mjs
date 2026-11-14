@@ -1,5 +1,4 @@
-// OpenAI REST client for mvg: images (gpt-image), speech (gpt-4o-mini-tts), word timing (whisper-1, the only OpenAI
-// STT with word timestamps) and vision QA (Responses API with a JSON schema).
+// OpenAI REST client for mvg: images, speech, word timing and vision QA (Responses API with a JSON schema), on current models.
 // There is no OpenAI video call here. Requests carry only approved ad text and sampled frames.
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -47,7 +46,7 @@ export async function generateImage({ prompt, model = OPENAI_MODELS.imageDefault
   return { bytes: Buffer.from(b64, 'base64'), usage: json.usage || null, model, size, quality };
 }
 
-export async function speech({ text, voice, instructions, model = 'gpt-4o-mini-tts', format = 'mp3', fetchImpl }) {
+export async function speech({ text, voice, instructions, model = OPENAI_MODELS.realtimeSpeech, format = 'mp3', fetchImpl }) {
   const res = await call('/audio/speech', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, voice, input: text, response_format: format, ...(instructions ? { instructions } : {}) }),
@@ -55,11 +54,11 @@ export async function speech({ text, voice, instructions, model = 'gpt-4o-mini-t
   return { bytes: Buffer.from(await res.arrayBuffer()), model, voice };
 }
 
-/** whisper-1 with word timestamps. Returns the raw verbose_json payload. */
+/** Word-timestamped transcription (gpt-transcribe, verbose_json). Returns the raw payload. */
 export async function transcribeWords(file, { fetchImpl } = {}) {
   const form = new FormData();
   form.append('file', new Blob([readFileSync(file)]), basename(file));
-  form.append('model', 'whisper-1');
+  form.append('model', OPENAI_MODELS.transcribe);
   form.append('response_format', 'verbose_json');
   form.append('timestamp_granularities[]', 'word');
   form.append('language', 'en');
@@ -68,12 +67,11 @@ export async function transcribeWords(file, { fetchImpl } = {}) {
 }
 
 /**
- * Azure OpenAI speech-to-text through the MahumTech resource (mt-foundary-resource). Deployments: gpt-4o-mini-transcribe
- * (default), gpt-transcribe, gpt-4o-transcribe-diarize. These return text (and segments for diarize), not the word
- * timestamps that whisper-1 gives, so word timing stays on the forced aligner. Endpoint and key come from
+ * Azure OpenAI speech-to-text through the MahumTech resource (mt-foundary-resource), deployment gpt-transcribe. It returns
+ * text, not word timestamps, so word timing stays on the forced aligner. Endpoint and key come from
  * AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY by name; neither is printed.
  */
-export async function transcribeAzure(file, { deployment = 'gpt-4o-mini-transcribe', fetchImpl = fetch, endpoint = process.env.AZURE_OPENAI_ENDPOINT, key = process.env.AZURE_OPENAI_API_KEY } = {}) {
+export async function transcribeAzure(file, { deployment = 'gpt-transcribe', fetchImpl = fetch, endpoint = process.env.AZURE_OPENAI_ENDPOINT, key = process.env.AZURE_OPENAI_API_KEY } = {}) {
   if (!endpoint || !key) throw new OpenAiError('AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY must be set');
   const form = new FormData();
   form.append('file', new Blob([readFileSync(file)]), basename(file));
@@ -116,20 +114,13 @@ export const OPENAI_MODELS = {
   bulk: 'gpt-6-luna', // captions, metadata, classification, repetitive transforms
   imageDefault: 'gpt-image-2.6-flare',
   imagePremium: 'gpt-image-2.6-sunburst',
-  transcribe: 'gpt-transcribe', // file transcription without word timestamps
+  transcribe: 'gpt-transcribe',
   realtimeSpeech: 'gpt-realtime-2.1-mini',
   realtimeSpeechPremium: 'gpt-realtime-2.1',
   moderation: 'omni-moderation-latest',
 };
 /** Built-in voices. OpenAI recommends marin and cedar for the best quality; audition against Azure DragonHD. */
 export const OPENAI_VOICES = ['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
-/** Announced shutdowns. speech() and transcribeWords() still use them until a measured replacement passes the gates. */
-export const OPENAI_DEPRECATIONS = {
-  'gpt-4o-mini-tts': { shutdown: '2027-01-06', replacement: 'gpt-realtime-2.1-mini via the Realtime API' },
-  'tts-1': { shutdown: '2027-01-06', replacement: 'gpt-realtime-2.1-mini via the Realtime API' },
-  'tts-1-hd': { shutdown: '2027-01-06', replacement: 'gpt-realtime-2.1-mini via the Realtime API' },
-  'whisper-1': { shutdown: '2027-02-26', replacement: 'gpt-transcribe for text; word timing stays on the forced aligner' },
-};
 
 /**
  * Text generation with the Responses API. `stable` is the cacheable prefix (brand guide, product facts, rules, output

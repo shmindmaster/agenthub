@@ -178,7 +178,7 @@ test('lint: an owner clone passes only under a manifest naming that voice, with 
   assert.deepEqual(found(spec({ disclosure: '  ' })), ['disclosure']);
   assert.deepEqual(found(spec({ name: 'Morgan Freeman sound-alike' })), ['voice-policy'], 'a celebrity sound-alike stays refused');
   assert.ok(found(spec({ voiceId: 'fixture-other-voice' })).includes('owner-voice'));
-  assert.ok(found(spec({ provider: 'openai', model: 'gpt-4o-mini-tts' })).includes('owner-voice'));
+  assert.ok(found(spec({ provider: 'openai', model: 'gpt-realtime-2.1-mini' })).includes('owner-voice'));
   assert.ok(found(spec(), '').includes('owner-voice'), 'no manifest');
   assert.ok(found(spec({ name: 'Sarosh' }), '').includes('voice-policy'), 'an unauthorized owner name stays refused');
   assert.ok(found(spec(), join(root, 'absent.json')).includes('owner-voice'));
@@ -214,7 +214,7 @@ test('delivery note never denies an owner voice it cannot rule out', () => {
   const note = (voice) => readmeSection({ ctx: { spec: { ...baseSpec(), voice }, jobDir: 'job' }, nn: 1, title: 'A title',
     delivered: [{ ratio: '16x9', seconds: 20, mp4Sha256: 'a'.repeat(64) }], gatesByRatio: {}, date: '2026-11-04' });
   const eleven = baseSpec().voice;
-  assert.match(note({ provider: 'openai', voiceId: 'marin', model: 'gpt-4o-mini-tts' }), /AI-generated, not an owner voice or a celebrity-style clone/);
+  assert.match(note({ provider: 'openai', voiceId: 'marin', model: 'gpt-realtime-2.1-mini' }), /AI-generated, not an owner voice or a celebrity-style clone/);
   const omitted = note(eleven);
   assert.match(omitted, /AI-generated/);
   assert.doesNotMatch(omitted, /not an owner voice/, 'a clone job may omit ownerVoice');
@@ -231,7 +231,7 @@ test('lint: voice, music, label and evidence policy', () => {
   celebrity.voice.name = 'Morgan Freeman sound-alike';
   assert.ok(codes(lint(celebrity)).includes('voice-policy'));
   const oa = baseSpec();
-  oa.voice = { provider: 'openai', voiceId: 'marin', model: 'gpt-4o-mini-tts' };
+  oa.voice = { provider: 'openai', voiceId: 'marin', model: 'gpt-realtime-2.1-mini' };
   assert.ok(codes(lint(oa)).includes('disclosure'));
   const v4 = baseSpec();
   v4.voice.settings.style = 0.2;
@@ -360,9 +360,8 @@ test('planCost sums voice, sfx, music, stills and vision and is checked against 
   assert.ok(planCost(s, { ...brand, timing: { provider: 'local-whisper' } }, { whisperTiming: true, hostedOnly: true }).openaiUsd > 0, 'hosted-only overrides local Whisper and budgets OpenAI');
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_v4'), 120);
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_flash_v2_5'), 60);
-  assert.ok(estimateImageUsd('gpt-image-2.5-flare', 'medium') < estimateImageUsd('gpt-image-2.5-flare', 'high'));
-  assert.ok(estimateVisionUsd('gpt-5.6-sol', 14) < 1);
-  assert.ok(Math.abs(estimateSttUsd('gpt-4o-mini-transcribe', 3600) - 0.18) < 1e-9);
+  assert.ok(estimateImageUsd('gpt-image-2.6-flare', 'medium') < estimateImageUsd('gpt-image-2.6-flare', 'high'));
+  assert.ok(estimateVisionUsd('gpt-6.1-terra', 14) < 1);
   assert.ok(Math.abs(estimateSttUsd('gpt-transcribe', 3600) - 0.27) < 1e-9);
 });
 
@@ -373,7 +372,7 @@ test('Azure transcription posts to the deployment path with the pinned api-versi
   let seen;
   const out = await transcribeAzure(f, { endpoint: 'https://example.invalid/', key: 'k', fetchImpl: async (url, init) => { seen = { url, key: init.headers['api-key'] }; return { ok: true, json: async () => ({ text: 'hi' }) }; } });
   rmSync(dir, { recursive: true, force: true });
-  assert.equal(seen.url, 'https://example.invalid/openai/deployments/gpt-4o-mini-transcribe/audio/transcriptions?api-version=2025-04-01-preview');
+  assert.equal(seen.url, 'https://example.invalid/openai/deployments/gpt-transcribe/audio/transcriptions?api-version=2025-04-01-preview');
   assert.equal(out.text, 'hi');
 });
 
@@ -648,7 +647,7 @@ test('vision-qa end to end with a mock provider charges the ledger from usage an
   assert.match(calls[0].instructions, /SYNTHETIC DEMO/);
   assert.match(calls[0].instructions, /Kaego/);
   assert.match(calls[0].instructions, /Ignore the small profile avatars/);
-  assert.ok(Math.abs(ledger.runTotal('openai') - (20000 * 4 + 1000 * 20) / 1e6) < 1e-9);
+  assert.ok(Math.abs(ledger.runTotal('openai') - (20000 * 1 + 1000 * 5) / 1e6) < 1e-9);
   const tiny = new CostLedger({ jobDir: join(root, 'vledger2'), runId: 'v', perRun: { openaiUsd: 0.0001 }, cumulative: {} });
   await assert.rejects(runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, provider: 'openai', ratio: '16x9', ledger: tiny, vision, frames, duration: 6 }), BudgetError);
   assert.equal(calls.length, 1, 'no provider call after the budget stop');
@@ -703,7 +702,7 @@ test('voice, timing and assets stages run on mock providers, cache on rerun and 
   assert.equal(tl.segments.length, 3);
   assert.equal(tl.segments[0].startSeconds, 0);
   assert.ok(existsSync(join(ctx.jobDir, 'timing', 'main', 'captions.srt')));
-  assert.ok(ctx.ledger.runTotal('openai') > 0, 'whisper-1 timing is charged');
+  assert.ok(ctx.ledger.runTotal('openai') > 0, 'hosted word timing is charged');
   const asrCalls = ctx.ledger.entries.filter((e) => e.service === 'whisper' && !e.cached).length;
   await timingStage(ctx);
   assert.equal(ctx.ledger.entries.filter((e) => e.service === 'whisper' && !e.cached).length, asrCalls, 'timing reruns skip');

@@ -16,8 +16,7 @@ Use `AZURE_OPENAI_*` and `FOUNDRY_*` only while the endpoint host is `mt-foundar
 |---|---|
 | Chat | `gpt-6-luna`, `gpt-6.1-sol` |
 | Images, 2 requests a minute per model | `gpt-image-2.5-flare` (default), `gpt-image-2.5-sunburst` (premium) |
-| STT | `gpt-4o-mini-transcribe` ($0.18 / hr), `gpt-transcribe` ($0.27 / hr, quality), `gpt-4o-transcribe-diarize` |
-| TTS | `gpt-4o-mini-tts` |
+| STT | `gpt-transcribe` ($0.27 / hr) |
 | Embeddings | `text-embedding-3-small`, `text-embedding-3-large-146950` |
 
 STT must call `/openai/deployments/{name}/audio/transcriptions?api-version=2025-04-01-preview`, because the `/openai/v1` transcription route returns 404. For images, test one low-quality call at `{AZURE_AI_SERVICES_ENDPOINT}openai/deployments/{name}/images/generations` before a batch.
@@ -29,10 +28,9 @@ STT must call `/openai/deployments/{name}/audio/transcriptions?api-version=2025-
 | Voice list, `StyleList` | `GET https://eastus2.tts.speech.microsoft.com/cognitiveservices/voices/list` | free | REST |
 | Narration | Standard neural | $15 / 1M chars | adapter, already authorized standard job only |
 | Callable HD | DragonHD Ava, Andrew, Emma2 and Andrew2, GA | $22 / 1M chars | governed adapter, no style argument |
-| Directed narration | Azure OpenAI `gpt-4o-mini-tts` `2025-12-15`, Marin | token priced, frozen | requires a governed MahumTech adapter |
 | Take ASR, one file | Fast transcription | $0.36 / hr | `cloud-ai.mjs align` |
 | Backlog | Batch transcription; private blob URL with read SAS (public URLs fail `InvalidUri`) | $0.18 / hr | REST |
-| Model transcription | `gpt-4o-mini-transcribe`, `gpt-transcribe`; `gpt-4o-transcribe-diarize` for speakers, at `/openai/deployments/{name}/audio/transcriptions?api-version=2025-04-01-preview` | $0.18, $0.27 / hr | REST |
+| Model transcription | `gpt-transcribe`, at `/openai/deployments/{name}/audio/transcriptions?api-version=2025-04-01-preview` | $0.18, $0.27 / hr | REST |
 | Real-time, streaming | Deepgram Nova-3. Azure is $1 / hr | $0.46 / hr | `DEEPGRAM_API_KEY` |
 | Stills | `gpt-image-2.5-flare`; `-sunburst` for premium | measured about $0.006 low, $0.013 medium per 1024x1024 | REST |
 | Presenter clip | Prebuilt avatar, batch | $1 / min, $1.35 with HD voice, plus characters | not enabled |
@@ -52,7 +50,7 @@ STT must call `/openai/deployments/{name}/audio/transcriptions?api-version=2025-
 
 ## Voice recipes
 
-Select the voice from `voice-recipes.md`. Use Emma2 or Andrew2 for new conversational walkthroughs, with Ava as fallback. Directed narration with Marin on Azure OpenAI `gpt-4o-mini-tts` version `2025-12-15` stays frozen.
+Select the voice from `voice-recipes.md`. Use Emma2 or Andrew2 for new conversational walkthroughs, with Ava as fallback. Directed narration with Marin uses the `openai-speech` lane.
 
 The recipe reference records the gated Microsoft options and their lifecycle. MAI preview, Omni, HD Flash, Ava3, Andrew3 and multi-speaker voices stay outside this adapter. Realtime 2.1, GPT-Live and Azure Realtime use separate APIs. Caption timing uses measured word boundaries when available.
 

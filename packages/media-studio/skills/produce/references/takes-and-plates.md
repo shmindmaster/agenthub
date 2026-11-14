@@ -8,7 +8,7 @@ Azure first, cheapest option that passes QA. Escalate only the item that failed.
 | --- | --- | --- |
 | Narration | Azure standard neural | Neural HD or Dragon HD Omni for principals, then Deepgram for a line that failed a gate |
 | Take ASR | `cloud-ai.mjs align` on Azure fast transcription | `--provider assemblyai` only when a job names it |
-| Backlog transcription | Azure batch | `gpt-4o-mini-transcribe`; `gpt-transcribe` for quality |
+| Backlog transcription | Azure batch | `gpt-transcribe` |
 | Real-time STT | Deepgram Nova-3 | None; Azure costs twice as much |
 | Stills | `gpt-image-2.5-flare`, low then medium | `gpt-image-2.5-sunburst` for premium; Gemini Batch for volume |
 | Presenter clip | Azure TTS avatar, batch, prebuilt | Remotion composition |
@@ -34,7 +34,7 @@ Run the integrity check with this exact command; do not change it:
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '3.1.0') { throw 'Speech tools are stale. Deploy the current media-studio package first.' }
+if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '3.1.1') { throw 'Speech tools are stale. Deploy the current media-studio package first.' }
 pwsh -NoProfile -File "$tools/Test-SpeechIntegrity.ps1" -Path <take.wav> -Text '<locked line>' -JsonOut qa/integrity/<id>.json
 ```
 

@@ -45,7 +45,7 @@ local aligner is retired and the default refuses, naming the hosted route (`kit/
 ASR-anchored report that clocks the picture only where `job.json` sets `clockPolicy.allowAsrAnchored: true`).
 Take/script-bound reports already on disk under the existing `timing\<cut>\asr` receipt paths are reused and still drive
 timelines, captions and action trims. `--whisper-timing` is the explicit hosted compatibility fallback (OpenAI
-`whisper-1`) for a job without an aligner, including an existing 2.0.4 or 2.0.5 timeline; compose otherwise refuses a
+`gpt-transcribe`) for a job without an aligner, including an existing 2.0.4 or 2.0.5 timeline; compose otherwise refuses a
 non-aligned clock. QA independently aligns the exact encoded candidate only when an aligner is provided; otherwise the
 sync, word-sync and transcript gates stay pending. A transcript checks text and never supplies the default timing clock.
 The 80 ms output grid is not a claim of 40 ms acoustic accuracy. This is not the proposed 2.1 pixel/render sync audit.
@@ -172,8 +172,8 @@ loudness targets, the vision and image models, the timing provider, the demo URL
 | # | Stage | What it does | Spend |
 | --- | --- | --- | --- |
 | 1 | `lint` | Schema, claims and evidence, narration/on-screen coverage, figures, banned phrases, forbidden names, people/children b-roll, voice and music policy, label, clip validity, length estimate, planned spend vs caps. Fails closed before any paid call. | none |
-| 2 | `voice` | One line per narrated beat. ElevenLabs REST through the governed adapter for an owner-authorized job (request stitching, versioned pronunciation dictionary, text normalization) or OpenAI `gpt-4o-mini-tts` with `instructions` (the retired `local` provider refuses). Keyed by (text, voice, model, settings, neighbors). | ElevenLabs credits / OpenAI USD |
-| 3 | `timing` | Forced alignment of each accepted take and authored line, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. `--whisper-timing` explicitly selects the configured Whisper fallback. Fails if a cut runs more than 1.5 s over target. | aligner provider; fallback whisper-1 ~$0.006/min |
+| 2 | `voice` | One line per narrated beat. ElevenLabs REST through the governed adapter for an owner-authorized job (request stitching, versioned pronunciation dictionary, text normalization) or OpenAI `gpt-realtime-2.1-mini` with `instructions` (the retired `local` provider refuses). Keyed by (text, voice, model, settings, neighbors). | ElevenLabs credits / OpenAI USD |
+| 3 | `timing` | Forced alignment of each accepted take and authored line, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. `--whisper-timing` explicitly selects the hosted word-timing fallback (`gpt-transcribe`). Fails if a cut runs more than 1.5 s over target. | aligner provider; hosted fallback ~$0.27/hr |
 | 4 | `assets` | Sound effects and a music bed go through the governed adapter's `sfx` and `music` lanes for an owner-authorized job, and fail closed without its manifest. OpenAI `gpt-image` abstract stills, ElevenLabs video only if the API exposes it (it does not: recorded as skipped with the reason). Every generated asset is `aiGenerated: true` in `assets\manifest.json`. | credits / USD |
 | 5 | `capture` | Reuses a receipt-bound clip (sha256 re-checked against its capture receipt) or records it with `record-job.mjs` (`ui.record` plus `--allow-capture`). | none |
 | 6 | `compose` | Per ratio: layout, focus-follow camera, captions, compose map, FFmpeg mix plan, Remotion render of the `MarketingAd` composition (picture only), audio mix with the bed ducked under the voice, two-pass loudnorm (-14 LUFS social, -16 web) and the encode. `--prepare-only` writes `props.json`, `compose-map.json`, `mix-plan.json` and `render-command.json` and stops. | none (local CPU) |
@@ -212,10 +212,10 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 | --- | --- | --- |
 | ElevenLabs `eleven_v4` (default) | Narration, request stitching works; `dialogue` lane for multi-voice scenes | 1 credit/char, reserved at 1.2x |
 | ElevenLabs sound effects (`eleven_text_to_sound_v3`), ElevenLabs Music (`music_v2_5`, instrumental) | Owner-authorized jobs only through the governed adapter, each with its own manifest and epoch | 200 credits/generation; 900 credits/minute |
-| OpenAI `whisper-1` | Transcript check; explicit `--whisper-timing` fallback when no aligner is available | $0.006/min |
-| Azure `gpt-image-2.5-flare` (default; `gpt-image-2.5-sunburst` alternate) | Abstract stills only (default quality medium) | ~$0.07 per 1536x1024 (padded estimate, unverified; token-priced) |
-| OpenAI `gpt-5.6-sol` (brand `vision.model`) | Vision QA on sampled frames | $4 / $20 per 1M tokens |
-| OpenAI `gpt-4o-mini-tts` | Optional narration with `instructions` | ~$0.02/min |
+| OpenAI `gpt-transcribe` | Transcript check; explicit hosted word-timing fallback when no aligner is available | ~$0.27/hr |
+| OpenAI `gpt-image-2.6-flare` (default; `gpt-image-2.6-sunburst` for hero and precise edits) | Abstract stills only (default quality medium) | ~$0.07 per 1536x1024 (padded estimate, unverified; token-priced) |
+| OpenAI `gpt-6.1-terra` (brand `vision.model`) | Vision QA on sampled frames | $1 / $5 per 1M tokens |
+| OpenAI `gpt-realtime-2.1-mini` (marin, cedar) | Optional narration with `instructions` | ~$0.016/min |
 | ElevenLabs video, OpenAI video | Not used: ElevenLabs video is not exposed by the governed REST adapter; there is no OpenAI video route | |
 
 ## Voice-first alignment

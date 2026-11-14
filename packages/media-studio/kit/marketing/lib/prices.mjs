@@ -2,39 +2,30 @@
 // returns no usage. Sources: playbook research 2026-10-20 (developers.openai.com pricing, elevenlabs.io/pricing).
 // Estimates round up; actual spend is read from provider usage where the response carries it.
 
-/** Per-image USD (gpt-image-2.5-flare is the default; its and sunburst's rows are padded estimates, not sourced prices) at 1536x1024 / 1024x1536 (flagged as ~1.0 for square) by quality. */
+/** Per-image USD at 1536x1024 by quality (planning estimates from OPENAI_IMAGE_USD_PER_M; the ledger records real usage). */
 const IMAGE_USD = {
-  'gpt-image-2.5-flare': { low: 0.01, medium: 0.07, high: 0.25 }, // token-priced; padded estimate
-  'gpt-image-2.5-sunburst': { low: 0.01, medium: 0.07, high: 0.25 },
   'gpt-image-2.6-flare': { low: 0.04, medium: 0.13, high: 0.19, xhigh: 0.29, max: 0.37 }, // from OPENAI_IMAGE_USD_PER_M and the token estimates below
   'gpt-image-2.6-sunburst': { low: 0.04, medium: 0.13, high: 0.19, xhigh: 0.29, max: 0.37 },
-  'gpt-image-1.5': { low: 0.013, medium: 0.05, high: 0.2 },
 };
 
 export function estimateImageUsd(model, quality = 'medium') {
-  const row = IMAGE_USD[model] || IMAGE_USD['gpt-image-2.5-flare'];
+  const row = IMAGE_USD[model] || IMAGE_USD['gpt-image-2.6-flare'];
   return row[quality] ?? row.high;
 }
 
-/** gpt-4o-mini-tts: $0.60/1M text in + $12/1M audio out tokens, about $0.015/min of speech; pad to $0.02/min. */
+/** OpenAI speech (gpt-realtime-2.1-mini): about $0.016 per minute of speech (planning estimate). */
 export function estimateOpenAiSpeechUsd(text) {
   const wordCount = String(text).split(/\s+/).filter(Boolean).length;
-  return Math.max(0.002, (wordCount / 150) * 0.02);
+  return Math.max(0.002, (wordCount / 150) * 0.016);
 }
 
-/** whisper-1: $0.006 per audio minute (billed per second, rounded up to the second). */
+/** Hosted word-timing transcription (gpt-transcribe): about $0.27 per audio hour. */
 export function estimateWhisperUsd(seconds) {
-  return Math.max(0.0005, (Math.ceil(seconds) / 60) * 0.006);
+  return Math.max(0.0005, (Math.ceil(seconds) / 3600) * 0.27);
 }
 
-// gpt-6.1-sol and gpt-6-luna (Azure chat deployments on mt-foundary-resource) have no sourced price, so they take the
-// padded fallback in visionRates(); the rows below are OpenAI list prices.
-/**
- * Azure speech-to-text, USD per audio hour (owner-supplied known rates). gpt-4o-mini-transcribe $0.18/hr; gpt-transcribe
- * $0.27/hr. gpt-4o-transcribe-diarize and gpt-4o-transcribe have no sourced rate, so they reserve the higher known rate
- * ($0.27/hr) as a flagged placeholder rather than an invented price.
- */
-const STT_USD_PER_HOUR = { 'gpt-4o-mini-transcribe': 0.18, 'gpt-transcribe': 0.27 };
+/** Azure speech-to-text, USD per audio hour (owner-supplied rates). */
+const STT_USD_PER_HOUR = { 'gpt-transcribe': 0.27 };
 export function estimateSttUsd(model, seconds) {
   const perHour = STT_USD_PER_HOUR[model] ?? 0.27;
   return Math.max(0.0005, (Math.ceil(seconds) / 3600) * perHour);
@@ -45,15 +36,10 @@ const VISION_USD_PER_M = {
   'gpt-6.1-sol': { in: 2, out: 10 },
   'gpt-6.1-terra': { in: 1, out: 5 },
   'gpt-6-luna': { in: 0.1, out: 0.5 },
-  'gpt-5.6-sol': { in: 4, out: 20 },
-  'gpt-5.6-terra': { in: 2, out: 10 },
-  'gpt-5.6-luna': { in: 0.2, out: 1.2 },
-  'gpt-5.5': { in: 5, out: 30 },
-  'gpt-5.4': { in: 2.5, out: 15 },
 };
 
 export function visionRates(model) {
-  return VISION_USD_PER_M[model] || { in: 5, out: 30 };
+  return VISION_USD_PER_M[model] || VISION_USD_PER_M['gpt-6-astra'];
 }
 
 /** Frames cost about 1,800 input tokens each at high detail; the verdict about 2,500 output tokens. */
