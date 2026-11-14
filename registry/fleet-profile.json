@@ -464,10 +464,10 @@
       "apiKeyOptIn": {
         "env": "ANTHROPIC_API_KEY",
         "model": "claude-sonnet-5-5",
-        "expiresUtc": "2026-10-27T00:00:00Z",
+        "expiresUtc": "2026-12-31T00:00:00Z",
         "billing": "Shared org API key on promotional credit (applies to API, Batch API, Agent SDK); other agents use the same key. Use sparingly, only when Claude is clearly the best tool; prefer the Batch API for bulk jobs; check Console spend before large runs.",
         "modelReason": "Strong coding model at about one third of Opus pricing; pass -Model claude-opus-5-5 only when the task needs it.",
-        "ownerDirection": "2026-10-24 00:28 CT allowed the Anthropic key for Anthropic-served work, superseding the 2026-10-22 account-only rule for Anthropic; 00:32 CT correction: opt-in only, never a default, do not burn the shared credit.",
+        "ownerDirection": "2026-11-14: owner directed using ANTHROPIC_API_KEY for dispatched Claude jobs while the account login is expired. 2026-10-24 00:28 CT allowed the Anthropic key for Anthropic-served work, superseding the 2026-10-22 account-only rule for Anthropic; 00:32 CT correction: opt-in only, never a default, do not burn the shared credit.",
         "verifiedOn": "2026-10-24",
         "smoke": "2026-10-24 one dispatcher run, -AnthropicApiKey -Model claude-haiku-5-5: returned READY in 48 s; claude auth status reported authMethod api_key, apiKeySource ANTHROPIC_API_KEY; 50,365 cache-write + 6 other tokens."
       },
