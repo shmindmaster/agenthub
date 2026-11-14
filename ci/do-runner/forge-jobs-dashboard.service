@@ -1,0 +1,23 @@
+# sh-forge jobs dashboard (SH-4524). Read-only status page for the build lanes
+# and media jobs, published by Caddy at https://jobs.forge.shtrial.com (owner IP
+# only). Canonical copy: AgentHub ci/do-runner/forge-jobs-dashboard.service.
+# Install: copy jobs-dashboard.py to /opt/forge/jobs-dashboard/, this unit to
+# /etc/systemd/system/, then systemctl daemon-reload && systemctl enable --now
+# forge-jobs-dashboard.
+[Unit]
+Description=sh-forge jobs and render status dashboard (read-only, 127.0.0.1:8790)
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/forge/jobs-dashboard/jobs-dashboard.py
+Restart=on-failure
+RestartSec=5
+MemoryMax=256M
+CPUQuota=25%
+TasksMax=32
+NoNewPrivileges=yes
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
