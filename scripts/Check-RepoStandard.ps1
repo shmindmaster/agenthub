@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Fleet repository-standard checker. Reports (and optionally repairs) drift
@@ -8,7 +8,7 @@
     The standard (registry/repo-standard.json is the machine-readable roster):
       - README.md for humans, AGENTS.md as the ONLY authored agent contract.
       - CLAUDE.md is a thin adapter: '@AGENTS.md' + '@.claude/CLAUDE.md'
-        (RepoWise-managed block). Never hand-duplicated rules.
+        (gitignored local adapter). Never hand-duplicated rules.
       - docs/ taxonomy: README.md router, current-state.md, product/,
         architecture/, development/, runbooks/, plans/PLANS.md.
       - Nested AGENTS.md files state the root applies and carry local deltas
@@ -16,14 +16,7 @@
       - Forbidden legacy instruction surfaces (GEMINI.md, .cursorrules,
         .windsurfrules, .github/copilot-instructions.md,
         docs/ai/REPO_AGENT_RULES.md, scratch state files) do not exist.
-      - RepoWise: repo is a member of the fleet workspace, .repowise/
-        gitignored, index present and not stale. Freshness is refreshed only
-        through the bounded manual entry point
-        (packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1); the
-        standard no longer requires, and does not recommend, a post-commit hook
-        or a bare `repowise update`.
-      - One MCP registration: the fleet workspace server in
-        registry/mcps.json. Per-repo repowise MCP entries are drift.
+      - RepoWise is retired (SH-4670); nothing here requires an index or MCP.
       - Tracker authority is explicit in AGENTS.md.
 
     Modes:
@@ -76,57 +69,6 @@ $forbiddenPaths    = @($config.forbiddenPaths)
 $rootMdAllowlist   = @($config.rootMarkdownAllowlist)
 $agentsAnchors     = @($config.agentsAnchors)
 $claudeMaxLines    = [int]$config.claudeMaxAuthoredLines
-$workspaceFileName = [string]$config.workspace.file
-if ([string]::IsNullOrWhiteSpace($workspaceFileName)) { $workspaceFileName = '.repowise-workspace.yaml' }
-$workspaceRoot = [string]$config.workspace.root
-if ([string]::IsNullOrWhiteSpace($workspaceRoot)) { $workspaceRoot = $fleetRoot }
-$workspaceFile     = Join-Path $workspaceRoot $workspaceFileName
-
-# The fleet's RepoWise freshness path is the bounded manual entry point in the
-# agenthub checkout this checker belongs to. It is a fleet-level property, so it
-# is resolved once and reported on every audited repo. A registry that declares
-# no path fails closed rather than skipping the rule.
-$refreshCfg = $config.repowiseRefresh
-$boundedRefreshOk = $false
-$boundedRefreshDetail = ''
-$boundedRefreshCommand = 'packages\repowise\scripts\Invoke-RepoWiseBoundedIndex.ps1'
-if ($null -eq $refreshCfg -or [string]::IsNullOrWhiteSpace([string]$refreshCfg.entryPoint)) {
-    $boundedRefreshDetail = "repo-standard.json declares no repowiseRefresh.entryPoint; the fleet freshness path is $boundedRefreshCommand"
-} else {
-    $refreshRoot = if ([string]::IsNullOrWhiteSpace([string]$refreshCfg.root)) { $repoRoot } else { [string]$refreshCfg.root }
-    $entryName = [IO.Path]::GetFileName([string]$refreshCfg.entryPoint)
-    $entryFile = Join-Path $refreshRoot (([string]$refreshCfg.entryPoint) -replace '/', '\')
-    $undocumented = @()
-    foreach ($doc in @($refreshCfg.documentedIn)) {
-        $docFile = Join-Path $refreshRoot (([string]$doc) -replace '/', '\')
-        $docText = if (Test-Path -LiteralPath $docFile -PathType Leaf) { Get-Content -LiteralPath $docFile -Raw -Encoding UTF8 } else { '' }
-        if ($docText -notmatch [regex]::Escape($entryName)) { $undocumented += [string]$doc }
-    }
-    if (-not (Test-Path -LiteralPath $entryFile -PathType Leaf)) {
-        $boundedRefreshDetail = "missing $($refreshCfg.entryPoint) in the agenthub checkout; restore the bounded entry point $boundedRefreshCommand (not a post-commit hook or bare repowise update)"
-    } elseif (@($refreshCfg.documentedIn).Count -eq 0) {
-        $boundedRefreshDetail = "repowiseRefresh.documentedIn is empty; name the skill that documents $boundedRefreshCommand"
-    } elseif ($undocumented.Count -gt 0) {
-        $boundedRefreshDetail = "$($undocumented -join ', ') does not document the bounded entry point $boundedRefreshCommand"
-    } else {
-        $boundedRefreshOk = $true
-    }
-}
-
-$workspaceRepos = @()
-if (Test-Path -LiteralPath $workspaceFile) {
-    $workspaceText = Get-Content -LiteralPath $workspaceFile -Raw -Encoding UTF8
-    $ids = [Collections.Generic.List[string]]::new()
-    foreach ($m in [regex]::Matches($workspaceText, '(?m)^\s*-\s+path:\s*(\S+)\s*$')) {
-        $p = $m.Groups[1].Value.Trim("`"'")
-        $ids.Add($p)
-        $ids.Add(([IO.Path]::GetFileName($p.Replace('/', '\'))))
-    }
-    foreach ($m in [regex]::Matches($workspaceText, '(?m)^\s+alias:\s*(\S+)\s*$')) {
-        $ids.Add($m.Groups[1].Value.Trim("`"'"))
-    }
-    $workspaceRepos = @($ids | Select-Object -Unique)
-}
 function Remove-MarkdownInlineCode([string]$Line) {
     # Regex backreferences over long backtick runs can catastrophically
     # backtrack. Scan delimiters deterministically instead. A code span closes
@@ -386,7 +328,6 @@ function Invoke-RepoCheck {
             @{ Id = 'mission';   Pattern = '(?im)^#{1,6}\s*(Mission|Purpose|Purpose and current outcome|What this is|Product direction|.+repository guide)\b' },
             @{ Id = 'authority'; Pattern = '(?im)(Knowledge authority|source of truth|canonical source|code and runtime configuration win when documentation drifts|Executable code.*describe.*reality|GitHub\s+`?main`?\s+owns code|This file is the repository-specific source of truth)' },
             @{ Id = 'start';     Pattern = '(?im)^#{1,6}\s*(Start here|Read first|First-read context|Operating rules)\b' },
-            @{ Id = 'repowise';  Pattern = '(?im)\bRepoWise\b|(?im)\brepowise\b' },
             @{ Id = 'commands';  Pattern = '(?im)^#{1,6}\s*(Canonical commands|Commands|Command map|Windows-first commands|Command contract)\b' },
             @{ Id = 'tracker';   Pattern = '(?im)^#{1,6}\s*Tracker\b|(?im)\bLinear\b.*\b(outcome|outcomes|acceptance|track|tracks)\b|(?im)\bGitHub Issues\b|(?im)\bNo external tracker\b|(?im)\bLinear owns\b' },
             @{ Id = 'done';      Pattern = '(?im)^#{1,6}\s*(Definition of done|Completion criteria|Verification and completion)\b|(?im)\bA change is complete when\b' },
@@ -453,124 +394,19 @@ function Invoke-RepoCheck {
 
     $broken = Test-MarkdownLinks $path
     foreach ($b in $broken) { Add-Result $Name 'broken-link' $false $b $false }
-    $inWorkspace = $workspaceRepos -contains $Name
-    Add-Result $Name 'repowise-membership' $inWorkspace $(if (-not $inWorkspace) { "not in $workspaceFileName" } else { '' }) $false
-
-    Add-Result $Name 'repowise-bounded-refresh' $boundedRefreshOk $boundedRefreshDetail $false
 
     $gitignorePath = Join-Path $path '.gitignore'
     $gi = if (Test-Path -LiteralPath $gitignorePath) { Get-Content -LiteralPath $gitignorePath -Raw -Encoding UTF8 } else { '' }
-    $giRepowiseOk = $gi -match '(?m)^\.repowise/?\r?$'
     $giClaudeOk = ($gi -match '(?m)^\.claude/\r?$') -or ($gi -match '(?m)^\.claude/CLAUDE\.md\r?$')
-    $giOk = $giRepowiseOk -and $giClaudeOk
-    $giRepowiseFixed = $false
     $giClaudeFixed = $false
-    if (-not $giOk -and $Fix -and $PSCmdlet.ShouldProcess($gitignorePath, 'Append RepoWise gitignore entries')) {
-        $missing = @()
-        if (-not $giRepowiseOk) { $missing += '.repowise/'; $giRepowiseFixed = $true }
-        if (-not $giClaudeOk) { $missing += '.claude/CLAUDE.md'; $giClaudeFixed = $true }
+    if (-not $giClaudeOk -and $Fix -and $PSCmdlet.ShouldProcess($gitignorePath, 'Append .claude/CLAUDE.md gitignore entry')) {
         $prefix = if ([string]::IsNullOrWhiteSpace($gi)) { '' } else { "`r`n" }
-        $append = $prefix + "# RepoWise generated index state`r`n" + (($missing -join "`r`n") + "`r`n")
-        [IO.File]::AppendAllText($gitignorePath, $append, [Text.UTF8Encoding]::new($false))
-        $giRepowiseOk = $true
+        [IO.File]::AppendAllText($gitignorePath, ($prefix + ".claude/CLAUDE.md`r`n"), [Text.UTF8Encoding]::new($false))
         $giClaudeOk = $true
-        $giOk = $true
+        $giClaudeFixed = $true
     }
-    Add-Result $Name 'gitignore-repowise' $giRepowiseOk $(if (-not $giRepowiseOk) { '.gitignore must exclude .repowise/' } else { '' }) $giRepowiseFixed
     Add-Result $Name 'gitignore-claude-adapter' $giClaudeOk $(if (-not $giClaudeOk) { '.gitignore must exclude .claude/CLAUDE.md' } else { '' }) $giClaudeFixed
 
-    $statePath = Join-Path $path '.repowise\state.json'
-    if (Test-Path -LiteralPath $statePath) {
-        try {
-            $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
-            $syncCommit = [string]$state.last_sync_commit
-            # Never discard git's stderr into $null: a failed `git rev-parse`
-            # (corrupt .git, git missing from PATH, etc.) must surface as its
-            # own failure, not silently collapse $head to an empty string and
-            # get misdiagnosed as ordinary staleness ("index not at HEAD") --
-            # a signal only tracks what it claims to watch when git actually ran.
-            $head = (git -C $path rev-parse HEAD 2>&1)
-            if ($LASTEXITCODE -ne 0) {
-                throw "git rev-parse HEAD failed (exit $LASTEXITCODE): $head"
-            }
-            $stale = ($syncCommit -ne $head)
-            Add-Result $Name 'repowise-freshness' (-not $stale) $(if ($stale) { "index not at HEAD; refresh with the bounded entry point $boundedRefreshCommand (-RepositoryRoot this repo)" } else { '' }) $false
-        } catch {
-            Add-Result $Name 'repowise-freshness' $false "unable to verify freshness: $($_.Exception.Message)" $false
-        }
-    } else {
-        Add-Result $Name 'repowise-indexed' $false "no .repowise/state.json; the bounded entry point $boundedRefreshCommand refuses first-time initialization, so initialize deliberately, then refresh through it" $false
-    }
-
-    $mcpPath = Join-Path $path '.mcp.json'
-    if (Test-Path -LiteralPath $mcpPath) {
-        $mcpText = Get-Content -LiteralPath $mcpPath -Raw -Encoding UTF8
-        if ($mcpText -match 'repowise') {
-            Add-Result $Name 'no-per-repo-repowise-mcp' $false '.mcp.json registers repowise; the fleet uses ONE workspace MCP registered in agenthub' $false
-        }
-    }
-
-    # Tool-managed .vscode/mcp.json (and a repo-local .cursor/mcp.json) may
-    # exist. They must invoke the workspace server at workspace.root, never
-    # the member checkout. Measured 2026-09-10: `repowise update --repo agenthub`
-    # from inside the member wrote args `mcp C:/Repos/shmindmaster/agenthub`,
-    # which is a second, narrower MCP the fleet contract forbids. .mcp.json
-    # above does not see .vscode/, so this check is the one that can fail.
-    $wsRootResolved = $null
-    try { $wsRootResolved = (Get-Item -LiteralPath $workspaceRoot).FullName.TrimEnd('\', '/') } catch { $wsRootResolved = $workspaceRoot.TrimEnd('\', '/') }
-    $repoResolved = (Get-Item -LiteralPath $path).FullName.TrimEnd('\', '/')
-    $editorMcpFiles = @(
-        (Join-Path $path '.vscode\mcp.json'),
-        (Join-Path $path '.cursor\mcp.json')
-    )
-    foreach ($editorMcp in $editorMcpFiles) {
-        if (-not (Test-Path -LiteralPath $editorMcp -PathType Leaf)) { continue }
-        $relMcp = $editorMcp.Substring($path.Length).TrimStart('\', '/').Replace('\', '/')
-        $text = Get-Content -LiteralPath $editorMcp -Raw -Encoding UTF8
-        if ($text -notmatch 'repowise') { continue }
-        $doc = $null
-        try { $doc = $text | ConvertFrom-Json } catch {
-            Add-Result $Name 'repowise-mcp-workspace-scope' $false "$relMcp is not JSON; cannot verify it points at $workspaceRoot" $false
-            continue
-        }
-        $collections = @()
-        if ($doc.PSObject.Properties['servers']) { $collections += $doc.servers }
-        if ($doc.PSObject.Properties['mcpServers']) { $collections += $doc.mcpServers }
-        $targets = [Collections.Generic.List[string]]::new()
-        foreach ($col in $collections) {
-            if ($null -eq $col) { continue }
-            foreach ($prop in $col.PSObject.Properties) {
-                $node = $prop.Value
-                $cmd = [string]$node.command
-                $argList = @($node.args | ForEach-Object { [string]$_ })
-                if ($cmd -notmatch 'repowise' -and $prop.Name -notmatch 'repowise') { continue }
-                $afterMcp = $false
-                foreach ($a in $argList) {
-                    if ($a -eq 'mcp') { $afterMcp = $true; continue }
-                    if ($afterMcp -and ($a -match '^[A-Za-z]:[\\/]' -or $a -match '^/' )) {
-                        $targets.Add($a)
-                        break
-                    }
-                }
-            }
-        }
-        if ($targets.Count -eq 0) {
-            Add-Result $Name 'repowise-mcp-workspace-scope' $false "$relMcp names repowise but has no mcp path argument" $false
-            continue
-        }
-        foreach ($target in $targets) {
-            $resolvedTarget = $target.Replace('/', '\').TrimEnd('\')
-            try { $resolvedTarget = (Get-Item -LiteralPath $target).FullName.TrimEnd('\', '/') } catch { }
-            $isWorkspace = [string]::Equals($resolvedTarget, $wsRootResolved, [StringComparison]::OrdinalIgnoreCase)
-            $isMember = [string]::Equals($resolvedTarget, $repoResolved, [StringComparison]::OrdinalIgnoreCase)
-            if ($isWorkspace) {
-                Add-Result $Name 'repowise-mcp-workspace-scope' $true '' $false
-            } else {
-                $why = if ($isMember) { "points at this repo ($target)" } else { "points at '$target'" }
-                Add-Result $Name 'repowise-mcp-workspace-scope' $false "$relMcp $why; fleet MCP is ``repowise mcp $workspaceRoot``" $false
-            }
-        }
-    }
 }
 # ---------------------------------------------------------------------------
 # Driver

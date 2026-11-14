@@ -119,14 +119,6 @@
       "value": true,
       "why": "Servers stay off by default, as on the other hosts. Turn one on in Cline's MCP panel when a task needs it.",
       "source": "https://docs.cline.bot/cline-cli/configuration"
-    },
-    {
-      "host": "fleet",
-      "format": "user-env",
-      "key": ["REPOWISE_SKIP_EDITOR_SETUP"],
-      "value": "1",
-      "why": "Stops the RepoWise hook repairing editor configuration after an update. Owner policy: CLI updates must not touch editors.",
-      "source": "repowise.cli.self_heal"
     }
   ],
   "removedPlugins": {

@@ -35,7 +35,7 @@ export function packageMatrix(packages) {
   return packages.flatMap(pkg => {
     const shards = pkg === 'media-studio' ? 4 : 1;
     const linux = Array.from({length:shards}, (_, shard) => ({package:pkg, os:'ubuntu-latest', shard, shards}));
-    if (['coding-agent-dispatch', 'repowise', 'mobile-development'].includes(pkg)) {
+    if (['coding-agent-dispatch', 'mobile-development'].includes(pkg)) {
       linux.push({package:pkg, os:'windows-latest', shard:0, shards:1});
     }
     return linux;

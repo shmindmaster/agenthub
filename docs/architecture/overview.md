@@ -50,21 +50,17 @@ Sync-Capabilities.ps1            Sync-AgentHub.ps1
   whenever package content changes. `scripts/registry-content-hash.mjs` is the
   byte-identical Node port, for hosts without PowerShell.
 
-## RepoWise workspace
+## Code knowledge
 
-One workspace at `C:\Repos` indexes git repos under `shmindmaster`,
-`sh-pendoah`, `musa-dev-team`, and `pendoah`; the `repowise-workspace` MCP
-entry (stdio, on-demand-local, `repowise mcp C:/Repos`) is the single agent
-surface. Workspace YAML lives at `C:\Repos` (unversioned container); the
-versioned declaration of the arrangement is this file plus
-`registry/mcps.json` and `registry/repo-standard.json`. Per-repo indexes
-are stored in each repo's `.repowise/` directory.
+RepoWise was retired on 2026-11-13 (SH-4670). Agents use native source search, each
+repository's `AGENTS.md` and `docs/`, and its committed `openwiki/` pages where
+present (SH-4410). No index or MCP server is required.
 
 ## Knowledge-access documents layer
 
 The private `sarosh` plugin (`search-docs` skill) is the sibling for curated documents under
 `D:\OneDrive - MahumTech\Documents\` folders `01`–`06` and `10`. It is
-not a RepoWise workspace: OneDrive is not a git root, and client names
+not a code repository: OneDrive is not a git root, and client names
 are an output gate. Agents read `_INDEX.md`, then exact-search or
 Local-AI Qdrant `knowledge`, then specific files. Runtime engagement
 records stay in the private `C:\Repos\shmindmaster\portfolio-records`
@@ -111,28 +107,21 @@ and, worse, returns a confident empty result.
 | --- | --- | --- |
 | What have we done, built, proposed, or written about X | Qdrant `knowledge` | `Search-Knowledge.ps1 -Semantic`, `D:\Local-AI\query.ps1 --index knowledge` |
 | Anything touching a legal matter | Qdrant `legal` | `query.ps1 --index legal` only |
-| Where is this symbol, who wrote it, what breaks if I change it | RepoWise | `repowise-workspace` MCP, `repo=<alias>` or `repo=all` |
-| What does this repo's code actually do | the repo | read the file; RepoWise navigates, it does not adjudicate |
+| Where is this symbol, who wrote it, what breaks if I change it | the repo | native search (`rg`), `git log`/`git blame`, `openwiki/` pages |
+| What does this repo's code actually do | the repo | read the file; wiki pages navigate, they do not adjudicate |
 
 The dividing line is **how you know what you are looking for**:
 
 - **You know the meaning but not the words** -> Qdrant. It is a vector index;
   "identity governance assessment" finds a document that never uses that
   phrase.
-- **You know the word, or you need structure** -> RepoWise. It is FTS5 keyword
-  matching plus a symbol/call graph. `wiki_symbols`, `graph_edges` and
-  `git_function_blame` answer questions no vector index can, and it will miss
-  a concept that does not share vocabulary with your query.
-
-**RepoWise stores no embeddings.** There is no semantic search over code today.
-A question phrased in different words than the source uses will come back
-empty, and that empty result is not evidence the code lacks the thing. Reach
-for `grep` on a synonym before concluding absence.
+- **You know the word, or you need structure** -> native search and git. Keyword
+  search misses a concept that does not share vocabulary with your query, so
+  try a synonym before concluding absence.
 
 Do not consolidate these. `legal` is walled off from `knowledge` at the
 collection level so opportunity and resume work physically cannot reach legal
 matters; a payload filter would make that boundary a forgettable argument.
-RepoWise stays SQLite because a graph traversal is not a vector query.
 
 ### Known seam gaps
 

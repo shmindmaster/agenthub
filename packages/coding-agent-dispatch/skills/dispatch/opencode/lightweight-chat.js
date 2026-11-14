@@ -37,7 +37,7 @@ export default {
     };
     await ctx.tool.transform(editor => editor.add({
       name: finder,
-      description: 'Find and load tools or skills on demand. Search by capability or exact tool name. Capabilities: files, editing, code search, shell/terminal, skills, subagents, web search/fetch, browser automation, Context7, Exa, Firecrawl, Linear, Notion, Railway, Descript and RepoWise. Connected apps use native execute Code Mode and its search function. Search here before claiming a capability is unavailable. Plain chat needs no tools. Loaded tools become callable next model step for this user turn; discovery does not execute them or grant permission.',
+      description: 'Find and load tools or skills on demand. Search by capability or exact tool name. Capabilities: files, editing, code search, shell/terminal, skills, subagents, web search/fetch, browser automation, Context7, Exa, Linear, Notion and Descript. Connected apps use native execute Code Mode and its search function. Search here before claiming a capability is unavailable. Plain chat needs no tools. Loaded tools become callable next model step for this user turn; discovery does not execute them or grant permission.',
       input: { type: 'object', properties: {
         query: { type: 'string', description: 'Capability or skill needed.' },
         names: { type: 'array', items: { type: 'string' }, description: 'Optional exact native tool names.' },

@@ -157,7 +157,7 @@ Model output is untrusted input to the renderer.
 
 ## Explaining a codebase
 
-The compact code map comes from RepoWise at a pinned commit, never from a working tree or from the model's memory: the files, symbols and call paths the question needs, and nothing else. The diagram is written from that map. When the film shows the code itself, the code stage (`kit/code-stage/README.md`) records it: files are read from git objects at the resolved commit, and `capture/code-stage/receipt.json` holds the commit, each file's sha256 and blob id and a hash per shown line, re-checked later by `verify-receipt.mjs`. That receipt keeps the diagram truthful: every node and edge names something at the same commit, and a diagram that names code the receipt does not hold goes back for review. This is guidance only; nothing in this lane reads a repository.
+The compact code map comes from the repository at a pinned commit (source read from git objects, or its committed openwiki/ pages), never from a working tree or from the model's memory: the files, symbols and call paths the question needs, and nothing else. The diagram is written from that map. When the film shows the code itself, the code stage (`kit/code-stage/README.md`) records it: files are read from git objects at the resolved commit, and `capture/code-stage/receipt.json` holds the commit, each file's sha256 and blob id and a hash per shown line, re-checked later by `verify-receipt.mjs`. That receipt keeps the diagram truthful: every node and edge names something at the same commit, and a diagram that names code the receipt does not hold goes back for review. This is guidance only; nothing in this lane reads a repository.
 
 ## Prompts and examples in this package
 

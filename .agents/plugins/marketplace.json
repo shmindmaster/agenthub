@@ -50,21 +50,6 @@
       }
     },
     {
-      "name": "ah-repowise",
-      "source": {
-        "source": "local",
-        "path": "./packages/repowise"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-RepoWise"
-      }
-    },
-    {
       "name": "ah-assemblyai",
       "source": {
         "source": "local",

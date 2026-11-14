@@ -11,7 +11,7 @@ Priorities, in order:
 4. Deterministic validation over re-derivation by agents.
 5. Maintainability and simplicity.
 
-**Public-first:** only public packages under `packages/` are tracked. Private capability packages and registry rows live only in the private overlay: its own clone of `shmindmaster/agenthub-private` beside this checkout (`C:/Repos/shmindmaster/agenthub-private`), or the gitignored `overlays/personal/` where one exists, or `AGENTHUB_OVERLAY`. There is no second control-plane repo. Do not recreate one. RepoWise is retired (owner decision 2026-11-13, SH-4409): do not install, restore or add it, and do not require it. Removal of the existing package, plugins, registrations and checks is SH-4670; until that lands, `packages/repowise` and its checks are legacy, not policy. Repository knowledge moves to local, host-driven OpenWiki (SH-4410). Preserve useful personal AgentHub media, product and owner workflows.
+**Public-first:** only public packages under `packages/` are tracked. Private capability packages and registry rows live only in the private overlay: its own clone of `shmindmaster/agenthub-private` beside this checkout (`C:/Repos/shmindmaster/agenthub-private`), or the gitignored `overlays/personal/` where one exists, or `AGENTHUB_OVERLAY`. There is no second control-plane repo. Do not recreate one. RepoWise is retired (owner decision 2026-11-13, SH-4409): do not install, restore or add it, and do not require it. It was removed from AgentHub and every host under SH-4670. Repository knowledge moves to local, host-driven OpenWiki (SH-4410). Preserve useful personal AgentHub media, product and owner workflows.
 
 ## Start here
 
@@ -65,6 +65,6 @@ Use `gh` and verify the active account first. Use `shmindmaster` for this repo. 
 | Trigger | Read |
 | --- | --- |
 | Starting work, orienting, finding which doc/path owns what | [`docs/development/agent-orientation.md`](./docs/development/agent-orientation.md) |
-| Broad code exploration | Native source search; read `openwiki/` pages when present. `docs/development/agent-repowise.md` is legacy until SH-4670 removes it |
+| Broad code exploration | Native source search; read `openwiki/` pages when present |
 | Changing a capability, registry, package, script, test, or host manifest; before declaring done | [`docs/development/agent-change-contract.md`](./docs/development/agent-change-contract.md) |
 | Touching any other fleet repo | `docs/development/repo-standard.md` |

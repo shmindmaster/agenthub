@@ -1,5 +1,7 @@
 # Plan: Mobile Scope Guard and Platform Standard (2026-08-08)
 
+> **2026-11-13:** RepoWise is retired (SH-4670). Every RepoWise step, check, fix or handoff in this plan is dropped and must not be carried out.
+
 ## Purpose / outcome
 
 No fleet product acquires a permanent mobile identity under a name that is

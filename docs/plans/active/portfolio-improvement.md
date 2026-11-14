@@ -1,5 +1,7 @@
 # Portfolio improvement execution
 
+> **2026-11-13:** RepoWise is retired (SH-4670). Every RepoWise step, check or handoff in this plan is dropped and must not be carried out.
+
 ## Outcome and constraints
 
 Implement the portfolio plan through tested, independently reviewed changes and verified releases. The owner authorized continued implementation, commits, integration and deployment on 2026-09-09 without further approval requests, including necessary breaking changes. Preserve unrelated changes, data, product lifecycle constraints and security boundaries. Use existing portfolio-engineering ownership. Exclude private portfolio-records and client repositories from reports and indexing. This authorization does not turn failed tests or unknown runtime state into release evidence.

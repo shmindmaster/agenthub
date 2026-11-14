@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 Behavior tests for scripts/Check-RepoStandard.ps1 against fixture repositories
 built under %TEMP%. A checker whose "pass" path has never seen a compliant
@@ -54,17 +54,13 @@ Fixture repo.
 ## Knowledge authority
 
 Executable code/tests describe reality. docs/ holds intentional knowledge.
-RepoWise holds derived intelligence.
+Derived notes may live in openwiki/.
 
 ## Start here
 
 1. AGENTS.md
 2. docs/README.md
 3. docs/current-state.md
-
-## RepoWise workflow
-
-Use RepoWise before broad exploration.
 
 ## Canonical commands
 
@@ -103,50 +99,32 @@ Behavior exists, checks pass, docs match reality.
     Set-Content -LiteralPath (Join-Path $Path 'docs\current-state.md') -Encoding UTF8 -Value "# Current State`n"
     Set-Content -LiteralPath (Join-Path $Path 'docs\plans\PLANS.md') -Encoding UTF8 -Value "# Execution Plans`n"
 }
-# Stand-in for the agenthub checkout the standard reads: the bounded RepoWise
-# entry point and the skill that documents it.
-$boundedRel = 'packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1'
-$skillRel = 'packages/repowise/skills/repowise/SKILL.md'
-$agenthubStub = Join-Path $fixtureRoot 'agenthub-stub'
-New-Item -ItemType Directory -Force (Join-Path $agenthubStub 'packages\repowise\scripts'), (Join-Path $agenthubStub 'packages\repowise\skills/repowise') | Out-Null
-Set-Content -LiteralPath (Join-Path $agenthubStub $boundedRel) -Value '# fixture bounded entry point'
-Set-Content -LiteralPath (Join-Path $agenthubStub $skillRel) -Value 'Refresh with scripts/Invoke-RepoWiseBoundedIndex.ps1.'
 # Fixture config mirrors the real roster shape but points fleetRoot at TEMP.
 $fixtureConfig = [pscustomobject]@{
     schemaVersion = 1
     fleetRoot = $fixtureRoot
-    workspace = @{ file = '.repowise-workspace.yaml' }
-    repowiseRefresh = [pscustomobject]@{ root = $agenthubStub; entryPoint = $boundedRel; documentedIn = @($skillRel) }
     requiredRootFiles = @('README.md','AGENTS.md','CLAUDE.md')
     requiredDocsFiles = @('docs/README.md','docs/current-state.md','docs/plans/PLANS.md')
     requiredDocsDirs = @('docs/product','docs/architecture','docs/development','docs/runbooks','docs/plans')
     forbiddenPaths = @('GEMINI.md','.cursorrules','.windsurfrules','.github/copilot-instructions.md','output.txt')
     rootMarkdownAllowlist = @('README.md','AGENTS.md','CLAUDE.md','CHANGELOG.md')
-    agentsAnchors = @('## Mission','Knowledge authority','Start here','RepoWise','Canonical commands','## Tracker','Definition of done','## Safety')
+    agentsAnchors = @('## Mission','Knowledge authority','Start here','Canonical commands','## Tracker','Definition of done','## Safety')
     claudeMaxAuthoredLines = 8
     repos = [pscustomobject]@{
         compliant  = [pscustomobject]@{ tracker = 'none' }
         drifting   = [pscustomobject]@{ tracker = 'none' }
-        'corrupt-vcs' = [pscustomobject]@{ tracker = 'none' }
     }
 }
-Set-Content -LiteralPath (Join-Path $fixtureRoot '.repowise-workspace.yaml') -Encoding UTF8 -Value "version: 1`nrepos:`n- path: compliant`n- path: drifting`n- path: corrupt-vcs`n"
 $configPath = Join-Path $fixtureRoot 'repo-standard.test.json'
 $fixtureConfig | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configPath -Encoding UTF8
 
-# --- Fixture 1: compliant repo (RepoWise state fabricated to match HEAD) ----
+# --- Fixture 1: compliant repo ---------------------------------------------
 $good = New-FixtureRepo 'compliant'
 Write-MinimalCompliantRepo $good
+$gi = Get-Content -LiteralPath (Join-Path $good '.gitignore') -Raw -Encoding UTF8
+Set-Content -LiteralPath (Join-Path $good '.gitignore') -Value ($gi + "`n.claude/CLAUDE.md") -Encoding UTF8
 git -C $good add .
 git -C $good commit -qm 'standard layout'
-# No post-commit hook: the fleet's freshness path is the bounded entry point.
-$gi = Get-Content -LiteralPath (Join-Path $good '.gitignore') -Raw -Encoding UTF8
-Set-Content -LiteralPath (Join-Path $good '.gitignore') -Value ($gi + "`n.repowise/`n.claude/CLAUDE.md") -Encoding UTF8
-git -C $good add .gitignore
-git -C $good commit -qm 'ignore repowise state'
-New-Item -ItemType Directory -Force (Join-Path $good '.repowise') | Out-Null
-$head = git -C $good rev-parse HEAD
-Set-Content -LiteralPath (Join-Path $good '.repowise\state.json') -Encoding UTF8 -Value ('{ "last_sync_commit": "' + $head + '" }')
 
 # --- Fixture 2: drifting repo ----------------------------------------------
 $bad = New-FixtureRepo 'drifting'
@@ -156,20 +134,6 @@ Set-Content -LiteralPath (Join-Path $bad 'error.log') -Value 'stale log'
 # directory-link fixture below. The trailing '/' must not hide the breakage.
 New-Item -ItemType Directory -Force (Join-Path $bad 'docs') | Out-Null
 Set-Content -LiteralPath (Join-Path $bad 'docs\README.md') -Encoding UTF8 -Value "# Documentation Map`n`n[missing/](./no-such-dir/)`n"
-# .repowise deliberately absent -> indexed check must fail
-
-# --- Fixture 3: repo with an unusable .git (present as a directory, but not
-# a valid git repository) plus a .repowise/state.json claiming a specific
-# commit. `git -C $path rev-parse HEAD` must fail here -- this proves the
-# freshness check's error path (line ~298: `2>$null`) surfaces that failure
-# honestly instead of silently swallowing it and reporting the unrelated,
-# misleading verdict "index not at HEAD". ---
-$brokenGit = Join-Path $fixtureRoot 'corrupt-vcs'
-New-Item -ItemType Directory -Force $brokenGit | Out-Null
-New-Item -ItemType Directory -Force (Join-Path $brokenGit '.git') | Out-Null
-New-Item -ItemType Directory -Force (Join-Path $brokenGit '.repowise') | Out-Null
-Set-Content -LiteralPath (Join-Path $brokenGit '.repowise\state.json') -Encoding UTF8 `
-    -Value '{ "last_sync_commit": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef" }'
 
 $oldLocation = Get-Location
 try {
@@ -178,53 +142,8 @@ try {
     $code = $LASTEXITCODE
     Report 'compliant-repo-passes' ($code -eq 0) (($out.Trim().Split("`n")) | Select-Object -Last 3 | Out-String)
 
-    # The standard requires the bounded RepoWise entry point, not a hook: the
-    # compliant fixture has no hook and must still pass.
-    Report 'compliant-repo-needs-no-post-commit-hook' `
-        ($code -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $good '.git\hooks\post-commit')) -and $out -notmatch 'repowise-hook') `
-        'a repo without a post-commit hook must pass, and no repowise-hook check may remain.'
-    $refreshBase = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8
-    function Invoke-RefreshVariant([string]$Name, [scriptblock]$Mutate) {
-        $variant = $refreshBase | ConvertFrom-Json
-        & $Mutate $variant
-        $variantPath = Join-Path $fixtureRoot "refresh-$Name.json"
-        $variant | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $variantPath -Encoding UTF8
-        $variantOut = & $checker -Repo compliant -ConfigPath $variantPath -Format json 2>&1 | Out-String
-        $variantCode = $LASTEXITCODE
-        $row = @(($variantOut | ConvertFrom-Json).results | Where-Object { $_.Check -eq 'repowise-bounded-refresh' })
-        return [pscustomobject]@{ Code = $variantCode; Row = $row }
-    }
-    $passing = Invoke-RefreshVariant 'passing' { param($c) }
-    Report 'bounded-refresh-row-passes-when-entry-point-is-documented' `
-        ($passing.Code -eq 0 -and $passing.Row.Count -eq 1 -and $passing.Row[0].Passed) `
-        "expected one passing repowise-bounded-refresh row (exit=$($passing.Code), rows=$($passing.Row.Count))."
-    # Old guidance only: the skill still tells people to install the hook and
-    # the bounded entry point does not exist.
-    $oldOnlyStub = Join-Path $fixtureRoot 'agenthub-old-guidance'
-    New-Item -ItemType Directory -Force (Join-Path $oldOnlyStub 'packages\repowise\skills/repowise') | Out-Null
-    Set-Content -LiteralPath (Join-Path $oldOnlyStub $skillRel) -Value 'Run `repowise hook install -w` and `repowise update --repo <name>`.'
-    $oldOnly = Invoke-RefreshVariant 'old-hook-only' { param($c) $c.repowiseRefresh.root = $oldOnlyStub }
-    Report 'old-hook-guidance-only-fails-naming-the-bounded-command' `
-        ($oldOnly.Code -eq 1 -and $oldOnly.Row.Count -eq 1 -and -not $oldOnly.Row[0].Passed -and
-         $oldOnly.Row[0].Detail -match 'Invoke-RepoWiseBoundedIndex\.ps1' -and $oldOnly.Row[0].Detail -notmatch 'hook install') `
-        "expected a failing repowise-bounded-refresh row naming the bounded command (exit=$($oldOnly.Code), rows=$($oldOnly.Row.Count))."
-    # Entry point present but the skill does not document it.
-    New-Item -ItemType Directory -Force (Join-Path $oldOnlyStub 'packages\repowise\scripts') | Out-Null
-    Set-Content -LiteralPath (Join-Path $oldOnlyStub $boundedRel) -Value '# present'
-    $undocumented = Invoke-RefreshVariant 'undocumented' { param($c) $c.repowiseRefresh.root = $oldOnlyStub }
-    Report 'undocumented-bounded-entry-point-fails' `
-        ($undocumented.Code -eq 1 -and $undocumented.Row.Count -eq 1 -and -not $undocumented.Row[0].Passed) `
-        "an entry point the skill does not document was accepted (exit=$($undocumented.Code))."
-    $undeclared = Invoke-RefreshVariant 'undeclared' { param($c) $c.PSObject.Properties.Remove('repowiseRefresh') }
-    Report 'undeclared-refresh-path-fails-closed' `
-        ($undeclared.Code -eq 1 -and $undeclared.Row.Count -eq 1 -and -not $undeclared.Row[0].Passed) `
-        'a registry without repowiseRefresh must fail, not skip the rule.'
-    # The shipped registry must name an entry point and documentation that exist.
-    $real = (Get-Content -LiteralPath (Join-Path $repoRoot 'registry\repo-standard.json') -Raw -Encoding UTF8 | ConvertFrom-Json).repowiseRefresh
-    $realOk = $null -ne $real -and (Test-Path -LiteralPath (Join-Path $repoRoot $real.entryPoint) -PathType Leaf) -and
-        @($real.documentedIn | Where-Object { (Get-Content -LiteralPath (Join-Path $repoRoot $_) -Raw -Encoding UTF8) -match [regex]::Escape([IO.Path]::GetFileName($real.entryPoint)) }).Count -eq @($real.documentedIn).Count
-    Report 'shipped-registry-names-existing-documented-bounded-entry-point' $realOk `
-        'registry/repo-standard.json repowiseRefresh must name an existing entry point documented in each documentedIn file.'
+    Report 'compliant-repo-has-no-repowise-checks' ($out -notmatch '(?i)repowise') `
+        'RepoWise is retired (SH-4670); the checker must not report any repowise row.'
 
     # An intentional flat docs layout may exempt only paths from the global
     # required-doc lists, and only with a nonblank reason. The exception stays
@@ -344,9 +263,8 @@ try {
         ($broadClaudeFixCode -eq 0 -and $broadGi -notmatch '(?m)^\.claude/CLAUDE\.md\r?$' -and [Convert]::ToBase64String($broadGiBytes) -eq [Convert]::ToBase64String($broadGiBytesAfterFix)) `
         "-Fix must leave the broad rule byte-identical without adding the exact rule (exit=$broadClaudeFixCode)."
 
-    # Both generated-state locations are part of the contract. A fixture with
-    # only .repowise/ must fail, and -Fix must add only the missing adapter
-    # entry without duplicating the existing RepoWise entry.
+    # The adapter entry is part of the contract. A fixture without it must
+    # fail, and -Fix must add it exactly once.
     $goodGi = $broadGi -replace '(?m)^\.claude/\r?\n?', ''
     Set-Content -LiteralPath $goodGitignore -Value $goodGi -Encoding UTF8
     $outMissingClaude = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
@@ -356,10 +274,9 @@ try {
     $outFixClaude = & $checker -Repo compliant -ConfigPath $configPath -Fix 2>&1 | Out-String
     $fixClaudeCode = $LASTEXITCODE
     $fixedGi = Get-Content -LiteralPath $goodGitignore -Raw -Encoding UTF8
-    $repowiseCount = ([regex]::Matches($fixedGi, '(?m)^\.repowise/?\r?$')).Count
     $claudeCount = ([regex]::Matches($fixedGi, '(?m)^\.claude/CLAUDE\.md\r?$')).Count
-    Report 'fix-adds-missing-claude-without-duplicates' ($fixClaudeCode -eq 0 -and $claudeCount -eq 1 -and $repowiseCount -eq 1) `
-        "expected exit 0 and one entry for each path after -Fix; exit=$fixClaudeCode, .repowise=$repowiseCount, .claude/CLAUDE.md=$claudeCount."
+    Report 'fix-adds-missing-claude-without-duplicates' ($fixClaudeCode -eq 0 -and $claudeCount -eq 1) `
+        "expected exit 0 and one .claude/CLAUDE.md entry after -Fix; exit=$fixClaudeCode, count=$claudeCount."
     $fixedGiBytes = [IO.File]::ReadAllBytes($goodGitignore)
     $outFixClaudeAgain = & $checker -Repo compliant -ConfigPath $configPath -Fix 2>&1 | Out-String
     $fixClaudeAgainCode = $LASTEXITCODE
@@ -392,19 +309,6 @@ try {
         "File/directory link type mismatches were not both rejected (exit=$typeMismatchCode)."
     Remove-Item -LiteralPath $typeMismatchFixture -Force
 
-    # A git failure during the freshness check must be reported honestly --
-    # never silently swallowed into the unrelated "index not at HEAD" verdict.
-    $outBrokenGit = & $checker -Repo corrupt-vcs -ConfigPath $configPath 2>&1 | Out-String
-    Report 'corrupt-vcs-freshness-check-runs' ($outBrokenGit -match 'repowise-freshness') `
-        (($outBrokenGit.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
-    Report 'corrupt-vcs-does-not-claim-stale-index' ($outBrokenGit -notmatch 'index not at HEAD') `
-        "checker blamed 'index not at HEAD' for a git command failure, not a real staleness verdict. Output tail: $((($outBrokenGit.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
-    # Deliberately specific (not a bare 'git' substring match, which
-    # 'gitignore-repowise' -- a check name printed for every repo -- would
-    # satisfy trivially and prove nothing).
-    Report 'corrupt-vcs-names-the-real-failure' ($outBrokenGit -match '(?i)(not a git repository|rev-parse HEAD|fatal:)') `
-        "expected the freshness failure detail to name the git command failure. Output tail: $((($outBrokenGit.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
-
     # Drifting repo fails and names the drift.
     $outBad = & $checker -Repo drifting -ConfigPath $configPath 2>&1 | Out-String
     $codeBad = $LASTEXITCODE
@@ -412,7 +316,6 @@ try {
     Report 'drift-names-cursorrules' ($outBad -match 'forbidden:\.cursorrules') (($outBad.Trim().Split("`n")) | Select-Object -Last 6 | Out-String)
     Report 'drift-names-missing-agents' ($outBad -match 'root-file:AGENTS\.md') (($outBad.Trim().Split("`n")) | Select-Object -Last 6 | Out-String)
     Report 'drift-names-root-scratch' ($outBad -match 'root-scratch.*error\.log') (($outBad.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
-    Report 'drift-names-repowise' ($outBad -match 'repowise-indexed') (($outBad.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
     # Negative half of the directory-link fixture: a link to a directory that
     # does not exist must still be named as broken, trailing '/' and all.
     Report 'drift-names-broken-directory-link' ($outBad -match 'broken-link:.*no-such-dir') `
@@ -531,31 +434,14 @@ try {
     Report 'nested-not-deferring-fails' ($outOrphan -match 'nested-refs-root:service') (($outOrphan.Trim().Split("`n")) | Select-Object -Last 5 | Out-String)
     Remove-Item -LiteralPath (Join-Path $good 'service') -Recurse -Force
 
-    # Per-repo RepoWise MCP in .vscode/mcp.json is the 2026-09-10 miss: the
-    # checker only looked at .mcp.json, and update --repo from a member wrote
-    # args pointed at that member. Fail the member path; allow the workspace root.
+    # RepoWise is retired (SH-4670): leftover RepoWise MCP entries or index
+    # state are no longer policy and must not produce any repowise check.
     New-Item -ItemType Directory -Force (Join-Path $good '.vscode') | Out-Null
-    $memberMcp = @"
-{ "servers": { "repowise": { "command": "repowise", "args": ["mcp", "$($good.Replace('\','/'))"] } } }
-"@
-    Set-Content -LiteralPath (Join-Path $good '.vscode\mcp.json') -Encoding UTF8 -Value $memberMcp
-    $outMemberMcp = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
-    Report 'vscode-mcp-member-path-fails' ($outMemberMcp -match 'repowise-mcp-workspace-scope') `
-        (($outMemberMcp.Trim().Split("`n") | Select-Object -Last 6) -join ' | ')
-
-    $wsMcp = @"
-{ "servers": { "repowise": { "command": "repowise", "args": ["mcp", "$($fixtureRoot.Replace('\','/'))"] } } }
-"@
-    Set-Content -LiteralPath (Join-Path $good '.vscode\mcp.json') -Encoding UTF8 -Value $wsMcp
-    $outWsMcp = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
-    Report 'vscode-mcp-workspace-path-passes' ($outWsMcp -notmatch 'repowise-mcp-workspace-scope') `
-        (($outWsMcp.Trim().Split("`n") | Select-Object -Last 6) -join ' | ')
-
-    $rootMcp = '{"mcpServers":{"repowise":{"command":"repowise","args":["mcp"]}}}'
-    Set-Content -LiteralPath (Join-Path $good '.mcp.json') -Encoding UTF8 -Value $rootMcp
-    $outRootMcp = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
-    Report 'root-mcp-json-repowise-fails' ($outRootMcp -match 'no-per-repo-repowise-mcp') `
-        (($outRootMcp.Trim().Split("`n") | Select-Object -Last 6) -join ' | ')
+    Set-Content -LiteralPath (Join-Path $good '.vscode\mcp.json') -Encoding UTF8 -Value '{ "servers": { "repowise": { "command": "repowise", "args": ["mcp", "."] } } }'
+    Set-Content -LiteralPath (Join-Path $good '.mcp.json') -Encoding UTF8 -Value '{"mcpServers":{"repowise":{"command":"repowise","args":["mcp"]}}}'
+    $outLegacy = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    Report 'legacy-repowise-config-is-not-checked' ($LASTEXITCODE -eq 0 -and $outLegacy -notmatch '(?i)repowise') `
+        (($outLegacy.Trim().Split("`n") | Select-Object -Last 6) -join ' | ')
     Remove-Item -LiteralPath (Join-Path $good '.mcp.json') -Force
     Remove-Item -LiteralPath (Join-Path $good '.vscode') -Recurse -Force
 

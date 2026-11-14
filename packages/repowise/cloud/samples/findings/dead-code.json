@@ -1,6 +1,0 @@
-{
-  "items": [
-    { "symbol": "legacyRetry", "file": "src/net/retry.ts", "line": 140, "severity": "info" },
-    { "symbol": "unusedLoader", "file": "src/config/load.ts", "line": 203, "severity": "info" }
-  ]
-}

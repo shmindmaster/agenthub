@@ -22,7 +22,7 @@ Commit `5002737` (main, merge of PR #21, 2026-10-15 02:33 CT).
 
 Reasons:
 
-- Six focused tests ran on `5002737` ([TESTS.md](./TESTS.md#execution-log)): mobile scope, capability ownership, capability routing, host surfaces and frontmatter validation passed (34 checks). File-encoding discipline failed on four unencoded reads in `tests/Test-RepoWiseBridge.ps1`; this change fixes them. Those registry capabilities reach Tested; everything else stays at Implemented.
+- Six focused tests ran on `5002737` ([TESTS.md](./TESTS.md#execution-log)): mobile scope, capability ownership, capability routing, host surfaces and frontmatter validation passed (34 checks). File-encoding discipline failed on four unencoded reads in `tests/Test-RepoWiseBridge.ps1`; this change fixes them. Those registry capabilities reach Tested; everything else stays at Implemented. (RepoWise retired 2026-11-13, SH-4670; no action.)
 - There is no earlier test record to cite: no run log is committed, and `docs/current-state.md` ("Verified 2026-08-08") names neither a command nor a commit.
 - The code is substantial and carries many guard tests (75 `tests/Test-*.ps1` files, a runner that rejects an empty run, a validate-before-apply gate). That is evidence of intent and structure. It does not show that anything passes.
 

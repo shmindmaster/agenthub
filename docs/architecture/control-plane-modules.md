@@ -32,7 +32,7 @@ must not invent a second rebase.
 4. **Capability graph.** `scripts/lib/CapabilityGraph.ps1` loads
    `capabilities.json` and merges `overlays/personal/capabilities.json` when
    the personal overlay is present. Private packages resolve under
-   `overlays/personal/packages/<id>/`. Public packages (including RepoWise)
+   `overlays/personal/packages/<id>/`. Public packages
    stay under `packages/<id>/`. Core never imports a personal package id that
    the overlay has not enabled.
 5. **Sync orchestration.** `scripts/lib/SyncOrchestrator.ps1` names the

@@ -35,7 +35,7 @@ Ladder: Planned, Implemented, Integrated, Tested, Demonstrated, Production-Verif
 | Fleet repo-standard checker | `scripts/Check-RepoStandard.ps1`, `registry/repo-standard.json` | Implemented | `Test-RepoStandard.ps1` result and a `-All` report |
 | Media-studio release gates | `packages/media-studio/scripts/validate-demo-scenario.mjs` and siblings | Implemented | Node tests under `packages/media-studio/tests/` run |
 | Slack capability contract | `packages/slack/mcp/` | Implemented | `contract.test.mjs` run; a live Slack call is a separate, externally-communicating step and out of scope here |
-| RepoWise bridge | `packages/repowise/` | Implemented | `Test-RepoWiseBridge.ps1` and `test_repowise_bridge.py` run |
+| RepoWise bridge | `packages/repowise/` | Implemented | `Test-RepoWiseBridge.ps1` and `test_repowise_bridge.py` run **Retired 2026-11-13 (SH-4670); no action.** |
 | Mobile-scope classification (agenthub itself is bucket `noNative`, `registry/mobile-scope.json:169-171`) | `registry/mobile-scope.json`, `tests/Test-MobileScope.ps1` | Implemented | Run `Test-MobileScope.ps1` |
 
 ## Pack contents

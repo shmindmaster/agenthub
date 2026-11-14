@@ -30,7 +30,6 @@
     "onDemandLocalMcpIds": [
       "appium-mobile",
       "playwright",
-      "repowise-workspace",
       "linkedin"
     ],
     "persistedOnDemandLocalMcpIds": [],
@@ -38,15 +37,14 @@
       "node_repl"
     ],
     "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
-    "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright ships only in the browser-toolkit plugin .mcp.json for hosts without a native browser pane; enable it when needed, disable when done. Codex, Cursor and Claude use their native browser surface. Chrome DevTools MCP is retired and must not be registered. Same gate as appiumActivationRoute for mobile-development and repowiseActivationRoute for repowise-workspace.",
+    "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright ships only in the browser-toolkit plugin .mcp.json for hosts without a native browser pane; enable it when needed, disable when done. Codex, Cursor and Claude use their native browser surface. Chrome DevTools MCP is retired and must not be registered. Same gate as appiumActivationRoute for mobile-development.",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
     "onDemandLocalCoverage": {
       "reconciledOn": "2026-09-17",
       "why": "generatedAt is bumped by this reconciliation, so it would otherwise read as a claim that onDemandLocalMcpIds covers every on-demand-local server in registry/mcps.json as of today. It does not. This block is what keeps the bumped date from overclaiming, and it is the record that the gap was seen rather than missed.",
       "added": {
-        "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers.",
-        "repowise-workspace": "Resolved 2026-09-17. Measured: C:/Repos/.cursor/mcp.json persisted the stdio server as a workspace-open fallback and Cursor agent sessions each spawned a `repowise mcp C:/Repos` process tree (multiple hundred MB aggregate) with no plugin enable step. Correct shape matches browser-toolkit: plugin-gated .mcp.json on packages/repowise, never persisted in host or workspace MCP config. scope remains global-default for eligibility; activationMode stays on-demand-local; not in persistedOnDemandLocalMcpIds."
+        "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers."
       },
       "notAdded": {
         "railway": "Removed from registry/mcps.json on 2026-11-06 at owner direction, including ah-railway and the official Railway plugins. It was on-demand-local stdio from 2026-08-19 to 2026-08-20, then the remote https://mcp.railway.com. Do not register it again and do not spawn railway mcp.",
@@ -60,10 +58,9 @@
       }
     },
     "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. The list stays empty.",
-    "onDemandLocalMcpIdsNote": "Refreshed 2026-10-24. Chrome DevTools MCP is retired; do not register it. playwright is --extension attach for hosts without a native browser pane, plugin-gated and never persisted. the AgentHub slack bridge was retired with the slack capability on 2026-10-30 at owner direction. RepoWise is vendor-plugin-owned on Claude/Codex and AgentHub-plugin-owned on remaining hosts, never duplicated in host MCP configuration. appium-mobile and linkedin stay on-demand-local and unpersisted.",
+    "onDemandLocalMcpIdsNote": "Refreshed 2026-10-24. Chrome DevTools MCP is retired; do not register it. playwright is --extension attach for hosts without a native browser pane, plugin-gated and never persisted. the AgentHub slack bridge was retired with the slack capability on 2026-10-30 at owner direction. RepoWise was retired on 2026-11-13 (SH-4670) and is registered nowhere. appium-mobile and linkedin stay on-demand-local and unpersisted.",
     "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `ah-mobile-development@agenthub` when absent, then `claude plugin enable ah-mobile-development@agenthub`; cleanup is `claude plugin disable ah-mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add ah-mobile-development@agenthub` and `codex plugin remove ah-mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
     "browserActivationRoute": "Ask any host to capture, test, or automate a site. Claude Code, Claude Desktop, and Cowork use the plan browser when it answers, and ah-browser when a third-party gateway removes it. The Codex app, VS Code, Antigravity, Factory, and Cline use their own browser. Every other active host uses ah-browser (packages/browser), a headless wrapper around agent-browser (vercel-labs/agent-browser), installed on Claude, Cursor, Grok, Copilot, Amp, Devin, OpenCode, and Warp. Cursor IDE has @browser, but Cursor Agent CLI does not, so Cursor keeps ah-browser. Media Studio's skills/visuals/references/browser-tools.md only cites that CLI for looking at a page before a film take; webreel is unused. browser-toolkit and the Playwright MCP lane stay retired. Chrome DevTools MCP stays retired: never register chrome-devtools or chrome-devtools-isolated. Gemini CLI was retired from the fleet on 2026-11-10.",
-    "repowiseActivationRoute": "Owner migration 2026-11-03 supersedes the old vendor-plugin prohibition. Claude: repowise@repowise from repowise-dev/repowise. Codex: codex@repowise from the same vendor repository. Uninstall ah-repowise@agenthub on those hosts; never restore it as parity repair. Vendor plugins own MCP, hooks and skills; remove duplicate user hooks and MCP entries. Use the existing C:/Repos workspace. Other hosts keep the AgentHub bridge until migrated. Keep bounded indexing scripts and approved personal AgentHub plugins.",
     "optInDisabledLocalMcpIds": [],
     "optInDisabledLocalMcpIdsNote": "On-demand-local stdio servers that hosts with an enabled=false switch may write into config without starting them. OpenCode is the verified writer (opencode.ai/docs/mcp-servers). Claude/Codex/Grok still suppress these from host MCP config and use plugin enable/disable instead. A host without an enabled=false switch must not be added here.",
     "optInDisabledHosts": [
@@ -79,7 +76,7 @@
       "remoteAuthority": {
         "source": "github",
         "repo": "shmindmaster/agenthub",
-        "note": "Sole AgentHub product remote is the public shmindmaster/agenthub repo. Codex Sync keeps sourcePath on the local checkout so undeployed package edits can be validated before push. Private packages live only under gitignored overlays/personal/packages. RepoWise stays a tracked public package under packages/repowise."
+        "note": "Sole AgentHub product remote is the public shmindmaster/agenthub repo. Codex Sync keeps sourcePath on the local checkout so undeployed package edits can be validated before push. Private packages live only under gitignored overlays/personal/packages."
       }
     }
   ],

@@ -79,7 +79,6 @@ Format verified from the Kiro workflow authoring documentation (https://kiro.dev
 | `ah-independent-review` | Read-only `ah-reviewer` verdict, checked against the current head |
 | `ah-ready-pr-review` | Ready-only review through `packages/coding-agent-dispatch/reviewer` |
 | `ah-sentry-rca` | Evidence-first Sentry root cause, read-only |
-| `ah-repowise-health` | RepoWise status, refreshed only through the bounded entry point |
 
 Every recipe states: at most three remediation iterations, no merge, release or deploy, no expensive review while the pull request is a draft, a new head commit invalidates an earlier PASS, and the reviewer is never the author. The limit is enforced by prompt text and the recipe's sequential shape, not by a loop construct.
 
@@ -87,7 +86,7 @@ Every recipe states: at most three remediation iterations, no merge, release or 
 
 - Managed names are matched without regard to case, as NTFS does. An owner file named `AH-INVARIANTS.md` counts as the managed `ah-invariants.md` and is replaced on `-Apply`. Do not give owner files a managed name in any case.
 - `-Apply` refuses (`refused-dir`, `refused-link`) a managed name that is a directory or a symbolic link, so it never writes through a link to a file outside the profile. A junction on the `agents` or `steering` directory itself is followed and reported with a note.
-- Recipe steps that must run `gh`, RepoWise or a script use an agent with the `shell` tool (`ah-reviewer`, `ah-engineer`). `ah-readonly` is used only for reasoning over text it is given.
+- Recipe steps that must run `gh` or a script use an agent with the `shell` tool (`ah-reviewer`, `ah-engineer`). `ah-readonly` is used only for reasoning over text it is given.
 - `ah-incident` has no Sentry tool. The Sentry recipe takes `sentry_event_file`: the caller exports the issue and one complete event first, and the recipe stops BLOCKED without it.
 - `wf-planner`, `wf-coder` and `semantic_reviewer` are not listed by `kiro-cli agent list`. Their only evidence is the owner's existing `ah-project-delivery` recipe, which uses them, so they are treated as workflow built-ins. NOT ESTABLISHED against Kiro documentation.
 

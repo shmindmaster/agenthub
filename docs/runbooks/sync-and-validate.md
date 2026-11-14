@@ -39,9 +39,6 @@ pwsh -NoProfile -File .\scripts\Repair-SkillFrontmatterYaml.ps1 -Apply   # quote
 ```powershell
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All            # report
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All -Fix       # repair deterministic drift
-pwsh -NoProfile -File .\scripts\Update-RepoWise.ps1 -Audit             # CLI vs PyPI latest
-repowise status -w                                                    # index freshness (from C:\Repos)
-repowise doctor -w                                                    # RepoWise health
 ```
 
 Run after: adding a repo to the fleet, changing the standard, or any large

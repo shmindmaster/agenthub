@@ -158,9 +158,9 @@ try {
     [IO.File]::WriteAllText((Join-Path $fakeRoot 'packages/fake-cap/plugin.json'), '{"name":"ah-fake-cap","version":"1.0.0"}')
     [IO.File]::WriteAllText((Join-Path $fakeRoot 'packages/fake-cap/skills/fake/SKILL.md'), '# fake')
     [IO.File]::WriteAllText((Join-Path $fakeRoot 'registry/mcps.json'), '{"activationPolicy":{"pluginOnly":{"hosts":{"claude":{}}}}}')
-    [void][IO.Directory]::CreateDirectory((Join-Path $fakeRoot 'packages/repowise/skills/fake'))
-    [IO.File]::WriteAllText((Join-Path $fakeRoot 'packages/repowise/plugin.json'), '{"name":"repowise","version":"1.0.0"}')
-    [IO.File]::WriteAllText((Join-Path $fakeRoot 'packages/repowise/skills/fake/SKILL.md'), '# fake')
+    [void][IO.Directory]::CreateDirectory((Join-Path $fakeRoot 'packages/aws/skills/fake'))
+    [IO.File]::WriteAllText((Join-Path $fakeRoot 'packages/aws/plugin.json'), '{"name":"aws","version":"1.0.0"}')
+    [IO.File]::WriteAllText((Join-Path $fakeRoot 'packages/aws/skills/fake/SKILL.md'), '# fake')
     [IO.File]::WriteAllText((Join-Path $fakeRoot 'registry/agents.json'), (@{ activeAgents = @('owner-a','owner-b','owner-c','surf-a','surf-c','surf-d','surf-x','surf-y','opencode','surf-o','surf-r') | ForEach-Object { @{ id = $_; executable = 'x' } } } | ConvertTo-Json -Depth 5))
     [IO.File]::WriteAllText((Join-Path $fakeRoot 'registry/capabilities.json'), (@{ capabilities = @(
         @{ id = 'fake-cap'; canonicalSource = 'packages/fake-cap'; hostMappings = @(
@@ -172,7 +172,7 @@ try {
             @{ hostId = 'surf-x'; deploymentStatus = 'native-local-plugin'; nativeOwnerHost = 'surf-y' },
             @{ hostId = 'surf-y'; deploymentStatus = 'native-local-plugin'; nativeOwnerHost = 'surf-x' }
         ) },
-        @{ id = 'repowise'; canonicalSource = 'packages/repowise'; hostMappings = @(
+        @{ id = 'aws'; canonicalSource = 'packages/aws'; hostMappings = @(
             @{ hostId = 'opencode'; deploymentStatus = 'managed-loose-skills' },
             @{ hostId = 'surf-o'; deploymentStatus = 'managed-loose-skills'; nativeOwnerHost = 'opencode' },
             @{ hostId = 'surf-r'; deploymentStatus = 'native-local-plugin'; nativeOwnerHost = 'opencode' }
@@ -186,13 +186,13 @@ try {
     }
     $detail = [string](@($fakeReport.mappings | Where-Object host -EQ 'surf-a')).detail
     if ($detail -notmatch 'ghost-owner') { throw "unknown owner was not named in the refusal: $detail" }
-    # The repowise capability carries an owner-routed blocked route on opencode:
+    # The aws capability carries an owner-routed blocked route on opencode:
     # both aliased surfaces must inherit the block, and a misleading surface
     # deploymentStatus must not override the owner's effective route.
-    $repoReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $fakeRoot -UserProfile $skillHome -PluginId repowise -Json | ConvertFrom-Json)
+    $repoReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $fakeRoot -UserProfile $skillHome -PluginId aws -Json | ConvertFrom-Json)
     $surfO = @($repoReport.mappings | Where-Object host -EQ 'surf-o')
     $surfR = @($repoReport.mappings | Where-Object host -EQ 'surf-r')
-    if ([string]$surfO.status -ne 'blocked' -or [string]$surfR.status -ne 'blocked') { throw "alias rows escaped the owner's blocked repowise route: surf-o=$($surfO.status) surf-r=$($surfR.status)" }
+    if ([string]$surfO.status -ne 'blocked' -or [string]$surfR.status -ne 'blocked') { throw "alias rows escaped the owner's blocked aws route: surf-o=$($surfO.status) surf-r=$($surfR.status)" }
     if ([string]$surfR.route -ne 'managed-loose-skills') { throw "misleading surface route was not overridden by the owner route: $($surfR.route)" }
 
     # --- Rollback and pending-row helpers resolve through the native owner. ---

@@ -178,10 +178,10 @@ for case in cases:
 }
 
 $skill = Get-Content -LiteralPath (Join-Path $pkg "$sd\SKILL.md") -Raw -Encoding UTF8
-Report 'opportunity routes evidence to search-docs and RepoWise' (
-    $engine -match 'search-docs' -and $engine -match 'RepoWise' -and $engine -match 'client-facing handling' -and
+Report 'opportunity routes evidence to search-docs and repository source' (
+    $engine -match 'search-docs' -and $engine -match 'repository source' -and $engine -notmatch 'RepoWise' -and $engine -match 'client-facing handling' -and
     $engine -notmatch 'knowledge_v\d'
-) 'skill must route documents to search-docs, code to RepoWise, with client-facing handling'
+) 'skill must route documents to search-docs, code to repository source, with client-facing handling'
 Report 'document search refuses legal, Duckie Qdrant, and a local model' (
     $skill -match '20_Legal_Matters' -and $skill -match ':6333' -and $skill -match 'local model' -and
     $engine -match 'You are the writer'
@@ -199,9 +199,9 @@ Report 'Search-Knowledge semantic path calls docwise, not Local-AI' (
     $search -match 'docwise is not installed yet' -and $search -notmatch 'rag-index'
 ) 'semantic search must call the docwise CLI when installed and throw a clear message otherwise'
 
-Report 'search-docs routes semantic to docwise with exact-search/RepoWise fallback' (
-    $skill -match '-Semantic' -and $skill -match 'docwise' -and $skill -match 'RepoWise'
-) 'skill must route -Semantic to docwise and fall back to exact search and RepoWise'
+Report 'search-docs routes semantic to docwise and code to repository source' (
+    $skill -match '-Semantic' -and $skill -match 'docwise' -and $skill -match 'repository source' -and $skill -notmatch 'RepoWise'
+) 'skill must route -Semantic to docwise and send code to repository source search'
 
 $localAiScanned = @(
     "$sd\SKILL.md",

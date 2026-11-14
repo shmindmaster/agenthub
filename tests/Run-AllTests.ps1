@@ -124,7 +124,6 @@ if ($Scope -eq 'package') {
     $mapped = switch ($Package) {
         'coding-agent-dispatch' { @('Test-CodeBuildPrCi.ps1', 'Test-PrReview.ps1', 'Test-KiroFleet.ps1') }
         'media-studio' { @($testFiles | Where-Object { [IO.Path]::GetFileName($_) -match '^Test-(MediaStudio|FinishMedia)' } | ForEach-Object { [IO.Path]::GetFileName($_) }) }
-        'repowise' { @($testFiles | Where-Object { [IO.Path]::GetFileName($_) -match '^Test-(RepoWise|UpdateRepoWise)' } | ForEach-Object { [IO.Path]::GetFileName($_) }) }
         'mobile-development' { @('Test-MobileDevelopment.ps1', 'Test-MobileLabGuestSetup.ps1', 'Test-MobileLabVmwareStartup.ps1', 'Test-MobileLabExclusivity.ps1', 'Test-SyncRepoToGuest.ps1', 'Test-MobileScope.ps1') }
         default { @() }
     }

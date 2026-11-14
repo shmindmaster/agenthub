@@ -1,9 +1,7 @@
 {
   "schemaVersion": 6,
   "generatedAt": "2026-09-13",
-  "migrationAliases": {
-    "repowise": "repowise-workspace"
-  },
+  "migrationAliases": {},
   "migrationAliasesNote": "Maps a key a host config actually carries to the canonical server id. Prune keeps only what the canonical set names after Resolve-McpAliasKey, so an unaliased drifted key is deleted rather than reconciled. Recorded 2026-08-19: .claude/settings.json carried repowise-workspace under the key 'repowise', and migrationAliases was empty, so a prune run would have removed the only working repowise registration on the machine. Verified the canonical args are safe to converge on: 'repowise mcp' defaults to stdio, so the deployed '--transport stdio' is redundant and dropping it changes nothing. 2026-10-23: chrome-devtools-mcp was removed. Do not register it again, and do not map chrome-devtools to playwright. 2026-10-23: Devin retained mcp-playwright as an unmanaged duplicate npm launcher. Reconcile it to the canonical on-demand playwright lifecycle rather than starting an extra default server.",
   "retiredMcpIds": [
     "chrome-devtools",
@@ -12,13 +10,15 @@
     "mcp-playwright",
     "railway",
     "firecrawl",
-    "supabase"
+    "supabase",
+    "repowise-workspace",
+    "repowise"
   ],
   "retiredMcpPackages": [
     "chrome-devtools-mcp",
     "@playwright/mcp"
   ],
-  "retiredMcpIdsNote": "Owner-authorized retirement 2026-10-29 for the browser servers, and 2026-11-06 for railway. Never register chrome-devtools-mcp, @playwright/mcp, or https://mcp.railway.com, and never alias mcp-playwright back to a server. These IDs are cleanup targets. Hosts use their own browser. Do not install ah-railway or railway@claude-plugins-official. Owner direction 2026-11-06 also removes Firecrawl and Supabase plugins, skills and MCP routes from the fleet. Credits do not activate a provider.",
+  "retiredMcpIdsNote": "Owner-authorized retirement 2026-10-29 for the browser servers, and 2026-11-06 for railway. Never register chrome-devtools-mcp, @playwright/mcp, or https://mcp.railway.com, and never alias mcp-playwright back to a server. These IDs are cleanup targets. Hosts use their own browser. Do not install ah-railway or railway@claude-plugins-official. Owner direction 2026-11-06 also removes Firecrawl and Supabase plugins, skills and MCP routes from the fleet. Credits do not activate a provider. Owner decision 2026-11-13 (SH-4670) retires RepoWise: repowise-workspace and repowise are cleanup targets on every host.",
   "activationPolicy": {
     "recordedOn": "2026-08-04",
     "preferenceOrder": [
@@ -92,7 +92,7 @@
       }
     },
     "sessionStart": {
-      "rule": "A plugin is packaging, not on-demand. Plugin servers stay off by default on every coding host, so a session starts only what the host itself must have. Exception: RepoWise stays on for Claude and Codex.",
+      "rule": "A plugin is packaging, not on-demand. Plugin servers stay off by default on every coding host, so a session starts only what the host itself must have.",
       "recordedOn": "2026-11-04",
       "offSwitches": {
         "grok": "grok mcp disable <name>; back on with /mcps",
@@ -426,59 +426,6 @@
           "enabled": false
         }
       }
-    },
-    {
-      "id": "repowise-workspace",
-      "name": "RepoWise Workspace",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "on-demand-local",
-      "url": "http://127.0.0.1:7339/mcp",
-      "credentialPolicy": "none-in-config; the index, FTS5 search, and graph are local disk only. Optional LLM wiki generation (--docs/--full) may read a provider key from the process environment and must never store one in the repository, MCP config, or .repowise/.env. Do not sign in to a hosted RepoWise account.",
-      "providesCapabilities": [
-        "repo.intelligence",
-        "repo.wiki",
-        "repo.cross-repo-context"
-      ],
-      "providesCapabilitiesNote": "Federated code intelligence for every git repo under C:/Repos/shmindmaster, C:/Repos/sh-pendoah, C:/Repos/musa-dev-team, and C:/Repos/pendoah (wiki docs, dependency graph, git history/ownership, health, dead code, decisions, cross-repo contracts). Query per repo (repo=<alias>) or across the workspace (repo=all).",
-      "protocol": {
-        "revision": "2025-06-18",
-        "verifiedOn": "2026-09-10",
-        "verification": "CLI 0.49.0 (uv tool upgrade from 0.48.0 on 2026-09-10). Args remain `repowise mcp C:/Repos`. Member-repo `.vscode/mcp.json` args are not this server."
-      },
-      "localProcessPolicy": {
-        "instancing": "single-shared-process",
-        "note": "Claude/Codex vendor plugins launch their own stdio repowise mcp process per session; this is not the AgentHub shared-process bridge and no single-process claim applies to those hosts. Other hosts retain the existing AgentHub bridge/shared server and its credential/degraded-embedding checks. Nothing starts from logon or a scheduled job. Never run duplicate vendor and AgentHub registrations on one host."
-      },
-      "owner": {
-        "type": "capability",
-        "id": "repowise"
-      },
-      "pluginOwnersByHost": {
-        "amp": "ah-repowise@agenthub",
-        "claude": "repowise@repowise",
-        "cline": "ah-repowise@agenthub",
-        "codex": "codex@repowise",
-        "cursor": "ah-repowise@agenthub",
-        "devin": "ah-repowise@agenthub",
-        "factory": "ah-repowise@agenthub",
-        "grok": "ah-repowise@agenthub",
-        "vscode-insiders": "ah-repowise@agenthub"
-      },
-      "pluginOwnersByHostNote": "Owner migration 2026-11-03: Claude uses repowise@repowise; Codex uses codex@repowise. Other host owners retain their existing AgentHub bridge. Do not reinstall the retired Claude/Codex wrapper.",
-      "hosts": [
-        "claude",
-        "codex",
-        "cursor",
-        "grok",
-        "factory",
-        "cline",
-        "opencode",
-        "vscode-insiders"
-      ],
-      "experimentalFlagsEnabled": [],
-      "notes": "Local-only workspace at C:/Repos/.repowise-workspace.yaml covering git repos under shmindmaster, sh-pendoah, musa-dev-team, and pendoah (63 members as of 2026-08-24, including portfolio-records). Nested fixture gits (crewscore .corpus-cache, duckie-app/deploy which is duckie-deploy) are not members. Indexes stay on disk. Telemetry off; hosted login forbidden. .demo-workspace is not a git repo and is not a member. No post-commit hook keeps member indexes fresh, and there is none: AGENTS.md, registry/repo-standard.json and packages/repowise/README.md all require the single manual bounded entry point packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1, with no bare `repowise update` (corrected 2026-11-12; this row previously claimed post-commit hooks did the refresh). `repowise status -w` / `doctor -w` from C:/Repos report workspace health. Dashboard: `repowise serve` from C:/Repos. CLI is uv-managed and kept on the PyPI latest by scripts/Update-RepoWise.ps1.",
-      "hostScopeNote": "Hosts are eligibility, not deployment. Claude/Codex use the vendor RepoWise plugins against the existing C:/Repos workspace. Their old AgentHub wrapper and duplicate user hooks are retired, not disabled for later restoration. Other hosts retain the AgentHub bridge, including its explicit private remote mode, until migrated. AgentHub sync must not persist another MCP registration. Vendor hooks never authorize a bare index update: use the bounded manual indexing entry point."
     },
     {
       "id": "appium-mobile",

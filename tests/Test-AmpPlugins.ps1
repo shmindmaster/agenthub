@@ -24,7 +24,7 @@ function Assert-True([bool]$Condition, [string]$Message) {
 
 $target = Join-Path ([IO.Path]::GetTempPath()) "amp-plugins-$PID"
 try {
-    $names = 'ah-linear', 'ah-context7', 'ah-brave-search', 'ah-aws', 'ah-repowise'
+    $names = 'ah-linear', 'ah-context7', 'ah-brave-search', 'ah-aws'
     $output = & python $installer --target $target @names 2>&1
     Assert-True ($LASTEXITCODE -eq 0) "installer failed: $output"
 

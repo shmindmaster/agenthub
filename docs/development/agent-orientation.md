@@ -27,7 +27,7 @@ When they disagree, investigate rather than silently choosing one.
 
 | Path | Role |
 | --- | --- |
-| `packages/<name>/` | **Public** capability content (skill packs, plugins), including the legacy RepoWise package until SH-4670 removes it |
+| `packages/<name>/` | **Public** capability content (skill packs, plugins) |
 | `overlays/personal.example/` | Template for a local private overlay |
 | `overlays/personal/` | **Gitignored** local override: `packages/`, `capabilities.json`, `overlay.json` |
 | `registry/` | Public parity contract (no private capability rows) |

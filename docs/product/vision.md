@@ -31,7 +31,5 @@ media, or temporary workspaces; per-product `_product-experience`,
 
 Since 2026-08-08 AgentHub also owns the fleet repository standard:
 `registry/repo-standard.json` (roster + rules),
-`scripts/Check-RepoStandard.ps1` (enforcement), and the `repowise` capability
-(`packages/repowise/`, one shared workspace MCP for code intelligence)
-and the documents layer (`packages/knowledge-access`, folders `01`–`06`
+`scripts/Check-RepoStandard.ps1` (enforcement), and the documents layer (`packages/knowledge-access`, folders `01`–`06`
 and `10` under the owner's Documents tree; records stay out of this repository).

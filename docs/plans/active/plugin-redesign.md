@@ -1,11 +1,13 @@
 # Plugin redesign and fleet rollout
 
+> **2026-11-13:** RepoWise is retired (SH-4670). Every RepoWise step, check or handoff in this plan is dropped and must not be carried out.
+
 Baseline commit `f4cd221e`.
 
 ## Delivery waves
 
 1. Shared deployment command, package containment checks and fixture coverage.
-2. Browser, Product, Media Studio, mobile and RepoWise workflow handoffs.
+2. Browser, Product, Media Studio and mobile workflow handoffs.
 3. Provider workflows and privately distributed owner workflows.
 
 Keep stable plugin and skill identities. Preserve accepted artifacts, approval and spending boundaries. Package tests distinguish documented workflow fixtures from live agent or provider acceptance.
