@@ -1,5 +1,10 @@
 # Ready-only independent PR reviewer (SH-4416)
 
+The fleet-wide rules this tool implements (ready-only review, exact-head-SHA
+verdicts, reviewer independence, bounded iteration, no auto-merge) are the
+shared guideline in
+[development/pr-review-guideline.md](../development/pr-review-guideline.md).
+
 `packages/coding-agent-dispatch/reviewer/Invoke-PrReview.ps1` replaces the
 Sentry Seer Code Review step for AgentHub pull requests from 2026-12-08. It
 reviews a pull request through the existing windowless dispatcher on a host
