@@ -4,7 +4,7 @@ Owner direction, 13 November 2026. One shared review guideline for every
 owned product repository (`C:\Repos\shmindmaster` roster in
 `registry/repo-standard.json`) and for AgentHub itself. This document is the
 canonical text: the compact block at the end is copied into each repo's
-`AGENTS.md` as a `## Review guidelines` section. A repository's own `AGENTS.md`
+`AGENTS.md` as a `## Code Review Rules` section. A repository's own `AGENTS.md`
 stays authoritative for that product where it records a deliberate, reasoned
 delta.
 
@@ -126,7 +126,7 @@ adjust only where a repo records a reasoned delta, e.g. ABACare's
 single-workflow restriction):
 
 ```markdown
-## Review guidelines
+## Code Review Rules
 Shared fleet guideline: AgentHub `docs/development/pr-review-guideline.md`.
 Reviewers: Codex (primary) and Sentry Seer (until 2026-12-08). No other reviewer.
 - Review only ready-for-review PRs. One verdict per exact head SHA; a new
@@ -140,7 +140,7 @@ Reviewers: Codex (primary) and Sentry Seer (until 2026-12-08). No other reviewer
   request `@codex security review`.
 - At most two fix-and-rereview cycles, then escalate. No auto-merge.
 
-### Product invariants
+### Product invariants (flag even when tests pass)
 <two to five bullets from the table below, for this repo only>
 ```
 
@@ -177,4 +177,4 @@ Track on a sample of ABACare, Rexa and Revolva PRs: every ready PR reviewed once
 
 - Seer Code Review: enabled with trigger `on_ready_for_review` only on 25 repositories; `tgiagency` had `on_new_commit` and it was removed; review disabled on `duckie` (retired), `WSARooted` and `portfolio-records` (not on GitHub).
 - Seer Autofix: all 30 projects run issue scanning, stop at `open_pr` (draft PR) and have their GitHub repository linked. Tuning is `high` for the three ABACare projects (kept as configured) and `medium` elsewhere. `abacare-api` received about 10,900 events in 14 days, so watch Seer usage there first.
-- Codex settings live in the ChatGPT Codex console and have no API: the owner sets repository access, automatic review on ready PRs, and no automatic merge there.
+- Codex (checked in https://chatgpt.com/settings/code-review, 2026-11-14): personal Automatic review on, trigger On PR open (there is no ready-only option; draft PRs are the gate), Exhaustive review on, Use credits for reviews off. All 26 connected repos follow personal preferences. Auto security review is on with trigger Whenever code review runs and minimum severity High (manual Medium) on abacare, agenthub, coledger, empowera, lawli, lexalign, lienwise, revolva, rexa, subops and verigence. Codex reads the `## Code Review Rules` heading in AGENTS.md (https://learn.chatgpt.com/docs/third-party/github). Legacy cloud environments exist for abacare, verigence and sabhi and are left unmigrated.
