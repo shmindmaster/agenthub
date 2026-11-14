@@ -552,7 +552,7 @@ function Test-VersionedCacheScanIsProvenSound {
 
     $root = Join-Path ([IO.Path]::GetTempPath()) ("agenthub-cache-scan-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
     try {
-        $pluginDir = Join-Path $root 'ah-aws'
+        $pluginDir = Join-Path $root 'ah-browser'
         foreach ($version in @('1.9.0', '1.10.0', '2.0.0')) {
             $null = New-Item -ItemType Directory -Force -Path (Join-Path $pluginDir $version)
         }

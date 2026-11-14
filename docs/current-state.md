@@ -18,14 +18,14 @@
   on each, with a reason. The sync writes nothing else there, and
   `tests/Test-PluginOnlyMcp.ps1` fails on any other entry in the real host configs. Gemini was
   not migrated and keeps the older behaviour. Native plugins were installed on every host,
-  with thin `ah-railway`, `ah-descript`, `ah-exa`, `ah-notion`, `ah-firecrawl`, `ah-aws`,
-  `ah-linear` and `ah-context7` plugins where no clean native one exists. Plugin registration
+  with thin `ah-*` plugins where no clean native one existed (most were later deleted;
+  see the 2026-11-13 vendor-first entry). Plugin registration
   is proven by each host's list command and Cline's own loader; loading inside a real session
   was not tested on any host. See [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
 - **Lean hosts and Daytona (2026-11-04):** unused vendor plugins came off every host and the
   shared policy dropped from about 20.8K to 12.4K characters, with detail moved to two on-demand
   guidance files. The one-host rule was replaced by a free-RAM check. Daytona reaches every host
-  through `ah-daytona` or the host's own catalog. On disk on this machine; not exercised in a
+  through the vendor plugin (`ah-daytona` was deleted on 2026-11-13). On disk on this machine; not exercised in a
   fresh session. See [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
 - **Video library layout (2026-11-04):** the library is now `Area/Customer or company/file`, two
   folder levels at most, replacing the flat rule. `media-studio` `compose/references/library.md`
