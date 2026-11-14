@@ -30,11 +30,11 @@ import sys
 PHASES = ["develop", "preproduction", "production", "post", "delivery"]
 REVIEW_STAGES = {"develop": "Go/No-Go", "preproduction": "Pink", "production": "Red", "post": "Gold", "delivery": "Gold"}
 NEXT = {
-    "develop": "Use the develop skill: fill the case, treatment, beat sheet and screenplay, run validate-narration.mjs, then ask the owner to approve.",
-    "preproduction": "Use the plan skill: write the picture plan, run screenplay_breakdown.py, check_picture_relevance.py and check_visual_variety.py, show the owner the picture table and the cost.",
-    "production": "Use generate, visuals and compose: voice takes, assets, build-picture.mjs, render the picture.",
-    "post": "Use compose and review: mix, finish loudness, run the gates on the exact file, review the frames.",
-    "delivery": "Use compose to deliver: captions sidecar and library copy, then record the owner's delivered approval.",
+    "develop": "Use the write skill: fill the case, treatment, beat sheet and screenplay, run validate-narration.mjs, then ask the owner to approve.",
+    "preproduction": "Use the write skill: write the picture plan, run screenplay_breakdown.py, check_picture_relevance.py and check_visual_variety.py, show the owner the picture table and the cost.",
+    "production": "Use produce, then finish: voice takes, assets, build-picture.mjs, render the picture.",
+    "post": "Use the finish skill: mix, finish loudness, run the gates on the exact file, review the frames.",
+    "delivery": "Use the finish skill to deliver: captions sidecar and library copy, then record the owner's delivered approval.",
 }
 
 
