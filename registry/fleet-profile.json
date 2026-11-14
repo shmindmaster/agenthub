@@ -426,7 +426,8 @@
         "omits": ["--auto"]
       },
       "readOnlyNote": "2026-11-11 `droid exec --help`: \"By default, it runs in read-only mode, requiring explicit flags to enable modifications.\" and \"DEFAULT (no flags) Read-only mode ... No modifications to files or system\". The mode is the absence of --auto, so -ReadOnly leaves --auto out and adds no flag; --settings still passes the repo-owned rules file. No model run exercised this mode; the flags come from help text only.",
-      "model": "gpt-6-luna",
+      "model": "custom:qwen4-max-preview",
+      "modelNote": "2026-11-14 SH-4676: the dispatch default is the zero-credit BYOK plan route custom:qwen4-max-preview (QWEN_TOKEN_PLAN_API_KEY; owner direction 2026-11-12 prefers qwen4-max-preview for coding on Token Plan routes). The previous default gpt-6-luna is Factory-hosted and billed 651 credits for a one-line probe (2026-10-26). Factory-hosted ids stay in allowedModels for an explicit -Model opt-in; they spend Factory credits.",
       "allowedModels": [
         "gpt-6-luna",
         "glm-5.3-flash",
@@ -434,13 +435,20 @@
         "gpt-5.4-mini",
         "claude-sonnet-5",
         "gpt-6-sol",
-        "custom:Qwen-38-Max-Token-Plan-5",
-        "custom:Qwen-4-Max-Preview-Token-Plan-6",
-        "custom:GLM-53-Zai-Coding-Plan-4",
-        "custom:MiMo-V26-Pro-Token-Plan-2",
-        "custom:MiMo-V26-Flash-Token-Plan-3"
+        "custom:qwen3.8-max-tp",
+        "custom:qwen4-max-preview",
+        "custom:glm-5.3-zai",
+        "custom:mimo-v2.6-pro",
+        "custom:mimo-v2.6-flash"
       ],
-      "planRoutesNote": "2026-11-14 smoke-verified through Invoke-CodingAgent.ps1 (READY, exit 0): BYOK customModels in ~/.factory/settings.json with ${ENV} keys: custom:Qwen-38-Max-Token-Plan-5 and custom:Qwen-4-Max-Preview-Token-Plan-6 (QWEN_TOKEN_PLAN_API_KEY), custom:GLM-53-Zai-Coding-Plan-4 (ZAI_CODING_PLAN_API_KEY), custom:MiMo-V26-Pro-Token-Plan-2 (MIMO_API_KEY). The id suffix is the customModels array index, so reordering settings.json changes the id. Display names avoid parentheses because the dispatcher refuses them as shell metacharacters. Unverified: Factory reported nonzero factory_credits on the Qwen 3.8 Max and GLM smoke runs.",
+      "planRoutesNote": "2026-11-14 SH-4676: the stable custom id form is custom:<model-field>, taken from the BYOK entry's model field in ~/.factory/settings.json: custom:qwen3.8-max-tp and custom:qwen4-max-preview (QWEN_TOKEN_PLAN_API_KEY), custom:glm-5.3-zai (ZAI_CODING_PLAN_API_KEY), custom:mimo-v2.6-pro and custom:mimo-v2.6-flash (MIMO_API_KEY). The earlier claim that the id suffix is the customModels array index was wrong for droid 1.10.0: ids resolve by the model field (a displayName form with any numeric suffix also resolves, but is fragile and was dropped). The BYOK entries are reproducible from AgentHub: packages/coding-agent-dispatch/factory/custom-models.json + Install-FactoryCustomModels.ps1 (audit/apply, never touches owner-authored entries, apiKey only as ${ENV} references).",
+      "byokCreditsNote": "2026-11-14 SH-4676 answered: BYOK runs reported nonzero factory_credits because those customModels entries' model fields collided with Factory built-in model ids (qwen3.8-max, multiplier 0.8x; glm-5.3, 0.56x). Inference genuinely went to the BYOK endpoint - session evidence: providerLock/signatureProvider generic-chat-completion-api, openaiMessageId chatcmpl-*, chatCompletionReasoningField reasoning_content - but Factory accounted the usage at the built-in multiplier (observed 14,471 credits ~= 17,730 tokens x 0.8; 9,745 ~= 17,072 x 0.56). Non-colliding entries (mimo-v2.6-pro, mimo-v2.6-flash, qwen4-max-preview) reported 0 credits and carried byokUnmappedNoticeModelIds. Remediation applied 2026-11-14: the colliding model fields were renamed (qwen3.8-max-tp, glm-5.3-zai) with extraArgs {model: <upstream-name>} so the provider still receives the real model name; the Qwen route then returned READY with factory_credits 0. Secondary sources, recorded not changed (owner settings): compactionModel gpt-6-luna and subagentModelSettings.lightModel gpt-6-luna are Factory-hosted and can bill during BYOK sessions; dispatched runs pin all subagent tiers to inherit through the repo-owned runtimeSettings file.",
+      "roles": {
+        "engineer": "ah-engineer",
+        "reviewer": "ah-reviewer",
+        "tester": "ah-browser-tester"
+      },
+      "rolesNote": "2026-11-14 SH-4676: a role runs as a native custom droid through one Task-tool delegation. Canonical droid definitions live in packages/coding-agent-dispatch/factory/droids and deploy to ~/.factory/droids with Install-FactoryDroids.ps1; the dispatcher refuses a role whose mapped droid file is missing. droid 1.10.0 blocks the Task tool in exec sessions by default (--list-tools shows 'Task - status: blocked' at every autonomy; --add-tools Task does not unblock it), so a role run passes an explicit --only-tools union naming Task plus the file, shell and web tools; that list is the session ceiling and each droid's frontmatter narrows inside it (verified live: ah-engineer created its fixture through exactly one Task call at factory_credits 0, and ah-reviewer answered WRITE-DENIED with no file created under the same ceiling; MCP tools are outside the list). A relay-only --only-tools Task form starves the subagent instead: session-level restrictions propagate into subagents (observed: an engineer droid inherited 'Available tools: Task'). The parent is a strict relay: exactly one Task call, no complexity parameter, no other subagents, and it returns the droid's final message verbatim - complexity tiers route subagents through subagentModelSettings, and an explorer spawned beside a BYOK run billed 325 Factory credits at the hosted lightModel before the repo-owned runtimeSettings pinned light/medium/heavy to inherit. -ReadOnly is refused for the writing roles (engineer, tester); -ReadOnly -Role reviewer additionally verifies from the installed droid's frontmatter that its tools are read-only (allow-list: Read, LS, Grep, Glob, Execute, WebSearch, FetchUrl, or the read-only category).",
       "autonomy": "medium",
       "autonomyNote": "Dispatch runs `--auto` at low or medium only. `--auto high` permits git push, and --skip-permissions-unsafe is never emitted; the dispatcher refuses any autonomy value outside low or medium. Outward-action rules live in the repo-owned runtimeSettings file, verified with `droid rules check` 2026-10-26.",
       "runtimeSettings": "packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json",

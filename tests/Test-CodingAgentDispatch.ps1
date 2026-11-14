@@ -312,6 +312,46 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand')
     $factoryWritable = 'args=' + ((@('exec', '--cwd', $scratchShown, '--auto', 'medium', '-o', 'json', '--settings', $factorySettings, '-m', 'gpt-6-luna', '-f', $showPrompt) | ForEach-Object { Arg $_ }) -join ' ')
     Check 'Factory without -ReadOnly keeps the existing command' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq $factoryWritable) ((ShowArgs $r) + $r.Err)
+
+    # ---------- SH-4676: Factory roles run as native droids through one Task delegation ----------
+    # Exec sessions block Task by default, so a role run carries an explicit
+    # --only-tools union; the relay wrapper replaces the prompt file text.
+    $factoryDroidsDir = Join-Path (Join-Path $fixture '.factory') 'droids'
+    $null = New-Item -ItemType Directory -Path $factoryDroidsDir -Force
+    foreach ($droidName in @('ah-engineer', 'ah-reviewer', 'ah-browser-tester')) {
+        Copy-Item -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\factory\droids\$droidName.md") -Destination $factoryDroidsDir
+    }
+    $fleet.dispatchPolicy.factory['roles'] = @{ engineer = 'ah-engineer'; reviewer = 'ah-reviewer'; tester = 'ah-browser-tester' }
+    Save-Fixture
+    $r = Run @('-HostId','factory','-Prompt','do the thing','-Cwd',$scratch,'-TimeoutSec','5','-Role','engineer')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $onlyToolsIndex = if ($null -ne $d) { [Array]::IndexOf($d.Arguments, '--only-tools') } else { -1 }
+    $relayPrompt = if ($null -ne $d) { [string](@($d.PromptContents)[0]) } else { '' }
+    Check 'Factory -Role engineer unlocks Task through an explicit --only-tools union' ($null -ne $d -and $onlyToolsIndex -ge 0 -and $d.Arguments[$onlyToolsIndex + 1] -cmatch '(^|,)Task(,|$)') $r.Err
+    Check 'Factory -Role engineer relays exactly one Task delegation with the task verbatim' ($relayPrompt -match "subagent_type 'ah-engineer'" -and $relayPrompt -match 'exactly once' -and $relayPrompt -match 'Do not pass a complexity parameter' -and $relayPrompt -match '(?m)^TASK:\r?\ndo the thing$') $relayPrompt
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','engineer','-ReadOnly')
+    Check 'Factory refuses -ReadOnly with -Role engineer, a writing role' ($r.Exit -eq 3 -and $r.Err -match 'writing role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer','-ReadOnly')
+    Check 'Factory -ReadOnly -Role reviewer omits --auto and delegates to the read-only droid' ($r.Exit -eq 0 -and (ShowArgs $r) -notmatch '--auto' -and (ShowArgs $r) -match '--only-tools') ((ShowArgs $r) + $r.Err)
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','architect')
+    Check 'Factory refuses a role its policy does not map' ($r.Exit -eq 3 -and $r.Err -match 'does not map role' -and $r.Err -match 'architect' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $fleet.dispatchPolicy.factory.roles.Remove('tester'); Save-Fixture
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','tester')
+    Check 'Factory refuses an unmapped role naming the mapped ones' ($r.Exit -eq 3 -and $r.Err -match 'does not map role' -and $r.Err -match 'engineer' -and $r.Err -match 'reviewer' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $fleet.dispatchPolicy.factory.roles['tester'] = 'ah-browser-tester'; Save-Fixture
+    Remove-Item -LiteralPath (Join-Path $factoryDroidsDir 'ah-browser-tester.md') -Force
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','tester')
+    Check 'Factory refuses a role whose droid file is missing' ($r.Exit -eq 3 -and $r.Err -match 'ah-browser-tester\.md' -and $r.Err -match 'missing' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'packages\coding-agent-dispatch\factory\droids\ah-browser-tester.md') -Destination $factoryDroidsDir
+    $reviewerDroid = Join-Path $factoryDroidsDir 'ah-reviewer.md'
+    $reviewerDroidText = [IO.File]::ReadAllText($reviewerDroid)
+    [IO.File]::WriteAllText($reviewerDroid, $reviewerDroidText.Replace('"Glob",', '"Glob", "Edit",'))
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer','-ReadOnly')
+    Check 'Factory refuses -ReadOnly when the reviewer droid grants a write tool' ($r.Exit -eq 3 -and $r.Err -match 'grants Edit' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($reviewerDroid, ($reviewerDroidText -replace '(?m)^tools:.*$', ''))
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer','-ReadOnly')
+    Check 'Factory refuses -ReadOnly when the reviewer droid omits its tools boundary' ($r.Exit -eq 3 -and $r.Err -match 'omits tools:' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($reviewerDroid, $reviewerDroidText)
     foreach ($roleArgs in @(@(), @('-Role', 'reviewer'), @('-Role', 'peer'))) {
         $r = Run (@('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly') + $roleArgs)
         Check "Kiro -ReadOnly $($roleArgs -join ' ') runs the V3 reviewer profile" ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=chat --v3 --no-interactive --trust-all-tools --agent ah-readonly --model auto ok' -and $r.Out -match '(?m)^stdin=no') ($r.Out + $r.Err)

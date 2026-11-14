@@ -1,4 +1,9 @@
 {
+  "subagentModelSettings": {
+    "lightModel": "inherit",
+    "mediumModel": "inherit",
+    "heavyModel": "inherit"
+  },
   "permissionRules": {
     "version": 1,
     "rules": [
