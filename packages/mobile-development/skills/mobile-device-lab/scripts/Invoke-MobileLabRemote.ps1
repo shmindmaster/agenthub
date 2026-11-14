@@ -84,6 +84,19 @@ function Get-LabApp([string]$Id) {
                 throw "Profile '$profileName' sets $($entry.Name) to a non-local address. '$Id' is health-sensitive: lab builds use synthetic data on the worker only."
             }
         }
+        if ($settings.launchUrl) {
+            Test-MobileLabLaunchUrl -LaunchUrl ([string]$settings.launchUrl) -HealthSensitive:$true
+        }
+        if ($settings.flowRewrite) {
+            # Host-side flow scripts run on the worker; the same fence as the
+            # profile env applies to the addresses a rewrite points them at.
+            foreach ($entry in @($settings.flowRewrite.PSObject.Properties)) {
+                $value = [string]$entry.Value
+                if ($value -match '^https?://' -and $value -notmatch '^https?://(10\.0\.2\.2|127\.0\.0\.1|localhost)(:\d+)?(/|$)') {
+                    throw "Profile '$profileName' flowRewrite '$($entry.Name)' points at a non-local address. '$Id' is health-sensitive: lab builds use synthetic data on the worker only."
+                }
+            }
+        }
     }
     [pscustomobject]@{ Product = $product; App = $app[0]; ProfileName = $profileName; Settings = $settings; AppPath = $appPath }
 }
@@ -92,6 +105,40 @@ function Resolve-LabRepo([object]$Lab) {
     $path = if ($RepoPath) { $RepoPath } else { Join-Path 'C:\Repos' (([string]$Lab.Product.repository) -replace '/', '\') }
     if (-not (Test-Path -LiteralPath (Join-Path $path '.git'))) { throw "No git checkout at '$path'. Pass -RepoPath." }
     (Resolve-Path -LiteralPath $path).Path
+}
+
+# Windows OpenSSH resets a single large stream mid-transfer on some hosts
+# (measured on sh-forge), so archives go to the worker in chunks, each over
+# its own connection: upload-chunk per piece, then the receive command that
+# assembles them. cmd owns every binary redirection: PowerShell would
+# re-encode the stream.
+function Send-LabArchive([string]$ArchiveCommand, [string]$Key, [string]$FinishCommand) {
+    $tmp = Join-Path $localData "AgentHub\tmp\mobile-lab-send-$PID"
+    New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+    try {
+        $tarPath = Join-Path $tmp 'archive.tar'
+        & cmd.exe /d /c "$ArchiveCommand > `"$tarPath`""
+        if ($LASTEXITCODE -ne 0) { throw "Creating the archive failed (exit $LASTEXITCODE)." }
+        $chunks = @(Split-MobileLabArchive -Path $tarPath -Destination $tmp)
+        foreach ($chunk in $chunks) {
+            $index = [IO.Path]::GetFileNameWithoutExtension($chunk) -replace '^chunk-', ''
+            # Some hosts reset a bulk SSH stream mid-transfer even at chunk
+            # size; the upload is idempotent, so retry the same piece.
+            $sent = $false
+            foreach ($attempt in 1..4) {
+                & cmd.exe /d /c "ssh -o BatchMode=yes $alias `"mobile-lab upload-chunk $Key $index`" < `"$chunk`""
+                if ($LASTEXITCODE -eq 0) { $sent = $true; break }
+                Start-Sleep -Seconds $attempt
+            }
+            if (-not $sent) { throw "Sending chunk $index to the worker failed after 4 attempts." }
+            Remove-Item -LiteralPath $chunk -Force
+        }
+        & ssh @sshOptions $alias $FinishCommand
+        if ($LASTEXITCODE -ne 0) { throw "The worker could not assemble the archive (exit $LASTEXITCODE)." }
+    }
+    finally {
+        Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Send-LabSource([object]$Lab, [string]$Repo) {
@@ -103,12 +150,10 @@ function Send-LabSource([object]$Lab, [string]$Repo) {
         if ($snapshot) { $commit = $snapshot; $label = "$snapshot (working tree on $label)" }
     }
     if ($commit -notmatch '^[0-9a-f]{40,64}$') { throw "Unexpected commit id '$commit'." }
-    # cmd owns the pipe: PowerShell would re-encode the binary tar stream.
+    # cmd owns the archive redirection: PowerShell would re-encode the binary tar stream.
     $extras = @($Lab.App.extraPaths | Where-Object { $_ } | ForEach-Object { ([string]$_).Trim('/') })
     foreach ($extra in $extras) { if ($extra -notmatch '^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$') { throw "Unsupported extra path '$extra'." } }
-    $pipeline = "git -C `"$Repo`" archive --format=tar $commit | ssh -o BatchMode=yes $alias `"mobile-lab receive $($Lab.Product.productId) $($Lab.AppPath) $($extras -join ' ')`""
-    & cmd.exe /d /c $pipeline
-    if ($LASTEXITCODE -ne 0) { throw "Sending source to the worker failed (exit $LASTEXITCODE)." }
+    Send-LabArchive "git -C `"$Repo`" archive --format=tar $commit" ([string]$Lab.Product.productId) "mobile-lab receive $($Lab.Product.productId) $($Lab.AppPath) $($extras -join ' ')"
     if ($extras.Count -gt 0) {
         # Gitignored inputs the bundle needs. Stamp on names, sizes and write
         # times so an unchanged folder is not sent again.
@@ -123,8 +168,7 @@ function Send-LabSource([object]$Lab, [string]$Repo) {
         $current = ((& ssh @sshOptions $alias "mobile-lab extra-stamp $($Lab.Product.productId)") | Out-String).Trim()
         if ($current -ne $stamp) {
             $bsdtar = Join-Path $env:SystemRoot 'System32\tar.exe'
-            & cmd.exe /d /c "`"$bsdtar`" -cf - -C `"$Repo`" $($extras -join ' ') | ssh -o BatchMode=yes $alias `"mobile-lab receive-extra $($Lab.Product.productId) $stamp`""
-            if ($LASTEXITCODE -ne 0) { throw "Sending extra paths to the worker failed (exit $LASTEXITCODE)." }
+            Send-LabArchive "`"$bsdtar`" -cf - -C `"$Repo`" $($extras -join ' ')" "$($Lab.Product.productId)-extra" "mobile-lab receive-extra $($Lab.Product.productId) $stamp"
         }
     }
     $label
@@ -155,7 +199,7 @@ switch ($Action) {
         $environment = "ANDROID_API=$($remote.apiLevel) AVD_NAME=$($remote.avdName) LAB_USER=$($remote.user) LAB_ROOT=$($remote.labRoot)"
         & ssh @sshOptions -l root $alias 'mkdir -p /root/mobile-lab-provision'
         if ($LASTEXITCODE -ne 0) { throw "Root SSH to '$alias' failed; provisioning needs root once." }
-        & scp -q -o BatchMode=yes -o User=root (Join-Path $workerScripts 'provision-android-worker.sh') (Join-Path $workerScripts 'mobile-lab.sh') "${alias}:/root/mobile-lab-provision/"
+        & scp -q -o BatchMode=yes -o User=root (Join-Path $workerScripts 'provision-android-worker.sh') (Join-Path $workerScripts 'mobile-lab.sh') (Join-Path $workerScripts 'prepare-flow.mjs') "${alias}:/root/mobile-lab-provision/"
         if ($LASTEXITCODE -ne 0) { throw 'Copying the worker scripts failed.' }
         & ssh @sshOptions -l root $alias "cd /root/mobile-lab-provision && $environment bash provision-android-worker.sh && rm -rf /root/mobile-lab-provision" | Out-Host
         if ($LASTEXITCODE -ne 0) { throw "Provisioning failed (exit $LASTEXITCODE)." }
@@ -191,6 +235,8 @@ switch ($Action) {
             env = if ($settings.env) { $settings.env } else { @{} }
             flow = [string]$settings.flow
             preCommand = [string]$settings.preCommand
+            launchUrl = [string]$settings.launchUrl
+            flowRewrite = if ($settings.flowRewrite) { $settings.flowRewrite } else { @{} }
             screenshot = [bool]$settings.screenshot
             sourceRef = $source
             leaseWaitSeconds = $LeaseWaitSeconds

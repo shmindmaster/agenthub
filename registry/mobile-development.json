@@ -59,11 +59,11 @@
     "lease": "flock on <labRoot>/state/lease.lock, held for a whole run. The local Global mutex still governs the Windows emulator and the macOS guest.",
     "host": {
       "provider": "digitalocean",
-      "name": "sh-build-02",
-      "dropletId": 617893815,
+      "name": "sh-forge",
+      "dropletId": 618320850,
       "shared": true,
       "incrementalDailyCostUsd": 0,
-      "teardown": "2026-11-30",
+      "teardown": "2026-12-01",
       "after": "Re-run the provisioning script on an AWS nested-virtualization instance (C8i, M8i or R8i family, or a .metal size) and repoint the SSH alias. Nothing else changes."
     },
     "apps": [
@@ -84,14 +84,16 @@
             "env": {
               "PREVIEW_MOCK": "1",
               "SENTRY_DISABLE_AUTO_UPLOAD": "true",
-              "EXPO_PUBLIC_API_URL": "http://10.0.2.2:8787/api",
+              "EXPO_PUBLIC_API_URL": "http://10.0.2.2:8788/api",
               "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k"
             },
-            "preCommand": "node preview/server.js",
+            "preCommand": "PORT=8788 node preview/server.js",
             "flow": ".maestro/journeys/06-identity-gate.yaml",
+            "launchUrl": "exp+abacare://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081&disableOnboarding=1&disableFab=1&disableAutoLaunch=1",
+            "flowRewrite": { "http://10.0.2.2:8787": "http://127.0.0.1:8788" },
             "screenshot": true,
-            "verified": false,
-            "note": "Synthetic tenant from preview/server.js on the worker with the mock identity. The publishable key is the repository's documented placeholder for clerk.example.com. Not passing as of 2026-11-10: the debug build installs and Metro is reachable, but the app stops on the Expo development launcher and the journey does not open the bundle."
+            "verified": true,
+            "note": "Synthetic tenant from preview/server.js on the worker with the mock identity. The publishable key is the repository's documented placeholder for clerk.example.com. launchUrl (SH-4390) makes the worker run a copy of the flow that opens the development-client deep link after every launchApp, so the debug build loads the Metro bundle instead of stopping on the Expo launcher; 10.0.2.2 is the emulator's alias for the worker's loopback, where Metro listens on 8081. disableOnboarding=1, disableFab=1 and disableAutoLaunch=1 on the link keep the Expo dev menu out of the journeys: expo-dev-menu's showsAtLaunch preference defaults to true, so after every clearState launch the dev menu opens over the app unless disableAutoLaunch turns it off (it also finishes onboarding); expo-dev-launcher reads the flags from the link on every open. The rig listens on 8788 (PORT in preCommand) because the lab host is shared and 8787 is held by another service; flowRewrite maps the flow's committed 8787 address to the rig's loopback port for the host-side runScript (the rig's __control endpoint), since Maestro scripts run on the worker, not in the emulator; the app itself keeps the 10.0.2.2 build address."
           }
         }
       },

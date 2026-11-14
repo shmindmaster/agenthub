@@ -2,7 +2,7 @@
 # Worker-side command for the remote Android lab. Installed to
 # /usr/local/bin/mobile-lab by provision-android-worker.sh and called over SSH
 # by Invoke-MobileLabRemote.ps1. It holds no app knowledge: every app arrives
-# as a source archive plus a small JSON config on stdin.
+# as a chunked source archive plus a small JSON config on stdin.
 set -euo pipefail
 # shellcheck disable=SC1091
 . /etc/profile.d/mobile-lab.sh
@@ -13,6 +13,8 @@ STATE="$ROOT/state"
 SERIAL="emulator-5554"
 LEASE="$STATE/lease.lock"
 HOLDER="$STATE/lease.holder"
+# The flow-preparation helper is installed beside this command.
+SELF_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 log() { printf '[mobile-lab] %s\n' "$*" >&2; }
 die() { printf '[mobile-lab] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -57,8 +59,35 @@ emulator_stop() {
   log "emulator stopped"
 }
 
-# Metro runs as "node .../expo/bin/cli start --port 8081", so match on the port.
-metro_stop() { pkill -u "$(id -u)" -f 'start --port 8081' 2>/dev/null || true; }
+# Metro runs as "node .../expo/bin/cli start [--dev-client] --port 8081", so
+# match on the start command and the port, whatever flags sit between them.
+# pkill is asynchronous: wait until the listener actually releases the port,
+# or Expo's port check refuses to start the new Metro (measured on sh-forge:
+# the old Metro died, but its socket outlived the next expo start by a beat).
+metro_stop() {
+  local port="${1:-8081}" _
+  pkill -u "$(id -u)" -f "start.*--port $port" 2>/dev/null || true
+  for _ in $(seq 1 15); do
+    (exec 3<>/dev/tcp/127.0.0.1/"$port") 2>/dev/null || break
+    sleep 1
+  done
+}
+
+# A pre-command that dies right after start is a failed precondition (on a
+# shared host its port may already be taken), not a running service: fail the
+# run here instead of letting the flow talk to whatever else holds the port.
+# A one-shot pre-command that exits 0 is fine. wait_seconds is tunable for tests.
+pre_command_gate() {
+  local pid="$1" log="$2" wait_seconds="${3:-3}" pre_exit=0
+  sleep "$wait_seconds"
+  if ! kill -0 "$pid" 2>/dev/null; then
+    wait "$pid" || pre_exit=$?
+    if [ "$pre_exit" -ne 0 ]; then
+      tail -20 "$log" >&2
+      die "pre-command exited with $pre_exit; see pre-command.log"
+    fi
+  fi
+}
 
 status() {
   local booted=false holder="" metro=false
@@ -73,8 +102,32 @@ status() {
         '{host:$host, kvm:$kvm, avd:$avd, emulatorBooted:$booted, metroRunning:$metro, leaseHeldBy:$holder, load:$load, apps:($apps|split(" ")|map(select(length>0)))}'
 }
 
-# receive <app> <appPath>: a tar of the source tree on stdin. Build outputs,
+# receive <app> <appPath>: the source tree as chunk uploads (upload-chunk).
+# Build outputs,
 # dependencies and the generated native project are kept between runs.
+# Windows OpenSSH resets a single large stream mid-transfer on some hosts
+# (measured on sh-forge: a 24 MB pipe and a 16.6 MB scp both died). The driver
+# therefore splits every archive into chunks and sends each over its own
+# connection; receive and receive-extra assemble them before extracting.
+upload_chunk() {
+  local key="$1" index="$2"
+  [[ "$key" =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid chunk key '$key'"
+  [[ "$index" =~ ^[0-9]{3}$ ]] || die "invalid chunk index '$index'"
+  mkdir -p "$ROOT/incoming"
+  cat > "$ROOT/incoming/$key.chunk-$index"
+}
+
+# Concatenate a key's chunks into one tar. Indices are zero-padded to three
+# digits, so the shell glob's lexical order is numeric order.
+assemble_chunks() {
+  local key="$1" dest="$2" c
+  local chunks=("$ROOT/incoming/$key.chunk-"*)
+  [ -e "${chunks[0]}" ] || die "no chunks uploaded for $key; send them first"
+  : > "$dest"
+  for c in "${chunks[@]}"; do cat "$c" >> "$dest"; done
+  rm -f "${chunks[@]}"
+}
+
 receive() {
   local app="$1" app_path="${2:-.}"
   valid_app "$app"
@@ -86,7 +139,9 @@ receive() {
   done
   local incoming="$ROOT/incoming/$app" work="$ROOT/work/$app"
   rm -rf "$incoming" && mkdir -p "$incoming" "$work"
-  tar -xf - -C "$incoming"
+  assemble_chunks "$app" "$ROOT/incoming/$app.tar"
+  tar -xf "$ROOT/incoming/$app.tar" -C "$incoming"
+  rm -f "$ROOT/incoming/$app.tar"
   local prefix=""; [ "$app_path" != "." ] && prefix="/${app_path%/}"
   rsync -a --delete --exclude 'node_modules/' --exclude '.expo/' \
     --exclude "${prefix}/android/" --exclude "${prefix}/ios/" "${keep[@]}" "$incoming/" "$work/"
@@ -101,8 +156,10 @@ receive_extra() {
   local app="$1" stamp="$2"
   valid_app "$app"
   [[ "$stamp" =~ ^[0-9a-f]{16,64}$ ]] || die "invalid stamp"
-  mkdir -p "$ROOT/work/$app"
-  tar -xf - -C "$ROOT/work/$app"
+  mkdir -p "$ROOT/work/$app" "$ROOT/incoming"
+  assemble_chunks "$app-extra" "$ROOT/incoming/$app-extra.tar"
+  tar -xf "$ROOT/incoming/$app-extra.tar" -C "$ROOT/work/$app"
+  rm -f "$ROOT/incoming/$app-extra.tar"
   echo "$stamp" > "$STATE/$app.extra"
   log "extra paths received for $app"
 }
@@ -111,16 +168,21 @@ receive_extra() {
 run() {
   local app="$1"; valid_app "$app"
   local cfg; cfg="$(cat)"
-  local app_path variant package flow install pre screenshot run_id out work
+  local app_path variant package flow install pre launch_url flow_rewrite screenshot run_id out work
   app_path="$(jq -r '.appPath // "."' <<<"$cfg")"
   variant="$(jq -r '.variant // "release"' <<<"$cfg")"
   package="$(jq -r '.androidPackage' <<<"$cfg")"
   flow="$(jq -r '.flow // ""' <<<"$cfg")"
   install="$(jq -r '.install // "npm ci"' <<<"$cfg")"
   pre="$(jq -r '.preCommand // ""' <<<"$cfg")"
+  launch_url="$(jq -r '.launchUrl // ""' <<<"$cfg")"
+  flow_rewrite="$(jq -c '.flowRewrite // {}' <<<"$cfg")"
   screenshot="$(jq -r '.screenshot // false' <<<"$cfg")"
   run_id="$(jq -r '.runId' <<<"$cfg")"
   [[ "$variant" =~ ^(release|debug)$ ]] || die "variant must be release or debug"
+  if [ -n "$launch_url" ] && [ "$variant" != "debug" ]; then
+    die "launchUrl needs the debug variant: only a development client opens a Metro bundle"
+  fi
   [[ "$run_id" =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid run id"
   work="$ROOT/work/$app"
   [ -d "$work/$app_path" ] || die "no source for $app; send it first"
@@ -178,8 +240,8 @@ run() {
     metro_stop
     log "starting Metro on 8081"
     # CI must be unset, not empty: with CI=1 Metro does not watch files, and
-    # Expo rejects an empty value.
-    env -u CI setsid nohup npx expo start --port 8081 > "$STATE/metro-$app.log" 2>&1 < /dev/null 9>&- &
+    # Expo rejects an empty value. --dev-client serves the development build.
+    env -u CI setsid nohup npx expo start --dev-client --port 8081 > "$STATE/metro-$app.log" 2>&1 < /dev/null 9>&- &
     local metro_up=false
     for _ in $(seq 1 60); do
       if curl -fsS -m 2 http://127.0.0.1:8081/status >/dev/null 2>&1; then metro_up=true; break; fi
@@ -187,21 +249,46 @@ run() {
     done
     if [ "$metro_up" != true ]; then tail -15 "$STATE/metro-$app.log" >&2; die "Metro did not start"; fi
     adb -s "$SERIAL" reverse tcp:8081 tcp:8081 >/dev/null
+    # Compile the bundle once so the flow's first wait is not spent on a cold
+    # transform (same reason as ABACare's iOS guest-journeys.sh). The manifest
+    # protocol is Expo's, not the app's.
+    local bundle_url
+    bundle_url="$(curl -fsS -m 10 -H 'expo-platform: android' -H 'accept: application/expo+json,application/json' http://127.0.0.1:8081/ | jq -r '.launchAsset.url // ""')" || bundle_url=""
+    if [ -n "$bundle_url" ]; then
+      log "pre-compiling the Metro bundle"
+      curl -fsS -m 300 -o /dev/null "$bundle_url" || { tail -15 "$STATE/metro-$app.log" >&2; die "Metro did not compile the bundle"; }
+    fi
   fi
 
   if [ -n "$pre" ]; then
     log "pre-command: $pre"
     bash -lc "$pre" > "$out/pre-command.log" 2>&1 9>&- &
     PRE_PID=$!
-    sleep 3
+    pre_command_gate "$PRE_PID" "$out/pre-command.log"
   fi
 
   adb -s "$SERIAL" logcat -c || true
-  local flow_exit=0
+  local flow_exit=0 flow_target="$flow"
+  if [ -n "$launch_url" ]; then
+    # A development client stops on the Expo launcher until a deep link names
+    # the Metro server, and every clearState launch forgets it again. Run a
+    # copy of the flow with the link opened after each launchApp (SH-4390);
+    # the committed flow stays untouched. The copy sits beside the original
+    # because flows reference scripts relative to their own directory.
+    log "preparing flow for the development client"
+    local flow_dir flow_base prepared
+    flow_dir="$(dirname "$flow")"
+    flow_base="$(basename "$flow")"; flow_base="${flow_base%.*}"
+    prepared="$flow_dir/$flow_base.prepared.yaml"
+    node "$SELF_DIR/prepare-flow.mjs" "$flow" "$launch_url" "$prepared" "$flow_rewrite" \
+      || die "could not prepare the flow for the development client"
+    cp "$prepared" "$out/flow-prepared.yaml"
+    flow_target="$prepared"
+  fi
   if [ -n "$flow" ]; then
     log "maestro: $flow"
     maestro test --device "$SERIAL" --format junit --output "$out/maestro-junit.xml" \
-      --debug-output "$out/maestro" --flatten-debug-output "$flow" > "$out/maestro.log" 2>&1 || flow_exit=$?
+      --debug-output "$out/maestro" --flatten-debug-output "$flow_target" > "$out/maestro.log" 2>&1 || flow_exit=$?
     tail -25 "$out/maestro.log" >&2
   else
     adb -s "$SERIAL" shell monkey -p "$package" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
@@ -239,12 +326,14 @@ case "${1:-}" in
       *) die "usage: mobile-lab emulator start|stop" ;;
     esac ;;
   receive) shift; receive "$@" ;;
+  upload-chunk) shift; upload_chunk "$@" ;;
   extra-stamp) extra_stamp "${2:-}" ;;
   receive-extra) shift; receive_extra "$@" ;;
   run) shift; run "$@" ;;
   clean)
     valid_app "${2:-}"
     rm -rf "$ROOT/work/$2" "$ROOT/artifacts/$2" "$STATE/$2.prebuild" "$STATE/$2.extra" "$STATE/metro-$2.log"
+    rm -f "$ROOT/incoming/$2.chunk-"* "$ROOT/incoming/$2.tar" "$ROOT/incoming/$2-extra.chunk-"* "$ROOT/incoming/$2-extra.tar"
     log "removed source, build output and artifacts for $2" ;;
-  *) die "usage: mobile-lab status | emulator start|stop | receive <app> <appPath> | run <app> | clean <app>" ;;
+  *) die "usage: mobile-lab status | emulator start|stop | upload-chunk <key> <index> | receive <app> <appPath> | run <app> | clean <app>" ;;
 esac
