@@ -1,5 +1,7 @@
 # Cline peer orchestration
 
+> **2026-11-13:** RepoWise is retired (SH-4670). Every RepoWise step, check, fix or handoff in this plan is dropped and must not be carried out.
+
 Started 2026-10-26 by the Claude "Cline Planner / Orchestrator" session, on the
 owner's request to make Cline a first-class execution peer and delegate 3-4
 substantial tasks to it. This file is the Cline task registry, routing policy

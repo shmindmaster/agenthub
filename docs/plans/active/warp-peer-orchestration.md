@@ -1,5 +1,7 @@
 # Warp peer orchestration
 
+> **2026-11-13:** RepoWise is retired (SH-4670). Every RepoWise step, check, fix or handoff in this plan is dropped and must not be carried out.
+
 ## Owner direction
 
 2026-10-26: enable Warp dispatch local-only (no cloud), run one smoke test on an
