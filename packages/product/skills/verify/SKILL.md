@@ -52,4 +52,5 @@ Save to `_product-experience/05-verify.md` only when asked. Then run `node ../..
 
 Next: `build` on Fail, `demo` when a Pass is headed for a recording.
 
+Read when a change makes product or architecture claims: [portfolio standard](../../references/portfolio-standard.md). Prove each claim against the implementation; never report demo fixtures as production behaviour.
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

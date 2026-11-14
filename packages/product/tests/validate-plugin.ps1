@@ -7,7 +7,7 @@ $cursorManifestPath = Join-Path $pluginRoot '.cursor-plugin\plugin.json'
 $portableManifestPath = Join-Path $pluginRoot 'plugin.json'
 $expectedAgents = @('reviewer.agent.md')
 $expectedSkills = @('audit', 'design', 'build', 'verify', 'demo')
-$expectedReferences = @('agentic.md', 'authenticated-acceptance.md', 'demo-handoff.md', 'surfaces.md')
+$expectedReferences = @('agentic.md', 'authenticated-acceptance.md', 'demo-handoff.md', 'portfolio-standard.md', 'surfaces.md')
 $maxSkillWords = 500
 $maxSkillBytes = 5120
 $maxDescriptionLength = 300
@@ -153,7 +153,7 @@ $demoText = Read-WorkflowText (Join-Path $pluginRoot 'skills\demo\SKILL.md')
 Assert-True ($demoText -match 'product-fix-required' -and $demoText -match 'capture-fixable') 'Demo must keep the product-fix and capture-fix split.'
 
 $actualReferences = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot 'references') -File | Select-Object -ExpandProperty Name | Sort-Object)
-Assert-True (($actualReferences -join '|') -eq (($expectedReferences | Sort-Object) -join '|')) 'Reference set does not match the expected four files.'
+Assert-True (($actualReferences -join '|') -eq (($expectedReferences | Sort-Object) -join '|')) 'Reference set does not match the expected five files.'
 foreach ($reference in $expectedReferences) {
     Assert-True ($linkedReferences.Contains($reference)) "No skill loads this reference: $reference"
     $referenceLines = @(Get-Content -LiteralPath (Join-Path $pluginRoot "references\$reference") -Encoding UTF8)

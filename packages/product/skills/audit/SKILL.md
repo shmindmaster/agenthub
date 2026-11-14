@@ -51,4 +51,5 @@ Save to `_product-experience/01-audit.md` only when the user asks for a file. Th
 
 Next: `design`, for the finding you pick.
 
+Read when the audit covers architecture, persistence, email, mobile scope or product claims: [portfolio standard](../../references/portfolio-standard.md). Label findings intended, implemented or demo fixture.
 Read when applying the detailed evidence labels, severity. [Workflow detail](references/workflow-detail.md)
