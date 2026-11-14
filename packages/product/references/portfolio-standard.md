@@ -6,7 +6,7 @@ Owner direction, 13 November 2026. Applies to every current and future product i
 
 Every product is a complete application meant for real customers, real workflows and persistent customer data. Synthetic data and demo environments are capabilities inside the product, not what the product is.
 
-- Remove wording, docs and assumptions that call a product synthetic-only, demo-only, a prototype, a mock or a temporary showcase.
+- Remove wording, docs and assumptions that wrongly call a product synthetic-only, demo-only, a prototype, a mock or a temporary showcase. Where such a description is still true for a product or feature, keep it until the work is actually done.
 - Never present unfinished, simulated or unvalidated features as working production functionality. Record three things separately: the intended architecture, what is actually implemented, and demo fixtures. Keep truthful disclosures where they matter.
 - A feature shown with synthetic data does not make the product a prototype.
 
@@ -43,7 +43,7 @@ Marketing sites, landing pages and public information pages are pre-rendered sta
 
 Every applicable product sends reliable transactional email: invitations, authentication messages, notifications and operational mail.
 
-- **Choose the provider by compliance need.** Resend is the default for ordinary transactional email where it is already established. Email that carries protected health information, or other regulated data, must use a provider that signs the required agreement (for PHI, a HIPAA Business Associate Agreement). Resend does not offer a BAA, so a healthcare product that emails patient information to parents or guardians uses a BAA-covered provider. Keep each product on the provider its compliance needs; do not standardise one provider across products that have different obligations.
+- **Choose the provider by compliance need.** Resend is the default for ordinary transactional email, including for new products choosing a provider. Email that carries protected health information, or other regulated data, must use a provider that signs the required agreement (for PHI, a HIPAA Business Associate Agreement). Resend does not offer a BAA, so a healthcare product that emails patient information to parents or guardians uses a BAA-covered provider. Keep each product on the provider its compliance needs; do not standardise one provider across products that have different obligations.
 - **Resend domain capacity** (for products that use Resend): inventory the registered domains and the account's domain allowance; map each domain to its product; check verification, DNS and sending use; find unused, obsolete or duplicate domains; consolidate sender identities on verified domains and subdomains where supported. Never delete or reconfigure an active sending domain without checking its dependencies and getting the owner's approval.
 - Use a consistent sender-domain naming scheme so each product gets a sender identity without unnecessary domain registrations.
 - Keep API keys in secret stores; configure SPF, DKIM and DMARC; monitor delivery; handle bounces and complaints.
