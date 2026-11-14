@@ -9,7 +9,7 @@
 //
 // opts: --provider anthropic|azure-openai|gemini|openai (default: anthropic only; name another provider explicitly to use it)
 //       --model <id>   --client (client material: never Anthropic; defaults to Azure OpenAI in the owner tenant)
-// Keys come from ANTHROPIC_API_KEY / OPENAI_API_KEY (process env, then the Windows user environment). Never printed.
+// Keys come from ANTHROPIC_API_KEY / OPENAI_API_KEY (the Windows user environment, then process env). Never printed.
 // Output: one JSON report (score 0-100, pass, findings, summary, provider, model, usage). Exit 0 = report written and pass.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,7 +19,6 @@ import { fileURLToPath } from 'node:url';
 import { CLOUD_ALIGN_LIMITS, CLOUD_ALIGN_SCHEMA, cloudAlignCoverage } from '../screencast/sync-lib.mjs';
 
 const ANTHROPIC_MODEL = 'claude-opus-5-5';
-const OPENAI_PREFERRED = /^gpt-(\d+)(?:\.(\d+))?$/;
 
 export function parseArgs(argv) {
   const sub = argv[0];
@@ -59,11 +58,11 @@ export function extractJson(text) {
 }
 
 function userEnv(name) {
-  if (process.env[name]) return process.env[name];
-  if (process.platform !== 'win32') return null;
+  // The Windows user environment wins: a long-running shell keeps a stale copy after the owner rotates a key.
+  if (process.platform !== 'win32' || process.env.NODE_TEST_CONTEXT) return process.env[name] || null;
   const r = spawnSync('reg', ['query', 'HKCU\\Environment', '/v', name], { encoding: 'utf8', windowsHide: true });
   const m = r.status === 0 && r.stdout.match(new RegExp(`${name}\\s+REG_(?:EXPAND_)?SZ\\s+(.+)`));
-  return m ? m[1].trim() : null;
+  return m ? m[1].trim() : (process.env[name] || null);
 }
 const textOrFile = (v) => (v && fs.existsSync(v) ? fs.readFileSync(v, 'utf8') : v);
 
@@ -101,18 +100,9 @@ async function callAnthropic({ system, text, images, model }) {
 }
 
 let openaiModel = null;
-async function pickOpenAiModel(key) {
-  if (openaiModel) return openaiModel;
-  const res = await fetch('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${key}` } });
-  if (!res.ok) throw new Error(`OpenAI models: HTTP ${res.status}`);
-  const ids = (await res.json()).data.map((m) => m.id).filter((id) => OPENAI_PREFERRED.test(id));
-  ids.sort((a, b) => {
-    const [, a1, a2 = 0] = a.match(OPENAI_PREFERRED);
-    const [, b1, b2 = 0] = b.match(OPENAI_PREFERRED);
-    return b1 - a1 || b2 - a2;
-  });
-  if (!ids.length) throw new Error('no gpt-N model available to this OpenAI key');
-  return (openaiModel = ids[0]);
+// Review and QA on the direct OpenAI key use the current editorial model (strong at frames and writing); pass --model to override.
+async function pickOpenAiModel() {
+  return (openaiModel ||= 'gpt-6.1-terra');
 }
 
 async function callOpenAi({ system, text, images, model }) {

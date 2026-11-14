@@ -1,6 +1,7 @@
 // OpenAI REST client for mvg: images, speech, word timing and vision QA (Responses API with a JSON schema), on current models.
 // There is no OpenAI video call here. Requests carry only approved ad text and sampled frames.
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { basename } from 'node:path';
 
 const BASE = 'https://api.openai.com/v1';
@@ -9,8 +10,17 @@ export class OpenAiError extends Error {
   constructor(message, status) { super(message); this.name = 'OpenAiError'; this.status = status; }
 }
 
+/** The Windows user environment wins over the process copy, which goes stale in long-running shells after a key rotation. */
+function userEnv(name) {
+  if (process.platform === 'win32' && !process.env.NODE_TEST_CONTEXT) {
+    const r = spawnSync('reg', ['query', 'HKCU\\Environment', '/v', name], { encoding: 'utf8', windowsHide: true });
+    const m = r.status === 0 && r.stdout.match(new RegExp(`${name}\\s+REG_(?:EXPAND_)?SZ\\s+(.+)`));
+    if (m) return m[1].trim();
+  }
+  return process.env[name] || null;
+}
 function apiKey() {
-  const key = process.env.OPENAI_API_KEY;
+  const key = userEnv('OPENAI_API_KEY');
   if (!key) throw new OpenAiError('OPENAI_API_KEY is not set');
   return key;
 }
