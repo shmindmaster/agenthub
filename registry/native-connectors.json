@@ -1122,8 +1122,8 @@
           "compute.daytona-sandboxes"
         ],
         "required": false,
-        "note": "Every host carries Daytona. Claude, Factory and Devin install the vendor plugin from their own catalog, and Grok imports Claude's copy. Other hosts use ah-daytona, built from this upstream at the commit in packages/daytona/NOTICE. Runnable examples are indexed from daytona/guides, not copied.",
-        "observedAt": "2026-11-04",
+        "note": "Every retained host carries Daytona from the vendor. Claude, Factory and Devin install it from their catalog, Grok imports Claude's copy, Codex installs daytona@daytona from the vendor marketplace (github.com/daytona/skills), and Antigravity installs it from the same git repository. AgentHub no longer ships ah-daytona (SH-4636, 2026-11-13).",
+        "observedAt": "2026-11-13",
         "hostChannels": [
           {
             "hostId": "claude",
@@ -1155,11 +1155,17 @@
           },
           {
             "hostId": "codex",
-            "channel": "ah-plugin",
-            "plugin": "ah-daytona@agenthub",
+            "channel": "native-plugin",
+            "plugin": "daytona@daytona",
             "current": true,
-            "updateCommand": "codex plugin add ah-daytona@agenthub",
-            "note": "Replaces the 2026-10-29 loose skill in ~/.agents/skills, which was checked absent on 2026-11-04."
+            "updateCommand": "codex plugin marketplace upgrade daytona"
+          },
+          {
+            "hostId": "antigravity",
+            "channel": "native-plugin",
+            "plugin": "daytona",
+            "current": true,
+            "updateCommand": "agy plugin install https://github.com/daytona/skills.git"
           }
         ]
       },

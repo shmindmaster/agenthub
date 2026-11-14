@@ -30,8 +30,8 @@ The skill name is one of four surfaces. Keep them derived from one identity rath
 | Surface | Rule | Example |
 | --- | --- | --- |
 | Capability id | short lowercase word or hyphen phrase | `context7` |
-| Package directory | equals the capability id | `packages/context7` |
-| Plugin name / display | `ah-<id>` / `AH-<Title>` | `ah-context7` / `AH-Context7` |
+| Package directory | equals the capability id | `packages/browser` |
+| Plugin name / display | `ah-<id>` / `AH-<Title>` | `ah-browser` / `AH-Browser` |
 | Skill `name` | equals its directory; one or two words; verb or gerund first; does not repeat the plugin name | `lookup` |
 | MCP server id / display | `id` equals the capability id; display `AH-<Title>` | `context7` / `AH-Context7` |
 
