@@ -55,6 +55,13 @@
     "Definition of done",
     "## Safety"
   ],
+  "openwikiException": {
+    "decided": "2026-11-13",
+    "issue": "SH-4669",
+    "allowedPaths": ["openwiki/"],
+    "allowedManagedBlocks": ["AGENTS.md", "CLAUDE.md"],
+    "note": "Upstream OpenWiki output and its scoped managed discovery blocks are permitted. This is not a general relaxation: no other generated tree is allowed, the wiki never replaces AGENTS.md or docs/, and it is written only by an explicit host-driven update."
+  },
   "claudeMaxAuthoredLines": 80,
   "repos": {
     "abacare": {
@@ -65,7 +72,7 @@
         "paths": ["docs/product", "docs/architecture", "docs/development", "docs/runbooks", "docs/plans", "docs/README.md", "docs/current-state.md", "docs/plans/PLANS.md"]
       }
     },
-    "agenthub":       { "tracker": "none", "trackerNote": "Fleet policy repo; work tracked by drift/validation, no external backlog" },
+    "agenthub":       { "tracker": "linear", "trackerNote": "Linear SH- IDs; epic SH-4409 (AgentHub - Portfolio Engineering & Knowledge). Drift detection and validation stay the correctness authority." },
     "coledger":       { "tracker": "linear", "trackerNote": "Linear" },
     "crewscore": {
       "tracker": "none",

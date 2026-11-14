@@ -96,10 +96,22 @@ contract (Mission + Knowledge authority + Definition of done) is drift.
 - The knowledge-standard checker still applies only to rostered
   shmindmaster repos; client trees are indexed, not standardized.
 
+## OpenWiki exception (2026-11-13, SH-4669)
+
+RepoWise is retired (SH-4409); the checks and text in the RepoWise section above
+stay only until SH-4670 removes them and are not a retention requirement. Local,
+host-driven OpenWiki replaces it (SH-4410). The standard permits one named
+exception, recorded as `openwikiException` in `registry/repo-standard.json`:
+an upstream `openwiki/` directory (with `openwiki/INSTRUCTIONS.md`) and a
+scoped managed discovery block in `AGENTS.md` or `CLAUDE.md`. It is not a
+general relaxation. The wiki never replaces `AGENTS.md` or `docs/`, carries no
+credentials or private records, is written only by an explicit host-driven
+update, and a missing or stale wiki falls back to source and never blocks work.
+The existing flat-doc `docsExemptions` are unchanged.
 ## Tracker authority
 
 Each repo names one: `linear` (SH- IDs), `github-issues` (OSS repos), or
-`none` (small sites/tools; `docs/plans/` covers complex work). No repo-local
+`none` (small sites/tools; `docs/plans/` covers complex work). AgentHub itself is `linear` (epic SH-4409) since 2026-11-13. No repo-local
 competing backlogs; plans reference tracker IDs, never duplicate status.
 
 ## Fleet exceptions and deferred items (2026-08-30)

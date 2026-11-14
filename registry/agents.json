@@ -4,6 +4,7 @@
   "activeAgents": [
     {
       "id": "claude",
+      "fleetRole": "retained",
       "name": "Claude Code",
       "version": "2.1.321",
       "executable": "{userHome}/.local/bin/claude.exe",
@@ -76,6 +77,7 @@
     },
     {
       "id": "codex",
+      "fleetRole": "retained",
       "name": "OpenAI Codex",
       "version": "0.167.0",
       "executable": "{userHome}/bin/codex.cmd",
@@ -106,6 +108,7 @@
     },
     {
       "id": "opencode",
+      "fleetRole": "retained",
       "name": "OpenCode",
       "version": "2.2.6",
       "versionObserved": "2026-10-23: bare opencode and the registered wrapper both returned opencode v2.1.4. The wrapper selects the newest installed Desktop-bundled 2.x x64 CLI numerically.",
@@ -139,6 +142,8 @@
     },
     {
       "id": "opencode-desktop",
+      "fleetRole": "companion",
+      "fleetOwner": "opencode",
       "name": "OpenCode Desktop",
       "version": "2.2.6",
       "executable": "{userHome}/AppData/Local/Programs/ai.opencode.desktop/OpenCode.exe",
@@ -162,6 +167,7 @@
     },
     {
       "id": "copilot",
+      "fleetRole": "pending-retirement",
       "name": "GitHub Copilot CLI",
       "version": "1.0.108",
       "executable": "{userHome}/bin/copilot.cmd",
@@ -191,6 +197,7 @@
     },
     {
       "id": "antigravity",
+      "fleetRole": "pending-retirement",
       "name": "Google Antigravity",
       "version": "1.5.5",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
@@ -231,6 +238,7 @@
     },
     {
       "id": "antigravity-desktop",
+      "fleetRole": "pending-retirement",
       "name": "Antigravity Desktop",
       "version": "2.29.0",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
@@ -256,6 +264,7 @@
     },
     {
       "id": "antigravity-ide",
+      "fleetRole": "pending-retirement",
       "name": "Antigravity IDE",
       "version": "unknown",
       "executable": "{userHome}/AppData/Local/Programs/Antigravity IDE/Antigravity IDE.exe",
@@ -284,6 +293,7 @@
     },
     {
       "id": "grok",
+      "fleetRole": "pending-retirement",
       "name": "Grok CLI",
       "version": "1.0.77",
       "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run.",
@@ -320,6 +330,7 @@
     },
     {
       "id": "warp",
+      "fleetRole": "terminal-preserved",
       "name": "Warp / Oz",
       "version": "0.2026.11.04.08.17.stable_01",
       "executable": "{userHome}/AppData/Local/Programs/Warp/warp.exe",
@@ -372,6 +383,7 @@
     },
     {
       "id": "cline",
+      "fleetRole": "pending-retirement",
       "name": "Cline CLI / ACP / Kanban",
       "version": "3.0.74",
       "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `cline.cmd --version` printed 3.0.73. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported 3.0.71. `cline update` reported already on cline 3.0.71 and kanban 0.1.70. No upgrade or downgrade was performed by this inventory correction.",
@@ -413,6 +425,7 @@
     },
     {
       "id": "cursor",
+      "fleetRole": "pending-retirement",
       "name": "Cursor",
       "version": "3.29.9",
       "executable": "{userHome}/bin/cursor.cmd",
@@ -447,6 +460,7 @@
     },
     {
       "id": "cursor-agent",
+      "fleetRole": "pending-retirement",
       "name": "Cursor Agent CLI",
       "version": "2026.11.05-86047df",
       "executable": "{userHome}/bin/cursor-agent.cmd",
@@ -491,6 +505,7 @@
     },
     {
       "id": "amp",
+      "fleetRole": "pending-retirement",
       "name": "Sourcegraph Amp",
       "version": "0.0.1794240032-ga42e06",
       "versionObserved": "2026-10-14: verified installed launcher/file version 0.0.1792022479-ge66e24. Manual forward update and launcher reconciliation; active sessions preserved.",
@@ -524,6 +539,7 @@
     },
     {
       "id": "devin",
+      "fleetRole": "pending-retirement",
       "name": "Devin Desktop / CLI",
       "version": "3000.12.32",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
@@ -574,6 +590,7 @@
     },
     {
       "id": "factory",
+      "fleetRole": "retained",
       "name": "Factory Droid",
       "version": "1.7.1",
       "versionNote": "Corrected 2026-10-14. The 2026-08-19 observation of 0.195.0 from app-0.152.0 is historical. The live binary is %USERPROFILE%\\bin\\droid.exe and `droid --version` returned 0.241.1. `droid update` reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
@@ -612,6 +629,7 @@
     },
     {
       "id": "vscode-insiders",
+      "fleetRole": "editor",
       "name": "VS Code Insiders",
       "version": "1.147.0-insider",
       "executable": "{userHome}/AppData/Local/Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd",
@@ -643,6 +661,7 @@
     },
     {
       "id": "kilo",
+      "fleetRole": "retained",
       "name": "Kilo CLI",
       "version": "7.8.27",
       "versionObserved": "2026-11-09: read-only `kilo --version` printed 7.8.27 (npm global shim). `kilo run` default-model smoke 2026-11-10 returned READY (agent code, model mimo-v2.6-pro); the governed dispatch command returned READY under agent peer the same day.",
@@ -671,6 +690,7 @@
     },
     {
       "id": "mimo-code",
+      "fleetRole": "pending-retirement",
       "name": "MiMo Code CLI",
       "version": "0.1.16",
       "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. `mimo run` default-model smoke 2026-11-10 returned READY (agent build, model mimo-v2.6-pro); the governed dispatch command returned READY under agent peer the same day.",
@@ -699,6 +719,7 @@
     },
     {
       "id": "kiro",
+      "fleetRole": "retained",
       "name": "Kiro IDE and Kiro CLI",
       "version": "3.2.0",
       "versionObserved": "2026-11-11: `kiro-cli --version` printed 3.2.0. Fresh V3 sessions without --trust-all-tools executed shell, read and write tools, invoked ah-project-reviewer, and read a Linear issue under the user allow rule. ACP V3 initialize and recipe discovery succeeded. IDE UI was not exercised.",
@@ -728,6 +749,7 @@
     },
     {
       "id": "qwen",
+      "fleetRole": "pending-retirement",
       "name": "Qwen Code",
       "version": "0.27.1",
       "versionObserved": "2026-11-11: `qwen --version` printed 0.27.1 (npm global shim). `qwen --help` the same day documented the OpenAI-compatible auth path (--auth-type openai, OPENAI_* variables, --openai-api-key/--openai-base-url), --approval-mode plan|yolo and the positional one-shot prompt the dispatch route uses.",
@@ -751,6 +773,7 @@
   "inactiveAgents": [
     {
       "id": "windsurf",
+      "fleetRole": "retired",
       "name": "Windsurf / Cascade",
       "version": "unknown",
       "executable": null,
@@ -792,6 +815,7 @@
     },
     {
       "id": "mimo-desktop",
+      "fleetRole": "retired",
       "name": "Xiaomi MiMo Desktop",
       "version": "26.1106",
       "versionProbe": "none",
@@ -814,6 +838,7 @@
     },
     {
       "id": "kirocrew",
+      "fleetRole": "retired",
       "name": "KiroCrew",
       "version": "0.12.0",
       "versionProbe": "none",
@@ -839,6 +864,7 @@
     },
     {
       "id": "coderabbit",
+      "fleetRole": "retired",
       "name": "CodeRabbit CLI",
       "version": "0.9.2",
       "versionObserved": "2026-11-09: read-only `coderabbit --version` printed 0.9.2. `doctor` passed 9 of 9 and the account is signed in. `usage` was unavailable. No agent run.",

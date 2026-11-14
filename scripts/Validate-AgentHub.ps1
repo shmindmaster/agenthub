@@ -10,6 +10,7 @@ $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
 $errors = [Collections.Generic.List[string]]::new()
 . (Join-Path $root 'scripts\RegistryContentHash.ps1')
 . (Join-Path $root 'scripts\lib\CapabilityGraph.ps1')
+. (Join-Path $root 'scripts\lib\FleetRoles.ps1')
 
 function Fail([string]$Message) { $script:errors.Add($Message) }
 function Read-Json([string]$Path) {
@@ -402,6 +403,7 @@ if (-not $isPublicCore) {
 # explicitly exempted with a reason.
 $fleetProfile = Read-Json (Join-Path $root 'registry\fleet-profile.json')
 $registeredHostIds = @(@($agents.activeAgents | ForEach-Object id) + @($agents.inactiveAgents | ForEach-Object id))
+foreach ($fleetRoleError in @(Test-AgentFleetRoles -Agents $agents)) { Fail $fleetRoleError }
 $knownDefaultProfiles = @($fleetProfile.autonomyProfiles.knownDefaultProfiles)
 if ($knownDefaultProfiles.Count -eq 0) { Fail 'autonomyProfiles.knownDefaultProfiles is missing or empty' }
 $autonomyProfiles = @($fleetProfile.autonomyProfiles.profiles)
