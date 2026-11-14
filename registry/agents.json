@@ -592,7 +592,8 @@
       "id": "factory",
       "fleetRole": "retained",
       "name": "Factory Droid",
-      "version": "1.7.1",
+      "version": "1.10.0",
+      "versionObserved": "Observed 2026-11-13 (SH-4669, read-only): `%USERPROFILE%\\bin\\droid.exe --version` printed 1.10.0. A second, older droid 1.4.1 (npm under mise node 24.20.0) precedes it on PATH, so a bare `droid` runs 1.4.1. Duplicate install left in place; SH-4676 and SH-4677 decide which owner to keep.",
       "versionNote": "Corrected 2026-10-14. The 2026-08-19 observation of 0.195.0 from app-0.152.0 is historical. The live binary is %USERPROFILE%\\bin\\droid.exe and `droid --version` returned 0.241.1. `droid update` reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/bin/droid.exe",
       "executableNote": "Corrected 2026-10-14. The versioned Factory\\app-0.152.0\\resources\\bin\\droid.exe path is absent. The installed CLI is %USERPROFILE%\\bin\\droid.exe. `droid --version` returned 0.241.1.",
@@ -721,7 +722,7 @@
       "id": "kiro",
       "fleetRole": "retained",
       "name": "Kiro IDE and Kiro CLI",
-      "version": "3.2.0",
+      "version": "3.2.1",
       "versionObserved": "2026-11-11: `kiro-cli --version` printed 3.2.0. Fresh V3 sessions without --trust-all-tools executed shell, read and write tools, invoked ah-project-reviewer, and read a Linear issue under the user allow rule. ACP V3 initialize and recipe discovery succeeded. IDE UI was not exercised.",
       "executable": "{userHome}/AppData/Local/Kiro-Cli/kiro-cli.exe",
       "nativePaths": {
