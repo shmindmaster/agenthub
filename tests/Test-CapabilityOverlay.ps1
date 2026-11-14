@@ -48,8 +48,8 @@ function Test-OverlayOnIncludesPrivate {
         if ($ids -notcontains 'sarosh') {
             return @{ Passed = $false; Detail = 'overlay on dropped sarosh' }
         }
-        if ($ids -notcontains 'repowise') {
-            return @{ Passed = $false; Detail = 'overlay on dropped public capability repowise' }
+        if ($ids -notcontains 'product') {
+            return @{ Passed = $false; Detail = 'overlay on dropped public capability product' }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
@@ -72,8 +72,8 @@ function Test-OverlayOffDropsPrivate {
         if ($leaked.Count -gt 0) {
             return @{ Passed = $false; Detail = "public graph still contains: $($leaked -join ', ')" }
         }
-        if ($ids -notcontains 'repowise') {
-            return @{ Passed = $false; Detail = 'public graph dropped repowise' }
+        if ($ids -notcontains 'product') {
+            return @{ Passed = $false; Detail = 'public graph dropped product' }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {

@@ -1,3 +1,0 @@
-# These scripts run on the Linux index host; keep LF endings regardless of
-# the checkout platform so copied files never carry CRLF.
-*.sh text eol=lf

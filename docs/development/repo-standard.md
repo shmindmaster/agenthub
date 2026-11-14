@@ -12,9 +12,9 @@ Supersedes every per-repo legacy instruction layout (2026-08-08).
 ```text
 README.md     human orientation and quick start
 AGENTS.md     the ONLY human-authored agent contract
-CLAUDE.md     adapter: @AGENTS.md + @.claude/CLAUDE.md (RepoWise-managed block)
+CLAUDE.md     adapter: @AGENTS.md + @.claude/CLAUDE.md (gitignored local adapter)
 docs/         curated durable knowledge (this taxonomy)
-RepoWise      derived intelligence (ONE workspace at C:\Repos)
+openwiki/     optional derived notes (openwikiException; never authoritative)
 tests/CI      executable enforcement
 tracker       the one backlog authority named in AGENTS.md
 ```
@@ -22,13 +22,12 @@ tracker       the one backlog authority named in AGENTS.md
 ## Root files
 
 - `AGENTS.md` sections (checked anchors): `## Mission`,
-  `Knowledge authority`, `Start here`, `RepoWise` workflow,
+  `Knowledge authority`, `Start here`,
   `Canonical commands`, `## Tracker`, `Definition of done`, `## Safety`.
   Ceiling: 400 lines — a contract and router, not an encyclopedia.
 - `CLAUDE.md` contains `@AGENTS.md` and `@.claude/CLAUDE.md` imports and at
-  most 8 authored content lines. RepoWise regenerates its managed section
-  (`.claude/CLAUDE.md`) on update; never hand-edit below the
-  `REPOWISE:START` marker.
+  most 8 authored content lines. `.claude/CLAUDE.md` is a gitignored local
+  adapter.
 - Forbidden anywhere in a repo: `GEMINI.md`, `.cursorrules`, `.windsurfrules`,
   `.github/copilot-instructions.md`, `docs/ai/REPO_AGENT_RULES.md`,
   `NEXT_SESSION.md`, `STATUS.md`, `output.txt`, `lint_output.txt`.
@@ -65,42 +64,19 @@ Only where commands, invariants, or validation genuinely differ. Must state
 the root `AGENTS.md` applies and carry local deltas only; restating the root
 contract (Mission + Knowledge authority + Definition of done) is drift.
 
-## RepoWise
+## Code knowledge
 
-- One workspace at `C:\Repos` (`.repowise-workspace.yaml`) covers git repos
-  under `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah`.
-  Rostered shmindmaster membership is checked against that file (path leaf
-  or alias).
-- Every rostered member repo gitignores `.repowise/`. It must also ignore either the exact generated adapter
-  `.claude/CLAUDE.md` or the entire `.claude/` directory when that repository
-  deliberately treats all Claude-local state as generated and untracked.
-- Index freshness: `.repowise/state.json` `last_sync_commit` == `HEAD`.
-  The only fleet refresh path is the bounded manual entry point
-  `packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1` (index-only, under
-  an admission lease and a Windows Job Object). The standard does not require
-  or recommend a post-commit hook, `repowise hook install` or a bare
-  `repowise update`. `repowise-bounded-refresh` checks that the entry point
-  exists in the agenthub checkout the checker reads and that the skill named in
-  `registry/repo-standard.json` (`repowiseRefresh.documentedIn`) documents it;
-  a registry that declares no entry point fails closed. Indexes themselves
-  live in each repo's `.repowise/` directory.
-- One MCP registration: `repowise-workspace` in `registry/mcps.json`
-  (`repowise mcp C:/Repos`). A repo-local `.mcp.json` mentioning repowise
-  is drift. Tool-managed `.vscode/mcp.json` / `.cursor/mcp.json` may exist
-  but must invoke `repowise mcp C:/Repos`, never the member checkout.
-  `Check-RepoStandard.ps1` fails a member path (measured 2026-09-10 when
-  a bare `repowise update` from inside the repo wrote
-  `C:/Repos/shmindmaster/agenthub`).
-- Excluded from the workspace: `.demo-workspace` (media-studio
-  capture output; not a git repo — do not delete).
-- The knowledge-standard checker still applies only to rostered
-  shmindmaster repos; client trees are indexed, not standardized.
+- RepoWise is retired (2026-11-13, SH-4670). The standard requires no index,
+  workspace membership, freshness or MCP registration. Leftover RepoWise files
+  are not checked.
+- Every rostered repo gitignores either the exact generated adapter
+  `.claude/CLAUDE.md` or the entire `.claude/` directory.
+- Excluded from the standard: `.demo-workspace` (media-studio capture output;
+  not a git repo; do not delete).
 
 ## OpenWiki exception (2026-11-13, SH-4669)
 
-RepoWise is retired (SH-4409); the checks and text in the RepoWise section above
-stay only until SH-4670 removes them and are not a retention requirement. Local,
-host-driven OpenWiki replaces it (SH-4410). The standard permits one named
+Local, host-driven OpenWiki replaces RepoWise (SH-4410). The standard permits one named
 exception, recorded as `openwikiException` in `registry/repo-standard.json`:
 an upstream `openwiki/` directory (with `openwiki/INSTRUCTIONS.md`) and a
 scoped managed discovery block in `AGENTS.md` or `CLAUDE.md`. It is not a
@@ -108,6 +84,7 @@ general relaxation. The wiki never replaces `AGENTS.md` or `docs/`, carries no
 credentials or private records, is written only by an explicit host-driven
 update, and a missing or stale wiki falls back to source and never blocks work.
 The existing flat-doc `docsExemptions` are unchanged.
+
 ## Tracker authority
 
 Each repo names one: `linear` (SH- IDs), `github-issues` (OSS repos), or
@@ -126,13 +103,12 @@ reasoned, and machine-visible; they are not failures.
 | crewscore | Intentional flat OSS documentation layout | AgentHub registry | Explicit, reasoned `docsExemptions`; code examples are not treated as links. |
 | lexalign | Generated `apps\web\AGENTS.md` | AgentHub registry | Exact `agentsExemptions` entry; Next.js recreates the file and identifies its generator in the file. |
 
-Three failures remain in two repositories with active unrelated work. They
+One failure remains in a repository with active unrelated work. They
 stay visible rather than being force-cleared or hidden by a broad exception.
 
 | Repo | Failure | Owner | Evidence / remediation |
 | --- | --- | --- | --- |
-| abacare | `repowise-freshness: index not at HEAD` | abacare | Legacy RepoWise check; do not refresh. SH-4670 removes the check. |
-| lienwise | `.gitignore` omits `.claude/CLAUDE.md`; RepoWise index is stale (legacy, do not refresh) | lienwise | Resolve the `.gitignore` item with the repository owner because `.claude/CLAUDE.md` is tracked and currently modified. |
+| lienwise | `.gitignore` omits `.claude/CLAUDE.md` | lienwise | Resolve the `.gitignore` item with the repository owner because `.claude/CLAUDE.md` is tracked and currently modified. |
 
 ## Checker usage
 

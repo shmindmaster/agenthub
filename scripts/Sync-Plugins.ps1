@@ -111,18 +111,6 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
     $name = $Row.plugin
     $market = $Row.marketplace
     $source = $Row.source
-    if ($Row.route -eq 'vendor') {
-        $nativeHost = Get-RowNativeHost $Row
-        if ($nativeHost -eq 'claude') {
-            $reg = Read-Document (Join-Path $UserProfile '.claude/plugins/installed_plugins.json')
-            $entry = @($reg.plugins.'repowise@repowise') | Select-Object -Last 1
-            if ($entry.version) { return New-Observation $entry.version $entry.installPath 'vendor-managed' }
-        } elseif ($nativeHost -eq 'codex') {
-            $entry = Get-VersionedObservation (Join-Path $UserProfile '.codex/plugins/cache/repowise/codex') '.codex-plugin/plugin.json'
-            if ($entry.version) { $entry.status = 'vendor-managed'; return $entry }
-        }
-        return New-Observation '' '' 'blocked' 'Verify the approved vendor plugin with its own installer.'
-    }
     if ($Row.route -eq 'runtime') {
         $local = Get-AgentHubIsolatedLocalData -TargetUserProfile $UserProfile -InvokingUserProfile $liveProfile -LocalAppData (Get-AgentHubDefaultLocalData) -AlwaysIsolateOnOverride -Platform (Get-AgentHubRequestedPlatform -RepositoryRoot $root)
         $base = Join-Path $local 'AgentHub'
@@ -298,9 +286,7 @@ function Get-RowNativeHost($Row) {
 # These compatibility routes are documented exceptions to a registry's generic
 # loose-skill or native mapping. They must never trigger a second install.
 $blockedRoutes = @{
-    'warp/repowise'='The Warp skill needs a local bridge this host cannot use.'
     'warp/linkedin'='The Warp skill needs a local bridge this host cannot use.'
-    'opencode/repowise'='This skill needs a local bridge not carried by the OpenCode link installer.'
     'opencode/linkedin'='This skill needs a local bridge not carried by the OpenCode link installer.'
     'opencode/aws'='The OpenCode link installer excludes this local proxy.'
     'cline/aws'='Cline requires the approved native MCP settings for this proxy.'
@@ -348,14 +334,13 @@ function Get-MappingMarketplace([bool]$Private, [string]$OwnerHost) {
 }
 
 function Get-MappingRoute($Cap, [string]$OwnerHost, [string]$DeploymentStatus) {
-    if ($Cap.id -eq 'repowise' -and $OwnerHost -in 'claude','codex') { return 'vendor' }
     # Kiro takes the package as a native Power; the host-independent catalog is deployed by the other hosts' runtime rows.
     if ($OwnerHost -eq 'kiro' -and $DeploymentStatus -eq 'native-local-plugin') { return $DeploymentStatus }
     # A deployed catalog travels on the loose-skill hosts' runtime rows; hosts with a native
     # plugin install still get the plugin so it appears in their plugin picker.
     if ($Cap.deployedCatalog -and $DeploymentStatus -eq 'managed-loose-skills') { return 'runtime' }
     if ($OwnerHost -eq 'grok' -and $Cap.id -in 'product', 'media-studio', 'sarosh', 'coding-agent-dispatch') { return 'native-local-plugin' }
-    if ($OwnerHost -eq 'copilot' -and $Cap.id -in 'media-studio', 'repowise') { return 'native-local-plugin' }
+    if ($OwnerHost -eq 'copilot' -and $Cap.id -eq 'media-studio') { return 'native-local-plugin' }
     return $DeploymentStatus
 }
 
@@ -378,7 +363,7 @@ $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument
         $row = [pscustomobject]@{
             host=$target; plugin=$manifest.name; capability=$cap.id; route=$route
             nativeOwnerHost=$nativeOwner
-            expected=$(if ($route -eq 'vendor') { $null } else { $manifest.version }); observed=$null; status=$null; detail=$null
+            expected=$manifest.version; observed=$null; status=$null; detail=$null
             source=$source; sourceHash=$cap.contentHash; relative=[string]$cap.canonicalSource; marketplace=$market
             previousPath=$null; catalog=$cap.deployedCatalog
         }

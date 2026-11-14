@@ -80,7 +80,7 @@ test('OpenCode prunes incompatible and low-value skills while retaining core cap
   assert.equal(f.removedSkills.length, 14);
   for (const id of ['built-in-browser', 'chrome-browser', 'computer-use', 'comedy-writer', 'sarosh-voice'])
     assert.ok(f.removedSkills.includes(id));
-  for (const id of ['write', 'use-playwright-cli', 'use-playwright-test', 'repowise', 'opportunity', 'media-studio'])
+  for (const id of ['write', 'use-playwright-cli', 'use-playwright-test', 'opportunity', 'media-studio'])
     assert.ok(!f.removedSkills.includes(id));
 });
 

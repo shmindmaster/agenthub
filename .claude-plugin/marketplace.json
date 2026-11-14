@@ -8,7 +8,6 @@
     "product": "ah-product",
     "mobile-development": "ah-mobile-development",
     "media-studio": "ah-media-studio",
-    "repowise": "ah-repowise",
     "assemblyai": "ah-assemblyai",
     "brave-search": "ah-brave-search",
     "browser": "ah-browser"
@@ -28,11 +27,6 @@
       "name": "ah-media-studio",
       "displayName": "AH-Media-Studio",
       "source": "./packages/media-studio"
-    },
-    {
-      "name": "ah-repowise",
-      "displayName": "AH-RepoWise",
-      "source": "./packages/repowise"
     },
     {
       "name": "ah-assemblyai",

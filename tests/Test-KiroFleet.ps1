@@ -123,7 +123,7 @@ foreach ($s in Get-ChildItem (Join-Path $kiro 'steering') -Filter *.md) {
 
 # Workflow recipes
 $recipes = @(Get-ChildItem (Join-Path $kiro 'workflows') -Filter *.workflow.json)
-Check 'six workflow recipes exist' ($recipes.Count -eq 6) "$($recipes.Count)"
+Check 'five workflow recipes exist' ($recipes.Count -eq 5) "$($recipes.Count)"
 foreach ($w in $recipes) {
     $j = $null
     try { $j = Get-Content $w.FullName -Raw -Encoding utf8 | ConvertFrom-Json } catch { }

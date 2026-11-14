@@ -10,7 +10,7 @@ is linked as a folder junction, so it follows the repository.
 ah-product skills reach ../../scripts, ../../references and ../../kits, which
 resolve to ~/.warp/<folder> from a linked skill, so those three are linked too.
 
-RepoWise and LinkedIn are mapped to Warp in the registry but deliberately not
+LinkedIn is mapped to Warp in the registry but deliberately not
 linked: each needs a local server Warp does not run under the plugin-only policy,
 so their skills would dead-end. ah-aws is not linked either, and needs no
 exclusion, because the registry does not map it to Warp at all.

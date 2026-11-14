@@ -142,7 +142,7 @@ function Test-SystemdUnitLineEndingsAreStable {
 
 # --- Behavior 4: if git is unavailable, fail loudly instead of returning a wrong hash. ---
 function Test-UnavailableGitFailsLoudly {
-    $packageDir = Join-Path $repoRoot 'packages\repowise'
+    $packageDir = Join-Path $repoRoot 'packages\product'
     $originalPath = $env:PATH
     try {
         $sep = [IO.Path]::PathSeparator

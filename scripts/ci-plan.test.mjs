@@ -21,7 +21,7 @@ test('registry exception permits only changed packages hashes', () => {
 });
 
 test('platform specific packages retain Windows checks', () => {
-  for (const pkg of ['coding-agent-dispatch', 'repowise', 'mobile-development']) {
+  for (const pkg of ['coding-agent-dispatch', 'mobile-development']) {
     assert.ok(packageMatrix([pkg]).some(row => row.os === 'windows-latest'));
   }
   assert.equal(packageMatrix(['media-studio']).length, 4);

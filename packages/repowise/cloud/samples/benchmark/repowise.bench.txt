@@ -1,3 +1,0 @@
-{"repo":"example-repo-a","task":"t1-entry-point","tokensTotal":14300,"tokensCached":6200,"toolCalls":7,"secondsToCorrectFile":41.5,"indexStale":false}
-{"repo":"example-repo-a","task":"t2-retry-policy","tokensTotal":19850,"tokensCached":7100,"toolCalls":11,"secondsToCorrectFile":88.0,"indexStale":false}
-{"repo":"example-repo-a","task":"t3-config-load","tokensTotal":12100,"tokensCached":4800,"toolCalls":6,"secondsToCorrectFile":52.3,"indexStale":true}

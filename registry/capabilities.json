@@ -6,7 +6,7 @@
     {
       "name": "repocontext",
       "retiredOn": "2026-08-20",
-      "supersededBy": "repowise",
+      "supersededBy": "openwiki (SH-4410)",
       "reason": "The skill's entire contract is 'exactly eight read-only, job-oriented tools' served by an MCP server named repocontext. No such server exists anywhere on the fleet, so the skill names tools that cannot be called.",
       "evidence": "registry/mcps.json declares twelve servers and repocontext is not among them. All 17 readable host MCP configs were enumerated and none registers it -- codex's config mentions the string only in a stale [projects.'c:\\repos\\shmindmaster\\repocontext'] trust entry, which is a project-trust row, not a server. Both routes the skill documents are dead: the local stdio route runs `pnpm --dir C:/Repos/shmindmaster/repocontext mcp:serve` and that directory does not exist (C:/Repos/shmindmaster holds 18 repos, none named repocontext), and the remote route needs a REPOCONTEXT_MCP_TOKEN no host holds. Deployed to 14 hosts at retirement.",
       "whyFleetScoped": "repowise supersedes it but maps to 8 hosts, only 5 of which overlap the 14 carrying repocontext. A capability-scoped retirement would have cleaned 5, left 9, and reported success.",
@@ -406,8 +406,15 @@
     {
       "name": "use-repowise",
       "retiredOn": "2026-11-03",
-      "supersededBy": "repowise",
+      "supersededBy": "openwiki (SH-4410)",
       "reason": "The repowise plugin ships repowise in place of this skill.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "repowise",
+      "retiredOn": "2026-11-13",
+      "supersededBy": "openwiki (SH-4410)",
+      "reason": "Owner decision 2026-11-13 (SH-4409/SH-4670): RepoWise is retired on every host. Local, host-driven OpenWiki replaces it; ordinary source search remains.",
       "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
     }
   ],
@@ -521,96 +528,6 @@
           "deploymentStatusNote": "2026-11-11 SH-4419: installed as a native Kiro Power with `kiro-cli powers install <package>`, which copies the package to ~/.kiro/powers/installed/<name> and registers it in installed.json. Powers are user-scoped, so one install serves every repository. Kiro reads mcp.json at the package root and ignores .mcp.json."
         }
       ]
-    },
-    {
-      "id": "repowise",
-      "owner": "fleet-intelligence",
-      "capabilityType": "plugin+mcp+skills",
-      "canonicalSource": "packages/repowise",
-      "managedSkillNames": [
-        "repowise"
-      ],
-      "contentHash": "84CDEE4766AADEDD05A1B494B4C4B2B3515B0713AF1C9830A015267A0329C89A",
-      "hashBasis": "packages/repowise",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "native-plugin-installed",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "Owner migration 2026-11-03: vendor repowise@repowise owns MCP, hooks and skills on this host. Uninstall repowise@agenthub; never reinstall or re-enable it as parity repair. Use the existing C:/Repos workspace. No loose duplicate skills or user hooks."
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "native-plugin-installed",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "Owner migration 2026-11-03: vendor codex@repowise owns MCP, hooks and skills on this host. Uninstall repowise@agenthub; never reinstall or re-enable it as parity repair. Use the existing C:/Repos workspace. No loose duplicate skills or user hooks."
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills",
-            "mcp"
-          ],
-          "deploymentStatusNote": "Loose skills always. MCP via the AgentHub repowise plugin only — never persist C:/Repos/.cursor/mcp.json. Measured 2026-09-17: the workspace-open fallback spawned multiple `repowise mcp` process trees at session start."
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "native-plugin-installed",
-          "deploymentStatusNote": "Owner cleanup 2026-11-04: ah-repowise, which has no hooks, replaces the vendor plugin here. Its server is off by a disabled entry in mcp_config.json."
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "native-extension-junction"
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "native-plugin-installed",
-          "deploymentStatusNote": "Owner cleanup 2026-11-04: ah-repowise, which has no hooks, replaces the vendor plugin here. Its server is off through grok mcp disable."
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "native-local-plugin",
-          "deploymentStatusNote": "Skills only: Install-AmpPlugins.py leaves local servers out, because Amp has no per-server off switch."
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "native-plugin-installed",
-          "deploymentStatusNote": "Owner cleanup 2026-11-04: ah-repowise, which has no hooks, replaces the vendor plugin here. Its server is still started with a session, because Factory documents no switch for a plugin server."
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "native-local-plugin"
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "notes": "Fleet code intelligence. Claude uses vendor repowise@repowise and Codex uses vendor codex@repowise. AgentHub retains bounded local indexing and the bridge for hosts not yet migrated; it must not restore its wrapper on Claude/Codex. The uv-managed CLI updates through scripts/Update-RepoWise.ps1 only when behind, without editor migrations. Personal AgentHub plugins remain approved."
     },
     {
       "id": "mobile-development",
@@ -796,7 +713,7 @@
         "compose",
         "review"
       ],
-      "contentHash": "D44BD1677C7426491D78EBC2BE5A6215D21A990061F92E77D63D5B2C4C0D8970",
+      "contentHash": "23DB779F20C841565CF96DD420F42283C3DC4B6AD9138256B880C9B5F05CE35F",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -929,7 +846,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "A80C557F4992871C5ED2F9B4DC11DF22EA430819EA1B9705CEE6F3CB05898A1B",
+      "contentHash": "424FE378E4EAAB3D2F6716950F91106702C4C531D2746318AFA573399E098680",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [

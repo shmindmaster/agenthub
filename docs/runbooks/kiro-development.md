@@ -39,7 +39,7 @@ This removes routine permission prompts, not Kiro's hardcoded protections. Expli
 The engineer references existing skill sources through `skill://` globs, rather than copying or republishing packages:
 
 - User and workspace `.kiro/skills/**/SKILL.md`.
-- AgentHub `packages/product`, `packages/browser`, `packages/repowise` and `packages/mobile-development` skill trees.
+- AgentHub `packages/product`, `packages/browser` and `packages/mobile-development` skill trees (RepoWise removed 2026-11-13, SH-4670).
 - The installed official Clerk skill tree, currently exposed from the owner's Amp vendor-plugin installation. This is a local dependency: if that installation moves or is removed, update the resource path. It does not establish a Kiro Clerk MCP connection.
 
 The profile also loads the canonical personal fleet policy. Owner steering remains intact except for the authorized autonomy change and a pointer to current fleet/Linear coordination. Absolute source references work locally, not in cloud sessions; they must be bound to the destination machine when setting up another host.

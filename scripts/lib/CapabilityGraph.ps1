@@ -8,7 +8,7 @@ Public-first layout:
   - Private packages live under overlays/personal/packages/<id> (gitignored).
   - Private capability rows live in overlays/personal/capabilities.json and
     load only when the personal overlay is present and lists their ids.
-  - RepoWise and other public packages stay under packages/ — never disable
+  - Public packages stay under packages/ — never disable
     them as part of overlay migration.
 #>
 

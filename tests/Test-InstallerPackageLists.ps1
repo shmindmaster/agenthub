@@ -29,7 +29,6 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 
 # Deliberate exclusions, each with the reason it is not an accident.
 $WarpExcluded = @{
-    'repowise'              = 'Needs the loopback shared server, which Warp does not run under the plugin-only policy, so the skill would dead-end. Install-WarpSkills.ps1 records the same reason.'
     'linkedin'              = 'Its server is a local stdio process and activationPolicy.pluginOnly does not permit linkedin on warp, so Warp cannot run it and the skill would dead-end. The plugin is on-demand by design.'
     'mobile-development'    = 'On demand only. Test-MobileDevelopment requires the catalog to be readable, which the deployed runtime package provides; no Warp skill link is part of that contract.'
 }

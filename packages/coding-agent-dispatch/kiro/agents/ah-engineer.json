@@ -183,7 +183,6 @@
   "resources": [
     "file://C:/Repos/shmindmaster/agenthub/global-agent-policy.md",
     "skill://C:/Repos/shmindmaster/agenthub/packages/product/skills/**/SKILL.md",
-    "skill://C:/Repos/shmindmaster/agenthub/packages/repowise/skills/**/SKILL.md",
     "skill://.kiro/skills/**/SKILL.md"
   ]
 }

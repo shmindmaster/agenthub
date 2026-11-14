@@ -27,7 +27,6 @@ _PUBLIC_PACKAGES = {
     "ah-exa": "packages/exa",
     "ah-notion": "packages/notion",
     "ah-aws": "packages/aws",
-    "ah-repowise": "packages/repowise",
     "ah-browser": "packages/browser",
     "ah-linear": "packages/linear",
     "ah-context7": "packages/context7",
@@ -94,7 +93,7 @@ HEADERS = {
 URLS = {}
 # Amp has no per-server off switch, so a local server is left out of the plugin: nothing here may start
 # a process with a session. Remote servers start no process and stay.
-LOCAL_SERVERS_LEFT_OUT = {"aws-mcp", "repowise-workspace"}
+LOCAL_SERVERS_LEFT_OUT = {"aws-mcp"}
 
 
 def servers(pkg):
