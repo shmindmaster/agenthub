@@ -89,12 +89,18 @@
   Continue an existing Cline session through ACP. Policy gates still apply.
 
 .PARAMETER Role
-  Kiro only: peer (default), engineer, reviewer, tester, architect or
-  incident. peer runs the guarded dispatchPolicy.kiro.agent profile. Every
-  other role runs the V3 engine on the profile named by
-  dispatchPolicy.kiro.roles.<role> (ah-<role>) and is refused when that
-  profile file is missing from ~/.kiro/agents. Any other host refuses a role
-  other than peer.
+  Kiro: peer (default), engineer, reviewer, tester, architect or incident.
+  peer runs the guarded dispatchPolicy.kiro.agent profile. Every other role
+  runs the V3 engine on the profile named by dispatchPolicy.kiro.roles.<role>
+  (ah-<role>) and is refused when that profile file is missing from
+  ~/.kiro/agents.
+  OpenCode: peer (default), engineer, reviewer, tester or researcher. peer
+  runs the guarded dispatchPolicy.opencode.agent profile. Every other role
+  runs the V2 agent named by dispatchPolicy.opencode.roles.<role> and is
+  refused when that agent file is missing from ~/.config/opencode/agents.
+  The legacy zai-coding-plan launcher route (OpenCode 1.x) has no V2 agents
+  and refuses every role but peer.
+  Any other host refuses a role other than peer.
 
 .PARAMETER ReadOnly
   Run the host in a read-only mode the host itself enforces; prompt wording
@@ -102,7 +108,10 @@
   verified read-only command for it and dispatchPolicy.<host>.readOnly
   records the flags. Every other host is refused with exit 3; there is no
   fallback to a writable run. Kiro runs the reviewer profile, so -ReadOnly
-  with a writing role is refused. -ReadOnly cannot resume a Cline session.
+  with a writing role is refused. OpenCode runs the reviewer agent and is
+  refused unless the installed reviewer profile's own permissions deny the
+  edit action; -ReadOnly with a writing role is refused. -ReadOnly cannot
+  resume a Cline session.
 
 #>
 [CmdletBinding()]
@@ -463,6 +472,7 @@ function Get-DispatchTable {
         }
         'opencode' = @{
             Mode = 'argument'
+            ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
                 # OpenCode 2 uses the child process working directory; --dir
@@ -480,7 +490,45 @@ function Get-DispatchTable {
                 if ($openCodeModel) { $args += @('--model', $openCodeModel) }
                 # --auto approves every action a rule leaves at ask, so unattended
                 # runs use the policy-named agent whose rules deny outward actions.
-                if (-not $zaiLauncher -and $fleet.dispatchPolicy.opencode.agent) { $args += @('--agent', [string]$fleet.dispatchPolicy.opencode.agent) }
+                # A -Role or -ReadOnly run swaps that agent for the mapped V2
+                # profile (SH-4674); -ReadOnly always runs the reviewer profile.
+                if (-not $zaiLauncher) {
+                    $openCodeAgent = [string]$fleet.dispatchPolicy.opencode.agent
+                    $openCodeRoleName = ''
+                    if ($ReadOnly) { $openCodeRoleName = 'reviewer' }
+                    elseif ($script:DispatchRole -ne 'peer') { $openCodeRoleName = $script:DispatchRole }
+                    if ($openCodeRoleName) {
+                        $openCodePolicy = $fleet.dispatchPolicy.opencode
+                        $roleAgent = ''
+                        if ($openCodePolicy -and $openCodePolicy.PSObject.Properties['roles'] -and $openCodePolicy.roles -and $openCodePolicy.roles.PSObject.Properties[$openCodeRoleName]) {
+                            $roleAgent = [string]$openCodePolicy.roles.$openCodeRoleName
+                        }
+                        if ($roleAgent -notmatch '^[A-Za-z0-9_-]+$') {
+                            Write-Refusal 3 "refused opencode: dispatchPolicy.opencode.roles.$openCodeRoleName must name the agent profile for role '$openCodeRoleName'"
+                        }
+                        $openCodeAgentsDir = Join-Path (Join-Path (Join-Path (Get-AgentHubDefaultHome) '.config') 'opencode') 'agents'
+                        $roleProfile = Join-Path $openCodeAgentsDir "$roleAgent.md"
+                        if (-not (Test-Path -LiteralPath $roleProfile -PathType Leaf)) {
+                            Write-Refusal 3 "refused opencode: role '$openCodeRoleName' needs the agent profile $roleAgent.md, which is missing from $openCodeAgentsDir; install it from packages/coding-agent-dispatch/opencode with Install-OpenCodeProfiles.ps1"
+                        }
+                        if ($ReadOnly) {
+                            # The installed file is what OpenCode enforces, so it
+                            # is the one checked: a read-only run is refused
+                            # unless the profile's own permissions deny edit.
+                            # Prompt wording is never the mechanism.
+                            $profileText = $null
+                            try { $profileText = Get-Content -LiteralPath $roleProfile -Raw -Encoding UTF8 } catch { $profileText = $null }
+                            if ([string]::IsNullOrWhiteSpace($profileText) -or
+                                $profileText -notmatch '\{\s*action:\s*edit,\s*resource:\s*"\*",\s*effect:\s*deny\s*\}') {
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not deny the edit action for every resource, so a read-only run cannot be established"
+                            }
+                        }
+                        $openCodeAgent = $roleAgent
+                    }
+                    if ($openCodeAgent) { $args += @('--agent', $openCodeAgent) }
+                } elseif ($script:DispatchRole -ne 'peer' -or $ReadOnly) {
+                    Write-Refusal 3 'refused opencode: the legacy zai-coding-plan launcher runs OpenCode 1.x with an isolated config that has no V2 agent profiles; use a native OpenCode 2 route for -Role or -ReadOnly'
+                }
                 if (-not [string]::IsNullOrWhiteSpace($Title)) { $args += @('--title', $Title.Trim()) }
                 if ($zaiLauncher -and $File) {
                     $args += @('--file', $File, '--')
@@ -857,8 +905,8 @@ function Resolve-DeclaredExecutable {
 }
 
 # -Role names a per-host profile. Only the hosts listed here have any.
-$script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'architect', 'incident')
-$script:RoleHosts = @('kiro')
+$script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'researcher', 'architect', 'incident')
+$script:RoleHosts = @('kiro', 'opencode')
 $script:DispatchRole = 'peer'
 
 # dispatchPolicy.<host>.readOnly: an object with a flags list when the host has
@@ -1030,6 +1078,9 @@ if ($ReadOnly) {
     }
     if ($targetId -eq 'kiro' -and $script:DispatchRole -notin @('peer', 'reviewer')) {
         Write-Refusal 3 "refused kiro: -ReadOnly cannot be combined with -Role $($script:DispatchRole), a writing role; a read-only Kiro run uses the reviewer profile"
+    }
+    if ($targetId -eq 'opencode' -and $script:DispatchRole -notin @('peer', 'reviewer')) {
+        Write-Refusal 3 "refused opencode: -ReadOnly cannot be combined with -Role $($script:DispatchRole), a writing role; a read-only OpenCode run uses the reviewer agent profile"
     }
 }
 $targetAgent = Get-AgentRecord -Agents $agents -Id $targetId

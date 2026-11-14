@@ -185,12 +185,25 @@ Cline dispatch is enabled in `dispatchPolicy`:
 
 The Go subscription is provider `opencode-go`; the default is `opencode-go/glm-5.3-flash`. Provider `opencode` is the pay-as-you-go Zen wallet and is refused (see Models).
 
+`-Role engineer|reviewer|tester|researcher` runs the matching native V2 agent
+from `~/.config/opencode/agents` (canonical copies in
+`packages/coding-agent-dispatch/opencode/agents`, recorded in
+`dispatchPolicy.opencode.roles`); a role the policy does not record or whose
+agent file is missing from the installed home is refused. Without `-Role` the
+run keeps the guarded `peer` agent. `-ReadOnly` always runs the `reviewer`
+agent, never `peer`, and is refused unless the installed `reviewer.md`
+permissions deny the edit action on every resource — prompt text is never the
+mechanism. Live-verified on opencode 2.3.0 (2026-11-14): a reviewer session
+exposed no write/edit/patch tools and the prompted probe file was never
+created. Combining `-ReadOnly` with a writing role is refused.
+
 On Windows, `-HostId opencode -Model zai-coding-plan/glm-5.3` uses the
 installed `%LOCALAPPDATA%/AgentHub/zai/opencode-zai.ps1` launcher and its
 separate OpenCode 1.x settings. It exposes the Z.ai MCPs and workspace
 read/edit/search tools. Shell, subagents and access outside the workspace are
 denied for these headless runs. Use a different route for tasks requiring a
-shell. The launcher must pass through the OpenCode exit code.
+shell. The launcher must pass through the OpenCode exit code. The launcher has
+no V2 agent profiles: it refuses every `-Role` except peer and any `-ReadOnly`.
 
 On Forge, use `-Forge -HostId opencode-zai -Cwd <Forge-worktree>`. This
 opens the runner's isolated Z.ai launcher interactively; the Forge adapter
@@ -206,5 +219,6 @@ Each installer audits by default and changes files only with `-Apply`. None star
 | Script | Purpose |
 | --- | --- |
 | `Install-OpenCodeToolDiscovery.ps1` | Native global plugin that defers schemas and skill/MCP catalogs until needed. Reload the shared OpenCode service after installing. |
+| `Install-OpenCodeProfiles.ps1` (in `packages/coding-agent-dispatch/opencode/`) | Deploys the canonical V2 agent profiles (`peer`, `engineer`, `reviewer`, `tester`, `researcher`) to `~/.config/opencode/agents`. Hash-verified `-Apply` repairs drift, never touches owner-authored agents, `opencode.json`, MCP files, plugins or credentials, and writes no backups. |
 | `Install-ClineToolDiscovery.ps1` | Installs `cline/lightweight-chat.js` (`find_tools` loads up to five tools per search) for the `qwen3.8-max` profile, and sets Cline's global `compactionEnabled` to `false`, because compaction otherwise estimates the full tool catalog and can discard tool results. Verify a plain reply and a real file read after a Cline upgrade. |
 | `Install-ClinePeerGuard.ps1` | Installs `~/.cline/plugins/peer-guard.js`, a deny list (not a sandbox) active only when `AGENTHUB_PEER_GUARD=1` and `CLINE_SESSION_BACKEND_MODE=local`; it fails open in hub mode. Blocks git push, reset --hard, clean -f, mutating gh, publish, cloud CLIs, scheduled tasks and services, host administration, credential dumps, disk and power operations, recursive root/home deletes, and writes to protected paths. |
