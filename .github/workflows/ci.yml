@@ -32,7 +32,7 @@ jobs:
         shell: pwsh
         run: pwsh -NoProfile -File ./tests/Test-PublicRepoPrivacy.ps1
       - name: Install ripgrep
-        run: sudo apt-get update -q && sudo apt-get install -y -q ripgrep
+        run: command -v rg >/dev/null || (sudo apt-get update -q && sudo apt-get install -y -q ripgrep)
       - name: Validate registry and hashes
         shell: pwsh
         run: pwsh -NoProfile -File ./scripts/AgentHub.ps1 validate
@@ -51,6 +51,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         shard: [0, 1, 2, 3]
+        include:
+          - { os: windows-latest, shard: 4 }
+          - { os: windows-latest, shard: 5 }
+          - { os: windows-latest, shard: 6 }
+          - { os: windows-latest, shard: 7 }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
@@ -64,11 +69,13 @@ jobs:
       - name: Install test tools
         shell: bash
         run: |
-          case "$RUNNER_OS" in
-            Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ;;
-            macOS) HOMEBREW_NO_AUTO_UPDATE=1 brew install --quiet ripgrep ;;
-            Windows) choco install ripgrep -y --no-progress ;;
-          esac
+          if ! command -v rg >/dev/null; then
+            case "$RUNNER_OS" in
+              Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ;;
+              macOS) HOMEBREW_NO_AUTO_UPDATE=1 brew install --quiet ripgrep ;;
+              Windows) choco install ripgrep -y --no-progress ;;
+            esac
+          fi
           npm install -g @anthropic-ai/claude-code@2.1.310
           npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/kit-tsc" typescript@5.9.3 @types/node@24.10.1
           echo "EXECUTION_CONTROLS_TSC=$RUNNER_TEMP/kit-tsc/node_modules/typescript/bin/tsc" >> "$GITHUB_ENV"
@@ -83,7 +90,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run shared contract tests
         shell: pwsh
-        run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json -Scope core -Shard ${{ matrix.shard }} -Shards 4
+        run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json -Scope core -Shard ${{ matrix.shard }} -Shards ${{ matrix.os == 'windows-latest' && 8 || 4 }}
 
   package:
     needs: plan

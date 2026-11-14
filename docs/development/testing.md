@@ -49,7 +49,8 @@ changes run that package's tests and shared plugin checks on Linux; dispatch,
 RepoWise, and mobile packages also run on Windows for host-specific checks. Media
 Studio tests run only for Media Studio changes, split into four shards.
 Doctor changes run its tests on Linux. Shared or unrecognized files run
-repository-level contracts and package validators on Linux, macOS and Windows in four shards per OS;
+repository-level contracts and package validators in four Linux and macOS shards
+and eight Windows shards;
 the media-specific tests are excluded unless that package changed. Manual runs
 or unavailable history run shared and all package tests. Main pushes have
 separate concurrency groups so later pushes cannot cancel earlier checks.
