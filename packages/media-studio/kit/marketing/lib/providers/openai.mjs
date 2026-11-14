@@ -36,7 +36,7 @@ async function call(path, init, { retries = 3, fetchImpl = fetch } = {}) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function generateImage({ prompt, model = 'gpt-image-2.5-flare', size = '1536x1024', quality = 'medium', fetchImpl }) {
+export async function generateImage({ prompt, model = OPENAI_MODELS.imageDefault, size = '1536x1024', quality = 'medium', fetchImpl }) {
   const res = await call('/images/generations', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, prompt, size, quality, n: 1, output_format: 'png' }),
@@ -103,4 +103,65 @@ export async function visionJson({ model, system, instructions, frames, schema, 
   const text = body.output_text || (body.output || []).flatMap((o) => o.content || []).filter((c) => c.type === 'output_text').map((c) => c.text).join('');
   if (!text) throw new OpenAiError('vision response carried no text');
   return { text, usage: body.usage || null, model: body.model || model };
+}
+
+/**
+ * Model roles for the direct OpenAI API (OPENAI_API_KEY). Studio's quality tier picks among them; the price table is
+ * OPENAI_*_USD_PER_M in prices.mjs. Escalate a role only when a review shows the cheaper model fails the gate.
+ */
+export const OPENAI_MODELS = {
+  premiumReasoning: 'gpt-6-astra', // hardest scripts, creative direction, difficult reviews
+  creative: 'gpt-6.1-sol', // storyboards, narration writing, product messaging
+  editorial: 'gpt-6.1-terra', // copy edits, frame and image review, structured plans
+  bulk: 'gpt-6-luna', // captions, metadata, classification, repetitive transforms
+  imageDefault: 'gpt-image-2.6-flare',
+  imagePremium: 'gpt-image-2.6-sunburst',
+  transcribe: 'gpt-transcribe', // file transcription without word timestamps
+  realtimeSpeech: 'gpt-realtime-2.1-mini',
+  realtimeSpeechPremium: 'gpt-realtime-2.1',
+  moderation: 'omni-moderation-latest',
+};
+/** Built-in voices. OpenAI recommends marin and cedar for the best quality; audition against Azure DragonHD. */
+export const OPENAI_VOICES = ['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
+/** Announced shutdowns. speech() and transcribeWords() still use them until a measured replacement passes the gates. */
+export const OPENAI_DEPRECATIONS = {
+  'gpt-4o-mini-tts': { shutdown: '2027-01-06', replacement: 'gpt-realtime-2.1-mini via the Realtime API' },
+  'tts-1': { shutdown: '2027-01-06', replacement: 'gpt-realtime-2.1-mini via the Realtime API' },
+  'tts-1-hd': { shutdown: '2027-01-06', replacement: 'gpt-realtime-2.1-mini via the Realtime API' },
+  'whisper-1': { shutdown: '2027-02-26', replacement: 'gpt-transcribe for text; word timing stays on the forced aligner' },
+};
+
+/**
+ * Text generation with the Responses API. `stable` is the cacheable prefix (brand guide, product facts, rules, output
+ * schema) and goes first so repeated calls hit the prompt cache; `dynamic` is the scene-specific request.
+ * Returns usage so the ledger records cached and fresh tokens instead of a theoretical discount.
+ */
+export async function generateText({ role = 'creative', model, stable = '', dynamic, schema, schemaName = 'result', maxOutputTokens = 4000, fetchImpl }) {
+  const m = model || OPENAI_MODELS[role] || OPENAI_MODELS.creative;
+  const input = [];
+  if (stable) input.push({ role: 'developer', content: [{ type: 'input_text', text: stable }] });
+  input.push({ role: 'user', content: [{ type: 'input_text', text: dynamic }] });
+  const body = { model: m, input, max_output_tokens: maxOutputTokens };
+  if (schema) body.text = { format: { type: 'json_schema', name: schemaName, schema, strict: true } };
+  const res = await call('/responses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, { fetchImpl });
+  const json = await res.json();
+  const text = json.output_text ?? (json.output || []).flatMap((o) => o.content || []).filter((c) => c.type === 'output_text').map((c) => c.text).join('');
+  return { text, usage: json.usage || null, model: json.model || m, cachedTokens: json.usage?.input_tokens_details?.cached_tokens ?? 0 };
+}
+
+/** File transcription with gpt-transcribe (text only, no word timestamps). */
+export async function transcribeText(file, { model = OPENAI_MODELS.transcribe, fetchImpl } = {}) {
+  const form = new FormData();
+  form.append('model', model);
+  form.append('file', new Blob([readFileSync(file)]), basename(file));
+  const res = await call('/audio/transcriptions', { method: 'POST', body: form }, { fetchImpl });
+  const json = await res.json();
+  return { text: json.text || '', usage: json.usage || null, model };
+}
+
+/** Free moderation check for text and images before publishing generated media. */
+export async function moderate(input, { fetchImpl } = {}) {
+  const res = await call('/moderations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: OPENAI_MODELS.moderation, input }) }, { fetchImpl });
+  const json = await res.json();
+  return { flagged: (json.results || []).some((r) => r.flagged), results: json.results || [] };
 }

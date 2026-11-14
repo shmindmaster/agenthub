@@ -9,13 +9,14 @@ description: Takes a video, screencast, explainer, ad or audio idea to a finishe
 3. Return the delivered file and the review verdict, or the last passed stage and the exact next input.
 4. Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.
 ## Intake (new jobs only)
-Ask up to five quick multiple-choice questions in one message, each with a recommended answer, and skip any a file or the request already answers:
+Ask up to six quick multiple-choice questions in one message, each with a recommended answer, and skip any a file or the request already answers:
 1. Purpose and viewer: who watches and what they should do afterwards.
 2. Kind: verified product demo, training, explainer, story or concept, ad.
 3. Length and destination: YouTube, LinkedIn, website, internal or presentation.
 4. Voice: none (captions), AI narrator (recommended), or the owner.
 5. Picture: real product capture, concept or animated, or a mix.
-From the answers choose the kind, `programForm`, delivery profile and lanes, show the plan and price, and get one yes before spend. Rules for classifying films: [video](references/video.md), [creative formats](references/creative-formats.md), [forms](references/forms.md).
+6. Quality and engine: draft, standard (recommended) or premium; voice on Azure DragonHD (default) or OpenAI marin/cedar. Show each tier's price from `scripts/estimate-job-cost.mjs --scenes <n> --words <n> --stills <n> --hero <n> [--voice openai]` so the choice is made with its cost.
+From the answers choose the kind, `programForm`, delivery profile, tier and lanes (OpenAI lanes in `policy/provider-routing.json`: `openai-text`, `openai-image`, `openai-speech`, `openai-transcribe`, `openai-moderation`), show the plan and the estimate, and get one yes before spend. Re-run the estimate when the storyboard changes the counts. Rules for classifying films: [video](references/video.md), [creative formats](references/creative-formats.md), [forms](references/forms.md).
 ## Uses other plugins
 - Screen capture and UX walkthroughs: `ah-browser` (agent-browser `record ... --cursor` for clean takes; BrowserSkill for the owner's signed-in browser).
 - Composition, animation, captions and render: the official Remotion plugin and skills; renders run on sh-forge in a disposable workspace, never on this PC.

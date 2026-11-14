@@ -162,3 +162,9 @@ Voice Live `gpt-realtime-2.1` with `azure-standard` `en-US-Ava:DragonHDLatestNeu
 ## Shared finishing
 
 Music is MiniMax Music 2.6 through Runware, instrumental only, one track reused, $0.15 per clip. Lane `runware-minimax-music` is frozen. Keep speech prominent and keep speech, music, effects, and captions separate. Captions are a sidecar `.srt` only. House audio targets stay the composer targets already recorded for Linear SH-3443.
+
+## OpenAI direct voices (OPENAI_API_KEY)
+- Built-in voices: `marin` and `cedar` first (OpenAI's best TTS quality), then `alloy`, `ash`, `ballad`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, `shimmer`, `verse`. Delivery instructions (tone, pacing, accent, emotion) work on compatible models.
+- Audition `marin` and `cedar` against Azure DragonHD Emma2 and Andrew2 on the same script before switching a production. Azure DragonHD stays the default for pre-recorded narration until a measured OpenAI take passes the voice gates at a comparable cost.
+- Migration: `gpt-4o-mini-tts`, `tts-1` and `tts-1-hd` shut down on 2027-01-06. The replacement is `gpt-realtime-2.1-mini` through the Realtime API, not a model-string change on `/v1/audio/speech`. Estimate with `scripts/estimate-job-cost.mjs --voice openai`.
+- Prompt-designed voices (described in text) are free to create and work only with GPT-Live. Recording-based custom voices need an eligible organisation, a consent recording and a matching reference (60 seconds or less, 20 voices per organisation). Record voice ID, provider, supported models, approved use, consent evidence and samples before use. The no-owner-clone rule above still applies, and AI speech is disclosed to listeners.

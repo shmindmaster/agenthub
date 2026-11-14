@@ -100,7 +100,7 @@ class Routing(unittest.TestCase):
 
     def test_voice_has_no_desktop_or_free_lane(self):
         usable = [l["id"] for l in r.route(POLICY, ["voice"])]
-        self.assertEqual(usable, ["azure-speech", "deepgram-flux"])
+        self.assertEqual(usable, ["azure-speech", "deepgram-flux", "openai-speech"])
         self.assertTrue(all(not r.is_free(l) for l in r.route(POLICY, ["narration"])))
         blocked = {l["id"]: l["status"] for l in r.route(POLICY, ["voice"], include_blocked=True)}
         self.assertEqual(blocked["windows-narrator"], "disabled")
