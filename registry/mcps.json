@@ -386,14 +386,7 @@
         "id": "media-studio"
       },
       "pluginOwnersByHost": {
-        "amp": "ah-descript@agenthub",
-        "antigravity": "ah-descript@agenthub",
-        "codex": "app-69f0dc45f6048191876c14c1016fe778@openai-curated-remote",
-        "copilot": "ah-descript@agenthub",
-        "devin": "ah-descript@agenthub",
-        "factory": "ah-descript@agenthub",
-        "grok": "ah-descript@agenthub",
-        "vscode-insiders": "ah-descript@agenthub"
+        "codex": "app-69f0dc45f6048191876c14c1016fe778@openai-curated-remote"
       },
       "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Public finishing guidance is ah-media-studio:compose references/descript.md (media-studio-descript was folded into it on 2026-10-21). Claude uses its native Descript account connector (media-studio Claude mapping sets mcpOwnership shared-registry so the plugin does not also offer Descript). Codex uses the media-studio plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509",
       "hosts": [

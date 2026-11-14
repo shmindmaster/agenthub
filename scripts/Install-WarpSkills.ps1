@@ -47,8 +47,8 @@ function Get-AgentHubOverlayRootForWarp([string]$RepoRoot) {
 }
 
 $packages = @(
-    'packages/product', 'packages/media-studio', 'packages/brave-search', 'packages/assemblyai',
-    'packages/descript',
+    'packages/product', 'packages/media-studio', 'packages/assemblyai',
+    
     'packages/browser', 'packages/coding-agent-dispatch', 'packages/funding'
 )
 # Private packages: prefer checkout overlays/personal, else sibling agenthub-private clone.

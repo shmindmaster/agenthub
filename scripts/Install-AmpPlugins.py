@@ -21,8 +21,6 @@ _PUBLIC_PACKAGES = {
     "ah-product": "packages/product",
     "ah-media-studio": "packages/media-studio",
     "ah-assemblyai": "packages/assemblyai",
-    "ah-brave-search": "packages/brave-search",
-    "ah-descript": "packages/descript",
     "ah-browser": "packages/browser",
     "ah-coding-agent-dispatch": "packages/coding-agent-dispatch",
     "ah-funding": "packages/funding",

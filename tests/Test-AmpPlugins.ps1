@@ -24,7 +24,7 @@ function Assert-True([bool]$Condition, [string]$Message) {
 
 $target = Join-Path ([IO.Path]::GetTempPath()) "amp-plugins-$PID"
 try {
-    $names = 'ah-brave-search', 'ah-assemblyai', 'ah-descript'
+    $names = 'ah-assemblyai', 'ah-browser'
     $output = & python $installer --target $target @names 2>&1
     Assert-True ($LASTEXITCODE -eq 0) "installer failed: $output"
 
@@ -39,7 +39,7 @@ try {
     }
 
     $carriers = @(Get-ChildItem -LiteralPath $target -Recurse -Filter 'mcp.json')
-    Assert-True ($carriers.Count -ge 2) "expected a server carrier for assemblyai and descript, found $($carriers.Count)"
+    Assert-True ($carriers.Count -ge 1) "expected a server carrier for assemblyai, found $($carriers.Count)"
     foreach ($carrier in $carriers) {
         $text = Get-Content -LiteralPath $carrier.FullName -Raw -Encoding utf8
         Assert-True ($text -notmatch '\$\{env:') "$($carrier.FullName) uses `${env:VAR}, which Amp sends literally"

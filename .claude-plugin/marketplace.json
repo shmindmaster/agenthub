@@ -9,7 +9,6 @@
     "mobile-development": "ah-mobile-development",
     "media-studio": "ah-media-studio",
     "assemblyai": "ah-assemblyai",
-    "brave-search": "ah-brave-search",
     "browser": "ah-browser"
   },
   "plugins": [
@@ -34,19 +33,9 @@
       "source": "./packages/assemblyai"
     },
     {
-      "name": "ah-brave-search",
-      "displayName": "AH-Brave-Search",
-      "source": "./packages/brave-search"
-    },
-    {
       "name": "ah-browser",
       "displayName": "AH-Browser",
       "source": "./packages/browser"
-    },
-    {
-      "name": "ah-descript",
-      "displayName": "AH-Descript",
-      "source": "./packages/descript"
     },
     {
       "name": "ah-coding-agent-dispatch",

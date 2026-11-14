@@ -65,21 +65,6 @@
       }
     },
     {
-      "name": "ah-brave-search",
-      "source": {
-        "source": "local",
-        "path": "./packages/brave-search"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-Brave-Search"
-      }
-    },
-    {
       "name": "ah-browser",
       "source": {
         "source": "local",
@@ -92,21 +77,6 @@
       "category": "Developer Tools",
       "interface": {
         "displayName": "AH-Browser"
-      }
-    },
-    {
-      "name": "ah-descript",
-      "source": {
-        "source": "local",
-        "path": "./packages/descript"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-Descript"
       }
     },
     {
