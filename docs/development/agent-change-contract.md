@@ -46,4 +46,4 @@ It orchestrates the existing scripts and does not reimplement them.
 - Registry and package content agree, and content hashes are recomputed.
 - `Validate-AgentHub.ps1` and the relevant tests pass.
 - Docs are updated when behavior, layout, or contracts changed.
-- The RepoWise index is refreshed through the bounded manual entry point (`packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1`).
+- Affected `openwiki/` pages are refreshed through the host-driven integration once it exists (SH-4410). RepoWise is retired and is not refreshed.

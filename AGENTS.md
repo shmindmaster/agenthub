@@ -11,7 +11,7 @@ Priorities, in order:
 4. Deterministic validation over re-derivation by agents.
 5. Maintainability and simplicity.
 
-**Public-first:** only public packages under `packages/` are tracked. Private capability packages and registry rows live only in the private overlay: its own clone of `shmindmaster/agenthub-private` beside this checkout (`C:/Repos/shmindmaster/agenthub-private`), or the gitignored `overlays/personal/` where one exists, or `AGENTHUB_OVERLAY`. There is no second control-plane repo. Do not recreate one. RepoWise (`packages/repowise`) remains public for bounded indexing and legacy-host compatibility. Owner decision 2026-11-03: Claude uses vendor `repowise@repowise` and Codex uses vendor `codex@repowise`; uninstall the old `ah-repowise@agenthub` on those hosts and never restore it as parity repair. Preserve useful personal AgentHub media, product and owner workflows. Other hosts retain their bridge until explicitly migrated.
+**Public-first:** only public packages under `packages/` are tracked. Private capability packages and registry rows live only in the private overlay: its own clone of `shmindmaster/agenthub-private` beside this checkout (`C:/Repos/shmindmaster/agenthub-private`), or the gitignored `overlays/personal/` where one exists, or `AGENTHUB_OVERLAY`. There is no second control-plane repo. Do not recreate one. RepoWise is retired (owner decision 2026-11-13, SH-4409): do not install, restore or add it, and do not require it. Removal of the existing package, plugins, registrations and checks is SH-4670; until that lands, `packages/repowise` and its checks are legacy, not policy. Repository knowledge moves to local, host-driven OpenWiki (SH-4410). Preserve useful personal AgentHub media, product and owner workflows.
 
 ## Start here
 
@@ -32,7 +32,7 @@ Priorities, in order:
   `docs/` is permitted. It carries the curated fleet-standard taxonomy since 2026-08-08.
 - No script registers a scheduled task, Run key, or auto-start service. Every launched subprocess is windowless (owner direction 2026-10-13; `global-agent-policy.md` → Engineering behavior). Local services start when the capability that needs them is used. Updates run manually.
 - Runtime output goes under `%LOCALAPPDATA%\AgentHub`. Local AI is off; media production lives under `D:\Media-Studio` (env `MEDIA_STUDIO_ROOT`).
-- Refresh the RepoWise index only via `packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1`. No post-commit hook, no bare `repowise update`.
+- Do not run, refresh or reinstall RepoWise. No post-commit hook, no bare `repowise update`. Upstream `openwiki/` output and its scoped managed discovery blocks in AGENTS.md/CLAUDE.md are the one permitted exception to the no-new-directories rule above; they are generated only by an explicit host-driven OpenWiki update, never at session start.
 - Never claim a check passed unless it ran.
 
 ## Canonical commands
@@ -47,14 +47,14 @@ pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Apply -Validate   # deploy ma
 
 ## Tracker
 
-None. Work is driven by drift detection and validation, not an external backlog. Complex multi-session work uses `docs/plans/active/`.
+Linear. The program is epic SH-4409 under project "AgentHub - Portfolio Engineering & Knowledge"; read SH-4063 first and claim an issue with `agent:<host>` before editing. Git holds code, configuration and docs; Linear holds scope, claims and dependencies. Drift detection and validation remain the correctness authority. Complex multi-session work may add `docs/plans/active/` that references issue IDs.
 
 ## Definition of done
 
 - Registry and package content agree; content hashes recomputed.
 - `Validate-AgentHub.ps1` and relevant tests pass.
 - Docs updated when behavior, layout, or contracts changed.
-- RepoWise index refreshed through the bounded manual entry point.
+- Affected `openwiki/` pages refreshed through the host-driven integration once it exists (SH-4410); a missing or stale wiki never blocks work.
 
 ## GitHub
 
@@ -65,6 +65,6 @@ Use `gh` and verify the active account first. Use `shmindmaster` for this repo. 
 | Trigger | Read |
 | --- | --- |
 | Starting work, orienting, finding which doc/path owns what | [`docs/development/agent-orientation.md`](./docs/development/agent-orientation.md) |
-| Broad code exploration, RepoWise queries, refreshing/updating RepoWise | [`docs/development/agent-repowise.md`](./docs/development/agent-repowise.md) |
+| Broad code exploration | Native source search; read `openwiki/` pages when present. `docs/development/agent-repowise.md` is legacy until SH-4670 removes it |
 | Changing a capability, registry, package, script, test, or host manifest; before declaring done | [`docs/development/agent-change-contract.md`](./docs/development/agent-change-contract.md) |
 | Touching any other fleet repo | `docs/development/repo-standard.md` |
