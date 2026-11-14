@@ -28,7 +28,7 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail = '') {
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $script:failures.Add($Name) }
 }
 
-$canonicalIds = @((Get-Content -LiteralPath $canonicalFile -Raw | ConvertFrom-Json).customModels | ForEach-Object { [string]$_.model })
+$canonicalIds = @((Get-Content -LiteralPath $canonicalFile -Raw -Encoding UTF8 | ConvertFrom-Json).customModels | ForEach-Object { [string]$_.model })
 if ($canonicalIds.Count -lt 1) { throw 'canonical file lists no customModels' }
 
 $root = Join-Path ([IO.Path]::GetTempPath()) ("ah-fcm-" + [Guid]::NewGuid().ToString('n'))
@@ -41,7 +41,7 @@ try {
     Report 'audit on a settings file without customModels reports every canonical entry missing' `
         (($canonicalIds | Where-Object { $auditOut -notmatch "missing\s+custom:$([regex]::Escape($_))" }).Count -eq 0) $auditOut
     $applyOut = & $installer -Apply -UserProfile $root *>&1 | Out-String
-    $after = Get-Content -LiteralPath $settingsFile -Raw | ConvertFrom-Json
+    $after = Get-Content -LiteralPath $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
     $afterIds = @($after.customModels | ForEach-Object { [string]$_.model })
     Report '-Apply creates the customModels property on a PSCustomObject that lacks it' `
         (($null -ne $after.PSObject.Properties['customModels']) -and ($canonicalIds | Where-Object { $_ -notin $afterIds }).Count -eq 0) $applyOut
@@ -67,7 +67,7 @@ try {
     Report 'audit masks the credential field but still reports the drift' ($auditOut3 -match '\*\*\*' -and $auditOut3 -match "drift\s+custom:$([regex]::Escape($canonicalIds[0]))") $auditOut3
     Report 'audit reports the owner entry and never claims it' ($auditOut3 -match 'owner-authored\s+custom:owner-private') $auditOut3
     $null = & $installer -Apply -UserProfile $root *>&1
-    $after2 = Get-Content -LiteralPath $settingsFile -Raw | ConvertFrom-Json
+    $after2 = Get-Content -LiteralPath $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
     $after2Ids = @($after2.customModels | ForEach-Object { [string]$_.model })
     Report '-Apply merges canonical entries and preserves the owner entry untouched' `
         (('owner-private' -in $after2Ids) -and (($canonicalIds | Where-Object { $_ -notin $after2Ids }).Count -eq 0) -and ((@($after2.customModels | Where-Object { [string]$_.model -eq 'owner-private' } | ForEach-Object { [string]$_.apiKey })[0]) -ceq $fakeKey)) ($after2Ids -join ', ')
