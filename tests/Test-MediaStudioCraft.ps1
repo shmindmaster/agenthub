@@ -209,7 +209,7 @@ Report 'capture skill keeps the synthetic-only capture boundary' (
     $capture -match 'owner-authorized synthetic tenant' -and $capture -notmatch '(?i)duckie'
 ) 'capture skill lost the synthetic-only rule or names a client product'
 Report 'capture references carry no client capture note' (
-    -not (Test-Path -LiteralPath (Join-Path $pkg 'skills\capture\references\duckie-capture.md'))
+    -not (Test-Path -LiteralPath (Join-Path $pkg 'skills\produce\references\duckie-capture.md'))
 ) 'a client capture note is present in the public package'
 
 if ($failures.Count -gt 0) {
