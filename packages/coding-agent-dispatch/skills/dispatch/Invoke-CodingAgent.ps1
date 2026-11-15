@@ -550,15 +550,15 @@ function Get-DispatchTable {
                         if (-not (Test-Path -LiteralPath $roleProfile -PathType Leaf)) {
                             Write-Refusal 3 "refused opencode: role '$openCodeRoleName' needs the agent profile $roleAgent.md, which is missing from $openCodeAgentsDir; install it from packages/coding-agent-dispatch/opencode with Install-OpenCodeProfiles.ps1"
                         }
-                        if ($ReadOnly) {
+                        if ($ReadOnly -or $script:DispatchRole -eq 'reviewer') {
                             # The installed file is what OpenCode enforces, so it
-                            # is the one checked: a read-only run is refused
-                            # unless the profile's own ordered frontmatter
+                            # is the one checked: a restricted review run is
+                            # refused unless the profile's ordered frontmatter
                             # permissions effectively deny edit, shell and
                             # subagent for every resource. Text outside the
                             # frontmatter or a later allow rule never satisfies
                             # this gate, and prompt wording is never the
-                            # mechanism. Kiro parity: its -ReadOnly gate is an
+                            # mechanism. Kiro parity: its reviewer gate is an
                             # allow-list over the installed profile's tools;
                             # this is the V2-permission equivalent (no shell,
                             # no writable child, no write-through-command).
@@ -568,10 +568,13 @@ function Get-DispatchTable {
                                 Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the edit action for every resource, so a read-only run cannot be established"
                             }
                             if (-not (Test-OpenCodeProfileDenies -Text $profileText -Action 'shell')) {
-                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the shell action, so a read-only run could still change files through commands"
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the shell action, so this restricted run could still change files through commands"
                             }
                             if (-not (Test-OpenCodeProfileDenies -Text $profileText -Action 'subagent')) {
-                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the subagent action, so a read-only run could delegate to a writable agent"
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the subagent action, so this restricted run could delegate to a writable agent"
+                            }
+                            if (-not (Test-OpenCodeProfileDenies -Text $profileText -Action 'browser')) {
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the browser action, so a review could perform external actions"
                             }
                         }
                         $openCodeAgent = $roleAgent

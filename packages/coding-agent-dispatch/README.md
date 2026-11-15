@@ -164,7 +164,9 @@ through prompt wording: claude (`--permission-mode plan`), codex
 `ah-readonly` profile), opencode (the `readonly` agent, whose frontmatter
 permissions deny edit, shell and subagent; the dispatcher parses the
 installed file and refuses the run unless all three actions are effectively
-denied) and qwen (`--approval-mode plan` in place of `yolo`).
+denied) and qwen (`--approval-mode plan` in place of `yolo`). The OpenCode
+`reviewer` role is also refused unless its installed profile effectively denies
+edit, shell, subagent and browser actions; run tests through the `tester` role.
 `dispatchPolicy.<host>.readOnly` records the flags, or
 `false` (checked, none) or `null` (not established), with the dated help text
 in `readOnlyNote`. Every other host refuses `-ReadOnly` with exit 3; there is

@@ -191,12 +191,14 @@ from `~/.config/opencode/agents` (canonical copies in
 `dispatchPolicy.opencode.roles`); a role the policy does not record or whose
 agent file is missing from the installed home is refused. Without `-Role` the
 run keeps the guarded `peer` agent. `-ReadOnly` always runs the `readonly`
-agent (`roles.readonly`) — never `peer`, and never the reviewer role, which
-keeps a shell and is not a read-only run — and is refused unless the installed
+agent (`roles.readonly`) — never `peer` — and is refused unless the installed
 `readonly.md` ordered frontmatter permissions *effectively* deny the edit,
-shell and subagent actions on every resource: the dispatcher parses the rules
-(last match wins), so a deny in body text or a later allow rule never
-satisfies the gate.
+shell, subagent and browser actions on every resource. `-Role reviewer` is
+also checked against the installed `reviewer.md` profile and refuses unless it
+denies those same actions; neither route can write through a command, browse
+externally or delegate to a writable child. The dispatcher parses the rules
+(last match wins), so a deny in body text or a later allow rule never satisfies
+either gate.
 Live-verified on opencode 2.3.0 (2026-11-14): the profile-filtered session
 exposed no write/edit/patch tools and the prompted probe file was never
 created. Combining `-ReadOnly` with a writing role is refused.

@@ -125,9 +125,9 @@ $readonlyText = Get-Content (Join-Path $openCode 'agents\readonly.md') -Raw -Enc
 Check 'readonly denies every shell command (no write-through-command)' ($readonlyText -match [regex]::Escape('{ action: shell, resource: "*", effect: deny }'))
 Check 'readonly denies subagent delegation (no writable child)' ($readonlyText -match [regex]::Escape('{ action: subagent, resource: "*", effect: deny }'))
 Check 'readonly denies the browser action' ($readonlyText -match [regex]::Escape('{ action: browser, resource: "*", effect: deny }'))
-$reviewerShell = Get-Content (Join-Path $openCode 'agents\reviewer.md') -Raw -Encoding utf8
-Check 'reviewer keeps a shell for tests and is not the read-only profile' ($reviewerShell -notmatch [regex]::Escape('{ action: shell, resource: "*", effect: deny }'))
 $reviewer = Get-Content (Join-Path $openCode 'agents\reviewer.md') -Raw -Encoding utf8
+Check 'reviewer denies shell commands (no write-through-command)' ($reviewer -match [regex]::Escape('{ action: shell, resource: "*", effect: deny }'))
+Check 'reviewer denies subagent delegation (no writable child)' ($reviewer -match [regex]::Escape('{ action: subagent, resource: "*", effect: deny }'))
 Check 'reviewer denies git push and commits' ($reviewer -match [regex]::Escape('{ action: shell, resource: "git push*", effect: deny }') -and $reviewer -match [regex]::Escape('{ action: shell, resource: "git commit*", effect: deny }'))
 Check 'reviewer denies gh writes' ($reviewer -match [regex]::Escape('{ action: shell, resource: "gh pr *", effect: deny }'))
 $engineer = Get-Content (Join-Path $openCode 'agents\engineer.md') -Raw -Encoding utf8

@@ -391,6 +391,9 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('{ action: subagent, resource: "*", effect: deny }', '{ action: subagent, resource: "*", effect: allow }'))
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
     Check 'OpenCode refuses -ReadOnly when the installed readonly profile grants subagent' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the subagent action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('{ action: browser, resource: "*", effect: deny }', '{ action: browser, resource: "*", effect: allow }'))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses -ReadOnly when the installed readonly profile grants browser' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the browser action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('  - { action: edit, resource: "*", effect: deny }', "  - { action: edit, resource: ""*"", effect: deny }`n  - { action: edit, resource: ""*"", effect: allow }"))
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
     Check 'OpenCode refuses -ReadOnly when a later allow rule re-opens edit (last match wins)' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the edit action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
@@ -400,7 +403,21 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'OpenCode refuses -ReadOnly when the edit deny exists only as body text' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the edit action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText)
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
-    Check 'the effective-deny gate belongs to -ReadOnly, not to the role' ($r.Exit -eq 0) ($r.Out + $r.Err)
+    Check 'OpenCode reviewer role runs only with its installed restricted profile' ($r.Exit -eq 0 -and (ShowArgs $r) -match '--agent reviewer') ($r.Out + $r.Err)
+    $ocReviewerProfile = Join-Path $openCodeAgentsDir 'reviewer.md'
+    $ocReviewerText = [IO.File]::ReadAllText($ocReviewerProfile)
+    foreach ($action in @('edit', 'shell', 'subagent', 'browser')) {
+        $originalRule = "{ action: $action, resource: `"*`", effect: deny }"
+        $allowedRule = "{ action: $action, resource: `"*`", effect: allow }"
+        [IO.File]::WriteAllText($ocReviewerProfile, $ocReviewerText.Replace($originalRule, $allowedRule))
+        $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
+        Check "OpenCode reviewer refuses a profile that grants $action" ($r.Exit -eq 3 -and $r.Err -match "does not effectively deny the $action action" -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    }
+    [IO.File]::WriteAllText($ocReviewerProfile, $ocReviewerText)
+    [IO.File]::WriteAllText($ocReviewerProfile, $ocReviewerText.Replace('  - { action: shell, resource: "*", effect: deny }', '  - { action: shell, resource: "*", effect: deny }' + "`n  - { action: shell, resource: `"*`", effect: allow }"))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
+    Check 'OpenCode reviewer refuses a later shell allow rule (last match wins)' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the shell action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReviewerProfile, $ocReviewerText)
     Remove-Item -LiteralPath $ocReadonlyProfile -Force
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
     Check 'OpenCode refuses -ReadOnly when the readonly agent is not installed' ($r.Exit -eq 3 -and $r.Err -match 'readonly\.md' -and $r.Err -match 'missing') ($r.Out + $r.Err)
