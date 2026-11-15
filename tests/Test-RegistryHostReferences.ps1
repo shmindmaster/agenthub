@@ -327,16 +327,23 @@ function Test-LiveHostAuthenticationMetadata {
     }
     foreach ($violation in @(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy)) { $violations.Add($violation) }
     $openCode = $profile.dispatchPolicy.opencode
+    # 2026-11-14 (SH-4674): hostSettings.opencode.model/smallModel are the plan-based host defaults
+    # deployed into opencode.json (qwen-token-plan), while the unattended dispatcher default in
+    # dispatchPolicy.opencode.model stays the OpenCode Go subscription. The two are deliberately not
+    # equal anymore; both must remain smoke-verified allowedModels entries and never opencode/
+    # (Zen wallet) pay-as-you-go ids.
+    $openCodeHostDefaults = @([string]$profile.hostSettings.opencode.model, [string]$profile.hostSettings.opencode.smallModel)
     if ($openCode.enabled -ne $true -or
         $profile.hostSettings.opencode.authMode -ne 'account' -or
-        $profile.hostSettings.opencode.model -ne $openCode.model -or
         $openCode.model -ne 'opencode-go/glm-5.3-flash' -or
         @($openCode.allowedModels | Where-Object { [string]$_ -like 'opencode/*' }).Count -gt 0 -or
+        @($openCodeHostDefaults | Where-Object { $_ -like 'opencode/*' }).Count -gt 0 -or
+        @($openCodeHostDefaults | Where-Object { @($openCode.allowedModels) -notcontains $_ }).Count -gt 0 -or
         $openCode.verifiedOn -ne '2026-10-26' -or
         @($openCode.allowedModels) -notcontains $openCode.model -or
         $openCode.agent -ne 'peer' -or
         $null -ne $openCode.ownerAction) {
-        $violations.Add('OpenCode Go dispatch must keep its account login, the opencode-go default inside allowedModels with no opencode/ (Zen wallet) ids, and the outward-action-denying peer agent')
+        $violations.Add('OpenCode Go dispatch must keep its account login, the opencode-go dispatch default and the subscription-plan host defaults inside allowedModels with no opencode/ (Zen wallet) ids, and the outward-action-denying peer agent')
     }
     $warpPolicy = $profile.dispatchPolicy.warp
     if ($warpPolicy.enabled -eq $true -and (

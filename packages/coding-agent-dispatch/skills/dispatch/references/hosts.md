@@ -1,8 +1,8 @@
 # Host details
 
-Read when: choosing a model, a Kiro role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo, MiMo or Qwen eligibility, resuming a Cline session, or auditing a host plugin.
+Read when: choosing a model, a Kiro or Factory role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo, MiMo or Qwen eligibility, resuming a Cline session, or auditing a host plugin.
 
-Contents: Models, Kiro roles, Read-only runs, Account hosts, New plan hosts, Plan routes, Qwen, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
+Contents: Models, Kiro and Factory roles, Read-only runs, Account hosts, New plan hosts, Plan routes, Qwen, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
 
 ## Models
 
@@ -19,20 +19,26 @@ Subscriptions only, never a pay-as-you-go wallet (owner direction 2026-11-10). T
 - OpenCode: provider `opencode/` is the pay-as-you-go Zen wallet and is refused. Use `opencode-go/<model>`, the Go subscription on the stored Go workspace login.
 - MiMo, on every host (kilo `mimo/*`, mimo-code `xiaomi-token-plan-*/*`, qwen's OpenAI-compatible child environment, opencode `mimo-token-plan/*`, cline `mimo-token-plan:*`, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider `xiaomi/` (the pay-as-you-go API in MiMo Code's model listing) is refused. If `MIMO_BASE_URL` is set, its host must be `token-plan-<region>.xiaomimimo.com`; pay-as-you-go is `api.xiaomimimo.com`. If `MIMO_API_KEY` is set, it must start with `tp-` or `ttp-`; pay-as-you-go keys start with `sk-`. On qwen both must be present, because the child environment is that route's only credential. The refusal names the variable and never prints its value.
 
-## Kiro roles
+## Kiro and Factory roles
 
-`-Role` applies to Kiro only. Any other host refuses a role other than `peer`
-with exit 3.
+`-Role` applies to Kiro and Factory only. Any other host refuses a role other
+than `peer` with exit 3.
 
 | Role | Profile | Command |
 | --- | --- | --- |
 | `peer` (default) | `dispatchPolicy.kiro.agent` (`ah-peer`) | `kiro-cli chat --no-interactive --trust-all-tools --agent ah-peer --model <m> <prompt>` |
 | `engineer`, `reviewer`, `tester`, `architect`, `incident` | `dispatchPolicy.kiro.roles.<role>` (`ah-<role>`) | `kiro-cli chat --v3 --no-interactive --trust-all-tools --agent ah-<role> --model <m> <prompt>` |
 
-The role profiles are `packages/coding-agent-dispatch/kiro/agents/ah-<role>.json`.
+The Kiro role profiles are `packages/coding-agent-dispatch/kiro/agents/ah-<role>.json`.
 A role is refused with exit 3 when its profile file is missing from
 `~/.kiro/agents` or when `dispatchPolicy.kiro.roles` does not name it. The
 dispatcher does not install profiles.
+
+Factory maps `engineer`, `reviewer` and `tester` through
+`dispatchPolicy.factory.roles` to native custom droids in
+`~/.factory/droids` (canonical source + installer: see the Factory section
+below); a role whose droid file is missing or unmapped is refused with exit 3.
+Other roles are refused on Factory.
 
 ## Read-only runs
 
@@ -69,7 +75,7 @@ text on 2026-11-11.
 - Gemini CLI is retired (2026-11-10) and has no dispatch contract. Dispatch Google work to Antigravity.
 - Copilot: runs on the `sh-pendoah` GitHub account; the dispatcher reads that token from gh's keyring into the child environment only.
 - Codex reads the task from stdin (`exec --skip-git-repo-check -`) and does not initialize Git. Antigravity gets `--print=<prompt>` after its permissions flag.
-- Long, quoted or multiline argument prompts go through a temporary UTF-8 file and a short pointer; the file is removed on completion.
+- Long, quoted or multiline argument prompts go through a temporary UTF-8 file; the file is removed on completion. OpenCode attaches pointer files with `--file` rather than asking the agent to read outside the checkout, preserving its strict read/glob allowlist.
 - Claude's current account eligibility comes from `dispatchPolicy`, not this
   reference. The separate `-HostId claude -AnthropicApiKey` path is a per-call
   opt-in only while its recorded authorization is valid; it is not a fallback
@@ -148,21 +154,24 @@ environment only.
 
 ## Plan routes
 
-Smoke-verified 2026-11-14 through `Invoke-CodingAgent.ps1` (`READY`, exit 0). Keys come from environment variables only.
+Factory smokes re-verified 2026-11-14 (SH-4676) through `Invoke-CodingAgent.ps1` (`READY`, exit 0, `factory_credits: 0`); opencode/kilo columns verified 2026-11-14. Keys come from environment variables only.
 
 | Plan | Variable | opencode | kilo | factory |
 | --- | --- | --- | --- | --- |
-| Qwen Token Plan | `QWEN_TOKEN_PLAN_API_KEY` | `qwen-token-plan/qwen3.8-max`, `qwen-token-plan/qwen4-max-preview` | `qwen-token-plan/qwen3.8-max` | `custom:Qwen-38-Max-Token-Plan-5`, `custom:Qwen-4-Max-Preview-Token-Plan-6` |
-| Z.ai GLM Coding Plan | `ZAI_CODING_PLAN_API_KEY` | `zai-glm-plan/glm-5.3` (native), `zai-coding-plan/glm-5.3` (legacy launcher) | `zai-coding-plan/glm-5.3` | `custom:GLM-53-Zai-Coding-Plan-4` |
-| MiMo Token Plan | `MIMO_API_KEY` | `mimo-token-plan/mimo-v2.6-pro` | `mimo/mimo-v2.6-pro` | `custom:MiMo-V26-Pro-Token-Plan-2` |
+| Qwen Token Plan | `QWEN_TOKEN_PLAN_API_KEY` | `qwen-token-plan/qwen3.8-max`, `qwen-token-plan/qwen4-max-preview` | `qwen-token-plan/qwen3.8-max` | `custom:qwen3.8-max-tp`, `custom:qwen4-max-preview` |
+| Z.ai GLM Coding Plan | `ZAI_CODING_PLAN_API_KEY` | `zai-glm-plan/glm-5.3` (native), `zai-coding-plan/glm-5.3` (legacy launcher) | `zai-coding-plan/glm-5.3` | `custom:glm-5.3-zai` |
+| MiMo Token Plan | `MIMO_API_KEY` | `mimo-token-plan/mimo-v2.6-pro` | `mimo/mimo-v2.6-pro` | `custom:mimo-v2.6-pro`, `custom:mimo-v2.6-flash` |
 
-- Factory `custom:` ids end in the `customModels` array index in `~/.factory/settings.json`; reordering that file changes the id. Display names avoid parentheses because the dispatcher refuses them.
+- A Factory `custom:` id is `custom:` + the BYOK entry's `model` field in `~/.factory/settings.json`, stable under reordering (droid 1.10.0/1.12.1; the earlier "array index suffix" claim was wrong). The canonical entries are reproducible from AgentHub: `packages/coding-agent-dispatch/factory/custom-models.json` + `Install-FactoryCustomModels.ps1` (audit/apply, `${ENV}` key references only, owner-authored entries untouched).
+- A BYOK entry whose `model` field collides with a Factory built-in id (`qwen3.8-max`, `glm-5.3`) gets accounted at the built-in multiplier even though inference goes to the BYOK endpoint; the canonical entries therefore use renamed ids with `extraArgs.model` carrying the real upstream name. Detail: `dispatchPolicy.factory.byokCreditsNote` in `registry/fleet-profile.json`.
 - Qwen Token Plan terms allow AI coding tools only; never call its endpoint from scripts or app backends.
-- Unverified: Factory reported nonzero `factory_credits` on the Qwen 3.8 Max and GLM smoke runs.
+- `custom:glm-5.3-zai` could not complete its READY smoke on 2026-11-14: the Z.ai Coding Plan returned 429 (5-hour limit, reset 2026-11-15 08:24 local) with `factory_credits: 0`, which proves routing but not a completion.
 
 ## Factory
 
-Dispatch is governed. `exec --auto` runs at low or medium only (`high` permits git push; `--skip-permissions-unsafe` is never emitted). `-o json` returns a session id and credit usage. `-m` defaults to `dispatchPolicy.factory.model`; `-Model` passes any well-formed model id through (see Models). `--settings` points at `factory/runtime-settings.json`, checked with `droid rules check`.
+Dispatch is governed. `exec --auto` runs at low or medium only (`high` permits git push; `--skip-permissions-unsafe` is never emitted). `-o json` returns a session id and credit usage. `-m` defaults to `dispatchPolicy.factory.model` (a zero-credit BYOK plan route since SH-4676; Factory-hosted ids in `allowedModels` spend credits); `-Model` passes any well-formed model id through (see Models). `--settings` points at `factory/runtime-settings.json`, checked with `droid rules check` (extract its `permissionRules` object first: `--file` wants a standalone `{version, rules}` file); it also pins `subagentModelSettings` light/medium/heavy to `inherit` so any subagent of a dispatched run stays on the parent's subscription route instead of the hosted `lightModel`.
+
+Roles (`-Role engineer|reviewer|tester`) run as native custom droids through one Task-tool delegation, mapped by `dispatchPolicy.factory.roles`. Canonical droids live in `packages/coding-agent-dispatch/factory/droids` (`ah-engineer`, `ah-reviewer` read-only, `ah-browser-tester` on the droid-control skill's agent-browser atom) and deploy to `~/.factory/droids` with `Install-FactoryDroids.ps1`. Exec sessions block the Task tool by default and `--add-tools Task` does not unblock it, so a role run passes an explicit `--only-tools` union naming Task; that union is the session ceiling and each droid's frontmatter narrows inside it. `-ReadOnly` is refused for writing roles; `-ReadOnly -Role reviewer` additionally verifies from the droid's frontmatter that its tools are read-only. Third-party Claude-format plugins whose hooks use POSIX `sh` or `%CLAUDE_PLUGIN_ROOT%` break every Execute call on Windows (observed with `aws-core@claude-plugins-official`; disabled 2026-11-14, re-enable only with a Windows-safe hook).
 
 ## Devin
 
@@ -185,12 +194,31 @@ Cline dispatch is enabled in `dispatchPolicy`:
 
 The Go subscription is provider `opencode-go`; the default is `opencode-go/glm-5.3-flash`. Provider `opencode` is the pay-as-you-go Zen wallet and is refused (see Models).
 
+`-Role engineer|reviewer|tester|researcher` runs the matching native V2 agent
+from `~/.config/opencode/agents` (canonical copies in
+`packages/coding-agent-dispatch/opencode/agents`, recorded in
+`dispatchPolicy.opencode.roles`); a role the policy does not record or whose
+agent file is missing from the installed home is refused. Without `-Role` the
+run keeps the guarded `peer` agent. `-ReadOnly` always runs the `readonly`
+agent (`roles.readonly`) — never `peer` — and is refused unless the installed
+`readonly.md` ordered frontmatter permissions deny every action by default and
+allow only `read` and `glob`, with secret and auth-file reads denied. `-Role
+reviewer` uses the same gate for its installed `reviewer.md` profile. The
+dispatcher parses the rules (last match wins), so body text cannot satisfy the
+gate. Restricted child processes set `OPENCODE_DISABLE_PROJECT_CONFIG=true`
+and `OPENCODE_PURE=true`, preventing repository configuration/instructions and
+external plugins from changing the effective policy.
+Live-verified on opencode 2.3.0 (2026-11-14): the profile-filtered session
+exposed no write/edit/patch tools and the prompted probe file was never
+created. Combining `-ReadOnly` with a writing role is refused.
+
 On Windows, `-HostId opencode -Model zai-coding-plan/glm-5.3` uses the
 installed `%LOCALAPPDATA%/AgentHub/zai/opencode-zai.ps1` launcher and its
 separate OpenCode 1.x settings. It exposes the Z.ai MCPs and workspace
 read/edit/search tools. Shell, subagents and access outside the workspace are
 denied for these headless runs. Use a different route for tasks requiring a
-shell. The launcher must pass through the OpenCode exit code.
+shell. The launcher must pass through the OpenCode exit code. The launcher has
+no V2 agent profiles: it refuses every `-Role` except peer and any `-ReadOnly`.
 
 On Forge, use `-Forge -HostId opencode-zai -Cwd <Forge-worktree>`. This
 opens the runner's isolated Z.ai launcher interactively; the Forge adapter
@@ -206,5 +234,6 @@ Each installer audits by default and changes files only with `-Apply`. None star
 | Script | Purpose |
 | --- | --- |
 | `Install-OpenCodeToolDiscovery.ps1` | Native global plugin that defers schemas and skill/MCP catalogs until needed. Reload the shared OpenCode service after installing. |
+| `Install-OpenCodeProfiles.ps1` (in `packages/coding-agent-dispatch/opencode/`) | Deploys the canonical V2 agent profiles (`peer`, `engineer`, `reviewer`, `tester`, `researcher`) to `~/.config/opencode/agents`. Hash-verified `-Apply` repairs drift, never touches owner-authored agents, `opencode.json`, MCP files, plugins or credentials, and writes no backups. |
 | `Install-ClineToolDiscovery.ps1` | Installs `cline/lightweight-chat.js` (`find_tools` loads up to five tools per search) for the `qwen3.8-max` profile, and sets Cline's global `compactionEnabled` to `false`, because compaction otherwise estimates the full tool catalog and can discard tool results. Verify a plain reply and a real file read after a Cline upgrade. |
 | `Install-ClinePeerGuard.ps1` | Installs `~/.cline/plugins/peer-guard.js`, a deny list (not a sandbox) active only when `AGENTHUB_PEER_GUARD=1` and `CLINE_SESSION_BACKEND_MODE=local`; it fails open in hub mode. Blocks git push, reset --hard, clean -f, mutating gh, publish, cloud CLIs, scheduled tasks and services, host administration, credential dumps, disk and power operations, recursive root/home deletes, and writes to protected paths. |

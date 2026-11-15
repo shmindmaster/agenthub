@@ -58,6 +58,13 @@ coding-agent-dispatch skill. Their manual installers audit by default and use
 loads native tools on demand for the current user turn. Tools and service
 credentials stay with the host. This is not a universal adapter for other
 agents. Other agents retain their supported native discovery behavior.
+For OpenCode there is one discovery owner per domain (SH-4674): the
+lightweight-chat plugin owns native-tool and skill discovery, native Code Mode
+owns MCP and connected-app discovery (the plugin routes there and keeps no
+competing catalog), and web search is the Tavily CLI
+(`tvly search/extract --client-name opencode` through the shell) because the
+builtin websearch provider has no entitlement on this fleet — a 402 from it is
+a blocked route, not an answer.
 Cline MCP synchronization preserves existing deferred-server choices,
 approvals and authentication when updating transport settings. Legacy server
 names are reconciled through the registry aliases, rather than retaining an

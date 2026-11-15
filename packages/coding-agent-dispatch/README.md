@@ -147,26 +147,30 @@ written; `-ShowCommand` prints the child variable names, never the key. As
 with warp, yolo mode has no agent-profile denylist, so the child carries the
 `GIT_CONFIG_*`/`GH_CONFIG_DIR` push guard.
 
-`-Role` (SH-4418) picks a Kiro profile: `peer`, the default, keeps the guarded
-`ah-peer` command; `engineer`, `reviewer`, `tester`, `architect` and `incident`
-run the V3 engine on `ah-<role>` from `kiro/agents/`, recorded in
-`dispatchPolicy.kiro.roles`. A role whose profile is missing from
-`~/.kiro/agents` is refused, and so is a role other than `peer` on any other
-host.
-
+`-Role` (SH-4418, SH-4674, SH-4676) picks a per-host role profile. Kiro uses V3 profiles from `kiro/agents/`; OpenCode uses native V2 agents from `opencode/agents/` and refuses missing profiles. Factory maps `engineer`, `reviewer` and `tester` through `dispatchPolicy.factory.roles` to native droids in `~/.factory/droids`, installed from `factory/droids/` by `factory/Install-FactoryDroids.ps1`; stable BYOK model ids come from `factory/custom-models.json`. The Factory parent relays exactly one Task delegation, and each droid's frontmatter constrains available tools. Any other host refuses roles other than `peer`.
 `-ReadOnly` runs a host in a read-only mode the host itself enforces, never
 through prompt wording: claude (`--permission-mode plan`), codex
 (`--sandbox read-only`), factory (`exec` without `--auto`), kiro (the
-`ah-readonly` profile) and qwen (`--approval-mode plan` in place of `yolo`).
+`ah-readonly` profile), opencode (the `readonly` agent, whose frontmatter
+permissions deny edit, shell and subagent; the dispatcher parses the
+installed file and refuses the run unless all three actions are effectively
+denied) and qwen (`--approval-mode plan` in place of `yolo`). OpenCode
+restricted profiles require deny-by-default permissions with only `read` and
+`glob` allowed, plus secret and auth-file read denials. Restricted processes
+set `OPENCODE_DISABLE_PROJECT_CONFIG=true` and `OPENCODE_PURE=true` to prevent
+repository config/instructions and external plugins from changing the policy.
+The `reviewer` role is subject to this gate; run tests through `tester`.
 `dispatchPolicy.<host>.readOnly` records the flags, or
 `false` (checked, none) or `null` (not established), with the dated help text
 in `readOnlyNote`. Every other host refuses `-ReadOnly` with exit 3; there is
 no fallback to a writable run. `-List -ReadOnly` prints the supported hosts.
-No read-only mode has been exercised with a model run.
+OpenCode read-only mode is live-verified (2026-11-14, SH-4674); Factory `-ReadOnly -Role reviewer` returned WRITE-DENIED with no file created at zero credits (2026-11-14, SH-4676).
 
 Codex accepts non-repository working directories without creating Git state.
 Antigravity uses attached `--print=<prompt>`. Long or shell-sensitive argument
-prompts use temporary UTF-8 task files. Children, including batch shims and
+prompts use temporary UTF-8 task files; OpenCode attaches its task file with
+`--file`, so the read-only agent does not need external-directory access.
+Children, including batch shims and
 timeout cleanup, run hidden. No cloud adapter, login or scheduled task is
 created. Hosted cloud aliases are explicitly refused.
 
@@ -206,7 +210,7 @@ failures against an older copy without changing installed hosts.
 package's dispatcher on a host different from the one that authored the PR
 (branch prefix or a `[host: <id>]` PR-body marker). The script issues no
 write command, and the model run is host-enforced read-only on claude,
-codex, factory, kiro and qwen: every dispatcher call carries `-ReadOnly` (and
+codex, factory, kiro, opencode and qwen: every dispatcher call carries `-ReadOnly` (and
 `-Role reviewer` on Kiro), the reviewer host is chosen only among hosts
 whose `dispatchPolicy.<host>.readOnly` in `registry/fleet-profile.json`
 records an enforced read-only mode, and the run ends BLOCKED, with no model

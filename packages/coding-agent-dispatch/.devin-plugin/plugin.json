@@ -1,6 +1,6 @@
 {
   "name": "ah-coding-agent-dispatch",
-  "version": "0.8.14",
+  "version": "0.9.2",
   "description": "Dispatch a task to another coding-agent host through the windowless fleet dispatcher, under registry policy and per-host guards.",
   "displayName": "AH-Coding-Agent-Dispatch",
   "shortDescription": "Dispatch tasks to other coding-agent hosts.",
