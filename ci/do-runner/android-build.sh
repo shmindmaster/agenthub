@@ -12,7 +12,8 @@
 #   --env      build env passed into the container; repeatable. Values for the
 #              ABACare preview lane are recorded in docs/runbooks/do-interim-release.md.
 #
-# The working tree lives at /srv/work/android/<repo>-<branch>; node_modules and the
+# The working tree is keyed by repository path and branch under /srv/work/android;
+# node_modules and the
 # generated android/ persist between runs, and the pnpm store and Gradle home are
 # shared under /opt/forge/android. The APK is copied to
 # /srv/work/android/artifacts/<repo>-<branch>-<sha8>-<app>-<variant>[-<envhash8>].apk
@@ -45,9 +46,12 @@ case "$variant" in release|debug) ;; *) echo "android-build: --variant must be r
 [ -d "$repo" ] || { echo "android-build: $repo is not a directory" >&2; exit 2; }
 docker image inspect "$image" > /dev/null 2>&1 || { echo "android-build: image $image is missing (run android-setup.sh)" >&2; exit 2; }
 
-name=$(basename "$repo"); name=${name%.git}
+repo_real=$(realpath "$repo")
+name=$(basename "$repo_real"); name=${name%.git}
+repo_key=$(printf '%s' "$repo_real" | sha256sum | cut -c1-8)
 safe=${branch//[^A-Za-z0-9._-]/-}
-work="/srv/work/android/$name-$safe"
+branch_key=$(printf '%s' "$branch" | sha256sum | cut -c1-8)
+work="/srv/work/android/$name-$repo_key-$safe-$branch_key"
 artifacts=/srv/work/android/artifacts
 cache=/opt/forge/android
 mkdir -p "$artifacts" "$cache/gradle-home" "$cache/pnpm-store" /srv/work/android
@@ -61,7 +65,13 @@ command -v flock >/dev/null 2>&1 || { echo "android-build: flock is required on 
 flock -n 9 || { echo "android-build: another build is using $work" >&2; exit 2; }
 
 # Pushed branches only: fetch the exact ref from the bare repo, never a working tree.
-[ -d "$work/.git" ] || git clone -q "$repo" "$work"
+if [ -d "$work/.git" ]; then
+  origin=$(git -C "$work" remote get-url origin)
+  origin_real=$(realpath "$origin")
+  [ "$origin_real" = "$repo_real" ] || { echo "android-build: checkout origin $origin_real does not match requested repo $repo_real" >&2; exit 2; }
+else
+  git clone -q "$repo_real" "$work"
+fi
 git -C "$work" fetch -q origin "+refs/heads/$branch:refs/remotes/origin/$branch"
 git -C "$work" checkout -q -f -B "$safe" "origin/$branch"
 git -C "$work" clean -qfd
@@ -77,13 +87,14 @@ fi
 # a hash of the sorted env, so two configurations of one commit never overwrite
 # each other's APK or log. A rebuild of the identical identity replaces its own
 # artifacts, which is the point: the stem is the rerun key.
-app_tag=${app_norm//\//-}; [ -n "$app_tag" ] || app_tag=root
+app_tag=${app_norm//\//-}
+if [ "$app_norm" = "." ] || [ -z "$app_tag" ]; then app_tag=root; fi
 env_suffix=""
 if [ ${#envs[@]} -gt 0 ]; then
   env_hash=$(printf '%s\n' "${envs[@]}" | LC_ALL=C sort | sha256sum | cut -c1-8)
   env_suffix="-$env_hash"
 fi
-stem="$name-$safe-${sha:0:8}-$app_tag-$variant$env_suffix"
+stem="$name-$repo_key-$safe-$branch_key-${sha:0:8}-$app_tag-$variant$env_suffix"
 log="$artifacts/$stem.log"
 
 main() {
