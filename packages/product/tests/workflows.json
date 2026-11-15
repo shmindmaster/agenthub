@@ -99,6 +99,26 @@
         "Use the verified revision, demo journey and approved synthetic data.",
         "If a role, revision or journey fails, block capture and route the issue back to `verify` or `build`."
       ]
+    },
+    {
+      "skill": "engineer",
+      "kind": "workflow",
+      "input": "Plan how to split a large service without changing its behavior.",
+      "expected": "Add characterization tests and extract one owned concept per pull request.",
+      "evidence": [
+        "Preserve behavior.",
+        "extract one owned concept per PR with a stable interface"
+      ]
+    },
+    {
+      "skill": "engineer",
+      "kind": "recovery",
+      "input": "A service targeted for refactoring has no trustworthy tests.",
+      "expected": "Characterize current behavior with a test before refactoring.",
+      "evidence": [
+        "Treat code without trustworthy tests as risky",
+        "characterize its current behavior with a test before changing it"
+      ]
     }
   ]
 }
