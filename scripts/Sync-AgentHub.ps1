@@ -1951,6 +1951,7 @@ function Sync-HostMcp-OpenCode {
         [pscustomobject]$Agent,
         [hashtable]$McpEntries,
         [string[]]$SuppressedKeys = @(),
+        [hashtable]$ManagedDefaults = @{},
         [switch]$WhatIf,
         [switch]$Prune
     )
@@ -2028,6 +2029,12 @@ function Sync-HostMcp-OpenCode {
             }
         }
     }
+
+    # Registry-owned host-level defaults (SH-4674): the canonical value wins,
+    # every other key in the file is preserved. This is what lets a fleet sync
+    # reproduce the zero-thought OpenCode setup (default and small model)
+    # instead of only round-tripping the MCP section.
+    foreach ($defaultKey in $ManagedDefaults.Keys) { $root[$defaultKey] = $ManagedDefaults[$defaultKey] }
 
     $stableNewJson = Get-StableJsonString $root
     $stableExistingJson = Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
@@ -2256,6 +2263,23 @@ $pluginProvidedByHost = Get-PluginProvidedMcpKeysByHost -CapabilitiesRegistry $c
 $agentsToSync = @($agentsReg.activeAgents)
 if ($IncludeInactiveAgents) { $agentsToSync += @($agentsReg.inactiveAgents) }
 
+# Registry-owned OpenCode host defaults (SH-4674): hostSettings.opencode.model
+# and .smallModel are merged into opencode.json beside the MCP registry, so a
+# fleet sync reproduces the zero-thought setup instead of only round-tripping
+# the MCP section. Absent records merge nothing.
+$openCodeManagedDefaults = @{}
+$fleetProfileReg = Read-JsonFile (Join-Path $RegistryDir 'fleet-profile.json')
+if ($fleetProfileReg -and $fleetProfileReg.PSObject.Properties['hostSettings'] -and $fleetProfileReg.hostSettings -and
+    $fleetProfileReg.hostSettings.PSObject.Properties['opencode'] -and $fleetProfileReg.hostSettings.opencode) {
+    $openCodeSettings = $fleetProfileReg.hostSettings.opencode
+    if ($openCodeSettings.PSObject.Properties['model'] -and -not [string]::IsNullOrWhiteSpace([string]$openCodeSettings.model)) {
+        $openCodeManagedDefaults['model'] = [string]$openCodeSettings.model
+    }
+    if ($openCodeSettings.PSObject.Properties['smallModel'] -and -not [string]::IsNullOrWhiteSpace([string]$openCodeSettings.smallModel)) {
+        $openCodeManagedDefaults['small_model'] = [string]$openCodeSettings.smallModel
+    }
+}
+
 foreach ($agent in $agentsToSync) {
     if (-not (Test-AgentHubHostSyncEnabled -Agent $agent)) { continue }
     $hostDrift = @{ host=$agent.id; mcp=@(); files=@(); status='ok' }
@@ -2340,7 +2364,7 @@ foreach ($agent in $agentsToSync) {
             $hostDrift.mcp += $r
         }
         'opencode' {
-            $r = Sync-HostMcp-OpenCode -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-OpenCode -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -ManagedDefaults $openCodeManagedDefaults -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'antigravity' {

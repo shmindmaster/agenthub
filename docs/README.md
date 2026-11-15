@@ -26,6 +26,11 @@ stranger-safe first run. For this private fleet checkout, also use
 - [development/testing.md](./development/testing.md) — test layers.
 - [development/skill-authoring-standard.md](./development/skill-authoring-standard.md).
 - [development/repo-standard.md](./development/repo-standard.md) — fleet repository standard.
+- [development/pr-review-guideline.md](./development/pr-review-guideline.md) —
+  shared fleet PR review guideline (SH-4416): ready-only Seer/Codex review,
+  exact-head-SHA verdicts, reviewer independence, bounded iteration, no
+  auto-merge; carries the `## Code Review Rules` block copied into each
+  repo's `AGENTS.md`.
 - [Portfolio product and architecture standard](../packages/product/references/portfolio-standard.md) — production-grade apps, storage, workers, caching, static marketing sites and email provider choice; ships with `ah-product`.
 - [development/agent-orientation.md](./development/agent-orientation.md), [agent-change-contract.md](./development/agent-change-contract.md) — agent reference loaded on demand from the triggers in `AGENTS.md`.
 - [development/chrome-cdp.md](./development/chrome-cdp.md) — browser MCP notes.

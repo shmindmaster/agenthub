@@ -1,0 +1,47 @@
+{
+  "$comment": "SH-4676: canonical BYOK customModels for Factory droid dispatch. Install-FactoryCustomModels.ps1 merges these into ~/.factory/settings.json customModels. The model field is the stable custom id (custom:<model>). Fields that collide with a Factory built-in model id are renamed and carry extraArgs.model with the real upstream name, because a collision makes Factory account the run at the built-in multiplier even though inference goes to the BYOK endpoint (fleet-profile.json dispatchPolicy.factory.byokCreditsNote). apiKey is always an ${ENV} reference; never a value.",
+  "customModels": [
+    {
+      "model": "qwen3.8-max-tp",
+      "displayName": "Qwen 38 Max Token Plan",
+      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
+      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 32768,
+      "extraArgs": { "model": "qwen3.8-max" }
+    },
+    {
+      "model": "qwen4-max-preview",
+      "displayName": "Qwen 4 Max Preview Token Plan",
+      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
+      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 32768
+    },
+    {
+      "model": "glm-5.3-zai",
+      "displayName": "GLM 53 Zai Coding Plan",
+      "baseUrl": "https://api.z.ai/api/coding/paas/v4",
+      "apiKey": "${ZAI_CODING_PLAN_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 32768,
+      "extraArgs": { "model": "glm-5.3" }
+    },
+    {
+      "model": "mimo-v2.6-pro",
+      "displayName": "MiMo V26 Pro Token Plan",
+      "baseUrl": "https://token-plan-sgp.xiaomimimo.com/v1",
+      "apiKey": "${MIMO_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 131072
+    },
+    {
+      "model": "mimo-v2.6-flash",
+      "displayName": "MiMo V26 Flash Token Plan",
+      "baseUrl": "https://token-plan-sgp.xiaomimimo.com/v1",
+      "apiKey": "${MIMO_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 131072
+    }
+  ]
+}

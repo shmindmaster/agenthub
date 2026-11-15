@@ -99,6 +99,27 @@
         "Use the verified revision, demo journey and approved synthetic data.",
         "If a role, revision or journey fails, block capture and route the issue back to `verify` or `build`."
       ]
+    },
+    {
+      "skill": "engineer",
+      "kind": "workflow",
+      "input": "Split the highest-risk oversized file in a synthetic repo.",
+      "expected": "Rank the findings, state before and after line counts and the tests run, then hand the change to `verify`.",
+      "evidence": [
+        "For a large file, pick the one with the highest change risk, add characterization tests, and extract one owned concept per PR with a stable interface.",
+        "State before and after line counts and the tests run.",
+        "Next: `verify`, once the change is built."
+      ]
+    },
+    {
+      "skill": "engineer",
+      "kind": "recovery",
+      "input": "The module to change has no trustworthy tests.",
+      "expected": "Characterize the current behavior with a test before changing it, starting from the repository instructions and `git status`.",
+      "evidence": [
+        "Treat code without trustworthy tests as risky: characterize its current behavior with a test before changing it.",
+        "Read the repository's instructions and `git status`."
+      ]
     }
   ]
 }

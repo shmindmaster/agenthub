@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
 metadata:
-  version: "0.8.14"
+  version: "0.9.2"
 ---
 
 # Dispatch to another coding agent
@@ -94,9 +94,12 @@ widen its allowlist in a brief; see "Forge unattended intake" in
    on Windows or `-Forge -HostId opencode-zai -Cwd <Forge-worktree>` for an
    interactive session. See the host reference for the Windows tool limits.
 
-   `-Role <role>` picks a Kiro profile: `peer` (default), `engineer`,
-   `reviewer`, `tester`, `architect` or `incident`. Every other host refuses
-   a role other than `peer`.
+   `-Role <role>` picks a Kiro profile or a Factory custom droid: `peer` (default), `engineer`,
+   `reviewer`, `tester`, `architect` or `incident`. Factory maps `engineer`,
+   `reviewer` and `tester` to native droids (`dispatchPolicy.factory.roles`,
+   deployed from `packages/coding-agent-dispatch/factory/droids` with
+   `Install-FactoryDroids.ps1`); every other host refuses a role other than
+   `peer`.
 
    `-ReadOnly` runs the task in a read-only mode the host itself enforces.
    It works on claude, codex, factory, kiro and qwen; every other host refuses it
@@ -157,4 +160,4 @@ unrelated host or service to recover.
 
 ## Host details
 
-Read `references/hosts.md` when choosing a model, a Kiro role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, resuming a Cline session, or auditing a host plugin (`Install-*.ps1`).
+Read `references/hosts.md` when choosing a model, a Kiro or Factory role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, resuming a Cline session, or auditing a host plugin (`Install-*.ps1`).
