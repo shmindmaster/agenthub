@@ -311,8 +311,8 @@
       }
     },
     "opencode": {
-      "model": "opencode-go/glm-5.3-flash",
-      "smallModel": "opencode-go/glm-5.3-flash",
+      "model": "qwen-token-plan/qwen3.8-max",
+      "smallModel": "qwen-token-plan/qwen3.8-flash",
       "authMode": "account",
       "loginCommand": "opencode auth login opencode --method device",
       "availableProviders": {
@@ -320,7 +320,13 @@
           "apiKeyEnv": "DEEPSEEK_API_KEY"
         }
       },
-      "modelNote": "2026-10-23: OpenCode 2.1.4 native Console account OAuth, stored by its shared service. The built-in opencode provider is configured privately with the Go-only https://opencode.ai/inference/go/v1 endpoint and no API-key override. Exact-response inference passed in 3.8 seconds. CLI and Desktop share this service; title generation uses the same Go model. 2026-11-10 (opencode 2.2.6): the Go subscription is addressed as provider opencode-go (opencode-go/<model>), which answers on the stored Go workspace login with OPENCODE_GO_API_KEY unset; opencode/<model> is the pay-as-you-go Zen wallet and returned 'Insufficient balance'. model and smallModel were corrected from opencode/glm-5.3-flash to opencode-go/glm-5.3-flash."
+      "managedConfigKeys": {
+        "opencode.json": ["model", "small_model"]
+      },
+      "managedConfigKeysNote": "2026-11-14 (SH-4674): Sync-AgentHub merges hostSettings.opencode.model into opencode.json 'model' and .smallModel into 'small_model' beside the MCP registry merge, so a fleet sync reproduces the zero-thought host defaults. Every other opencode.json key (providers, policies, plugins, mcp, tool_output) stays host/registry-owned as before; providers are never removed by sync.",
+      "quotaFallback": "qwen-token-plan/qwen3.8-max -> zai-glm-plan/glm-5.3-flash -> mimo-token-plan/mimo-v2.6-flash -> opencode-go/glm-5.3-flash",
+      "quotaFallbackNote": "2026-11-14 (SH-4674): when the Qwen Token Plan quota is exhausted (402/quota errors), select the next subscription route in order: the Z.ai GLM Coding Plan provider zai-glm-plan (ZAI_CODING_PLAN_API_KEY), then the Xiaomi MiMo Token Plan provider mimo-token-plan (MIMO_API_KEY), then the OpenCode Go subscription provider opencode-go on the stored workspace login. All four are subscription plans; the opencode/ Zen wallet and other pay-as-you-go routes are refused by the dispatcher and are never a fallback (owner direction 2026-11-10).",
+      "modelNote": "2026-10-23: OpenCode 2.1.4 native Console account OAuth, stored by its shared service. The built-in opencode provider is configured privately with the Go-only https://opencode.ai/inference/go/v1 endpoint and no API-key override. Exact-response inference passed in 3.8 seconds. CLI and Desktop share this service; title generation uses the same Go model. 2026-11-10 (opencode 2.2.6): the Go subscription is addressed as provider opencode-go (opencode-go/<model>), which answers on the stored Go workspace login with OPENCODE_GO_API_KEY unset; opencode/<model> is the pay-as-you-go Zen wallet and returned 'Insufficient balance'. model and smallModel were corrected from opencode/glm-5.3-flash to opencode-go/glm-5.3-flash. 2026-11-14 (opencode 2.3.0, SH-4674): host defaults moved to the Qwen Token Plan per owner direction -- model qwen-token-plan/qwen3.8-max, small_model qwen-token-plan/qwen3.8-flash (keys as {env:QWEN_TOKEN_PLAN_API_KEY}); GLM (zai-glm-plan) and MiMo (mimo-token-plan) stay selectable per session, and the unattended dispatcher default in dispatchPolicy.opencode.model remains the Go subscription. The live opencode.json had drifted to nvidia/z-ai/glm-5.3-flash, a credit-wallet route no policy chose; the nvidia and deepseek provider blocks are left in place for running jobs but are not a sanctioned default."
     },
     "copilot": {
       "model": "auto",
@@ -554,11 +560,23 @@
     },
     "opencode": {
       "enabled": true,
-      "readOnly": null,
-      "readOnlyNote": "2026-11-11 not established. `opencode run --help`: \"--agent string Agent to use\" and \"--auto Auto-approve permissions that are not explicitly denied\". Help names no built-in agent and no read-only flag, and no document in this repository confirms a read-only plan agent or what a non-interactive run does with an ask rule when --auto is left out. -ReadOnly is refused.",
+      "readOnly": {
+        "flags": ["--agent", "readonly"],
+        "omits": ["peer"]
+      },
+      "readOnlyNote": "2026-11-14 (SH-4674) established on OpenCode 2.3.0 with live proof; restricted profiles deny every action by default and allow only read and glob, with secret and auth-file reads denied. The dispatcher validates the installed profile and sets OPENCODE_DISABLE_PROJECT_CONFIG=true and OPENCODE_PURE=true for -ReadOnly and reviewer runs, excluding repository configuration/instructions and external plugins.",
       "model": "opencode-go/glm-5.3-flash",
       "agent": "peer",
-      "agentNote": "~/.config/opencode/agents/peer.md: allow-all local development, deny .env/auth reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo, npm publish, railway, az, doctl, vercel and opencode auth. Needed because run --auto approves every ask rule. Global opencode.json policies additionally deny force-push, reset --hard, git clean, branch -D, recursive root deletes, disk formatting, scheduled-task/service/Run-key creation, cloud deletes and credential export for every agent.",
+      "agentNote": "~/.config/opencode/agents/peer.md: allow-all local development, deny .env/auth reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo, npm publish, railway, az, doctl, vercel and opencode auth. Needed because run --auto approves every ask rule. Global opencode.json policies additionally deny force-push, reset --hard, git clean, branch -D, recursive root deletes, disk formatting, scheduled-task/service/Run-key creation, cloud deletes and credential export for every agent. 2026-11-14 (SH-4674): peer.md and the four role agents are canonical in packages/coding-agent-dispatch/opencode/agents and deploy with Install-OpenCodeProfiles.ps1 (audit default, -Apply hash-verified); they are no longer user-config-only files.",
+      "roles": {
+        "engineer": "engineer",
+        "reviewer": "reviewer",
+        "tester": "tester",
+        "researcher": "researcher",
+        "readonly": "readonly"
+      },
+      "rolesNote": "2026-11-14 (SH-4674): native OpenCode V2 agent profiles in ~/.config/opencode/agents, canonical in packages/coding-agent-dispatch/opencode/agents. -Role <name> runs `opencode run --agent <name>`; a role whose agent file is missing from the installed home is refused. reviewer/tester/researcher deny the edit action in their own ordered permissions (enforced by the host, not prompt text); reviewer additionally denies git state changes and gh writes, researcher denies git commit and push. tester drives the agent-browser CLI through the shell per ~/.config/opencode/browser-windows.md. -ReadOnly runs the readonly profile named by roles.readonly (edit, shell and subagent denied in its own ordered permissions; Kiro ah-readonly parity) and is refused unless the installed readonly.md effectively denies all three actions; readonly is not selectable through -Role, and the reviewer role keeps a shell for tests, so it is NOT a read-only run. The legacy zai-coding-plan launcher (OpenCode 1.x, isolated config) has no V2 agents and refuses every role but peer.",
+      "discoveryOwnerNote": "2026-11-14 (SH-4674/SH-4526): one tool-discovery owner per domain. The AgentHub lightweight-chat plugin (~/.config/opencode/plugins/lightweight-chat.js, canonical packages/coding-agent-dispatch/skills/dispatch/opencode/lightweight-chat.js, Install-OpenCodeToolDiscovery.ps1) owns native-tool and skill discovery: a session starts with find_tools plus execute and loads native tools on demand for the current turn. MCP/connected-app discovery belongs to native OpenCode Code Mode (execute + its search function); the plugin explicitly routes there and keeps no competing MCP catalog. Web search is the Tavily CLI (tvly, opencode-tavily plugin instructions): the builtin websearch provider has no entitlement on this fleet (SH-4083: 402 is BLOCKED, not working), so agents use `tvly search/extract --client-name opencode` through the shell.",
       "allowedModels": [
         "opencode-go/glm-5.3-flash",
         "opencode-go/qwen3.8-flash",

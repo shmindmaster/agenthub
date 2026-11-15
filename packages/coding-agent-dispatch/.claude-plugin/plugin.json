@@ -19,6 +19,6 @@
   "agents": [
     "./agents/claude/coding-agent.md"
   ],
-  "version": "0.8.14",
+  "version": "0.9.1",
   "icon": "./assets/icon.svg"
 }

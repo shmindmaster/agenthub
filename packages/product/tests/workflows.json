@@ -103,21 +103,22 @@
     {
       "skill": "engineer",
       "kind": "workflow",
-      "input": "Plan how to split a large service without changing its behavior.",
-      "expected": "Add characterization tests and extract one owned concept per pull request.",
+      "input": "Split the highest-risk oversized file in a synthetic repo.",
+      "expected": "Rank the findings, state before and after line counts and the tests run, then hand the change to `verify`.",
       "evidence": [
-        "Preserve behavior.",
-        "extract one owned concept per PR with a stable interface"
+        "For a large file, pick the one with the highest change risk, add characterization tests, and extract one owned concept per PR with a stable interface.",
+        "State before and after line counts and the tests run.",
+        "Next: `verify`, once the change is built."
       ]
     },
     {
       "skill": "engineer",
       "kind": "recovery",
-      "input": "A service targeted for refactoring has no trustworthy tests.",
-      "expected": "Characterize current behavior with a test before refactoring.",
+      "input": "The module to change has no trustworthy tests.",
+      "expected": "Characterize the current behavior with a test before changing it, starting from the repository instructions and `git status`.",
       "evidence": [
-        "Treat code without trustworthy tests as risky",
-        "characterize its current behavior with a test before changing it"
+        "Treat code without trustworthy tests as risky: characterize its current behavior with a test before changing it.",
+        "Read the repository's instructions and `git status`."
       ]
     }
   ]

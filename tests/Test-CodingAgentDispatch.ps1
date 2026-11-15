@@ -247,13 +247,25 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         Copy-Item -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\kiro\agents\ah-$roleName.json") -Destination $kiroAgentsDir
     }
     Copy-Item -LiteralPath (Join-Path $repoRoot 'packages\coding-agent-dispatch\kiro\agents\ah-readonly.json') -Destination $kiroAgentsDir
+    # OpenCode V2 role agents (SH-4674): the dispatcher reads the installed
+    # profile under the invoking user's home, pointed at the fixture here.
+    $openCodeAgentsDir = Join-Path (Join-Path (Join-Path $fixture '.config') 'opencode') 'agents'
+    $null = New-Item -ItemType Directory -Path $openCodeAgentsDir -Force
+    foreach ($ocAgent in Get-ChildItem (Join-Path $repoRoot 'packages\coding-agent-dispatch\opencode\agents') -Filter *.md) {
+        Copy-Item -LiteralPath $ocAgent.FullName -Destination $openCodeAgentsDir
+    }
     if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $fixture } else { $env:HOME = $fixture }
     $fleet.dispatchPolicy.kiro['roles'] = @{ engineer = 'ah-engineer'; reviewer = 'ah-reviewer'; readonly = 'ah-readonly'; tester = 'ah-tester'; architect = 'ah-architect'; incident = 'ah-incident' }
+    $fleet.dispatchPolicy.opencode['roles'] = @{ engineer = 'engineer'; reviewer = 'reviewer'; tester = 'tester'; researcher = 'researcher'; readonly = 'readonly' }
+    # The real registry records the guarded peer agent; this block asserts the
+    # same shape, and the cleanup below restores the keyless base fixture.
+    $fleet.dispatchPolicy.opencode['agent'] = 'peer'
     $readOnlyFixture = @{
         claude  = @{ flags = @('--permission-mode', 'plan', '--permission-prompts', 'none'); omits = @('bypassPermissions') }
         codex   = @{ flags = @('--sandbox', 'read-only'); omits = @() }
         factory = @{ flags = @(); omits = @('--auto') }
         kiro    = @{ flags = @('--v3', '--agent', 'ah-readonly'); omits = @() }
+        opencode = @{ flags = @('--agent', 'readonly'); omits = @('peer') }
         qwen    = @{ flags = @('--approval-mode', 'plan'); omits = @('yolo') }
     }
     $allDispatchHosts = @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro','qwen')
@@ -288,9 +300,9 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','incident')
     Check 'Kiro refuses a role that policy does not record' ($r.Exit -eq 3 -and $r.Err -match 'roles\.incident' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     $fleet.dispatchPolicy.kiro.roles['incident'] = 'ah-incident'; Save-Fixture
-    foreach ($id in @('codex', 'claude', 'opencode', 'cursor', 'qwen')) {
+    foreach ($id in @('codex', 'claude', 'cursor', 'qwen')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','engineer')
-        Check "$id refuses -Role engineer and names the hosts that support roles" ($r.Exit -eq 3 -and $r.Err -match 'roles are supported only on: kiro' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+        Check "$id refuses -Role engineer and names the hosts that support roles" ($r.Exit -eq 3 -and $r.Err -match 'roles are supported only on: kiro, opencode' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     }
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','peer')
     Check 'the default role is accepted on a host without roles' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=exec --skip-git-repo-check -') ($r.Out + $r.Err)
@@ -338,7 +350,101 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'Kiro refuses -ReadOnly when the reviewer profile is not installed' ($r.Exit -eq 3 -and $r.Err -match 'ah-readonly\.json' -and $r.Err -match 'missing' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText)
 
-    foreach ($id in @('cursor-agent','grok','opencode','antigravity','cline','copilot','amp','devin','warp','kilo','mimo-code','cursor','windsurf')) {
+    # ---------- SH-4674: OpenCode V2 roles and the enforced read-only agent ----------
+    foreach ($roleName in @('engineer', 'reviewer', 'tester', 'researcher')) {
+        $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role',$roleName)
+        Check "OpenCode -Role $roleName runs the mapped V2 agent" ($r.Exit -eq 0 -and (ShowArgs $r) -ceq "args=run --auto --format json --model opencode-go/glm-5.3-flash --agent $roleName ok") ($r.Out + $r.Err)
+    }
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand')
+    Check 'OpenCode without -Role keeps the guarded peer agent' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=run --auto --format json --model opencode-go/glm-5.3-flash --agent peer ok') ($r.Out + $r.Err)
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','boss')
+    Check 'OpenCode refuses an unknown role' ($r.Exit -eq 3 -and $r.Err -match 'is not a role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $fleet.dispatchPolicy.opencode.roles.Remove('tester'); Save-Fixture
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','tester')
+    Check 'OpenCode refuses a role that policy does not record' ($r.Exit -eq 3 -and $r.Err -match 'roles\.tester' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $fleet.dispatchPolicy.opencode.roles['tester'] = 'tester'; Save-Fixture
+    Remove-Item -LiteralPath (Join-Path $openCodeAgentsDir 'tester.md') -Force
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','tester')
+    Check 'OpenCode refuses a role whose agent file is missing' ($r.Exit -eq 3 -and $r.Err -match 'tester\.md' -and $r.Err -match 'missing' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'packages\coding-agent-dispatch\opencode\agents\tester.md') -Destination $openCodeAgentsDir
+
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode -ReadOnly runs the readonly agent, never peer or reviewer' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=run --auto --format json --model opencode-go/glm-5.3-flash --agent readonly ok') ($r.Out + $r.Err)
+    foreach ($roleArgs in @(@(), @('-Role', 'reviewer'), @('-Role', 'peer'))) {
+        $r = Run (@('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly') + $roleArgs)
+        Check "OpenCode -ReadOnly $($roleArgs -join ' ') runs the readonly agent" ($r.Exit -eq 0 -and (ShowArgs $r) -match '--agent readonly') ($r.Out + $r.Err)
+    }
+    foreach ($writingRole in @('engineer', 'tester', 'researcher')) {
+        $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly','-Role',$writingRole)
+        Check "OpenCode refuses -ReadOnly with -Role $writingRole" ($r.Exit -eq 3 -and $r.Err -match 'writing role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    }
+    # The gate parses the installed profile's ordered frontmatter permissions
+    # (last match wins); text elsewhere in the file is never the mechanism.
+    $ocReadonlyProfile = Join-Path $openCodeAgentsDir 'readonly.md'
+    $ocReadonlyText = [IO.File]::ReadAllText($ocReadonlyProfile)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('{ action: edit, resource: "*", effect: deny }', '{ action: edit, resource: "*", effect: allow }'))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses -ReadOnly when the installed readonly profile grants edit' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the edit action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('{ action: shell, resource: "*", effect: deny }', '{ action: shell, resource: "*", effect: allow }'))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses -ReadOnly when the installed readonly profile grants shell' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the shell action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('{ action: subagent, resource: "*", effect: deny }', '{ action: subagent, resource: "*", effect: allow }'))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses -ReadOnly when the installed readonly profile grants subagent' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the subagent action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('{ action: browser, resource: "*", effect: deny }', '{ action: browser, resource: "*", effect: allow }'))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses -ReadOnly when the installed readonly profile grants browser' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the browser action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('  - { action: edit, resource: "*", effect: deny }', "  - { action: edit, resource: ""*"", effect: deny }`n  - { action: edit, resource: ""*"", effect: allow }"))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses -ReadOnly when a later allow rule re-opens edit (last match wins)' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the edit action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $ocBodyDeny = ($ocReadonlyText -replace '(?m)^\s*- \{ action: edit, resource: "\*", effect: deny \}\r?\n', '') + "`nThe profile denies { action: edit, resource: ""*"", effect: deny } in prose, which must not count."
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocBodyDeny)
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode body text cannot override deny-by-default permissions' ($r.Exit -eq 0 -and (ShowArgs $r) -match '--agent readonly') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('  - { action: "*", resource: "*", effect: deny }', '  - { action: "*", resource: "*", effect: deny }' + "`n  - { action: context7_search, resource: `"*`", effect: allow }"))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses a read-only profile that grants a new plugin action' ($r.Exit -eq 3 -and $r.Err -match 'allow only read and glob' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('  - { action: read, resource: "*.env.*", effect: deny }', '  - { action: read, resource: "*.env.*", effect: deny }' + "`n  - { action: read, resource: `"*.env.*`", effect: allow }"))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses a later allow that reopens secret environment reads' ($r.Exit -eq 3 -and $r.Err -match 'allow only read and glob' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('  - { action: read, resource: "*.env", effect: deny }', '  - { action: read, resource: "*.env", effect: deny }' + "`n  - { action: read, resource: `"*`", effect: allow }"))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses a broad read allow after secret denies' ($r.Exit -eq 3 -and $r.Err -match 'allow only read and glob' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText.Replace('{ action: shell, resource: "*", effect: deny }', '{ action: shell, resource: "*", effect: ask }'))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses ask rules that --auto could approve' ($r.Exit -eq 3 -and $r.Err -match 'allow only read and glob' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText)
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode restricted preview isolates project config and plugins' ($r.Exit -eq 0 -and $r.Out -match 'OPENCODE_DISABLE_PROJECT_CONFIG' -and $r.Out -match 'OPENCODE_PURE') ($r.Out + $r.Err)
+    $r = Run @('-HostId','opencode','-Prompt',"first line`nsecond line",'-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode restricted pointer prompt is attached by CLI without external read permission' ($r.Exit -eq 0 -and (ShowArgs $r) -match '--file .*prompt-show\.txt' -and $r.Out -match 'OPENCODE_PURE') ($r.Out + $r.Err)
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
+    Check 'OpenCode reviewer preview isolates project config and plugins' ($r.Exit -eq 0 -and $r.Out -match 'OPENCODE_DISABLE_PROJECT_CONFIG' -and $r.Out -match 'OPENCODE_PURE') ($r.Out + $r.Err)
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','tester')
+    Check 'OpenCode non-review role does not enable restricted-run switches' ($r.Exit -eq 0 -and $r.Out -notmatch 'OPENCODE_DISABLE_PROJECT_CONFIG|OPENCODE_PURE') ($r.Out + $r.Err)
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
+    Check 'OpenCode reviewer role runs only with its installed restricted profile' ($r.Exit -eq 0 -and (ShowArgs $r) -match '--agent reviewer') ($r.Out + $r.Err)
+    $ocReviewerProfile = Join-Path $openCodeAgentsDir 'reviewer.md'
+    $ocReviewerText = [IO.File]::ReadAllText($ocReviewerProfile)
+    foreach ($action in @('edit', 'shell', 'subagent', 'browser')) {
+        $originalRule = "{ action: $action, resource: `"*`", effect: deny }"
+        $allowedRule = "{ action: $action, resource: `"*`", effect: allow }"
+        [IO.File]::WriteAllText($ocReviewerProfile, $ocReviewerText.Replace($originalRule, $allowedRule))
+        $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
+        Check "OpenCode reviewer refuses a profile that grants $action" ($r.Exit -eq 3 -and $r.Err -match "does not effectively deny the $action action" -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    }
+    [IO.File]::WriteAllText($ocReviewerProfile, $ocReviewerText)
+    [IO.File]::WriteAllText($ocReviewerProfile, $ocReviewerText.Replace('  - { action: shell, resource: "*", effect: deny }', '  - { action: shell, resource: "*", effect: deny }' + "`n  - { action: shell, resource: `"*`", effect: allow }"))
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
+    Check 'OpenCode reviewer refuses a later shell allow rule (last match wins)' ($r.Exit -eq 3 -and $r.Err -match 'does not effectively deny the shell action' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReviewerProfile, $ocReviewerText)
+    Remove-Item -LiteralPath $ocReadonlyProfile -Force
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'OpenCode refuses -ReadOnly when the readonly agent is not installed' ($r.Exit -eq 3 -and $r.Err -match 'readonly\.md' -and $r.Err -match 'missing') ($r.Out + $r.Err)
+    [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText)
+
+    foreach ($id in @('cursor-agent','grok','antigravity','cline','copilot','amp','devin','warp','kilo','mimo-code','cursor','windsurf')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
         Check "$id refuses -ReadOnly: no enforced read-only mode, no command" ($r.Exit -eq 3 -and $r.Err -match 'has no enforced read-only mode' -and $r.Err -match 'never falls back to a writable run' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
@@ -383,7 +489,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check '-List still prints one three-column row per registered host' ($r.Exit -eq 0 -and $listRows.Count -eq $ids.Count -and @($listRows | Where-Object { @($_ -split "`t").Count -ne 3 }).Count -eq 0 -and $r.Out -match "(?m)^grok\tcallable\tfile") $r.Out
     $r = Run @('-List','-ReadOnly')
     $readOnlyRows = @(($r.Out -split '\r?\n') | Where-Object { $_ } | ForEach-Object { ($_ -split "`t")[0] })
-    Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,factory,kiro,qwen') ($r.Out + $r.Err)
+    Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,factory,kiro,opencode,qwen') ($r.Out + $r.Err)
     $fleet.dispatchPolicy['codex']['enabled'] = $false; Save-Fixture
     $r = Run @('-List','-ReadOnly')
     Check '-List -ReadOnly leaves out a read-only host that policy disables' ($r.Exit -eq 0 -and $r.Out -notmatch '(?m)^codex\t' -and $r.Out -match '(?m)^claude\t') $r.Out
@@ -415,11 +521,16 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $realRoles = $realPolicy.kiro.roles
     Check 'registry records the Kiro role profiles next to the guarded agent' ([string]$realPolicy.kiro.agent -ceq 'ah-peer' -and @($roleNames | Where-Object { [string]$realRoles.$_ -cne "ah-$_" }).Count -eq 0 -and @($roleNames | Where-Object { -not (Test-Path -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\kiro\agents\ah-$_.json")) }).Count -eq 0) ($realRoles | Out-String)
+    $realOcRoles = $realPolicy.opencode.roles
+    $ocRoleNames = @('engineer', 'reviewer', 'tester', 'researcher', 'readonly')
+    Check 'registry records the OpenCode role agents next to the guarded agent' ([string]$realPolicy.opencode.agent -ceq 'peer' -and @($ocRoleNames | Where-Object { [string]$realOcRoles.$_ -cne $_ }).Count -eq 0 -and @($ocRoleNames | Where-Object { -not (Test-Path -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\opencode\agents\$_.md")) }).Count -eq 0) ($realOcRoles | Out-String)
 
     # Back to the state the rest of this file expects.
     foreach ($id in $allDispatchHosts) { if ($fleet.dispatchPolicy.ContainsKey($id)) { $fleet.dispatchPolicy[$id].Remove('readOnly') } }
     foreach ($id in $createdPolicy) { $fleet.dispatchPolicy.Remove($id) }
-    $fleet.dispatchPolicy.kiro.Remove('roles'); Save-Fixture
+    $fleet.dispatchPolicy.kiro.Remove('roles')
+    $fleet.dispatchPolicy.opencode.Remove('roles')
+    $fleet.dispatchPolicy.opencode.Remove('agent'); Save-Fixture
     if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $oldWindowsHome } else { $env:HOME = $oldPosixHome }
 
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','claude-sonnet-5.5')

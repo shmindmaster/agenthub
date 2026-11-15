@@ -192,10 +192,16 @@ Rules:
   blocked by policy. The bare remote stayed empty.
 - Known gap: shell patterns match literal command text. A compound or
   reordered command can evade a pattern, so the briefs repeat the rules.
-- Known gap: the policies and the `peer` agent live in user config, not yet in
-  an AgentHub package. `Sync-AgentHub` round-trips `opencode.json` and only
-  merges `mcp`, so they survive syncs. Moving them under registry ownership is
-  a follow-up.
+- Resolved 2026-11-14 (SH-4674): `peer.md` and the four role agents
+  (engineer, reviewer, tester, researcher) are canonical in
+  `packages/coding-agent-dispatch/opencode/agents` and deploy hash-verified
+  with `Install-OpenCodeProfiles.ps1` (audit default; `-Apply` repairs
+  drift, leaves owner-authored files untouched, writes no backups). The
+  dispatcher's `-Role`/`-ReadOnly` gates re-read the installed files, so a
+  missing or weakened reviewer profile refuses the run. The global
+  `policies` list stays in `opencode.json`: `Sync-AgentHub` round-trips the
+  file, merges `mcp` plus the managed `model`/`small_model` defaults from
+  `hostSettings.opencode`, and preserves everything else.
 
 ## ACP
 
