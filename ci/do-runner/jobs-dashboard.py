@@ -32,14 +32,14 @@ CACHE_SECONDS = 15
 MAX_ENTRIES = 40
 
 
-def _run(cmd: list[str], timeout: float = 10.0) -> str:
+def _run(cmd: list[str], timeout: float = 10.0) -> str | None:
     if NO_DOCKER:
-        return ""
+        return None
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        return out.stdout.strip()
+        return out.stdout.strip() if out.returncode == 0 else None
     except Exception:
-        return ""
+        return None
 
 
 def fmt_bytes(n: float) -> str:
@@ -101,8 +101,10 @@ def collect_host(now: float) -> dict:
     }
 
 
-def collect_containers() -> list[dict]:
+def collect_containers() -> list[dict] | None:
     raw = _run(["docker", "ps", "--format", "{{.Names}}\t{{.Image}}\t{{.Status}}"])
+    if raw is None:
+        return None
     rows = []
     for line in raw.splitlines():
         parts = line.split("\t")
@@ -111,9 +113,14 @@ def collect_containers() -> list[dict]:
     return rows
 
 
-def collect_mac_lane(containers: list[dict], now: float) -> dict:
+def collect_mac_lane(containers: list[dict], now: float, docker_available: bool = True) -> dict:
     running = any(c["name"] == "macos" for c in containers)
-    state = _run(["docker", "inspect", "-f", "{{.State.Status}}", "macos"]) or ("running" if running else "absent")
+    if not docker_available:
+        state = "unknown"
+    elif not running:
+        state = "absent"
+    else:
+        state = _run(["docker", "inspect", "-f", "{{.State.Status}}", "macos"]) or "unknown"
     leases = 0
     try:
         for entry in os.listdir(MAC_LEASES):
@@ -128,22 +135,24 @@ def collect_mac_lane(containers: list[dict], now: float) -> dict:
     except OSError:
         pass
     storage = _run(["du", "-sm", "/opt/macos/storage"], timeout=30)
-    storage_gb = round(float(storage.split()[0]) / 1024, 1) if storage.split()[:1] else None
+    storage_gb = round(float(storage.split()[0]) / 1024, 1) if storage is not None and storage.split()[:1] else None
     return {"state": state, "leases": leases, "storage_gb": storage_gb, "idle_stop": "15 min after last lease (mac)"}
 
 
-def collect_android_lane(containers: list[dict], now: float) -> dict:
-    image = _run(["docker", "image", "inspect", "-f", "{{.Created}}", "forge/android-builder:2"])
+def collect_android_lane(containers: list[dict], now: float, docker_available: bool = True) -> dict:
+    images = _run(["docker", "image", "ls", "--format", "{{.Repository}}:{{.Tag}}", "forge/android-builder:2"]) if docker_available else None
+    image_built = _run(["docker", "image", "inspect", "-f", "{{.Created}}", "forge/android-builder:2"]) if images else None
     artifacts = collect_files(ANDROID_ARTIFACTS, now, suffixes=(".apk", ".aab", ".log"))
-    return {"image": "forge/android-builder:2" if image else "missing", "image_built": image or None, "artifacts": artifacts}
+    image_state = "unknown" if images is None else ("forge/android-builder:2" if images else "missing")
+    return {"image": image_state, "image_built": image_built, "artifacts": artifacts}
 
 
-def collect_ci(containers: list[dict]) -> list[dict]:
+def collect_ci(containers: list[dict], docker_available: bool = True) -> list[dict]:
     runners = [c for c in containers if c["name"].endswith("-runner-1")]
     dbs = [c for c in containers if any(c["name"].endswith(s) for s in ("-postgres-1", "-valkey-1", "-valkey-b-1"))]
     return [
-        {"kind": "runners", "count": len(runners), "names": sorted(c["name"] for c in runners)},
-        {"kind": "sidecars", "count": len(dbs), "names": sorted(c["name"] for c in dbs)},
+        {"kind": "runners", "count": len(runners) if docker_available else None, "names": sorted(c["name"] for c in runners)},
+        {"kind": "sidecars", "count": len(dbs) if docker_available else None, "names": sorted(c["name"] for c in dbs)},
     ]
 
 
@@ -188,14 +197,17 @@ def collect_files(path: str, now: float, suffixes: tuple[str, ...] = ()) -> list
 
 def collect() -> dict:
     now = time.time()
-    containers = collect_containers()
+    found_containers = collect_containers()
+    docker_available = found_containers is not None
+    containers = found_containers or []
     return {
         "generated": time.strftime("%Y-%m-%d %H:%M:%S %Z", time.localtime(now)),
+        "docker_available": docker_available,
         "host": collect_host(now),
-        "mac_lane": collect_mac_lane(containers, now),
-        "android_lane": collect_android_lane(containers, now),
-        "ci": collect_ci(containers),
-        "other_containers": [c for c in containers if not c["name"].endswith(("-runner-1", "-postgres-1", "-valkey-1", "-valkey-b-1")) and c["name"] != "macos"],
+        "mac_lane": collect_mac_lane(containers, now, docker_available),
+        "android_lane": collect_android_lane(containers, now, docker_available),
+        "ci": collect_ci(containers, docker_available),
+        "other_containers": ([c for c in containers if not c["name"].endswith(("-runner-1", "-postgres-1", "-valkey-1", "-valkey-b-1")) and c["name"] != "macos"] if docker_available else None),
         "media_jobs": collect_dirs(JOBS_DIR, now),
     }
 
@@ -230,6 +242,7 @@ def render_html(data: dict) -> str:
         "<title>sh-forge jobs</title>", f"<style>{CSS}</style></head><body>",
         "<h1>sh-forge &mdash; jobs &amp; lanes</h1>",
         f"<p class='meta'>generated {html.escape(data['generated'])} &middot; read-only &middot; owner IP only &middot; <a href='/status.json' style='color:#9fb0c3'>json</a></p>",
+        ("<p class='warn'>Docker status unavailable; container and lane states are unknown.</p>" if not data.get("docker_available", True) else ""),
         "<h2>Host</h2>",
         _table(["", ""], [
             ["load (1/5/15)", " ".join(str(x) for x in host["load"])],
@@ -247,7 +260,10 @@ def render_html(data: dict) -> str:
         "<h2>CI lane (sh-ci)</h2>",
     ]
     for group in data["ci"]:
-        parts.append(_table([group["kind"], "names"], [[str(group["count"]), html.escape(", ".join(group["names"]) or "none")]]))
+        count = group["count"]
+        count_text = str(count) if count is not None else "unknown"
+        names_text = ", ".join(group["names"]) or ("unknown" if count is None else "none")
+        parts.append(_table([group["kind"], "names"], [[count_text, html.escape(names_text)]]))
     parts.append("<h2>Android artifacts</h2>")
     arts = data["android_lane"]["artifacts"]
     if arts:

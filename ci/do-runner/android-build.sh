@@ -63,7 +63,7 @@ flock -n 9 || { echo "android-build: another build is using $work" >&2; exit 2; 
 # Pushed branches only: fetch the exact ref from the bare repo, never a working tree.
 [ -d "$work/.git" ] || git clone -q "$repo" "$work"
 git -C "$work" fetch -q origin "+refs/heads/$branch:refs/remotes/origin/$branch"
-git -C "$work" checkout -q -B "$safe" "origin/$branch"
+git -C "$work" checkout -q -f -B "$safe" "origin/$branch"
 git -C "$work" clean -qfd
 sha=$(git -C "$work" rev-parse HEAD)
 app_norm=${app#./}; app_norm=${app_norm%/}
@@ -112,9 +112,9 @@ fi
 pnpm exec expo prebuild --platform android
 cd android
 if [ "$VARIANT" = debug ]; then
-  ./gradlew assembleDebug --no-daemon
+  ./gradlew clean assembleDebug --no-daemon
 else
-  ./gradlew assembleRelease --no-daemon
+  ./gradlew clean assembleRelease --no-daemon
 fi
 BUILD
   local apk

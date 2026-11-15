@@ -79,6 +79,7 @@ $dockerAt = $buildScript.IndexOf('docker run --rm --init -i')
 $publishAt = $buildScript.IndexOf('main 2>&1 | tee "$log"')
 Report 'android-build locks the checkout before fetch and holds it through build publication' (($lockAt -ge 0) -and ($fetchAt -gt $lockAt) -and ($publishAt -gt $fetchAt)) 'acquire the per-checkout lock before fetch and keep its descriptor open through the build pipeline'
 Report 'android-build clears stale APKs before building and caps container resources' (($cleanupAt -ge 0) -and ($dockerAt -gt $cleanupAt) -and ($buildScript -match '--memory=24g --memory-swap=24g --cpus=12')) 'clear prior APK output before Docker starts and cap the builder at 24 GB and 12 CPUs'
+Report 'android-build discards tracked prebuild edits and cleans Gradle outputs' (($buildScript -match 'git -C "\$work" checkout -q -f -B') -and ($buildScript -match '\.\/gradlew clean assembleDebug') -and ($buildScript -match '\.\/gradlew clean assembleRelease')) 'force checkout the pushed ref and clean Gradle outputs before either variant build'
 Report 'android-builder.Dockerfile pins its Android base image by digest' ($dockerfile -match '(?m)^FROM reactnativecommunity/react-native-android@sha256:[0-9a-f]{64}$') 'pin the Android base image to an immutable manifest digest'
 Report 'android-builder.Dockerfile pins Node 24.22 (engines >=24.20)' ($dockerfile -match 'node-v24\.22\.\d+-linux-x64') 'Node 24.22.x tarball not pinned'
 Report 'android-builder.Dockerfile pins pnpm 11.15 (packageManager pnpm@11.15.0)' ($dockerfile -match 'pnpm@11\.15\.0') 'pnpm@11.15.0 not pinned'
@@ -106,11 +107,21 @@ if (-not $python) {
         New-Item -ItemType Directory -Path (Join-Path $fixture 'artifacts') -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $fixture 'artifacts\abacare-x-00000000.apk') -Value 'not-a-real-apk'
         Set-Content -LiteralPath (Join-Path $fixture 'artifacts\abacare-x-00000000.log') -Value 'log'
-        $check = @'
+$check = @'
 import importlib.util, json, os, sys
+from types import SimpleNamespace
+from unittest.mock import patch
 spec = importlib.util.spec_from_file_location("dash", sys.argv[1])
 dash = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(dash)
+dash.NO_DOCKER = False
+with patch.object(dash.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="")):
+    assert dash._run(["docker", "ps"]) == ""
+with patch.object(dash.subprocess, "run", return_value=SimpleNamespace(returncode=1, stdout="")):
+    assert dash._run(["docker", "ps"]) is None
+with patch.object(dash.subprocess, "run", side_effect=TimeoutError()):
+    assert dash._run(["docker", "ps"]) is None
+dash.NO_DOCKER = True
 jobs = dash.collect_dirs(os.environ["FORGE_JOBS_DIR"], __import__("time").time())
 assert [j["name"] for j in jobs] == ["newer-job", "older-job"], jobs
 arts = dash.collect_files(os.environ["FORGE_ANDROID_ARTIFACTS"], __import__("time").time(), suffixes=(".apk",))
@@ -120,6 +131,9 @@ data = dash.collect()
 page = dash.render_html(data)
 assert "newer-job" in page and "sh-forge" in page
 assert json.dumps(data)
+assert data["docker_available"] is False and data["mac_lane"]["state"] == "unknown", data
+assert data["android_lane"]["image"] == "unknown" and data["ci"][0]["count"] is None, data
+assert "Docker status unavailable" in page
 print("FIXTURE-OK")
 '@
         $checkFile = Join-Path $fixture 'check.py'
