@@ -102,7 +102,7 @@ def collect_host(now: float) -> dict:
 
 
 def collect_containers() -> list[dict] | None:
-    raw = _run(["docker", "ps", "--format", "{{.Names}}\t{{.Image}}\t{{.Status}}"])
+    raw = _run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Image}}\t{{.Status}}"])
     if raw is None:
         return None
     rows = []
@@ -114,10 +114,10 @@ def collect_containers() -> list[dict] | None:
 
 
 def collect_mac_lane(containers: list[dict], now: float, docker_available: bool = True) -> dict:
-    running = any(c["name"] == "macos" for c in containers)
+    found = any(c["name"] == "macos" for c in containers)
     if not docker_available:
         state = "unknown"
-    elif not running:
+    elif not found:
         state = "absent"
     else:
         state = _run(["docker", "inspect", "-f", "{{.State.Status}}", "macos"]) or "unknown"
@@ -148,8 +148,9 @@ def collect_android_lane(containers: list[dict], now: float, docker_available: b
 
 
 def collect_ci(containers: list[dict], docker_available: bool = True) -> list[dict]:
-    runners = [c for c in containers if c["name"].endswith("-runner-1")]
-    dbs = [c for c in containers if any(c["name"].endswith(s) for s in ("-postgres-1", "-valkey-1", "-valkey-b-1"))]
+    running = [c for c in containers if c["status"].startswith("Up")]
+    runners = [c for c in running if c["name"].endswith("-runner-1")]
+    dbs = [c for c in running if any(c["name"].endswith(s) for s in ("-postgres-1", "-valkey-1", "-valkey-b-1"))]
     return [
         {"kind": "runners", "count": len(runners) if docker_available else None, "names": sorted(c["name"] for c in runners)},
         {"kind": "sidecars", "count": len(dbs) if docker_available else None, "names": sorted(c["name"] for c in dbs)},

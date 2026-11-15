@@ -124,6 +124,17 @@ with patch.object(dash.subprocess, "run", return_value=SimpleNamespace(returncod
 with patch.object(dash.subprocess, "run", side_effect=TimeoutError()):
     assert dash._run(["docker", "ps"]) is None
 dash.NO_DOCKER = True
+containers = [
+    {"name": "live-runner-1", "status": "Up 2 minutes"},
+    {"name": "stopped-runner-1", "status": "Exited (0) 1 minute ago"},
+]
+assert dash.collect_ci(containers, True)[0]["count"] == 1
+docker_commands = []
+with patch.object(dash, "_run", side_effect=lambda cmd, timeout=10: (docker_commands.append(cmd) or "macos\timage\tExited (0)")):
+    enumerated = dash.collect_containers()
+assert docker_commands[0][:3] == ["docker", "ps", "-a"] and enumerated[0]["status"].startswith("Exited"), docker_commands
+with patch.object(dash, "_run", side_effect=lambda cmd, timeout=10: "exited" if cmd[:2] == ["docker", "inspect"] else "0 1024"):
+    assert dash.collect_mac_lane([{"name": "macos", "status": "Exited (0)"}], 0, True)["state"] == "exited"
 jobs = dash.collect_dirs(os.environ["FORGE_JOBS_DIR"], __import__("time").time())
 assert [j["name"] for j in jobs] == ["newer-job", "older-job"], jobs
 arts = dash.collect_files(os.environ["FORGE_ANDROID_ARTIFACTS"], __import__("time").time(), suffixes=(".apk",))
