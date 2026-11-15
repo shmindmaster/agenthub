@@ -65,8 +65,12 @@ $buildScript = Read-Utf8 (Join-Path $ciDir 'android-build.sh')
 Report 'android-build preserves spaces in --env values' ($buildScript -match 'for kv in "\$\{envs\[@\]\}"; do env_args\+=\(-e "\$kv"\); done') 'each --env entry must remain one Docker -e argument'
 $lockAt = $buildScript.IndexOf('flock -n 9')
 $fetchAt = $buildScript.IndexOf('git -C "$work" fetch')
+$cleanupAt = $buildScript.IndexOf('outputs/apk/$variant/*.apk')
+$dockerAt = $buildScript.IndexOf('docker run --rm --init -i')
 $publishAt = $buildScript.IndexOf('main 2>&1 | tee "$log"')
 Report 'android-build locks the checkout before fetch and holds it through build publication' (($lockAt -ge 0) -and ($fetchAt -gt $lockAt) -and ($publishAt -gt $fetchAt)) 'acquire the per-checkout lock before fetch and keep its descriptor open through the build pipeline'
+Report 'android-build clears stale APKs before building and caps container resources' (($cleanupAt -ge 0) -and ($dockerAt -gt $cleanupAt) -and ($buildScript -match '--memory=24g --memory-swap=24g --cpus=12')) 'clear prior APK output before Docker starts and cap the builder at 24 GB and 12 CPUs'
+Report 'android-builder.Dockerfile pins its Android base image by digest' ($dockerfile -match '(?m)^FROM reactnativecommunity/react-native-android@sha256:[0-9a-f]{64}$') 'pin the Android base image to an immutable manifest digest'
 Report 'android-builder.Dockerfile pins Node 24.22 (engines >=24.20)' ($dockerfile -match 'node-v24\.22\.\d+-linux-x64') 'Node 24.22.x tarball not pinned'
 Report 'android-builder.Dockerfile pins pnpm 11.15 (packageManager pnpm@11.15.0)' ($dockerfile -match 'pnpm@11\.15\.0') 'pnpm@11.15.0 not pinned'
 Report 'android-builder.Dockerfile installs the RN 0.86 SDK set' (

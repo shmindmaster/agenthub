@@ -12,7 +12,7 @@
 # Build on forge (android-setup.sh does this):
 #   docker build -t forge/android-builder:2 -f android-builder.Dockerfile .
 # The :1 image is left untouched; nothing depends on this layering over it.
-FROM reactnativecommunity/react-native-android:latest
+FROM reactnativecommunity/react-native-android@sha256:e817ea1959719c97c05adbc55348ebe21d286cec2caed1f18ad3c4b88c08cbf7
 RUN apt-get update && apt-get install -y --no-install-recommends rsync jq xz-utils && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://nodejs.org/dist/v24.22.3/node-v24.22.3-linux-x64.tar.xz -o /tmp/node.tar.xz \
  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /usr/local/lib/node_modules/corepack /usr/local/bin/corepack \

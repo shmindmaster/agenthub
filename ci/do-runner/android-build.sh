@@ -90,7 +90,12 @@ main() {
   echo "== android-build repo=$repo branch=$branch sha=$sha app=$app_norm filter=$filter variant=$variant image=$image"
   local env_args=()
   for kv in "${envs[@]}"; do env_args+=(-e "$kv"); done
+  # A previous successful APK must not be mistaken for this run's output.
+  if [ -d "$work/$app_norm/android" ]; then
+    find "$work/$app_norm/android" -type f -path "*/outputs/apk/$variant/*.apk" -delete
+  fi
   docker run --rm --init -i \
+    --memory=24g --memory-swap=24g --cpus=12 \
     -v "$work":/work -w /work \
     -v "$cache/gradle-home":/opt/gradle-home \
     -v "$cache/pnpm-store":/pnpm-store \
