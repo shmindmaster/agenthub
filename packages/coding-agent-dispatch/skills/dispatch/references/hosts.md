@@ -69,7 +69,7 @@ text on 2026-11-11.
 - Gemini CLI is retired (2026-11-10) and has no dispatch contract. Dispatch Google work to Antigravity.
 - Copilot: runs on the `sh-pendoah` GitHub account; the dispatcher reads that token from gh's keyring into the child environment only.
 - Codex reads the task from stdin (`exec --skip-git-repo-check -`) and does not initialize Git. Antigravity gets `--print=<prompt>` after its permissions flag.
-- Long, quoted or multiline argument prompts go through a temporary UTF-8 file and a short pointer; the file is removed on completion.
+- Long, quoted or multiline argument prompts go through a temporary UTF-8 file; the file is removed on completion. OpenCode attaches pointer files with `--file` rather than asking the agent to read outside the checkout, preserving its strict read/glob allowlist.
 - Claude's current account eligibility comes from `dispatchPolicy`, not this
   reference. The separate `-HostId claude -AnthropicApiKey` path is a per-call
   opt-in only while its recorded authorization is valid; it is not a fallback

@@ -179,7 +179,9 @@ other read-only mode has been exercised with a model run.
 
 Codex accepts non-repository working directories without creating Git state.
 Antigravity uses attached `--print=<prompt>`. Long or shell-sensitive argument
-prompts use temporary UTF-8 task files. Children, including batch shims and
+prompts use temporary UTF-8 task files; OpenCode attaches its task file with
+`--file`, so the read-only agent does not need external-directory access.
+Children, including batch shims and
 timeout cleanup, run hidden. No cloud adapter, login or scheduled task is
 created. Hosted cloud aliases are explicitly refused.
 

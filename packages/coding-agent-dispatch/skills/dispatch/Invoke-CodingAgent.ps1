@@ -417,7 +417,7 @@ function Test-OpenCodeProfileIsReadOnly {
     $rules = @()
     foreach ($line in ($Matches[1] -split '\r?\n')) {
         if ($line -match '^\s*-\s*\{\s*action:\s*"?([^",}]+?)"?\s*,\s*resource:\s*"([^"]*)"\s*,\s*effect:\s*(allow|deny)\s*\}\s*$') {
-            $rules += , [pscustomobject]@{ Action = $Matches[1].Trim(); Resource = $Matches[2].Trim(); Effect = $Matches[3] }
+            $rules += , [pscustomobject]@{ Action = $Matches[1].Trim(); Resource = $Matches[2].Trim(); Effect = $Matches[3]; Index = $rules.Count }
         }
     }
     $denyIndex = -1
@@ -425,16 +425,17 @@ function Test-OpenCodeProfileIsReadOnly {
         if ($rules[$i].Action -eq '*' -and $rules[$i].Resource -eq '*' -and $rules[$i].Effect -eq 'deny') { $denyIndex = $i; break }
     }
     if ($denyIndex -lt 0) { return $false }
-    $allowsRead = $false; $allowsGlob = $false
+    $allowsRead = $false; $allowsGlob = $false; $readAllowIndex = -1
     for ($i = $denyIndex + 1; $i -lt $rules.Count; $i++) {
         $r = $rules[$i]
         if ($r.Effect -ne 'allow') { continue }
         if ($r.Action -notin @('read', 'glob')) { return $false }
         if ($r.Resource -ne '*' -and -not ($r.Action -eq 'read' -and $r.Resource -eq '*.env.example')) { return $false }
-        if ($r.Action -eq 'read') { $allowsRead = $true }
+        if ($r.Action -eq 'read') { $allowsRead = $true; if ($r.Resource -eq '*') { $readAllowIndex = $i } }
         if ($r.Action -eq 'glob') { $allowsGlob = $true }
     }
     if (-not ($allowsRead -and $allowsGlob)) { return $false }
+    if ($readAllowIndex -lt 0) { return $false }
     foreach ($protected in @(
         @{ Action = 'read'; Resource = '*.env'; Effect = 'deny' },
         @{ Action = 'read'; Resource = '*.env.*'; Effect = 'deny' },
@@ -444,6 +445,16 @@ function Test-OpenCodeProfileIsReadOnly {
     )) {
         $matches = @($rules | Where-Object { $_.Action -eq $protected.Action -and $_.Resource -eq $protected.Resource })
         if (-not $matches.Count -or $matches[-1].Effect -ne $protected.Effect) { return $false }
+        if ($protected.Resource -eq '*.env.example') {
+            if ($matches[-1].Index -le $readAllowIndex) { return $false }
+            $envDeny = @($rules | Where-Object { $_.Action -eq 'read' -and $_.Resource -eq '*.env.*' -and $_.Effect -eq 'deny' })
+            if (-not $envDeny.Count -or $matches[-1].Index -le $envDeny[-1].Index) { return $false }
+        } elseif ($matches[-1].Effect -eq 'deny' -and $matches[-1].Index -le $readAllowIndex) {
+            return $false
+        }
+    }
+    foreach ($r in $rules) {
+        if ($r.Action -eq 'read' -and $r.Resource -eq '*' -and $r.Effect -eq 'allow' -and $r.Index -gt $readAllowIndex) { return $false }
     }
     return $true
 }
@@ -631,6 +642,12 @@ function Get-DispatchTable {
                 if (-not [string]::IsNullOrWhiteSpace($Title)) { $args += @('--title', $Title.Trim()) }
                 if ($zaiLauncher -and $File) {
                     $args += @('--file', $File, '--')
+                    $PromptText = 'Carry out the task in the attached prompt file.'
+                } elseif ($File) {
+                    # Attach dispatcher pointer prompts in the CLI layer. This
+                    # avoids granting an external_directory permission to the
+                    # restricted agent merely to read its runtime task file.
+                    $args += @('--file', $File)
                     $PromptText = 'Carry out the task in the attached prompt file.'
                 }
                 $args += $PromptText
