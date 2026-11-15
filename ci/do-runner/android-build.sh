@@ -52,6 +52,14 @@ artifacts=/srv/work/android/artifacts
 cache=/opt/forge/android
 mkdir -p "$artifacts" "$cache/gradle-home" "$cache/pnpm-store" /srv/work/android
 
+# Serialize work that shares this persistent checkout and generated Android tree.
+# Keep fd 9 open until this script exits, including APK and log publication.
+mkdir -p "$cache/locks"
+lock_key=$(printf '%s' "$work" | sha256sum | cut -c1-64)
+exec 9>"$cache/locks/$lock_key.lock"
+command -v flock >/dev/null 2>&1 || { echo "android-build: flock is required on the host" >&2; exit 2; }
+flock -n 9 || { echo "android-build: another build is using $work" >&2; exit 2; }
+
 # Pushed branches only: fetch the exact ref from the bare repo, never a working tree.
 [ -d "$work/.git" ] || git clone -q "$repo" "$work"
 git -C "$work" fetch -q origin "+refs/heads/$branch:refs/remotes/origin/$branch"
