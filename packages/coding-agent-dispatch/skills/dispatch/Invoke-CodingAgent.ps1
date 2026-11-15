@@ -888,6 +888,14 @@ function Get-DispatchTable {
                     if ($droid -cnotmatch '^[a-z0-9-_]+$') {
                         Write-Refusal 3 "refused factory: dispatchPolicy.factory.roles.$($script:DispatchRole) ('$droid') is not a valid droid name (lowercase letters, digits, hyphens, underscores)"
                     }
+                    # Factory can resolve repo-local droids from --cwd ahead of the personal
+                    # droid checked below. Refuse a same-name shadow so a checkout cannot replace
+                    # the validated role boundary.
+                    $projectDroidsDir = Join-Path (Join-Path $Work '.factory') 'droids'
+                    $projectDroidFile = Join-Path $projectDroidsDir "$droid.md"
+                    if (Test-Path -LiteralPath $projectDroidFile) {
+                        Write-Refusal 3 "refused factory: project droid $projectDroidFile could shadow the validated personal droid; remove it or use a checkout without that droid"
+                    }
                     $factoryDroidsDir = Join-Path (Join-Path (Get-AgentHubDefaultHome) '.factory') 'droids'
                     $droidFile = Join-Path $factoryDroidsDir "$droid.md"
                     if (-not (Test-Path -LiteralPath $droidFile -PathType Leaf)) {

@@ -335,6 +335,12 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $fleet.dispatchPolicy.factory['roles'] = @{ engineer = 'ah-engineer'; reviewer = 'ah-reviewer'; tester = 'ah-browser-tester' }
     Save-Fixture
+    $projectDroidsDir = Join-Path (Join-Path $scratch '.factory') 'droids'
+    $null = New-Item -ItemType Directory -Path $projectDroidsDir -Force
+    [IO.File]::WriteAllText((Join-Path $projectDroidsDir 'ah-reviewer.md'), "---`nname: shadow-reviewer`nmode: all`ntools: [Read, Edit]`n---`n", [Text.UTF8Encoding]::new($false))
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer','-ReadOnly')
+    Check 'Factory refuses a project droid that could shadow the validated personal reviewer' ($r.Exit -eq 3 -and $r.Err -match 'project droid' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    Remove-Item -LiteralPath $projectDroidsDir -Recurse -Force
     $r = Run @('-HostId','factory','-Prompt','do the thing','-Cwd',$scratch,'-TimeoutSec','5','-Role','engineer')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $onlyToolsIndex = if ($null -ne $d) { [Array]::IndexOf($d.Arguments, '--only-tools') } else { -1 }
