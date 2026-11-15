@@ -55,8 +55,17 @@ if (-not $bashExe) {
         Report "$script passes bash -n" ($LASTEXITCODE -eq 0) "bash -n exit=$LASTEXITCODE"
     }
     # The lane must refuse a missing repo before touching docker or the network.
-    & $bashExe ((Join-Path $ciDir 'android-build.sh') -replace '\\', '/') '/nonexistent-repo.git' 'somebranch' 2>&1 | Out-Null
-    Report 'android-build.sh refuses a missing repo with exit 2' ($LASTEXITCODE -eq 2) "exit=$LASTEXITCODE"
+    $priorErrorActionPreference = $ErrorActionPreference
+    try {
+        # Windows PowerShell 5.1 can promote native stderr to a terminating
+        # ErrorRecord when the script-wide preference is Stop.
+        $ErrorActionPreference = 'Continue'
+        & $bashExe ((Join-Path $ciDir 'android-build.sh') -replace '\\', '/') '/nonexistent-repo.git' 'somebranch' 2>&1 | Out-Null
+        $missingRepoExit = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $priorErrorActionPreference
+    }
+    Report 'android-build.sh refuses a missing repo with exit 2' ($missingRepoExit -eq 2) "exit=$missingRepoExit"
 }
 
 # --- Dockerfile pins match the ABACare engines and the RN 0.86 toolchain -----
