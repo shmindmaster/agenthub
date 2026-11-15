@@ -147,17 +147,7 @@ written; `-ShowCommand` prints the child variable names, never the key. As
 with warp, yolo mode has no agent-profile denylist, so the child carries the
 `GIT_CONFIG_*`/`GH_CONFIG_DIR` push guard.
 
-`-Role` (SH-4418, SH-4674) picks a host role profile. On Kiro: `peer`, the
-default, keeps the guarded `ah-peer` command; `engineer`, `reviewer`, `tester`,
-`architect` and `incident` run the V3 engine on `ah-<role>` from `kiro/agents/`,
-recorded in `dispatchPolicy.kiro.roles`; a profile missing from `~/.kiro/agents`
-is refused. On OpenCode: `peer`, the default, keeps the guarded `peer` agent;
-`engineer`, `reviewer`, `tester` and `researcher` run the native V2 agents from
-`opencode/agents/`, recorded in `dispatchPolicy.opencode.roles`; an agent
-missing from `~/.config/opencode/agents` is refused, and the legacy
-zai-coding-plan launcher refuses every role but peer. Any other host refuses a
-role other than `peer`.
-
+`-Role` (SH-4418, SH-4674, SH-4676) picks a per-host role profile. Kiro uses V3 profiles from `kiro/agents/`; OpenCode uses native V2 agents from `opencode/agents/` and refuses missing profiles. Factory maps `engineer`, `reviewer` and `tester` through `dispatchPolicy.factory.roles` to native droids in `~/.factory/droids`, installed from `factory/droids/` by `factory/Install-FactoryDroids.ps1`; stable BYOK model ids come from `factory/custom-models.json`. The Factory parent relays exactly one Task delegation, and each droid's frontmatter constrains available tools. Any other host refuses roles other than `peer`.
 `-ReadOnly` runs a host in a read-only mode the host itself enforces, never
 through prompt wording: claude (`--permission-mode plan`), codex
 (`--sandbox read-only`), factory (`exec` without `--auto`), kiro (the
@@ -174,8 +164,7 @@ The `reviewer` role is subject to this gate; run tests through `tester`.
 `false` (checked, none) or `null` (not established), with the dated help text
 in `readOnlyNote`. Every other host refuses `-ReadOnly` with exit 3; there is
 no fallback to a writable run. `-List -ReadOnly` prints the supported hosts.
-The opencode mode is verified with a live model run (2026-11-14, SH-4674); no
-other read-only mode has been exercised with a model run.
+OpenCode read-only mode is live-verified (2026-11-14, SH-4674); Factory `-ReadOnly -Role reviewer` returned WRITE-DENIED with no file created at zero credits (2026-11-14, SH-4676).
 
 Codex accepts non-repository working directories without creating Git state.
 Antigravity uses attached `--print=<prompt>`. Long or shell-sensitive argument

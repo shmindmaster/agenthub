@@ -329,7 +329,7 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
 
 function Get-MappingMarketplace([bool]$Private, [string]$OwnerHost) {
     if (-not $Private) { return 'agenthub' }
-    if ($OwnerHost -eq 'factory') { return 'personal' }
+    if ($OwnerHost -eq 'factory') { return 'agenthub-private' }
     return 'sarosh-private'
 }
 
