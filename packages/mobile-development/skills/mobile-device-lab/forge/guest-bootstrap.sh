@@ -35,6 +35,10 @@ EOF
 printf '%s\n' '# Runs after /etc/zprofile (path_helper), so the forge toolchain stays first.' 'source $HOME/.zshenv' > ~/.zprofile
 source ~/.zshenv
 command -v eas >/dev/null || npm i -g eas-cli@latest
+# EAS local builds spawn `pnpm` directly; without the corepack shim the
+# INSTALL_DEPENDENCIES phase dies with "spawn pnpm ENOENT" (ABACare guest build,
+# measured 2026-11-14). Per-project pnpm versions still come from packageManager.
+command -v pnpm >/dev/null || corepack enable pnpm
 command -v pod >/dev/null && command -v fastlane >/dev/null || gem install --no-document cocoapods fastlane
 if ! command -v ccache >/dev/null; then
   url=$(curl -fsSL https://api.github.com/repos/ccache/ccache/releases/latest | grep -oE '"browser_download_url": "[^"]*darwin[^"]*\.tar\.gz"' | head -1 | cut -d'"' -f4)
@@ -51,5 +55,5 @@ sudo -n pmset -a sleep 0 displaysleep 0 disksleep 0 standby 0 autorestart 1
 sudo -n softwareupdate --schedule off || true
 # Spotlight indexing takes most of a core after every boot; a build host needs no search index.
 sudo -n mdutil -a -i off >/dev/null || true
-for t in node eas ruby pod fastlane ccache xcodes; do printf '%s=%s\n' "$t" "$(command -v $t || echo MISSING)"; done
+for t in node pnpm eas ruby pod fastlane ccache xcodes; do printf '%s=%s\n' "$t" "$(command -v $t || echo MISSING)"; done
 echo GUEST-BOOTSTRAP-DONE

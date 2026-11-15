@@ -80,6 +80,31 @@ ssh forge /srv/work/sh-ci/bin/sh-ci status
   1. Run `sh-ci rm <repo>` for every repository.
   2. Delete each runner registration under Settings, Actions, Runners.
 
+## Android build lane (`ci/do-runner/android-*`)
+
+Builds an Expo/React Native Android app from a branch of a bare repo on the host, inside a container, with no EAS cloud and no load on the owner PC (SH-4524).
+
+- Image `forge/android-builder:2` (`ci/do-runner/android-builder.Dockerfile`): the same `reactnativecommunity/react-native-android` base as `:1` (JDK 17, SDK 37, NDK 28.2), plus Node 24.22, pnpm 11.15.0 and the React Native 0.86 toolchain (`platforms;android-36`, `build-tools;36.0.0`, `ndk;27.1.12297006`) so an ephemeral container never re-downloads an NDK. `:1` is left untouched.
+- `android-setup.sh` (root, on forge) builds the image, installs `/usr/local/bin/android-build`, and writes the shared caches: `/opt/forge/android/gradle-home` (its `gradle.properties` overrides the generated project's 512 MB Metaspace cap, the cold-build OOM measured 2026-11-10) and `/opt/forge/android/pnpm-store`.
+- Lane run, ABACare preview values (public, from `apps/mobile/eas.json`):
+
+```bash
+git -C <abacare-checkout> push ssh://forge/srv/abacare.git <local-branch>:<branch>
+ssh forge android-build /srv/abacare.git <branch> --app apps/mobile \
+  --env EAS_BUILD_PROFILE=preview \
+  --env EXPO_PUBLIC_API_URL=https://abacare.ai/api \
+  --env EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuYWJhY2FyZS5haSQ= \
+  --env EXPO_PUBLIC_SENTRY_ENVIRONMENT=preview
+```
+
+  The lane fetches only the pushed ref, runs the app's own `build-environment.cjs` gate when it ships one, `expo prebuild --platform android`, then `gradlew clean assembleRelease` (`--variant debug` for a debug APK). Working trees persist at `/srv/work/android/<repo>-<repo-key>-<branch>-<branch-key>` (node_modules and the generated `android/` survive between runs); before reuse, the script verifies that the checkout's `origin` still resolves to the requested bare repo.
+- Builds that share a persistent checkout are serialized with a host `flock`; each builder container is capped at 12 CPUs and 24 GiB of memory with swap disabled. The lane removes prior APK outputs for the requested variant before starting Gradle, so a failed or empty build cannot publish an older APK under the current commit identity.
+- Output: `/srv/work/android/artifacts/<repo>-<repo-key>-<branch>-<branch-key>-<sha8>-<app>-<variant>[-<envhash8>].apk` with its sha256 and the full build log under the same stem; root builds use the `root` app tag. Exit 0 means the APK was built. The stem is the rerun key: identical identity replaces its own artifacts, and a different repository, branch, app, variant or `--env` set can never overwrite another build's evidence. The APK is unsigned: the lane holds no Android signing keys, and store builds still go through EAS.
+
+## Jobs dashboard (`jobs.forge.shtrial.com`)
+
+Read-only status page for the box (SH-4524): `ci/do-runner/jobs-dashboard.py` serves `127.0.0.1:8790` under `forge-jobs-dashboard.service` (installed at `/opt/forge/jobs-dashboard/`, unit in `/etc/systemd/system/`), and Caddy reverse-proxies `https://jobs.forge.shtrial.com` to it with the same owner-IP matcher as `mac.forge.shtrial.com`. It shows host vitals, the macOS VM lane (container state, `mac` leases, storage), the Android lane (image, artifacts), the sh-ci runners and sidecars, the media/render jobs under `/srv/work/jobs`, and other containers. Every page is regenerated on request (15 s cache); `/status.json` is the machine-readable form; `/healthz` answers `ok`. The service reads this host only: no writes, no external calls, no credentials.
+
 ## AWS target (2026-12-01)
 
 The AWS equivalent of the native path is a CodeBuild project that builds from the Git commit into ECR, then deploys to ECS.
