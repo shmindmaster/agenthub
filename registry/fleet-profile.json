@@ -433,8 +433,14 @@
         "gemini-3.8-flash",
         "gpt-5.4-mini",
         "claude-sonnet-5",
-        "gpt-6-sol"
+        "gpt-6-sol",
+        "custom:Qwen-38-Max-Token-Plan-5",
+        "custom:Qwen-4-Max-Preview-Token-Plan-6",
+        "custom:GLM-53-Zai-Coding-Plan-4",
+        "custom:MiMo-V26-Pro-Token-Plan-2",
+        "custom:MiMo-V26-Flash-Token-Plan-3"
       ],
+      "planRoutesNote": "2026-11-14 smoke-verified through Invoke-CodingAgent.ps1 (READY, exit 0): BYOK customModels in ~/.factory/settings.json with ${ENV} keys: custom:Qwen-38-Max-Token-Plan-5 and custom:Qwen-4-Max-Preview-Token-Plan-6 (QWEN_TOKEN_PLAN_API_KEY), custom:GLM-53-Zai-Coding-Plan-4 (ZAI_CODING_PLAN_API_KEY), custom:MiMo-V26-Pro-Token-Plan-2 (MIMO_API_KEY). The id suffix is the customModels array index, so reordering settings.json changes the id. Display names avoid parentheses because the dispatcher refuses them as shell metacharacters. Unverified: Factory reported nonzero factory_credits on the Qwen 3.8 Max and GLM smoke runs.",
       "autonomy": "medium",
       "autonomyNote": "Dispatch runs `--auto` at low or medium only. `--auto high` permits git push, and --skip-permissions-unsafe is never emitted; the dispatcher refuses any autonomy value outside low or medium. Outward-action rules live in the repo-owned runtimeSettings file, verified with `droid rules check` 2026-10-26.",
       "runtimeSettings": "packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json",
@@ -564,8 +570,13 @@
         "opencode-go/gemini-4-argon",
         "zai-coding-plan/glm-5.3",
         "mimo-token-plan/mimo-v2.6-pro",
-        "mimo-token-plan/mimo-v2.6-flash"
+        "mimo-token-plan/mimo-v2.6-flash",
+        "qwen-token-plan/qwen3.8-max",
+        "qwen-token-plan/qwen4-max-preview",
+        "qwen-token-plan/qwen3.8-flash",
+        "zai-glm-plan/glm-5.3"
       ],
+      "planRoutesNote": "2026-11-14 smoke-verified through Invoke-CodingAgent.ps1 (READY, exit 0): qwen-token-plan/qwen3.8-max (QWEN_TOKEN_PLAN_API_KEY, Qwen Token Plan), zai-glm-plan/glm-5.3 (native OpenCode 2.x Z.ai Coding Plan provider, ZAI_CODING_PLAN_API_KEY), zai-coding-plan/glm-5.3 (legacy Windows launcher), mimo-token-plan/mimo-v2.6-pro (MIMO_API_KEY). qwen4-max-preview verified by a direct opencode run the same day.",
       "allowedModelsNote": "Smoke-verified models, not a limit on -Model. opencode-go/* entries are the OpenCode Go subscription, reached through the stored Go workspace login. The opencode/* provider is the pay-as-you-go Zen wallet, a different route: it returned 'Insufficient balance' on 2026-11-10 (opencode 2.2.6) while opencode-go/glm-5.3-flash and opencode-go/kimi-k2.7-code returned READY with OPENCODE_GO_API_KEY unset. Every opencode-go id here is in the `opencode models` listing (32 opencode-go models). mimo-token-plan/* entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.config/opencode/opencode.json and are the fallback when the Go plan is out of credit or usage (owner direction 2026-11-11; the 402 'Insufficient balance' seen on 2026-11-11 came from the opencode/* Zen wallet ids this list carried then, not from the Go subscription).",
       "reason": "2026-10-26: one-word prompts returned the expected text for every model then listed, recorded under opencode/* ids. The free models (glm-5.3-flash-free, deepseek-v4.1-flash-free, mimo-v2.6-flash-free, big-pickle) and claude-sonnet-5-5 and gpt-6.1-sol returned 'Model is unavailable' (HTTP 400). 2026-11-10 (opencode 2.2.6): the Go subscription is the opencode-go provider and the ids were corrected to opencode-go/*; opencode-go/glm-5.3-flash and opencode-go/kimi-k2.7-code returned READY on the stored Go workspace login, and the other six opencode-go ids are confirmed in `opencode models` but not re-run under the new id. -Model accepts any provider/model id; an unlisted one is passed through with a stderr note. Bound task execution by the dispatcher timeout.",
       "ownerAction": null,
@@ -647,8 +658,13 @@
       "agentNote": "~/.config/kilo/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, kilo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --auto approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
       "allowedModels": [
         "mimo/mimo-v2.6-pro",
-        "mimo/mimo-v2.6-flash"
+        "mimo/mimo-v2.6-flash",
+        "qwen-token-plan/qwen3.8-max",
+        "qwen-token-plan/qwen4-max-preview",
+        "zai-coding-plan/glm-5.3",
+        "zai-coding-plan/glm-5.3-flash"
       ],
+      "planRoutesNote": "2026-11-14 smoke-verified through Invoke-CodingAgent.ps1 (READY, exit 0): qwen-token-plan/qwen3.8-max (QWEN_TOKEN_PLAN_API_KEY), zai-coding-plan/glm-5.3 (ZAI_CODING_PLAN_API_KEY), mimo/mimo-v2.6-pro (MIMO_API_KEY). Providers live in ~/.config/kilo/config.json with {env:...} keys.",
       "allowedModelsNote": "Recorded models, not a limit on -Model. mimo/mimo-v2.6-pro was smoke-verified on the MiMo provider (2026-11-10, governed command). mimo/mimo-v2.6-flash is listed under provider mimo in ~/.config/kilo/config.json and was added on owner direction 2026-11-10 without a captured response.",
       "reason": "2026-11-10: the exact governed command (`kilo run --auto --format json --dir <cwd> --model mimo/mimo-v2.6-pro --agent peer`) returned READY, exit 0. A second run under the same command asked for `doctl version` and `echo ALLOWED_OK`: the first was blocked by the agent's bash deny rule before execution and the second ran, so --auto does not override an explicit deny. `kilo debug agent peer` listed the deny rules as resolved. Only the listed model was exercised.",
       "ownerAction": null,
