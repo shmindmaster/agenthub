@@ -4,6 +4,7 @@ import { scan, isSource, isTest, missingConfigs, detectStacks } from './scan-rep
 
 const big = 'x\n'.repeat(1600);
 const mid = 'x\n'.repeat(900);
+const syntheticKey = 'AKIA' + 'ABCDEFGHIJKLMNOP';
 const files = {
   'package.json': '{}',
   'src/app/service.ts': big,
@@ -16,7 +17,7 @@ const files = {
   'tests/service.test.ts': big,
   '.env': 'A=1',
   '.env.example': 'A=',
-  'src/keys.ts': 'const k = "AKIAABCDEFGHIJKLMNOP";',
+  'src/keys.ts': `const k = "${syntheticKey}";`,
 };
 const r = scan('fixture', () => Object.keys(files), (p) => files[p]);
 
@@ -28,7 +29,7 @@ test('counts markers and reports committed env files and secret-shaped strings w
   assert.equal(r.markers, 2);
   assert.deepEqual(r.committedEnvFiles, ['.env']);
   assert.deepEqual(r.secretShapedFiles, ['src/keys.ts']);
-  assert.ok(!JSON.stringify(r).includes('AKIAABCDEFGHIJKLMNOP'));
+  assert.ok(!JSON.stringify(r).includes(syntheticKey));
 });
 
 test('reports missing JS lint and format config, and accepts biome for both', () => {
