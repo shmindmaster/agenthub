@@ -89,12 +89,20 @@
   Continue an existing Cline session through ACP. Policy gates still apply.
 
 .PARAMETER Role
-  Kiro only: peer (default), engineer, reviewer, tester, architect or
-  incident. peer runs the guarded dispatchPolicy.kiro.agent profile. Every
-  other role runs the V3 engine on the profile named by
-  dispatchPolicy.kiro.roles.<role> (ah-<role>) and is refused when that
-  profile file is missing from ~/.kiro/agents. Any other host refuses a role
-  other than peer.
+  Kiro: peer (default), engineer, reviewer, tester, architect or incident.
+  peer runs the guarded dispatchPolicy.kiro.agent profile. Every other role
+  runs the V3 engine on the profile named by dispatchPolicy.kiro.roles.<role>
+  (ah-<role>) and is refused when that profile file is missing from
+  ~/.kiro/agents.
+  OpenCode: peer (default), engineer, reviewer, tester or researcher. peer
+  runs the guarded dispatchPolicy.opencode.agent profile. Every other role
+  runs the V2 agent named by dispatchPolicy.opencode.roles.<role> and is
+  refused when that agent file is missing from ~/.config/opencode/agents.
+  -ReadOnly additionally uses dispatchPolicy.opencode.roles.readonly, the
+  enforced read-only agent (no shell, no edit); it is not selectable through
+  -Role. The legacy zai-coding-plan launcher route (OpenCode 1.x) has no V2
+  agents and refuses every role but peer.
+  Any other host refuses a role other than peer.
 
 .PARAMETER ReadOnly
   Run the host in a read-only mode the host itself enforces; prompt wording
@@ -102,7 +110,11 @@
   verified read-only command for it and dispatchPolicy.<host>.readOnly
   records the flags. Every other host is refused with exit 3; there is no
   fallback to a writable run. Kiro runs the reviewer profile, so -ReadOnly
-  with a writing role is refused. -ReadOnly cannot resume a Cline session.
+  with a writing role is refused. OpenCode runs the readonly agent (read and
+  search only) and is refused unless the installed readonly profile's own
+  ordered frontmatter permissions effectively deny the edit, shell and
+  subagent actions; -ReadOnly with a writing role is refused. -ReadOnly cannot
+  resume a Cline session.
 
 #>
 [CmdletBinding()]
@@ -361,6 +373,96 @@ function Assert-SubscriptionRoute {
     Assert-MimoPlanEnvironment -Id $Id
 }
 
+# OpenCode V2 agent permissions are an ordered list in the Markdown frontmatter
+# and the last matching rule wins. A substring search over the raw file is not
+# evidence: the deny text could sit in a comment or body, and a later allow rule
+# could re-open the action. This parses the frontmatter rules and returns $true
+# only when the last blanket rule (resource "*") covering $Action denies it and
+# no later rule re-allows the action for any resource. Conservative by design:
+# a narrower allow after the blanket deny is refused too, because proving glob
+# coverage is out of scope for the gate.
+function Test-OpenCodeProfileDenies {
+    param([string]$Text, [string]$Action)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
+    if ($Text -notmatch '(?s)^---\s*\r?\n(.*?)\r?\n---') { return $false }
+    $frontMatter = $Matches[1]
+    $rules = @()
+    foreach ($line in ($frontMatter -split '\r?\n')) {
+        if ($line -match '^\s*-\s*\{\s*action:\s*"?([^",}]+?)"?\s*,\s*resource:\s*"([^"]*)"\s*,\s*effect:\s*(allow|deny)\s*\}\s*$') {
+            $rules += , [pscustomobject]@{ Action = $Matches[1].Trim(); Resource = $Matches[2].Trim(); Effect = $Matches[3] }
+        }
+    }
+    if ($rules.Count -eq 0) { return $false }
+    $lastBlanket = -1
+    for ($i = 0; $i -lt $rules.Count; $i++) {
+        $r = $rules[$i]
+        if ($r.Resource -eq '*' -and ($r.Action -ceq $Action -or $r.Action -eq '*')) { $lastBlanket = $i }
+    }
+    if ($lastBlanket -lt 0 -or $rules[$lastBlanket].Effect -ne 'deny') { return $false }
+    for ($i = $lastBlanket + 1; $i -lt $rules.Count; $i++) {
+        $r = $rules[$i]
+        if ($r.Effect -eq 'allow' -and ($r.Action -ceq $Action -or $r.Action -eq '*')) { return $false }
+    }
+    return $true
+}
+
+# Restricted OpenCode runs use a real allow-list, not a list of known denies:
+# new plugin/MCP/host actions must remain denied without dispatcher updates.
+# Read/glob are the only permitted actions, and secret/auth read exceptions
+# must follow the broad read allow so last-match semantics preserve them.
+function Test-OpenCodeProfileIsReadOnly {
+    param([string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
+    if ($Text -notmatch '(?s)^---\s*\r?\n(.*?)\r?\n---') { return $false }
+    $frontMatter = $Matches[1]
+    $rules = @()
+    foreach ($line in ($frontMatter -split '\r?\n')) {
+        if ($line -notmatch '^\s*-\s') { continue }
+        # Restricted profiles use one explicit flow-rule per list item. Reject
+        # unknown effects (including `ask`) and alternate/multiline YAML forms;
+        # silently skipping one would let `--auto` approve it at runtime.
+        if ($line -notmatch '^\s*-\s*\{\s*action:\s*"?([^",}]+?)"?\s*,\s*resource:\s*"([^"]*)"\s*,\s*effect:\s*(allow|deny)\s*\}\s*$') { return $false }
+        $rules += , [pscustomobject]@{ Action = $Matches[1].Trim(); Resource = $Matches[2].Trim(); Effect = $Matches[3]; Index = $rules.Count }
+    }
+    $denyIndex = -1
+    for ($i = 0; $i -lt $rules.Count; $i++) {
+        if ($rules[$i].Action -eq '*' -and $rules[$i].Resource -eq '*' -and $rules[$i].Effect -eq 'deny') { $denyIndex = $i; break }
+    }
+    if ($denyIndex -lt 0) { return $false }
+    $allowsRead = $false; $allowsGlob = $false; $readAllowIndex = -1
+    for ($i = $denyIndex + 1; $i -lt $rules.Count; $i++) {
+        $r = $rules[$i]
+        if ($r.Effect -ne 'allow') { continue }
+        if ($r.Action -notin @('read', 'glob')) { return $false }
+        if ($r.Resource -ne '*' -and -not ($r.Action -eq 'read' -and $r.Resource -eq '*.env.example')) { return $false }
+        if ($r.Action -eq 'read') { $allowsRead = $true; if ($r.Resource -eq '*') { $readAllowIndex = $i } }
+        if ($r.Action -eq 'glob') { $allowsGlob = $true }
+    }
+    if (-not ($allowsRead -and $allowsGlob)) { return $false }
+    if ($readAllowIndex -lt 0) { return $false }
+    foreach ($protected in @(
+        @{ Action = 'read'; Resource = '*.env'; Effect = 'deny' },
+        @{ Action = 'read'; Resource = '*.env.*'; Effect = 'deny' },
+        @{ Action = 'read'; Resource = '*.env.example'; Effect = 'allow' },
+        @{ Action = 'read'; Resource = '*/opencode/auth.json'; Effect = 'deny' },
+        @{ Action = 'read'; Resource = '*/opencode/mcp-auth.json'; Effect = 'deny' }
+    )) {
+        $matches = @($rules | Where-Object { $_.Action -eq $protected.Action -and $_.Resource -eq $protected.Resource })
+        if (-not $matches.Count -or $matches[-1].Effect -ne $protected.Effect) { return $false }
+        if ($protected.Resource -eq '*.env.example') {
+            if ($matches[-1].Index -le $readAllowIndex) { return $false }
+            $envDeny = @($rules | Where-Object { $_.Action -eq 'read' -and $_.Resource -eq '*.env.*' -and $_.Effect -eq 'deny' })
+            if (-not $envDeny.Count -or $matches[-1].Index -le $envDeny[-1].Index) { return $false }
+        } elseif ($matches[-1].Effect -eq 'deny' -and $matches[-1].Index -le $readAllowIndex) {
+            return $false
+        }
+    }
+    foreach ($r in $rules) {
+        if ($r.Action -eq 'read' -and $r.Resource -eq '*' -and $r.Effect -eq 'allow' -and $r.Index -gt $readAllowIndex) { return $false }
+    }
+    return $true
+}
+
 # Xiaomi: the Token Plan serves from token-plan-<region>.xiaomimimo.com with
 # tp-/ttp- keys; pay-as-you-go uses api.xiaomimimo.com with sk- keys. Only the
 # variable name is ever reported. -Required is for a host whose whole route is
@@ -463,6 +565,7 @@ function Get-DispatchTable {
         }
         'opencode' = @{
             Mode = 'argument'
+            ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
                 # OpenCode 2 uses the child process working directory; --dir
@@ -480,10 +583,75 @@ function Get-DispatchTable {
                 if ($openCodeModel) { $args += @('--model', $openCodeModel) }
                 # --auto approves every action a rule leaves at ask, so unattended
                 # runs use the policy-named agent whose rules deny outward actions.
-                if (-not $zaiLauncher -and $fleet.dispatchPolicy.opencode.agent) { $args += @('--agent', [string]$fleet.dispatchPolicy.opencode.agent) }
+                # A -Role or -ReadOnly run swaps that agent for the mapped V2
+                # profile (SH-4674); -ReadOnly always runs the readonly profile,
+                # whose own permissions deny edit and shell for every resource
+                # (Kiro parity: the reviewer role keeps a shell and is NOT a
+                # read-only run).
+                if (-not $zaiLauncher) {
+                    $openCodeAgent = [string]$fleet.dispatchPolicy.opencode.agent
+                    $openCodeRoleName = ''
+                    if ($ReadOnly) { $openCodeRoleName = 'readonly' }
+                    elseif ($script:DispatchRole -ne 'peer') { $openCodeRoleName = $script:DispatchRole }
+                    if ($openCodeRoleName) {
+                        $openCodePolicy = $fleet.dispatchPolicy.opencode
+                        $roleAgent = ''
+                        if ($openCodePolicy -and $openCodePolicy.PSObject.Properties['roles'] -and $openCodePolicy.roles -and $openCodePolicy.roles.PSObject.Properties[$openCodeRoleName]) {
+                            $roleAgent = [string]$openCodePolicy.roles.$openCodeRoleName
+                        }
+                        if ($roleAgent -notmatch '^[A-Za-z0-9_-]+$') {
+                            Write-Refusal 3 "refused opencode: dispatchPolicy.opencode.roles.$openCodeRoleName must name the agent profile for role '$openCodeRoleName'"
+                        }
+                        $openCodeAgentsDir = Join-Path (Join-Path (Join-Path (Get-AgentHubDefaultHome) '.config') 'opencode') 'agents'
+                        $roleProfile = Join-Path $openCodeAgentsDir "$roleAgent.md"
+                        if (-not (Test-Path -LiteralPath $roleProfile -PathType Leaf)) {
+                            Write-Refusal 3 "refused opencode: role '$openCodeRoleName' needs the agent profile $roleAgent.md, which is missing from $openCodeAgentsDir; install it from packages/coding-agent-dispatch/opencode with Install-OpenCodeProfiles.ps1"
+                        }
+                        if ($ReadOnly -or $script:DispatchRole -eq 'reviewer') {
+                            # The installed file is what OpenCode enforces, so it
+                            # is the one checked: a restricted review run is
+                            # refused unless the profile's ordered frontmatter
+                            # permissions effectively deny edit, shell and
+                            # subagent for every resource. Text outside the
+                            # frontmatter or a later allow rule never satisfies
+                            # this gate, and prompt wording is never the
+                            # mechanism. Kiro parity: its reviewer gate is an
+                            # allow-list over the installed profile's tools;
+                            # this is the V2-permission equivalent (no shell,
+                            # no writable child, no write-through-command).
+                            $profileText = $null
+                            try { $profileText = Get-Content -LiteralPath $roleProfile -Raw -Encoding UTF8 } catch { $profileText = $null }
+                            if (-not (Test-OpenCodeProfileDenies -Text $profileText -Action 'edit')) {
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the edit action for every resource, so a read-only run cannot be established"
+                            }
+                            if (-not (Test-OpenCodeProfileDenies -Text $profileText -Action 'shell')) {
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the shell action, so this restricted run could still change files through commands"
+                            }
+                            if (-not (Test-OpenCodeProfileDenies -Text $profileText -Action 'subagent')) {
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the subagent action, so this restricted run could delegate to a writable agent"
+                            }
+                            if (-not (Test-OpenCodeProfileDenies -Text $profileText -Action 'browser')) {
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the browser action, so a review could perform external actions"
+                            }
+                            if (-not (Test-OpenCodeProfileIsReadOnly -Text $profileText)) {
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md must deny every action by default and allow only read and glob, with secret and auth reads denied"
+                            }
+                        }
+                        $openCodeAgent = $roleAgent
+                    }
+                    if ($openCodeAgent) { $args += @('--agent', $openCodeAgent) }
+                } elseif ($script:DispatchRole -ne 'peer' -or $ReadOnly) {
+                    Write-Refusal 3 'refused opencode: the legacy zai-coding-plan launcher runs OpenCode 1.x with an isolated config that has no V2 agent profiles; use a native OpenCode 2 route for -Role or -ReadOnly'
+                }
                 if (-not [string]::IsNullOrWhiteSpace($Title)) { $args += @('--title', $Title.Trim()) }
                 if ($zaiLauncher -and $File) {
                     $args += @('--file', $File, '--')
+                    $PromptText = 'Carry out the task in the attached prompt file.'
+                } elseif ($File) {
+                    # Attach dispatcher pointer prompts in the CLI layer. This
+                    # avoids granting an external_directory permission to the
+                    # restricted agent merely to read its runtime task file.
+                    $args += @('--file', $File)
                     $PromptText = 'Carry out the task in the attached prompt file.'
                 }
                 $args += $PromptText
@@ -930,8 +1098,8 @@ function Resolve-DeclaredExecutable {
 }
 
 # -Role names a per-host profile. Only the hosts listed here have any.
-$script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'architect', 'incident')
-$script:RoleHosts = @('kiro', 'factory')
+$script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'researcher', 'architect', 'incident')
+$script:RoleHosts = @('kiro', 'opencode', 'factory')
 $script:DispatchRole = 'peer'
 
 # dispatchPolicy.<host>.readOnly: an object with a flags list when the host has
@@ -1104,6 +1272,9 @@ if ($ReadOnly) {
     if ($targetId -eq 'kiro' -and $script:DispatchRole -notin @('peer', 'reviewer')) {
         Write-Refusal 3 "refused kiro: -ReadOnly cannot be combined with -Role $($script:DispatchRole), a writing role; a read-only Kiro run uses the reviewer profile"
     }
+    if ($targetId -eq 'opencode' -and $script:DispatchRole -notin @('peer', 'reviewer')) {
+        Write-Refusal 3 "refused opencode: -ReadOnly cannot be combined with -Role $($script:DispatchRole), a writing role; a read-only OpenCode run uses the readonly agent profile"
+    }
     if ($targetId -eq 'factory' -and $script:DispatchRole -notin @('peer', 'reviewer')) {
         Write-Refusal 3 "refused factory: -ReadOnly cannot be combined with -Role $($script:DispatchRole), a writing role; a read-only Factory run uses the reviewer droid"
     }
@@ -1178,6 +1349,14 @@ if ($zaiLauncher) {
             }
         } | ConvertTo-Json -Depth 5 -Compress)
     }
+}
+if ($targetId -eq 'opencode' -and ($ReadOnly -or $script:DispatchRole -eq 'reviewer')) {
+    if (-not $built.Env) { $built.Env = @{} }
+    # Do not load repository-provided agents/config/instructions or external
+    # plugins into a restricted review process; profile checks alone cannot
+    # constrain code loaded after the global profile.
+    $built.Env['OPENCODE_DISABLE_PROJECT_CONFIG'] = 'true'
+    $built.Env['OPENCODE_PURE'] = 'true'
 }
 # Write the task only after Build has accepted the policy: a refusing Build
 # must not leave a prompt file behind, and the run's finally block below does

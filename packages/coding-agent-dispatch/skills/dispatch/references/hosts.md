@@ -75,7 +75,7 @@ text on 2026-11-11.
 - Gemini CLI is retired (2026-11-10) and has no dispatch contract. Dispatch Google work to Antigravity.
 - Copilot: runs on the `sh-pendoah` GitHub account; the dispatcher reads that token from gh's keyring into the child environment only.
 - Codex reads the task from stdin (`exec --skip-git-repo-check -`) and does not initialize Git. Antigravity gets `--print=<prompt>` after its permissions flag.
-- Long, quoted or multiline argument prompts go through a temporary UTF-8 file and a short pointer; the file is removed on completion.
+- Long, quoted or multiline argument prompts go through a temporary UTF-8 file; the file is removed on completion. OpenCode attaches pointer files with `--file` rather than asking the agent to read outside the checkout, preserving its strict read/glob allowlist.
 - Claude's current account eligibility comes from `dispatchPolicy`, not this
   reference. The separate `-HostId claude -AnthropicApiKey` path is a per-call
   opt-in only while its recorded authorization is valid; it is not a fallback
@@ -194,12 +194,31 @@ Cline dispatch is enabled in `dispatchPolicy`:
 
 The Go subscription is provider `opencode-go`; the default is `opencode-go/glm-5.3-flash`. Provider `opencode` is the pay-as-you-go Zen wallet and is refused (see Models).
 
+`-Role engineer|reviewer|tester|researcher` runs the matching native V2 agent
+from `~/.config/opencode/agents` (canonical copies in
+`packages/coding-agent-dispatch/opencode/agents`, recorded in
+`dispatchPolicy.opencode.roles`); a role the policy does not record or whose
+agent file is missing from the installed home is refused. Without `-Role` the
+run keeps the guarded `peer` agent. `-ReadOnly` always runs the `readonly`
+agent (`roles.readonly`) — never `peer` — and is refused unless the installed
+`readonly.md` ordered frontmatter permissions deny every action by default and
+allow only `read` and `glob`, with secret and auth-file reads denied. `-Role
+reviewer` uses the same gate for its installed `reviewer.md` profile. The
+dispatcher parses the rules (last match wins), so body text cannot satisfy the
+gate. Restricted child processes set `OPENCODE_DISABLE_PROJECT_CONFIG=true`
+and `OPENCODE_PURE=true`, preventing repository configuration/instructions and
+external plugins from changing the effective policy.
+Live-verified on opencode 2.3.0 (2026-11-14): the profile-filtered session
+exposed no write/edit/patch tools and the prompted probe file was never
+created. Combining `-ReadOnly` with a writing role is refused.
+
 On Windows, `-HostId opencode -Model zai-coding-plan/glm-5.3` uses the
 installed `%LOCALAPPDATA%/AgentHub/zai/opencode-zai.ps1` launcher and its
 separate OpenCode 1.x settings. It exposes the Z.ai MCPs and workspace
 read/edit/search tools. Shell, subagents and access outside the workspace are
 denied for these headless runs. Use a different route for tasks requiring a
-shell. The launcher must pass through the OpenCode exit code.
+shell. The launcher must pass through the OpenCode exit code. The launcher has
+no V2 agent profiles: it refuses every `-Role` except peer and any `-ReadOnly`.
 
 On Forge, use `-Forge -HostId opencode-zai -Cwd <Forge-worktree>`. This
 opens the runner's isolated Z.ai launcher interactively; the Forge adapter
@@ -215,5 +234,6 @@ Each installer audits by default and changes files only with `-Apply`. None star
 | Script | Purpose |
 | --- | --- |
 | `Install-OpenCodeToolDiscovery.ps1` | Native global plugin that defers schemas and skill/MCP catalogs until needed. Reload the shared OpenCode service after installing. |
+| `Install-OpenCodeProfiles.ps1` (in `packages/coding-agent-dispatch/opencode/`) | Deploys the canonical V2 agent profiles (`peer`, `engineer`, `reviewer`, `tester`, `researcher`) to `~/.config/opencode/agents`. Hash-verified `-Apply` repairs drift, never touches owner-authored agents, `opencode.json`, MCP files, plugins or credentials, and writes no backups. |
 | `Install-ClineToolDiscovery.ps1` | Installs `cline/lightweight-chat.js` (`find_tools` loads up to five tools per search) for the `qwen3.8-max` profile, and sets Cline's global `compactionEnabled` to `false`, because compaction otherwise estimates the full tool catalog and can discard tool results. Verify a plain reply and a real file read after a Cline upgrade. |
 | `Install-ClinePeerGuard.ps1` | Installs `~/.cline/plugins/peer-guard.js`, a deny list (not a sandbox) active only when `AGENTHUB_PEER_GUARD=1` and `CLINE_SESSION_BACKEND_MODE=local`; it fails open in hub mode. Blocks git push, reset --hard, clean -f, mutating gh, publish, cloud CLIs, scheduled tasks and services, host administration, credential dumps, disk and power operations, recursive root/home deletes, and writes to protected paths. |
