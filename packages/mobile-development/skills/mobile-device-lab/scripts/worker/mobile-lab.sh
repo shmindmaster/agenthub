@@ -117,6 +117,13 @@ upload_chunk() {
   cat > "$ROOT/incoming/$key.chunk-$index"
 }
 
+clear_chunks() {
+  local key="$1"
+  [[ "$key" =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid chunk key '$key'"
+  mkdir -p "$ROOT/incoming"
+  rm -f "$ROOT/incoming/$key.chunk-"*
+}
+
 # Concatenate a key's chunks into one tar. Indices are zero-padded to three
 # digits, so the shell glob's lexical order is numeric order.
 assemble_chunks() {
@@ -327,6 +334,7 @@ case "${1:-}" in
     esac ;;
   receive) shift; receive "$@" ;;
   upload-chunk) shift; upload_chunk "$@" ;;
+  clear-chunks) shift; clear_chunks "$@" ;;
   extra-stamp) extra_stamp "${2:-}" ;;
   receive-extra) shift; receive_extra "$@" ;;
   run) shift; run "$@" ;;

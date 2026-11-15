@@ -30,9 +30,44 @@ function Get-Sha([string]$Path) {
     (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
 }
 
+$workerPath = Join-Path $repoRoot 'packages\mobile-development\skills\mobile-device-lab\scripts\worker\mobile-lab.sh'
+$workerText = Get-Content -Raw -Encoding UTF8 $workerPath
+$clearFunction = [regex]::Match($workerText, '(?ms)^clear_chunks\(\) \{.*?^\}')
+Report 'mobile-lab.sh defines clear_chunks' $clearFunction.Success
+Report 'worker exposes clear-chunks' ($workerText -match 'clear-chunks\) shift; clear_chunks')
+$driverText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'packages\mobile-development\skills\mobile-device-lab\scripts\Invoke-MobileLabRemote.ps1')
+Report 'driver clears old chunks before upload' ($driverText -match 'mobile-lab clear-chunks \$Key')
+
 $tmp = Join-Path ([IO.Path]::GetTempPath()) "mobile-lab-chunk-test-$PID"
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 try {
+    if ($clearFunction.Success) {
+        $bash = $null
+        if ($env:ProgramFiles) {
+            $gitBash = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
+            if (Test-Path $gitBash) { $bash = $gitBash }
+        }
+        if (-not $bash) { $bash = (Get-Command bash -ErrorAction SilentlyContinue).Source }
+        if ($bash) {
+            $incoming = Join-Path $tmp 'incoming'
+            New-Item -ItemType Directory -Force -Path $incoming | Out-Null
+            Set-Content -LiteralPath (Join-Path $incoming 'app.chunk-000') -Value 'old-0' -NoNewline
+            Set-Content -LiteralPath (Join-Path $incoming 'app.chunk-004') -Value 'stale-tail' -NoNewline
+            Set-Content -LiteralPath (Join-Path $incoming 'other.chunk-004') -Value 'keep' -NoNewline
+            $bashIncoming = ($tmp -replace '\\', '/')
+            if ($bash -match 'System32\\bash\.exe$') {
+                $bashIncoming = '/mnt/' + $tmp.Substring(0, 1).ToLower() + ($tmp.Substring(2) -replace '\\', '/')
+            }
+            $harness = "set -e`ndie() { printf 'DIE: %s\\n' `"`$*`" >&2; exit 1; }`nROOT='$("$bashIncoming".Replace("'", "'\\''"))'`n$($clearFunction.Value)`nclear_chunks app`ntest ! -e `"`$ROOT/incoming/app.chunk-000`"`ntest ! -e `"`$ROOT/incoming/app.chunk-004`"`ntest -e `"`$ROOT/incoming/other.chunk-004`""
+            $harnessPath = Join-Path $tmp 'clear-chunks.sh'
+            [IO.File]::WriteAllText($harnessPath, ($harness -replace "`r`n", "`n"))
+            $p = Start-Process -FilePath $bash -ArgumentList @((($harnessPath -replace '\\', '/'))) -NoNewWindow -Wait -PassThru
+            Report 'worker clears stale chunks for one key only' ($p.ExitCode -eq 0) "exit $($p.ExitCode)"
+        } else {
+            Report 'worker clears stale chunks for one key only' $false 'bash not found'
+        }
+    }
+
     # 3.5 MB in 1 MB chunks: four chunks, the last one partial.
     $src = Join-Path $tmp 'source.tar'
     New-TestFile $src (3.5MB)

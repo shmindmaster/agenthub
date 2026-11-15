@@ -120,6 +120,8 @@ function Send-LabArchive([string]$ArchiveCommand, [string]$Key, [string]$FinishC
         & cmd.exe /d /c "$ArchiveCommand > `"$tarPath`""
         if ($LASTEXITCODE -ne 0) { throw "Creating the archive failed (exit $LASTEXITCODE)." }
         $chunks = @(Split-MobileLabArchive -Path $tarPath -Destination $tmp)
+        & ssh @sshOptions $alias "mobile-lab clear-chunks $Key"
+        if ($LASTEXITCODE -ne 0) { throw "The worker could not clear old chunks for '$Key' (exit $LASTEXITCODE)." }
         foreach ($chunk in $chunks) {
             $index = [IO.Path]::GetFileNameWithoutExtension($chunk) -replace '^chunk-', ''
             # Some hosts reset a bulk SSH stream mid-transfer even at chunk
