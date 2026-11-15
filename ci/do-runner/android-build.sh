@@ -81,7 +81,7 @@ log="$artifacts/$stem.log"
 main() {
   echo "== android-build repo=$repo branch=$branch sha=$sha app=$app_norm filter=$filter variant=$variant image=$image"
   local env_args=()
-  for kv in ${envs[@]+"${envs[@]}"}; do env_args+=(-e "$kv"); done
+  for kv in "${envs[@]}"; do env_args+=(-e "$kv"); done
   docker run --rm --init -i \
     -v "$work":/work -w /work \
     -v "$cache/gradle-home":/opt/gradle-home \

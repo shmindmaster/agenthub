@@ -61,6 +61,8 @@ if (-not $bashExe) {
 
 # --- Dockerfile pins match the ABACare engines and the RN 0.86 toolchain -----
 $dockerfile = Read-Utf8 (Join-Path $ciDir 'android-builder.Dockerfile')
+$buildScript = Read-Utf8 (Join-Path $ciDir 'android-build.sh')
+Report 'android-build preserves spaces in --env values' ($buildScript -match 'for kv in "\$\{envs\[@\]\}"; do env_args\+=\(-e "\$kv"\); done') 'each --env entry must remain one Docker -e argument'
 Report 'android-builder.Dockerfile pins Node 24.22 (engines >=24.20)' ($dockerfile -match 'node-v24\.22\.\d+-linux-x64') 'Node 24.22.x tarball not pinned'
 Report 'android-builder.Dockerfile pins pnpm 11.15 (packageManager pnpm@11.15.0)' ($dockerfile -match 'pnpm@11\.15\.0') 'pnpm@11.15.0 not pinned'
 Report 'android-builder.Dockerfile installs the RN 0.86 SDK set' (
