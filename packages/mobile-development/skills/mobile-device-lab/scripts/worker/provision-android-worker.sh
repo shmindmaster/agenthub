@@ -144,6 +144,7 @@ fi
 
 log "worker command"
 install -m 755 "$SCRIPT_DIR/mobile-lab.sh" /usr/local/bin/mobile-lab
+install -m 644 "$SCRIPT_DIR/prepare-flow.mjs" /usr/local/bin/prepare-flow.mjs
 
 log "verify"
 as_lab "node --version && java -version 2>&1 | head -1 && adb version | head -1 && emulator -accel-check 2>&1 | tail -2 && maestro --version 2>/dev/null | tail -1 && emulator -list-avds"

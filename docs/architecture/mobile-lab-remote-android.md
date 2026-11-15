@@ -41,14 +41,14 @@ agent on any host
   └─ mobile.ps1 remote run <productId>
        ├─ scope check        registry/mobile-scope.json (include bucket only)
        ├─ lab profile        registry/mobile-development.json -> remoteAndroid.apps
-       ├─ source             git archive <commit> | ssh mobile-lab
+       ├─ source             git archive <commit> -> chunked ssh upload
        └─ worker             /usr/local/bin/mobile-lab (flock lease)
             install → expo prebuild → gradle → adb install → maestro
             → screenshot + logcat + junit → result.json
 ```
 
 - **Worker**: `/srv/mobile-lab` holds source, caches, AVD and artifacts under the unprivileged user `mobilelab`. Android SDK in `/opt/android-sdk`. No Docker, no systemd unit, no cron entry.
-- **Source transfer**: `git archive` of a commit, so the worker holds no Git credentials and no repository history. `-WorkingTree` sends tracked uncommitted changes.
+- **Source transfer**: `git archive` of a commit, so the worker holds no Git credentials and no repository history. `-WorkingTree` sends tracked uncommitted changes. The archive travels in 8 MB chunks, each over its own SSH connection with retry, because Windows OpenSSH resets bulk streams mid-transfer on some hosts (measured on sh-forge); the worker concatenates the chunks before extracting.
 - **Turn-taking**: a file lock on the worker, held for the whole run. A second caller stops and is told who holds it. The local `Global\AgentHub.MobileDeviceLab.ForegroundMutation` mutex still governs the Windows emulator and the macOS guest; it cannot arbitrate callers on other machines.
 - **Health-sensitive apps**: a profile for a `healthSensitive` product is refused if any variable points at a non-local address. ABACare builds either unconfigured or against the repository's synthetic preview server running on the worker.
 - **Stale native project**: `android/` is regenerated with `expo prebuild --clean` whenever the package manifest, app config, lockfile or public build variables change.
@@ -57,12 +57,12 @@ agent on any host
 
 | Period | Host | Cost |
 | --- | --- | --- |
-| Until 2026-11-30 | Shared DigitalOcean build droplet `sh-build-02` (c-32, tagged `teardown-2026-11-30`) | No added cost; the droplet already runs |
+| Until 2026-12-01 | Shared DigitalOcean droplet `sh-forge` (c-32-intel, tagged `teardown-2026-12-01`), the one standing build host for every product | No added cost; the droplet already runs |
 | From 2026-12-01 | An AWS nested-virtualization instance (C8i, M8i or R8i family) or a `.metal` size, started for the work and stopped after | Billed only while running |
 
-Daytona sandboxes are not a target for the emulator until one is shown to expose `/dev/kvm`; that has not been checked.
+Daytona sandboxes are not a target for the emulator until one is shown to expose `/dev/kvm`; that has not been checked. Heavy single jobs like Android Gradle builds stay on `sh-forge` in any case (owner direction, 2026-11-12).
 
-The owner's 2026-11-10 direction to spend the DigitalOcean credit before it expires does not change this: three c-32 and two c-16 droplets were already running that day, the shared one sat idle, and a dedicated emulator host would add spend without adding capability.
+The lab moved from `sh-build-02` to `sh-forge` on 2026-11-14 when the owner retired the separate build droplets (2026-11-12 direction): the SSH alias `mobile-lab` was repointed and the worker re-provisioned from the same script. The host is shared, so a profile must not assume a port is free: the ABACare rig listens on 8788 because another service holds 8787, and the worker fails a run whose `preCommand` dies at startup instead of letting the flow talk to the foreign listener.
 
 ## Verified 2026-11-10
 
@@ -75,10 +75,21 @@ The owner's 2026-11-10 direction to spend the DigitalOcean credit before it expi
 | scrcpy stream through the SSH tunnel | Passed without a window (`remote view -Check`); the visible window and tapping were not exercised, to keep the owner's screen free |
 | ABACare signed-in synthetic profile (debug build, Metro, preview server) | Not passing: the app stays on the Expo development launcher |
 
+## Verified 2026-11-14 (sh-forge)
+
+| Check | Result |
+| --- | --- |
+| Worker re-provisioned on `sh-forge` from the same script after the host move | Passed |
+| ABACare `preview-rig` debug profile end to end: build, install, Metro, rig on 8788, journey 06 identity gate (bcba gate, guardian family shell, RBT shell), screenshot and logs returned | Passed on emulator (run 20261114-205951, 117 seconds warm; flow 73 seconds) |
+| Live JS edit + `remote sync -WorkingTree`: Metro recompiles and the served bundle carries the change, then the revert removes it - no rebuild | Passed |
+| `pre_command_gate` and the `metro_stop` port-release wait | Unit-tested under bash against the shipped function text (`Test-MobileLabPreCommandGate.ps1`, `Test-MobileLabMetroStop.ps1`) |
+
+The 2026-11-10 launcher failure is fixed by `launchUrl` and the prepared flow copy; the dev menu no longer covers the app because the link carries `disableAutoLaunch=1` (expo-dev-menu's `showsAtLaunch` defaults to true after `clearState`).
+
 ## Limits
 
 - Evidence from this lab is "verified on emulator", never "on device".
 - One emulator, one run at a time.
 - iOS is unchanged and is not covered here.
-- Fast reload through Metro on the worker is not working yet, so each change is a rebuild.
+- Fast reload works for debug profiles: `remote sync -WorkingTree` sends the change and Metro recompiles without a rebuild (verified 2026-11-14). Native changes still need a rebuild.
 - Gitignored inputs a bundle needs must be listed per app (`extraPaths`); Rexa's narration clips are.
