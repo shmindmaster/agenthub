@@ -129,6 +129,7 @@ containers = [
     {"name": "stopped-runner-1", "status": "Exited (0) 1 minute ago"},
 ]
 assert dash.collect_ci(containers, True)[0]["count"] == 1
+assert dash.collect_ci(containers, True)[0]["not_running"] == ["stopped-runner-1"]
 docker_commands = []
 with patch.object(dash, "_run", side_effect=lambda cmd, timeout=10: (docker_commands.append(cmd) or "macos\timage\tExited (0)")):
     enumerated = dash.collect_containers()
@@ -141,12 +142,16 @@ arts = dash.collect_files(os.environ["FORGE_ANDROID_ARTIFACTS"], __import__("tim
 assert [a["name"] for a in arts] == ["abacare-x-00000000.apk"], arts
 assert arts[0]["size"].endswith("B"), arts
 data = dash.collect()
-page = dash.render_html(data)
-assert "newer-job" in page and "sh-forge" in page
-assert json.dumps(data)
 assert data["docker_available"] is False and data["mac_lane"]["state"] == "unknown", data
 assert data["android_lane"]["image"] == "unknown" and data["ci"][0]["count"] is None, data
-assert "Docker status unavailable" in page
+unavailable_page = dash.render_html(data)
+assert "Docker status unavailable" in unavailable_page
+data["docker_available"] = True
+data["ci"] = dash.collect_ci(containers, True)
+page = dash.render_html(data)
+assert "newer-job" in page and "sh-forge" in page
+assert "stopped-runner-1" in page
+assert json.dumps(data)
 print("FIXTURE-OK")
 '@
         $checkFile = Join-Path $fixture 'check.py'

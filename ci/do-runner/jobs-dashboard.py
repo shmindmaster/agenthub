@@ -148,12 +148,23 @@ def collect_android_lane(containers: list[dict], now: float, docker_available: b
 
 
 def collect_ci(containers: list[dict], docker_available: bool = True) -> list[dict]:
-    running = [c for c in containers if c["status"].startswith("Up")]
-    runners = [c for c in running if c["name"].endswith("-runner-1")]
-    dbs = [c for c in running if any(c["name"].endswith(s) for s in ("-postgres-1", "-valkey-1", "-valkey-b-1"))]
+    runner_containers = [c for c in containers if c["name"].endswith("-runner-1")]
+    db_containers = [c for c in containers if any(c["name"].endswith(s) for s in ("-postgres-1", "-valkey-1", "-valkey-b-1"))]
+    runners = [c for c in runner_containers if c["status"].startswith("Up")]
+    dbs = [c for c in db_containers if c["status"].startswith("Up")]
     return [
-        {"kind": "runners", "count": len(runners) if docker_available else None, "names": sorted(c["name"] for c in runners)},
-        {"kind": "sidecars", "count": len(dbs) if docker_available else None, "names": sorted(c["name"] for c in dbs)},
+        {
+            "kind": "runners",
+            "count": len(runners) if docker_available else None,
+            "names": sorted(c["name"] for c in runners),
+            "not_running": sorted(c["name"] for c in runner_containers if not c["status"].startswith("Up")) if docker_available else None,
+        },
+        {
+            "kind": "sidecars",
+            "count": len(dbs) if docker_available else None,
+            "names": sorted(c["name"] for c in dbs),
+            "not_running": sorted(c["name"] for c in db_containers if not c["status"].startswith("Up")) if docker_available else None,
+        },
     ]
 
 
@@ -264,7 +275,9 @@ def render_html(data: dict) -> str:
         count = group["count"]
         count_text = str(count) if count is not None else "unknown"
         names_text = ", ".join(group["names"]) or ("unknown" if count is None else "none")
-        parts.append(_table([group["kind"], "names"], [[count_text, html.escape(names_text)]]))
+        not_running = group["not_running"]
+        not_running_text = ", ".join(not_running) if not_running else ("unknown" if not_running is None else "none")
+        parts.append(_table([group["kind"], "running", "not running"], [[count_text, html.escape(names_text), html.escape(not_running_text)]]))
     parts.append("<h2>Android artifacts</h2>")
     arts = data["android_lane"]["artifacts"]
     if arts:
