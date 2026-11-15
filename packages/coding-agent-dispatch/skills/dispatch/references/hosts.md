@@ -192,13 +192,13 @@ from `~/.config/opencode/agents` (canonical copies in
 agent file is missing from the installed home is refused. Without `-Role` the
 run keeps the guarded `peer` agent. `-ReadOnly` always runs the `readonly`
 agent (`roles.readonly`) — never `peer` — and is refused unless the installed
-`readonly.md` ordered frontmatter permissions *effectively* deny the edit,
-shell, subagent and browser actions on every resource. `-Role reviewer` is
-also checked against the installed `reviewer.md` profile and refuses unless it
-denies those same actions; neither route can write through a command, browse
-externally or delegate to a writable child. The dispatcher parses the rules
-(last match wins), so a deny in body text or a later allow rule never satisfies
-either gate.
+`readonly.md` ordered frontmatter permissions deny every action by default and
+allow only `read` and `glob`, with secret and auth-file reads denied. `-Role
+reviewer` uses the same gate for its installed `reviewer.md` profile. The
+dispatcher parses the rules (last match wins), so body text cannot satisfy the
+gate. Restricted child processes set `OPENCODE_DISABLE_PROJECT_CONFIG=true`
+and `OPENCODE_PURE=true`, preventing repository configuration/instructions and
+external plugins from changing the effective policy.
 Live-verified on opencode 2.3.0 (2026-11-14): the profile-filtered session
 exposed no write/edit/patch tools and the prompted probe file was never
 created. Combining `-ReadOnly` with a writing role is refused.

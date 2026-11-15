@@ -108,7 +108,11 @@ foreach ($name in $managedNames) {
     Check "agent mode is $expectedMode : $name" ($mode -eq $expectedMode) $mode
     $rules = @($fm | Where-Object { $_ -match '^\s+- \{ action: ' })
     Check "agent uses flow-permission rules: $name" ($rules.Count -gt 0)
-    Check "agent allows broadly first, then denies: $name" ($rules[0] -eq '  - { action: "*", resource: "*", effect: allow }' -and @($rules | Select-Object -Skip 1 | Where-Object { $_ -notmatch 'effect: (allow|deny) \}$' }).Count -eq 0)
+    if ($name -in @('reviewer.md', 'readonly.md')) {
+        Check "agent denies broadly first and only allows read/glob: $name" ($rules[0] -eq '  - { action: "*", resource: "*", effect: deny }' -and @($rules | Where-Object { $_ -match 'effect: allow' -and $_ -notmatch 'action: (read|glob),' }).Count -eq 0 -and @($rules | Select-Object -Skip 1 | Where-Object { $_ -notmatch 'effect: (allow|deny) \}$' }).Count -eq 0)
+    } else {
+        Check "agent allows broadly first, then denies: $name" ($rules[0] -eq '  - { action: "*", resource: "*", effect: allow }' -and @($rules | Select-Object -Skip 1 | Where-Object { $_ -notmatch 'effect: (allow|deny) \}$' }).Count -eq 0)
+    }
     Check "agent denies .env reads: $name" ($text -match '\{ action: read, resource: "\*\.env", effect: deny \}')
     Check "agent denies auth.json reads: $name" ($text -match '\{ action: read, resource: "\*/opencode/auth\.json", effect: deny \}')
     # No deprecated V1 fields.
@@ -139,6 +143,8 @@ Check 'peer denies push and outward gh writes' ($peer -match [regex]::Escape('{ 
 # Public safety
 $secret = '(?i)(AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY|(api[_-]?key|secret|token|password)\s*[:=]\s*["''][^"'']{12,})'
 $userPath = '(?i)(C:\\Users\\[^\\\s%$<]+|/Users/[a-z]|/home/[a-z])'
+$username = [Environment]::GetEnvironmentVariable('USERNAME')
+if ([string]::IsNullOrWhiteSpace($username)) { $username = [Environment]::GetEnvironmentVariable('USER') }
 # The test file holds the patterns themselves, so it is not scanned.
 $files = @(Get-ChildItem $openCode -Recurse -File)
 $hits = @()
@@ -146,7 +152,7 @@ foreach ($f in $files) {
     $t = Get-Content $f.FullName -Raw -Encoding utf8
     if ($t -match $secret) { $hits += "secret-like: $($f.Name)" }
     if ($t -match $userPath) { $hits += "user path: $($f.Name)" }
-    if ($t -match [regex]::Escape($env:USERNAME) -and $env:USERNAME.Length -gt 3) { $hits += "user name: $($f.Name)" }
+    if ($username -and $username.Length -gt 3 -and $t -match [regex]::Escape($username)) { $hits += "user name: $($f.Name)" }
 }
 Check 'no secret-looking string, user name or user path' ($hits.Count -eq 0) ($hits -join '; ')
 

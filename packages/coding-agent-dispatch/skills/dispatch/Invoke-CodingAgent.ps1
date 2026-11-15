@@ -406,6 +406,48 @@ function Test-OpenCodeProfileDenies {
     return $true
 }
 
+# Restricted OpenCode runs use a real allow-list, not a list of known denies:
+# new plugin/MCP/host actions must remain denied without dispatcher updates.
+# Read/glob are the only permitted actions, and secret/auth read exceptions
+# must follow the broad read allow so last-match semantics preserve them.
+function Test-OpenCodeProfileIsReadOnly {
+    param([string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
+    if ($Text -notmatch '(?s)^---\s*\r?\n(.*?)\r?\n---') { return $false }
+    $rules = @()
+    foreach ($line in ($Matches[1] -split '\r?\n')) {
+        if ($line -match '^\s*-\s*\{\s*action:\s*"?([^",}]+?)"?\s*,\s*resource:\s*"([^"]*)"\s*,\s*effect:\s*(allow|deny)\s*\}\s*$') {
+            $rules += , [pscustomobject]@{ Action = $Matches[1].Trim(); Resource = $Matches[2].Trim(); Effect = $Matches[3] }
+        }
+    }
+    $denyIndex = -1
+    for ($i = 0; $i -lt $rules.Count; $i++) {
+        if ($rules[$i].Action -eq '*' -and $rules[$i].Resource -eq '*' -and $rules[$i].Effect -eq 'deny') { $denyIndex = $i; break }
+    }
+    if ($denyIndex -lt 0) { return $false }
+    $allowsRead = $false; $allowsGlob = $false
+    for ($i = $denyIndex + 1; $i -lt $rules.Count; $i++) {
+        $r = $rules[$i]
+        if ($r.Effect -ne 'allow') { continue }
+        if ($r.Action -notin @('read', 'glob')) { return $false }
+        if ($r.Resource -ne '*' -and -not ($r.Action -eq 'read' -and $r.Resource -eq '*.env.example')) { return $false }
+        if ($r.Action -eq 'read') { $allowsRead = $true }
+        if ($r.Action -eq 'glob') { $allowsGlob = $true }
+    }
+    if (-not ($allowsRead -and $allowsGlob)) { return $false }
+    foreach ($protected in @(
+        @{ Action = 'read'; Resource = '*.env'; Effect = 'deny' },
+        @{ Action = 'read'; Resource = '*.env.*'; Effect = 'deny' },
+        @{ Action = 'read'; Resource = '*.env.example'; Effect = 'allow' },
+        @{ Action = 'read'; Resource = '*/opencode/auth.json'; Effect = 'deny' },
+        @{ Action = 'read'; Resource = '*/opencode/mcp-auth.json'; Effect = 'deny' }
+    )) {
+        $matches = @($rules | Where-Object { $_.Action -eq $protected.Action -and $_.Resource -eq $protected.Resource })
+        if (-not $matches.Count -or $matches[-1].Effect -ne $protected.Effect) { return $false }
+    }
+    return $true
+}
+
 # Xiaomi: the Token Plan serves from token-plan-<region>.xiaomimimo.com with
 # tp-/ttp- keys; pay-as-you-go uses api.xiaomimimo.com with sk- keys. Only the
 # variable name is ever reported. -Required is for a host whose whole route is
@@ -575,6 +617,9 @@ function Get-DispatchTable {
                             }
                             if (-not (Test-OpenCodeProfileDenies -Text $profileText -Action 'browser')) {
                                 Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md does not effectively deny the browser action, so a review could perform external actions"
+                            }
+                            if (-not (Test-OpenCodeProfileIsReadOnly -Text $profileText)) {
+                                Write-Refusal 3 "refused opencode: the installed profile $roleAgent.md must deny every action by default and allow only read and glob, with secret and auth reads denied"
                             }
                         }
                         $openCodeAgent = $roleAgent
@@ -1207,6 +1252,14 @@ if ($zaiLauncher) {
             }
         } | ConvertTo-Json -Depth 5 -Compress)
     }
+}
+if ($targetId -eq 'opencode' -and ($ReadOnly -or $script:DispatchRole -eq 'reviewer')) {
+    if (-not $built.Env) { $built.Env = @{} }
+    # Do not load repository-provided agents/config/instructions or external
+    # plugins into a restricted review process; profile checks alone cannot
+    # constrain code loaded after the global profile.
+    $built.Env['OPENCODE_DISABLE_PROJECT_CONFIG'] = 'true'
+    $built.Env['OPENCODE_PURE'] = 'true'
 }
 # Write the task only after Build has accepted the policy: a refusing Build
 # must not leave a prompt file behind, and the run's finally block below does
