@@ -414,11 +414,15 @@ function Test-OpenCodeProfileIsReadOnly {
     param([string]$Text)
     if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
     if ($Text -notmatch '(?s)^---\s*\r?\n(.*?)\r?\n---') { return $false }
+    $frontMatter = $Matches[1]
     $rules = @()
-    foreach ($line in ($Matches[1] -split '\r?\n')) {
-        if ($line -match '^\s*-\s*\{\s*action:\s*"?([^",}]+?)"?\s*,\s*resource:\s*"([^"]*)"\s*,\s*effect:\s*(allow|deny)\s*\}\s*$') {
-            $rules += , [pscustomobject]@{ Action = $Matches[1].Trim(); Resource = $Matches[2].Trim(); Effect = $Matches[3]; Index = $rules.Count }
-        }
+    foreach ($line in ($frontMatter -split '\r?\n')) {
+        if ($line -notmatch '^\s*-\s') { continue }
+        # Restricted profiles use one explicit flow-rule per list item. Reject
+        # unknown effects (including `ask`) and alternate/multiline YAML forms;
+        # silently skipping one would let `--auto` approve it at runtime.
+        if ($line -notmatch '^\s*-\s*\{\s*action:\s*"?([^",}]+?)"?\s*,\s*resource:\s*"([^"]*)"\s*,\s*effect:\s*(allow|deny)\s*\}\s*$') { return $false }
+        $rules += , [pscustomobject]@{ Action = $Matches[1].Trim(); Resource = $Matches[2].Trim(); Effect = $Matches[3]; Index = $rules.Count }
     }
     $denyIndex = -1
     for ($i = 0; $i -lt $rules.Count; $i++) {
