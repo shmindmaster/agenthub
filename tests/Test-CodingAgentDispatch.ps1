@@ -333,6 +333,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     foreach ($droidName in @('ah-engineer', 'ah-reviewer', 'ah-browser-tester')) {
         Copy-Item -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\factory\droids\$droidName.md") -Destination $factoryDroidsDir
     }
+    $browserTesterDroid = [IO.File]::ReadAllText((Join-Path $factoryDroidsDir 'ah-browser-tester.md'))
+    Check 'Factory browser tester allows the Skill tool required by its droid-control workflow' ($browserTesterDroid -match '(?m)^tools:.*\bSkill\b' -and $browserTesterDroid -match '(?m)^1\. Load the `droid-control` skill') $browserTesterDroid
     $fleet.dispatchPolicy.factory['roles'] = @{ engineer = 'ah-engineer'; reviewer = 'ah-reviewer'; tester = 'ah-browser-tester' }
     Save-Fixture
     $projectDroidsDir = Join-Path (Join-Path $scratch '.factory') 'droids'

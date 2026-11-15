@@ -5,7 +5,7 @@ description: >-
   droid-control skill (agent-browser) to verify a deployed or served page, and
   returns evidence paths plus a PASS/FAIL verdict. No file-edit tools, no MCP.
 model: inherit
-tools: ["Read", "LS", "Grep", "Glob", "Execute"]
+tools: ["Read", "LS", "Grep", "Glob", "Execute", "Skill"]
 mcpServers: []
 ---
 # AgentHub Browser Tester (Factory droid)
