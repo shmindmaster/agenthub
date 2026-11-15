@@ -70,6 +70,32 @@ test('inserts the settle wait and link after a bare launchApp with no clearState
   assert.equal(prepared, `- launchApp:\n${settleLf}\n${openLink}\n- assertVisible: "Hi"\n`);
 });
 
+test('keeps inline comments and all launchApp options before the inserted steps', () => {
+  const flow = [
+    '- launchApp:',
+    '    clearState: true # reset the fixture',
+    '    permissions:',
+    '      notifications: allow',
+    '    appId: ai.example.app',
+    '- assertVisible: "Ready"',
+    '',
+  ].join('\n');
+  assert.equal(
+    prepareFlow(flow, link),
+    [
+      '- launchApp:',
+      '    clearState: true # reset the fixture',
+      '    permissions:',
+      '      notifications: allow',
+      '    appId: ai.example.app',
+      ...settle,
+      openLink,
+      '- assertVisible: "Ready"',
+      '',
+    ].join('\n'),
+  );
+});
+
 test('leaves existing openLink steps and all other content unchanged', () => {
   const flow = '- openLink: abacare://home\n- launchApp:\n    clearState: true\n- tapOn: "Me"\n';
   const prepared = prepareFlow(flow, link);

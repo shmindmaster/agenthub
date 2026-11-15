@@ -61,10 +61,12 @@ export function prepareFlow(text, launchUrl, flowRewrite = {}) {
     const line = lines[i];
     out.push(line);
     if (/^- launchApp:\s*$/.test(line)) {
-      const next = lines[i + 1];
-      if (next !== undefined && /^\s+clearState:\s*(true|false)\s*$/.test(next)) {
-        out.push(next);
+      // Keep the whole YAML mapping attached to launchApp. Comments after
+      // clearState and later options (permissions, appId, etc.) are valid and
+      // must not be split away when adding our following flow steps.
+      while (i + 1 < lines.length && !/^-\s/.test(lines[i + 1])) {
         i += 1;
+        out.push(lines[i]);
       }
       out.push(...settle, link);
     }
