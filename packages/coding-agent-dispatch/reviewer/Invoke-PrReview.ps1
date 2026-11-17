@@ -57,7 +57,7 @@
   Reviewer host for the dispatcher. Refused when it is also the author host
   (branch prefix or PR body marker), and BLOCKED when the registry does not
   record an enforced read-only mode for it. Default: the first of codex,
-  claude, kiro, factory and then any other host with a recorded read-only
+  claude, factory and then any other host with a recorded read-only
   mode, skipping the author host.
 
 .PARAMETER Model
@@ -354,8 +354,7 @@ function Invoke-PrReviewDispatch {
     # The brief file, the directory and the environment are put back in
     # every path. -ReadOnly is what makes the run read-only: the dispatcher
     # maps it to a mode the host enforces and refuses (exit 3, so BLOCKED
-    # here) when the host has none. Kiro's read-only mode is its reviewer
-    # profile, named explicitly.
+    # here) when the host has none.
     param([string]$BriefText)
     $callId = [guid]::NewGuid().ToString('n')
     $briefFile = Join-Path $runDir ("brief-{0}.txt" -f $callId)
@@ -373,7 +372,6 @@ function Invoke-PrReviewDispatch {
             }
         }
         $dispatchArgs = @('-HostId', $reviewerHost, '-PromptFile', $briefFile, '-Cwd', $workDir, '-TimeoutSec', [string]$TimeoutSec, '-ReadOnly')
-        if ($reviewerHost -ieq 'kiro') { $dispatchArgs += @('-Role', 'reviewer') }
         if (-not [string]::IsNullOrWhiteSpace($Model)) { $dispatchArgs += @('-Model', $Model) }
         # A .ps1 dispatcher runs in a child pwsh: an array splatted into a
         # script binds positionally (the names would arrive as values), and

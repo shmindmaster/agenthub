@@ -90,14 +90,7 @@
           "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
         },
         "kilo": {},
-        "mimo-code": {},
-        "kiro": {
-          "linear": "Owner-authored remote entry in ~/.kiro/settings/mcp.json that predates fleet management. Runs no local process.",
-          "aws-mcp": "Owner-configured AWS connection. Kiro supports AWS's direct hosted OAuth endpoint without a local proxy. The dispatch agent does not load this file. This is an exception, not a generated registration.",
-          "expo": "Kiro writes this Expo remote entry itself; not an AgentHub registration. Runs no local process.",
-          "kirocrew-core": "Kiro Crew product MCP (host-written). Left alone per docs/runbooks/kiro-fleet.md.",
-          "kirocrew-cron": "Kiro Crew product MCP (host-written). Left alone per docs/runbooks/kiro-fleet.md."
-        }
+        "mimo-code": {}
       }
     },
     "sessionStart": {
@@ -135,8 +128,6 @@
       "factory",
       "grok",
       "kilo",
-      "kiro",
-      "kirocrew",
       "mimo-code",
       "mimo-desktop",
       "opencode",
@@ -338,7 +329,7 @@
       "startupEnabled": false,
       "command": "uvx",
       "args": [
-        "mcp-server-linkedin@4.24.0",
+        "mcp-server-linkedin@4.30.0",
         "--transport",
         "stdio",
         "--timeout",
@@ -362,9 +353,9 @@
       ],
       "credentialPolicy": "local-linkedin-browser-session",
       "protocol": {
-        "revision": null,
-        "verifiedOn": "2026-09-07",
-        "verification": "Package mcp-server-linkedin@4.24.0 is on PyPI. stdio initialize requires a LinkedIn browser session and cannot be established non-interactively; left null rather than assumed."
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-11-17",
+        "verification": "stdio initialize against mcp-server-linkedin@4.30.0 returned protocolVersion 2025-11-25 and serverInfo mcp-server-linkedin 4.30.0. With the saved session, tools/list returned 26 tools, and get_session_status, get_inbox and get_my_profile succeeded read-only. No send, connect or post tool was called."
       },
       "localProcessPolicy": {
         "instancing": "one-process-per-plugin-enable",

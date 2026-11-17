@@ -86,7 +86,7 @@
       "input": "Prepare a verified synthetic invitation demo.",
       "expected": "Return the demo-readiness handoff, artifact paths and open risks.",
       "evidence": [
-        "Prove launch, reset and demo actions; hand validated readiness to Media Studio when capture is requested.",
+        "Prove the launch, reset and observed demo actions, then hand the validated demo-readiness package to Media Studio for capture if requested.",
         "Return the demo-readiness handoff, artifact paths and open risks."
       ]
     },

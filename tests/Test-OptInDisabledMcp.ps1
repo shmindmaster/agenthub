@@ -45,7 +45,7 @@ Report 'linkedin MCP is registered' ($null -ne $li) 'missing from mcps.json'
 if ($li) {
     Report 'linkedin is on-demand-local' ($li.activationMode -eq 'on-demand-local') "activationMode=$($li.activationMode)"
     Report 'linkedin startupEnabled is false' ($li.startupEnabled -eq $false) "startupEnabled=$($li.startupEnabled)"
-    Report 'linkedin pins mcp-server-linkedin@4.24.0' (($li.args -join ' ') -match 'mcp-server-linkedin@4\.24\.0') ($li.args -join ' ')
+    Report 'linkedin pins mcp-server-linkedin@4.30.0' (($li.args -join ' ') -match 'mcp-server-linkedin@4.30.0') ($li.args -join ' ')
 }
 
 Report 'slack is retired, absent from mcps.json' (@($mcp.mcpServers | Where-Object id -eq 'slack').Count -eq 0) 'retired server reintroduced'

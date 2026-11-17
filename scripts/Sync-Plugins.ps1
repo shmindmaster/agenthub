@@ -188,20 +188,6 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
             return $candidates | Sort-Object { [version]$_.version } -Descending | Select-Object -First 1
         }
         'cline' { return Get-LinkedObservation (Join-Path $UserProfile ".agents/plugins/$name") $source }
-        'kiro' {
-            # `kiro-cli powers install <path>` copies the package to powers/installed/<name>
-            # and registers the name in powers/installed.json. Both must agree.
-            # Kiro's CLI reads KIRO_HOME as its global directory, Powers included, and the
-            # kiro-cli install and uninstall calls inherit it, so the live profile observes
-            # the same home they change.
-            $kiroHome = if ($live -and $env:KIRO_HOME) { [IO.Path]::GetFullPath($env:KIRO_HOME) } else { Join-Path $UserProfile '.kiro' }
-            $powers = Join-Path $kiroHome 'powers'
-            $registered = @((Read-Document (Join-Path $powers 'installed.json')).installedPowers.name) -contains $name
-            $installed = Get-ManifestObservation (Join-Path $powers "installed/$name") 'plugin.json' $name
-            if ($installed -and -not $registered) { return New-Observation '' '' 'unmanaged' 'Kiro power folder exists but installed.json does not register it.' }
-            if ($registered -and -not $installed) { return New-Observation '' '' 'drift' 'installed.json registers the power but its folder is missing.' }
-            return $installed
-        }
         { $_ -in 'opencode', 'warp', 'kilo', 'mimo-code', 'qwen' } {
             $hostHome = switch ($_) { 'warp' { '.warp' } 'kilo' { '.kilocode' } 'mimo-code' { '.mimocode' } 'qwen' { '.qwen' } default { '.config/opencode' } }
             $expectedLinks = @{}
@@ -274,7 +260,7 @@ function Test-SkillCopy([string]$Source, [string]$Destination, [string]$Client) 
     return -not @(Compare-Object $sourceSkills $installedSkills).Count
 }
 
-$clients = @{ kiro='kiro-cli'; claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders'; kilo='kilo'; 'mimo-code'='mimo'; qwen='qwen' }
+$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders'; kilo='kilo'; 'mimo-code'='mimo'; qwen='qwen' }
 
 # A mapping may declare nativeOwnerHost: the surface row is reported under its
 # own hostId but every observation, client call and install resolves through
@@ -314,7 +300,7 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     $Row.observed = if ($observation.version) { $observation.version } elseif ($observation.status -eq 'current') { $Row.expected } else { $null }
     $Row.previousPath = $observation.path
     $Row.detail = $observation.detail
-    if (-not $observation -and $nativeHost -notin 'cursor','amp','cline','kiro','opencode','warp','kilo','mimo-code','qwen') {
+    if (-not $observation -and $nativeHost -notin 'cursor','amp','cline','opencode','warp','kilo','mimo-code','qwen') {
         $Row.status = 'blocked'
         $Row.detail = 'Native registration is absent. First install requires verified host activation and ownership.'
         return
@@ -334,8 +320,6 @@ function Get-MappingMarketplace([bool]$Private, [string]$OwnerHost) {
 }
 
 function Get-MappingRoute($Cap, [string]$OwnerHost, [string]$DeploymentStatus) {
-    # Kiro takes the package as a native Power; the host-independent catalog is deployed by the other hosts' runtime rows.
-    if ($OwnerHost -eq 'kiro' -and $DeploymentStatus -eq 'native-local-plugin') { return $DeploymentStatus }
     # A deployed catalog travels on the loose-skill hosts' runtime rows; hosts with a native
     # plugin install still get the plugin so it appears in their plugin picker.
     if ($Cap.deployedCatalog -and $DeploymentStatus -eq 'managed-loose-skills') { return 'runtime' }
@@ -463,13 +447,6 @@ function Invoke-PluginInstall($Row) {
             if ($present) { Invoke-Client grok @('plugin','uninstall',$name) | Out-Null }
             Invoke-Client grok @('plugin','install',$source,'--trust') | Out-Null
         }
-        'kiro' {
-            # A reinstall over an existing power is refused by the host, so update is
-            # uninstall then install from the canonical package.
-            # A registration whose folder is gone is drift, not absence: uninstall it too.
-            if ($present -or $Row.status -eq 'drift') { Invoke-Client kiro-cli @('powers','uninstall',$name) | Out-Null }
-            Invoke-Client kiro-cli @('powers','install',$Row.source) | Out-Null
-        }
         'cline' {
             $dest = Join-Path $UserProfile ".agents/plugins/$name"
             [void][IO.Directory]::CreateDirectory((Split-Path -Parent $dest))
@@ -495,9 +472,6 @@ function Invoke-PluginRollback($Row, $Entry, $Backup) {
         if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Rollback refused a reparse point.' }
         if ($item) { Remove-Item -LiteralPath $destination -Recurse -Force }
         Copy-Item -LiteralPath $Backup -Destination $destination -Recurse
-    } elseif ($Backup -and $nativeHost -eq 'kiro') {
-        $null = Invoke-Client kiro-cli @('powers','uninstall',$Row.plugin)
-        $null = Invoke-Client kiro-cli @('powers','install',$Backup)
     } elseif ($Backup -and $nativeHost -in 'grok','antigravity') {
         $client = if ($nativeHost -eq 'grok') { 'grok' } else { 'agy' }
         $null = Invoke-Client $client @('plugin','uninstall',$Row.plugin)

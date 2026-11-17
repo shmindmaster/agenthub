@@ -1,8 +1,8 @@
-# Six-host authority contract (Linear SH-4409 / SH-4669).
-# Every registered host carries one fleetRole. Exactly six product families are
-# retained; other hosts are pending retirement, retired, or non-agent surfaces.
+# Retained-host authority contract (Linear SH-4409 / SH-4669; Kiro retired 2026-11-17,
+# leaving five). Every registered host carries one fleetRole. Exactly the product
+# families listed below are retained; other hosts are pending retirement, retired, or non-agent surfaces.
 # Returns error strings; an empty list means the registry satisfies the contract.
-$script:AhRetainedHostIds = @('claude', 'codex', 'opencode', 'kilo', 'kiro', 'factory')
+$script:AhRetainedHostIds = @('claude', 'codex', 'opencode', 'kilo', 'factory')
 $script:AhFleetRoles = @('retained', 'companion', 'editor', 'terminal-preserved', 'pending-retirement', 'retired')
 
 function Test-AgentFleetRoles {

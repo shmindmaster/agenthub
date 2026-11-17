@@ -116,7 +116,7 @@ output alone do not prove working inference.
 is shared promotional credit; the skill documents when to use it.
 
 `-Model` chooses the model per task for codex, grok, opencode, cline, warp,
-factory, devin, kilo, mimo-code, qwen and kiro. Owner direction 2026-11-10: a model
+factory, devin, kilo, mimo-code and qwen. Owner direction 2026-11-10: a model
 or coding plan is allowed on any host where it can be integrated and
 supported. `dispatchPolicy.<host>.allowedModels` records the smoke-verified
 models and does not limit the choice; an unlisted model is passed through with
@@ -147,11 +147,10 @@ written; `-ShowCommand` prints the child variable names, never the key. As
 with warp, yolo mode has no agent-profile denylist, so the child carries the
 `GIT_CONFIG_*`/`GH_CONFIG_DIR` push guard.
 
-`-Role` (SH-4418, SH-4674, SH-4676) picks a per-host role profile. Kiro uses V3 profiles from `kiro/agents/`; OpenCode uses native V2 agents from `opencode/agents/` and refuses missing profiles. Factory maps `engineer`, `reviewer` and `tester` through `dispatchPolicy.factory.roles` to native droids in `~/.factory/droids`, installed from `factory/droids/` by `factory/Install-FactoryDroids.ps1`; stable BYOK model ids come from `factory/custom-models.json`. The Factory parent relays exactly one Task delegation, and each droid's frontmatter constrains available tools. Any other host refuses roles other than `peer`.
+`-Role` (SH-4418, SH-4674, SH-4676) picks a per-host role profile. OpenCode uses native V2 agents from `opencode/agents/` and refuses missing profiles. Factory maps `engineer`, `reviewer` and `tester` through `dispatchPolicy.factory.roles` to native droids in `~/.factory/droids`, installed from `factory/droids/` by `factory/Install-FactoryDroids.ps1`; stable BYOK model ids come from `factory/custom-models.json`. The Factory parent relays exactly one Task delegation, and each droid's frontmatter constrains available tools. Any other host refuses roles other than `peer`.
 `-ReadOnly` runs a host in a read-only mode the host itself enforces, never
 through prompt wording: claude (`--permission-mode plan`), codex
-(`--sandbox read-only`), factory (`exec` without `--auto`), kiro (the
-`ah-readonly` profile), opencode (the `readonly` agent, whose frontmatter
+(`--sandbox read-only`), factory (`exec` without `--auto`), opencode (the `readonly` agent, whose frontmatter
 permissions deny edit, shell and subagent; the dispatcher parses the
 installed file and refuses the run unless all three actions are effectively
 denied) and qwen (`--approval-mode plan` in place of `yolo`). OpenCode
@@ -198,7 +197,7 @@ own those two files.
 
 `tests/Test-CodingAgentDispatch.ps1` uses synthetic native argument recorders
 and never consumes a model run. It covers the command fixes, new hosts,
-model pass-through, malformed-id and subscription-only refusals, Kiro roles,
+model pass-through, malformed-id and subscription-only refusals, roles,
 the enforced read-only mode and its refusals,
 Unicode/multiline transport, alias policy gates, missing binaries and bounded
 hidden process-tree termination. `-DispatcherPath` can demonstrate regression
@@ -210,8 +209,7 @@ failures against an older copy without changing installed hosts.
 package's dispatcher on a host different from the one that authored the PR
 (branch prefix or a `[host: <id>]` PR-body marker). The script issues no
 write command, and the model run is host-enforced read-only on claude,
-codex, factory, kiro, opencode and qwen: every dispatcher call carries `-ReadOnly` (and
-`-Role reviewer` on Kiro), the reviewer host is chosen only among hosts
+codex, factory, opencode and qwen: every dispatcher call carries `-ReadOnly`, the reviewer host is chosen only among hosts
 whose `dispatchPolicy.<host>.readOnly` in `registry/fleet-profile.json`
 records an enforced read-only mode, and the run ends BLOCKED, with no model
 run, when none is available. The reviewer also fences the pull request's

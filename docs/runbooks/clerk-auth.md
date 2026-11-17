@@ -221,5 +221,5 @@ Kilo and MiMo Code get the official Clerk skills in their native skill roots
 `activationPolicy.pluginOnly` permits no direct MCP entry on either host. The audit
 accepts a missing remote only for these two hosts and still requires their skills.
 `BLOCKED` in scripts/Install-ClerkFleet.py stays as the place to record a host with
-no approved route. Kiro is recorded there: it loads skills, powers and an owner-authored
-MCP file, and no Clerk mapping has been approved for it.
+no approved route. No host is recorded there at present; Kiro was removed when it was
+retired on 2026-11-17.

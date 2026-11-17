@@ -160,8 +160,8 @@ Prefer each plan’s native client integration when it is available. Clients
 can also use the Anthropic or OpenAI compatible endpoint documented for the
 plan. On Forge, use an explicit `claude-*` or `codex-*`
 route: `qwen`, `zai`, `mimo`, or `go` selects the corresponding
-subscription. Keep native Claude and Codex logins on Windows. Grok and Kiro
-use their native account logins on both hosts. In OpenCode, use
+subscription. Keep native Claude and Codex logins on Windows. Grok
+uses its native account login on both hosts. In OpenCode, use
 `opencode-qwen` for Qwen or `opencode-go` for the Forge Go workspace and
 DeepSeek V4.1 Flash.
 Choose `opencode-zai` for the runner's Z.ai Coding Plan and its four Z.ai

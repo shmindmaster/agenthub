@@ -8,15 +8,17 @@ description: Takes a video, screencast, explainer, ad or audio idea to a finishe
 2. New job: run the intake below, then run `script`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.
 3. Return the delivered file and the review verdict, or the last passed stage and the exact next input.
 4. Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.
-## Intake (new jobs only)
-Ask up to six quick multiple-choice questions in one message, each with a recommended answer, and skip any a file or the request already answers:
-1. Purpose and viewer: who watches and what they should do afterwards.
-2. Kind: verified product demo, training, explainer, story or concept, ad.
-3. Length and destination: YouTube, LinkedIn, website, internal or presentation.
-4. Voice: none (captions), AI narrator (recommended), or the owner.
-5. Picture: real product capture, concept or animated, or a mix.
-6. Quality and engine: draft, standard (recommended) or premium; voice on Azure DragonHD (default) or OpenAI marin/cedar. Show each tier's price from `scripts/estimate-job-cost.mjs --scenes <n> --words <n> --stills <n> --hero <n> [--voice openai]` so the choice is made with its cost.
-From the answers choose the kind, `programForm`, delivery profile, tier and lanes (OpenAI lanes in `policy/provider-routing.json`: `openai-text`, `openai-image`, `openai-speech`, `openai-transcribe`, `openai-moderation`), show the plan and the estimate, and get one yes before spend. Re-run the estimate when the storyboard changes the counts. Rules for classifying films: [video](references/video.md), [creative formats](references/creative-formats.md), [forms](references/forms.md).
+## Creative intake (new jobs only)
+Act as a **creative director and producer**, not a configuration wizard. Follow [guided creative intake](references/creative-intake.md) and the governed provider catalog; infer what the brief, source material, product profile or series already establishes.
+
+1. **Recommend a treatment first.** In a few lines give the viewer promise, film form, director's visual approach, screenplay spine, proposed narration style, authentic/source media plan and likely delivery. The writer uses this recommendation to develop the existing brief, screenplay and storyboard; it is not an extra approval stage.
+2. **Ask only consequential missing decisions.** A normal invocation needs zero to three concise choices: creative direction, narrator/voice or silence, and picture/capture approach. Ask about audience, runtime, destination, aspect ratio, language or tier **only if** the request cannot establish them and the difference changes the result. Provide a recommended answer and an **accept recommended** option; do not show a six-question form by default.
+3. **Adjust interaction depth to intent.** Quick Create (infer and recommend), Creative Studio (compare up to three treatments or voice styles), and Advanced Production (explicit providers, models, capture methods and render settings) are presentation depths for the **same** `script → produce → finish` pipeline, not new pipelines or plugins. Do not make the user choose a mode before interpreting the request.
+4. **Cast voices by sound and suitability, not vendor branding.** Where narration is valuable and unresolved, recommend two or three *currently governed, authorized* voices and offer a short same-passage audition. Generate playable auditions only after the exact provider, estimated spend and approval gates pass. Do not imply a catalog listing, credits or a generated label is a playable sample. AssemblyAI is primarily transcription/alignment/QA, not a voice synthesis choice. Honor the no-clone, frozen-lane and per-film approval policies.
+5. **Choose capture/compute by task fit.** For verified running products, default to true source-hashed application capture with authorized synthetic data, `ah-browser` and the approved remote execution lane; offer manual/signed-in browser/footage options only where appropriate. Ask about Daytona, forge, aspect ratio and render infrastructure only when a material tradeoff needs the owner's decision. Never imply a simulated interaction is proof of a live capability.
+6. **Show one compact production recommendation** (treatment, voice, source picture, format/tier, verifiable claims, estimated cost and approval needed). Estimate with `scripts/estimate-job-cost.mjs --scenes <n> --words <n> --stills <n> --hero <n> [--voice openai]`; re-estimate if the storyboard changes. Use actual governed routing and price eligibility; estimates are not spend authorization.
+
+Pass accepted choices into the existing brief and job manifest. Reuse an existing job's accepted choices; never restart its intake or redo an approved audition unless a material requirement changes. Classify films using [video](references/video.md), [creative formats](references/creative-formats.md) and [forms](references/forms.md).
 ## Uses other plugins
 - Screen capture and UX walkthroughs: `ah-browser` (agent-browser `record ... --cursor` for clean takes; BrowserSkill for the owner's signed-in browser).
 - Composition, animation, captions and render: the official Remotion plugin and skills; renders run on sh-forge in a disposable workspace, never on this PC.
