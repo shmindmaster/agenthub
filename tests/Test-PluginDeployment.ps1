@@ -140,7 +140,7 @@ try {
     if ([string]$insiderRow.nativeOwnerHost -ne 'copilot' -or [string]$insiderRow.status -ne 'blocked') { throw "vscode-insiders should stay blocked on the absent copilot registration, got status=$($insiderRow.status) owner=$($insiderRow.nativeOwnerHost)" }
     $claudePlugin = Join-Path $aliasHome '.claude/plugins/cache/agenthub/ah-coding-agent-dispatch'
     Copy-Item -LiteralPath (Join-Path $root 'packages/coding-agent-dispatch') -Destination $claudePlugin -Recurse
-    $dispatchVersion = (Get-Content -Raw (Join-Path $root 'packages/coding-agent-dispatch/plugin.json') | ConvertFrom-Json).version
+    $dispatchVersion = (Get-Content -Raw -Encoding utf8 (Join-Path $root 'packages/coding-agent-dispatch/plugin.json') | ConvertFrom-Json).version
     $installedRegistry = @{ version = 2; plugins = @{ 'ah-coding-agent-dispatch@agenthub' = @(@{ scope = 'user'; version = $dispatchVersion; installPath = $claudePlugin }) } }
     [IO.File]::WriteAllText((Join-Path $aliasHome '.claude/plugins/installed_plugins.json'), ($installedRegistry | ConvertTo-Json -Depth 6))
     $dispatchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $aliasHome -PluginId coding-agent-dispatch -Json | ConvertFrom-Json)
