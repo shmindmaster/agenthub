@@ -691,7 +691,7 @@
         "produce",
         "finish"
       ],
-      "contentHash": "6B1B17AF0213EF4EE5243A3798B12716F579045EE3F4B7730582EC5C3D2D078D",
+      "contentHash": "705D02C6FD8C98B0AD0F92D3A040ABDC63A780993765A903E51C36CD7818553A",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1077,7 +1077,7 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "830761A0C4C0BB946DA10CE1FAEC2BE5C5DD3BBF44BFCCB8B19F242B0AEE21E6",
+      "contentHash": "3913C2D6D67B84FE2ECDCA14FB6D00088042B1A64F628C93B595C09C7C3037FA",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [

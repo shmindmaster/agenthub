@@ -1677,6 +1677,9 @@ function Sync-HostMcp-ConvertedJsonFile {
     }
 
     if ($Prune) {
+        foreach ($key in @($script:hostOwnedMcpKeys)) {
+            if ($key) { $canonicalKeys[$key] = $true }
+        }
         foreach ($key in @($servers.Keys)) {
             if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key)) -and -not (Test-McpEntryDisabled $servers[$key])) { $servers.Remove($key) }
         }
@@ -1878,6 +1881,7 @@ function Sync-HostMcp-Cline {
     }
 
     if ($Prune) {
+        foreach ($key in @($script:hostOwnedMcpKeys)) { if ($key) { $canonicalKeys[$key] = $true } }
         foreach ($key in @($servers.Keys)) {
             if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key))) {
                 $servers.Remove($key)
@@ -1978,6 +1982,12 @@ function Sync-HostMcp-OpenCode {
         $root.mcp.Remove($k)
     }
     $root.mcp = Remove-McpTargetKeys -Target $root.mcp -Keys $SuppressedKeys
+    # OpenCode 2.3 writes native entries inside mcp.servers; older configs can
+    # still contain flat entries alongside that container.
+    if ($root.mcp.ContainsKey('servers') -and $root.mcp.servers -is [hashtable]) {
+        $root.mcp.servers = Normalize-McpTargetKeys -Target $root.mcp.servers
+        $root.mcp.servers = Remove-McpTargetKeys -Target $root.mcp.servers -Keys $SuppressedKeys
+    }
 
     foreach ($key in $McpEntries.Keys) {
         $canonical = $McpEntries[$key]
@@ -2023,6 +2033,13 @@ function Sync-HostMcp-OpenCode {
     if ($Prune) {
         $keep = @{}
         foreach ($k in $McpEntries.Keys) { $keep[(Resolve-McpAliasKey $k)] = $true }
+        foreach ($k in @($script:hostOwnedMcpKeys)) { if ($k) { $keep[$k] = $true } }
+        if ($root.mcp.ContainsKey('servers') -and $root.mcp.servers -is [hashtable]) {
+            foreach ($k in @($root.mcp.servers.Keys)) {
+                if (-not $keep.ContainsKey((Resolve-McpAliasKey $k))) { $root.mcp.servers.Remove($k) }
+            }
+            $keep['servers'] = $true
+        }
         foreach ($k in @($root.mcp.Keys)) {
             if (-not $keep.ContainsKey((Resolve-McpAliasKey $k))) {
                 $root.mcp.Remove($k)
@@ -2169,6 +2186,7 @@ function Sync-HostMcp-Windsurf {
     }
 
     if ($Prune) {
+        foreach ($key in @($script:hostOwnedMcpKeys)) { if ($key) { $canonKeys[$key] = $true } }
         foreach ($k in @($servers.Keys)) {
             $rk = Resolve-McpAliasKey $k
             if ($ProtectKeys -contains $k) { continue }          # never drop host-owned servers (devin)
@@ -2219,6 +2237,7 @@ $optInDisabledHosts = @($connectorReg.lifecyclePolicy.optInDisabledHosts | ForEa
 $script:hostOwnedMcpKeys = @($connectorReg.lifecyclePolicy.hostConfiguredLocalMcpIds | ForEach-Object {
     Resolve-McpAliasKey ([string]$_)
 } | Sort-Object -Unique)
+$hostConfiguredMcpKeys = @($script:hostOwnedMcpKeys)
 
 # Fleet synchronization omits on-demand local launchers. A reviewed persistent
 # exception participates in every scope so a default audit cannot remove or
@@ -2285,6 +2304,9 @@ foreach ($agent in $agentsToSync) {
     $hostDrift = @{ host=$agent.id; mcp=@(); files=@(); status='ok' }
     $gatewayPlan = Get-GatewayPlanForHost -HostId $agent.id -GatewayRegistry $gatewayReg -ConnectorRegistry $connectorReg
     $pluginOnlyAllowed = Get-PluginOnlyAllowedMcpKeys -McpRegistry $mcpsReg -HostId $agent.id
+    # Preserve owner-configured native connections without generating entries
+    # or carrying one host's exceptions into the next host's prune keep set.
+    $script:hostOwnedMcpKeys = @($hostConfiguredMcpKeys + @($pluginOnlyAllowed) | Where-Object { $_ } | Sort-Object -Unique)
     $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -HostConfigOverrides $mcpHostConfigOverrides -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan -PluginOnlyAllowed $pluginOnlyAllowed
     if ($agent.id -in $optInDisabledHosts) {
         foreach ($optInServer in $optInExceptionServers) {
@@ -2294,6 +2316,7 @@ foreach ($agent in $agentsToSync) {
         }
     }
     $pluginOwnedKeys = if ($pluginProvidedByHost.ContainsKey($agent.id)) { @($pluginProvidedByHost[$agent.id].Keys) } else { @() }
+    $pluginOwnedKeys = @($pluginOwnedKeys | Where-Object { (Resolve-McpAliasKey $_) -notin @($pluginOnlyAllowed) })
     # Remove stale local registrations narrowly even without -Prune so an
     # older sync or a broad scope cannot recreate process-fanout entries.
     $nonPersistedOnDemandLocalMcpKeys = @($onDemandLocalMcpKeys | Where-Object { $_ -notin $persistedOnDemandLocalMcpKeys })

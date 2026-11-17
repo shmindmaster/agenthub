@@ -85,7 +85,11 @@ function Get-JsonKeys([string]$Path, [string]$Property) {
     $node = $data.PSObject.Properties[$Property]
     if (-not $node -or $null -eq $node.Value) { return @() }
     # A disabled entry is how Devin and Antigravity switch a plugin's server off. It runs nothing.
-    return @($node.Value.PSObject.Properties | Where-Object { $_.Value.disabled -ne $true -and $_.Value.enabled -ne $false } | ForEach-Object Name)
+    $entries = @($node.Value.PSObject.Properties)
+    if ($Property -eq 'mcp' -and $node.Value.servers) {
+        $entries = @($entries | Where-Object Name -ne 'servers') + @($node.Value.servers.PSObject.Properties)
+    }
+    return @($entries | Where-Object { $_.Value.disabled -ne $true -and $_.Value.enabled -ne $false } | ForEach-Object Name)
 }
 
 function Get-TomlKeys([string]$Path) {
@@ -102,6 +106,8 @@ $jsonFixture = Join-Path ([IO.Path]::GetTempPath()) "plugin-only-$PID.json"
 try {
     Set-Content -LiteralPath $jsonFixture -Value '{"mcpServers":{"off":{"disabled":true},"also-off":{"enabled":false},"on":{"url":"x"}}}'
     Assert-True ((@(Get-JsonKeys $jsonFixture 'mcpServers') -join ',') -eq 'on') 'the JSON reader should skip a disabled server and keep a live one'
+    Set-Content -LiteralPath $jsonFixture -Value '{"mcp":{"legacy":{"url":"x"},"servers":{"browse":{"type":"local"},"off":{"disabled":true},"servers":{"url":"x"}}}}'
+    Assert-True ((@(Get-JsonKeys $jsonFixture 'mcp') | Sort-Object) -join ',' -eq 'browse,legacy,servers') 'the OpenCode reader should inspect nested servers and legacy entries without treating the container as a server'
 } finally {
     Remove-Item -LiteralPath $jsonFixture -Force -ErrorAction SilentlyContinue
 }
@@ -152,8 +158,10 @@ foreach ($strayHook in (Join-Path $userHome '.cursor/hooks.json'), (Join-Path $u
 
 $sharedSkills = Join-Path $userHome '.agents/skills'
 if (Test-Path -LiteralPath $sharedSkills) {
-    $loose = @(Get-ChildItem -LiteralPath $sharedSkills -Force)
-    Assert-True ($loose.Count -eq 0) "~/.agents/skills must stay empty, found: $($loose.Name -join ', ')"
+    # Codex owns synced/ for its native skill distribution. This policy forbids
+    # AgentHub's old loose copies, not skills managed by the host itself.
+    $loose = @(Get-ChildItem -LiteralPath $sharedSkills -Force | Where-Object Name -ne 'synced')
+    Assert-True ($loose.Count -eq 0) "~/.agents/skills has unmanaged loose entries: $($loose.Name -join ', ')"
 }
 
 Write-Host "Test-PluginOnlyMcp: passed=$passed failed=$($failures.Count) configsChecked=$checked"
