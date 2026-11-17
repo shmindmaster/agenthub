@@ -66,7 +66,7 @@
       "input": "Assemble and review the accepted takes.",
       "expected": "Have a fresh, separate reviewer score the encoded candidate and list defects and scenes to revise; return the deliverable and verdict.",
       "evidence": [
-        "Compose and render with the official Remotion plugin on sh-forge in a disposable workspace; master loudness; write captions as a sidecar `.srt`. Delivery sizes follow the job profile (for example 1920×1080 or 1080×1920).",
+        "Compose and render with the official Remotion plugin on the authorized remote render lane in a disposable workspace (the private compute guidance names the lane and its dates; never render on the operator's PC, and verify the pulled-back file's hash and size before cleaning up the worker); master loudness; write captions as a sidecar `.srt`. Delivery sizes follow the job profile (for example 1920×1080 or 1080×1920).",
         "Have a fresh, separate reviewer score the encoded candidate and list defects and scenes to revise; return the deliverable and verdict."
       ]
     },

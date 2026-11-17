@@ -22,7 +22,7 @@ locations, not independent policy authorities.
 - Prefer root-cause fixes and repository-native commands. Run focused verification first and broader verification when shared contracts are affected.
 - Keep proposed, implemented, tested, committed, reviewed, merged, deployed, production-verified, and user-validated states distinct.
 - Every status claim names where the change actually is on the ladder `merged to dev → in main → deployed → production-verified`. "Done", "shipped", or "live" without the rung is not a status.
-- Compute placement: choose the lane from measured capacity and urgency, and report the lane and cost per job. Use the local GPU (hardware decode and encode, small concurrency cap) while the machine has headroom; move CPU-bound or parallel work to on-demand cloud compute when it does not, within the owner's per-lane spend caps and with every instance deleted when its job ends. Never start local AI models, embedders, rerankers or speech servers; use remote APIs.
+- Compute placement: heavy work (builds, test suites, rendering, capture, containers, batch jobs) runs on authorized remote compute, not on the operator's workstation, which is for light orchestration and for capabilities that must see the machine. Pick the lane by time to a verified result, counting startup, transfer, retries and artifact retrieval, then by capacity, workload fit, reproducibility, security, incremental cost and workstation impact. Lanes, dates, spend caps and exceptions belong to the private overlay's operations guidance and expire: read the current date against it instead of assuming a provider, and where it forbids local heavy work it overrides any local-capacity wording. Lifecycle: select, provision or reuse, execute, verify, persist artifacts, clean up; delete only what the job created and only after its artifacts are verified. Report the lane and cost per job. Never start local AI models, embedders, rerankers or speech servers; use remote APIs.
 - Background work never takes the screen (owner direction, 2026-10-13). A process that an agent, script, hook, MCP launcher, or worker starts runs with no visible window and never takes keyboard focus: `windowsHide: true` / `CreateNoWindow`, `Start-Process -WindowStyle Hidden` from an already-hidden parent, or `conhost.exe --headless` when the parent has no console. A Task Scheduler action of `powershell.exe -WindowStyle Hidden` is not hidden: the console window opens and takes focus before the flag applies. Open a visible window only when the user asked for that window in the current task.
 - No automatic scheduled jobs for agent, lab, inference, retrieval, or update work: no logon, startup, daily, or repeating scheduled tasks, Run keys, startup-folder entries, or auto-start services. Start a local service from the capability that needs it, when it is needed, and run updates manually. Deleting an existing agent or lab job is authorized. Windows, security, and vendor update mechanisms are out of scope and stay untouched. A job that needs elevation to remove is reported with an exact removal script; never launch UAC or bypass OS security to remove it.
 - Use isolated worktrees only when parallel write isolation or repository policy requires them.
@@ -34,6 +34,12 @@ locations, not independent policy authorities.
 - Distinguish "checked and absent" from "did not check". The registry encodes this (`false` versus `null`); prose reports must carry the same distinction.
 - A check is only evidence if its signal tracks the thing it claims to watch. Before trusting a guard, confirm it can fail.
 - Verify an alarm against the underlying evidence before acting on it, especially when acting is destructive.
+
+## Execution model
+
+- Understand, plan, select capabilities, select compute, execute, validate, deliver, learn. Use the steps the task needs: never force a media pipeline onto engineering or a coding workflow onto research.
+- Load detail by need. This policy is universal; specialized skills hold procedures; private guidance holds owner infrastructure and preferences; the repository's own instructions hold product constraints. Do not copy one layer into another.
+- Run independent work in parallel in isolated workspaces with one owner per file. Implementation and verification belong to different agents; a writer does not review its own change when an independent reviewer is available.
 
 ## Capability ownership
 
@@ -54,7 +60,7 @@ locations, not independent policy authorities.
 
 - A product repository is read-only input to every video, audio, animation, capture, and media-review workflow.
 - Put the complete production workspace under the AgentHub runtime root (`%LOCALAPPDATA%\AgentHub` or the profile equivalent), never inside the product repository.
-- A media finding that requires a product change is a separate, explicitly authorized engineering task.
+- A media finding that requires a product change is Product-Readiness Feedback and a separate, explicitly authorized engineering task. Capture reproducible evidence, search the tracker for the existing owner before filing, route the fix through the existing coding-agent dispatch with tests, independent review and a release check, and resume the affected recording only after the product's demo-readiness handoff passes again. Unaffected media work continues meanwhile. A media agent never makes the product change.
 
 ## Handoff
 

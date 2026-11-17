@@ -83,6 +83,8 @@ Verdict: `PASS`, `CONDITIONAL` (capture-fixable only), or `FAIL` (stop productio
 
 One report entry per defect: ID and flow, principle violated, observed behavior with frame, console, trace or timing evidence, viewer impact, severity (`blocks`, `degrades`, `minor`), buildable fix. End with the shortest fix set to `PASS`. File tickets only when the request authorizes it.
 
+Route a `blocks` or `FAIL` finding, never fix it here: keep the reproducible evidence, search the tracker for the product's existing owner before filing anything, and hand the fix to product engineering through the existing coding-agent dispatch with tests and independent review. Resume the affected recording only after `ah-product:demo` revalidates the demo-readiness handoff against the released revision; keep producing unaffected scenes meanwhile.
+
 ## Validators
 
 - `validate-capture-preflight.mjs <jobRoot>`, run by `record-job.mjs`: scene functions match `order`, plan and timeline; cue-plan keywords are in the line; typing (chars × 55 ms + 0.85 s per call) fits the narration.
