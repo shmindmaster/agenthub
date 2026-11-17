@@ -27,7 +27,7 @@ try {
     $agents = @()
     $hosts = @{}
     $paths = @{}
-    foreach ($id in @('claude','codex','cursor','grok','opencode','factory')) {
+    foreach ($id in @('claude','codex','cursor','grok','opencode','cline','windsurf','factory')) {
         $ext = if ($id -in @('codex','grok')) { 'toml' } else { 'json' }
         $path = Join-Path $profile "$id.$ext"
         $paths[$id] = $path
@@ -61,7 +61,7 @@ try {
     $run = & $hostExe @syncArgs 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Fixture sync failed: $run" }
     $first = @{}
-    foreach ($id in @('claude','codex','cursor','grok','opencode')) {
+    foreach ($id in @('claude','codex','cursor','grok','opencode','cline','windsurf')) {
         $raw = Get-Content -LiteralPath $paths[$id] -Raw
         Assert-True ($raw.Contains('https://aws.example/mcp?oauth=initialize')) "$id keeps the native AWS endpoint"
         Assert-True (-not $raw.Contains('old.example') -and -not $raw.Contains('mcp_servers.stray') -and -not $raw.Contains('"stray"')) "$id removes unrelated stale entries"

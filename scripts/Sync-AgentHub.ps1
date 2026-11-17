@@ -1881,6 +1881,7 @@ function Sync-HostMcp-Cline {
     }
 
     if ($Prune) {
+        foreach ($key in @($script:hostOwnedMcpKeys)) { if ($key) { $canonicalKeys[$key] = $true } }
         foreach ($key in @($servers.Keys)) {
             if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key))) {
                 $servers.Remove($key)
@@ -2185,6 +2186,7 @@ function Sync-HostMcp-Windsurf {
     }
 
     if ($Prune) {
+        foreach ($key in @($script:hostOwnedMcpKeys)) { if ($key) { $canonKeys[$key] = $true } }
         foreach ($k in @($servers.Keys)) {
             $rk = Resolve-McpAliasKey $k
             if ($ProtectKeys -contains $k) { continue }          # never drop host-owned servers (devin)
