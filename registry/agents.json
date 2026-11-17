@@ -718,36 +718,6 @@
       "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> --model xiaomi-token-plan-sgp/mimo-v2.6-pro --agent peer <prompt>` verified 2026-11-10: returned READY, exit 0, and a denied command stayed denied under --yolo. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan key credential (a stored key, not an OAuth account login)."
     },
     {
-      "id": "kiro",
-      "fleetRole": "retained",
-      "name": "Kiro IDE and Kiro CLI",
-      "version": "3.2.1",
-      "versionObserved": "2026-11-11: `kiro-cli --version` printed 3.2.0. Fresh V3 sessions without --trust-all-tools executed shell, read and write tools, invoked ah-project-reviewer, and read a Linear issue under the user allow rule. ACP V3 initialize and recipe discovery succeeded. IDE UI was not exercised.",
-      "executable": "{userHome}/AppData/Local/Kiro-Cli/kiro-cli.exe",
-      "nativePaths": {
-        "configHome": "{userHome}/.kiro",
-        "skillsDir": "{userHome}/.kiro/skills",
-        "agentsDir": "{userHome}/.kiro/agents",
-        "powersDir": "{userHome}/.kiro/powers",
-        "rulesDir": "{userHome}/.kiro/steering",
-        "mcp": "{userHome}/.kiro/settings/mcp.json",
-        "mcpKey": "mcpServers",
-        "mcpNote": "Remote entries take url and headers, and ${VAR} is supported. The file holds owner-authored entries (a linear remote and an aws-mcp proxy). An auth header value is present and is not recorded here.",
-        "instructions": null,
-        "instructionsNote": "steering/AGENTS.md remains owner-authored, not bulk-sync-managed. Owner authorized Kiro development configuration on 2026-11-11: steering now routes to canonical fleet policy and Linear claims, and records no-routine-approval development. Preserve other owner content."
-      },
-      "supportedCapabilities": [
-        "rules",
-        "skills",
-        "subagents",
-        "mcp",
-        "plugins",
-        "hooks"
-      ],
-      "status": "active",
-      "notes": "IDE and CLI share ~/.kiro; CLI 3.2.0 measured 2026-11-11, IDE last recorded 1.4.121. Direct development defaults to ah-project-engineer on auto, with all tools, MCP/Powers, inherited guidance and source-referenced product, browser, mobile and official Clerk skills. User permissions.yaml grants capability all with effect allow; explicit denies and Kiro invariants remain. Eight existing Powers were discovered in a fresh repository-root session. The ah-project-delivery recipe loads through native ACP; workflow execution and third-party Power authentication are not claimed. See docs/runbooks/kiro-development.md. Dispatcher still selects guarded ah-peer explicitly; its verified model set and restrictions remain in fleet-profile dispatchPolicy.kiro. IDE UI, cloud sync and KiroCrew are separate and were not configured by this rollout."
-    },
-    {
       "id": "qwen",
       "fleetRole": "pending-retirement",
       "name": "Qwen Code",
@@ -835,32 +805,6 @@
       ],
       "status": "inactive",
       "notes": "Installed on 2026-11-09. Sign-in is by Xiaomi account. Plugins install only through the in-app store, and the store catalog could not be listed because the console is JavaScript-rendered. No MCP servers configured. Bundled remotion and hyperframes plugin sources are Codex-marketplace repackages per the audit. Not a dispatch target."
-    },
-    {
-      "id": "kirocrew",
-      "fleetRole": "retired",
-      "name": "KiroCrew",
-      "version": "0.12.0",
-      "versionProbe": "none",
-      "versionProbeNote": "GUI desktop app. Probing it would open a window, so no version command was run. The version comes from the 2026-11-09 audit.",
-      "executable": "{userHome}/AppData/Local/Programs/KiroCrew/KiroCrew.exe",
-      "nativePaths": {
-        "configHome": "{userHome}/.kiro/crew",
-        "skillsDir": "{userHome}/.kiro/crew/skills",
-        "appsDir": "{userHome}/.kiro/crew/apps",
-        "mcp": "{userHome}/.kiro/crew/mcp.json",
-        "mcpKey": "mcpServers",
-        "mcpNote": "KiroCrew's own MCP file holds one entry, tavily-vault, with an env key. Its value is not recorded here.",
-        "instructions": null,
-        "instructionsNote": "KiroCrew documents no global instruction file. Nothing is written here."
-      },
-      "supportedCapabilities": [
-        "skills",
-        "mcp",
-        "subagents"
-      ],
-      "status": "inactive",
-      "notes": "Installed on 2026-11-09. 26 apps (15 enabled), 52 skills under crew/skills. All 4 crons are disabled, which keeps it clear of the no-scheduled-jobs rule. auto_update is true, which the owner should review. A stale leftover app source (personal-shopper.stale-26434066) is recorded and not removed. Not a dispatch target."
     },
     {
       "id": "coderabbit",

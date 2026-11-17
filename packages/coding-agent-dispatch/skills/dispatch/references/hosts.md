@@ -1,14 +1,14 @@
 # Host details
 
-Read when: choosing a model, a Kiro or Factory role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo, MiMo or Qwen eligibility, resuming a Cline session, or auditing a host plugin.
+Read when: choosing a model, a Factory or OpenCode role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo, MiMo or Qwen eligibility, resuming a Cline session, or auditing a host plugin.
 
-Contents: Models, Kiro and Factory roles, Read-only runs, Account hosts, New plan hosts, Plan routes, Qwen, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
+Contents: Models, Factory and OpenCode roles, Read-only runs, Account hosts, New plan hosts, Plan routes, Qwen, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
 
 ## Models
 
 Owner direction 2026-11-10: a model or coding plan is allowed on any host where it can be integrated and supported.
 
-- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, warp, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment) and kiro. Other hosts take no `-Model`.
+- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, warp, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment). Other hosts take no `-Model`.
 - `dispatchPolicy.<host>.allowedModels` records the smoke-verified models. It does not limit the choice. An unlisted model adds one stderr line, `note: <host> model '<id>' is not in the smoke-verified list; passing it through`, and the run continues. The host and its plan decide what the model costs; check the cost before routing an expensive one.
 - The id must be well formed: no whitespace or shell metacharacters; `provider/model` for opencode, kilo and mimo-code; `provider:model` for cline. A malformed id is refused with exit 3.
 
@@ -19,20 +19,11 @@ Subscriptions only, never a pay-as-you-go wallet (owner direction 2026-11-10). T
 - OpenCode: provider `opencode/` is the pay-as-you-go Zen wallet and is refused. Use `opencode-go/<model>`, the Go subscription on the stored Go workspace login.
 - MiMo, on every host (kilo `mimo/*`, mimo-code `xiaomi-token-plan-*/*`, qwen's OpenAI-compatible child environment, opencode `mimo-token-plan/*`, cline `mimo-token-plan:*`, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider `xiaomi/` (the pay-as-you-go API in MiMo Code's model listing) is refused. If `MIMO_BASE_URL` is set, its host must be `token-plan-<region>.xiaomimimo.com`; pay-as-you-go is `api.xiaomimimo.com`. If `MIMO_API_KEY` is set, it must start with `tp-` or `ttp-`; pay-as-you-go keys start with `sk-`. On qwen both must be present, because the child environment is that route's only credential. The refusal names the variable and never prints its value.
 
-## Kiro and Factory roles
+## Factory and OpenCode roles
 
-`-Role` applies to Kiro and Factory only. Any other host refuses a role other
-than `peer` with exit 3.
-
-| Role | Profile | Command |
-| --- | --- | --- |
-| `peer` (default) | `dispatchPolicy.kiro.agent` (`ah-peer`) | `kiro-cli chat --no-interactive --trust-all-tools --agent ah-peer --model <m> <prompt>` |
-| `engineer`, `reviewer`, `tester`, `architect`, `incident` | `dispatchPolicy.kiro.roles.<role>` (`ah-<role>`) | `kiro-cli chat --v3 --no-interactive --trust-all-tools --agent ah-<role> --model <m> <prompt>` |
-
-The Kiro role profiles are `packages/coding-agent-dispatch/kiro/agents/ah-<role>.json`.
-A role is refused with exit 3 when its profile file is missing from
-`~/.kiro/agents` or when `dispatchPolicy.kiro.roles` does not name it. The
-dispatcher does not install profiles.
+`-Role` applies to Factory and OpenCode only. Any other host refuses a role
+other than `peer` with exit 3. OpenCode roles map to native V2 agents in
+`~/.config/opencode/agents` (see the OpenCode section below).
 
 Factory maps `engineer`, `reviewer` and `tester` through
 `dispatchPolicy.factory.roles` to native custom droids in
@@ -56,14 +47,7 @@ writable run starts. `-List -ReadOnly` prints the supported hosts.
 | claude | `--print --permission-mode plan --permission-prompts none` in place of `--permission-mode bypassPermissions` |
 | codex | `exec --sandbox read-only --skip-git-repo-check -` |
 | factory | `exec` without `--auto`, which is Droid's read-only default |
-| kiro | `chat --v3 --no-interactive --trust-all-tools --agent ah-readonly`: that profile has only read, glob, grep, thinking and todo tools (no shell, no write, no MCP server); the dispatcher refuses when the installed profile lists any other tool |
 | qwen | `--approval-mode plan` in place of `--approval-mode yolo` (help 0.27.1: "Analyze only, do not modify files or execute commands") |
-
-Kiro notes: `-ReadOnly` always runs the reviewer profile, so it is refused
-with `-Role engineer`, `tester`, `architect` or `incident`. It is also
-refused when the installed `~/.kiro/agents/ah-readonly.json` is missing or
-lists a write tool. The profile keeps the shell tool for running checks, so
-this is a profile guard and not an operating-system sandbox.
 
 `-ReadOnly` cannot be combined with `-SessionId`. No host's read-only mode
 has been exercised with a model run; the commands come from each CLI's help
@@ -102,13 +86,6 @@ missing. If a peer file is absent on a machine, recreate it from the rules in
 - `kilo acp` and `mimo acp` are help-discovered entry points. Protocol
   initialization, session handoff and authenticated inference remain separate
   checks. Do not start a listener or install a bridge to bypass a refused run.
-
-Kiro CLI is dispatchable on its Builder ID login. `--trust-all-tools` approves
-every tool call, so it runs only under the policy-named `ah-peer` agent
-(`~/.kiro/agents/ah-peer.json`), which denies outward and destructive commands
-and does not load the host's MCP file. Every Kiro model spends plan credits at
-its own multiplier; any model Kiro offers may be routed with `-Model`. The Kiro
-IDE and KiroCrew are not dispatch targets.
 
 ## Qwen
 

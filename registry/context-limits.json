@@ -140,7 +140,6 @@
     "warp": "The GUI profile is already at 1,000,000. Warp syncs its settings, so they are not edited from here.",
     "antigravity": "Compaction keys exist only in the binary and are undocumented, so they are not used.",
     "kilo": "Not established. Kilo became an active host on 2026-11-10 and its compaction and tool-loading settings have not been looked up, so nothing is set from here.",
-    "mimo-code": "Not established. MiMo Code became an active host on 2026-11-10 and its compaction and tool-loading settings have not been looked up, so nothing is set from here.",
-    "kiro": "Not established. Kiro became an active host on 2026-11-10 and its compaction and tool-loading settings have not been looked up, so nothing is set from here."
+    "mimo-code": "Not established. MiMo Code became an active host on 2026-11-10 and its compaction and tool-loading settings have not been looked up, so nothing is set from here."
   }
 }

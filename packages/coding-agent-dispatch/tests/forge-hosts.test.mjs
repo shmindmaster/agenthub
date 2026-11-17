@@ -76,7 +76,7 @@ export function validateForgeHosts(text) {
     }
     // plan is optional: both consumers tolerate its absence. forge-session.py
     // reads only argv, and Invoke-CodingAgent.ps1 -Auth guards on
-    // `if ($entry.Value.plan)`. Account sign-in routes (grok, kiro, qwen,
+    // `if ($entry.Value.plan)`. Account sign-in routes (grok, qwen,
     // cline, ...) carry no plan by design.
     const keys = Object.keys(route);
     for (const key of keys) {
@@ -157,8 +157,8 @@ test('rule 4: argv[0] is a relative path under .local/bin/ with no .. segment an
     assert.ok(errors.some((error) => error.startsWith('bad: argv[0] must be a relative path')), `${launcher} must be rejected`);
   }
   // .grok/bin/ is the grok-only exception; any other host must use .local/bin/.
-  const misplaced = validateForgeHosts(JSON.stringify({ ...valid, kiro: { argv: ['.grok/bin/kiro-cli'] } }));
-  assert.ok(misplaced.some((error) => error.startsWith('kiro: argv[0] must be a relative path')), '.grok/bin/ outside grok must be rejected');
+  const misplaced = validateForgeHosts(JSON.stringify({ ...valid, cline: { argv: ['.grok/bin/cline'] } }));
+  assert.ok(misplaced.some((error) => error.startsWith('cline: argv[0] must be a relative path')), '.grok/bin/ outside grok must be rejected');
 });
 
 test('rule 5: -zai, -qwen, -go and -mimo ids carry a plan naming the matching subscription', () => {

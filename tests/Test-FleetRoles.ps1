@@ -38,7 +38,7 @@ $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'companion owned by a non-retained host is rejected' (($e -join ';') -match 'companion surface must name a retained fleetOwner')
 
 
-$r = New-Registry; $h = Find-Host $r 'kirocrew'; $r.inactiveAgents = @($r.inactiveAgents | Where-Object { $_.id -ne 'kirocrew' }); $r.activeAgents = @($r.activeAgents) + $h
+$r = New-Registry; $h = Find-Host $r 'windsurf'; $r.inactiveAgents = @($r.inactiveAgents | Where-Object { $_.id -ne 'windsurf' }); $r.activeAgents = @($r.activeAgents) + $h
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'a retired-labelled host may be reactivated' ($e.Count -eq 0) ($e -join '; ')
 

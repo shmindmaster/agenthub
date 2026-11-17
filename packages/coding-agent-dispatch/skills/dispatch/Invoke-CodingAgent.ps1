@@ -60,8 +60,7 @@
 
 .PARAMETER Model
   Model for an -AnthropicApiKey run. Defaults to apiKeyOptIn.model.
-  For codex, grok, opencode, cline, warp, factory, devin, kilo, mimo-code, qwen
-  and kiro, the model the host should run this task on. Any model the host can
+  For codex, grok, opencode, cline, warp, factory, devin, kilo, mimo-code and qwen, the model the host should run this task on. Any model the host can
   reach is accepted and passed through (owner direction 2026-11-10: a model or
   coding plan is allowed wherever it can be integrated and supported).
   dispatchPolicy.<host>.allowedModels records the smoke-verified models; it
@@ -89,11 +88,6 @@
   Continue an existing Cline session through ACP. Policy gates still apply.
 
 .PARAMETER Role
-  Kiro: peer (default), engineer, reviewer, tester, architect or incident.
-  peer runs the guarded dispatchPolicy.kiro.agent profile. Every other role
-  runs the V3 engine on the profile named by dispatchPolicy.kiro.roles.<role>
-  (ah-<role>) and is refused when that profile file is missing from
-  ~/.kiro/agents.
   OpenCode: peer (default), engineer, reviewer, tester or researcher. peer
   runs the guarded dispatchPolicy.opencode.agent profile. Every other role
   runs the V2 agent named by dispatchPolicy.opencode.roles.<role> and is
@@ -109,8 +103,7 @@
   is never the mechanism. A host qualifies only when this script has a
   verified read-only command for it and dispatchPolicy.<host>.readOnly
   records the flags. Every other host is refused with exit 3; there is no
-  fallback to a writable run. Kiro runs the reviewer profile, so -ReadOnly
-  with a writing role is refused. OpenCode runs the readonly agent (read and
+  fallback to a writable run. OpenCode runs the readonly agent (read and
   search only) and is refused unless the installed readonly profile's own
   ordered frontmatter permissions effectively deny the edit, shell and
   subagent actions; -ReadOnly with a writing role is refused. -ReadOnly cannot
@@ -195,7 +188,6 @@ if ($Auth) {
             grok = '/srv/work/agenthub-runner/.grok/bin/grok login --device-auth'
             codex = 'Use a codex-qwen, codex-zai, codex-mimo or codex-go launcher; no personal OpenAI login on Forge.'
             claude = 'Use a claude-qwen, claude-zai, claude-mimo or claude-go launcher; no personal Anthropic login on Forge.'
-            kiro = '/srv/work/agenthub-runner/.local/bin/kiro-cli login --use-device-flow'
             qwen = '/srv/work/agenthub-runner/.local/bin/qwen; run /auth and choose QwenCloud Token Plan'
             cline = '/srv/work/agenthub-runner/.local/bin/cline auth'
             opencode = '/srv/work/agenthub-runner/.local/bin/opencode; run /connect and choose the intended provider'
@@ -207,7 +199,6 @@ if ($Auth) {
     } else {
         [ordered]@{
             grok = 'grok login'
-            kiro = 'kiro-cli login; check with kiro-cli whoami'
             codex = 'codex login; check with codex login status'
             claude = 'claude auth login; check with claude auth status'
             qwen = 'qwen; run /auth and choose QwenCloud Token Plan'
@@ -314,9 +305,6 @@ function Get-DispatchModelShape {
     }
     if ($Id -eq 'cline') {
         return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.-]*:[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a provider:model id' }
-    }
-    if ($Id -eq 'kiro') {
-        return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.-]*$'; Label = 'a model id of letters, digits, dots, underscores and hyphens' }
     }
     return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a model id without whitespace or shell metacharacters' }
 }
@@ -586,8 +574,7 @@ function Get-DispatchTable {
                 # A -Role or -ReadOnly run swaps that agent for the mapped V2
                 # profile (SH-4674); -ReadOnly always runs the readonly profile,
                 # whose own permissions deny edit and shell for every resource
-                # (Kiro parity: the reviewer role keeps a shell and is NOT a
-                # read-only run).
+                # (the reviewer role keeps a shell and is NOT a read-only run).
                 if (-not $zaiLauncher) {
                     $openCodeAgent = [string]$fleet.dispatchPolicy.opencode.agent
                     $openCodeRoleName = ''
@@ -615,9 +602,7 @@ function Get-DispatchTable {
                             # subagent for every resource. Text outside the
                             # frontmatter or a later allow rule never satisfies
                             # this gate, and prompt wording is never the
-                            # mechanism. Kiro parity: its reviewer gate is an
-                            # allow-list over the installed profile's tools;
-                            # this is the V2-permission equivalent (no shell,
+                            # mechanism. The gate is the V2-permission check (no shell,
                             # no writable child, no write-through-command).
                             $profileText = $null
                             try { $profileText = Get-Content -LiteralPath $roleProfile -Raw -Encoding UTF8 } catch { $profileText = $null }
@@ -773,66 +758,6 @@ function Get-DispatchTable {
                 $qwenApproval = if ($ReadOnly) { 'plan' } else { 'yolo' }
                 @{ Args = @('--auth-type', 'openai', '-m', $qwenModel, '--approval-mode', $qwenApproval, '-o', 'json')
                     Stdin = $PromptText; PromptFile = $null; Env = $qwenEnv }
-            }
-        }
-        'kiro' = @{
-            Mode = 'argument'
-            ReadOnly = $true
-            Build = {
-                param($PromptText, $Work, $File)
-                # Kiro CLI has no directory flag; the child process working
-                # directory is the task directory. --trust-all-tools approves
-                # every tool call, so an unattended run is refused unless policy
-                # names the agent whose tool settings deny outward and
-                # destructive commands. Auth is the Builder ID account login.
-                $kiroPolicy = $fleet.dispatchPolicy.kiro
-                $kiroModel = if ($script:KiroModel) { $script:KiroModel } else { [string]$kiroPolicy.model }
-                Assert-DispatchModelId -Id 'kiro' -ModelId $kiroModel -Source 'model'
-                Write-UnlistedModelNote -Id 'kiro' -ModelId $kiroModel
-                # -ReadOnly always runs the ah-readonly profile: its tools are
-                # read, glob, grep, thinking and todo only (no shell, no write,
-                # no MCP server), so the profile itself cannot change anything.
-                # The reviewer role keeps a shell and is NOT a read-only run.
-                # The gate before Build has already refused a writing role.
-                $kiroRole = if ($ReadOnly) { 'readonly' } else { $script:DispatchRole }
-                if ($kiroRole -eq 'peer') {
-                    $kiroAgent = [string]$kiroPolicy.agent
-                    if ($kiroAgent -notmatch '^[A-Za-z0-9_-]+$') {
-                        Write-Refusal 3 "refused kiro: dispatchPolicy.kiro.agent must name the guarded agent for unattended runs"
-                    }
-                    return @{ Args = @('chat', '--no-interactive', '--trust-all-tools', '--agent', $kiroAgent, '--model', $kiroModel, $PromptText); Stdin = $null; PromptFile = $null }
-                }
-                # Role profiles (Linear SH-4418) are written for the V3 engine
-                # (kiro-cli chat --help: --v3). The profile is the guard under
-                # --trust-all-tools, so a run without its file is refused.
-                $roleAgent = ''
-                if ($kiroPolicy -and $kiroPolicy.PSObject.Properties['roles'] -and $kiroPolicy.roles -and $kiroPolicy.roles.PSObject.Properties[$kiroRole]) {
-                    $roleAgent = [string]$kiroPolicy.roles.$kiroRole
-                }
-                if ($roleAgent -notmatch '^[A-Za-z0-9_-]+$') {
-                    Write-Refusal 3 "refused kiro: dispatchPolicy.kiro.roles.$kiroRole must name the profile for role '$kiroRole'"
-                }
-                $kiroAgentsDir = Join-Path (Join-Path (Get-AgentHubDefaultHome) '.kiro') 'agents'
-                $roleProfile = Join-Path $kiroAgentsDir "$roleAgent.json"
-                if (-not (Test-Path -LiteralPath $roleProfile -PathType Leaf)) {
-                    Write-Refusal 3 "refused kiro: role '$kiroRole' needs the profile $roleAgent.json, which is missing from $kiroAgentsDir; install it from packages/coding-agent-dispatch/kiro/agents"
-                }
-                if ($ReadOnly) {
-                    # The installed file is what Kiro enforces, so it is the one
-                    # checked: a read-only run is refused if it grants a write tool.
-                    $profileTools = $null
-                    try { $profileTools = @((Get-Content -LiteralPath $roleProfile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop).tools | ForEach-Object { [string]$_ }) } catch { $profileTools = $null }
-                    if ($null -eq $profileTools -or $profileTools.Count -eq 0) {
-                        Write-Refusal 3 "refused kiro: the installed profile $roleAgent.json could not be read as a tool list, so a read-only run cannot be established"
-                    }
-                    # Allow-list, not deny-list: a shell, an MCP server or any
-                    # tool not known to be read-only makes the profile writable.
-                    $writeTools = @($profileTools | Where-Object { $_ -cnotin @('read', 'glob', 'grep', 'thinking', 'todo') })
-                    if ($writeTools.Count -gt 0) {
-                        Write-Refusal 3 "refused kiro: the installed profile $roleAgent.json grants a write tool ($($writeTools -join ', ')); it is not a read-only profile"
-                    }
-                }
-                @{ Args = @('chat', '--v3', '--no-interactive', '--trust-all-tools', '--agent', $roleAgent, '--model', $kiroModel, $PromptText); Stdin = $null; PromptFile = $null }
             }
         }
         'factory' = @{
@@ -1106,8 +1031,8 @@ function Resolve-DeclaredExecutable {
 }
 
 # -Role names a per-host profile. Only the hosts listed here have any.
-$script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'researcher', 'architect', 'incident')
-$script:RoleHosts = @('kiro', 'opencode', 'factory')
+$script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'researcher')
+$script:RoleHosts = @('opencode', 'factory')
 $script:DispatchRole = 'peer'
 
 # dispatchPolicy.<host>.readOnly: an object with a flags list when the host has
@@ -1215,8 +1140,8 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
     # can be integrated and supported. -Model is passed through to every host
     # whose CLI takes a model flag; allowedModels records the smoke-verified
     # models and no longer restricts the choice. Only the shape is enforced.
-    if ($requested -notin @('codex', 'grok', 'opencode', 'cline', 'warp', 'factory', 'devin', 'kilo', 'mimo-code', 'qwen', 'kiro')) {
-        Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or to Codex, Grok, OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo, Qwen or Kiro.'
+    if ($requested -notin @('codex', 'grok', 'opencode', 'cline', 'warp', 'factory', 'devin', 'kilo', 'mimo-code', 'qwen')) {
+        Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or to Codex, Grok, OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo or Qwen.'
     }
     $choice = $Model.Trim()
     Assert-DispatchModelId -Id $requested -ModelId $choice
@@ -1232,7 +1157,6 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
         'kilo'      { $script:KiloModel = $choice }
         'mimo-code' { $script:MimoCodeModel = $choice }
         'qwen'      { $script:QwenModel = $choice }
-        'kiro'      { $script:KiroModel = $choice }
         'cline'     {
             $split = $choice.IndexOf(':')
             $script:ClineProvider = $choice.Substring(0, $split)
@@ -1276,9 +1200,6 @@ if ($ReadOnly) {
     if ($readOnlyRefusal) { Write-Refusal 3 "refused ${requested}: $readOnlyRefusal" }
     if ($PSBoundParameters.ContainsKey('SessionId')) {
         Write-Refusal 3 "refused ${requested}: -ReadOnly cannot resume a session; the ACP resume path has no enforced read-only mode"
-    }
-    if ($targetId -eq 'kiro' -and $script:DispatchRole -notin @('peer', 'reviewer')) {
-        Write-Refusal 3 "refused kiro: -ReadOnly cannot be combined with -Role $($script:DispatchRole), a writing role; a read-only Kiro run uses the reviewer profile"
     }
     if ($targetId -eq 'opencode' -and $script:DispatchRole -notin @('peer', 'reviewer')) {
         Write-Refusal 3 "refused opencode: -ReadOnly cannot be combined with -Role $($script:DispatchRole), a writing role; a read-only OpenCode run uses the readonly agent profile"

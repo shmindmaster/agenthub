@@ -276,9 +276,9 @@ process.stdout.write(response);
         Check 'the last fenced block is the answer, not an earlier quoted one' ($lastWins -and $lastWins.verdict -ceq 'BLOCKED') ($lastWins | Out-String)
 
         # SH-4418: only a readOnly object with a flags list makes a reviewer host.
-        $policyJson = '{"codex":{"enabled":true,"readOnly":{"flags":["--sandbox","read-only"],"omits":[]}},"zeta":{"readOnly":{"flags":[],"omits":["--auto"]}},"kiro":{"enabled":true,"readOnly":{"flags":["--v3"],"omits":[]}},"alpha":{"readOnly":{"flags":["-x"]}},"grok":{"enabled":true,"readOnly":null},"warp":{"enabled":true,"readOnly":false},"amp":{"enabled":true},"claude":{"enabled":false,"readOnly":{"flags":["--permission-mode","plan"]}},"devin":{"readOnly":true},"cline":{"readOnly":{"note":"no flags list"}},"cursor":"alias"}'
+        $policyJson = '{"codex":{"enabled":true,"readOnly":{"flags":["--sandbox","read-only"],"omits":[]}},"zeta":{"readOnly":{"flags":[],"omits":["--auto"]}},"factory":{"enabled":true,"readOnly":{"flags":["--v3"],"omits":[]}},"alpha":{"readOnly":{"flags":["-x"]}},"grok":{"enabled":true,"readOnly":null},"warp":{"enabled":true,"readOnly":false},"amp":{"enabled":true},"claude":{"enabled":false,"readOnly":{"flags":["--permission-mode","plan"]}},"devin":{"readOnly":true},"cline":{"readOnly":{"note":"no flags list"}},"cursor":"alias"}'
         $roHosts = @(Get-PrReviewReadOnlyHosts -DispatchPolicy ($policyJson | ConvertFrom-Json))
-        Check 'read-only reviewer hosts: recorded flags only, preferred order first, disabled hosts left out' (($roHosts -join ',') -ceq 'codex,kiro,alpha,zeta') ($roHosts -join ',')
+        Check 'read-only reviewer hosts: recorded flags only, preferred order first, disabled hosts left out' (($roHosts -join ',') -ceq 'codex,factory,alpha,zeta') ($roHosts -join ',')
         Check 'read-only reviewer hosts: nothing recorded yields none' (@(Get-PrReviewReadOnlyHosts -DispatchPolicy ('{"grok":{"readOnly":null},"warp":{"readOnly":false}}' | ConvertFrom-Json)).Count -eq 0 -and @(Get-PrReviewReadOnlyHosts -DispatchPolicy $null).Count -eq 0)
 
         $sections = 1..6 | ForEach-Object {
@@ -309,7 +309,7 @@ process.stdout.write(response);
     $roRecord = @{ flags = @('--synthetic-read-only'); omits = @() }
     $fleetDefault = Write-FleetFixture 'default' @{
         codex = @{ enabled = $true; readOnly = $roRecord }; claude = @{ enabled = $true; readOnly = $roRecord }
-        kiro = @{ enabled = $true; readOnly = $roRecord }; grok = @{ enabled = $true; readOnly = $null }
+        factory = @{ enabled = $true; readOnly = $roRecord }; grok = @{ enabled = $true; readOnly = $null }
         warp = @{ enabled = $true; readOnly = $false }
     }
 
@@ -500,10 +500,6 @@ exit 0
     Check 'a retry after a malformed answer is also a -ReadOnly call' (@($dispLog).Count -eq 2 -and @($dispLog | Where-Object { @($_.args) -ccontains '-ReadOnly' }).Count -eq 2) (($dispLog | ForEach-Object { $_.args -join ' ' }) -join ' | ')
     $dispLog = Read-JsonLines (Join-Path (New-Scenario 'oversized') 'dispatcher-log.jsonl')
     Check 'every file-group call is a -ReadOnly call' (@($dispLog).Count -eq 5 -and @($dispLog | Where-Object { @($_.args) -ccontains '-ReadOnly' }).Count -eq 5) ("calls=$(@($dispLog).Count)")
-    $r = Invoke-Scenario 'kiro-reviewer' -Extra @('-HostId', 'kiro')
-    $dispLog = Read-JsonLines (Join-Path (New-Scenario 'kiro-reviewer') 'dispatcher-log.jsonl')
-    $roleIndex = if (@($dispLog).Count -eq 1) { [Array]::IndexOf(@($dispLog[0].args), '-Role') } else { -1 }
-    Check 'a Kiro review passes -ReadOnly and -Role reviewer' ($r.Exit -eq 0 -and @($dispLog).Count -eq 1 -and @($dispLog[0].args) -ccontains '-ReadOnly' -and $roleIndex -ge 0 -and $dispLog[0].args[$roleIndex + 1] -ceq 'reviewer') ("exit=$($r.Exit) args=$($dispLog[0].args -join ' ')")
 
     # SH-4418: the reviewer host comes only from hosts with a recorded
     # read-only mode; with none the run is BLOCKED before any model call.
@@ -515,7 +511,7 @@ exit 0
     $r = Invoke-Scenario 'no-readonly-explicit' -Extra @('-HostId', 'codex') -FleetPath $fleetNone
     Check 'no read-only host: an explicit -HostId is BLOCKED too' ($r.Exit -eq 3 -and $r.Out -match 'PR review result: BLOCKED' -and (Read-JsonLines (Join-Path (New-Scenario 'no-readonly-explicit') 'dispatcher-log.jsonl')).Count -eq 0) ("exit=$($r.Exit) out=$($r.Out) err=$($r.Err)")
     $r = Invoke-Scenario 'unsupported-explicit' -Extra @('-HostId', 'grok')
-    Check 'an explicit host without a recorded read-only mode is BLOCKED and names the hosts that have one' ($r.Exit -eq 3 -and $r.Out -match 'PR review result: BLOCKED' -and $r.Err -match "reviewer host 'grok' has no enforced read-only mode" -and $r.Err -match 'codex, claude, kiro' -and (Read-JsonLines (Join-Path (New-Scenario 'unsupported-explicit') 'dispatcher-log.jsonl')).Count -eq 0) ("exit=$($r.Exit) err=$($r.Err)")
+    Check 'an explicit host without a recorded read-only mode is BLOCKED and names the hosts that have one' ($r.Exit -eq 3 -and $r.Out -match 'PR review result: BLOCKED' -and $r.Err -match "reviewer host 'grok' has no enforced read-only mode" -and $r.Err -match 'codex, claude, factory' -and (Read-JsonLines (Join-Path (New-Scenario 'unsupported-explicit') 'dispatcher-log.jsonl')).Count -eq 0) ("exit=$($r.Exit) err=$($r.Err)")
     $fleetClaudeOnly = Write-FleetFixture 'claude-only' @{ codex = @{ enabled = $true; readOnly = $false }; claude = @{ enabled = $true; readOnly = $roRecord } }
     $r = Invoke-Scenario 'default-skips-unsupported' -FleetPath $fleetClaudeOnly
     $dispLog = Read-JsonLines (Join-Path (New-Scenario 'default-skips-unsupported') 'dispatcher-log.jsonl')

@@ -20,7 +20,7 @@ Copy this list and tick each item.
 
 - [ ] Read the repository's instructions. Stay on the demo path, plus defects that share a root cause with it.
 - [ ] For each workflow, name the user, the job, the outcome and one hero moment.
-- [ ] Run the real path with synthetic data: sparse, dense, loading, error, permission, recovery, narrow, zoomed, keyboard, return later.
+- [ ] Run the real path with synthetic data: sparse, dense, loading, error, permission, recovery, narrow, zoomed, keyboard, return.
 - [ ] Read when a workflow needs a session: [authenticated acceptance](../../references/authenticated-acceptance.md). Prove each role and denial.
 - [ ] Score the eleven criteria and record `beforeVerdict` before changing anything.
 - [ ] Classify each failed criterion as `product-fix-required` or `capture-fixable`.
@@ -34,16 +34,16 @@ Read when scoring or writing the handoff: [demo handoff](../../references/demo-h
 
 ## Rules
 
-- Do not downgrade a product defect to capture-fixable to keep a schedule.
-- Do not start capture before the handoff validates because it is only a quick take.
-- Do not work around a missing harness item in the edit. It is a product fix.
+- Do not downgrade a product defect to capture-fixable for schedule.
+- Do not start capture before the handoff validates.
+- A missing harness item is a product fix, not an edit workaround.
 - Do not change another application repository, even for a shared defect.
-- Product-Readiness Feedback from `media-studio` is defect input: search the tracker for the existing owner before filing, fix through `build` with independent review, release, then revalidate the handoff against that revision. Capture resumes only on a fresh `DEMO-READY`.
-- When the hero moment is an approval or an AI decision, build it with [execution controls](../../kits/execution-controls/README.md), so the guardrail on screen is the real one.
+- Product-Readiness Feedback from `media-studio` is defect input: fix through `build` with independent review, then revalidate. Capture resumes only on a fresh `DEMO-READY`.
+- When the hero moment is an approval or an AI decision, build it with [execution controls](../../kits/execution-controls/README.md), so the on-screen guardrail is real.
 
 ## Output
 
-Return the handoff in the response. A demo request is not consent to write files. Save to `_product-experience/07-demo-readiness-handoff.md` and `_product-experience/demo-readiness.json` only when asked. Then run these commands exactly and repeat until both pass:
+Return the handoff in the response; a demo request is not consent to write files. Save to `_product-experience/07-demo-readiness-handoff.md` and `_product-experience/demo-readiness.json` only when asked. Then run these exactly until both pass:
 
 ```powershell
 node ../../scripts/validate-artifact.mjs --type demo-handoff _product-experience/07-demo-readiness-handoff.md

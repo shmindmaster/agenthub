@@ -252,7 +252,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # an inactive host, or one with an uncaptured response; those stay out and are pinned
     # below, because "nothing should be disabled" is not a budget authorization.
     $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin',
-        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'kiro', 'qwen')
+        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'qwen')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -314,7 +314,7 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add("$($entry.Name) has no loginCommand")
         }
     }
-    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code', 'kiro', 'qwen')
+    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code', 'qwen')
     foreach ($id in $dispatchHosts) {
         if ($profile.hostSettings.PSObject.Properties.Name -notcontains $id) {
             $violations.Add("$id has no hostSettings authentication record")
@@ -403,13 +403,6 @@ function Test-LiveHostAuthenticationMetadata {
         if ($planPolicy.enabled -eq $true -and [string]$planPolicy.agent -notmatch '^[A-Za-z0-9_-]+$') {
             $violations.Add("$id dispatch is enabled without a guarded agent; its auto-approve flag approves every action no rule denies")
         }
-    }
-    $kiroPolicy = $profile.dispatchPolicy.kiro
-    if ($kiroPolicy.enabled -eq $true -and (
-        [string]$kiroPolicy.agent -notmatch '^[A-Za-z0-9_-]+$' -or
-        $profile.hostSettings.kiro.authMode -ne 'account' -or
-        @($kiroPolicy.allowedModels | ForEach-Object { [string]$_ }) -notcontains $kiroPolicy.model)) {
-        $violations.Add('Kiro dispatch must run on its account login under a guarded agent, with its default model inside allowedModels')
     }
     foreach ($violation in @(Get-CodexDispatchEvidenceViolations $profile.dispatchPolicy.codex)) { $violations.Add($violation) }
     if ($profile.managedHosts -notcontains 'cursor-agent') {

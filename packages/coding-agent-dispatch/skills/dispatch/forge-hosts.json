@@ -9,7 +9,6 @@
   "codex-go": {"argv": [".local/bin/codex-go"], "plan": "OpenCode Go"},
   "grok": {"argv": [".grok/bin/grok"]},
   "grok-browser": {"argv": [".local/bin/grok-browser"]},
-  "kiro": {"argv": [".local/bin/kiro-cli"]},
   "hermes": {"argv": [".local/bin/hermes"]},
   "openclaw": {"argv": [".local/bin/openclaw", "tui", "--local"]},
   "opencode": {"argv": [".local/bin/opencode"]},

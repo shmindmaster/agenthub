@@ -42,7 +42,7 @@ and Codex require an explicit suffix: `-qwen`, `-zai`, `-mimo`, or `-go`.
 Plan routes beyond Claude and Codex are `opencode-`, `kilo-`, `cline-`,
 `qwen-` and `mimo-code-` launchers with a `-mimo` or `-qwen` suffix; headless
 one-shot commands and smoke results are in `references/forge-plan-routes.md`.
-Grok and Kiro use their native sign-ins. On Windows, keep Claude and Codex
+Grok uses its native sign-in. On Windows, keep Claude and Codex
 on their native accounts by default.
 
 If already on Forge as `agenthub-runner`, use the adjacent
@@ -80,7 +80,7 @@ widen its allowlist in a brief; see "Forge unattended intake" in
    without starting anything. It does not prove that a host will execute it.
 
    `-Model <id>` picks the model for codex, grok, opencode, cline, warp,
-   factory, devin, kilo, mimo-code, qwen and kiro. Any model the host can reach is
+   factory, devin, kilo, mimo-code and qwen. Any model the host can reach is
    accepted: `allowedModels` in `dispatchPolicy` records the smoke-verified
    models and does not limit the choice. An unlisted model adds one stderr
    note and runs. Only a malformed id is refused, plus the two
@@ -94,15 +94,15 @@ widen its allowlist in a brief; see "Forge unattended intake" in
    on Windows or `-Forge -HostId opencode-zai -Cwd <Forge-worktree>` for an
    interactive session. See the host reference for the Windows tool limits.
 
-   `-Role <role>` picks a Kiro profile or a Factory custom droid: `peer` (default), `engineer`,
-   `reviewer`, `tester`, `architect` or `incident`. Factory maps `engineer`,
+   `-Role <role>` picks an OpenCode agent or a Factory custom droid: `peer` (default), `engineer`,
+   `reviewer` or `tester` (OpenCode also takes `researcher`). Factory maps `engineer`,
    `reviewer` and `tester` to native droids (`dispatchPolicy.factory.roles`,
    deployed from `packages/coding-agent-dispatch/factory/droids` with
    `Install-FactoryDroids.ps1`); every other host refuses a role other than
    `peer`.
 
    `-ReadOnly` runs the task in a read-only mode the host itself enforces.
-   It works on claude, codex, factory, kiro and qwen; every other host refuses it
+   It works on claude, codex, factory and qwen; every other host refuses it
    with exit 3 and never falls back to a writable run. Use it for reviews and
    audits, and never rely on prompt wording to keep a run read-only.
    `-List -ReadOnly` prints the hosts that support it. Details are in
@@ -121,7 +121,7 @@ Exit codes: 0 child succeeded; 2 launch failure; 3 refusal (policy, autonomy, in
   first. Shared history never authorizes overlapping edits.
 - Assigning backlog work to the fleet (owner direction, 2026-11-10): spread it
   over hosts instead of loading one. Default to two sessions per host that has
-  allowance and RAM for them (for example two Grok, two Kiro, two OpenCode, two
+  allowance and RAM for them (for example two Grok, two OpenCode, two
   Antigravity CLI), fewer when free RAM is under 4 GiB or a plan is near its
   limit. Give each session a batch of several related backlog items of real
   size, not one small item. Batches never share files: split by repository or
@@ -160,4 +160,4 @@ unrelated host or service to recover.
 
 ## Host details
 
-Read `references/hosts.md` when choosing a model, a Kiro or Factory role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, resuming a Cline session, or auditing a host plugin (`Install-*.ps1`).
+Read `references/hosts.md` when choosing a model, a Factory or OpenCode role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, resuming a Cline session, or auditing a host plugin (`Install-*.ps1`).

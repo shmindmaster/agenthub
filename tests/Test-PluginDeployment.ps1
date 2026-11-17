@@ -239,30 +239,6 @@ try {
     $script:listedEntry = [pscustomobject]@{ version = '1.0.0'; marketplace = 'other-market' }
     $obs = Get-PluginObservation $copilotRow
     if ($obs.status -ne 'unmanaged') { throw "wrong marketplace was not preserved as unmanaged: $($obs.status)" }
-    # --- Kiro: a Power is current only when installed.json and its folder agree. ---
-    foreach ($name in 'Read-Document','Get-ManifestObservation') {
-        $function = $ast.FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name }, $true) | Select-Object -First 1
-        Invoke-Expression $function.Extent.Text
-    }
-    $UserProfile = Join-Path $testRoot.FullName 'kiro-profile'
-    $powers = Join-Path $UserProfile '.kiro/powers'
-    [void][IO.Directory]::CreateDirectory($powers)
-    $kiroRow = [pscustomobject]@{ host = 'kiro'; plugin = 'ah-x'; capability = 'x'; route = 'native-local-plugin'; expected = '1.0.0'; source = 'x'; marketplace = 'agenthub' }
-    if (Get-PluginObservation $kiroRow) { throw 'an absent Kiro power was observed' }
-    [IO.File]::WriteAllText((Join-Path $powers 'installed.json'), '{"installedPowers":[{"name":"context7"},{"name":"ah-x"}]}')
-    $obs = Get-PluginObservation $kiroRow
-    if ($obs.status -ne 'drift') { throw "a registered Kiro power with no folder was not drift: $($obs.status)" }
-    [void][IO.Directory]::CreateDirectory((Join-Path $powers 'installed/ah-x'))
-    [IO.File]::WriteAllText((Join-Path $powers 'installed/ah-x/plugin.json'), '{"name":"ah-x","version":"1.0.0"}')
-    $obs = Get-PluginObservation $kiroRow
-    if ($obs.version -ne '1.0.0' -or $obs.status) { throw "an installed Kiro power was not observed at its version: $($obs.status) $($obs.version)" }
-    [IO.File]::WriteAllText((Join-Path $powers 'installed.json'), '{"installedPowers":[{"name":"context7"}]}')
-    $obs = Get-PluginObservation $kiroRow
-    if ($obs.status -ne 'unmanaged') { throw "an unregistered Kiro power folder was not unmanaged: $($obs.status)" }
-    [IO.File]::WriteAllText((Join-Path $powers 'installed.json'), '{"installedPowers":[{"name":"ah-x"}]}')
-    [IO.File]::WriteAllText((Join-Path $powers 'installed/ah-x/plugin.json'), '{"name":"someone-else","version":"1.0.0"}')
-    $obs = Get-PluginObservation $kiroRow
-    if ($obs.status -ne 'unmanaged') { throw "a Kiro power with a foreign identity was not unmanaged: $($obs.status)" }
     Write-Host 'RESULT: 40 passed, 0 failed'
 } finally {
     $resolved = (Get-Item -LiteralPath $testRoot.FullName).FullName

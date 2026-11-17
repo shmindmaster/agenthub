@@ -21,7 +21,6 @@
     "vscode-insiders",
     "kilo",
     "mimo-code",
-    "kiro",
     "qwen"
   ],
   "launchDefaults": {
@@ -264,20 +263,6 @@
         "note": "Added 2026-08-04 when vscode-insiders was reclassified active. NOT invented for the occasion: recovered verbatim from the deleted registry/host-capability-contracts.json (git show fc1bda6:registry/host-capability-contracts.json), whose vscode-insiders contract records autonomy.profile 'repo-autonomous' and implementation 'workspace-and-user-policy'. The note below explains why it was previously excluded."
       },
       {
-        "hostId": "kiro",
-        "defaultProfile": "repo-autonomous",
-        "native": {
-          "flags": [
-            "chat",
-            "--no-interactive",
-            "--trust-all-tools",
-            "--agent",
-            "ah-peer"
-          ]
-        },
-        "note": "Promoted to active 2026-11-10 on owner direction. repo-autonomous since the governed command was exercised the same day under the guarded ah-peer agent: it returned READY, and a denied command stayed blocked with all tools trusted. The dispatcher refuses the host without that agent."
-      },
-      {
         "hostId": "qwen",
         "defaultProfile": "repo-autonomous",
         "native": {
@@ -392,12 +377,6 @@
       "authNote": "The account label here means a stored Xiaomi Token Plan key credential, not an OAuth account login; the stored credential must not be overridden by a stray MIMO_API_KEY.",
       "loginCommand": "mimo providers",
       "modelNote": "2026-11-10 `mimo run` default-model smoke: agent build, mimo-v2.6-pro answered READY against the stored Xiaomi Token Plan (Singapore) credential."
-    },
-    "kiro": {
-      "model": "auto",
-      "authMode": "account",
-      "loginCommand": "kiro-cli login",
-      "modelNote": "2026-11-10: `kiro-cli whoami` reports a Builder ID login. auto lets Kiro choose the model per task at 1.00x credits and is the default; dispatchPolicy.kiro.allowedModels lists the smoke-verified models; a task may name any model Kiro offers."
     },
     "qwen": {
       "model": "mimo-v2.6-pro",
@@ -583,7 +562,7 @@
         "researcher": "researcher",
         "readonly": "readonly"
       },
-      "rolesNote": "2026-11-14 (SH-4674): native OpenCode V2 agent profiles in ~/.config/opencode/agents, canonical in packages/coding-agent-dispatch/opencode/agents. -Role <name> runs `opencode run --agent <name>`; a role whose agent file is missing from the installed home is refused. reviewer/tester/researcher deny the edit action in their own ordered permissions (enforced by the host, not prompt text); reviewer additionally denies git state changes and gh writes, researcher denies git commit and push. tester drives the agent-browser CLI through the shell per ~/.config/opencode/browser-windows.md. -ReadOnly runs the readonly profile named by roles.readonly (edit, shell and subagent denied in its own ordered permissions; Kiro ah-readonly parity) and is refused unless the installed readonly.md effectively denies all three actions; readonly is not selectable through -Role, and the reviewer role keeps a shell for tests, so it is NOT a read-only run. The legacy zai-coding-plan launcher (OpenCode 1.x, isolated config) has no V2 agents and refuses every role but peer.",
+      "rolesNote": "2026-11-14 (SH-4674): native OpenCode V2 agent profiles in ~/.config/opencode/agents, canonical in packages/coding-agent-dispatch/opencode/agents. -Role <name> runs `opencode run --agent <name>`; a role whose agent file is missing from the installed home is refused. reviewer/tester/researcher deny the edit action in their own ordered permissions (enforced by the host, not prompt text); reviewer additionally denies git state changes and gh writes, researcher denies git commit and push. tester drives the agent-browser CLI through the shell per ~/.config/opencode/browser-windows.md. -ReadOnly runs the readonly profile named by roles.readonly (edit, shell and subagent denied in its own ordered permissions) and is refused unless the installed readonly.md effectively denies all three actions; readonly is not selectable through -Role, and the reviewer role keeps a shell for tests, so it is NOT a read-only run. The legacy zai-coding-plan launcher (OpenCode 1.x, isolated config) has no V2 agents and refuses every role but peer.",
       "discoveryOwnerNote": "2026-11-14 (SH-4674/SH-4526): one tool-discovery owner per domain. The AgentHub lightweight-chat plugin (~/.config/opencode/plugins/lightweight-chat.js, canonical packages/coding-agent-dispatch/skills/dispatch/opencode/lightweight-chat.js, Install-OpenCodeToolDiscovery.ps1) owns native-tool and skill discovery: a session starts with find_tools plus execute and loads native tools on demand for the current turn. MCP/connected-app discovery belongs to native OpenCode Code Mode (execute + its search function); the plugin explicitly routes there and keeps no competing MCP catalog. Web search is the Tavily CLI (tvly, opencode-tavily plugin instructions): the builtin websearch provider has no entitlement on this fleet (SH-4083: 402 is BLOCKED, not working), so agents use `tvly search/extract --client-name opencode` through the shell.",
       "allowedModels": [
         "opencode-go/glm-5.3-flash",
@@ -713,37 +692,6 @@
       "ownerAction": null,
       "verifiedOn": "2026-11-10",
       "ownerDirection": "2026-11-10: owner directed that Kilo and MiMo Code be researched and made to work rather than left gated, after directing their onboarding into the managed fleet earlier the same day."
-    },
-    "kiro": {
-      "enabled": true,
-      "readOnly": {
-        "flags": ["--v3", "--agent", "ah-readonly"],
-        "omits": []
-      },
-      "readOnlyNote": "2026-11-11 `kiro-cli chat --help`: \"--v3 Launch the next generation Kiro agent\" and \"--agent <AGENT> Context profile to use\". Help has no read-only flag; the mechanism is the ah-readonly profile (packages/coding-agent-dispatch/kiro/agents/ah-readonly.json): its tools are read, glob, grep, thinking and todo only, with no shell, no write tool and no MCP server, and the dispatcher refuses a read-only run when the installed profile lists any other tool. An independent review on 2026-11-11 found the first choice, ah-reviewer, was not read-only (it keeps a shell and the Linear server), so it is no longer used for -ReadOnly. Not exercised with a model run.",
-      "model": "auto",
-      "agent": "ah-peer",
-      "roles": {
-        "engineer": "ah-engineer",
-        "reviewer": "ah-reviewer",
-        "readonly": "ah-readonly",
-        "tester": "ah-tester",
-        "architect": "ah-architect",
-        "incident": "ah-incident"
-      },
-      "rolesNote": "2026-11-11 (Linear SH-4418): -Role on the dispatcher. peer, the default, keeps the guarded agent above and its exact command. Every other role runs `kiro-cli chat --v3 --no-interactive --trust-all-tools --agent <profile> --model <model> <prompt>` on the profile named here; the sources are packages/coding-agent-dispatch/kiro/agents/ah-<role>.json. The dispatcher refuses a role whose profile file is missing from ~/.kiro/agents, and refuses -Role other than peer on every other host. -ReadOnly runs the reviewer profile and refuses engineer, tester, architect and incident, whose profiles carry a write tool. No role command was exercised with a model run.",
-      "agentNote": "~/.kiro/agents/ah-peer.json: read, write, shell, grep, glob, thinking and todo tools only, with the host's own MCP file not loaded. Shell denies git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, aws, doctl, vercel, kiro-cli login/logout/user, reset --hard, git clean, branch -D, schtasks and sc create. Reads of .env files, ~/.kiro/settings and ~/.aws are denied, as are writes under D:/Local-AI and ~/.kiro. Needed because --trust-all-tools approves every tool call.",
-      "allowedModels": [
-        "auto",
-        "claude-opus-5.5",
-        "claude-sonnet-5.5",
-        "claude-haiku-5.5"
-      ],
-      "allowedModelsNote": "Each listed model returned READY on the governed command on 2026-11-10. Credit multipliers from `kiro-cli chat --list-models`: auto 1.00x (Kiro picks the model per task), claude-opus-5.5 2.00x, claude-sonnet-5.5 1.30x, claude-haiku-5.5 0.06x. auto is the default on owner direction 2026-11-10 that Kiro should use capable models for complex work and not the cheapest one; route claude-opus-5.5 explicitly for the hardest tasks. The list records verified models and does not limit -Model.",
-      "reason": "2026-11-10: the governed command (`kiro-cli chat --no-interactive --trust-all-tools --agent ah-peer --model <model> <prompt>`) returned READY, exit 0. A second run asked for `doctl version` and `echo ALLOWED_OK`: the first was blocked by the agent's shell deny rule before execution and the second ran, so --trust-all-tools does not override an explicit deny. `kiro-cli agent validate` accepted the agent file.",
-      "ownerAction": null,
-      "verifiedOn": "2026-11-10",
-      "ownerDirection": "2026-11-10: owner directed integrating the Kiro stack into the agent fleet so its agents can be given major tasks. Same day: default to capable models, not the cheapest."
     },
     "qwen": {
       "enabled": true,

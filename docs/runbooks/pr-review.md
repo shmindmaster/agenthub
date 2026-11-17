@@ -15,8 +15,7 @@ owner keeps merge control.
 ## The model run is host-enforced read-only
 
 The model run is host-enforced read-only on claude, codex, factory,
-kiro, opencode and qwen. The reviewer always passes `-ReadOnly` to the dispatcher (and
-`-Role reviewer` on Kiro), picks its reviewer host only among hosts whose
+opencode and qwen. The reviewer always passes `-ReadOnly` to the dispatcher, picks its reviewer host only among hosts whose
 `dispatchPolicy.<host>.readOnly` in `registry/fleet-profile.json` records an
 enforced read-only mode, and exits BLOCKED (exit 3, no model run, nothing
 posted) when none is available. The flags for each host and the help text

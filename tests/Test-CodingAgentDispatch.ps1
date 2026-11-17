@@ -110,9 +110,9 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         [IO.File]::WriteAllText($stub, "#!/bin/sh`nexec '$node' '$recorder' `"`$@`"`n")
         [IO.File]::SetUnixFileMode($stub, [IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
     }
-    $ids = @('claude','codex','cursor','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code','kiro','qwen')
+    $ids = @('claude','codex','cursor','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code','qwen')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode-go/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; kiro = @{ enabled = $true; agent = 'ah-peer'; model = 'auto'; allowedModels = @('auto', 'claude-sonnet-5.5') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; qwen = @{ enabled = $true; model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
+    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode-go/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; qwen = @{ enabled = $true; model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -136,7 +136,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     foreach ($id in @('devin-cloud','jules','cursor-cloud','copilot-agent')) {
         $r = Run @('-HostId',$id,'-Prompt','ok'); Check "$id cloud refuses" ($r.Exit -eq 3 -and $r.Err -match 'hosted cloud execution')
     }
-    foreach ($id in @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro','qwen')) {
+    foreach ($id in @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','qwen')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         if ($id -eq 'copilot' -and $r.Exit -eq 3 -and $r.Err -match 'gh has no token for account sh-pendoah') {
             # Copilot dispatch reads the owner's sh-pendoah gh login; without it the
@@ -196,12 +196,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             $agentIndex = [Array]::IndexOf($d.Arguments, '--agent')
             Check 'Kilo runs unattended only under the policy-named guarded agent' ($agentIndex -ge 0 -and $d.Arguments[$agentIndex + 1] -eq 'peer')
         }
-        if ($id -eq 'kiro') {
-            $agentIndex = [Array]::IndexOf($d.Arguments, '--agent')
-            Check 'Kiro runs non-interactive with trusted tools and the prompt last' ($d.Arguments[0] -eq 'chat' -and $d.Arguments -contains '--no-interactive' -and $d.Arguments -contains '--trust-all-tools' -and $d.Arguments[-1] -eq 'ok')
-            Check 'Kiro runs unattended only under the policy-named guarded agent' ($agentIndex -ge 0 -and $d.Arguments[$agentIndex + 1] -eq 'ah-peer')
-            Check 'Kiro receives the policy model and runs in the task directory' ($d.Arguments -contains 'auto' -and $d.Cwd -in @($scratch, $scratchReal))
-        }
         if ($id -eq 'mimo-code') {
             Check 'MiMo runs with yolo approval, JSON events and explicit dir' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--yolo' -and $d.Arguments -contains '--format' -and $d.Arguments -contains '--dir' -and $d.Arguments -contains $scratch -and $d.Arguments[-1] -eq 'ok')
             Check 'MiMo receives the full provider/model policy id' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'xiaomi-token-plan-sgp/mimo-v2.6-pro')
@@ -226,27 +220,19 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     # does not limit -Model. An unlisted model is passed through with one stderr
     # note; only a malformed id is refused. Kilo and MiMo still take
     # provider/model ids only, for the recorded default and an explicit -Model.
-    foreach ($guarded in @('kilo', 'mimo-code', 'kiro')) {
+    foreach ($guarded in @('kilo', 'mimo-code')) {
         $fleet.dispatchPolicy.$guarded.Remove('agent'); Save-Fixture
         $r = Run @('-HostId',$guarded,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         Check "$guarded refuses an unattended run when policy names no guarded agent" ($r.Exit -eq 3 -and $r.Err -match 'guarded agent') $r.Err
         $fleet.dispatchPolicy.$guarded.agent = 'peer;echo'; Save-Fixture
         $r = Run @('-HostId',$guarded,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         Check "$guarded refuses a shell-unsafe agent name" ($r.Exit -eq 3 -and $r.Err -match 'guarded agent') $r.Err
-        $fleet.dispatchPolicy.$guarded.agent = $(if ($guarded -eq 'kiro') { 'ah-peer' } else { 'peer' }); Save-Fixture
+        $fleet.dispatchPolicy.$guarded.agent = 'peer'; Save-Fixture
     }
-    # ---------- SH-4418: Kiro roles and the enforced read-only mode ----------
-    # -ShowCommand prints the command and starts nothing. The Kiro profiles are
-    # looked up under the invoking user's home, pointed at the fixture here.
+    # ---------- SH-4418: roles and the enforced read-only mode ----------
+    # -ShowCommand prints the command and starts nothing.
     function ShowArgs($Result) { return [string](@(($Result.Out -split '\r?\n') -match '^args=')[0]) }
     function Arg([string]$Value) { if ($Value -match '[\s"]') { return (Quote $Value) } return $Value }
-    $roleNames = @('engineer', 'reviewer', 'tester', 'architect', 'incident')
-    $kiroAgentsDir = Join-Path (Join-Path $fixture '.kiro') 'agents'
-    $null = New-Item -ItemType Directory -Path $kiroAgentsDir -Force
-    foreach ($roleName in $roleNames) {
-        Copy-Item -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\kiro\agents\ah-$roleName.json") -Destination $kiroAgentsDir
-    }
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'packages\coding-agent-dispatch\kiro\agents\ah-readonly.json') -Destination $kiroAgentsDir
     # OpenCode V2 role agents (SH-4674): the dispatcher reads the installed
     # profile under the invoking user's home, pointed at the fixture here.
     $openCodeAgentsDir = Join-Path (Join-Path (Join-Path $fixture '.config') 'opencode') 'agents'
@@ -255,7 +241,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         Copy-Item -LiteralPath $ocAgent.FullName -Destination $openCodeAgentsDir
     }
     if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $fixture } else { $env:HOME = $fixture }
-    $fleet.dispatchPolicy.kiro['roles'] = @{ engineer = 'ah-engineer'; reviewer = 'ah-reviewer'; readonly = 'ah-readonly'; tester = 'ah-tester'; architect = 'ah-architect'; incident = 'ah-incident' }
     $fleet.dispatchPolicy.opencode['roles'] = @{ engineer = 'engineer'; reviewer = 'reviewer'; tester = 'tester'; researcher = 'researcher'; readonly = 'readonly' }
     # The real registry records the guarded peer agent; this block asserts the
     # same shape, and the cleanup below restores the keyless base fixture.
@@ -264,11 +249,10 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         claude  = @{ flags = @('--permission-mode', 'plan', '--permission-prompts', 'none'); omits = @('bypassPermissions') }
         codex   = @{ flags = @('--sandbox', 'read-only'); omits = @() }
         factory = @{ flags = @(); omits = @('--auto') }
-        kiro    = @{ flags = @('--v3', '--agent', 'ah-readonly'); omits = @() }
         opencode = @{ flags = @('--agent', 'readonly'); omits = @('peer') }
         qwen    = @{ flags = @('--approval-mode', 'plan'); omits = @('yolo') }
     }
-    $allDispatchHosts = @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','kiro','qwen')
+    $allDispatchHosts = @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','qwen')
     $createdPolicy = @()
     foreach ($id in $allDispatchHosts) {
         if (-not $fleet.dispatchPolicy.ContainsKey($id)) { $fleet.dispatchPolicy[$id] = @{}; $createdPolicy += $id }
@@ -279,30 +263,14 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Save-Fixture
 
     $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand')
-    Check 'Kiro without -Role keeps the exact guarded ah-peer command' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=chat --no-interactive --trust-all-tools --agent ah-peer --model auto ok') $r.Out
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','peer')
-    Check 'Kiro -Role peer is the same guarded ah-peer command' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=chat --no-interactive --trust-all-tools --agent ah-peer --model auto ok') $r.Out
-    foreach ($roleName in $roleNames) {
-        $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role',$roleName)
-        Check "Kiro -Role $roleName runs the V3 engine on ah-$roleName" ($r.Exit -eq 0 -and (ShowArgs $r) -ceq "args=chat --v3 --no-interactive --trust-all-tools --agent ah-$roleName --model auto ok") ($r.Out + $r.Err)
-    }
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Role','Engineer','-Model','claude-sonnet-5.5')
-    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'Kiro role run reaches the child with the role profile, the model and the prompt last' ($null -ne $d -and (@($d.Arguments) -join ' ') -ceq 'chat --v3 --no-interactive --trust-all-tools --agent ah-engineer --model claude-sonnet-5.5 ok') $r.Err
-    Remove-Item -LiteralPath (Join-Path $kiroAgentsDir 'ah-tester.json') -Force
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','tester')
-    Check 'Kiro refuses a role whose profile file is missing' ($r.Exit -eq 3 -and $r.Err -match 'ah-tester\.json' -and $r.Err -match 'missing' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','architect')
-    Check 'a missing profile refuses only its own role' ($r.Exit -eq 0 -and (ShowArgs $r) -match 'ah-architect') ($r.Out + $r.Err)
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','boss')
-    Check 'Kiro refuses an unknown role' ($r.Exit -eq 3 -and $r.Err -match 'is not a role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
-    $fleet.dispatchPolicy.kiro.roles.Remove('incident'); Save-Fixture
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','incident')
-    Check 'Kiro refuses a role that policy does not record' ($r.Exit -eq 3 -and $r.Err -match 'roles\.incident' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
-    $fleet.dispatchPolicy.kiro.roles['incident'] = 'ah-incident'; Save-Fixture
+    Check 'kiro is retired and refused as an unknown host' ($r.Exit -eq 3 -and $r.Err -match 'unknown host' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','boss')
+    Check 'OpenCode refuses an unknown role' ($r.Exit -eq 3 -and $r.Err -match 'is not a role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','architect')
+    Check 'a role that only Kiro had is no longer a role' ($r.Exit -eq 3 -and $r.Err -match 'is not a role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     foreach ($id in @('codex', 'claude', 'cursor', 'qwen')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','engineer')
-        Check "$id refuses -Role engineer and names the hosts that support roles" ($r.Exit -eq 3 -and $r.Err -match 'roles are supported only on: kiro, opencode' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+        Check "$id refuses -Role engineer and names the hosts that support roles" ($r.Exit -eq 3 -and $r.Err -match 'roles are supported only on: opencode, factory' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     }
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','peer')
     Check 'the default role is accepted on a host without roles' ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=exec --skip-git-repo-check -') ($r.Out + $r.Err)
@@ -353,8 +321,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'Factory refuses -ReadOnly with -Role engineer, a writing role' ($r.Exit -eq 3 -and $r.Err -match 'writing role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer','-ReadOnly')
     Check 'Factory -ReadOnly -Role reviewer omits --auto and delegates to the read-only droid' ($r.Exit -eq 0 -and (ShowArgs $r) -notmatch '--auto' -and (ShowArgs $r) -match '--only-tools') ((ShowArgs $r) + $r.Err)
-    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','architect')
-    Check 'Factory refuses a role its policy does not map' ($r.Exit -eq 3 -and $r.Err -match 'does not map role' -and $r.Err -match 'architect' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','researcher')
+    Check 'Factory refuses a role its policy does not map' ($r.Exit -eq 3 -and $r.Err -match 'does not map role' -and $r.Err -match 'researcher' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
     $fleet.dispatchPolicy.factory.roles.Remove('tester'); Save-Fixture
     $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','tester')
     Check 'Factory refuses an unmapped role naming the mapped ones' ($r.Exit -eq 3 -and $r.Err -match 'does not map role' -and $r.Err -match 'engineer' -and $r.Err -match 'reviewer' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
@@ -377,31 +345,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer','-ReadOnly')
     Check 'Factory -ReadOnly validates a CRLF droid file without a carriage-return refusal' ($r.Exit -eq 0 -and (ShowArgs $r) -match '--only-tools' -and $r.Err -notmatch 'neither the read-only category') ((ShowArgs $r) + $r.Err)
     [IO.File]::WriteAllText($reviewerDroid, $reviewerDroidText)
-    foreach ($roleArgs in @(@(), @('-Role', 'reviewer'), @('-Role', 'peer'))) {
-        $r = Run (@('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly') + $roleArgs)
-        Check "Kiro -ReadOnly $($roleArgs -join ' ') runs the V3 reviewer profile" ($r.Exit -eq 0 -and (ShowArgs $r) -ceq 'args=chat --v3 --no-interactive --trust-all-tools --agent ah-readonly --model auto ok' -and $r.Out -match '(?m)^stdin=no') ($r.Out + $r.Err)
-    }
-    foreach ($writingRole in @('engineer', 'architect', 'incident')) {
-        $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly','-Role',$writingRole)
-        Check "Kiro refuses -ReadOnly with -Role $writingRole" ($r.Exit -eq 3 -and $r.Err -match 'writing role' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
-    }
-    $reviewerProfile = Join-Path $kiroAgentsDir 'ah-readonly.json'
-    $reviewerProfileText = [IO.File]::ReadAllText($reviewerProfile)
-    [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText.Replace('"read",', '"read", "write",'))
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
-    Check 'Kiro refuses -ReadOnly when the installed reviewer profile grants a write tool' ($r.Exit -eq 3 -and $r.Err -match 'grants a write tool' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-Role','reviewer')
-    Check 'the write-tool check belongs to -ReadOnly, not to the role' ($r.Exit -eq 0) ($r.Out + $r.Err)
-    [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText.Replace('"read",', '"read", "shell",'))
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
-    Check 'Kiro refuses -ReadOnly when the installed profile grants a shell' ($r.Exit -eq 3 -and $r.Err -match 'shell' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
-    [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText.Replace('"read",', '"read", "@linear",'))
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
-    Check 'Kiro refuses -ReadOnly when the installed profile grants an MCP server' ($r.Exit -eq 3 -and $r.Err -match '@linear' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
-    Remove-Item -LiteralPath $reviewerProfile -Force
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
-    Check 'Kiro refuses -ReadOnly when the reviewer profile is not installed' ($r.Exit -eq 3 -and $r.Err -match 'ah-readonly\.json' -and $r.Err -match 'missing' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
-    [IO.File]::WriteAllText($reviewerProfile, $reviewerProfileText)
 
     # ---------- SH-4674: OpenCode V2 roles and the enforced read-only agent ----------
     foreach ($roleName in @('engineer', 'reviewer', 'tester', 'researcher')) {
@@ -542,7 +485,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check '-List still prints one three-column row per registered host' ($r.Exit -eq 0 -and $listRows.Count -eq $ids.Count -and @($listRows | Where-Object { @($_ -split "`t").Count -ne 3 }).Count -eq 0 -and $r.Out -match "(?m)^grok\tcallable\tfile") $r.Out
     $r = Run @('-List','-ReadOnly')
     $readOnlyRows = @(($r.Out -split '\r?\n') | Where-Object { $_ } | ForEach-Object { ($_ -split "`t")[0] })
-    Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,factory,kiro,opencode,qwen') ($r.Out + $r.Err)
+    Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,factory,opencode,qwen') ($r.Out + $r.Err)
     $fleet.dispatchPolicy['codex']['enabled'] = $false; Save-Fixture
     $r = Run @('-List','-ReadOnly')
     Check '-List -ReadOnly leaves out a read-only host that policy disables' ($r.Exit -eq 0 -and $r.Out -notmatch '(?m)^codex\t' -and $r.Out -match '(?m)^claude\t') $r.Out
@@ -572,8 +515,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         }
         $fleet.dispatchPolicy[$id]['readOnly'] = $fixtureBefore
     }
-    $realRoles = $realPolicy.kiro.roles
-    Check 'registry records the Kiro role profiles next to the guarded agent' ([string]$realPolicy.kiro.agent -ceq 'ah-peer' -and @($roleNames | Where-Object { [string]$realRoles.$_ -cne "ah-$_" }).Count -eq 0 -and @($roleNames | Where-Object { -not (Test-Path -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\kiro\agents\ah-$_.json")) }).Count -eq 0) ($realRoles | Out-String)
     $realOcRoles = $realPolicy.opencode.roles
     $ocRoleNames = @('engineer', 'reviewer', 'tester', 'researcher', 'readonly')
     Check 'registry records the OpenCode role agents next to the guarded agent' ([string]$realPolicy.opencode.agent -ceq 'peer' -and @($ocRoleNames | Where-Object { [string]$realOcRoles.$_ -cne $_ }).Count -eq 0 -and @($ocRoleNames | Where-Object { -not (Test-Path -LiteralPath (Join-Path $repoRoot "packages\coding-agent-dispatch\opencode\agents\$_.md")) }).Count -eq 0) ($realOcRoles | Out-String)
@@ -581,21 +522,10 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     # Back to the state the rest of this file expects.
     foreach ($id in $allDispatchHosts) { if ($fleet.dispatchPolicy.ContainsKey($id)) { $fleet.dispatchPolicy[$id].Remove('readOnly') } }
     foreach ($id in $createdPolicy) { $fleet.dispatchPolicy.Remove($id) }
-    $fleet.dispatchPolicy.kiro.Remove('roles')
     $fleet.dispatchPolicy.opencode.Remove('roles')
     $fleet.dispatchPolicy.opencode.Remove('agent'); Save-Fixture
     if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $oldWindowsHome } else { $env:HOME = $oldPosixHome }
 
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','claude-sonnet-5.5')
-    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'Kiro routes a listed explicit model without a note'($null -ne $d -and $d.Arguments -contains 'claude-sonnet-5.5' -and $d.Arguments -notcontains 'auto' -and $r.Err -notmatch 'note:') $r.Err
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','claude-opus-5.5')
-    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
-    Check 'Kiro passes an unlisted model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'claude-opus-5.5' -and $r.Err -match (PassNote 'kiro' 'claude-opus-5.5')) $r.Err
-    Check 'An unlisted model is noted exactly once' (@(($r.Err -split '\r?\n') -match '^note:').Count -eq 1) $r.Err
-    $r = Run @('-HostId','kiro','-Prompt','ok','-Cwd',$scratch,'-Model','claude opus;echo')
-    Check 'Kiro refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
     $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','mimo/mimo-v2.5')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     Check 'Kilo routes a listed explicit provider/model' ($null -ne $d -and $d.Arguments -contains 'mimo/mimo-v2.5' -and $d.Arguments -notcontains 'mimo/mimo-v2.6-pro' -and $r.Err -notmatch 'note:') $r.Err
@@ -603,6 +533,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
     Check 'Kilo passes an unlisted provider/model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'mimo/other-model' -and $r.Err -match (PassNote 'kilo' 'mimo/other-model')) $r.Err
+    Check 'An unlisted model is noted exactly once' (@(($r.Err -split '\r?\n') -match '^note:').Count -eq 1) $r.Err
     Check 'Kilo keeps its guarded agent and plan key on an unlisted model' ($null -ne $d -and $d.Arguments -contains '--agent' -and $d.Arguments -contains 'peer' -and $d.ApiKeyVars.MIMO_API_KEY) $r.Err
     $r = Run @('-HostId','kilo','-Prompt','ok','-Cwd',$scratch,'-Model','mimo-v2.6-pro')
     Check 'Kilo refuses a bare model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model')

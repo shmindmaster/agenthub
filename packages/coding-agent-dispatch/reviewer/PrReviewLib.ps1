@@ -10,7 +10,7 @@
 $script:PrReviewKnownHosts = @(
     'claude', 'codex', 'cursor-agent', 'cursor', 'mimo-code', 'antigravity',
     'factory', 'windsurf', 'copilot', 'grok', 'opencode', 'devin', 'kilo',
-    'cline', 'warp', 'amp', 'kiro'
+    'cline', 'warp', 'amp'
 )
 
 # Event triggers the reviewer accepts from an event-driven caller
@@ -141,7 +141,7 @@ function Get-PrReviewReadOnlyHosts {
         if ($null -eq $record.Value.PSObject.Properties['flags']) { continue }
         $supported += [string]$property.Name
     }
-    $preferred = @('codex', 'claude', 'kiro', 'factory')
+    $preferred = @('codex', 'claude', 'factory')
     $ordered = @($preferred | Where-Object { $_ -in $supported })
     $ordered += @($supported | Where-Object { $_ -notin $preferred } | Sort-Object)
     return @($ordered)
