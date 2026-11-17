@@ -36,12 +36,19 @@
       "recordedOn": "2026-11-04",
       "note": "Owner direction 2026-11-04: no direct MCP entries beyond what a host needs, on every coding host. Each key under hosts is a plugin-only host, and its value lists the only direct entries allowed there, with the reason. pluginOwnersByHost on each server records which plugin carries it. tests/Test-PluginOnlyMcp.ps1 fails on any other entry. Hosts not listed here keep the older write-everything behaviour.",
       "hosts": {
-        "claude": {},
-        "codex": {
-          "node_repl": "Written by Codex itself; its bundled browser, chrome and computer-use plugins need it."
+        "claude": {
+          "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep vendor AWS skills and suppress plugin:aws-core:aws-mcp when the hosted connection owns this server. Native OAuth consent is per host and AWS identity."
         },
-        "cursor": {},
-        "grok": {},
+        "codex": {
+          "node_repl": "Written by Codex itself; its bundled browser, chrome and computer-use plugins need it.",
+          "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep the vendor AWS plugin and disable its bundled aws-mcp through plugin-scoped MCP policy when the hosted connection owns this server."
+        },
+        "cursor": {
+          "aws-mcp": "AWS documents a direct hosted OAuth endpoint for Cursor. Use its native remote MCP configuration and consent flow, with no local proxy."
+        },
+        "grok": {
+          "aws-mcp": "A native remote override selects AWS's hosted OAuth endpoint while vendor skills remain installed. Preserve the existing disabled state and verify that the effective source replaces the bundled proxy before enabling."
+        },
         "factory": {},
         "antigravity": {},
         "copilot": {},
@@ -67,7 +74,7 @@
           "linear": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "notion": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "sentry": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
-          "aws-mcp": "OpenCode cannot load an ah-* plugin, and this local proxy is its only AWS route. Starts per session; remove it if AWS is not used there. This entry is deliberately a permission and not a registration: there is no aws-mcp row in mcpServers, and adding one was tried and reverted on 2026-11-05. The proxy is an opt-in local process a human enabled in this file, and the sync never generates it, at any -ScopeProfile, so a registry row turned a tolerated entry into a managed one the writer could not reproduce and reported drift on two hosts whose configuration was already correct. This allowlist is what keeps the prune from removing it.",
+          "aws-mcp": "AWS now supports a direct hosted OAuth endpoint, replacing the local SigV4 proxy after native consent and connection verification. This remains an owner-configured exception, not a generated mcpServers row. Preserve the running connection until the replacement works and retain profile switching only as an explicitly selected local fallback.",
           "clerk": "No official Clerk OpenCode plugin format; vendor CLI configures the hosted remote MCP, no local process."
         },
         "amp": {},
@@ -84,7 +91,7 @@
         "mimo-code": {},
         "kiro": {
           "linear": "Owner-authored remote entry in ~/.kiro/settings/mcp.json that predates fleet management. Runs no local process.",
-          "aws-mcp": "Owner-authored local proxy entry that predates fleet management. Starts per session; the dispatch agent does not load this file. A permission, not a registration: the sync never generates it.",
+          "aws-mcp": "Owner-configured AWS connection. Kiro supports AWS's direct hosted OAuth endpoint without a local proxy. The dispatch agent does not load this file. This is an exception, not a generated registration.",
           "expo": "Kiro writes this Expo remote entry itself; not an AgentHub registration. Runs no local process.",
           "kirocrew-core": "Kiro Crew product MCP (host-written). Left alone per docs/runbooks/kiro-fleet.md.",
           "kirocrew-cron": "Kiro Crew product MCP (host-written). Left alone per docs/runbooks/kiro-fleet.md."
