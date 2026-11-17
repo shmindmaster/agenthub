@@ -38,6 +38,7 @@ Read when scoring or writing the handoff: [demo handoff](../../references/demo-h
 - Do not start capture before the handoff validates because it is only a quick take.
 - Do not work around a missing harness item in the edit. It is a product fix.
 - Do not change another application repository, even for a shared defect.
+- Product-Readiness Feedback from `media-studio` is defect input: search the tracker for the existing owner before filing, fix through `build` with independent review, release, then revalidate the handoff against that revision. Capture resumes only on a fresh `DEMO-READY`.
 - When the hero moment is an approval or an AI decision, build it with [execution controls](../../kits/execution-controls/README.md), so the guardrail on screen is the real one.
 
 ## Output
