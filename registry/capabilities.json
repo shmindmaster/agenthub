@@ -454,7 +454,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+skills",
       "canonicalSource": "packages/product",
-      "contentHash": "C5382BE6EF202F6DC67151ADD4F23864A61205F8186891B1FF53B1FD8D6CFC9D",
+      "contentHash": "0996D6E10B856CACEC2F465B2998F5A4A38D55AB3EEC548B12F9784900577E9D",
       "hashBasis": "packages/product",
       "status": "active-canonical",
       "notes": "Owns the product skills audit, design, build, verify and demo and the reviewer agent (2.1.2, no hooks). verify and demo load references/authenticated-acceptance.md, which carries the session, role, denial and data-boundary evidence an authenticated journey needs; the fleet's provider-specific contract stays in docs/runbooks/clerk-auth.md. Also owns the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
