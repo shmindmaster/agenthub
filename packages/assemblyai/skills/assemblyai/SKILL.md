@@ -27,7 +27,7 @@ Optional deep reference: `npx skills add AssemblyAI/assemblyai-skill`. That repo
 
 | Server | URL | Use it to |
 |---|---|---|
-| `assemblyai-docs` | `https://assemblyai.com/docs/mcp` | Look up API details while coding. Free, no sign-in. |
+| `assemblyai-docs` | `https://www.assemblyai.com/docs/mcp` | Look up API details while coding. Free, no sign-in. |
 | `assemblyai` | `https://mcp.assemblyai.com/mcp` | Transcribe and analyze audio at a public URL or an `upload_url`. OAuth sign-in. Usage is billed. |
 
 ## Gotchas

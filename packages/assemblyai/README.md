@@ -15,7 +15,7 @@ Thin AgentHub wrapper for AssemblyAI. It holds one routing skill and points each
 Servers:
 
 - `assemblyai`: `https://mcp.assemblyai.com/mcp` ([source](https://www.assemblyai.com/docs/mcp-server)). OAuth sign-in. Usage is billed.
-- `assemblyai-docs`: `https://assemblyai.com/docs/mcp`. No sign-in, free.
+- `assemblyai-docs`: `https://www.assemblyai.com/docs/mcp`. No sign-in, free.
 
 ## Why it wraps instead of copies
 

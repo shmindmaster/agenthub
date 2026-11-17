@@ -960,7 +960,7 @@
       "managedSkillNames": [
         "assemblyai"
       ],
-      "contentHash": "74BB30A9B1C0D7AF0A28DDEC271D5FBDAA61D1D1952DB3342CBA888AB7862FB8",
+      "contentHash": "C937D95A0C13CCC1EBB03DCECB4F1673737354D967B5B09A4FD4D193A8979690",
       "hashBasis": "packages/assemblyai",
       "status": "active-canonical",
       "hostMappings": [
