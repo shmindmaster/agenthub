@@ -62,7 +62,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Fixture sync failed: $run" }
     $first = @{}
     foreach ($id in @('claude','codex','cursor','grok','opencode','cline','windsurf')) {
-        $raw = Get-Content -LiteralPath $paths[$id] -Raw
+        $raw = Get-Content -LiteralPath $paths[$id] -Raw -Encoding UTF8
         Assert-True ($raw.Contains('https://aws.example/mcp?oauth=initialize')) "$id keeps the native AWS endpoint"
         Assert-True (-not $raw.Contains('old.example') -and -not $raw.Contains('mcp_servers.stray') -and -not $raw.Contains('"stray"')) "$id removes unrelated stale entries"
         if ($id -in @('codex','grok')) {
@@ -73,16 +73,16 @@ try {
         }
         $first[$id] = $raw
     }
-    $oc = Get-Content -LiteralPath $paths.opencode -Raw | ConvertFrom-Json
+    $oc = Get-Content -LiteralPath $paths.opencode -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($oc.mcp.servers.browse.command[0] -eq 'browse' -and $oc.mcp.servers.'aws-mcp'.disabled -eq $true -and $oc.mcp.servers.'aws-mcp'.pool -eq $true) 'OpenCode preserves native nested connections and their switches'
-    $negative = Get-Content -LiteralPath $paths.factory -Raw
+    $negative = Get-Content -LiteralPath $paths.factory -Raw -Encoding UTF8
     Assert-True (-not $negative.Contains('aws.example')) 'exceptions do not leak into the next host'
-    $absent = Get-Content -LiteralPath $paths.warp -Raw
+    $absent = Get-Content -LiteralPath $paths.warp -Raw -Encoding UTF8
     Assert-True (-not $absent.Contains('aws-mcp')) 'an allowed native connection is not generated when absent'
     $run = & $hostExe @syncArgs 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Second fixture sync failed: $run" }
     foreach ($id in $first.Keys) {
-        Assert-True ($first[$id] -ceq (Get-Content -LiteralPath $paths[$id] -Raw)) "$id is byte-stable after a second prune"
+        Assert-True ($first[$id] -ceq (Get-Content -LiteralPath $paths[$id] -Raw -Encoding UTF8)) "$id is byte-stable after a second prune"
     }
 } finally {
     $resolved = [IO.Path]::GetFullPath($fixture)

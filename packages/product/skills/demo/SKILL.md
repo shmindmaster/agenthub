@@ -8,18 +8,18 @@ description: Produces a validated demo-readiness handoff for a real workflow. Us
 ## Workflow contract
 
 1. Use the verified revision, demo journey and approved synthetic data.
-2. Prove the launch, reset and observed demo actions, then hand the validated demo-readiness package to Media Studio for capture if requested.
+2. Prove launch, reset and demo actions; hand validated readiness to Media Studio when capture is requested.
 3. Return the demo-readiness handoff, artifact paths and open risks.
 4. If a role, revision or journey fails, block capture and route the issue back to `verify` or `build`.
 
-Fix the product, not the recording. Start from one repository and the workflows to show; no earlier files are needed. Requires Node.
+Fix the product; no earlier files are needed. Requires Node.
 
 ## Checklist
 
-Copy this list and tick each item.
+Complete this checklist.
 
-- [ ] Read the repository's instructions. Stay on the demo path, plus defects that share a root cause with it.
-- [ ] For each workflow, name the user, the job, the outcome and one hero moment.
+- [ ] Read repository instructions. Scope work to the demo path and defects sharing its root cause.
+- [ ] Per workflow, name the user, job, outcome and hero moment.
 - [ ] Run the real path with synthetic data: sparse, dense, loading, error, permission, recovery, narrow, zoomed, keyboard, return later.
 - [ ] Read when a workflow needs a session: [authenticated acceptance](../../references/authenticated-acceptance.md). Prove each role and denial.
 - [ ] Score the eleven criteria and record `beforeVerdict` before changing anything.
@@ -38,7 +38,7 @@ Read when scoring or writing the handoff: [demo handoff](../../references/demo-h
 - Do not start capture before the handoff validates because it is only a quick take.
 - Do not work around a missing harness item in the edit. It is a product fix.
 - Do not change another application repository, even for a shared defect.
-- Product-Readiness Feedback from `media-studio` is defect input: search the tracker for the existing owner before filing, fix through `build` with independent review, release, then revalidate the handoff against that revision. Capture resumes only on a fresh `DEMO-READY`.
+- Treat `media-studio` Product-Readiness Feedback as defects: find the existing tracker owner, fix through `build`, independently review, release and revalidate that revision. Resume capture only on fresh `DEMO-READY`.
 - When the hero moment is an approval or an AI decision, build it with [execution controls](../../kits/execution-controls/README.md), so the guardrail on screen is the real one.
 
 ## Output
