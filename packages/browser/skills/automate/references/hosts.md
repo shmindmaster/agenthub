@@ -15,10 +15,30 @@ For general browsing, use the host's own tool when the row says native. Otherwis
 | Amp | none | Use the client |
 | Cline CLI | official `agent-browser` plugin | Native |
 | Devin CLI | none confirmed | Use the client |
-| OpenCode CLI | none | Use the client |
+| OpenCode with Browse | `tools.browse.*` when installed and callable | Native Browse; verify live relay and extension status |
 | Warp | cloud sandbox only | Use the client |
 
 Computer Use and any headed browser take the foreground and show a window. Avoid them for background work.
+
+## OpenCode Browse
+
+Prefer the callable native Browse tools for an existing Chrome profile. Read
+`browse.status` (or `browse status --json` from the native Browse CLI) before
+diagnosing a connection. A running relay alone does not prove the extension is
+connected. Recheck an old `paired-offline` result; an already connected extension
+needs no restart or re-pairing. Check the intended profile and extension only when
+the fresh status still reports them offline. Do not open or foreground the user's
+browser to run a diagnostic. Keep agent tabs in the background; use
+`browse.handoff` only for a real human login, consent, CAPTCHA or payment step.
+The installed tool list varies by version; inspect this session's tools instead
+of assuming a fixed count. Use the client fallback only if native Browse cannot
+perform the required operation. A cloud browser has its own sessions and does not
+inherit desktop logins.
+
+Before asking for a repository list or starting cloud setup, reuse the current
+request, connected tracker and prior environment records. Verify existing
+environments and their exact revision before proposing replacements. An old
+offline browser result does not imply that cloud environments are missing.
 
 ## Engines
 

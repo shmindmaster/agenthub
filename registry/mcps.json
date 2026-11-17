@@ -69,6 +69,8 @@
           "clerk": "Cline extension has no plugin MCP loader; official upstream plugin also serves the CLI. Remote only, off by default."
         },
         "opencode": {
+          "browse": "OpenCode's native real-profile browser integration uses a host-owned local relay. Preserve its native registration; cloud browsers do not inherit desktop logins.",
+          "desktop-commander": "Existing owner-configured local device and filesystem fallback. Prefer adequate host tools and keep activation task-scoped; the hosted Desktop Commander route still requires a local device agent.",
           "descript": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "exa": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "linear": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
