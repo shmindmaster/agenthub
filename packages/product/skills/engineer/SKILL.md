@@ -1,6 +1,6 @@
 ---
 name: engineer
-description: Applies portfolio engineering rules to code changes, refactors, reviews and repo scans. Use when writing or reviewing code, splitting a large file, planning a refactor or layer boundary, or scanning a repo for quality problems. Not for UX review; use audit.
+description: Applies portfolio engineering rules to code changes, refactors, reviews and repo scans. Use when reviewing code against portfolio rules, splitting a large file, planning a refactor or layer boundary, or scanning a repo for quality problems. Not for UX review; use audit.
 ---
 # Engineer
 

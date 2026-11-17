@@ -1,8 +1,8 @@
 ---
 name: dispatch
-description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts. The enabled hosts are set by dispatchPolicy in fleet-profile.json; never assume Codex or Claude.
+description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts.
 metadata:
-  version: "0.10.1"
+  version: "0.10.2"
 ---
 
 # Dispatch to another coding agent
