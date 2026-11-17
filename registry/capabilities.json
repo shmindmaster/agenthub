@@ -469,7 +469,8 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
           "components": [
             "skills",
             "agents"
@@ -597,7 +598,8 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
           "components": [
             "skills",
             "catalog"
@@ -712,7 +714,8 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
           "components": [
             "skills"
           ]
@@ -827,7 +830,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "DE0A7DEA9E121A6AA25412B6D8A54D8513B63A2C13B465745E924B5779D530A1",
+      "contentHash": "390D4394AF8152311EACFE339990FB615A7C922265ADEC16EBCB9C052D0E242D",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -879,15 +882,16 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
           "components": [
             "skills"
           ]
         },
         {
           "hostId": "cursor-agent",
-          "deploymentStatus": "native-local-plugin",
-          "nativeOwnerHost": "cursor"
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude"
         },
         {
           "hostId": "amp",
@@ -941,7 +945,7 @@
           ]
         }
       ],
-      "hostMappingsNote": "2026-11-10: packaging upgraded to the media-studio pattern -- root plugin.json is the version authority, with .claude-plugin, .codex-plugin, .cursor-plugin, .devin-plugin and .antigravity-plugin projections plus an empty .mcp.json. Native plugin install on claude and codex (the primary orchestrators, through the agenthub marketplace), native local plugin on cursor, devin, factory, antigravity and amp, extension junction on cline; the shared loose skill library is disabled; other mapped surfaces require an explicitly supported host-local route or remain blocked. 0.4.1: cursor-agent observes cursor's native-local-plugin install and vscode-insiders observes the Copilot marketplace install through the nativeOwnerHost alias, so each owner installs once for its surface. kilo, mimo-code and qwen receive only the dispatch skill as a host-local junction under ~/.kilocode/skills, ~/.mimocode/skills and ~/.qwen/skills (native skill projection, not an ah-* plugin; installed by Sync-Plugins through Install-WarpSkills.ps1). The callable set is Invoke-CodingAgent.ps1 -List, not this host list. GUI and unverified hosts stay refused inside the script.",
+      "hostMappingsNote": "2026-11-10: packaging upgraded to the media-studio pattern -- root plugin.json is the version authority, with .claude-plugin, .codex-plugin, .cursor-plugin, .devin-plugin and .antigravity-plugin projections plus an empty .mcp.json. Native plugin install on claude and codex (the primary orchestrators, through the agenthub marketplace), native local plugin on cursor, devin, factory, antigravity and amp, extension junction on cline; the shared loose skill library is disabled; other mapped surfaces require an explicitly supported host-local route or remain blocked. 2026-11-17: cursor and cursor-agent observe Claude's marketplace install, which Cursor imports, so no second local copy is made. 0.4.1: cursor-agent observed cursor's native-local-plugin install and vscode-insiders observes the Copilot marketplace install through the nativeOwnerHost alias, so each owner installs once for its surface. kilo, mimo-code and qwen receive only the dispatch skill as a host-local junction under ~/.kilocode/skills, ~/.mimocode/skills and ~/.qwen/skills (native skill projection, not an ah-* plugin; installed by Sync-Plugins through Install-WarpSkills.ps1). The callable set is Invoke-CodingAgent.ps1 -List, not this host list. GUI and unverified hosts stay refused inside the script.",
       "dependencies": {
         "requires": [],
         "recommends": [],
@@ -960,7 +964,7 @@
       "managedSkillNames": [
         "assemblyai"
       ],
-      "contentHash": "C937D95A0C13CCC1EBB03DCECB4F1673737354D967B5B09A4FD4D193A8979690",
+      "contentHash": "BD7CFDD8377E787F3B033B9A72219D137587BF17B64BF6215F54FD5EA600C4AE",
       "hashBasis": "packages/assemblyai",
       "status": "active-canonical",
       "hostMappings": [
@@ -982,7 +986,8 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
           "components": [
             "skills",
             "mcp"
@@ -1125,7 +1130,8 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
           "components": [
             "skills"
           ]
@@ -1214,7 +1220,8 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
           "components": [
             "skills"
           ]

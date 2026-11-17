@@ -54,6 +54,12 @@
   `scripts/Install-AmpPlugins.py`. Warp has no plugin format, so it has skill junctions from
   `scripts/Install-WarpSkills.ps1` and seven remote servers named in the policy. Devin has no
   direct servers. Each host's own status command confirmed the install; no session has run.
+- **Cursor uses the Claude import (2026-11-17):** Cursor imports the plugins installed and
+  enabled in Claude, and keys plugins by marketplace and name, so the AgentHub copies in
+  `~/.cursor/plugins/local` made every `ah-*` plugin, skill and subagent appear twice. The
+  `cursor` and `cursor-agent` rows now declare `nativeOwnerHost: "claude"`, the local copies
+  are removed, and `Install-ClerkFleet.py` no longer copies Clerk for Cursor. The entry below
+  is history.
 - **Cursor local plugins (2026-11-04):** Cursor IDE and Cursor Agent reject a link in
   `~/.cursor/plugins/local` whose target is outside that folder, and a Windows junction
   counts as a link, so no `ah-*` plugin had been loading there. Cursor's own log records the

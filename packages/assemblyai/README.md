@@ -31,7 +31,7 @@ Status: **help** means checked against the installed CLI's help, **docs** means 
 |---|---|---|---|
 | Claude Code | `claude plugin marketplace add shmindmaster/agenthub`, then `claude plugin install ah-assemblyai@agenthub` | `claude plugin disable ah-assemblyai@agenthub` | help |
 | Codex | `codex plugin marketplace add shmindmaster/agenthub`, then `codex plugin add ah-assemblyai@agenthub` | `[plugins."ah-assemblyai@agenthub"] enabled = false` in `~/.codex/config.toml` | help, docs |
-| Cursor | Copy this folder to `~/.cursor/plugins/local/assemblyai`, then run Developer: Reload Window. Symlinks from outside that folder are skipped | Remove the folder | docs |
+| Cursor | Install it in Claude Code; Cursor imports Claude's plugins. A second copy in `~/.cursor/plugins/local` lists everything twice | Disable it in Claude, or under Customize > Plugins in Cursor | docs |
 | Copilot CLI | `copilot plugin install shmindmaster/agenthub:packages/assemblyai` | `copilot plugin disable assemblyai` | help |
 | Antigravity | `agy plugin install ./packages/assemblyai`, then `agy plugin enable assemblyai` | `agy plugin disable assemblyai` | help, docs |
 | Grok | `grok plugin install shmindmaster/agenthub#packages/assemblyai` | `grok plugin disable assemblyai` | help |

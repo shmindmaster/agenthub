@@ -4,14 +4,14 @@ $root = Split-Path -Parent $PSScriptRoot
 $testRoot = [IO.Directory]::CreateTempSubdirectory('agenthub-plugin-audit-')
 try {
     $cli = Join-Path $root 'scripts/AgentHub.ps1'
-    $output = & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId cursor -PluginId ah-browser -Json
+    $output = & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId amp -PluginId ah-browser -Json
     if ($LASTEXITCODE) { throw "Plugin audit failed: $output" }
     $report = $output | ConvertFrom-Json
     if ($report.mode -ne 'audit' -or @($report.mappings).Count -ne 1) { throw 'Expected one audit row' }
     $row = $report.mappings[0]
-    if ($row.host -ne 'cursor' -or $row.plugin -ne 'ah-browser' -or $row.status -ne 'missing' -or -not $row.expected) { throw 'Incorrect filtered row' }
+    if ($row.host -ne 'amp' -or $row.plugin -ne 'ah-browser' -or $row.status -ne 'missing' -or -not $row.expected) { throw 'Incorrect filtered row' }
     if (@(Get-ChildItem $testRoot.FullName -Force).Count) { throw 'Read-only audit created files' }
-    & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId cursor -PluginId ah-browser -Apply *> $null
+    & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId amp -PluginId ah-browser -Apply *> $null
     if ($LASTEXITCODE -eq 0 -or @(Get-ChildItem $testRoot.FullName -Force).Count) { throw 'Apply accepted an unpublished checkout or alternate profile' }
     & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId invalid-host -Json *> $null
     if ($LASTEXITCODE -eq 0) { throw 'Unknown host filter reported success' }
@@ -125,26 +125,36 @@ try {
     $mimoStatus = [string](@($dispatchReport.mappings | Where-Object host -EQ 'mimo-code')).status
     if ($kiloStatus -ne 'unmanaged' -or $mimoStatus -ne 'unmanaged') { throw "foreign skill content not unmanaged: kilo=$kiloStatus mimo-code=$mimoStatus" }
 
-    # --- Surface routing: cursor-agent and vscode-insiders observe through
-    # their declared native owner; one owner install satisfies both rows. ---
+    # --- Surface routing: cursor and cursor-agent observe Claude's install,
+    # which Cursor imports, and vscode-insiders observes Copilot's; one owner
+    # install satisfies every row and no second Cursor copy is made. ---
     $aliasHome = Join-Path $testRoot.FullName 'aliashome'
     [void][IO.Directory]::CreateDirectory($aliasHome)
     $dispatchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $aliasHome -PluginId coding-agent-dispatch -Json | ConvertFrom-Json)
     $surfaceRow = @($dispatchReport.mappings | Where-Object host -EQ 'cursor-agent')
+    $cursorRow = @($dispatchReport.mappings | Where-Object host -EQ 'cursor')
     $insiderRow = @($dispatchReport.mappings | Where-Object host -EQ 'vscode-insiders')
-    if ([string]$surfaceRow.nativeOwnerHost -ne 'cursor' -or [string]$surfaceRow.status -ne 'missing') { throw "cursor-agent should audit missing through cursor, got status=$($surfaceRow.status) owner=$($surfaceRow.nativeOwnerHost)" }
+    foreach ($aliasRow in $surfaceRow, $cursorRow) {
+        if ([string]$aliasRow.nativeOwnerHost -ne 'claude' -or [string]$aliasRow.status -ne 'blocked') { throw "$($aliasRow.host) should stay blocked on the absent Claude registration, got status=$($aliasRow.status) owner=$($aliasRow.nativeOwnerHost)" }
+    }
     if ([string]$insiderRow.nativeOwnerHost -ne 'copilot' -or [string]$insiderRow.status -ne 'blocked') { throw "vscode-insiders should stay blocked on the absent copilot registration, got status=$($insiderRow.status) owner=$($insiderRow.nativeOwnerHost)" }
-    $cursorPlugin = Join-Path $aliasHome '.cursor/plugins/local/ah-coding-agent-dispatch'
-    Copy-Item -LiteralPath (Join-Path $root 'packages/coding-agent-dispatch') -Destination $cursorPlugin -Recurse
+    $claudePlugin = Join-Path $aliasHome '.claude/plugins/cache/agenthub/ah-coding-agent-dispatch'
+    Copy-Item -LiteralPath (Join-Path $root 'packages/coding-agent-dispatch') -Destination $claudePlugin -Recurse
+    $dispatchVersion = (Get-Content -Raw (Join-Path $root 'packages/coding-agent-dispatch/plugin.json') | ConvertFrom-Json).version
+    $installedRegistry = @{ version = 2; plugins = @{ 'ah-coding-agent-dispatch@agenthub' = @(@{ scope = 'user'; version = $dispatchVersion; installPath = $claudePlugin }) } }
+    [IO.File]::WriteAllText((Join-Path $aliasHome '.claude/plugins/installed_plugins.json'), ($installedRegistry | ConvertTo-Json -Depth 6))
     $dispatchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $aliasHome -PluginId coding-agent-dispatch -Json | ConvertFrom-Json)
-    $surfaceRow = @($dispatchReport.mappings | Where-Object host -EQ 'cursor-agent')
-    $cursorRow = @($dispatchReport.mappings | Where-Object host -EQ 'cursor')
-    if ([string]$surfaceRow.status -ne 'current' -or [string]$cursorRow.status -ne 'current') { throw "owner install not observed by surface rows: cursor=$($cursorRow.status) cursor-agent=$($surfaceRow.status)" }
-    [IO.File]::WriteAllText((Join-Path $cursorPlugin 'plugin.json'), '{"name":"foreign","version":"9.9.9"}')
+    foreach ($aliasHost in 'claude', 'cursor', 'cursor-agent') {
+        $aliasRow = @($dispatchReport.mappings | Where-Object host -EQ $aliasHost)
+        if ([string]$aliasRow.status -ne 'current') { throw "Claude install not observed by $aliasHost, got $($aliasRow.status)" }
+    }
+    if (Test-Path -LiteralPath (Join-Path $aliasHome '.cursor')) { throw 'Read-only audit created a Cursor copy' }
+    [IO.File]::WriteAllText((Join-Path $claudePlugin 'skills/dispatch/SKILL.md'), '# foreign')
     $dispatchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $aliasHome -PluginId coding-agent-dispatch -Json | ConvertFrom-Json)
-    $surfaceRow = @($dispatchReport.mappings | Where-Object host -EQ 'cursor-agent')
-    $cursorRow = @($dispatchReport.mappings | Where-Object host -EQ 'cursor')
-    if ([string]$surfaceRow.status -ne 'unmanaged' -or [string]$cursorRow.status -ne 'unmanaged') { throw "foreign owner content not unmanaged on both rows: cursor=$($cursorRow.status) cursor-agent=$($surfaceRow.status)" }
+    foreach ($aliasHost in 'cursor', 'cursor-agent') {
+        $aliasRow = @($dispatchReport.mappings | Where-Object host -EQ $aliasHost)
+        if ([string]$aliasRow.status -ne 'drift') { throw "changed owner content not drift on $aliasHost, got $($aliasRow.status)" }
+    }
 
     # --- Invalid nativeOwnerHost declarations are rejected before any
     # observation or mutation. ---

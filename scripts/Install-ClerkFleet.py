@@ -85,7 +85,8 @@ def audit(upstream, home):
         "factory": ".factory/plugins/cache/skills-*/clerk-*/*",
         "grok": ".grok/installed-plugins/upstream-*",
         "antigravity": ".gemini/config/plugins/clerk",
-        "cursor": ".cursor/plugins/local/clerk",
+        # Cursor imports Claude's installed plugins, so its Clerk is Claude's copy.
+        "cursor": ".claude/plugins/cache/clerk-skills/clerk/*",
         "cline": ".agents/plugins/clerk",
         "amp": ".config/amp/plugins/clerk",
     }
@@ -207,7 +208,8 @@ def copy_official(source, destination):
 
 def bridge(host, upstream, home):
     if host == "cursor":
-        copy_official(upstream, home / ".cursor/plugins/local/clerk")
+        # No local copy: Cursor imports the Claude install, and a second copy
+        # lists every Clerk skill twice. Only the Cursor rule is Cursor's own.
         deploy_companion(home)
     elif host == "cline":
         copy_official(upstream, home / ".agents/plugins/clerk")

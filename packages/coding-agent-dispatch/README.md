@@ -185,9 +185,9 @@ the clean published main checkout and green CI (pushing the commit is what
 publishes). Kilo, MiMo Code and
 Qwen Code receive skills as host-local junctions under
 `~/.kilocode/skills`, `~/.mimocode/skills` and `~/.qwen/skills` -- a native skill projection,
-not an `ah-*` plugin. `cursor-agent` and `vscode-insiders` declare
-`nativeOwnerHost`, so their rows observe the Cursor local plugin and the
-Copilot marketplace install instead of installing twice. The shared
+not an `ah-*` plugin. `cursor`, `cursor-agent` and `vscode-insiders` declare
+`nativeOwnerHost`, so their rows observe the Claude install that Cursor
+imports and the Copilot marketplace install instead of installing twice. The shared
 `~/.agents/skills` library stays empty.
 
 `agents/claude/coding-agent.md` and `agents/codex/coding-agent.toml` are the
