@@ -21,6 +21,8 @@ ssh forge mac status                       # container state, leases, SSH readin
 
 ## When it will not start
 
+A cold boot requires Linux `MemAvailable` to cover the configured guest RAM plus 8 GiB of host headroom (40 GiB for a 32 GiB guest). If capacity is short, `mac` exits with status 75 and reports the available and required memory. Retry after current work finishes. Connections to the running guest reuse its existing allocation.
+
 `mac` reports when SSH does not answer within 5 minutes. A storage folder under 10 GB means macOS is not installed yet: the owner installs it in the web viewer at `https://mac.forge.shtrial.com`, or from a tunnel with `ssh -L 8006:127.0.0.1:8006 forge` and `http://localhost:8006`. Then enable Remote Login for user `maclab`.
 
 ## Guest state and setup (2026-11-12)
