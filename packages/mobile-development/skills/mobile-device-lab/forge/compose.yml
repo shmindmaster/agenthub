@@ -22,4 +22,6 @@ services:
       - /opt/macos/storage:/storage
       - /opt/macos/boot.sh:/run/boot.sh:ro
     restart: "no"
+    # A global OOM on 2026-11-18 killed the guest mid-build; other workloads go first.
+    oom_score_adj: -800
     stop_grace_period: 2m
