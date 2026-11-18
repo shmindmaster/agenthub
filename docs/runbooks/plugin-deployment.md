@@ -6,6 +6,9 @@ Keep the portable `plugin.json` within the [Agent Plugins manifest schema](https
 
 Plugins come from one marketplace, `agenthub` (`C:/Repos/shmindmaster/agenthub`), plus the private `sarosh-private` marketplace for `ah-sarosh`. Validation requires a marketplace entry named `ah-<folder>` that points at `./packages/<folder>`.
 
+**Private knowledge-authority changes:** For resume, career, profile and opportunity work, the authoritative evidence root and source precedence belong to the private `ah-sarosh` overlay and its native workspace loader—not the public core repo or agent auto-memory. When the owner changes that source, update the private policy/skill once, regenerate the existing host-native projections, validate installed copies and start fresh sessions to verify loaded rules. Keep personal paths and career evidence out of this public runbook; a Git commit is not proof that a running Codex, Claude, OpenCode, Kilo, Kiro or Droid session consumed it.
+
+
 `ah-browser` gives local agents a shared routing skill. It can select the intended existing Chrome or Edge profile through a native tool or Tencent BrowserSkill and use agent-browser for isolated work. BrowserSkill needs a local `bsk` CLI and the user-enabled extension in each intended profile. See [browser routing and verification](../../packages/browser/skills/automate/references/hosts.md). `ah-mobile-development` is installed disabled or on demand, because the Appium server runs only for mobile work.
 
 ## Native marketplace and hosted MCP ownership
