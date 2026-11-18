@@ -46,7 +46,9 @@ up)
   echo "  runner:"
   echo "    image: $RUNNER_IMAGE"
   echo "    entrypoint: [\"/opt/sh-ci/entrypoint.sh\"]"
-  echo "    restart: on-failure:5"
+  # Runner.Listener can be killed during host OOM while run.sh exits successfully.
+  # A managed runner must reconnect after that exit and stay stopped after an explicit stop.
+  echo "    restart: unless-stopped"
   echo "    environment:"
   echo "      SH_CI_REPO: $OWNER/$repo"
   if [ $sole = 1 ]; then rname=sh-ci-$repo; labels=sh-ci-$repo; else rname=do-sh-build-$repo; labels=do-sh-build,sh-ci-$repo; fi
