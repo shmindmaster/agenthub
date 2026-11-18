@@ -14,7 +14,7 @@ description: Finds funding opportunities, confirms each on its official page, sc
 
 ## Records
 
-The records root is `$FUNDING_RECORDS_ROOT`, otherwise `D:/OneDrive - MahumTech/Documents/03_Products_and_Startups/Funding Intelligence`. If neither exists, stop and ask. Never start a second store.
+The records root is `$FUNDING_RECORDS_ROOT`, otherwise `{documentsRoot}/Documents/03_Products_and_Startups/Funding Intelligence`. If neither exists, stop and ask. Never start a second store.
 
 Read before searching:
 

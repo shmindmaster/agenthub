@@ -550,21 +550,21 @@ had an empty print name, which broke nested directory creation through it. The
 junction was recreated and `mktemp` works again. The list below is kept as a
 dependency map.
 
-- User-level `TMPDIR = C:\Users\SaroshHussain\AppData\Local\AgentHub\tmp`. Machine
-  level is unset. User `TEMP = D:\Local-AI\cache\temp`.
+- User-level `TMPDIR = {userProfile}\AppData\Local\AgentHub\tmp`. Machine
+  level is unset. User `TEMP = {localRuntimeRoot}\cache\temp`.
 - `%LOCALAPPDATA%\AgentHub` is a junction to `D:\AgentHub` (created 2026-10-23).
   The orchestrator reports that directory creation two levels below it returns
   "File exists" for new names. That is the junction path, not `D:\AgentHub` itself.
 - Inherits it: every process started from the user environment that honours
   `TMPDIR`, which in practice means MSYS/Git Bash `mktemp`, Git's own shell helpers and
   OpenSSH under Git Bash. Native Windows tools use `TEMP`/`TMP` instead. Claude
-  Code's tool shells export `TEMP`/`TMP` to `D:\Local-AI\cache\temp` but do not
+  Code's tool shells export `TEMP`/`TMP` to `{localRuntimeRoot}\cache\temp` but do not
   override `TMPDIR`, so their `mktemp` also lands on the junction.
 - Hooks that call `mktemp -d` and so break on push: the fleet pre-push gate in
   `agenthub`, `contact-email-relay`, `lawli`, `local-ai-platform` and `shtrial`
   (`.git/hooks/pre-push`, line `tmpdir="$(mktemp -d)"` in agenthub). No global
   `core.hooksPath` is set.
-- Other references: `C:\Users\SaroshHussain\bin\droid.exe` (Factory Droid) and
+- Other references: `{userProfile}\bin\droid.exe` (Factory Droid) and
   Git's `ssh-copy-id`.
 
 ## 11b. Checking it yourself
@@ -595,7 +595,7 @@ subagent, read-only), then checked against the live host configs.
 | `repowise-augment.exe` hooks (PostToolUse, SessionStart, PostToolUseFailure) | Installed by the `repowise` CLI, not AgentHub | `~/.claude/settings.json` | No | Short-lived per tool call; not a resident cost |
 | Desktop Commander in Claude desktop | Account-level desktop local MCP; not in `claude_desktop_config.json` (no `mcpServers`), not in the repo | not found on disk | No | Claude desktop Settings (owner). Source not established |
 | Idle Claude Code CLIs | Claude desktop restarts every open session's CLI at app launch (all four within 20 s of 11:10) and keeps idle ones resident | desktop app behaviour | No | Archive finished sessions; cap open sessions (policy F2) |
-| Playwright CLI daemons | `playwright-cli` session daemons survive the command that opened them | `D:\Local-AI\cache\npm\_npx\…\cliDaemon.js` | No | Skill guidance: close the session at the end of the task (follow-up in the owning skill `use-playwright-cli`) |
+| Playwright CLI daemons | `playwright-cli` session daemons survive the command that opened them | `{localRuntimeRoot}\cache\npm\_npx\…\cliDaemon.js` | No | Skill guidance: close the session at the end of the task (follow-up in the owning skill `use-playwright-cli`) |
 | Login items (Google Drive, Gemini, WingetUI) | The apps re-register themselves on update or first run; Gemini also has `openAtLogin = true` | HKCU Run + app settings | No. No AgentHub script writes Run, StartupApproved, tasks or services (checked-absent across scripts, packages, tests, overlays; `Update-RepoWise.ps1:144-166` only deletes) | StartupApproved = 03 plus the app's own setting off. **Known to be undone** by app updates (Google Drive, Gemini). Re-check after updates with `Get-HostMemoryReport.ps1` and the startup list |
 | Windows settings | — | — | — | None applied. Memory compression and the page file are already right. Windows feature updates can re-enable SysMain, reset the page file to system-managed, and reset StartupApproved for Store apps |
 
@@ -623,7 +623,7 @@ this report.
 
 All are reversible and user-scope, with no admin, no reboot, and no process stopped.
 One script does all of them:
-`D:\Local-AI\cache\temp\claude\C--Repos-shmindmaster-agenthub\f71fd0ed-f42c-4d5c-baf5-40b33adcd507\scratchpad\Apply-MemoryFixes.ps1`
+`{localRuntimeRoot}\cache\temp\claude\C--Repos-shmindmaster-agenthub\f71fd0ed-f42c-4d5c-baf5-40b33adcd507\scratchpad\Apply-MemoryFixes.ps1`
 (backups `*.bak-20261028-memaudit`; rollback with `-Rollback`).
 
 | fix | change | expected saving |

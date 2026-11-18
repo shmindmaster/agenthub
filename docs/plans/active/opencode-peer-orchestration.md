@@ -181,7 +181,7 @@ Rules:
 - `~/.config/opencode/agents/peer.md` (dispatch): allow-all local dev,
   but denies:
   - reads of `.env` and auth files;
-  - edits under `D:/Local-AI`;
+  - edits under `{localRuntimeRoot}`;
   - `question`;
   - `git push`, `gh pr|issue|release|api|repo`, `npm publish`;
   - cloud CLIs and `opencode auth`.

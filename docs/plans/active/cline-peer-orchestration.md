@@ -70,7 +70,7 @@ implementer; prefer a model in `dispatchPolicy.cline.allowedModels` (the verifie
   scheduled tasks, services, Run keys; agent-host administration (`cline auth|schedule|connect|hub|...`);
   environment/credential dumps; disk/power operations; root/home recursive
   deletes; system security settings; reads of `.env`/credential files; writes
-  under `D:\Local-AI` (except `cache\temp`).
+  under `{localRuntimeRoot}` (except `cache\temp`).
 - It is active only when **both** `AGENTHUB_PEER_GUARD=1` and
   `CLINE_SESSION_BACKEND_MODE=local` are set. Verified live: hub mode, push went
   through to a scratch bare remote; local mode, push blocked and remote empty.

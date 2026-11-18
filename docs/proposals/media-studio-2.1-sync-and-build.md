@@ -264,7 +264,7 @@ also differs by weight, underline or a labelled chip. Brand kits that set `roles
   prep script, with weights in a product-owned cache.
 
 Proposed Local-AI change (separate, authorised engineering task in `local-ai-platform`, patched at
-`src/runtime/**` and deployed through the release workflow, never edited under `D:\Local-AI`):
+`src/runtime/**` and deployed through the release workflow, never edited under `{localRuntimeRoot}`):
 
 ```text
 ai.ps1 align <audio> --text-file <script.txt> --json-out <out.json> [--language English] [--cross-check whisper]

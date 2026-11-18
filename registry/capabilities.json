@@ -830,7 +830,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "390D4394AF8152311EACFE339990FB615A7C922265ADEC16EBCB9C052D0E242D",
+      "contentHash": "359D3000C7853F3077D0996B02BC6C4ED55ED1A5E07C304F9D515240AFAF000B",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1200,7 +1200,7 @@
         "prioritize",
         "plan-application"
       ],
-      "contentHash": "0FBAD44484E598DCAF0719B83BBA9ECCE75718E39BA994065BF12549D39DD1D6",
+      "contentHash": "16D3D974E1F2FFDA1C3DCB1F524AF8D01A48CF7CA8D5F4017EAE907CA5DDD300",
       "hashBasis": "packages/funding",
       "status": "active-canonical",
       "hostMappings": [

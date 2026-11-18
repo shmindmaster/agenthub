@@ -17,7 +17,7 @@ servers, and policy across all coding-agent hosts in the fleet.
   Owner identity, local runtime roots, and private evidence stay in
   `overlays/personal/` and are not part of a public-core export.
 - Everything generated at runtime lives under `%LOCALAPPDATA%\AgentHub`.
-- Local AI runtimes, models, caches, and media live only under `D:\Local-AI`.
+- Local AI runtimes, models, caches, and media live only under `{localRuntimeRoot}`.
 
 ## Boundaries
 

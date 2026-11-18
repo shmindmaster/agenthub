@@ -80,7 +80,7 @@ not a sandbox: it blocks git push, git reset --hard, git clean -f, gh mutating
 operations, npm/pnpm publish, cloud CLIs (az, aws, gcloud, terraform, etc.),
 scheduled task/service creation, agent host administration (cline, opencode, codex
 auth), credential dumps, disk/power operations, recursive root/home deletes,
-and writes to protected paths (D:\Local-AI runtime, ~/.cline/data/settings,
+and writes to protected paths ({localRuntimeRoot} runtime, ~/.cline/data/settings,
 ~/.codex/auth). Allowed developer commands (git status/commit with "push" in
 message, gh pr view/diff/api GET, npm/pnpm test/build, npx playwright test,
 Remove-Item of relative build dirs, git branch -d) are not blocked.

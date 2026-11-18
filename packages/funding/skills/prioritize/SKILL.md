@@ -12,7 +12,7 @@ description: Ranks screened funding opportunities against the product portfolio 
 3. Return a ranked matrix and a ranked list of engineering changes, and write the scores and decisions back to the register.
 4. If an eligibility fact or a product's evidence is missing, leave the scores empty, name the missing fact and rank the opportunity below every scored one.
 
-The records root is `$FUNDING_RECORDS_ROOT`, otherwise `D:/OneDrive - MahumTech/Documents/03_Products_and_Startups/Funding Intelligence`. If neither exists, stop and ask.
+The records root is `$FUNDING_RECORDS_ROOT`, otherwise `{documentsRoot}/Documents/03_Products_and_Startups/Funding Intelligence`. If neither exists, stop and ask.
 
 ## Checklist
 

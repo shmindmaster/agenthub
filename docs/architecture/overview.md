@@ -59,7 +59,7 @@ present (SH-4410). No index or MCP server is required.
 ## Knowledge-access documents layer
 
 The private `sarosh` plugin (`search-docs` skill) is the sibling for curated documents under
-`D:\OneDrive - MahumTech\Documents\` folders `01`–`06` and `10`. It is
+`{documentsRoot}\Documents\` folders `01`–`06` and `10`. It is
 not a code repository: OneDrive is not a git root, and client names
 are an output gate. Agents read `_INDEX.md`, then exact-search or
 Local-AI Qdrant `knowledge`, then specific files. Runtime engagement
@@ -69,10 +69,10 @@ repository.
 ### Three roots, one contract
 
 ```text
-D:\OneDrive - MahumTech\Documents   content, authoritative, never versioned here
+{documentsRoot}\Documents   content, authoritative, never versioned here
               │  indexed by
               ▼
-D:\Local-AI                          runtime: Qdrant, embeddings/rerank, catalog
+{localRuntimeRoot}                          runtime: Qdrant, embeddings/rerank, catalog
               │  discovered via registry.json
               ▼
 C:\Repos                             code, config and policy that operate on both
@@ -84,7 +84,7 @@ C:\Repos                             code, config and policy that operate on bot
   and inference services are all rebuildable from OneDrive. Nothing is
   authored here, and it is not a git project.
 - **C:\Repos holds logic.** Skills, scripts, schemas and config. It reaches
-  Local-AI through `D:\Local-AI\registry.json` (service endpoints and the
+  Local-AI through `{localRuntimeRoot}\registry.json` (service endpoints and the
   Python runtime), never by hard-coded ports or paths, and reaches OneDrive
   only through the index or an explicit scoped search.
 
@@ -105,7 +105,7 @@ and, worse, returns a confident empty result.
 
 | You are asking | Store | Surface |
 | --- | --- | --- |
-| What have we done, built, proposed, or written about X | Qdrant `knowledge` | `Search-Knowledge.ps1 -Semantic`, `D:\Local-AI\query.ps1 --index knowledge` |
+| What have we done, built, proposed, or written about X | Qdrant `knowledge` | `Search-Knowledge.ps1 -Semantic`, `{localRuntimeRoot}\query.ps1 --index knowledge` |
 | Anything touching a legal matter | Qdrant `legal` | `query.ps1 --index legal` only |
 | Where is this symbol, who wrote it, what breaks if I change it | the repo | native search (`rg`), `git log`/`git blame`, `openwiki/` pages |
 | What does this repo's code actually do | the repo | read the file; wiki pages navigate, they do not adjudicate |
