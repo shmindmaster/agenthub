@@ -8,7 +8,7 @@ permissions:
   - { action: read, resource: "*.env.example", effect: allow }
   - { action: read, resource: "*/opencode/auth.json", effect: deny }
   - { action: read, resource: "*/opencode/mcp-auth.json", effect: deny }
-  - { action: edit, resource: "{localRuntimeRoot}/*", effect: deny }
+  - { action: edit, resource: "D:/Local-AI/*", effect: deny }
   - { action: question, resource: "*", effect: deny }
   - { action: browser, resource: "*", effect: deny }
   - { action: shell, resource: "git push*", effect: deny }

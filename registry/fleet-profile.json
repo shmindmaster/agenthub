@@ -554,7 +554,7 @@
       "readOnlyNote": "2026-11-14 (SH-4674) established on OpenCode 2.3.0 with live proof; restricted profiles deny every action by default and allow only read and glob, with secret and auth-file reads denied. The dispatcher validates the installed profile and sets OPENCODE_DISABLE_PROJECT_CONFIG=true and OPENCODE_PURE=true for -ReadOnly and reviewer runs, excluding repository configuration/instructions and external plugins.",
       "model": "opencode-go/glm-5.3-flash",
       "agent": "peer",
-      "agentNote": "~/.config/opencode/agents/peer.md: allow-all local development, deny .env/auth reads, edits under {localRuntimeRoot}, questions, git push, gh pr/issue/release/api/repo, npm publish, railway, az, doctl, vercel and opencode auth. Needed because run --auto approves every ask rule. Global opencode.json policies additionally deny force-push, reset --hard, git clean, branch -D, recursive root deletes, disk formatting, scheduled-task/service/Run-key creation, cloud deletes and credential export for every agent. 2026-11-14 (SH-4674): peer.md and the four role agents are canonical in packages/coding-agent-dispatch/opencode/agents and deploy with Install-OpenCodeProfiles.ps1 (audit default, -Apply hash-verified); they are no longer user-config-only files.",
+      "agentNote": "~/.config/opencode/agents/peer.md: allow-all local development, deny .env/auth reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo, npm publish, railway, az, doctl, vercel and opencode auth. Needed because run --auto approves every ask rule. Global opencode.json policies additionally deny force-push, reset --hard, git clean, branch -D, recursive root deletes, disk formatting, scheduled-task/service/Run-key creation, cloud deletes and credential export for every agent. 2026-11-14 (SH-4674): peer.md and the four role agents are canonical in packages/coding-agent-dispatch/opencode/agents and deploy with Install-OpenCodeProfiles.ps1 (audit default, -Apply hash-verified); they are no longer user-config-only files.",
       "roles": {
         "engineer": "engineer",
         "reviewer": "reviewer",
@@ -660,7 +660,7 @@
       "readOnlyNote": "2026-11-11 not established. `kilo run --help`: \"--agent agent to use\" and \"--auto auto-approve permissions that are not explicitly denied (dangerous!)\"; no read-only flag, and no read-only agent is recorded for this host. -ReadOnly is refused.",
       "model": "mimo/mimo-v2.6-pro",
       "agent": "peer",
-      "agentNote": "~/.config/kilo/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under {localRuntimeRoot}, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, kilo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --auto approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
+      "agentNote": "~/.config/kilo/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, kilo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --auto approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
       "allowedModels": [
         "mimo/mimo-v2.6-pro",
         "mimo/mimo-v2.6-flash",
@@ -682,7 +682,7 @@
       "readOnlyNote": "2026-11-11 not established. `mimo run --help`: \"--agent agent to use\" and \"--dangerously-skip-permissions, --yolo auto-approve permissions that are not explicitly denied (dangerous!)\"; no read-only flag, and no read-only agent is recorded for this host. -ReadOnly is refused.",
       "model": "xiaomi-token-plan-sgp/mimo-v2.6-pro",
       "agent": "peer",
-      "agentNote": "~/.config/mimocode/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under {localRuntimeRoot}, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, mimo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --yolo approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
+      "agentNote": "~/.config/mimocode/agent/peer.md: allow-all local development; deny .env and stored-credential reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo/auth, npm publish, railway, az, doctl, vercel, mimo auth and providers, reset --hard, git clean, branch -D, schtasks and sc create. Needed because run --yolo approves every action no rule denies. The dispatcher refuses the host when policy names no agent.",
       "allowedModels": [
         "xiaomi-token-plan-sgp/mimo-v2.6-pro",
         "xiaomi-token-plan-sgp/mimo-v2.6-flash"

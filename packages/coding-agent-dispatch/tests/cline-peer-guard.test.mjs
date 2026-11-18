@@ -95,11 +95,11 @@ test('at least 15 realistic allowed developer commands are NOT blocked', () => {
 });
 
 test('editor/apply_patch/read_files path rules', () => {
-  // {localRuntimeRoot} (not cache/temp) should be blocked
+  // D:\Local-AI (not cache/temp) should be blocked
   assert.ok(ed('D:\\\\Local-AI\\\\runtime\\\\x.ps1')?.skip, 'editor Local-AI not blocked');
   assert.ok(pt({ input: '*** Begin Patch\\n*** Update File: D:\\\\Local-AI\\\\ai.ps1\\n' })?.skip, 'patch Local-AI not blocked');
 
-  // {localRuntimeRoot}\cache\temp\... should NOT be blocked (scratch area)
+  // D:\Local-AI\cache\temp\... should NOT be blocked (scratch area)
   assert.equal(ed('D:\\\\Local-AI\\\\cache\\\\temp\\\\x\\\\a.py')?.skip, undefined, 'scratch wrongly blocked');
   assert.equal(pt({ input: '*** Begin Patch\\n*** Update File: D:\\\\Local-AI\\\\cache\\\\temp\\\\x\\\\a.py\\n' })?.skip, undefined, 'patch scratch wrongly blocked');
 

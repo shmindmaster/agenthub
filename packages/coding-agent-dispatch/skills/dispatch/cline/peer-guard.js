@@ -72,7 +72,7 @@ export default {
       }
       if (name === "editor" || name === "apply_patch" || name === "write_to_file" || name === "replace_in_file") {
         const paths = pathsIn(input);
-        if (paths.some((p) => protectedWrite.test(p))) return deny("{localRuntimeRoot} is a deployed runtime; patch its source repository instead");
+        if (paths.some((p) => protectedWrite.test(p))) return deny("D:\\Local-AI is a deployed runtime; patch its source repository instead");
         if (paths.some((p) => secretPath.test(p))) return deny("credential files are off limits");
       }
       return undefined;
