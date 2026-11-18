@@ -91,7 +91,7 @@ function Test-TomlRoundTrip {
     }
 }
 
-$winPath = 'C:\Users\SaroshHussain\AppData\Local\AgentHub\bin\Hide-Stdio.exe'
+$winPath = '{userProfile}\AppData\Local\AgentHub\bin\Hide-Stdio.exe'
 
 # 1. The fix: a Windows path survives emission and parses back identically.
 $emitted = ConvertTo-TomlString $winPath

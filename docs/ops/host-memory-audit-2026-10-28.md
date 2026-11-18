@@ -550,7 +550,7 @@ had an empty print name, which broke nested directory creation through it. The
 junction was recreated and `mktemp` works again. The list below is kept as a
 dependency map.
 
-- User-level `TMPDIR = C:\Users\SaroshHussain\AppData\Local\AgentHub\tmp`. Machine
+- User-level `TMPDIR = {userProfile}\AppData\Local\AgentHub\tmp`. Machine
   level is unset. User `TEMP = D:\Local-AI\cache\temp`.
 - `%LOCALAPPDATA%\AgentHub` is a junction to `D:\AgentHub` (created 2026-10-23).
   The orchestrator reports that directory creation two levels below it returns
@@ -564,7 +564,7 @@ dependency map.
   `agenthub`, `contact-email-relay`, `lawli`, `local-ai-platform` and `shtrial`
   (`.git/hooks/pre-push`, line `tmpdir="$(mktemp -d)"` in agenthub). No global
   `core.hooksPath` is set.
-- Other references: `C:\Users\SaroshHussain\bin\droid.exe` (Factory Droid) and
+- Other references: `{userProfile}\bin\droid.exe` (Factory Droid) and
   Git's `ssh-copy-id`.
 
 ## 11b. Checking it yourself

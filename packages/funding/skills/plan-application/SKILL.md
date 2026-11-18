@@ -12,7 +12,7 @@ description: Produces a funder profile and an application strategy for one chose
 3. Return the funder profile, the strategy, the artifact list with gaps, a dated plan and the owner actions.
 4. If the register row is closed, blocked, unverified or missing, stop and send the request to `scout` or `prioritize` before planning.
 
-The records root is `$FUNDING_RECORDS_ROOT`, otherwise `D:/OneDrive - MahumTech/Documents/03_Products_and_Startups/Funding Intelligence`. If neither exists, stop and ask.
+The records root is `$FUNDING_RECORDS_ROOT`, otherwise `{documentsRoot}/Documents/03_Products_and_Startups/Funding Intelligence`. If neither exists, stop and ask.
 
 ## Checklist
 

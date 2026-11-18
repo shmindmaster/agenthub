@@ -59,7 +59,7 @@ present (SH-4410). No index or MCP server is required.
 ## Knowledge-access documents layer
 
 The private `sarosh` plugin (`search-docs` skill) is the sibling for curated documents under
-`D:\OneDrive - MahumTech\Documents\` folders `01`–`06` and `10`. It is
+`{documentsRoot}\Documents\` folders `01`–`06` and `10`. It is
 not a code repository: OneDrive is not a git root, and client names
 are an output gate. Agents read `_INDEX.md`, then exact-search or
 Local-AI Qdrant `knowledge`, then specific files. Runtime engagement
@@ -69,7 +69,7 @@ repository.
 ### Three roots, one contract
 
 ```text
-D:\OneDrive - MahumTech\Documents   content, authoritative, never versioned here
+{documentsRoot}\Documents   content, authoritative, never versioned here
               │  indexed by
               ▼
 D:\Local-AI                          runtime: Qdrant, embeddings/rerank, catalog
