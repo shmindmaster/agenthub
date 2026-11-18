@@ -47,7 +47,7 @@ up)
   echo "    image: $RUNNER_IMAGE"
   echo "    entrypoint: [\"/opt/sh-ci/entrypoint.sh\"]"
   # Runner.Listener can be killed during host OOM while run.sh exits successfully.
-  # A managed runner must reconnect after that exit and stay stopped after an explicit stop.
+  # Use the same restart policy for its sidecars so the stack also survives a Docker restart.
   echo "    restart: unless-stopped"
   echo "    environment:"
   echo "      SH_CI_REPO: $OWNER/$repo"
@@ -69,7 +69,7 @@ up)
   echo "  buildkitd:"
   echo "    image: $BUILDKIT_IMAGE"
   echo "    command: [\"--addr\", \"tcp://0.0.0.0:1234\"]"
-  echo "    restart: on-failure:5"
+  echo "    restart: unless-stopped"
   echo "    privileged: true   # daemon only; build steps run in BuildKit's own unprivileged runc sandboxes, insecure entitlements off"
   echo "    volumes: [\"buildkit:/var/lib/buildkit\"]"
   echo "    cpus: 4"
@@ -80,7 +80,7 @@ up)
   if [ $pg = 1 ]; then
   echo "  postgres:"
   echo "    image: $pgimg"
-  echo "    restart: on-failure:5"
+  echo "    restart: unless-stopped"
   echo "    environment: {POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: ci}"
   echo "    tmpfs: [\"/var/lib/postgresql:size=3g\"]"
   echo "    cgroup_parent: sh-ci.slice"
@@ -90,7 +90,7 @@ up)
   for vname in $( [ $vk -ge 1 ] && echo valkey ) $( [ $vk -ge 2 ] && echo valkey-b ); do
   echo "  $vname:"
   echo "    image: $VALKEY_IMAGE"
-  echo "    restart: on-failure:5"
+  echo "    restart: unless-stopped"
   echo "    command: [\"valkey-server\", \"--save\", \"\", \"--appendonly\", \"no\"]"
   echo "    cgroup_parent: sh-ci.slice"
   echo "    oom_score_adj: -500"

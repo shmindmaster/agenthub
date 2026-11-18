@@ -15,5 +15,20 @@ else
 fi
 # A token passed to an already registered runner is unused; never leave one behind.
 rm -f /state/bootstrap-token
+
+# Docker can restart these containers in any order. Wait for each configured sidecar
+# before the listener connects and starts accepting jobs.
+wait_for_sidecar() {
+  local host=$1 port=$2
+  if ! timeout 45 bash -c 'until (: > "/dev/tcp/$1/$2") 2>/dev/null; do sleep 1; done' _ "$host" "$port"; then
+    echo "sh-ci: $host did not listen on port $port within 45 seconds" >&2
+    return 1
+  fi
+}
+if [ -n "${TEST_POSTGRES_URL:-}" ]; then wait_for_sidecar postgres 5432; fi
+if [ -n "${TEST_REDIS_URL:-}" ]; then wait_for_sidecar valkey 6379; fi
+if [ -n "${TEST_REDIS_URL_B:-}" ]; then wait_for_sidecar valkey-b 6379; fi
+if [ -n "${BUILDKIT_HOST:-}" ]; then wait_for_sidecar buildkitd 1234; fi
+
 export ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/sh-ci/job-started.sh
 exec ./run.sh
