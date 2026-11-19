@@ -33,6 +33,13 @@ $r = New-Registry; (Find-Host $r 'kilo').fleetRole = 'pending-retirement'
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'demoting a retained family is rejected' (($e -join ';') -match 'not marked retained: kilo')
 
+# SH-4969 (owner direction 2026-11-19): Devin is a first-class retained agent.
+$r = New-Registry
+Report 'devin is recorded as retained' ([string](Find-Host $r 'devin').fleetRole -eq 'retained') ([string](Find-Host $r 'devin').fleetRole)
+(Find-Host $r 'devin').fleetRole = 'pending-retirement'
+$e = @(Test-AgentFleetRoles -Agents $r)
+Report 'demoting devin is rejected' (($e -join ';') -match 'not marked retained: devin')
+
 $r = New-Registry; (Find-Host $r 'opencode-desktop').fleetOwner = 'cline'
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'companion owned by a non-retained host is rejected' (($e -join ';') -match 'companion surface must name a retained fleetOwner')

@@ -9,8 +9,12 @@
   on 2026-10-14. Hosts without that evidence are refused. Cursor routes to
   cursor-agent and Windsurf routes to the local Devin CLI. GUI hosts are refused.
 
-  Remote cloud agents are refused. A local headless contract does not
-  authorize a hosted computer, background agent, or paid-credit run.
+  Remote cloud agents are refused, with one exception: -HostId devin-cloud
+  (SH-4969, owner direction 2026-11-19) creates one Devin Cloud session through
+  Invoke-DevinCloud.ps1 when dispatchPolicy.devin-cloud is enabled and carries
+  its cloudBudgetAuthorization (default max_acu_limit 10, at most 3 concurrent
+  agenthub sessions). A local headless contract does not authorize a hosted
+  computer, background agent, or paid-credit run.
 
   Argument-style hosts take the prompt on the command line. A prompt that is
   long, multi-line, quoted, or given with -PromptFile is written to a file
@@ -82,7 +86,24 @@
 
 .PARAMETER Title
   Session title for -HostId opencode, so the run is findable in the shared
-  service from the TUI and Desktop. Refused for other hosts.
+  service from the TUI and Desktop, or for -HostId devin-cloud. Refused for
+  other hosts.
+
+.PARAMETER RunId
+  -HostId devin-cloud only. Tags the session run:<RunId>; a second create with
+  the same run id returns the existing session instead of a duplicate.
+
+.PARAMETER MaxAcu
+  -HostId devin-cloud only. Per-session max_acu_limit; the default is
+  cloudBudgetAuthorization.defaultMaxAcuLimit (10). Pass a higher value only
+  when the task authorizes it.
+
+.PARAMETER Repo
+  -HostId devin-cloud only. owner/name repositories for the session; derived
+  from the -Cwd git remote when omitted.
+
+.PARAMETER SchemaFile
+  -HostId devin-cloud only. JSON Schema file sent as structured_output_schema.
 
 .PARAMETER SessionId
   Continue an existing Cline session through ACP. Policy gates still apply.
@@ -123,6 +144,10 @@ param(
     [string]$SessionId,
     [string]$Role,
     [switch]$ReadOnly,
+    [string]$RunId,
+    [int]$MaxAcu,
+    [string[]]$Repo,
+    [string]$SchemaFile,
     [switch]$List,
     [switch]$ShowCommand,
     [switch]$Forge,
@@ -180,6 +205,7 @@ if ($Forge) {
 if ($Auth) {
     if ($Prompt -or $PromptFile -or $Cwd -or $List -or $ShowCommand -or $ReadOnly -or
         $Role -or $Title -or $SessionId -or $Model -or $AnthropicApiKey -or
+        $RunId -or $Repo -or $SchemaFile -or $PSBoundParameters.ContainsKey('MaxAcu') -or
         $PSBoundParameters.ContainsKey('TimeoutSec')) {
         Write-Refusal 3 'Use -Auth with only optional -Forge and -HostId.'
     }
@@ -235,7 +261,8 @@ if ($Forge) {
     # This route opens an operator session. Prompt-based jobs and reviewer
     # roles require a separate Linux worker contract and provider acceptance.
     if ($Prompt -or $PromptFile -or $ReadOnly -or $Role -or $Title -or $SessionId -or
-        $Model -or $AnthropicApiKey -or $PSBoundParameters.ContainsKey('TimeoutSec')) {
+        $Model -or $AnthropicApiKey -or $RunId -or $Repo -or $SchemaFile -or
+        $PSBoundParameters.ContainsKey('MaxAcu') -or $PSBoundParameters.ContainsKey('TimeoutSec')) {
         Write-Refusal 3 'Forge supports interactive sessions only. Select the provider and model inside the agent.'
     }
     $forgeHosts = [ordered]@{}
@@ -915,9 +942,19 @@ function Get-DispatchTable {
             Build = {
                 param($PromptText, $Work, $File)
                 # devin --help 2026-10-14: -p is non-interactive, --prompt-file loads
-                # the prompt. Flags are launchDefaults.devin; the registry points at
-                # the WinGet devin.exe, not the ~/bin shim that already adds them.
-                $args = @('--permission-mode', 'dangerous', '--respect-workspace-trust', 'false', '-p', '--prompt-file', $File)
+                # the prompt. The permission flags are read from launchDefaults.devin
+                # (autonomyProfiles.flagsOwnedByLaunchDefaults: the one place they are
+                # recorded); the registry points at the WinGet devin.exe, not the ~/bin
+                # shim that already adds them. A missing record refuses rather than
+                # guessing a permission mode.
+                $launchFlags = @()
+                if ($fleet.PSObject.Properties['launchDefaults'] -and $fleet.launchDefaults.PSObject.Properties['devin']) {
+                    $launchFlags = @($fleet.launchDefaults.devin | ForEach-Object { [string]$_ })
+                }
+                if ($launchFlags.Count -eq 0) {
+                    Write-Refusal 3 'refused devin: registry/fleet-profile.json launchDefaults.devin is missing or empty; the local Devin permission flags are recorded only there'
+                }
+                $args = $launchFlags + @('-p', '--prompt-file', $File)
                 $devinModel = if ($script:DevinModel) { $script:DevinModel } else { [string]$fleet.dispatchPolicy.devin.model }
                 if ($devinModel) { $args += @('--model', $devinModel) }
                 @{ Args = $args; Stdin = $null; PromptFile = $File }
@@ -1102,6 +1139,18 @@ function Get-HostRow {
     return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = 'no verified headless contract' }
 }
 
+# devin-cloud must be explicitly enabled and carry its budget record; a missing
+# policy is a refusal here, unlike a local host whose absent record means enabled.
+function Get-DevinCloudPolicyRefusal {
+    $entry = if ($dispatchPolicy) { $dispatchPolicy.PSObject.Properties['devin-cloud'] } else { $null }
+    if ($null -eq $entry) { return 'dispatchPolicy.devin-cloud is not enabled (no policy record)' }
+    if ($entry.Value.enabled -ne $true) {
+        return ((@('dispatchPolicy.devin-cloud is not enabled', [string]$entry.Value.reason, [string]$entry.Value.ownerAction) | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('.') }) -join '. ')
+    }
+    if ($null -eq $entry.Value.cloudBudgetAuthorization) { return 'dispatchPolicy.devin-cloud records no cloudBudgetAuthorization' }
+    return $null
+}
+
 if ($List) {
     foreach ($agent in ($agents | Sort-Object { [string]$_.id })) {
         $row = Get-HostRow -Agent $agent
@@ -1112,6 +1161,13 @@ if ($List) {
         }
         Write-Output ("{0}`t{1}`t{2}" -f $row.Id, $row.State, $row.Detail)
     }
+    # devin-cloud is a surface of the devin host, not an agents.json record, and
+    # has no read-only mode, so it is listed only without -ReadOnly.
+    if (-not $ReadOnly) {
+        $cloudRefusal = Get-DevinCloudPolicyRefusal
+        if ($cloudRefusal) { Write-Output ("devin-cloud`trefused`t{0}" -f $cloudRefusal) }
+        else { Write-Output "devin-cloud`tcallable`tcloud-adapter" }
+    }
     exit 0
 }
 
@@ -1119,8 +1175,45 @@ if ([string]::IsNullOrWhiteSpace($HostId)) {
     Write-Refusal 3 'Pass -HostId, or -List to see which hosts are callable.'
 }
 $requested = $HostId.Trim()
-if ($requested -in @('devin-cloud', 'jules', 'cursor-cloud', 'copilot-agent')) {
+if ($requested -in @('jules', 'cursor-cloud', 'copilot-agent')) {
     Write-Refusal 3 "refused ${requested}: hosted cloud execution is disabled; owner must authorize this specific task, model, cadence, stop condition and cost budget before enabling a verified cloud adapter"
+}
+$cloudOnlyOptions = @('RunId', 'MaxAcu', 'Repo', 'SchemaFile') | Where-Object { $PSBoundParameters.ContainsKey($_) }
+if ($requested -ne 'devin-cloud' -and @($cloudOnlyOptions).Count -gt 0) {
+    Write-Refusal 3 "refused ${requested}: -$(@($cloudOnlyOptions) -join ', -') apply only to -HostId devin-cloud"
+}
+if ($requested -eq 'devin-cloud') {
+    # SH-4969 (owner direction 2026-11-19): one Devin Cloud session per call through
+    # the v3 adapter, which enforces the ACU default, the concurrency cap, run-tag
+    # dedupe and the 1Password service-account key path. Nothing runs locally and
+    # the adapter writes no log, so this route never touches the runtime folder.
+    $cloudRefusal = Get-DevinCloudPolicyRefusal
+    if ($cloudRefusal) { Write-Refusal 3 "refused devin-cloud: $cloudRefusal" }
+    if ($ReadOnly) { Write-Refusal 3 'refused devin-cloud: dispatchPolicy.devin-cloud.readOnly is false: checked, none; -ReadOnly never falls back to a writable run' }
+    if ($Model -or $AnthropicApiKey -or $SessionId -or ($Role -and $Role.Trim().ToLowerInvariant() -ne 'peer')) {
+        Write-Refusal 3 'refused devin-cloud: -Model, -AnthropicApiKey, -SessionId and -Role do not apply; steer an existing session with Invoke-DevinCloud.ps1 -Action message'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Prompt) -and -not [string]::IsNullOrWhiteSpace($PromptFile)) { Write-Refusal 3 'Pass -Prompt or -PromptFile, not both.' }
+    if ([string]::IsNullOrWhiteSpace($Prompt) -and [string]::IsNullOrWhiteSpace($PromptFile)) { Write-Refusal 3 'Pass -Prompt or -PromptFile.' }
+    $adapter = Join-Path $PSScriptRoot 'Invoke-DevinCloud.ps1'
+    $cloudArgs = [ordered]@{ Action = 'create' }
+    if ($PromptFile) { $cloudArgs.PromptFile = $PromptFile } else { $cloudArgs.Prompt = $Prompt }
+    $cloudArgs.Cwd = $(if ($Cwd) { $Cwd } else { (Get-Location).Path })
+    if ($Title) { $cloudArgs.Title = $Title }
+    if ($RunId) { $cloudArgs.RunId = $RunId }
+    if ($PSBoundParameters.ContainsKey('MaxAcu')) { $cloudArgs.MaxAcu = $MaxAcu }
+    if ($Repo) { $cloudArgs.Repo = $Repo }
+    if ($SchemaFile) { $cloudArgs.SchemaFile = $SchemaFile }
+    if ($ShowCommand) {
+        Write-Output ("file={0}" -f $adapter)
+        $shown = foreach ($pair in $cloudArgs.GetEnumerator()) {
+            if ($pair.Key -eq 'Prompt') { '-Prompt <task text>' } else { '-{0} {1}' -f $pair.Key, (@($pair.Value) -join ',') }
+        }
+        Write-Output ("args={0}" -f ($shown -join ' '))
+        exit 0
+    }
+    & $adapter @cloudArgs
+    exit $LASTEXITCODE
 }
 $agent = Get-AgentRecord -Agents $agents -Id $requested
 if (-not $agent) { Write-Refusal 3 "refused ${requested}: unknown host" }

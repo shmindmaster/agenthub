@@ -8,6 +8,61 @@ OC-1..OC-5, F-1..F-4), `cline-peer-orchestration.md` and
 `warp-peer-orchestration.md`; it does not duplicate their rows. Runtime
 evidence: `%LOCALAPPDATA%\AgentHub\runtime\orchestration\2026-10-26\devin\`.
 
+## First-class agent (2026-11-19, SH-4969)
+
+Owner direction: "Devin cloud and api are OK now" and "it should be a first
+class agent from now". Devin is a retained fleet role (`scripts/lib/FleetRoles.ps1`,
+`registry/agents.json`), and `dispatchPolicy.devin-cloud` is enabled under a
+recorded `cloudBudgetAuthorization`. This supersedes the 2026-10-26 "no cloud
+budget" decision below.
+
+### Lanes
+
+| Lane | How | Evidence state |
+|---|---|---|
+| Local CLI | `Invoke-CodingAgent.ps1 -HostId devin -PromptFile <brief> -Cwd <C:\wt worktree>`; `devin -p` with the flags in `launchDefaults.devin` on the stored account login | verified 2026-11-10 (dispatchPolicy.devin) |
+| Devin Cloud, adapter | `Invoke-CodingAgent.ps1 -HostId devin-cloud ...` (create) and `Invoke-DevinCloud.ps1 -Action status\|wait\|messages\|message\|stop\|list`, over the [v3 API](https://docs.devin.ai/api-reference/v3/overview) | unit-tested with the HTTP function mocked (`tests/Test-DevinCloud.ps1`); the orchestrator reported the key resolving and `GET .../sessions?first=5` returning 200 on 2026-11-19; no create yet |
+| Devin Cloud, MCP | official [Devin MCP](https://docs.devin.ai/work-with-devin/devin-mcp) at `https://mcp.devin.ai/mcp`, registry id `devin`, declared for Claude; `Get-DevinMcpHeaders.ps1` is the native `headersHelper` and runs `op read` at connect time | not configured on any host yet; protocol revision not established |
+| Linear delegation | set the issue's delegate to the "Devin" app user (or a Devin skill label or @mention); Devin starts a cloud session and streams activity, plan and PR back into Linear ([Linear](https://docs.devin.ai/integrations/linear)) | documented, not exercised by this change |
+| GitHub PR comments | `/devin <prompt>` on an open PR goes to the session already working on it, or starts one; `/devin review` starts a Devin Review ([GitHub](https://docs.devin.ai/integrations/gh)) | documented, not exercised by this change |
+
+`devin --cloud -r <id>` reopens any cloud session in the terminal
+([CLI cloud](https://docs.devin.ai/cli/cloud)); dispatch itself never passes
+`--cloud`. `process_model: daemon` is set in `%APPDATA%\devin\config.json`
+(observed 2026-11-19), so once Devin Desktop restarts, `devin -r <id> -p
+"<message>"` messages a session Desktop has open.
+
+### Spend guard
+
+- Every create carries `max_acu_limit`. The default is
+  `cloudBudgetAuthorization.defaultMaxAcuLimit` = 10. To raise it for one task,
+  pass `-MaxAcu <n>` to `Invoke-CodingAgent.ps1 -HostId devin-cloud` or
+  `Invoke-DevinCloud.ps1 -Action create`, and only when the task authorizes it.
+- At most `maxConcurrentSessions` = 3 sessions tagged `agenthub` may be `new`,
+  `claimed`, `running` or `resuming`; a fourth create is refused with exit 3.
+- Every session is tagged `agenthub` and `run:<RunId>`. v3 has no idempotency
+  key, so a create whose run tag already exists returns that session.
+- `wait` returns on `finished`, `exit`, `error`, `suspended`,
+  `waiting_for_user` or `waiting_for_approval`, with `acus_consumed`,
+  `pull_requests` and `structured_output`. Answer a waiting session with
+  `-Action message`; stop one with `-Action stop`.
+- MCP-created sessions fall under the same budget: ACU limit 10 and the
+  `agenthub` tag unless the task authorizes more.
+
+### Key
+
+The org-scoped service user is `agenthub-dispatch` (Member role); its key
+expires 2027-02-17 (90 days). It lives in 1Password vault "Business & Apps",
+item "Devin Cloud API service user", field `credential`. The registry
+reference uses ids, `op://d4yvwfzjsyw4x6mymqjjfcxcoe/ovdhltjbi4cfjnjaf573brqsty/credential`,
+because `op read` rejects `&` in a reference. The adapter and the MCP helper
+read it with `op read` through the 1Password service account
+(`OP_SERVICE_ACCOUNT_TOKEN`), keep it in memory only, and mask anything
+key-shaped to its last four characters. `DEVIN_CLOUD_API_KEY` is an in-process
+override only and must never be persisted; the local CLI lane still strips
+`DEVIN_API_KEY` and its siblings. A missing `op`, token or item refuses with
+exit 3.
+
 ## Owner direction (2026-10-26, this session)
 
 - Admit Devin as a peer, local and cloud. **No cloud budget for this batch**, so
@@ -33,7 +88,7 @@ evidence: `%LOCALAPPDATA%\AgentHub\runtime\orchestration\2026-10-26\devin\`.
 | Subagents / hooks | none (AgentHub generates no Devin subagents; hooks deliberately null) | `subagent-formats.json`, `agents.json` |
 | Sandbox | **unsupported on Windows**; `autonomous` mode needs it | docs.devin.ai/cli/sandbox |
 | Devin Desktop | 3.11.216 (VS Code 1.126 base) installed, not running; no extensions; ACP agents enabled in settings: github-copilot-cli, gemini, claude-acp, codex-acp, devin-cloud, opencode-v2 | `%APPDATA%\devin\User\settings.json` |
-| Devin Cloud | disabled. The user-scope `DEVIN_API_KEY` is a service-user key ("SHMain") in an org that differs from `DEVIN_ORG_ID`; it lists 0 sessions in its own org and gets 403 on the `DEVIN_ORG_ID` org | `GET /v3/self`, `/v3/organizations/{org}/sessions` |
+| Devin Cloud | disabled on 2026-10-26 (superseded 2026-11-19, see above). The then user-scope `DEVIN_API_KEY` was a service-user key ("SHMain") in another org; it listed 0 sessions in its own org and got 403 on the personal org | `GET /v3/self`, `/v3/organizations/{org}/sessions` |
 | Local history | 2 IDE sessions (`backend_type windsurf`): "Open a Browser Preview of the Website" (duckie-app), "Clean Up Old Sessions and Fix Amp Agent PATH Error" | `cli\sessions.db` (read-only) |
 | Stale config | `~\.config\devin\config.json` (2026-08-04) lists MCP servers the CLI no longer reads | not changed |
 
@@ -142,14 +197,17 @@ removed after integration.
 ## Owner decisions
 
 Recorded 2026-10-26: no cloud budget (devin-cloud stays disabled); serial local
-runs gated on free RAM; permissions left as they are.
+runs gated on free RAM; permissions left as they are. Superseded for cloud on
+2026-11-19: Devin Cloud enabled at 10 ACU per session and 3 concurrent sessions
+(see First-class agent above).
 
-Still open (none blocks Devin local dispatch):
-1. A Devin Cloud budget, if cloud runs are wanted later (task, model,
-   per-session `max_acu_limit`, stop condition).
-2. Concurrency cap across peers (also open in the Cline plan).
+Still open (none blocks Devin dispatch):
+1. Resolved 2026-11-19: the Devin Cloud budget is recorded in
+   `dispatchPolicy.devin-cloud.cloudBudgetAuthorization`.
+2. Concurrency cap across peers (also open in the Cline plan); Devin Cloud
+   alone is capped at 3.
 3. `DEVIN_PERMISSION_MODE=dangerous` with no deny rules lets a dispatched run
    push or call `gh`; recommended `smart` plus deny rules.
-4. `DEVIN_API_KEY` belongs to a different org than `DEVIN_ORG_ID`; a user PAT is
-   needed to list the personal org's cloud sessions.
+4. Resolved 2026-11-19: the org-scoped `agenthub-dispatch` service-user key
+   replaces the old cross-org `DEVIN_API_KEY`; rotate it before 2027-02-17.
 5. Cleanup of the `C:\wt` leftovers DV-2 classified as removable.

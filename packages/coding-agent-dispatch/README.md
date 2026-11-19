@@ -26,7 +26,12 @@ selected there as `opencode-go/<model>`, the Go subscription provider.
 OpenCode 2.1.4 native Console account OAuth and Go-only
 inference passed on 2026-10-23 without an API-key override. Its CLI and Desktop
 share the native service; `run` uses the child process working directory.
-Windsurf shares Devin's model and command. Current host readiness is recorded
+Windsurf shares Devin's model and command. `devin-cloud` (SH-4969, owner
+direction 2026-11-19) is the one enabled cloud route: it creates a Devin Cloud
+session through `skills/dispatch/Invoke-DevinCloud.ps1` (v3 API, default
+`max_acu_limit` 10, at most 3 concurrent agenthub sessions, key read with `op
+read` through the 1Password service account). `Get-DevinMcpHeaders.ps1` is the
+headers helper for the official Devin MCP server. Current host readiness is recorded
 in `registry/fleet-profile.json`; detailed runtime output stays outside this
 public repository.
 

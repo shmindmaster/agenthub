@@ -152,7 +152,24 @@ Roles (`-Role engineer|reviewer|tester`) run as native custom droids through one
 
 ## Devin
 
-Local only: `devin -p --prompt-file`, never `--cloud`. `--model` defaults to `dispatchPolicy.devin.model`; `-Model` passes any well-formed model id through (see Models). Permission mode is `dangerous` by owner direction and Windows has no Devin sandbox, so run Devin only in `C:/wt` worktrees.
+Devin is a retained, first-class fleet agent (SH-4969, owner direction 2026-11-19). It has three lanes.
+
+**Local CLI (`-HostId devin`).** `devin -p --prompt-file` with the flags in `launchDefaults.devin`, never `--cloud`; a missing `launchDefaults.devin` refuses. `--model` defaults to `dispatchPolicy.devin.model`; `-Model` passes any well-formed model id through (see Models). Permission mode is `dangerous` by owner direction and Windows has no Devin sandbox, so run Devin only in `C:/wt` worktrees. The child loses `DEVIN_API_KEY`, `DEVIN_API_TOKEN`, `DEVIN_SERVICE_USER_TOKEN` and `DEVIN_ORG_ID` so the CLI's stored account login is used. `process_model: daemon` is set in `%APPDATA%\devin\config.json` (observed 2026-11-19); after Devin Desktop restarts, `devin -r <session-id> -p "<message>"` messages a session Desktop has open.
+
+**Devin Cloud (`-HostId devin-cloud`, or the adapter directly).** `Invoke-CodingAgent.ps1 -HostId devin-cloud -PromptFile <brief> -Cwd <repo> [-RunId <id>] [-MaxAcu <n>] [-Repo owner/name] [-SchemaFile <schema.json>] [-Title <t>]` calls `Invoke-DevinCloud.ps1 -Action create`, which POSTs `{apiBase}/organizations/{orgId}/sessions` ([v3 API](https://docs.devin.ai/api-reference/v3/overview)). Steer and collect with the adapter: `-Action status|wait|messages|message|stop|list -SessionId <id>`. Every call prints one JSON object.
+
+- Spend guard: every create carries `max_acu_limit`, default `cloudBudgetAuthorization.defaultMaxAcuLimit` (10). Raise it for one task with `-MaxAcu <n>` only when the task authorizes it.
+- Concurrency: a create is refused (exit 3) while 3 sessions tagged `agenthub` are `new`, `claimed`, `running` or `resuming`.
+- Dedupe: sessions are tagged `agenthub` and `run:<RunId>`; a second create with the same run id returns the existing session (`deduplicated: true`), because v3 has no idempotency key.
+- `wait` polls with backoff until `status_detail` is `finished`, `status` is `exit`, `error` or `suspended`, or Devin is `waiting_for_user` or `waiting_for_approval` (answer with `-Action message`). It reports `acus_consumed`, `pull_requests` and `structured_output`; a timeout exits 4.
+- Key: `op read` of `cloudBudgetAuthorization.keyOpRef` through the 1Password service account (`OP_SERVICE_ACCOUNT_TOKEN`), held in memory only. The reference uses vault and item ids because `op read` rejects `&` (vault "Business & Apps", item "Devin Cloud API service user"). `DEVIN_CLOUD_API_KEY` is an in-process override only; never persist it. A missing `op`, token or item refuses with exit 3. Any printed key is masked to its last four characters. The service user is `agenthub-dispatch` (Member); its key expires 2027-02-17.
+- No read-only mode: `-ReadOnly`, `-Model`, `-Role` and `-SessionId` are refused.
+
+The official [Devin MCP server](https://docs.devin.ai/work-with-devin/devin-mcp) (`https://mcp.devin.ai/mcp`, registry id `devin`) is the same cloud lane from inside a host: sessions, playbooks, knowledge, Devin Review and DeepWiki. It authenticates through `Get-DevinMcpHeaders.ps1`, a native headers helper that runs `op read` at connect time and prints `Authorization` and `X-Org-Id`; no host config holds the key. It is declared for Claude only and is owner-configured (the sync does not write `headersHelper`). Pass an ACU limit of 10 and the `agenthub` tag when creating sessions through it.
+
+**Linear delegation.** Set a Linear issue's delegate to the "Devin" app user (or add a Devin skill label, or @mention Devin) and Devin starts a cloud session that streams its activity, plan and pull request back into the issue ([Linear integration](https://docs.devin.ai/integrations/linear)).
+
+**GitHub.** On an open pull request in a connected repository, a comment starting `/devin <prompt>` goes to the session already working on that PR, or starts one; `/devin review` starts a Devin Review ([GitHub integration](https://docs.devin.ai/integrations/gh)). `devin --cloud -r <id>` reopens any cloud session in the terminal ([CLI cloud](https://docs.devin.ai/cli/cloud)); dispatch never runs `--cloud` itself.
 
 ## Warp
 

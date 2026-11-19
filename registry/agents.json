@@ -539,7 +539,8 @@
     },
     {
       "id": "devin",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "retained",
+      "fleetRoleNote": "Retained 2026-11-19 (SH-4969) on the owner's direction that Devin 'should be a first class agent from now'. Three lanes: the local CLI (dispatchPolicy.devin, devin -p in C:/wt worktrees), Devin Cloud through the v3 API adapter (dispatchPolicy.devin-cloud) or the official Devin MCP server, and Linear delegation to the Devin app user.",
       "name": "Devin Desktop / CLI",
       "version": "3000.12.32",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
@@ -586,7 +587,7 @@
       "versionProbe": "cli",
       "executableNote": "Corrected 2026-10-14. The old path %LOCALAPPDATA%\\devin\\cli\\bin\\devin.exe from the 2026-09-09 survey is not the live binary. The installed CLI is the WinGet executable %LOCALAPPDATA%\\Microsoft\\WinGet\\Links\\devin.exe. `devin --version` returned devin 3000.11.3 (9c803229faa4). The ~/bin/devin.cmd shim already injects fleet permission flags, so the registry points at the WinGet executable and not that shim. The 2026-10-14 repair verified the local print/prompt-file contract and a bounded smoke on swe-2-medium. No upgrade or downgrade was performed by this inventory correction.",
       "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because the WinGet executable exists and `devin --version` returned 3000.11.3 within the bounded probe. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `devin.exe --version` printed devin 3000.11.92 (7f4e64980e22).",
-      "headlessDispatchNote": "--permission-mode dangerous --respect-workspace-trust false -p --prompt-file <file>; devin 3000.11.3 --help verified 2026-10-14. Local execution only; --cloud is not dispatched."
+      "headlessDispatchNote": "--permission-mode dangerous --respect-workspace-trust false -p --prompt-file <file>; devin 3000.11.3 --help verified 2026-10-14. Local execution only; --cloud is not dispatched. The flags are read from fleet-profile launchDefaults.devin (SH-4969); cloud work goes through dispatchPolicy.devin-cloud and the v3 API adapter."
     },
     {
       "id": "factory",

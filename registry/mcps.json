@@ -37,7 +37,8 @@
       "note": "Owner direction 2026-11-04: no direct MCP entries beyond what a host needs, on every coding host. Each key under hosts is a plugin-only host, and its value lists the only direct entries allowed there, with the reason. pluginOwnersByHost on each server records which plugin carries it. tests/Test-PluginOnlyMcp.ps1 fails on any other entry. Hosts not listed here keep the older write-everything behaviour.",
       "hosts": {
         "claude": {
-          "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep vendor AWS skills and suppress plugin:aws-core:aws-mcp when the hosted connection owns this server. Native OAuth consent is per host and AWS identity."
+          "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep vendor AWS skills and suppress plugin:aws-core:aws-mcp when the hosted connection owns this server. Native OAuth consent is per host and AWS identity.",
+          "devin": "No vendor plugin carries the official Devin MCP server. Owner-configured remote entry whose native headersHelper runs packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1, which reads the key with op read through the 1Password service account at connect time; no key or key-bearing variable is stored in the config (SH-4969)."
         },
         "codex": {
           "node_repl": "Written by Codex itself; its bundled browser, chrome and computer-use plugins need it.",
@@ -590,6 +591,34 @@
           "disabled": true
         }
       }
+    },
+    {
+      "id": "devin",
+      "name": "Devin (official MCP: sessions, playbooks, knowledge, DeepWiki)",
+      "scope": "owner-configured",
+      "scopeNote": "Not global-default, so a default-scope Sync-AgentHub run never writes it: the sync's Claude writer has no headersHelper field, and a bare url entry would only fail authentication. activationPolicy.pluginOnly.hosts.claude.devin keeps the owner-configured entry from being pruned. A -ScopeProfile all run would add a bare entry where none exists; configure the helper first.",
+      "transport": "http",
+      "activationMode": "shared-remote",
+      "url": "https://mcp.devin.ai/mcp",
+      "credentialPolicy": "native-headers-helper",
+      "headersHelper": {
+        "claude": "pwsh -NoProfile -NonInteractive -File \"{registryRoot}/packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1\"",
+        "claudeNote": "Claude Code headersHelper (https://code.claude.com/docs/en/mcp#use-dynamic-headers-for-custom-authentication): the command prints {\"Authorization\": \"Bearer <key>\", \"X-Org-Id\": \"<org>\"} as JSON. {registryRoot} is the AgentHub checkout; give the host an absolute path. The helper reads dispatchPolicy.devin-cloud.cloudBudgetAuthorization (keyOpRef, orgId) and refuses with exit 3 when the policy is disabled or no key resolves."
+      },
+      "protocol": {
+        "revision": null,
+        "verifiedOn": "2026-11-19",
+        "verification": "Not probed. The revision cannot be established from this change: it made no authenticated initialize against the endpoint. The agenthub-dispatch service-user key (1Password item 'Devin Cloud API service user' in vault 'Business & Apps') became available 2026-11-19; probe initialize once the Claude entry is configured. Deliberately left null rather than assumed."
+      },
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
+      "hosts": [
+        "claude"
+      ],
+      "hostScopeNote": "Claude only for now. Codex documents an equivalent http_headers_helper, but the sync's Codex writer emits only bearer_token_env_var and env_http_headers, which would require a key-bearing environment variable at host launch; owner direction 2026-11-19 forbids that, so Codex is left out until a helper-aware entry is configured. Other hosts have no documented dynamic-header hook here and stay off.",
+      "notes": "Official Devin MCP server (https://docs.devin.ai/work-with-devin/devin-mcp): Streamable HTTP at https://mcp.devin.ai/mcp, bearer service-user key (cog_). An org-scoped service-user key resolves its organization automatically; the helper still sends X-Org-Id org-d986482cea0c49689c6c9a590ecbdf7b so an enterprise key or PAT targets the same org. Tools cover session create/search/interact/gather, playbooks, knowledge, schedules, integrations, Devin Review and DeepWiki. Session creation through MCP is a Devin Cloud lane under the same owner budget as dispatchPolicy.devin-cloud: pass an ACU limit of 10 unless the task authorizes more, and tag sessions agenthub. Deployment is pending: add the entry to Claude with the headersHelper command, then verify initialize and record the protocol revision. The service-user key expires 2027-02-17."
     }
   ]
 }

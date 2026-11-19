@@ -506,9 +506,39 @@
       "ownerDirection": "2026-10-26: owner asked in the Claude session to enable Warp dispatch local-only (no cloud), run one smoke test with an economical model, and start Warp tasks only after machine load drops. This supersedes, for Warp local runs only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
     "devin-cloud": {
-      "enabled": false,
-      "reason": "Hosted cloud execution is prohibited; no cloud adapter has been verified. 2026-10-26: the owner wants Devin Cloud as a peer surface but authorized no cloud budget for this batch. The user-scope DEVIN_API_KEY is a service-user key (principal 'SHMain') whose org differs from DEVIN_ORG_ID; it lists zero sessions in its own org and gets 403 ('_org.is_user') on the DEVIN_ORG_ID org, so earlier cloud history there is not established.",
-      "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget (the v3 API accepts a per-session max_acu_limit) before implementing and enabling a cloud adapter."
+      "enabled": true,
+      "readOnly": false,
+      "readOnlyNote": "2026-11-19 checked, none. A Devin Cloud session runs on its own VM with write access to the repositories it is given; the v3 create request (POST /v3/organizations/{org_id}/sessions) has no read-only mode. -ReadOnly is refused.",
+      "scope": "cloud: Invoke-CodingAgent.ps1 -HostId devin-cloud creates one session through skills/dispatch/Invoke-DevinCloud.ps1 (POST {apiBase}/organizations/{orgId}/sessions); status, wait, messages, message, stop and list go through the same adapter. The official Devin MCP server (registry/mcps.json id devin) and Linear delegation to the Devin app user are the other cloud lanes. Local runs stay on dispatchPolicy.devin.",
+      "adapter": "packages/coding-agent-dispatch/skills/dispatch/Invoke-DevinCloud.ps1",
+      "cloudBudgetAuthorization": {
+        "date": "2026-11-19",
+        "ownerQuotes": [
+          "Devin cloud and api are OK now",
+          "it should be a first class agent from now"
+        ],
+        "defaultMaxAcuLimit": 10,
+        "defaultMaxAcuLimitNote": "Every create request carries max_acu_limit. The default is 10; a task raises it per session with -MaxAcu <n>, and the value is printed in the adapter's JSON output.",
+        "maxConcurrentSessions": 3,
+        "maxConcurrentSessionsNote": "Counted over sessions this dispatcher tagged agenthub whose status is new, claimed, running or resuming. A create at or above the cap is refused with exit 3.",
+        "keyType": "org-service-user",
+        "keyTypeNote": "An org-scoped Devin service-user key (cog_ prefix) with session permissions. docs.devin.ai/work-with-devin/devin-mcp: an org-scoped service user key resolves its organization automatically, so X-Org-Id is optional for it.",
+        "keyEnv": "DEVIN_CLOUD_API_KEY",
+        "keyEnvNote": "An in-process override only (a caller that already resolved the key, or a test); never persist it in the User or Machine environment or a host config (owner direction 2026-11-19). Deliberately not DEVIN_API_KEY: the local adapter strips DEVIN_API_KEY, DEVIN_API_TOKEN, DEVIN_SERVICE_USER_TOKEN and DEVIN_ORG_ID so the CLI's stored account login is never overridden.",
+        "keyOpRef": "op://d4yvwfzjsyw4x6mymqjjfcxcoe/ovdhltjbi4cfjnjaf573brqsty/credential",
+        "keyOpRefNote": "1Password vault 'Business & Apps', item 'Devin Cloud API service user', field 'credential' (the item also holds non-secret org_id, api_base and mcp_url fields). A secret reference, not a secret. It uses vault and item ids because op read rejects '&' in a reference, so a reference built from the vault name never resolves. The key path is the 1Password service account: op read through OP_SERVICE_ACCOUNT_TOKEN, stdout held in memory only; with op or the token missing, or the item absent, the adapter refuses with exit 3 naming this item.",
+        "serviceUser": "agenthub-dispatch",
+        "serviceUserRole": "Member",
+        "keyExpiresOn": "2027-02-17",
+        "keyExpiresOnNote": "The agenthub-dispatch service-user key was created 2026-11-19 with a 90-day lifetime. Rotate it before 2027-02-17 and replace the 1Password item's credential field; the reference does not change.",
+        "orgId": "org-d986482cea0c49689c6c9a590ecbdf7b",
+        "orgIdNote": "Not a secret; from `devin cloud drs whoami` (owner-supplied 2026-11-19).",
+        "apiBase": "https://api.devin.ai/v3",
+        "apiBaseNote": "docs.devin.ai/api-reference/v3/overview: organization endpoints live under https://api.devin.ai/v3/organizations/*; the v3 OpenAPI security scheme is a bearer service-user credential (prefix cog_)."
+      },
+      "reason": "2026-11-19 (SH-4969): enabled on the owner's direction recorded in cloudBudgetAuthorization. The adapter, its spend and concurrency guards and its key handling are covered by tests/Test-DevinCloud.ps1 with the HTTP function mocked. Reported by the orchestrator the same day, not by this change: the key resolves through the 1Password service account (cog_ prefix) and GET /v3/organizations/{orgId}/sessions?first=5 returned HTTP 200 with items, end_cursor, has_next_page and total. No session has been created through the adapter, so a create is not established. History: 2026-10-26 the owner wanted Devin Cloud as a peer but authorized no budget; a user-scope DEVIN_API_KEY from another org then got 403 on the personal org.",
+      "ownerAction": "Run one bounded create at the default cap (orchestrator, after review) and record the session evidence here. Rotate the agenthub-dispatch key before cloudBudgetAuthorization.keyExpiresOn (2027-02-17).",
+      "ownerDirection": "2026-11-19: 'Devin cloud and api are OK now' and 'it should be a first class agent from now'. Default per-session max_acu_limit 10 (a task may pass a higher explicit value); at most 3 Devin Cloud sessions this dispatcher tagged running at once."
     },
     "jules": {
       "enabled": false,
@@ -529,7 +559,7 @@
       "enabled": true,
       "readOnly": null,
       "readOnlyNote": "2026-11-11 not established. `devin --help`: \"--permission-mode ... \"auto\" auto-approves read-only tools, ..., \"dangerous\" auto-approves all tools\" and \"--sandbox [Research Preview] Sandbox exec-tool processes (macOS seatbelt / Linux bwrap+seccomp)\". Help does not say what a non-interactive run does with a tool that auto does not approve, and the sandbox is not offered on Windows. -ReadOnly is refused.",
-      "scope": "local-only: devin -p in C:\\wt worktrees. --cloud, /handoff, /cloud, devin connect (Local Hands) and the Devin API session routes stay prohibited while dispatchPolicy.devin-cloud is disabled.",
+      "scope": "local-only: devin -p in C:\\wt worktrees, on the CLI's stored account login with launchDefaults.devin flags. This lane never passes --cloud, /handoff, /cloud or devin connect (Local Hands); cloud work goes through dispatchPolicy.devin-cloud (-HostId devin-cloud, the v3 API adapter) instead.",
       "model": "swe-2-medium",
       "allowedModels": [
         "swe-2-medium",
@@ -1029,6 +1059,20 @@
         },
         "verifiedOn": "2026-10-14",
         "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately.",
+        "capabilityNotEstablished": {}
+      },
+      {
+        "hostId": "devin",
+        "surfaceId": "devin-cloud",
+        "capabilities": {
+          "browser.isolated": null,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "verifiedOn": "2026-11-19",
+        "verification": "Devin Cloud sessions created through the v3 API (dispatchPolicy.devin-cloud, skills/dispatch/Invoke-DevinCloud.ps1). docs.devin.ai/cli/cloud describes each session as its own VM with a shell, browser and repository clones, but no session has been run from this fleet yet, so no capability is established here.",
         "capabilityNotEstablished": {}
       },
       {

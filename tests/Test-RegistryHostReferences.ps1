@@ -240,6 +240,34 @@ function Test-LiveCapabilitiesCanonicalSourcesAllExistOnDisk {
 # --- Behavior 6: every host configuration carries an explicit auth mode and
 # owner login command. Unverified account smokes remain gated; Codex dispatch
 # is gated on recorded response-capture evidence rather than a fixed state. ---
+# A cloud budget authorization is a dated owner record, not a flag: it quotes
+# the owner, caps spend per session and concurrency, and names the key by an
+# environment variable and a 1Password reference, never by value. The key
+# variable must not be one the local CLI adapters strip to protect their account
+# logins (DEVIN_API_KEY and its siblings), or a cloud key would override them.
+function Get-CloudBudgetAuthorizationViolations($Authorization) {
+    $errors = [Collections.Generic.List[string]]::new()
+    if ($Authorization -isnot [pscustomobject]) { $errors.Add('not an object'); return $errors }
+    if ([string]$Authorization.date -notmatch '^\d{4}-\d{2}-\d{2}$') { $errors.Add('date is not yyyy-mm-dd') }
+    if (@($Authorization.ownerQuotes | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count -eq 0) { $errors.Add('no ownerQuotes') }
+    foreach ($cap in @('defaultMaxAcuLimit', 'maxConcurrentSessions')) {
+        $value = $Authorization.$cap
+        if (-not ($value -is [int] -or $value -is [long]) -or $value -lt 1) { $errors.Add("$cap is not a positive integer") }
+    }
+    foreach ($field in @('keyType', 'orgId')) {
+        if ([string]::IsNullOrWhiteSpace([string]$Authorization.$field)) { $errors.Add("no $field") }
+    }
+    $keyEnv = [string]$Authorization.keyEnv
+    if ($keyEnv -cnotmatch '^[A-Z][A-Z0-9_]*$') { $errors.Add('keyEnv is not an environment variable name') }
+    elseif ($keyEnv -in @('DEVIN_API_KEY', 'DEVIN_API_TOKEN', 'DEVIN_SERVICE_USER_TOKEN', 'DEVIN_ORG_ID')) { $errors.Add("keyEnv $keyEnv is stripped for the local CLI login") }
+    # op read rejects '&' in a secret reference ("invalid character in secret
+    # reference"), so a reference built from a vault name like "Business & Apps"
+    # never resolves; use vault and item ids.
+    if ([string]$Authorization.keyOpRef -notmatch '^op://[^/&]+/[^/&]+/[^/&]+$') { $errors.Add('keyOpRef is not an op://vault/item/field reference op read can parse') }
+    if ([string]$Authorization.apiBase -notmatch '^https://[^/\s]+(/\S*)?$') { $errors.Add('apiBase is not an https URL') }
+    return $errors
+}
+
 function Get-OwnerDispatchPolicyViolations($Policy) {
     $violations = [Collections.Generic.List[string]]::new()
     # 2026-10-23 restricted dispatch to Cursor, Grok and Codex; 2026-10-26 the
@@ -251,8 +279,11 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # direction does not reach a surface whose own reason prohibits hosted cloud execution,
     # an inactive host, or one with an uncaptured response; those stay out and are pinned
     # below, because "nothing should be disabled" is not a budget authorization.
+    # 2026-11-19 (SH-4969) the owner authorized Devin Cloud and its API with a recorded
+    # budget, so devin-cloud joins the list; the cloud-surface guard below still has
+    # to clear on its cloudBudgetAuthorization.
     $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin',
-        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'qwen')
+        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'qwen', 'devin-cloud')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -267,14 +298,21 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
         if ($Policy.PSObject.Properties[$id].Value.enabled -ne $true) { $violations.Add("Authorized verified host $id must remain enabled") }
     }
 
-    # A surface whose own recorded reason prohibits hosted cloud execution stays
-    # disabled until it carries an explicit budget authorization. Matching on the
-    # reason rather than a name list means a new cloud surface arrives already
-    # guarded instead of needing this test edited first.
+    # A hosted cloud surface stays disabled until it carries a well-formed budget
+    # authorization (Get-CloudBudgetAuthorizationViolations). A surface is a cloud
+    # surface when it is one of the four known ones or when its own reason
+    # prohibits hosted cloud execution; matching on the reason means a new cloud
+    # surface arrives already guarded instead of needing this test edited first,
+    # and the name list keeps the guard on a surface whose reason was rewritten
+    # when it was enabled (devin-cloud, 2026-11-19).
+    $cloudSurfaces = @('devin-cloud', 'jules', 'cursor-cloud', 'copilot-agent')
     foreach ($entry in $Policy.PSObject.Properties) {
-        if ([string]$entry.Value.reason -notmatch 'Hosted cloud execution is prohibited') { continue }
-        if ($entry.Value.enabled -ne $false -and [string]::IsNullOrWhiteSpace([string]$entry.Value.cloudBudgetAuthorization)) {
-            $violations.Add("$($entry.Name) prohibits hosted cloud execution and records no cloudBudgetAuthorization, so it must stay disabled")
+        if ($entry.Name -notin $cloudSurfaces -and [string]$entry.Value.reason -notmatch 'Hosted cloud execution is prohibited') { continue }
+        if ($entry.Value.enabled -eq $false) { continue }
+        $authorization = if ($entry.Value.PSObject.Properties['cloudBudgetAuthorization']) { $entry.Value.cloudBudgetAuthorization } else { $null }
+        $authorizationErrors = @(Get-CloudBudgetAuthorizationViolations $authorization)
+        if ($authorizationErrors.Count -gt 0) {
+            $violations.Add("$($entry.Name) is a hosted cloud surface and records no well-formed cloudBudgetAuthorization, so it must stay disabled ($($authorizationErrors -join ', '))")
         }
     }
 
@@ -362,8 +400,9 @@ function Test-LiveHostAuthenticationMetadata {
         $violations.Add('Factory dispatch must stay on its account login at low or medium autonomy, with its default model inside allowedModels and a present runtime rules file')
     }
     # Devin: local runs on the account login with a free SWE-2 default; the
-    # high-cost Lightning tier stays out of the recorded list, and the cloud surface
-    # stays disabled until the owner records a cloud budget.
+    # high-cost Lightning tier stays out of the recorded list. The local lane stays
+    # local-only; cloud work is the separate devin-cloud surface, which the
+    # cloud-surface guard in Get-OwnerDispatchPolicyViolations gates on its budget.
     $devinPolicy = $profile.dispatchPolicy.devin
     if ($devinPolicy.enabled -eq $true -and (
         $profile.hostSettings.devin.authMode -ne 'account' -or
@@ -371,8 +410,8 @@ function Test-LiveHostAuthenticationMetadata {
         $devinPolicy.model -notlike 'swe-2-*' -or
         @($devinPolicy.allowedModels | Where-Object { [string]$_ -like '*lightning*' }).Count -gt 0 -or
         [string]$devinPolicy.scope -notmatch '^local-only' -or
-        $profile.dispatchPolicy.'devin-cloud'.enabled -ne $false)) {
-        $violations.Add('Devin dispatch must stay local-only on its account login, with a free SWE-2 default inside allowedModels, no Lightning tier, and devin-cloud disabled')
+        [string]$devinPolicy.scope -notmatch 'devin-cloud')) {
+        $violations.Add('Devin dispatch must stay local-only on its account login, with a free SWE-2 default inside allowedModels, no Lightning tier, and a scope that sends cloud work to devin-cloud')
     }
     if ($profile.hostSettings.cline.authMode -ne 'apiKey' -or
         $profile.hostSettings.cline.provider -ne 'openai-compatible' -or
@@ -451,17 +490,27 @@ function Test-OwnerDispatchPolicyRejectsUnauthorizedChanges {
     # execution needs two visible edits: add the host to $authorized and record a
     # cloudBudgetAuthorization. Asserting both halves is what proves the guard is
     # a real gate rather than an unconditional refusal.
-    $cloudCharge = 'prohibits hosted cloud execution and records no cloudBudgetAuthorization'
+    $cloudCharge = 'jules is a hosted cloud surface and records no well-formed cloudBudgetAuthorization'
     $policy = $profile.dispatchPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
     $policy.jules.enabled = $true
     $seen = @(Get-OwnerDispatchPolicyViolations $policy) -join ';'
     if ($seen -notmatch [regex]::Escape($cloudCharge)) {
         return @{Passed=$false;Detail='Enabling jules raised no cloud-execution charge'}
     }
+    # A free-text note is not a budget: it names no cap, key or date.
     $policy.jules | Add-Member -NotePropertyName cloudBudgetAuthorization -NotePropertyValue 'fixture authorization' -Force
     $seen = @(Get-OwnerDispatchPolicyViolations $policy) -join ';'
+    if ($seen -notmatch [regex]::Escape($cloudCharge)) {
+        return @{Passed=$false;Detail='A free-text cloudBudgetAuthorization cleared the cloud-execution charge'}
+    }
+    $fixtureAuthorization = [pscustomobject]@{
+        date = '2026-01-01'; ownerQuotes = @('fixture owner quote'); defaultMaxAcuLimit = 1; maxConcurrentSessions = 1
+        keyType = 'fixture'; keyEnv = 'JULES_FIXTURE_KEY'; keyOpRef = 'op://Fixture/Jules/credential'; orgId = 'fixture-org'; apiBase = 'https://jules.example/v1'
+    }
+    $policy.jules.cloudBudgetAuthorization = $fixtureAuthorization
+    $seen = @(Get-OwnerDispatchPolicyViolations $policy) -join ';'
     if ($seen -match [regex]::Escape($cloudCharge)) {
-        return @{Passed=$false;Detail='A recorded cloudBudgetAuthorization did not clear the cloud-execution charge'}
+        return @{Passed=$false;Detail='A well-formed cloudBudgetAuthorization did not clear the cloud-execution charge'}
     }
     if ($seen -notmatch 'jules') {
         return @{Passed=$false;Detail='A cloud budget alone enabled jules; the authorized-list charge must still apply'}
@@ -517,11 +566,68 @@ function Test-CodexEvidenceGateRejectsStrippedEvidence {
     return @{ Passed = $true; Detail = $null }
 }
 
+# SH-4969 (owner direction 2026-11-19): Devin Cloud is enabled under a recorded
+# budget. The live record must carry the owner's exact values, and stripping or
+# malforming any part of it must re-arm the cloud-execution charge.
+function Test-DevinCloudBudgetGate {
+    $profile = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    $cloud = $profile.dispatchPolicy.'devin-cloud'
+    if ($cloud.enabled -ne $true) { return @{ Passed = $false; Detail = 'dispatchPolicy.devin-cloud is not enabled' } }
+    $auth = $cloud.cloudBudgetAuthorization
+    $authErrors = @(Get-CloudBudgetAuthorizationViolations $auth)
+    if ($authErrors.Count -ne 0) { return @{ Passed = $false; Detail = "live devin-cloud authorization is malformed: $($authErrors -join '; ')" } }
+    $expected = [ordered]@{
+        date = '2026-11-19'; defaultMaxAcuLimit = 10; maxConcurrentSessions = 3; keyType = 'org-service-user'
+        keyEnv = 'DEVIN_CLOUD_API_KEY'; keyOpRef = 'op://d4yvwfzjsyw4x6mymqjjfcxcoe/ovdhltjbi4cfjnjaf573brqsty/credential'
+        orgId = 'org-d986482cea0c49689c6c9a590ecbdf7b'; apiBase = 'https://api.devin.ai/v3'
+        serviceUser = 'agenthub-dispatch'; serviceUserRole = 'Member'; keyExpiresOn = '2027-02-17'
+    }
+    foreach ($name in $expected.Keys) {
+        if ([string]$auth.$name -ne [string]$expected[$name]) { return @{ Passed = $false; Detail = "cloudBudgetAuthorization.$name is '$($auth.$name)', expected '$($expected[$name])'" } }
+    }
+    $quotes = @($auth.ownerQuotes) -join ' | '
+    if ($quotes -notmatch 'Devin cloud and api are OK now' -or $quotes -notmatch 'first class agent from now') {
+        return @{ Passed = $false; Detail = 'cloudBudgetAuthorization.ownerQuotes does not carry the 2026-11-19 owner direction' }
+    }
+    $surface = @($profile.hostSurfaces.surfaces | Where-Object { $_.surfaceId -eq 'devin-cloud' })
+    if ($surface.Count -ne 1 -or [string]$surface[0].hostId -ne 'devin') {
+        return @{ Passed = $false; Detail = 'hostSurfaces has no single devin-cloud surface owned by host devin' }
+    }
+    if (@(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy).Count -ne 0) {
+        return @{ Passed = $false; Detail = "live policy with devin-cloud enabled was rejected: $(@(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy) -join '; ')" }
+    }
+    $cloudCharge = 'records no well-formed cloudBudgetAuthorization'
+    $cases = [ordered]@{
+        'authorization removed' = { param($p) $p.'devin-cloud'.PSObject.Properties.Remove('cloudBudgetAuthorization') }
+        'authorization as a bare string' = { param($p) $p.'devin-cloud'.cloudBudgetAuthorization = 'owner said ok' }
+        'zero ACU cap' = { param($p) $p.'devin-cloud'.cloudBudgetAuthorization.defaultMaxAcuLimit = 0 }
+        'no concurrency cap' = { param($p) $p.'devin-cloud'.cloudBudgetAuthorization.PSObject.Properties.Remove('maxConcurrentSessions') }
+        'key env shared with the local CLI login' = { param($p) $p.'devin-cloud'.cloudBudgetAuthorization.keyEnv = 'DEVIN_API_KEY' }
+        'key reference outside 1Password' = { param($p) $p.'devin-cloud'.cloudBudgetAuthorization.keyOpRef = 'C:\keys\devin.txt' }
+        'key reference op read cannot parse' = { param($p) $p.'devin-cloud'.cloudBudgetAuthorization.keyOpRef = 'op://Business & Apps/Devin Cloud API service user/credential' }
+        'plain-http API base' = { param($p) $p.'devin-cloud'.cloudBudgetAuthorization.apiBase = 'http://api.devin.ai/v3' }
+        'no owner quote' = { param($p) $p.'devin-cloud'.cloudBudgetAuthorization.ownerQuotes = @() }
+        'undated' = { param($p) $p.'devin-cloud'.cloudBudgetAuthorization.date = 'recently' }
+    }
+    foreach ($case in $cases.GetEnumerator()) {
+        $policy = $profile.dispatchPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        & $case.Value $policy
+        $seen = @(Get-OwnerDispatchPolicyViolations $policy) -join ';'
+        if ($seen -notmatch [regex]::Escape("devin-cloud is a hosted cloud surface and $cloudCharge")) {
+            return @{ Passed = $false; Detail = "devin-cloud stayed accepted with $($case.Key)" }
+        }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r7 = Test-OwnerDispatchPolicyRejectsUnauthorizedChanges
 Report 'owner dispatch whitelist rejects unauthorized hosts and missing or invalid policy entries' $r7.Passed $r7.Detail
 
 $r8 = Test-CodexEvidenceGateRejectsStrippedEvidence
 Report 'codex dispatch is gated on recorded response-capture evidence, enabled or disabled' $r8.Passed $r8.Detail
+
+$r9 = Test-DevinCloudBudgetGate
+Report 'devin-cloud is enabled exactly while it carries the well-formed 2026-11-19 cloud budget authorization' $r9.Passed $r9.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

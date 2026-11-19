@@ -112,7 +112,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $ids = @('claude','codex','cursor','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code','qwen')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode-go/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; qwen = @{ enabled = $true; model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
+    $fleet = @{ launchDefaults = @{ devin = @('--permission-mode', 'dangerous', '--respect-workspace-trust', 'false') }; hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode-go/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; qwen = @{ enabled = $true; model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -133,9 +133,14 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     foreach ($id in @('cursor','windsurf')) { Check "$id routes to CLI" ($r.Out -match "(?m)^$id\trouted\t") }
     foreach ($id in @('antigravity-desktop')) { Check "$id refuses" ($r.Out -match "(?m)^$id\trefused\t") }
     $r = Run @('-HostId','unknown','-Prompt','ok'); Check 'unknown host refuses' ($r.Exit -eq 3 -and $r.Err -match 'unknown host')
-    foreach ($id in @('devin-cloud','jules','cursor-cloud','copilot-agent')) {
+    foreach ($id in @('jules','cursor-cloud','copilot-agent')) {
         $r = Run @('-HostId',$id,'-Prompt','ok'); Check "$id cloud refuses" ($r.Exit -eq 3 -and $r.Err -match 'hosted cloud execution')
     }
+    # SH-4969: devin-cloud runs only under an explicitly enabled policy; no record refuses.
+    $r = Run @('-HostId','devin-cloud','-Prompt','ok')
+    Check 'devin-cloud refuses without an enabled dispatchPolicy record' ($r.Exit -eq 3 -and $r.Err -match 'devin-cloud' -and $r.Err -match 'not enabled') $r.Err
+    $r = Run @('-List')
+    Check 'list reports devin-cloud refused without its policy' ($r.Out -match "(?m)^devin-cloud\trefused\t") $r.Out
     foreach ($id in @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','qwen')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         if ($id -eq 'copilot' -and $r.Exit -eq 3 -and $r.Err -match 'gh has no token for account sh-pendoah') {
@@ -482,7 +487,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     # -List stays as it was; -List -ReadOnly narrows it to read-only hosts.
     $r = Run @('-List')
     $listRows = @(($r.Out -split '\r?\n') | Where-Object { $_ })
-    Check '-List still prints one three-column row per registered host' ($r.Exit -eq 0 -and $listRows.Count -eq $ids.Count -and @($listRows | Where-Object { @($_ -split "`t").Count -ne 3 }).Count -eq 0 -and $r.Out -match "(?m)^grok\tcallable\tfile") $r.Out
+    # Plus one devin-cloud row (SH-4969): a surface of the devin host, not an agents.json record.
+    Check '-List still prints one three-column row per registered host' ($r.Exit -eq 0 -and $listRows.Count -eq ($ids.Count + 1) -and $r.Out -match "(?m)^devin-cloud\t" -and @($listRows | Where-Object { @($_ -split "`t").Count -ne 3 }).Count -eq 0 -and $r.Out -match "(?m)^grok\tcallable\tfile") $r.Out
     $r = Run @('-List','-ReadOnly')
     $readOnlyRows = @(($r.Out -split '\r?\n') | Where-Object { $_ } | ForEach-Object { ($_ -split "`t")[0] })
     Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,factory,opencode,qwen') ($r.Out + $r.Err)
@@ -599,6 +605,44 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'Devin passes an unlisted model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'swe-2-medium-lightning' -and -not $d.ApiKeyVars.DEVIN_API_KEY -and $r.Err -match (PassNote 'devin' 'swe-2-medium-lightning')) $r.Err
     $r = Run @('-HostId','devin','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','--cloud')
     Check 'Devin refuses a model id shaped like a flag' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
+    # SH-4969: the local Devin flags come from launchDefaults.devin, not a copy in the dispatcher.
+    $fleet.launchDefaults.devin = @('--permission-mode', 'smart', '--respect-workspace-trust', 'false'); Save-Fixture
+    $r = Run @('-HostId','devin','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modeIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--permission-mode') } else { -1 }
+    Check 'Devin takes its permission flags from launchDefaults.devin' ($modeIndex -eq 0 -and $d.Arguments[1] -eq 'smart' -and $d.Arguments -notcontains 'dangerous' -and $d.Arguments -contains '-p' -and $d.Arguments -contains '--prompt-file') $r.Err
+    $fleet.launchDefaults.Remove('devin'); Save-Fixture
+    $r = Run @('-HostId','devin','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'Devin refuses when launchDefaults.devin is missing' ($r.Exit -eq 3 -and $r.Err -match 'launchDefaults\.devin') $r.Err
+    $fleet.launchDefaults.devin = @('--permission-mode', 'dangerous', '--respect-workspace-trust', 'false'); Save-Fixture
+    # SH-4969: -HostId devin-cloud hands the task to the Devin Cloud adapter's create action.
+    $liveCloud = (Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json).dispatchPolicy.'devin-cloud'
+    $fleet.dispatchPolicy['devin-cloud'] = @{ enabled = $false; reason = 'synthetic cloud block'; ownerAction = 'owner records a budget' }; Save-Fixture
+    $r = Run @('-HostId','devin-cloud','-Prompt','ok')
+    Check 'a disabled devin-cloud policy refuses with its reason' ($r.Exit -eq 3 -and $r.Err -match 'synthetic cloud block') $r.Err
+    $fleet.dispatchPolicy['devin-cloud'] = ($liveCloud | ConvertTo-Json -Depth 10 | ConvertFrom-Json); Save-Fixture
+    $r = Run @('-List')
+    Check 'list reports devin-cloud callable through its adapter when enabled' ($r.Out -match "(?m)^devin-cloud\tcallable\tcloud-adapter") $r.Out
+    $r = Run @('-HostId','devin-cloud','-PromptFile',(Join-Path $repoRoot 'AGENTS.md'),'-Cwd',$scratch,'-RunId','sh4969-show','-MaxAcu','25','-Repo','shmindmaster/agenthub','-Title','t','-ShowCommand')
+    Check 'devin-cloud show command names the adapter create action and its options' ($r.Exit -eq 0 -and $r.Out -match 'Invoke-DevinCloud\.ps1' -and $r.Out -match '-Action create' -and $r.Out -match '-MaxAcu 25' -and $r.Out -match '-RunId sh4969-show' -and $r.Out -match '-Repo shmindmaster/agenthub') "$($r.Out) $($r.Err)"
+    foreach ($bad in @(@('-ReadOnly'), @('-Model','swe-2-high'), @('-Role','reviewer'))) {
+        $r = Run (@('-HostId','devin-cloud','-Prompt','ok') + $bad)
+        Check "devin-cloud refuses $($bad[0])" ($r.Exit -eq 3) "exit=$($r.Exit) $($r.Err)"
+    }
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-MaxAcu','5')
+    Check '-MaxAcu is refused for a host other than devin-cloud' ($r.Exit -eq 3 -and $r.Err -match 'devin-cloud') $r.Err
+    $oldOpToken = [Environment]::GetEnvironmentVariable('OP_SERVICE_ACCOUNT_TOKEN', 'Process')
+    $oldCloudKey = [Environment]::GetEnvironmentVariable('DEVIN_CLOUD_API_KEY', 'Process')
+    try {
+        [Environment]::SetEnvironmentVariable('OP_SERVICE_ACCOUNT_TOKEN', $null, 'Process')
+        [Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', $null, 'Process')
+        $r = Run @('-HostId','devin-cloud','-Prompt','ok','-Cwd',$scratch,'-RunId','sh4969-nokey')
+        Check 'devin-cloud without a key refuses with exit 3 naming the 1Password item' ($r.Exit -eq 3 -and $r.Err -match 'Business & Apps' -and $r.Err -match 'OP_SERVICE_ACCOUNT_TOKEN' -and [string]::IsNullOrWhiteSpace($r.Out)) "exit=$($r.Exit) $($r.Err)"
+    } finally {
+        [Environment]::SetEnvironmentVariable('OP_SERVICE_ACCOUNT_TOKEN', $oldOpToken, 'Process')
+        [Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', $oldCloudKey, 'Process')
+    }
+    $fleet.dispatchPolicy.Remove('devin-cloud'); Save-Fixture
     $text = "quoted `"text`" café`n& echo %PATH% !name! " + ('x' * 9000)
     $taskFile = Join-Path $fixture 'task.txt'; [IO.File]::WriteAllText($taskFile, $text)
     foreach ($id in @('antigravity')) {
