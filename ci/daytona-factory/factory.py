@@ -31,6 +31,7 @@ REQUIRED = {"demo": {"tests.log", "capture.webm", "demo.mp4"}, "journey": {"test
 OPTIONAL = {"claim.png", "preview.log", "render.log", "toolchain.json", "evidence.tar.gz"}
 EXPORTS = ("tests.log", "toolchain.json", "evidence.tar.gz", "journeys.tar.gz")
 SUITES = tuple(REQUIRED)
+JOURNEY_APPS = {"empowera", "revolva"}
 PROBES = ("none", "fail", "hang")
 API = "https://app.daytona.io/api"
 WORK = "/tmp/factory"
@@ -343,9 +344,13 @@ def exists(box, path):
 
 def download(box, source, destination):
     expected = remote(box, f"sha256sum {shlex.quote(source)}", 60).split()[0]
-    box.download(source, destination)
-    if digest(destination) != expected:
-        raise RuntimeError(f"Download integrity check failed for {destination.name}")
+    try:
+        box.download(source, destination)
+        if digest(destination) != expected:
+            raise RuntimeError(f"Download integrity check failed for {destination.name}")
+    except BaseException:
+        Path(destination).unlink(missing_ok=True)
+        raise
 
 
 class Job:
@@ -398,15 +403,19 @@ class Job:
     def export(self, box, record, names):
         """Copy evidence off the worker before deletion; never mask the original failure."""
         exported = []
-        for name in names:
-            try:
-                if self.deadline.left(export=True) > 0 and exists(box, f"{WORK}/out/{name}"):
-                    download(box, f"{WORK}/out/{name}", self.args.output / name)
-                    exported.append(name)
-            except Exception as error:
-                print(f"Export of {name} failed ({type(error).__name__})", flush=True)
-        record["exported"] = sorted(set(record.get("exported", [])) | set(exported))
-        record["exported_before_delete"] = "tests.log" in record["exported"]
+        try:
+            for name in names:
+                try:
+                    if self.deadline.left(export=True) > 0 and exists(box, f"{WORK}/out/{name}"):
+                        download(box, f"{WORK}/out/{name}", self.args.output / name)
+                        exported.append(name)
+                except Cancelled:
+                    raise
+                except Exception as error:
+                    print(f"Export of {name} failed ({type(error).__name__})", flush=True)
+        finally:
+            record["exported"] = sorted(set(record.get("exported", [])) | set(exported))
+            record["exported_before_delete"] = "tests.log" in record["exported"]
         return exported
 
     def build(self, cache_key):
@@ -524,6 +533,8 @@ def install_cancellation():
 
 def run(args, policy):
     validate_run(args.run)
+    if args.suite == "journey" and args.app not in JOURNEY_APPS:
+        raise ValueError(f"No journey suite is defined for {args.app}.")
     args.output.mkdir(parents=True, exist_ok=True)
     started, clock = now(), time.monotonic()
     minutes = policy["max_job_minutes"]

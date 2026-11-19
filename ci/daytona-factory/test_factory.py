@@ -252,6 +252,36 @@ class JobTests(unittest.TestCase):
         self.assertEqual(job.workers["build"]["exported"], ["tests.log"])
         self.assertEqual(provider.live, set())
 
+    def test_a_corrupt_download_is_removed_and_not_reported_exported(self):
+        provider = FakeProvider()
+        real = FakeBox.download
+        def corrupt(box, source, destination):
+            real(box, source, destination)
+            if Path(source).name == "journeys.tar.gz":
+                Path(destination).write_bytes(b"tampered")
+        with mock.patch.object(FakeBox, "download", corrupt):
+            job, _, _ = self.build(provider)
+        self.assertNotIn("journeys.tar.gz", job.workers["build"]["exported"])
+        self.assertFalse((job.args.output / "journeys.tar.gz").exists())
+
+    def test_cancellation_during_export_is_not_swallowed(self):
+        provider = FakeProvider()
+        real = FakeBox.download
+        def cancel_on_archive(box, source, destination):
+            if Path(source).name == "journeys.tar.gz":
+                raise factory.Cancelled("Cancelled by signal 15")
+            real(box, source, destination)
+        with mock.patch.object(FakeBox, "download", cancel_on_archive):
+            job, _, error = self.build(provider)
+        self.assertIsInstance(error, factory.Cancelled)
+        self.assertTrue(job.workers["build"]["deleted"])
+        self.assertEqual(provider.live, set())
+
+    def test_journey_suite_is_refused_for_apps_without_journeys(self):
+        args = SimpleNamespace(run="local-1", suite="journey", app="abacare")
+        with self.assertRaisesRegex(ValueError, "No journey suite"):
+            factory.run(args, factory.load_policy())
+
     def test_one_retry_for_transient_creation_errors_only(self):
         job, _, error = self.build(FakeProvider(create_errors=[ConnectionError()]))
         self.assertIsNone(error)
