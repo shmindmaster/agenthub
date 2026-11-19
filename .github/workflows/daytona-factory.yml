@@ -66,6 +66,9 @@ jobs:
           echo "SOURCE_DIR=$RUNNER_TEMP/factory-source" >> "$GITHUB_ENV"
           echo "OUTPUT_DIR=$RUNNER_TEMP/factory-output" >> "$GITHUB_ENV"
           case "$SUITE/$PROBE" in demo/*|journey/*) ;; *) exit 2 ;; esac
+          if [[ "$SUITE" == journey && "$APP" == abacare ]]; then
+            echo "::error::No journey suite is defined for abacare."; exit 2
+          fi
           echo "artifact=daytona-$APP-$SUITE-$SOURCE_SHA-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           echo "key=FACTORY_SOURCE_${APP^^}_SSH_KEY" >> "$GITHUB_OUTPUT"
       - name: Fetch and verify the exact source commit
@@ -118,11 +121,13 @@ jobs:
             echo "::error::Set DAYTONA_ELIGIBLE_CREDITS_USD, DAYTONA_CASH_FALLBACK_DISABLED and DAYTONA_PILOT_BATCH_START on the daytona-factory environment."
             exit 1
           }
-          # Every earlier run attempt in the batch, including earlier attempts of this run, counts as a
-          # full worst-case reservation; runs queued after this one do not.
+          # Every started run attempt in the batch, including earlier attempts of this run, counts as a
+          # full worst-case reservation; an attempt still waiting to start does not.
           prior=$(gh api --paginate --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/daytona-factory.yml/runs" \
-            -f created=">=$BATCH_START" --jq ".workflow_runs[] | select(.id <= $GITHUB_RUN_ID)
-              | if .id == $GITHUB_RUN_ID then $GITHUB_RUN_ATTEMPT - 1 else .run_attempt end" \
+            -f created=">=$BATCH_START" --jq ".workflow_runs[]
+              | if .id == $GITHUB_RUN_ID then $GITHUB_RUN_ATTEMPT - 1
+                elif (.status | IN(\"queued\", \"waiting\", \"pending\", \"requested\")) then .run_attempt - 1
+                else .run_attempt end" \
             | awk '{ total += $1 } END { print total + 0 }')
           mkdir -p "$OUTPUT_DIR"
           python ci/daytona-factory/factory.py preflight --credits-usd "$CREDITS_USD" \
