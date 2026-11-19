@@ -1,6 +1,6 @@
 # Mobile MCP and MobileBuildMCP
 
-Read when driving a **real** iPhone or Android device, or when an iOS build, test or log needs Xcode. Appium (`appium-mobile`) stays the route for the Windows Android emulator and the Simulator until Mobile MCP has proven those.
+Read when driving a **real** iPhone or Android device, or when an iOS build, test or log needs Xcode. For the iPhone on USB from Windows, `physical-iphone.md` is the route that has driven real apps; start there. Appium (`appium-mobile`) stays the route for the Windows Android emulator and the Simulator until Mobile MCP has proven those.
 
 ## Mobile MCP (`mobile-mcp`, registry/mcps.json)
 

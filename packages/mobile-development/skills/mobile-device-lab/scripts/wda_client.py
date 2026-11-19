@@ -49,14 +49,27 @@ class Wda:
         except (urllib.error.URLError, TimeoutError, OSError) as error:
             return {"error": f"no answer from the runner: {error}"}
 
-    def find(self, xpath):
-        value = self.call("POST", "/elements", {"using": "xpath", "value": xpath})
+    def find(self, locator, using="xpath"):
+        """Element ids for a locator. `using` is "xpath", "predicate string" or "class chain"."""
+        value = self.call("POST", "/elements", {"using": using, "value": locator})
         return [e["ELEMENT"] for e in value] if isinstance(value, list) else []
 
-    def one(self, xpath):
+    def one(self, locator, using="xpath"):
         """The single matching element, or None. Never act on an ambiguous match."""
-        found = self.find(xpath)
+        found = self.find(locator, using)
         return found[0] if len(found) == 1 else None
+
+    def one_predicate(self, predicate):
+        """The single element matching an NSPredicate such as "label == 'General' AND type == 'XCUIElementTypeCell'".
+
+        Prefer this to XPath and to coordinates on long lists and on screens whose layout shifts when
+        text wraps: it is evaluated on the device, and the click goes to the element, not to a point.
+        """
+        return self.one(predicate, using="predicate string")
+
+    def one_class_chain(self, chain):
+        """The single element matching a class chain such as "**/XCUIElementTypeCell[`label == 'General'`]"."""
+        return self.one(chain, using="class chain")
 
     def click(self, el):
         return self.call("POST", f"/element/{el}/click")
