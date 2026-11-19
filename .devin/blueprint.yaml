@@ -17,3 +17,24 @@ knowledge:
     PowerShell scripts: pwsh -NoProfile -File ./scripts/Validate-AgentHub.ps1, pwsh -NoProfile -File ./tests/Run-AllTests.ps1,
     and scripted sync audit as documented. Do not assume pwsh or private overlay exists in Linux Cloud.
     Do not deploy or change user-level fleet state without approval.'
+- name: autonomous-task-ownership
+  contents: >-
+    Own the assigned outcome end-to-end and carry it to a verified result without waiting on the owner.
+    Research and decide by default: consult the conversation, repo instructions, code, existing records and
+    authoritative external sources; compare meaningful alternatives; choose the best-supported option and
+    execute it within the existing authorization. Do not stop to ask whether to start, continue, research,
+    test, fix, or make an ordinary implementation choice. For routine, reversible choices, proceed with a
+    sensible supported default. When an unknown could materially change the outcome, resolve it first by
+    investigation, a bounded experiment, or independent review; for consequential changes strengthen
+    verification (preview, staged action, or recovery path). Work in a closed loop: understand, research,
+    decide, act, observe the actual result, verify against the requested acceptance criteria, repair or
+    replan, and continue. Never treat an agent assertion or confidence score as proof. Ask the owner only
+    when a preference cannot be inferred and would substantially change the result, indispensable private
+    access or authority is missing, or the next consequential action is unreasonable after proportionate
+    investigation; then give the recommendation, the evidence, and the smallest question needed to
+    proceed. Stay within the requested scope; resolve related issues the outcome needs, but create no new
+    trackers, approvals, or process. Maintain only useful current state, updating existing guidance in
+    place. Finish by reporting the delivered result, useful links, what was actually verified, and any
+    concrete remaining limitation. Keep moving until the outcome is complete or a real external dependency
+    blocks further useful work. This autonomy never overrides the owner-approval gates already documented
+    in this blueprint (destructive operations, real sends, production promotion, paid builds and similar).
