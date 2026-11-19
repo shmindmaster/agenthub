@@ -50,6 +50,8 @@ class Runner(BaseHTTPRequestHandler):
         Runner.log.append(("POST", self.path, body))
         if self.path.endswith("/elements"):
             xpath = body["value"]
+            if body["using"] in ("predicate string", "class chain"):
+                return self._send([{"ELEMENT": f"{body['using'][0]}-1"}] if "General" in xpath else [])
             if "Back" in xpath:
                 return self._send([{"ELEMENT": "back-1"}])
             if "ambiguous" in xpath:
@@ -108,6 +110,15 @@ class WdaClient(unittest.TestCase):
         self.assertIsNone(self.wda.one("//ambiguous"))
         self.assertIsNone(self.wda.one("//nothing"))
         self.assertEqual(self.wda.one("//row"), "row-1")
+
+    def test_predicate_and_class_chain_locators_send_their_own_strategy(self):
+        self.assertEqual(self.wda.one_predicate("label == 'General'"), "p-1")
+        self.assertEqual(self.wda.one_class_chain("**/XCUIElementTypeCell[`label == 'General'`]"), "c-1")
+        self.assertIsNone(self.wda.one_predicate("label == 'Nothing'"))
+        usings = [body["using"] for method, path, body in Runner.log if path.endswith("/elements")]
+        self.assertEqual(usings, ["predicate string", "class chain", "predicate string"])
+        self.assertEqual(self.wda.find("//row"), ["row-1"])
+        self.assertEqual(Runner.log[-1][2]["using"], "xpath")
 
     def test_back_matches_a_real_back_button(self):
         self.assertTrue(self.wda.back(settle=0))

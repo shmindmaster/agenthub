@@ -51,7 +51,8 @@ Hold the lease around anything that mutates a shared emulator or Simulator: buil
 - `references/forge-mac.md`. Read before any iOS, Simulator or Xcode work: starting, using and releasing the macOS VM on sh-forge.
 - `references/inner-loop.md`. Read when choosing rebuild vs reload, building or syncing the app under test, build speed, test tools, or web targets.
 - `references/lab-operations.md`. Read for the lease and idle-check commands, a guest that will not start, Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
-- `references/mobile-mcp.md`. Read before driving a real iPhone or Android device with Mobile MCP, or before iOS build and log work with MobileBuildMCP in the forge guest. Read when driving the iPhone attached to Windows: tap, type, swipe and read the screen through WebDriverAgent, with `scripts/wda_client.py`.
+- `references/mobile-mcp.md`. Read before driving a real iPhone or Android device with Mobile MCP, or before iOS build and log work with MobileBuildMCP in the forge guest.
+- `references/physical-iphone.md`. Read when driving or provisioning the iPhone attached to Windows over USB: tap, type, swipe and read any app's screen through WebDriverAgent (`scripts/wda_client.py`), install and confirm a build, push a file into an app's Documents, and before saying a phone task cannot be done. Also lists the other iPhone-automation routes already evaluated.
 - `references/remote-android.md`. Read when building, running or testing Android without loading this PC, registering another app, or letting the owner view the emulator.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
