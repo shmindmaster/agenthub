@@ -34,7 +34,7 @@ function PassNote([string]$HostName, [string]$ModelId) {
 $oldRoot = $env:AGENTHUB_ROOT; $oldLocal = $env:LOCALAPPDATA
 $oldWindowsHome = $env:USERPROFILE; $oldPosixHome = $env:HOME
 $oldApiKeyVars = @{}
-foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN')) {
+foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','DEVIN_CLOUD_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN')) {
     $oldApiKeyVars[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     [Environment]::SetEnvironmentVariable($name, 'synthetic-dispatch-fixture', 'Process')
 }
@@ -96,7 +96,7 @@ for (const arg of args) {
 }
 const settingsIndex = args.indexOf('--settings-file');
 if (settingsIndex >= 0 && fs.existsSync(args[settingsIndex + 1])) ampSettings = JSON.parse(fs.readFileSync(args[settingsIndex + 1], 'utf8'));
-console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN'].map(name => [name, Object.hasOwn(process.env, name)])), QwenRoute: { openAiKeyPresent: Object.hasOwn(process.env, 'OPENAI_API_KEY'), openAiKeyIsMimo: process.env.OPENAI_API_KEY !== undefined && process.env.OPENAI_API_KEY === process.env.MIMO_API_KEY, openAiBaseUrl: process.env.OPENAI_BASE_URL ?? null, openAiModel: process.env.OPENAI_MODEL ?? null, ghTokenPresent: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN'), gitPushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null }}));
+console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','DEVIN_CLOUD_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN'].map(name => [name, Object.hasOwn(process.env, name)])), QwenRoute: { openAiKeyPresent: Object.hasOwn(process.env, 'OPENAI_API_KEY'), openAiKeyIsMimo: process.env.OPENAI_API_KEY !== undefined && process.env.OPENAI_API_KEY === process.env.MIMO_API_KEY, openAiBaseUrl: process.env.OPENAI_BASE_URL ?? null, openAiModel: process.env.OPENAI_MODEL ?? null, ghTokenPresent: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN'), gitPushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null }}));
 if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
     $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
@@ -151,6 +151,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         }
         $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
         Check "$id launches synthetic child" ($r.Exit -eq 0 -and $null -ne $d) $r.Err
+        # SH-4969 fix round: the Devin Cloud key reaches no child the dispatcher starts.
+        Check "$id child does not inherit DEVIN_CLOUD_API_KEY" ($null -ne $d -and $d.ApiKeyVars.DEVIN_CLOUD_API_KEY -eq $false) $r.Err
         if ($id -eq 'codex') {
             Check 'codex accepts non-repo cwd via explicit skip flag' ($d.Arguments -contains '--skip-git-repo-check' -and $d.Arguments -contains '-' -and $d.Input -eq 'ok')
             Check 'codex did not initialize git' (-not (Test-Path (Join-Path $scratch '.git')))
@@ -631,6 +633,10 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-MaxAcu','5')
     Check '-MaxAcu is refused for a host other than devin-cloud' ($r.Exit -eq 3 -and $r.Err -match 'devin-cloud') $r.Err
+    foreach ($bad in @('2.5', '1e3', 'abc')) {
+        $r = Run @('-HostId','devin-cloud','-Prompt','ok','-Cwd',$scratch,'-MaxAcu',$bad,'-ShowCommand')
+        Check "devin-cloud refuses -MaxAcu $bad with exit 3" ($r.Exit -eq 3 -and $r.Err -match 'MaxAcu') "exit=$($r.Exit) $($r.Out) $($r.Err)"
+    }
     $oldOpToken = [Environment]::GetEnvironmentVariable('OP_SERVICE_ACCOUNT_TOKEN', 'Process')
     $oldCloudKey = [Environment]::GetEnvironmentVariable('DEVIN_CLOUD_API_KEY', 'Process')
     try {
@@ -638,6 +644,15 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         [Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', $null, 'Process')
         $r = Run @('-HostId','devin-cloud','-Prompt','ok','-Cwd',$scratch,'-RunId','sh4969-nokey')
         Check 'devin-cloud without a key refuses with exit 3 naming the 1Password item' ($r.Exit -eq 3 -and $r.Err -match 'Business & Apps' -and $r.Err -match 'OP_SERVICE_ACCOUNT_TOKEN' -and [string]::IsNullOrWhiteSpace($r.Out)) "exit=$($r.Exit) $($r.Err)"
+        # The dispatcher withholds the in-process override from its children but still
+        # hands it to the adapter: with no service-account token, only the override can
+        # get the run as far as the (refused) loopback connection.
+        $cloudKey = 'cog_SYNTHETICdispatchKEY0123456789abQRST'
+        $fleet.dispatchPolicy['devin-cloud'].cloudBudgetAuthorization.apiBase = 'https://127.0.0.1:9/v3'; Save-Fixture
+        [Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', $cloudKey, 'Process')
+        $r = Run @('-HostId','devin-cloud','-Prompt','ok','-Cwd',$scratch,'-RunId','sh4969-override','-Repo','o/r')
+        Check 'devin-cloud hands an in-process key override to the adapter' ($r.Exit -eq 1 -and $r.Err -match 'no HTTP response') "exit=$($r.Exit) $($r.Err)"
+        Check 'the handed-over key is never printed' (($r.Out + $r.Err) -notmatch [regex]::Escape($cloudKey))
     } finally {
         [Environment]::SetEnvironmentVariable('OP_SERVICE_ACCOUNT_TOKEN', $oldOpToken, 'Process')
         [Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', $oldCloudKey, 'Process')

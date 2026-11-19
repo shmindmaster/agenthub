@@ -21,9 +21,9 @@ budget" decision below.
 | Lane | How | Evidence state |
 |---|---|---|
 | Local CLI | `Invoke-CodingAgent.ps1 -HostId devin -PromptFile <brief> -Cwd <C:\wt worktree>`; `devin -p` with the flags in `launchDefaults.devin` on the stored account login | verified 2026-11-10 (dispatchPolicy.devin) |
-| Devin Cloud, adapter | `Invoke-CodingAgent.ps1 -HostId devin-cloud ...` (create) and `Invoke-DevinCloud.ps1 -Action status\|wait\|messages\|message\|stop\|list`, over the [v3 API](https://docs.devin.ai/api-reference/v3/overview) | unit-tested with the HTTP function mocked (`tests/Test-DevinCloud.ps1`); the orchestrator reported the key resolving and `GET .../sessions?first=5` returning 200 on 2026-11-19; no create yet |
+| Devin Cloud, adapter | `Invoke-CodingAgent.ps1 -HostId devin-cloud ...` (create) and `Invoke-DevinCloud.ps1 -Action status\|wait\|messages\|message\|stop\|list`, over the [v3 API](https://docs.devin.ai/api-reference/v3/overview) | unit-tested with the HTTP function mocked and against a loopback endpoint (`tests/Test-DevinCloud.ps1`); the orchestrator's live run on 2026-11-19 (session ba31db7d…, 0.0 ACU) exercised create with a cap, dedupe, wait to waiting_for_user, message, reply and stop |
 | Devin Cloud, MCP | official [Devin MCP](https://docs.devin.ai/work-with-devin/devin-mcp) at `https://mcp.devin.ai/mcp`, registry id `devin`, declared for Claude; `Get-DevinMcpHeaders.ps1` is the native `headersHelper` and runs `op read` at connect time | not configured on any host yet; protocol revision not established |
-| Linear delegation | set the issue's delegate to the "Devin" app user (or a Devin skill label or @mention); Devin starts a cloud session and streams activity, plan and PR back into Linear ([Linear](https://docs.devin.ai/integrations/linear)) | documented, not exercised by this change |
+| Linear | Assign the ticket to Devin (or add a Devin skill label, or @mention Devin); Devin starts a cloud session and streams activity, plan and PR back into Linear ([Linear](https://docs.devin.ai/integrations/linear)) | documented, not exercised by this change |
 | GitHub PR comments | `/devin <prompt>` on an open PR goes to the session already working on it, or starts one; `/devin review` starts a Devin Review ([GitHub](https://docs.devin.ai/integrations/gh)) | documented, not exercised by this change |
 
 `devin --cloud -r <id>` reopens any cloud session in the terminal
@@ -38,16 +38,31 @@ budget" decision below.
   `cloudBudgetAuthorization.defaultMaxAcuLimit` = 10. To raise it for one task,
   pass `-MaxAcu <n>` to `Invoke-CodingAgent.ps1 -HostId devin-cloud` or
   `Invoke-DevinCloud.ps1 -Action create`, and only when the task authorizes it.
+  `-MaxAcu` must be a positive whole number (`2.5`, `1e3`, `abc` exit 3).
 - At most `maxConcurrentSessions` = 3 sessions tagged `agenthub` may be `new`,
   `claimed`, `running` or `resuming`; a fourth create is refused with exit 3.
+  The count reads every page and fails closed (exit 3) when it cannot
+  complete.
 - Every session is tagged `agenthub` and `run:<RunId>`. v3 has no idempotency
-  key, so a create whose run tag already exists returns that session.
+  key, so a create whose run tag already exists returns that session. Without
+  `-RunId` the run id is derived from the prompt, sorted repos and title, so
+  an identical re-dispatch dedupes. The lookup, the count and the POST run
+  under the machine-wide mutex `Global\AgentHub-DevinCloud-Create`.
 - `wait` returns on `finished`, `exit`, `error`, `suspended`,
   `waiting_for_user` or `waiting_for_approval`, with `acus_consumed`,
-  `pull_requests` and `structured_output`. Answer a waiting session with
-  `-Action message`; stop one with `-Action stop`.
-- MCP-created sessions fall under the same budget: ACU limit 10 and the
-  `agenthub` tag unless the task authorizes more.
+  `pull_requests` and `structured_output`, and retries 429, 5xx and timeouts
+  with bounded backoff. It exits 0 when finished, waiting on a person, or
+  exited at a user's request, and exits 4 on timeout, `suspended`, `error` or
+  any other exit. Answer a waiting session with `-Action message`, then wait
+  with `-After <cutoff>` (printed by `message`) so the stale
+  `waiting_for_user` is not taken as the new answer; stop one with
+  `-Action stop`.
+- The MCP lane is not capped by the adapter: the MCP client receives the raw
+  key, so the ACU and concurrency caps are
+  enforced only by the dispatcher adapter. Sessions created through MCP must pass `max_acu_limit` 10 and the
+  `agenthub` tag by convention; the backstop is the org-level default session
+  spending limit in Devin Settings > Usage & Limits (whether to set it is an
+  owner decision).
 
 ### Key
 

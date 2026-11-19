@@ -91,12 +91,16 @@
 
 .PARAMETER RunId
   -HostId devin-cloud only. Tags the session run:<RunId>; a second create with
-  the same run id returns the existing session instead of a duplicate.
+  the same run id returns the existing session instead of a duplicate. When
+  omitted, the adapter derives it from the prompt, repos and title, so an
+  identical retry dedupes.
 
 .PARAMETER MaxAcu
-  -HostId devin-cloud only. Per-session max_acu_limit; the default is
+  -HostId devin-cloud only. Per-session max_acu_limit as a positive whole
+  number (2.5, 1e3 and abc refuse with exit 3); the default is
   cloudBudgetAuthorization.defaultMaxAcuLimit (10). Pass a higher value only
-  when the task authorizes it.
+  when the task authorizes it. DEVIN_CLOUD_API_KEY, when set in this process,
+  is removed before any child starts and handed only to the adapter.
 
 .PARAMETER Repo
   -HostId devin-cloud only. owner/name repositories for the session; derived
@@ -145,7 +149,7 @@ param(
     [string]$Role,
     [switch]$ReadOnly,
     [string]$RunId,
-    [int]$MaxAcu,
+    [string]$MaxAcu,
     [string[]]$Repo,
     [string]$SchemaFile,
     [switch]$List,
@@ -156,6 +160,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+
+# SH-4969: an in-process Devin Cloud key override must reach no child this
+# script starts (host CLIs, ssh, gh, node). It is taken out of the environment
+# here and handed back only to the in-process devin-cloud adapter, which
+# consumes it before starting any child of its own.
+$script:DevinCloudKeyOverride = [Environment]::GetEnvironmentVariable('DEVIN_CLOUD_API_KEY', 'Process')
+[Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', $null, 'Process')
 
 function Find-AgentHubRoot {
     if (-not [string]::IsNullOrWhiteSpace($env:AGENTHUB_ROOT)) {
@@ -1195,6 +1206,10 @@ if ($requested -eq 'devin-cloud') {
     }
     if (-not [string]::IsNullOrWhiteSpace($Prompt) -and -not [string]::IsNullOrWhiteSpace($PromptFile)) { Write-Refusal 3 'Pass -Prompt or -PromptFile, not both.' }
     if ([string]::IsNullOrWhiteSpace($Prompt) -and [string]::IsNullOrWhiteSpace($PromptFile)) { Write-Refusal 3 'Pass -Prompt or -PromptFile.' }
+    # Text, not [int]: PowerShell would round 2.5 and read 1e3 as 1000.
+    if ($PSBoundParameters.ContainsKey('MaxAcu') -and $MaxAcu -notmatch '^[1-9][0-9]{0,5}$') {
+        Write-Refusal 3 "refused devin-cloud: -MaxAcu must be a positive whole number (got '$MaxAcu')"
+    }
     $adapter = Join-Path $PSScriptRoot 'Invoke-DevinCloud.ps1'
     $cloudArgs = [ordered]@{ Action = 'create' }
     if ($PromptFile) { $cloudArgs.PromptFile = $PromptFile } else { $cloudArgs.Prompt = $Prompt }
@@ -1211,6 +1226,9 @@ if ($requested -eq 'devin-cloud') {
         }
         Write-Output ("args={0}" -f ($shown -join ' '))
         exit 0
+    }
+    if (-not [string]::IsNullOrWhiteSpace($script:DevinCloudKeyOverride)) {
+        [Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', $script:DevinCloudKeyOverride, 'Process')
     }
     & $adapter @cloudArgs
     exit $LASTEXITCODE
@@ -1463,6 +1481,8 @@ $accountScrub = @{
     # they are the plan's own variables and nothing else consumes them.
     'qwen'         = @('OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'DASHSCOPE_API_KEY', 'MODELSCOPE_API_KEY', 'QWEN_API_KEY', 'OPENROUTER_API_KEY', 'NVIDIA_API_KEY', 'AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'OPENAI_ORG_ID', 'OPENAI_PROJECT', 'GH_TOKEN', 'GITHUB_TOKEN')
 }
+# Every host, not just devin: the Devin Cloud key is never a child's credential.
+[void]$psi.EnvironmentVariables.Remove('DEVIN_CLOUD_API_KEY')
 if ($accountScrub.ContainsKey($targetId)) {
     foreach ($name in $accountScrub[$targetId]) {
         if ($script:ClaudeApiKeyOptIn -and $targetId -eq 'claude' -and $name -eq 'ANTHROPIC_API_KEY') { continue }

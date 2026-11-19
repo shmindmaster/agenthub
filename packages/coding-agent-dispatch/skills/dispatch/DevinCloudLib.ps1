@@ -81,7 +81,9 @@ function Get-DevinCloudConfig {
     if ($auth -isnot [pscustomobject]) { throw (New-DevinCloudRefusal 'refused devin-cloud: dispatchPolicy.devin-cloud has no cloudBudgetAuthorization record') }
     $missing = @('apiBase', 'orgId', 'keyOpRef', 'defaultMaxAcuLimit', 'maxConcurrentSessions') | Where-Object { [string]::IsNullOrWhiteSpace([string]$auth.$_) }
     if (@($missing).Count -gt 0) { throw (New-DevinCloudRefusal "refused devin-cloud: cloudBudgetAuthorization is missing $(@($missing) -join ', ')") }
-    if ([string]$auth.apiBase -notmatch '^https://[^/\s]+(/\S*)?$') { throw (New-DevinCloudRefusal 'refused devin-cloud: cloudBudgetAuthorization.apiBase is not an https URL') }
+    # https only; plain http is accepted for a loopback host, which is how the
+    # tests reach a local fixture endpoint. The registry rule still requires https.
+    if ([string]$auth.apiBase -notmatch '^https://[^/\s]+(/\S*)?$' -and [string]$auth.apiBase -notmatch '^http://(127\.0\.0\.1|localhost)(:\d+)?(/\S*)?$') { throw (New-DevinCloudRefusal 'refused devin-cloud: cloudBudgetAuthorization.apiBase is not an https URL') }
     if ([string]$auth.orgId -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]*$') { throw (New-DevinCloudRefusal 'refused devin-cloud: cloudBudgetAuthorization.orgId is malformed') }
     if ([int]$auth.defaultMaxAcuLimit -lt 1 -or [int]$auth.maxConcurrentSessions -lt 1) { throw (New-DevinCloudRefusal 'refused devin-cloud: the ACU and concurrency caps must be positive integers') }
     $keyEnv = if ([string]::IsNullOrWhiteSpace([string]$auth.keyEnv)) { 'DEVIN_CLOUD_API_KEY' } else { [string]$auth.keyEnv }
@@ -124,6 +126,7 @@ function Read-DevinCloudKeyFromOp {
     $psi = [Diagnostics.ProcessStartInfo]::new()
     $psi.FileName = $op
     $psi.Arguments = 'read --no-newline "' + ([string]$Config.KeyOpRef).Replace('"', '') + '"'
+    [void]$psi.EnvironmentVariables.Remove('DEVIN_CLOUD_API_KEY')
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
     $psi.RedirectStandardOutput = $true
@@ -151,9 +154,27 @@ function Read-DevinCloudKeyFromOp {
     }
 }
 
+# Which persistent scopes (User, Machine) hold the variable. Windows only; other
+# platforms have no persistent environment scope here.
+function Get-DevinCloudPersistedKeyScopes {
+    param([string]$Name)
+    if ($env:OS -ne 'Windows_NT') { return @() }
+    return @(@('User', 'Machine') | Where-Object { -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($Name, $_)) })
+}
+
 function Resolve-DevinCloudKey {
     param([Parameter(Mandatory)] $Config)
+    # The key is runtime-only. A value persisted in the User or Machine
+    # environment reaches every process on the machine, so it is refused.
+    $persisted = @(Get-DevinCloudPersistedKeyScopes -Name $Config.KeyEnv)
+    if ($persisted.Count -gt 0) {
+        throw (New-DevinCloudRefusal "refused devin-cloud: $($Config.KeyEnv) is persisted in the $($persisted -join ' and ') environment. The key is runtime-only: remove it from that scope and let the adapter read it with op read through the 1Password service account.")
+    }
     $override = [Environment]::GetEnvironmentVariable($Config.KeyEnv, 'Process')
+    if (-not [string]::IsNullOrWhiteSpace($override)) {
+        # Consume the in-process override so no later child (git, op) inherits it.
+        [Environment]::SetEnvironmentVariable($Config.KeyEnv, $null, 'Process')
+    }
     $key = if (-not [string]::IsNullOrWhiteSpace($override)) { $override.Trim() } else { Read-DevinCloudKeyFromOp -Config $Config }
     $script:DevinCloudKey = $key
     if ($key -notmatch '^cog_') {
@@ -183,8 +204,14 @@ function ConvertTo-DevinCloudQueryString {
 
 # The one HTTP function. Path is relative to /organizations/{org}. Errors carry
 # the status code and the API's own detail, masked, never the request headers.
+# Invoke-RestMethod prints request headers, the bearer included, to the debug
+# stream on pwsh 7.4+, and it inherits a caller's -Debug/-Verbose; both are
+# silenced for this scope and on the call itself.
 function Invoke-DevinApi {
     param([Parameter(Mandatory)] [string]$Method, [Parameter(Mandatory)] [string]$Path, [hashtable]$Query, $Body, [int]$TimeoutSec = 60)
+    $DebugPreference = 'SilentlyContinue'
+    $VerbosePreference = 'SilentlyContinue'
+    $InformationPreference = 'SilentlyContinue'
     if ($null -eq $script:DevinCloudContext) { throw (New-DevinCloudRefusal 'refused devin-cloud: no API context; resolve the key first') }
     $uri = "$($script:DevinCloudContext.ApiBase)/organizations/$($script:DevinCloudContext.OrgId)$Path" + (ConvertTo-DevinCloudQueryString $Query)
     if ($PSVersionTable.PSEdition -ne 'Core') { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 }
@@ -194,6 +221,9 @@ function Invoke-DevinApi {
         Headers = @{ Authorization = 'Bearer ' + $script:DevinCloudContext.Key; Accept = 'application/json' }
         TimeoutSec = $TimeoutSec
         ErrorAction = 'Stop'
+        Debug = $false
+        Verbose = $false
+        InformationAction = 'SilentlyContinue'
     }
     if ($null -ne $Body) {
         $request.ContentType = 'application/json'
@@ -207,7 +237,12 @@ function Invoke-DevinApi {
         $detail = if ($_.ErrorDetails -and $_.ErrorDetails.Message) { [string]$_.ErrorDetails.Message } else { [string]$_.Exception.Message }
         if ($detail.Length -gt 500) { $detail = $detail.Substring(0, 500) }
         $label = if ($status) { "HTTP $status" } else { 'no HTTP response' }
-        throw (New-DevinCloudRefusal (Protect-DevinCloudText "devin-cloud API $Method $Path failed: $label. $detail") 1)
+        $failure = New-DevinCloudRefusal (Protect-DevinCloudText "devin-cloud API $Method $Path failed: $label. $detail") 1
+        # 429, 5xx and transport failures (timeouts, refused connections) are
+        # worth a bounded retry by a poller; anything else is not.
+        $failure.Data['HttpStatus'] = $status
+        $failure.Data['Transient'] = ($null -eq $status -or $status -eq 429 -or $status -ge 500)
+        throw $failure
     }
 }
 
@@ -216,8 +251,13 @@ function Assert-DevinCloudSessionId {
     if ($SessionId -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]{2,127}$') { throw (New-DevinCloudRefusal 'refused devin-cloud: -SessionId is missing or malformed') }
 }
 
+# Pages until has_next_page is false. A listing that cannot complete (a page
+# promising more with no cursor, or the safety bound) is a refusal, never a
+# silently short answer: dedupe and the concurrency cap both depend on it. The
+# v3 SessionsQueryParams have no status filter, so the tag is the only
+# server-side narrowing and status is filtered here.
 function Get-DevinCloudSessions {
-    param([string[]]$Tags, [int]$MaxPages = 10)
+    param([string[]]$Tags, [int]$MaxPages = 1000)
     $items = [Collections.Generic.List[object]]::new()
     $after = $null
     for ($page = 0; $page -lt $MaxPages; $page++) {
@@ -226,10 +266,29 @@ function Get-DevinCloudSessions {
         if ($after) { $query.after = $after }
         $response = Invoke-DevinApi -Method GET -Path '/sessions' -Query $query
         foreach ($item in @($response.items)) { if ($null -ne $item) { $items.Add($item) } }
-        if (-not $response.has_next_page -or [string]::IsNullOrWhiteSpace([string]$response.end_cursor)) { break }
+        if (-not $response.has_next_page) { return $items.ToArray() }
+        if ([string]::IsNullOrWhiteSpace([string]$response.end_cursor)) {
+            throw (New-DevinCloudRefusal 'refused devin-cloud: the session listing reported more pages but returned no cursor, so it cannot be completed')
+        }
         $after = [string]$response.end_cursor
     }
-    return $items.ToArray()
+    throw (New-DevinCloudRefusal "refused devin-cloud: the session listing did not finish within $MaxPages pages")
+}
+
+# -MaxAcu arrives as text: [int] conversion would round 2.5 and read 1e3 as 1000.
+function ConvertTo-DevinCloudAcuLimit {
+    param([AllowNull()][string]$Value)
+    if ([string]$Value -notmatch '^[1-9][0-9]{0,5}$') { throw (New-DevinCloudRefusal "refused devin-cloud: -MaxAcu must be a positive whole number (got '$Value')") }
+    return [int]$Value
+}
+
+# A run id derived from what was asked, so a retry of the same dispatch dedupes.
+function Get-DevinCloudDerivedRunId {
+    param([string]$Prompt, [string[]]$Repos, [string]$Title)
+    $basis = $Prompt + "`n" + ((@($Repos | Where-Object { $_ }) | Sort-Object) -join ',') + "`n" + [string]$Title
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $hash = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($basis))).Replace('-', '').ToLowerInvariant() } finally { $sha.Dispose() }
+    return 'auto-' + $hash.Substring(0, 16)
 }
 
 function ConvertTo-DevinCloudRepoName {
@@ -245,9 +304,21 @@ function Get-DevinCloudRepoFromCwd {
     if ([string]::IsNullOrWhiteSpace($Cwd) -or -not (Test-Path -LiteralPath $Cwd -PathType Container)) { return $null }
     $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $git) { return $null }
-    $url = & $git.Source -C $Cwd remote get-url origin 2>$null
-    if ($LASTEXITCODE -ne 0) { return $null }
-    return (ConvertTo-DevinCloudRepoName ([string]$url))
+    # A windowless child with the Devin key variable removed from its environment.
+    $psi = [Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = [string]$git.Source
+    $psi.Arguments = '-C "' + $Cwd.TrimEnd('\').Replace('"', '') + '" remote get-url origin'
+    $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true; $psi.RedirectStandardInput = $true
+    [void]$psi.EnvironmentVariables.Remove('DEVIN_CLOUD_API_KEY')
+    $process = [Diagnostics.Process]::Start($psi)
+    try {
+        $process.StandardInput.Close()
+        $stdout = $process.StandardOutput.ReadToEndAsync(); $null = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(15000)) { try { $process.Kill() } catch { }; return $null }
+        if ($process.ExitCode -ne 0) { return $null }
+        return (ConvertTo-DevinCloudRepoName (([string]$stdout.GetAwaiter().GetResult()).Trim()))
+    } finally { $process.Dispose() }
 }
 
 function Get-DevinCloudSessionReport {
@@ -265,6 +336,10 @@ function Get-DevinCloudSessionReport {
     }
 }
 
+# Serializes the create path (dedupe lookup, concurrency count, POST) across
+# every process on the machine, so two dispatches cannot both pass the checks.
+$script:DevinCloudCreateMutexName = 'Global\AgentHub-DevinCloud-Create'
+
 function New-DevinCloudSession {
     param(
         [Parameter(Mandatory)] $Config,
@@ -273,13 +348,39 @@ function New-DevinCloudSession {
         [string]$RunId,
         [string[]]$Tags,
         [string[]]$Repos,
-        [int]$MaxAcu = 0,
+        [string]$MaxAcu,
+        [string]$SchemaFile,
+        [int]$LockTimeoutSec = 120
+    )
+    $inner = @{} + $PSBoundParameters
+    [void]$inner.Remove('LockTimeoutSec')
+    $mutex = [Threading.Mutex]::new($false, $script:DevinCloudCreateMutexName)
+    $held = $false
+    try {
+        try { $held = $mutex.WaitOne([TimeSpan]::FromSeconds([Math]::Max(1, $LockTimeoutSec))) }
+        catch [Threading.AbandonedMutexException] { $held = $true }
+        if (-not $held) { throw (New-DevinCloudRefusal "refused devin-cloud: another create held the machine-wide lock ($($script:DevinCloudCreateMutexName)) for more than $LockTimeoutSec s") }
+        return (New-DevinCloudSessionLocked @inner)
+    } finally {
+        if ($held) { $mutex.ReleaseMutex() }
+        $mutex.Dispose()
+    }
+}
+
+function New-DevinCloudSessionLocked {
+    param(
+        [Parameter(Mandatory)] $Config,
+        [Parameter(Mandatory)] [string]$Prompt,
+        [string]$Title,
+        [string]$RunId,
+        [string[]]$Tags,
+        [string[]]$Repos,
+        [string]$MaxAcu,
         [string]$SchemaFile
     )
     if ([string]::IsNullOrWhiteSpace($Prompt)) { throw (New-DevinCloudRefusal 'refused devin-cloud: the prompt is empty') }
-    if ($PSBoundParameters.ContainsKey('MaxAcu') -and $MaxAcu -lt 1) { throw (New-DevinCloudRefusal 'refused devin-cloud: -MaxAcu must be a positive integer') }
-    $limit = if ($PSBoundParameters.ContainsKey('MaxAcu')) { $MaxAcu } else { [int]$Config.DefaultMaxAcu }
-    if ([string]::IsNullOrWhiteSpace($RunId)) { $RunId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('n').Substring(0, 8) }
+    $limit = if ($PSBoundParameters.ContainsKey('MaxAcu')) { ConvertTo-DevinCloudAcuLimit $MaxAcu } else { [int]$Config.DefaultMaxAcu }
+    if ([string]::IsNullOrWhiteSpace($RunId)) { $RunId = Get-DevinCloudDerivedRunId -Prompt $Prompt -Repos $Repos -Title $Title }
     if ($RunId -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$') { throw (New-DevinCloudRefusal 'refused devin-cloud: -RunId may use letters, digits, dot, underscore, colon and hyphen only') }
     $runTag = "run:$RunId"
     $allTags = [Collections.Generic.List[string]]::new()
@@ -291,12 +392,19 @@ function New-DevinCloudSession {
     # v3 has no idempotency key: a session already carrying this run tag is the answer.
     $existing = @(Get-DevinCloudSessions -Tags @($runTag) | Where-Object { @($_.tags) -contains $runTag } | Sort-Object { [long]$_.created_at } -Descending)
     if ($existing.Count -gt 0) {
+        # The v3 session response carries no max_acu_limit, so the field is
+        # omitted rather than printed as null.
         $report = Get-DevinCloudSessionReport $existing[0]
-        return [pscustomobject][ordered]@{ session_id = $report.session_id; url = $report.url; status = $report.status; max_acu_limit = $null
+        return [pscustomobject][ordered]@{ session_id = $report.session_id; url = $report.url; status = $report.status
             tags = $report.tags; run_id = $RunId; deduplicated = $true }
     }
 
-    $active = @(Get-DevinCloudSessions -Tags @('agenthub') | Where-Object { @($_.tags) -contains 'agenthub' -and [string]$_.status -in $script:DevinCloudActiveStatuses })
+    # Fail closed: a count that cannot complete refuses the create.
+    try {
+        $active = @(Get-DevinCloudSessions -Tags @('agenthub') | Where-Object { @($_.tags) -contains 'agenthub' -and [string]$_.status -in $script:DevinCloudActiveStatuses })
+    } catch {
+        throw (New-DevinCloudRefusal "refused devin-cloud: the active-session count could not be completed, so the concurrency cap cannot be checked (fail closed). $($_.Exception.Message)")
+    }
     if ($active.Count -ge [int]$Config.MaxConcurrent) {
         $ids = (@($active | ForEach-Object { [string]$_.session_id }) -join ', ')
         throw (New-DevinCloudRefusal "refused devin-cloud: $($active.Count) agenthub-tagged sessions are active ($ids) and the cap is $($Config.MaxConcurrent) (cloudBudgetAuthorization.maxConcurrentSessions). Wait for one to finish or stop one.")
@@ -332,24 +440,77 @@ function Start-DevinCloudSleep {
     Start-Sleep -Seconds $Seconds
 }
 
+# True when Devin posted a message after the cutoff: a created_at value, or an
+# event_id whose later siblings in the thread count as new.
+function Test-DevinCloudNewDevinMessage {
+    param([string]$SessionId, [string]$After)
+    $thread = @(Get-DevinCloudMessages -SessionId $SessionId)
+    if ($After -match '^\d+(\.\d+)?$') {
+        $cut = [double]$After
+        return (@($thread | Where-Object { [string]$_.source -eq 'devin' -and [double]$_.created_at -gt $cut }).Count -gt 0)
+    }
+    $index = -1
+    for ($i = 0; $i -lt $thread.Count; $i++) { if ([string]$thread[$i].event_id -eq $After) { $index = $i } }
+    if ($index -lt 0) { return $false }
+    return (@($thread | Select-Object -Skip ($index + 1) | Where-Object { [string]$_.source -eq 'devin' }).Count -gt 0)
+}
+
 # Polls with backoff until the session finishes, ends, or waits on a person.
+# With -After (a message created_at or event_id, as printed by -Action message),
+# a waiting_for_user/approval state counts only once Devin has posted after the
+# cutoff or the status has changed since the wait began, so a wait right after a
+# reply does not return on the stale state.
 function Wait-DevinCloudSession {
-    param([string]$SessionId, [int]$TimeoutSec = 3600, [int]$PollSec = 15)
+    param([string]$SessionId, [int]$TimeoutSec = 3600, [int]$PollSec = 15, [string]$After)
     Assert-DevinCloudSessionId $SessionId
     $deadline = [DateTime]::UtcNow.AddSeconds([Math]::Max(1, $TimeoutSec))
     $delay = [Math]::Max(1, $PollSec)
+    $transientFailures = 0
+    $staleWaiting = -not [string]::IsNullOrWhiteSpace($After)
     while ($true) {
-        $session = Get-DevinCloudSession -SessionId $SessionId
+        try {
+            $session = Get-DevinCloudSession -SessionId $SessionId
+            $transientFailures = 0
+        } catch {
+            # A 429, 5xx or transport failure is retried with backoff, bounded by
+            # six in a row and by the deadline; anything else ends the wait.
+            $transientFailures++
+            $remaining = ($deadline - [DateTime]::UtcNow).TotalSeconds
+            if ($_.Exception.Data['Transient'] -ne $true -or $transientFailures -gt 6 -or $remaining -le 0) { throw }
+            Start-DevinCloudSleep -Seconds ([int][Math]::Max(1, [Math]::Min($delay, [Math]::Ceiling($remaining))))
+            $delay = [int][Math]::Min(120, [Math]::Ceiling($delay * 1.5))
+            continue
+        }
         $report = Get-DevinCloudSessionReport $session
         $outcome = $null
         if ([string]$session.status_detail -eq 'finished') { $outcome = 'finished' }
         elseif ([string]$session.status -in $script:DevinCloudEndStatuses) { $outcome = [string]$session.status }
-        elseif ([string]$session.status_detail -in $script:DevinCloudWaitingDetails) { $outcome = [string]$session.status_detail }
+        elseif ([string]$session.status_detail -in $script:DevinCloudWaitingDetails) {
+            if ($staleWaiting -and (Test-DevinCloudNewDevinMessage -SessionId $SessionId -After $After)) { $staleWaiting = $false }
+            if (-not $staleWaiting) { $outcome = [string]$session.status_detail }
+        } else {
+            # Any other state means the session moved on since the cutoff.
+            $staleWaiting = $false
+        }
         if ($outcome) { $report.outcome = $outcome; return [pscustomobject]$report }
         $remaining = ($deadline - [DateTime]::UtcNow).TotalSeconds
         if ($remaining -le 0) { $report.outcome = 'timeout'; return [pscustomobject]$report }
         Start-DevinCloudSleep -Seconds ([int][Math]::Min($delay, [Math]::Ceiling($remaining)))
         $delay = [int][Math]::Min(120, [Math]::Ceiling($delay * 1.5))
+    }
+}
+
+# Exit code for a wait report: 0 when the session finished, is waiting on a
+# person, or exited because a user asked; 4 when it did not finish normally
+# (timeout, suspended, error, or exit with any other detail). Read `outcome`.
+function Get-DevinCloudWaitExitCode {
+    param($Report)
+    switch ([string]$Report.outcome) {
+        'finished' { return 0 }
+        'waiting_for_user' { return 0 }
+        'waiting_for_approval' { return 0 }
+        'exit' { if ([string]$Report.status_detail -in @('finished', 'user_request')) { return 0 } else { return 4 } }
+        default { return 4 }
     }
 }
 
@@ -374,7 +535,14 @@ function Send-DevinCloudMessage {
     Assert-DevinCloudSessionId $SessionId
     if ([string]::IsNullOrWhiteSpace($Message)) { throw (New-DevinCloudRefusal 'refused devin-cloud: the message is empty') }
     $null = Invoke-DevinApi -Method POST -Path "/sessions/$SessionId/messages" -Body ([ordered]@{ message = $Message })
-    return [pscustomobject][ordered]@{ session_id = $SessionId; sent = $true }
+    # The newest message in the thread (normally this one) is the cutoff a
+    # following `wait -After` needs; null when the thread cannot be read.
+    $cutoff = $null; $cutoffEvent = $null
+    try {
+        $newest = @(Get-DevinCloudMessages -SessionId $SessionId | Sort-Object { [double]$_.created_at }) | Select-Object -Last 1
+        if ($newest) { $cutoff = $newest.created_at; $cutoffEvent = [string]$newest.event_id }
+    } catch { }
+    return [pscustomobject][ordered]@{ session_id = $SessionId; sent = $true; cutoff = $cutoff; cutoff_event_id = $cutoffEvent }
 }
 
 function Stop-DevinCloudSession {
@@ -401,14 +569,15 @@ function Invoke-DevinCloudMain {
         [string]$RunId,
         [string[]]$Tag,
         [string[]]$Repo,
-        [int]$MaxAcu,
+        [string]$MaxAcu,
         [string]$SchemaFile,
         [string]$Cwd,
         [string]$SessionId,
         [string]$Message,
         [string]$MessageFile,
         [int]$TimeoutSec = 3600,
-        [int]$PollSec = 15
+        [int]$PollSec = 15,
+        [string]$After
     )
     try {
         $config = Get-DevinCloudConfig -Fleet (Get-DevinCloudFleet)
@@ -444,11 +613,9 @@ function Invoke-DevinCloudMain {
             'message' { Write-DevinCloudJson (Send-DevinCloudMessage -SessionId $SessionId -Message $Message); return 0 }
             'stop' { Write-DevinCloudJson (Stop-DevinCloudSession -SessionId $SessionId); return 0 }
             'wait' {
-                $report = Wait-DevinCloudSession -SessionId $SessionId -TimeoutSec $TimeoutSec -PollSec $PollSec
+                $report = Wait-DevinCloudSession -SessionId $SessionId -TimeoutSec $TimeoutSec -PollSec $PollSec -After $After
                 Write-DevinCloudJson $report
-                if ($report.outcome -eq 'timeout') { return 4 }
-                if ($report.outcome -eq 'error') { return 1 }
-                return 0
+                return (Get-DevinCloudWaitExitCode $report)
             }
             'list' {
                 $tags = @('agenthub')

@@ -509,7 +509,7 @@
       "enabled": true,
       "readOnly": false,
       "readOnlyNote": "2026-11-19 checked, none. A Devin Cloud session runs on its own VM with write access to the repositories it is given; the v3 create request (POST /v3/organizations/{org_id}/sessions) has no read-only mode. -ReadOnly is refused.",
-      "scope": "cloud: Invoke-CodingAgent.ps1 -HostId devin-cloud creates one session through skills/dispatch/Invoke-DevinCloud.ps1 (POST {apiBase}/organizations/{orgId}/sessions); status, wait, messages, message, stop and list go through the same adapter. The official Devin MCP server (registry/mcps.json id devin) and Linear delegation to the Devin app user are the other cloud lanes. Local runs stay on dispatchPolicy.devin.",
+      "scope": "cloud: Invoke-CodingAgent.ps1 -HostId devin-cloud creates one session through skills/dispatch/Invoke-DevinCloud.ps1 (POST {apiBase}/organizations/{orgId}/sessions); status, wait, messages, message, stop and list go through the same adapter. The official Devin MCP server (registry/mcps.json id devin) and Linear (assign the ticket to Devin) are the other cloud lanes. Local runs stay on dispatchPolicy.devin.",
       "adapter": "packages/coding-agent-dispatch/skills/dispatch/Invoke-DevinCloud.ps1",
       "cloudBudgetAuthorization": {
         "date": "2026-11-19",
@@ -518,9 +518,9 @@
           "it should be a first class agent from now"
         ],
         "defaultMaxAcuLimit": 10,
-        "defaultMaxAcuLimitNote": "Every create request carries max_acu_limit. The default is 10; a task raises it per session with -MaxAcu <n>, and the value is printed in the adapter's JSON output.",
+        "defaultMaxAcuLimitNote": "Every adapter create request carries max_acu_limit. The default is 10; a task raises it per session with -MaxAcu <n> (a positive whole number), and the value is printed in the adapter's JSON output. Enforced only by the dispatcher adapter: an MCP client holds the raw key, so MCP-created sessions pass 10 by convention, and the backstop is the org-level default session spending limit in Devin Settings > Usage & Limits.",
         "maxConcurrentSessions": 3,
-        "maxConcurrentSessionsNote": "Counted over sessions this dispatcher tagged agenthub whose status is new, claimed, running or resuming. A create at or above the cap is refused with exit 3.",
+        "maxConcurrentSessionsNote": "Counted over sessions this dispatcher tagged agenthub whose status is new, claimed, running or resuming, reading every page (the v3 list has no status filter). A create at or above the cap, or one whose count cannot complete, is refused with exit 3 (fail closed). The dedupe lookup, the count and the POST run under the machine-wide mutex Global\\AgentHub-DevinCloud-Create. Enforced only by the dispatcher adapter: sessions created through the Devin MCP server are not counted or capped here.",
         "keyType": "org-service-user",
         "keyTypeNote": "An org-scoped Devin service-user key (cog_ prefix) with session permissions. docs.devin.ai/work-with-devin/devin-mcp: an org-scoped service user key resolves its organization automatically, so X-Org-Id is optional for it.",
         "keyEnv": "DEVIN_CLOUD_API_KEY",

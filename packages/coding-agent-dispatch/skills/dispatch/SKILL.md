@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts.
 metadata:
-  version: "0.11.0"
+  version: "0.11.1"
 ---
 
 # Dispatch to another coding agent
@@ -145,7 +145,7 @@ Exit codes: 0 child succeeded; 2 launch failure; 3 refusal (policy, autonomy, in
   and the other providers' keys are scrubbed first. `-ShowCommand` prints the
   variable names, never values. The stored `~/.qwen` configuration is not read
   or written.
-- A local headless command does not authorize cloud execution. `jules`, `cursor-cloud` and `copilot-agent` are refused. `devin-cloud` is the one cloud route (owner direction 2026-11-19): it creates a Devin Cloud session through `Invoke-DevinCloud.ps1` only while `dispatchPolicy.devin-cloud` is enabled with its `cloudBudgetAuthorization`, at `max_acu_limit` 10 unless the task passes `-MaxAcu`, with at most 3 concurrent agenthub sessions. Its key comes from `op read` through the 1Password service account; never set or persist a Devin key variable. Lanes, waiting and the Devin MCP headers helper: `references/hosts.md` (Devin).
+- A local headless command does not authorize cloud execution. `jules`, `cursor-cloud` and `copilot-agent` are refused. `devin-cloud` is the one cloud route (owner direction 2026-11-19): it creates a Devin Cloud session through `Invoke-DevinCloud.ps1` only while `dispatchPolicy.devin-cloud` is enabled with its `cloudBudgetAuthorization`, at `max_acu_limit` 10 unless the task passes `-MaxAcu`, with at most 3 concurrent agenthub sessions. Its key comes from `op read` through the 1Password service account; never set or persist a Devin key variable. These caps bind only the adapter: the Devin MCP lane is uncapped by AgentHub, so pass `max_acu_limit` 10 there by convention. Lanes, waiting and the Devin MCP headers helper: `references/hosts.md` (Devin).
 - A dispatch does not authorize client access, external messages or deployment.
 - An ACP command listed in help proves only an entry point. Record protocol
   initialization, session operations and authenticated inference separately.

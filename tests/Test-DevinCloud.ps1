@@ -62,14 +62,31 @@ try {
         [pscustomobject]@{ session_id = $Id; url = "https://app.devin.ai/sessions/$Id"; status = $Status; status_detail = $Detail; tags = $Tags
             acus_consumed = 1.5; pull_requests = @(); structured_output = $null; title = 'fixture'; created_at = 1; updated_at = 2 }
     }
+    # Optional mock knobs: ListPages (an array of pages keyed by the after cursor),
+    # ListThrows (the agenthub-tag count fails), MessageSequence (successive
+    # message lists). A StatusSequence entry that is an exception is thrown.
+    $script:ListPages = $null
+    $script:ListThrows = $false
+    $script:MessageSequence = [Collections.Generic.Queue[object]]::new()
+    $script:DefaultMessages = @([pscustomobject]@{ event_id = 'e1'; source = 'devin'; message = 'Which branch?'; created_at = 3 })
     function Invoke-DevinApi {
         param([string]$Method, [string]$Path, [hashtable]$Query, $Body)
         $script:Calls.Add([pscustomobject]@{ Method = $Method; Path = $Path; Query = $Query; Body = $Body })
-        if ($Method -eq 'GET' -and $Path -eq '/sessions') { return [pscustomobject]@{ items = @($script:ListedSessions); has_next_page = $false; end_cursor = $null } }
+        if ($Method -eq 'GET' -and $Path -eq '/sessions') {
+            if ($script:ListThrows -and @($Query.tags) -contains 'agenthub') { $e = [InvalidOperationException]::new('devin-cloud API GET /sessions failed: HTTP 500.'); $e.Data['ExitCode'] = 1; throw $e }
+            if ($script:ListPages) {
+                $index = if ($Query.after) { [int]([string]$Query.after).Substring(1) } else { 0 }
+                return $script:ListPages[$index]
+            }
+            return [pscustomobject]@{ items = @($script:ListedSessions); has_next_page = $false; end_cursor = $null }
+        }
         if ($Method -eq 'POST' -and $Path -eq '/sessions') { return (New-FakeSession 'devin-created0001' 'new' @($Body.tags) $null) }
-        if ($Method -eq 'GET' -and $Path -match '^/sessions/[^/]+$') { return $script:StatusSequence.Dequeue() }
-        if ($Method -eq 'POST' -and $Path -match '/messages$') { return $null }
-        if ($Method -eq 'GET' -and $Path -match '/messages$') { return [pscustomobject]@{ items = @([pscustomobject]@{ event_id = 'e1'; source = 'devin'; message = 'Which branch?'; created_at = 3 }); has_next_page = $false } }
+        if ($Method -eq 'GET' -and $Path -match '^/sessions/[^/]+$') { $next = $script:StatusSequence.Dequeue(); if ($next -is [Exception]) { throw $next }; return $next }
+        if ($Method -eq 'POST' -and $Path -match '/messages$') { return (New-FakeSession 'devin-w1' 'running' @('agenthub') 'working') }
+        if ($Method -eq 'GET' -and $Path -match '/messages$') {
+            $items = if ($script:MessageSequence.Count -gt 0) { $script:MessageSequence.Dequeue() } else { $script:DefaultMessages }
+            return [pscustomobject]@{ items = @($items); has_next_page = $false; end_cursor = $null }
+        }
         if ($Method -eq 'DELETE') { return (New-FakeSession 'devin-stopped0001' 'exit' @('agenthub') 'user_request') }
         throw "unexpected mock call $Method $Path"
     }
@@ -174,6 +191,110 @@ try {
 
     Check 'masking keeps only the last four characters' ((Protect-DevinCloudText "token $syntheticKey here") -eq 'token ****WXYZ here')
 
+    # --- Fix round (review of 5f3e318a and the live end-to-end test). ---
+    # 7: -MaxAcu is text validated as a positive integer; PowerShell's [int] would round 2.5 and read 1e3.
+    $script:ListedSessions = @()
+    foreach ($bad in @('abc', '1e3', '2.5', '0', '-1', ' ', '0x10', '+5')) {
+        $refused = $null
+        try { $null = New-DevinCloudSession -Config $config -Prompt 'x' -RunId 'sh4969-acu' -MaxAcu $bad } catch { $refused = $_.Exception }
+        Check "-MaxAcu '$bad' is refused with exit 3" ($null -ne $refused -and $refused.Data['ExitCode'] -eq 3) "$($refused.Message)"
+    }
+    $script:Calls.Clear()
+    $session = New-DevinCloudSession -Config $config -Prompt 'x' -RunId 'sh4969-acu40' -MaxAcu '40'
+    $post = @($script:Calls | Where-Object { $_.Method -eq 'POST' })
+    Check 'a higher explicit -MaxAcu is still allowed and sent as an integer' ($post.Count -eq 1 -and $post[0].Body.max_acu_limit -eq 40 -and $post[0].Body.max_acu_limit -is [int])
+
+    # 3: without -RunId the run id is derived from the prompt, sorted repos and title, so a retry dedupes.
+    $script:Calls.Clear(); $script:ListedSessions = @()
+    $a = New-DevinCloudSession -Config $config -Prompt 'same task' -Repos @('o/b', 'o/a') -Title 'T'
+    $b = New-DevinCloudSession -Config $config -Prompt 'same task' -Repos @('o/a', 'o/b') -Title 'T'
+    $c = New-DevinCloudSession -Config $config -Prompt 'other task' -Repos @('o/a', 'o/b') -Title 'T'
+    $d = New-DevinCloudSession -Config $config -Prompt 'same task' -Repos @('o/a', 'o/b') -Title 'U'
+    Check 'an omitted -RunId is derived deterministically' ($a.run_id -match '^auto-[0-9a-f]{16}$' -and $a.run_id -eq $b.run_id) "$($a.run_id) vs $($b.run_id)"
+    Check 'a different prompt or title derives a different run id' ($c.run_id -ne $a.run_id -and $d.run_id -ne $a.run_id)
+    $script:Calls.Clear()
+    $script:ListedSessions = @(New-FakeSession 'devin-retry01' 'running' @('agenthub', "run:$($a.run_id)"))
+    $retry = New-DevinCloudSession -Config $config -Prompt 'same task' -Repos @('o/a', 'o/b') -Title 'T'
+    Check 'an identical re-dispatch without -RunId dedupes' ($retry.deduplicated -eq $true -and $retry.session_id -eq 'devin-retry01' -and @($script:Calls | Where-Object { $_.Method -eq 'POST' }).Count -eq 0)
+    # 9: the v3 session response has no max_acu_limit, so a dedupe omits the field rather than printing null.
+    Check 'a deduplicated result omits max_acu_limit' ($null -eq $retry.PSObject.Properties['max_acu_limit']) ($retry | ConvertTo-Json -Compress)
+
+    # 5: the concurrency count reads every page and fails closed.
+    $pages = for ($i = 0; $i -lt 12; $i++) {
+        $status = if ($i -in @(0, 5, 11)) { 'running' } else { 'exit' }
+        [pscustomobject]@{ items = @(New-FakeSession "devin-p$i" $status @('agenthub', "run:p$i")); has_next_page = ($i -lt 11); end_cursor = $(if ($i -lt 11) { "p$($i + 1)" } else { $null }) }
+    }
+    $script:ListPages = @($pages)
+    $refused = $null
+    try { $null = New-DevinCloudSession -Config $config -Prompt 'x' -RunId 'sh4969-pages' } catch { $refused = $_.Exception }
+    Check 'active sessions beyond page 10 still count toward the cap' ($null -ne $refused -and $refused.Data['ExitCode'] -eq 3 -and $refused.Message -match 'devin-p11') "$($refused.Message)"
+    $script:ListPages = @([pscustomobject]@{ items = @(); has_next_page = $true; end_cursor = $null })
+    $refused = $null; $script:Calls.Clear()
+    try { $null = New-DevinCloudSession -Config $config -Prompt 'x' -RunId 'sh4969-nocursor' } catch { $refused = $_.Exception }
+    Check 'a page that promises more without a cursor fails closed with exit 3' ($null -ne $refused -and $refused.Data['ExitCode'] -eq 3 -and @($script:Calls | Where-Object { $_.Method -eq 'POST' }).Count -eq 0) "$($refused.Message)"
+    $script:ListPages = $null; $script:ListedSessions = @(); $script:ListThrows = $true
+    $refused = $null; $script:Calls.Clear()
+    try { $null = New-DevinCloudSession -Config $config -Prompt 'x' -RunId 'sh4969-counterr' } catch { $refused = $_.Exception }
+    Check 'a failed active-session count fails closed with exit 3' ($null -ne $refused -and $refused.Data['ExitCode'] -eq 3 -and @($script:Calls | Where-Object { $_.Method -eq 'POST' }).Count -eq 0) "$($refused.Message)"
+    $script:ListThrows = $false
+
+    # 8: wait retries transient failures, flags abnormal ends, and honours -After.
+    function New-FakeApiError([int]$Status, [bool]$Transient) {
+        $e = [InvalidOperationException]::new("devin-cloud API GET /sessions/x failed: HTTP $Status."); $e.Data['ExitCode'] = 1; $e.Data['HttpStatus'] = $Status; $e.Data['Transient'] = $Transient; return $e
+    }
+    $script:Sleeps.Clear(); $script:StatusSequence.Clear()
+    $script:StatusSequence.Enqueue((New-FakeApiError 429 $true))
+    $script:StatusSequence.Enqueue((New-FakeApiError 503 $true))
+    $script:StatusSequence.Enqueue((New-FakeSession 'devin-t1' 'running' @('agenthub') 'finished'))
+    $report = $null; $thrown = $null
+    try { $report = Wait-DevinCloudSession -SessionId 'devin-t1' -TimeoutSec 600 -PollSec 5 } catch { $thrown = $_.Exception }
+    Check 'wait retries a 429 and a 503 and then reports finished' ($null -eq $thrown -and $report.outcome -eq 'finished' -and $script:Sleeps.Count -eq 2) "$($thrown.Message)"
+    $script:StatusSequence.Clear(); $script:StatusSequence.Enqueue((New-FakeApiError 404 $false))
+    $thrown = $null
+    try { $null = Wait-DevinCloudSession -SessionId 'devin-t2' -TimeoutSec 600 -PollSec 5 } catch { $thrown = $_.Exception }
+    Check 'wait does not retry a 404' ($null -ne $thrown -and $thrown.Data['HttpStatus'] -eq 404)
+    $codes = [ordered]@{ finished = 0; waiting_for_user = 0; waiting_for_approval = 0; suspended = 4; error = 4; timeout = 4 }
+    foreach ($outcome in $codes.Keys) {
+        $code = Get-DevinCloudWaitExitCode ([pscustomobject]@{ outcome = $outcome; status = 'running'; status_detail = $null })
+        Check "wait outcome $outcome exits $($codes[$outcome])" ($code -eq $codes[$outcome]) "got $code"
+    }
+    Check 'an exit with an error detail exits 4' ((Get-DevinCloudWaitExitCode ([pscustomobject]@{ outcome = 'exit'; status = 'exit'; status_detail = 'out_of_credits' })) -eq 4)
+    Check 'an exit the user asked for exits 0' ((Get-DevinCloudWaitExitCode ([pscustomobject]@{ outcome = 'exit'; status = 'exit'; status_detail = 'user_request' })) -eq 0)
+
+    $script:MessageSequence.Clear()
+    $script:MessageSequence.Enqueue(@([pscustomobject]@{ event_id = 'e1'; source = 'devin'; message = 'Which branch?'; created_at = 3 }, [pscustomobject]@{ event_id = 'e2'; source = 'user'; message = 'Use main.'; created_at = 10 }))
+    $sent = Send-DevinCloudMessage -SessionId 'devin-w1' -Message 'Use main.'
+    Check 'message reports the cutoff for a later wait -After' ($sent.cutoff -eq 10 -and $sent.cutoff_event_id -eq 'e2') ($sent | ConvertTo-Json -Compress)
+
+    $oldThread = @([pscustomobject]@{ event_id = 'e1'; source = 'devin'; message = 'Which branch?'; created_at = 3 }, [pscustomobject]@{ event_id = 'e2'; source = 'user'; message = 'Use main.'; created_at = 10 })
+    $newThread = $oldThread + @([pscustomobject]@{ event_id = 'e3'; source = 'devin'; message = 'Which test?'; created_at = 12 })
+    foreach ($cut in @('10', 'e2')) {
+        $script:Sleeps.Clear(); $script:StatusSequence.Clear(); $script:MessageSequence.Clear(); $script:Calls.Clear()
+        $script:StatusSequence.Enqueue((New-FakeSession 'devin-w1' 'running' @('agenthub') 'waiting_for_user'))
+        $script:StatusSequence.Enqueue((New-FakeSession 'devin-w1' 'running' @('agenthub') 'waiting_for_user'))
+        $script:MessageSequence.Enqueue($oldThread); $script:MessageSequence.Enqueue($newThread)
+        $report = Wait-DevinCloudSession -SessionId 'devin-w1' -TimeoutSec 600 -PollSec 5 -After $cut
+        $polls = @($script:Calls | Where-Object { $_.Method -eq 'GET' -and $_.Path -eq '/sessions/devin-w1' }).Count
+        Check "wait -After $cut ignores the stale waiting_for_user and returns on Devin's new message" ($report.outcome -eq 'waiting_for_user' -and $polls -eq 2) "polls=$polls outcome=$($report.outcome)"
+    }
+    $script:Sleeps.Clear(); $script:StatusSequence.Clear(); $script:MessageSequence.Clear(); $script:Calls.Clear()
+    foreach ($detail in @('waiting_for_user', 'working', 'waiting_for_user')) { $script:StatusSequence.Enqueue((New-FakeSession 'devin-w1' 'running' @('agenthub') $detail)) }
+    $report = Wait-DevinCloudSession -SessionId 'devin-w1' -TimeoutSec 600 -PollSec 5 -After '10'
+    $polls = @($script:Calls | Where-Object { $_.Method -eq 'GET' -and $_.Path -eq '/sessions/devin-w1' }).Count
+    Check 'wait -After honours waiting_for_user again after a status change' ($report.outcome -eq 'waiting_for_user' -and $polls -eq 3) "polls=$polls"
+
+    # 10: a key persisted in the User or Machine environment is refused; a Process-only override is consumed.
+    $env:DEVIN_CLOUD_API_KEY = $syntheticKey
+    function Get-DevinCloudPersistedKeyScopes { param([string]$Name) return @('User') }
+    $refused = $null
+    try { $null = Resolve-DevinCloudKey -Config $config } catch { $refused = $_.Exception }
+    Check 'a User-scope DEVIN_CLOUD_API_KEY is refused with exit 3 and a removal instruction' ($null -ne $refused -and $refused.Data['ExitCode'] -eq 3 -and $refused.Message -match 'User' -and $refused.Message -match 'remove' -and $refused.Message -notmatch [regex]::Escape($syntheticKey)) "$($refused.Message)"
+    function Get-DevinCloudPersistedKeyScopes { param([string]$Name) return @() }
+    $env:DEVIN_CLOUD_API_KEY = $syntheticKey
+    $resolved = Resolve-DevinCloudKey -Config $config
+    Check 'a Process-only override is used and then removed from the environment children inherit' ($resolved -eq $syntheticKey -and [string]::IsNullOrEmpty($env:DEVIN_CLOUD_API_KEY))
+    $env:DEVIN_CLOUD_API_KEY = $null
+
     # --- Child processes: real entry script and real refusal/exit paths. ---
     foreach ($dir in @('registry', 'bin')) { $null = New-Item -ItemType Directory -Path (Join-Path $fixture $dir) -Force }
     '{}' | Set-Content -LiteralPath (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
@@ -224,10 +345,12 @@ try {
     $mockScript = @"
 `$ErrorActionPreference = 'Stop'
 . '$($libPath.Replace("'", "''"))'
+# Captured before the adapter consumes the in-process override.
+`$script:EchoKey = `$env:DEVIN_CLOUD_API_KEY
 function Invoke-DevinApi {
     param([string]`$Method, [string]`$Path, [hashtable]`$Query, `$Body)
     if (`$Method -eq 'GET') { return [pscustomobject]@{ items = @(); has_next_page = `$false } }
-    if (`$env:MOCK_ECHO_KEY) { throw ('401 Unauthorized for bearer ' + `$env:DEVIN_CLOUD_API_KEY) }
+    if (`$env:MOCK_ECHO_KEY) { throw ('401 Unauthorized for bearer ' + `$script:EchoKey) }
     return [pscustomobject]@{ session_id = 'devin-mock0001'; url = 'https://app.devin.ai/sessions/devin-mock0001'; status = 'new'; tags = @(`$Body.tags); acus_consumed = 0; pull_requests = @() }
 }
 exit (Invoke-DevinCloudMain -Action create -Prompt 'ok' -RunId 'sh4969-leak')
@@ -262,6 +385,160 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'ok' -RunId 'sh4969-leak')
     $r = Run-Child @('-NoProfile', '-File', $entryPath, '-Action', 'list') $envKey
     Check 'a disabled devin-cloud policy refuses with exit 3' ($r.Exit -eq 3 -and $r.Err -match 'devin-cloud') "exit=$($r.Exit) err=$($r.Err)"
 
+    # --- Loopback endpoint: the real Invoke-DevinApi against 127.0.0.1 (plain
+    # http is accepted for loopback only). The server logs method, path, body and
+    # whether the bearer matched; never the header itself. ---
+    $serverJs = Join-Path $fixture 'loopback.cjs'
+    $requestLog = Join-Path $fixture 'requests.jsonl'
+    @'
+const http = require('node:http'); const fs = require('node:fs');
+const log = process.argv[2]; const expected = 'Bearer ' + process.argv[3];
+const sess = (id, st, d) => ({ session_id: id, url: 'https://app.devin.ai/sessions/' + id, status: st, status_detail: d, tags: ['agenthub'], org_id: 'o', created_at: 1, updated_at: 2, acus_consumed: 0, pull_requests: [] });
+const srv = http.createServer((req, res) => { let b = ''; req.on('data', c => b += c); req.on('end', () => {
+  const p = new URL(req.url, 'http://x').pathname.replace(/^\/v3\/organizations\/[^/]+/, '');
+  fs.appendFileSync(log, JSON.stringify({ m: req.method, p, body: b, auth: req.headers.authorization === expected }) + '\n');
+  let code = 200, out;
+  if (/^\/sessions\/devin-503/.test(p)) { code = 503; out = { detail: 'busy' }; }
+  else if (/^\/sessions\/devin-404/.test(p)) { code = 404; out = { detail: 'not found' }; }
+  else if (p === '/sessions' && req.method === 'GET') out = { items: [], end_cursor: null, has_next_page: false, total: 0 };
+  else if (p === '/sessions' && req.method === 'POST') out = sess('devin-loop0001', 'new', null);
+  else if (/\/messages$/.test(p) && req.method === 'GET') out = { items: [{ event_id: 'e1', source: 'user', message: 'hi', created_at: 100 }], end_cursor: null, has_next_page: false };
+  else if (/\/messages$/.test(p)) out = sess('devin-loop0001', 'running', 'working');
+  else if (req.method === 'DELETE') out = sess('devin-loop0001', 'exit', 'user_request');
+  else out = sess('devin-loop0001', 'running', 'finished');
+  res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(out)); }); });
+srv.listen(0, '127.0.0.1', () => console.log(srv.address().port));
+'@ | Set-Content -LiteralPath $serverJs -Encoding UTF8
+    $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
+    $serverInfo = [Diagnostics.ProcessStartInfo]::new()
+    $serverInfo.FileName = $node
+    $serverInfo.Arguments = (@($serverJs, $requestLog, $syntheticKey) | ForEach-Object { Quote $_ }) -join ' '
+    $serverInfo.UseShellExecute = $false; $serverInfo.CreateNoWindow = $true; $serverInfo.RedirectStandardOutput = $true
+    $server = [Diagnostics.Process]::Start($serverInfo)
+    try {
+        $portTask = $server.StandardOutput.ReadLineAsync()
+        if (-not $portTask.Wait(15000)) { throw 'loopback server did not report a port' }
+        $port = [int]$portTask.Result
+        $loopFleet = $liveFleet | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $loopFleet.dispatchPolicy.'devin-cloud'.cloudBudgetAuthorization.apiBase = "http://127.0.0.1:$port/v3"
+        $loopFleet | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
+
+        # 1: every action under -Debug and -Verbose, through the entry script and
+        # with streams 1-6 merged in-process; the synthetic key must appear nowhere.
+        $actions = [ordered]@{
+            create = @('-Prompt', 'ok', '-RunId', 'sh4969-dbg', '-Repo', 'o/r')
+            status = @('-SessionId', 'devin-loop0001')
+            messages = @('-SessionId', 'devin-loop0001')
+            message = @('-SessionId', 'devin-loop0001', '-Message', 'hi')
+            stop = @('-SessionId', 'devin-loop0001')
+            wait = @('-SessionId', 'devin-loop0001', '-TimeoutSec', '5', '-PollSec', '1')
+            list = @()
+        }
+        foreach ($action in $actions.Keys) {
+            $r = Run-Child (@('-NoProfile', '-NonInteractive', '-File', $entryPath, '-Action', $action) + $actions[$action] + @('-Debug', '-Verbose', '-InformationAction', 'Continue')) $envKey
+            Check "$action under -Debug -Verbose succeeds against the loopback endpoint" ($r.Exit -eq 0) "exit=$($r.Exit) err=$(Protect-DevinCloudText $r.Err)"
+            Check "$action under -Debug -Verbose never prints the key" (($r.Out + $r.Err) -notmatch [regex]::Escape($syntheticKey) -and ($r.Out + $r.Err) -notmatch '\*\*\*\*WXYZ')
+            $argText = (@($actions[$action]) | ForEach-Object { if ($_ -match '^-[A-Za-z]+$') { $_ } else { "'" + $_.Replace("'", "''") + "'" } }) -join ' '
+            $merged = @"
+`$ErrorActionPreference = 'Stop'
+. '$($libPath.Replace("'", "''"))'
+`$all = & { Invoke-DevinCloudMain -Action $action $argText -Debug -Verbose -InformationAction Continue -WarningAction Continue } *>&1 | Out-String -Width 4096
+[Console]::Out.Write(`$all)
+"@
+            $r = Run-Encoded $merged $envKey
+            Check "$action with streams 1-6 merged never carries the key" (($r.Out + $r.Err) -notmatch [regex]::Escape($syntheticKey)) ''
+        }
+        $logged = @(Get-Content -LiteralPath $requestLog | ForEach-Object { $_ | ConvertFrom-Json })
+        Check 'the loopback endpoint saw authenticated requests for every action' ($logged.Count -ge 7 -and @($logged | Where-Object { -not $_.auth }).Count -eq 0) "requests=$($logged.Count)"
+
+        # 8: the real HTTP function marks 429, 5xx and transport failures transient, and 404 not.
+        $classify = @"
+. '$($libPath.Replace("'", "''"))'
+`$config = Get-DevinCloudConfig -Fleet (Get-DevinCloudFleet)
+Set-DevinCloudContext -Config `$config -Key `$env:DEVIN_CLOUD_API_KEY
+foreach (`$id in @('devin-503aa', 'devin-404aa')) {
+    try { `$null = Get-DevinCloudSession -SessionId `$id } catch { [Console]::Out.WriteLine(`$id + '=' + `$_.Exception.Data['HttpStatus'] + ':' + `$_.Exception.Data['Transient']) }
+}
+"@
+        $r = Run-Encoded $classify $envKey
+        Check 'Invoke-DevinApi marks a 503 transient and a 404 not' ($r.Out -match 'devin-503aa=503:True' -and $r.Out -match 'devin-404aa=404:False') "$($r.Out) $($r.Err)"
+
+        # 2: the adapter's git child never sees DEVIN_CLOUD_API_KEY.
+        $fakeGit = Join-Path $fixture 'bin-git'; $gitReport = Join-Path $fixture 'git-env.txt'
+        $null = New-Item -ItemType Directory -Path $fakeGit -Force
+        if ($env:OS -eq 'Windows_NT') {
+            [IO.File]::WriteAllText((Join-Path $fakeGit 'git.cmd'), "@echo off`r`nif defined DEVIN_CLOUD_API_KEY (echo present>`"$gitReport`") else (echo absent>`"$gitReport`")`r`necho https://github.com/fixture-owner/fixture-repo.git`r`n")
+        } else {
+            [IO.File]::WriteAllText((Join-Path $fakeGit 'git'), "#!/bin/sh`nif [ -n `"`${DEVIN_CLOUD_API_KEY+x}`" ]; then echo present > '$gitReport'; else echo absent > '$gitReport'; fi`necho https://github.com/fixture-owner/fixture-repo.git`n")
+            [IO.File]::SetUnixFileMode((Join-Path $fakeGit 'git'), [IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
+        }
+        $envGit = $envKey.Clone(); $envGit.PATH = $fakeGit + $sep + $env:PATH
+        $r = Run-Child @('-NoProfile', '-NonInteractive', '-File', $entryPath, '-Action', 'create', '-Prompt', 'derive my repo', '-RunId', 'sh4969-git', '-Cwd', $fixture) $envGit
+        $posted = @(Get-Content -LiteralPath $requestLog | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.m -eq 'POST' -and $_.p -eq '/sessions' -and $_.body -match 'derive my repo' })
+        Check 'create derives the repo from the git remote' ($r.Exit -eq 0 -and $posted.Count -eq 1 -and $posted[0].body -match 'fixture-owner/fixture-repo') "exit=$($r.Exit) $($r.Err)"
+        Check "the adapter's git child does not inherit DEVIN_CLOUD_API_KEY" ((Test-Path -LiteralPath $gitReport) -and ([IO.File]::ReadAllText($gitReport)).Trim() -eq 'absent') $(if (Test-Path -LiteralPath $gitReport) { [IO.File]::ReadAllText($gitReport) } else { 'no report' })
+
+        # 7: through the entry script, a fractional or exponent -MaxAcu refuses before any request.
+        foreach ($bad in @('2.5', '1e3', 'abc')) {
+            $before = @(Get-Content -LiteralPath $requestLog).Count
+            $r = Run-Child @('-NoProfile', '-NonInteractive', '-File', $entryPath, '-Action', 'create', '-Prompt', 'ok', '-RunId', 'sh4969-acu', '-Repo', 'o/r', '-MaxAcu', $bad) $envKey
+            Check "the entry script refuses -MaxAcu $bad with exit 3 and no request" ($r.Exit -eq 3 -and @(Get-Content -LiteralPath $requestLog).Count -eq $before) "exit=$($r.Exit) $($r.Err)"
+        }
+    } finally {
+        try { $server.Kill() } catch { }
+        $server.Dispose()
+    }
+
+    # 4: creates are serialized by a machine-wide mutex, so dedupe and the cap hold under a race.
+    $raceState = Join-Path $fixture 'race-state.json'; $racePosts = Join-Path $fixture 'race-posts.txt'
+    $raceScript = @"
+`$ErrorActionPreference = 'Stop'
+. '$($libPath.Replace("'", "''"))'
+function Invoke-DevinApi {
+    param([string]`$Method, [string]`$Path, [hashtable]`$Query, `$Body)
+    if (`$Method -eq 'GET' -and `$Path -eq '/sessions') {
+        `$items = @([IO.File]::ReadAllText(`$env:RACE_STATE) | ConvertFrom-Json)
+        Start-Sleep -Milliseconds 1500
+        return [pscustomobject]@{ items = `$items; has_next_page = `$false; end_cursor = `$null }
+    }
+    if (`$Method -eq 'POST') {
+        for (`$try = 0; `$try -lt 50; `$try++) { try { [IO.File]::AppendAllText(`$env:RACE_POSTS, "post`n"); break } catch [IO.IOException] { Start-Sleep -Milliseconds 20 } }
+        `$items = @([IO.File]::ReadAllText(`$env:RACE_STATE) | ConvertFrom-Json)
+        `$new = [pscustomobject]@{ session_id = 'devin-r' + [guid]::NewGuid().ToString('n').Substring(0, 8); url = 'https://app.devin.ai/sessions/x'; status = 'new'; tags = @(`$Body.tags); created_at = 5 }
+        [IO.File]::WriteAllText(`$env:RACE_STATE, (ConvertTo-Json -InputObject @(`$items + `$new) -Depth 5))
+        return `$new
+    }
+    throw "unexpected `$Method `$Path"
+}
+exit (Invoke-DevinCloudMain -Action create -Prompt 'race' -RunId `$env:RACE_RUN -Repo 'o/r')
+"@
+    $raceEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($raceScript))
+    function Start-RaceChild([string]$RunId) {
+        $psi = [Diagnostics.ProcessStartInfo]::new()
+        $psi.FileName = $pwsh; $psi.Arguments = "-NoProfile -NonInteractive -EncodedCommand $raceEncoded"
+        $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true; $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true
+        foreach ($name in $envKey.Keys) { if ($null -eq $envKey[$name]) { [void]$psi.EnvironmentVariables.Remove($name) } else { $psi.EnvironmentVariables[$name] = [string]$envKey[$name] } }
+        $psi.EnvironmentVariables['RACE_STATE'] = $raceState; $psi.EnvironmentVariables['RACE_POSTS'] = $racePosts; $psi.EnvironmentVariables['RACE_RUN'] = $RunId
+        $p = [Diagnostics.Process]::Start($psi)
+        return [pscustomobject]@{ P = $p; Out = $p.StandardOutput.ReadToEndAsync(); Err = $p.StandardError.ReadToEndAsync() }
+    }
+    function Wait-RaceChild($Child) {
+        if (-not $Child.P.WaitForExit(90000)) { $Child.P.Kill(); throw 'race child exceeded 90 seconds' }
+        $result = [pscustomobject]@{ Exit = $Child.P.ExitCode; Out = $Child.Out.GetAwaiter().GetResult(); Err = $Child.Err.GetAwaiter().GetResult() }
+        $Child.P.Dispose(); return $result
+    }
+    [IO.File]::WriteAllText($raceState, '[]'); [IO.File]::WriteAllText($racePosts, '')
+    $one = Start-RaceChild 'sh4969-race'; $two = Start-RaceChild 'sh4969-race'
+    $results = @((Wait-RaceChild $one), (Wait-RaceChild $two))
+    $postCount = @([IO.File]::ReadAllLines($racePosts) | Where-Object { $_ }).Count
+    Check 'two parallel creates with one run id make one POST' ($postCount -eq 1 -and @($results | Where-Object { $_.Exit -eq 0 }).Count -eq 2 -and @($results | Where-Object { $_.Out -match '"deduplicated":true' }).Count -eq 1) "posts=$postCount exits=$(@($results.Exit) -join ',') $(@($results.Err) -join ' | ')"
+    [IO.File]::WriteAllText($raceState, '[{"session_id":"devin-busy1","status":"running","tags":["agenthub","run:x1"],"created_at":1},{"session_id":"devin-busy2","status":"running","tags":["agenthub","run:x2"],"created_at":1}]')
+    [IO.File]::WriteAllText($racePosts, '')
+    $one = Start-RaceChild 'sh4969-cap-a'; $two = Start-RaceChild 'sh4969-cap-b'
+    $results = @((Wait-RaceChild $one), (Wait-RaceChild $two))
+    $postCount = @([IO.File]::ReadAllLines($racePosts) | Where-Object { $_ }).Count
+    Check 'with 2 sessions active, parallel creates stop at the cap of 3' ($postCount -eq 1 -and @($results | Where-Object { $_.Exit -eq 3 -and $_.Err -match 'cap is 3' }).Count -eq 1) "posts=$postCount exits=$(@($results.Exit) -join ',') $(@($results.Err) -join ' | ')"
+
     # --- Registry records the adapter depends on. ---
     $mcps = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\mcps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $devinMcp = @($mcps.mcpServers | Where-Object { $_.id -eq 'devin' })
@@ -275,6 +552,8 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'ok' -RunId 'sh4969-leak')
         Check 'devin MCP is declared for claude only, with a plugin-only exception' ((@($m.hosts) -join ',') -eq 'claude' -and -not [string]::IsNullOrWhiteSpace([string]$mcps.activationPolicy.pluginOnly.hosts.claude.devin))
         Check 'devin MCP is never written by a default-scope sync' ([string]$m.scope -ne 'global-default')
         Check 'devin MCP records no invented protocol verification' ($null -eq $m.protocol.revision -and [string]$m.protocol.verification -match 'cannot be established' -and [string]$m.notes -match 'docs\.devin\.ai/work-with-devin/devin-mcp')
+        # 6: the MCP client holds the raw key, so the adapter's caps do not apply there.
+        Check 'devin MCP notes say the caps are enforced only by the dispatcher adapter, with the org limit as backstop' ([string]$m.notes -match 'enforced only by the dispatcher adapter' -and [string]$m.notes -match 'Usage & Limits' -and [string]$m.notes -match 'max_acu_limit 10')
     }
 
     # --- The MCP headers helper: op read at connect time, headers on stdout only. ---
@@ -290,6 +569,13 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'ok' -RunId 'sh4969-leak')
     $leaks = @(Get-ChildItem -LiteralPath $fixture -Recurse -File | Where-Object { $_.Directory.FullName -notin @($failingOp, $keyOp) } |
         Where-Object { [IO.File]::ReadAllText($_.FullName).Contains($syntheticKey) } | ForEach-Object { $_.FullName })
     Check 'the helper writes the key to no file' ($leaks.Count -eq 0) ($leaks -join '; ')
+    $hostsDoc = [IO.File]::ReadAllText((Join-Path $dispatchDir 'references\hosts.md'))
+    $planDoc = [IO.File]::ReadAllText((Join-Path $repoRoot 'docs\plans\active\devin-peer-orchestration.md'))
+    foreach ($doc in @(@{ Name = 'hosts.md'; Text = $hostsDoc }, @{ Name = 'devin-peer-orchestration.md'; Text = $planDoc })) {
+        Check "$($doc.Name) uses the documented Linear wording" ($doc.Text -match 'Assign the ticket to Devin' -and $doc.Text -notmatch 'delegate to the "Devin" app user') ''
+        Check "$($doc.Name) says the MCP lane is not capped by the adapter" ($doc.Text -match 'enforced only by the dispatcher adapter' -and $doc.Text -match 'Usage & Limits') ''
+        Check "$($doc.Name) documents the wait exit codes and -After" ($doc.Text -match '-After' -and $doc.Text -match 'exit 4|exits 4') ''
+    }
     $localPolicy = $liveFleet.dispatchPolicy.devin
     Check 'the local Devin lane stays local-only and points cloud work at devin-cloud' ([string]$localPolicy.scope -match '^local-only' -and [string]$localPolicy.scope -match 'devin-cloud')
 } finally {

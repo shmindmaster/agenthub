@@ -540,7 +540,7 @@
     {
       "id": "devin",
       "fleetRole": "retained",
-      "fleetRoleNote": "Retained 2026-11-19 (SH-4969) on the owner's direction that Devin 'should be a first class agent from now'. Three lanes: the local CLI (dispatchPolicy.devin, devin -p in C:/wt worktrees), Devin Cloud through the v3 API adapter (dispatchPolicy.devin-cloud) or the official Devin MCP server, and Linear delegation to the Devin app user.",
+      "fleetRoleNote": "Retained 2026-11-19 (SH-4969) on the owner's direction that Devin 'should be a first class agent from now'. Three lanes: the local CLI (dispatchPolicy.devin, devin -p in C:/wt worktrees), Devin Cloud through the v3 API adapter (dispatchPolicy.devin-cloud) or the official Devin MCP server, and Linear (assign the ticket to Devin).",
       "name": "Devin Desktop / CLI",
       "version": "3000.12.32",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
