@@ -442,17 +442,27 @@ function Start-DevinCloudSleep {
 
 # True when Devin posted a message after the cutoff: a created_at value, or an
 # event_id whose later siblings in the thread count as new.
+# True when Devin posted after the cutoff that -Action message printed. Order is
+# the thread's own event order, never whole-second created_at alone, so a
+# reply in the same second as the cutoff still counts:
+# - an event_id cutoff: any Devin message positioned after that event;
+# - a created_at cutoff (0 for an empty thread): any Devin message positioned
+#   after the first user message at or after the cutoff, which is the message
+#   that was just sent.
 function Test-DevinCloudNewDevinMessage {
     param([string]$SessionId, [string]$After)
     $thread = @(Get-DevinCloudMessages -SessionId $SessionId)
+    $anchor = -1
     if ($After -match '^\d+(\.\d+)?$') {
         $cut = [double]$After
-        return (@($thread | Where-Object { [string]$_.source -eq 'devin' -and [double]$_.created_at -gt $cut }).Count -gt 0)
+        for ($i = 0; $i -lt $thread.Count; $i++) {
+            if ([string]$thread[$i].source -eq 'user' -and [double]$thread[$i].created_at -ge $cut) { $anchor = $i; break }
+        }
+    } else {
+        for ($i = 0; $i -lt $thread.Count; $i++) { if ([string]$thread[$i].event_id -eq $After) { $anchor = $i } }
     }
-    $index = -1
-    for ($i = 0; $i -lt $thread.Count; $i++) { if ([string]$thread[$i].event_id -eq $After) { $index = $i } }
-    if ($index -lt 0) { return $false }
-    return (@($thread | Select-Object -Skip ($index + 1) | Where-Object { [string]$_.source -eq 'devin' }).Count -gt 0)
+    if ($anchor -lt 0) { return $false }
+    return (@($thread | Select-Object -Skip ($anchor + 1) | Where-Object { [string]$_.source -eq 'devin' }).Count -gt 0)
 }
 
 # Polls with backoff until the session finishes, ends, or waits on a person.
@@ -470,6 +480,11 @@ function Wait-DevinCloudSession {
     while ($true) {
         try {
             $session = Get-DevinCloudSession -SessionId $SessionId
+            # The message read shares the status read's retry: both sit in this try.
+            $newDevinMessage = $false
+            if ($staleWaiting -and [string]$session.status_detail -in $script:DevinCloudWaitingDetails) {
+                $newDevinMessage = Test-DevinCloudNewDevinMessage -SessionId $SessionId -After $After
+            }
             $transientFailures = 0
         } catch {
             # A 429, 5xx or transport failure is retried with backoff, bounded by
@@ -486,7 +501,7 @@ function Wait-DevinCloudSession {
         if ([string]$session.status_detail -eq 'finished') { $outcome = 'finished' }
         elseif ([string]$session.status -in $script:DevinCloudEndStatuses) { $outcome = [string]$session.status }
         elseif ([string]$session.status_detail -in $script:DevinCloudWaitingDetails) {
-            if ($staleWaiting -and (Test-DevinCloudNewDevinMessage -SessionId $SessionId -After $After)) { $staleWaiting = $false }
+            if ($staleWaiting -and $newDevinMessage) { $staleWaiting = $false }
             if (-not $staleWaiting) { $outcome = [string]$session.status_detail }
         } else {
             # Any other state means the session moved on since the cutoff.
@@ -514,8 +529,10 @@ function Get-DevinCloudWaitExitCode {
     }
 }
 
+# Pages until has_next_page is false and fails closed (exit 3) when the thread
+# cannot be read completely, as Get-DevinCloudSessions does.
 function Get-DevinCloudMessages {
-    param([string]$SessionId, [int]$MaxPages = 10)
+    param([string]$SessionId, [int]$MaxPages = 1000)
     Assert-DevinCloudSessionId $SessionId
     $items = [Collections.Generic.List[object]]::new()
     $after = $null
@@ -524,24 +541,27 @@ function Get-DevinCloudMessages {
         if ($after) { $query.after = $after }
         $response = Invoke-DevinApi -Method GET -Path "/sessions/$SessionId/messages" -Query $query
         foreach ($item in @($response.items)) { if ($null -ne $item) { $items.Add($item) } }
-        if (-not $response.has_next_page -or [string]::IsNullOrWhiteSpace([string]$response.end_cursor)) { break }
+        if (-not $response.has_next_page) { return $items.ToArray() }
+        if ([string]::IsNullOrWhiteSpace([string]$response.end_cursor)) {
+            throw (New-DevinCloudRefusal 'refused devin-cloud: the message listing reported more pages but returned no cursor, so it cannot be completed')
+        }
         $after = [string]$response.end_cursor
     }
-    return $items.ToArray()
+    throw (New-DevinCloudRefusal "refused devin-cloud: the message listing did not finish within $MaxPages pages")
 }
 
 function Send-DevinCloudMessage {
     param([string]$SessionId, [string]$Message)
     Assert-DevinCloudSessionId $SessionId
     if ([string]::IsNullOrWhiteSpace($Message)) { throw (New-DevinCloudRefusal 'refused devin-cloud: the message is empty') }
+    # The cutoff for a following `wait -After` is the newest message that exists
+    # BEFORE this one is posted (0 and no event id for an empty thread). Taken
+    # after the POST it could already be Devin's reply, and the wait would then
+    # never see a newer one. A thread that cannot be read stops the send.
+    $existing = @(Get-DevinCloudMessages -SessionId $SessionId)
+    $cutoff = 0; $cutoffEvent = $null
+    if ($existing.Count -gt 0) { $cutoff = $existing[-1].created_at; $cutoffEvent = [string]$existing[-1].event_id }
     $null = Invoke-DevinApi -Method POST -Path "/sessions/$SessionId/messages" -Body ([ordered]@{ message = $Message })
-    # The newest message in the thread (normally this one) is the cutoff a
-    # following `wait -After` needs; null when the thread cannot be read.
-    $cutoff = $null; $cutoffEvent = $null
-    try {
-        $newest = @(Get-DevinCloudMessages -SessionId $SessionId | Sort-Object { [double]$_.created_at }) | Select-Object -Last 1
-        if ($newest) { $cutoff = $newest.created_at; $cutoffEvent = [string]$newest.event_id }
-    } catch { }
     return [pscustomobject][ordered]@{ session_id = $SessionId; sent = $true; cutoff = $cutoff; cutoff_event_id = $cutoffEvent }
 }
 
@@ -559,7 +579,9 @@ function Write-DevinCloudJson {
 }
 
 # Entry point shared by Invoke-DevinCloud.ps1. Returns the process exit code:
-# 0 success, 1 API or transport failure, 3 refusal, 4 wait timeout.
+# 0 success, 1 API or transport failure, 3 refusal, 4 from wait on a timeout or
+# an abnormal outcome (suspended, error, or exit other than finished or
+# user_request); see Get-DevinCloudWaitExitCode.
 function Invoke-DevinCloudMain {
     param(
         [Parameter(Mandatory)] [ValidateSet('create', 'status', 'messages', 'message', 'stop', 'wait', 'list')] [string]$Action,

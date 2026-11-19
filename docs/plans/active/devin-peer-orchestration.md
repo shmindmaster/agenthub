@@ -59,10 +59,9 @@ budget" decision below.
   `-Action stop`.
 - The MCP lane is not capped by the adapter: the MCP client receives the raw
   key, so the ACU and concurrency caps are
-  enforced only by the dispatcher adapter. Sessions created through MCP must pass `max_acu_limit` 10 and the
-  `agenthub` tag by convention; the backstop is the org-level default session
-  spending limit in Devin Settings > Usage & Limits (whether to set it is an
-  owner decision).
+  enforced only by the dispatcher adapter. Sessions created through MCP must
+  pass `max_acu_limit` 10 and the `agenthub` tag by convention. Beyond that,
+  the documented Devin-side controls are [organization-level ACU limits](https://docs.devin.ai/admin/billing/org-acu-limits) and [user-level ACU limits](https://docs.devin.ai/admin/billing/user-acu-limits), both monthly caps, and the v3 Organization `max_session_acu_limit` field, a per-session limit on the organization. The owner has not yet set an org-level per-session limit. Whether to set one is an owner decision.
 
 ### Key
 

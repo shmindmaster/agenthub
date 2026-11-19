@@ -69,6 +69,11 @@ try {
     $script:ListThrows = $false
     $script:MessageSequence = [Collections.Generic.Queue[object]]::new()
     $script:DefaultMessages = @([pscustomobject]@{ event_id = 'e1'; source = 'devin'; message = 'Which branch?'; created_at = 3 })
+    $script:MessagePosted = $false
+    $script:MessagePages = $null
+    $script:MessageErrors = [Collections.Generic.Queue[object]]::new()
+    $script:ThreadBeforePost = $null
+    $script:ThreadAfterPost = $null
     function Invoke-DevinApi {
         param([string]$Method, [string]$Path, [hashtable]$Query, $Body)
         $script:Calls.Add([pscustomobject]@{ Method = $Method; Path = $Path; Query = $Query; Body = $Body })
@@ -82,8 +87,18 @@ try {
         }
         if ($Method -eq 'POST' -and $Path -eq '/sessions') { return (New-FakeSession 'devin-created0001' 'new' @($Body.tags) $null) }
         if ($Method -eq 'GET' -and $Path -match '^/sessions/[^/]+$') { $next = $script:StatusSequence.Dequeue(); if ($next -is [Exception]) { throw $next }; return $next }
-        if ($Method -eq 'POST' -and $Path -match '/messages$') { return (New-FakeSession 'devin-w1' 'running' @('agenthub') 'working') }
+        if ($Method -eq 'POST' -and $Path -match '/messages$') { $script:MessagePosted = $true; return (New-FakeSession 'devin-w1' 'running' @('agenthub') 'working') }
         if ($Method -eq 'GET' -and $Path -match '/messages$') {
+            if ($script:MessageErrors.Count -gt 0) { throw $script:MessageErrors.Dequeue() }
+            if ($script:MessagePages) {
+                $index = if ($Query.after) { [int]([string]$Query.after).Substring(1) } else { 0 }
+                return $script:MessagePages[$index]
+            }
+            # A thread that changes once the POST lands: Devin can reply at once.
+            if ($null -ne $script:ThreadBeforePost) {
+                $thread = if ($script:MessagePosted) { $script:ThreadAfterPost } else { $script:ThreadBeforePost }
+                return [pscustomobject]@{ items = @($thread); has_next_page = $false; end_cursor = $null }
+            }
             $items = if ($script:MessageSequence.Count -gt 0) { $script:MessageSequence.Dequeue() } else { $script:DefaultMessages }
             return [pscustomobject]@{ items = @($items); has_next_page = $false; end_cursor = $null }
         }
@@ -282,6 +297,45 @@ try {
     $report = Wait-DevinCloudSession -SessionId 'devin-w1' -TimeoutSec 600 -PollSec 5 -After '10'
     $polls = @($script:Calls | Where-Object { $_.Method -eq 'GET' -and $_.Path -eq '/sessions/devin-w1' }).Count
     Check 'wait -After honours waiting_for_user again after a status change' ($report.outcome -eq 'waiting_for_user' -and $polls -eq 3) "polls=$polls"
+
+    # Final round 1: the cutoff is taken before the POST, so Devin's reply never becomes the cutoff.
+    function M([string]$Id, [string]$Source, [int]$At) { [pscustomobject]@{ event_id = $Id; source = $Source; message = "$Source $Id"; created_at = $At } }
+    $cases = [ordered]@{
+        'a reply appended immediately after the POST' = @{ Before = @((M 'e1' 'devin' 3)); After = @((M 'e1' 'devin' 3), (M 'e2' 'user' 10), (M 'e3' 'devin' 11)); Cut = 3; CutId = 'e1' }
+        'a reply in the same second' = @{ Before = @((M 'e1' 'devin' 10)); After = @((M 'e1' 'devin' 10), (M 'e2' 'user' 10), (M 'e3' 'devin' 10)); Cut = 10; CutId = 'e1' }
+        'a reply to the first message of an empty thread' = @{ Before = @(); After = @((M 'e2' 'user' 10), (M 'e3' 'devin' 10)); Cut = 0; CutId = $null }
+    }
+    foreach ($case in $cases.GetEnumerator()) {
+        $script:MessagePosted = $false; $script:MessageSequence.Clear()
+        $script:ThreadBeforePost = $case.Value.Before; $script:ThreadAfterPost = $case.Value.After
+        $sent = Send-DevinCloudMessage -SessionId 'devin-w1' -Message 'Use main.'
+        Check "message takes the cutoff before the POST ($($case.Key))" ([string]$sent.cutoff -eq [string]$case.Value.Cut -and [string]$sent.cutoff_event_id -eq [string]$case.Value.CutId) ($sent | ConvertTo-Json -Compress)
+        foreach ($cut in @([string]$sent.cutoff, [string]$sent.cutoff_event_id) | Where-Object { $_ }) {
+            $script:Sleeps.Clear(); $script:StatusSequence.Clear(); $script:Calls.Clear()
+            1..3 | ForEach-Object { $script:StatusSequence.Enqueue((New-FakeSession 'devin-w1' 'running' @('agenthub') 'waiting_for_user')) }
+            $report = $null; $thrown = $null
+            try { $report = Wait-DevinCloudSession -SessionId 'devin-w1' -TimeoutSec 2 -PollSec 1 -After $cut } catch { $thrown = $_.Exception }
+            Check "wait -After $cut returns waiting_for_user with exit 0 for $($case.Key)" ($null -eq $thrown -and $report.outcome -eq 'waiting_for_user' -and (Get-DevinCloudWaitExitCode $report) -eq 0) "outcome=$($report.outcome) $($thrown.Message)"
+        }
+    }
+    $script:ThreadBeforePost = $null; $script:ThreadAfterPost = $null
+
+    # Final round 2: the message read pages to completion, fails closed, and is retried inside wait.
+    $script:MessagePages = @(for ($i = 0; $i -lt 12; $i++) { [pscustomobject]@{ items = @((M "e$i" 'devin' $i)); has_next_page = ($i -lt 11); end_cursor = $(if ($i -lt 11) { "p$($i + 1)" } else { $null }) } })
+    $thread = @(Get-DevinCloudMessages -SessionId 'devin-w1')
+    Check 'messages beyond page 10 are read' ($thread.Count -eq 12 -and $thread[-1].event_id -eq 'e11') "count=$($thread.Count)"
+    $script:MessagePages = @([pscustomobject]@{ items = @(); has_next_page = $true; end_cursor = $null })
+    $refused = $null
+    try { $null = Get-DevinCloudMessages -SessionId 'devin-w1' } catch { $refused = $_.Exception }
+    Check 'a message page promising more without a cursor fails closed with exit 3' ($null -ne $refused -and $refused.Data['ExitCode'] -eq 3) "$($refused.Message)"
+    $script:MessagePages = $null
+    $script:Sleeps.Clear(); $script:StatusSequence.Clear(); $script:MessageSequence.Clear(); $script:MessageErrors.Clear()
+    1..2 | ForEach-Object { $script:StatusSequence.Enqueue((New-FakeSession 'devin-w1' 'running' @('agenthub') 'waiting_for_user')) }
+    $script:MessageErrors.Enqueue((New-FakeApiError 503 $true))
+    $script:MessageSequence.Enqueue($newThread)
+    $report = $null; $thrown = $null
+    try { $report = Wait-DevinCloudSession -SessionId 'devin-w1' -TimeoutSec 600 -PollSec 5 -After 'e2' } catch { $thrown = $_.Exception }
+    Check 'wait -After retries a transient failure reading messages' ($null -eq $thrown -and $report.outcome -eq 'waiting_for_user' -and $script:Sleeps.Count -eq 1) "$($thrown.Message) sleeps=$($script:Sleeps.Count)"
 
     # 10: a key persisted in the User or Machine environment is refused; a Process-only override is consumed.
     $env:DEVIN_CLOUD_API_KEY = $syntheticKey
@@ -553,7 +607,8 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'race' -RunId `$env:RACE_RUN 
         Check 'devin MCP is never written by a default-scope sync' ([string]$m.scope -ne 'global-default')
         Check 'devin MCP records no invented protocol verification' ($null -eq $m.protocol.revision -and [string]$m.protocol.verification -match 'cannot be established' -and [string]$m.notes -match 'docs\.devin\.ai/work-with-devin/devin-mcp')
         # 6: the MCP client holds the raw key, so the adapter's caps do not apply there.
-        Check 'devin MCP notes say the caps are enforced only by the dispatcher adapter, with the org limit as backstop' ([string]$m.notes -match 'enforced only by the dispatcher adapter' -and [string]$m.notes -match 'Usage & Limits' -and [string]$m.notes -match 'max_acu_limit 10')
+        # Final round 4: only documented limits are named as the backstop, and none is claimed as set.
+        Check 'devin MCP notes name only documented ACU limits and claim no per-session limit is set' ([string]$m.notes -match 'enforced only by the dispatcher adapter' -and [string]$m.notes -match 'max_acu_limit 10' -and [string]$m.notes -match 'docs\.devin\.ai/admin/billing/org-acu-limits' -and [string]$m.notes -match 'docs\.devin\.ai/admin/billing/user-acu-limits' -and [string]$m.notes -match 'max_session_acu_limit' -and [string]$m.notes -match 'not yet set' -and [string]$m.notes -notmatch 'default session spending limit')
     }
 
     # --- The MCP headers helper: op read at connect time, headers on stdout only. ---
@@ -573,9 +628,14 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'race' -RunId `$env:RACE_RUN 
     $planDoc = [IO.File]::ReadAllText((Join-Path $repoRoot 'docs\plans\active\devin-peer-orchestration.md'))
     foreach ($doc in @(@{ Name = 'hosts.md'; Text = $hostsDoc }, @{ Name = 'devin-peer-orchestration.md'; Text = $planDoc })) {
         Check "$($doc.Name) uses the documented Linear wording" ($doc.Text -match 'Assign the ticket to Devin' -and $doc.Text -notmatch 'delegate to the "Devin" app user') ''
-        Check "$($doc.Name) says the MCP lane is not capped by the adapter" ($doc.Text -match 'enforced only by the dispatcher adapter' -and $doc.Text -match 'Usage & Limits') ''
+        Check "$($doc.Name) says the MCP lane is not capped by the adapter and names only documented limits" ($doc.Text -match 'enforced only by the dispatcher adapter' -and $doc.Text -match 'admin/billing/org-acu-limits' -and $doc.Text -match 'admin/billing/user-acu-limits' -and $doc.Text -match 'max_session_acu_limit' -and $doc.Text -match 'not yet set' -and $doc.Text -notmatch 'default session spending limit') ''
         Check "$($doc.Name) documents the wait exit codes and -After" ($doc.Text -match '-After' -and $doc.Text -match 'exit 4|exits 4') ''
     }
+    $cloudAuth = $liveFleet.dispatchPolicy.'devin-cloud'.cloudBudgetAuthorization
+    Check 'the fleet-profile ACU note names only documented limits and claims no per-session limit is set' ([string]$cloudAuth.defaultMaxAcuLimitNote -match 'org-acu-limits' -and [string]$cloudAuth.defaultMaxAcuLimitNote -match 'user-acu-limits' -and [string]$cloudAuth.defaultMaxAcuLimitNote -match 'max_session_acu_limit' -and [string]$cloudAuth.defaultMaxAcuLimitNote -match 'not yet set' -and [string]$cloudAuth.defaultMaxAcuLimitNote -notmatch 'default session spending limit')
+    # Final round 3: the orchestrator's live run is recorded as orchestrator-verified.
+    $cloudReason = [string]$liveFleet.dispatchPolicy.'devin-cloud'.reason
+    Check 'devin-cloud records the orchestrator-verified live run' ($cloudReason -match 'orchestrator-verified' -and $cloudReason -match 'ba31db7d8d394a7dbeb38009dd1310a4' -and $cloudReason -match 'max_acu_limit 2' -and $cloudReason -match 'deduplicated' -and $cloudReason -match 'waiting_for_user' -and $cloudReason -match '13' -and $cloudReason -match 'acus_consumed 0\.0' -and $cloudReason -notmatch 'No session has been created') $cloudReason
     $localPolicy = $liveFleet.dispatchPolicy.devin
     Check 'the local Devin lane stays local-only and points cloud work at devin-cloud' ([string]$localPolicy.scope -match '^local-only' -and [string]$localPolicy.scope -match 'devin-cloud')
 } finally {
