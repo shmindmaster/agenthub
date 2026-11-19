@@ -68,6 +68,9 @@ class FactoryTests(unittest.TestCase):
             (root / "demo.mp4").unlink()
             with self.assertRaises(ValueError):
                 factory.write_receipt(root, self.receipt())
+            written = json.loads((root / "receipt.json").read_text(encoding="utf-8"))
+            self.assertEqual(written["status"], "failed")
+            self.assertFalse(verify())
 
     def test_failed_receipts_keep_partial_evidence_and_never_verify(self):
         with tempfile.TemporaryDirectory() as tmp:

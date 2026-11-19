@@ -168,11 +168,14 @@ def write_receipt(root, receipt):
     """Hash every exported file; a passed receipt must also hold the suite's required set."""
     present = {p.name for p in root.iterdir() if p.is_file() and p.stat().st_size
                and p.name in REQUIRED[receipt["suite"]] | OPTIONAL}
-    if receipt["status"] == "passed" and not REQUIRED[receipt["suite"]] <= present:
-        raise ValueError("Expected output is missing or empty.")
+    missing = receipt["status"] == "passed" and not REQUIRED[receipt["suite"]] <= present
+    if missing:
+        receipt.update(status="failed", error="Expected output is missing or empty.")
     receipt["files"] = {name: {"sha256": digest(root / name), "bytes": (root / name).stat().st_size}
                         for name in sorted(present)}
     (root / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    if missing:
+        raise ValueError(receipt["error"])
     return receipt
 
 
