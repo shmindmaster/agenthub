@@ -1,0 +1,19 @@
+initialize:
+- name: Install Node.js
+  uses: github.com/actions/setup-node@v4
+  with:
+    node-version: 24.20.0
+maintenance:
+- name: Install npm dependencies
+  run: npm ci
+knowledge:
+- name: boundaries
+  contents: This repository is public. Read AGENTS.md, docs/README.md and docs/current-state.md. NEVER
+    copy private overlay files, personal config, credentials, media, machines paths or customer data to
+    the public repository. Companion agenthub-private must be authorized separately and never cloned for
+    a public-only task. RepoWise is retired. AGENTHUB_OVERLAY references a local private source only.
+- name: test
+  contents: 'Portable checks: npm test && npm run typecheck. Full local Windows fleet verification requires
+    PowerShell scripts: pwsh -NoProfile -File ./scripts/Validate-AgentHub.ps1, pwsh -NoProfile -File ./tests/Run-AllTests.ps1,
+    and scripted sync audit as documented. Do not assume pwsh or private overlay exists in Linux Cloud.
+    Do not deploy or change user-level fleet state without approval.'
