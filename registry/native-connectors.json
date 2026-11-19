@@ -1192,31 +1192,31 @@
             "hostId": "claude",
             "channel": "native-plugin",
             "plugin": "expo@claude-plugins-official",
-            "current": false,
+            "current": null,
             "updateCommand": "claude plugin install expo@claude-plugins-official",
-            "note": "Not observed on this host. Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current true after the host lists the plugin."
+            "note": "Not observed on this host (current: null = not established). Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current after the host's plugin list is read."
           },
           {
             "hostId": "codex",
             "channel": "native-plugin",
             "plugin": "expo@openai-curated",
-            "current": false,
+            "current": null,
             "updateCommand": "codex plugin add expo@openai-curated",
-            "note": "Not observed on this host. Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current true after the host lists the plugin."
+            "note": "Not observed on this host (current: null = not established). Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current after the host's plugin list is read."
           },
           {
             "hostId": "factory",
             "channel": "native-plugin",
             "plugin": "expo@claude-plugins-official",
-            "current": false,
+            "current": null,
             "updateCommand": "droid plugin install expo@claude-plugins-official",
-            "note": "Not observed on this host. Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current true after the host lists the plugin."
+            "note": "Not observed on this host (current: null = not established). Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current after the host's plugin list is read."
           },
           {
             "hostId": "grok",
             "channel": "imported-from-claude",
             "plugin": "expo",
-            "current": false,
+            "current": null,
             "updateCommand": "Follows Claude: grok imports the plugin installed for Claude",
             "note": "Current once Claude carries it."
           },
@@ -1224,7 +1224,7 @@
             "hostId": "devin",
             "channel": "upstream-plugin",
             "plugin": "expo (github.com/expo/skills/tree/main/plugins/expo)",
-            "current": false,
+            "current": null,
             "updateCommand": "Devin plugin install from https://github.com/expo/skills/tree/main/plugins/expo (personal scope, owner approval)",
             "note": "Devin loads the plugin's .claude-plugin manifest. Not installed in Devin by this change; the owner approves the install."
           },
@@ -1232,9 +1232,9 @@
             "hostId": "antigravity",
             "channel": "upstream-git",
             "plugin": "expo",
-            "current": false,
+            "current": null,
             "updateCommand": "agy plugin install https://github.com/expo/skills.git",
-            "note": "Not observed on this host. Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current true after the host lists the plugin."
+            "note": "Not observed on this host (current: null = not established). Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current after the host's plugin list is read."
           },
           {
             "hostId": "opencode",
