@@ -118,9 +118,12 @@ jobs:
             echo "::error::Set DAYTONA_ELIGIBLE_CREDITS_USD, DAYTONA_CASH_FALLBACK_DISABLED and DAYTONA_PILOT_BATCH_START on the daytona-factory environment."
             exit 1
           }
-          # Every earlier run in the batch counts as a full worst-case reservation.
+          # Every earlier run attempt in the batch, including earlier attempts of this run, counts as a
+          # full worst-case reservation; runs queued after this one do not.
           prior=$(gh api --paginate --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/daytona-factory.yml/runs" \
-            -f created=">=$BATCH_START" --jq ".workflow_runs[] | select(.id != $GITHUB_RUN_ID) | .id" | wc -l)
+            -f created=">=$BATCH_START" --jq ".workflow_runs[] | select(.id <= $GITHUB_RUN_ID)
+              | if .id == $GITHUB_RUN_ID then $GITHUB_RUN_ATTEMPT - 1 else .run_attempt end" \
+            | awk '{ total += $1 } END { print total + 0 }')
           mkdir -p "$OUTPUT_DIR"
           python ci/daytona-factory/factory.py preflight --credits-usd "$CREDITS_USD" \
             --cash-fallback-disabled "$CASH_FALLBACK_DISABLED" --prior-runs "$prior" \
