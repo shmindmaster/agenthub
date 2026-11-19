@@ -502,7 +502,7 @@ srv.listen(0, '127.0.0.1', () => console.log(srv.address().port));
             $r = Run-Encoded $merged $envKey
             Check "$action with streams 1-6 merged never carries the key" (($r.Out + $r.Err) -notmatch [regex]::Escape($syntheticKey)) ''
         }
-        $logged = @(Get-Content -LiteralPath $requestLog | ForEach-Object { $_ | ConvertFrom-Json })
+        $logged = @(Get-Content -LiteralPath $requestLog -Encoding UTF8 | ForEach-Object { $_ | ConvertFrom-Json })
         Check 'the loopback endpoint saw authenticated requests for every action' ($logged.Count -ge 7 -and @($logged | Where-Object { -not $_.auth }).Count -eq 0) "requests=$($logged.Count)"
 
         # 8: the real HTTP function marks 429, 5xx and transport failures transient, and 404 not.
@@ -528,15 +528,15 @@ foreach (`$id in @('devin-503aa', 'devin-404aa')) {
         }
         $envGit = $envKey.Clone(); $envGit.PATH = $fakeGit + $sep + $env:PATH
         $r = Run-Child @('-NoProfile', '-NonInteractive', '-File', $entryPath, '-Action', 'create', '-Prompt', 'derive my repo', '-RunId', 'sh4969-git', '-Cwd', $fixture) $envGit
-        $posted = @(Get-Content -LiteralPath $requestLog | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.m -eq 'POST' -and $_.p -eq '/sessions' -and $_.body -match 'derive my repo' })
+        $posted = @(Get-Content -LiteralPath $requestLog -Encoding UTF8 | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.m -eq 'POST' -and $_.p -eq '/sessions' -and $_.body -match 'derive my repo' })
         Check 'create derives the repo from the git remote' ($r.Exit -eq 0 -and $posted.Count -eq 1 -and $posted[0].body -match 'fixture-owner/fixture-repo') "exit=$($r.Exit) $($r.Err)"
         Check "the adapter's git child does not inherit DEVIN_CLOUD_API_KEY" ((Test-Path -LiteralPath $gitReport) -and ([IO.File]::ReadAllText($gitReport)).Trim() -eq 'absent') $(if (Test-Path -LiteralPath $gitReport) { [IO.File]::ReadAllText($gitReport) } else { 'no report' })
 
         # 7: through the entry script, a fractional or exponent -MaxAcu refuses before any request.
         foreach ($bad in @('2.5', '1e3', 'abc')) {
-            $before = @(Get-Content -LiteralPath $requestLog).Count
+            $before = @(Get-Content -LiteralPath $requestLog -Encoding UTF8).Count
             $r = Run-Child @('-NoProfile', '-NonInteractive', '-File', $entryPath, '-Action', 'create', '-Prompt', 'ok', '-RunId', 'sh4969-acu', '-Repo', 'o/r', '-MaxAcu', $bad) $envKey
-            Check "the entry script refuses -MaxAcu $bad with exit 3 and no request" ($r.Exit -eq 3 -and @(Get-Content -LiteralPath $requestLog).Count -eq $before) "exit=$($r.Exit) $($r.Err)"
+            Check "the entry script refuses -MaxAcu $bad with exit 3 and no request" ($r.Exit -eq 3 -and @(Get-Content -LiteralPath $requestLog -Encoding UTF8).Count -eq $before) "exit=$($r.Exit) $($r.Err)"
         }
     } finally {
         try { $server.Kill() } catch { }
@@ -605,7 +605,9 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'race' -RunId `$env:RACE_RUN 
         Check 'devin MCP authenticates through the headers helper' ($m.credentialPolicy -eq 'native-headers-helper' -and [string]$m.headersHelper.claude -match 'Get-DevinMcpHeaders\.ps1')
         Check 'devin MCP is declared for claude only, with a plugin-only exception' ((@($m.hosts) -join ',') -eq 'claude' -and -not [string]::IsNullOrWhiteSpace([string]$mcps.activationPolicy.pluginOnly.hosts.claude.devin))
         Check 'devin MCP is never written by a default-scope sync' ([string]$m.scope -ne 'global-default')
-        Check 'devin MCP records no invented protocol verification' ($null -eq $m.protocol.revision -and [string]$m.protocol.verification -match 'cannot be established' -and [string]$m.notes -match 'docs\.devin\.ai/work-with-devin/devin-mcp')
+        # A revision is accepted only when its verification records the authenticated probe that returned it.
+        $protoOk = if ($null -eq $m.protocol.revision) { [string]$m.protocol.verification -match 'cannot be established' } else { ([string]$m.protocol.revision -match '^\d{4}-\d{2}-\d{2}$') -and ([string]$m.protocol.verification -match 'Authenticated probe') -and ([string]$m.protocol.verification -match ('protocolVersion ' + [regex]::Escape([string]$m.protocol.revision))) }
+        Check 'devin MCP records no invented protocol verification (null, or a revision backed by a recorded authenticated probe)' ($protoOk -and [string]$m.notes -match 'docs\.devin\.ai/work-with-devin/devin-mcp')
         # 6: the MCP client holds the raw key, so the adapter's caps do not apply there.
         # Final round 4: only documented limits are named as the backstop, and none is claimed as set.
         Check 'devin MCP notes name only documented ACU limits and claim no per-session limit is set' ([string]$m.notes -match 'enforced only by the dispatcher adapter' -and [string]$m.notes -match 'max_acu_limit 10' -and [string]$m.notes -match 'docs\.devin\.ai/admin/billing/org-acu-limits' -and [string]$m.notes -match 'docs\.devin\.ai/admin/billing/user-acu-limits' -and [string]$m.notes -match 'max_session_acu_limit' -and [string]$m.notes -match 'not yet set' -and [string]$m.notes -notmatch 'default session spending limit')
