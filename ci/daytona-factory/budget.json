@@ -1,0 +1,15 @@
+{
+  "max_concurrent_workers": 1,
+  "workers_per_attempt": 2,
+  "max_job_minutes": 30,
+  "export_reserve_seconds": 180,
+  "teardown_reserve_seconds": 60,
+  "transient_retries": 1,
+  "pilot_cap_usd": 10,
+  "pilot_cap_credit_fraction": 0.1,
+  "gpu": 0,
+  "worker_limits": {"cpu": 4, "memory_gib": 8, "disk_gib": 10},
+  "rates_usd_per_hour": {"cpu": 0.0504, "memory_gib": 0.0162, "disk_gib": 0.000108},
+  "free_disk_gib": 5,
+  "rates_source": "https://www.daytona.io/pricing, read 2026-11-19"
+}

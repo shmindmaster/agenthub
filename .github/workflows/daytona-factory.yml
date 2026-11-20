@@ -1,5 +1,5 @@
 name: Daytona Build and Demo Factory
-run-name: Daytona ${{ inputs.app }} @ ${{ inputs.sha }}
+run-name: Daytona ${{ inputs.app }} ${{ inputs.suite }} @ ${{ inputs.sha }}${{ inputs.probe != 'none' && format(' probe={0}', inputs.probe) || '' }}
 
 on:
   workflow_dispatch:
@@ -13,6 +13,16 @@ on:
         description: Full Git commit SHA from an approved branch
         required: true
         type: string
+      suite:
+        description: demo (build, preview, record, render) or journey (section 8 journeys with recordings)
+        type: choice
+        options: [demo, journey]
+        default: demo
+      probe:
+        description: Mechanism probe; fail and hang always produce a failed or cancelled receipt
+        type: choice
+        options: [none, fail, hang]
+        default: none
       rebuild:
         description: Build again even when a verified artifact exists
         type: boolean
@@ -31,11 +41,19 @@ jobs:
     if: github.repository == 'shmindmaster/agenthub' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: daytona-factory
-    timeout-minutes: 40
+    # Budget policy: one 30-minute lifetime covers setup, tests and evidence export.
+    timeout-minutes: 30
     env:
       APP: ${{ inputs.app }}
       SOURCE_SHA: ${{ inputs.sha }}
+      SUITE: ${{ inputs.suite }}
+      PROBE: ${{ inputs.probe }}
     steps:
+      - name: Start the job clock
+        run: |
+          echo "JOB_DEADLINE=$(( $(date +%s) + 30 * 60 - 90 ))" >> "$GITHUB_ENV"
+          echo "SOURCE_DIR=$RUNNER_TEMP/factory-source" >> "$GITHUB_ENV"
+          echo "OUTPUT_DIR=$RUNNER_TEMP/factory-output" >> "$GITHUB_ENV"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
@@ -48,9 +66,11 @@ jobs:
           set -euo pipefail
           case "$APP" in abacare|empowera|revolva) ;; *) exit 2 ;; esac
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          echo "SOURCE_DIR=$RUNNER_TEMP/factory-source" >> "$GITHUB_ENV"
-          echo "OUTPUT_DIR=$RUNNER_TEMP/factory-output" >> "$GITHUB_ENV"
-          echo "artifact=daytona-$APP-$SOURCE_SHA-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          case "$SUITE/$PROBE" in demo/*|journey/*) ;; *) exit 2 ;; esac
+          if [[ "$SUITE" == journey && "$APP" == abacare ]]; then
+            echo "::error::No journey suite is defined for abacare."; exit 2
+          fi
+          echo "artifact=daytona-$APP-$SUITE-$SOURCE_SHA-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           echo "key=FACTORY_SOURCE_${APP^^}_SSH_KEY" >> "$GITHUB_OUTPUT"
       - name: Fetch and verify the exact source commit
         env:
@@ -72,7 +92,7 @@ jobs:
           python ci/daytona-factory/factory.py check --app "$APP" --sha "$SOURCE_SHA" --repo "$SOURCE_DIR"
       - name: Reuse a verified result
         id: reuse
-        if: inputs.rebuild == false
+        if: inputs.rebuild == false && inputs.probe == 'none'
         env:
           GH_TOKEN: ${{ github.token }}
           ARTIFACT_NAME: ${{ steps.request.outputs.artifact }}
@@ -85,27 +105,56 @@ jobs:
           prior_status=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$prior" --jq '.conclusion')
           if [[ "$prior_status" != success ]]; then exit 0; fi
           gh run download "$prior" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir "$OUTPUT_DIR"
-          python ci/daytona-factory/factory.py verify --app "$APP" --sha "$SOURCE_SHA" --output "$OUTPUT_DIR"
+          python ci/daytona-factory/factory.py verify --app "$APP" --sha "$SOURCE_SHA" --suite "$SUITE" --output "$OUTPUT_DIR"
           echo "Reused the verified [artifact from run $prior]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$prior)." >> "$GITHUB_STEP_SUMMARY"
           echo "hit=true" >> "$GITHUB_OUTPUT"
+      - name: Reserve the worst case against the pilot budget
+        if: steps.reuse.outputs.hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Owner-attested environment variables; any missing value refuses the launch.
+          CREDITS_USD: ${{ vars.DAYTONA_ELIGIBLE_CREDITS_USD }}
+          CASH_FALLBACK_DISABLED: ${{ vars.DAYTONA_CASH_FALLBACK_DISABLED }}
+          BATCH_START: ${{ vars.DAYTONA_PILOT_BATCH_START }}
+        run: |
+          set -euo pipefail
+          [[ "$CREDITS_USD" =~ ^[0-9]+(\.[0-9]+)?$ && "$BATCH_START" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2} ]] || {
+            echo "::error::Set DAYTONA_ELIGIBLE_CREDITS_USD, DAYTONA_CASH_FALLBACK_DISABLED and DAYTONA_PILOT_BATCH_START on the daytona-factory environment."
+            exit 1
+          }
+          # Every started run attempt in the batch, including earlier attempts of this run, counts as a
+          # full worst-case reservation; an attempt still waiting to start does not. A rerun of a run
+          # created before the batch start is refused (factory.py batch_attempts).
+          gh api --paginate --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/daytona-factory.yml/runs" \
+            -f created=">=$BATCH_START" --jq '.workflow_runs[] | {id, status, run_attempt, created_at}' \
+            > "$RUNNER_TEMP/batch-runs.jsonl"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --jq '{id, status, run_attempt, created_at}' > "$RUNNER_TEMP/current-run.json"
+          mkdir -p "$OUTPUT_DIR"
+          python ci/daytona-factory/factory.py preflight --credits-usd "$CREDITS_USD" \
+            --cash-fallback-disabled "$CASH_FALLBACK_DISABLED" --runs "$RUNNER_TEMP/batch-runs.jsonl" \
+            --current-run "$RUNNER_TEMP/current-run.json" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --batch-start "$BATCH_START" --output "$RUNNER_TEMP/budget.json"
       - name: Install the Daytona SDK
         if: steps.reuse.outputs.hit != 'true'
         run: python -m pip install daytona==0.231.1
-      - name: Build, test, preview, record and render
+      - name: Build, test, export and render
         if: steps.reuse.outputs.hit != 'true'
         env:
           DAYTONA_FACTORY_API_KEY: ${{ secrets.DAYTONA_FACTORY_API_KEY }}
         run: |
           set -euo pipefail
-          python -u ci/daytona-factory/factory.py run --app "$APP" --sha "$SOURCE_SHA" --repo "$SOURCE_DIR" --output "$OUTPUT_DIR"
-          python ci/daytona-factory/factory.py verify --app "$APP" --sha "$SOURCE_SHA" --output "$OUTPUT_DIR"
+          python -u ci/daytona-factory/factory.py run --app "$APP" --sha "$SOURCE_SHA" --repo "$SOURCE_DIR" \
+            --output "$OUTPUT_DIR" --suite "$SUITE" --probe "$PROBE" --budget "$RUNNER_TEMP/budget.json" \
+            --deadline-epoch "$JOB_DEADLINE"
+          python ci/daytona-factory/factory.py verify --app "$APP" --sha "$SOURCE_SHA" --suite "$SUITE" --output "$OUTPUT_DIR"
       - name: Store private artifacts
         id: artifacts
         if: steps.reuse.outputs.hit != 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ steps.request.outputs.artifact }}
-          path: ${{ env.OUTPUT_DIR }}/
+          path: ${{ runner.temp }}/factory-output/
           if-no-files-found: error
           retention-days: 90
           compression-level: 0
@@ -116,12 +165,43 @@ jobs:
           ARTIFACT_URL: ${{ steps.artifacts.outputs.artifact-url }}
         run: |
           printf '### %s\n\nSource commit: `%s`\n\n[Download receipt, logs and video](%s)\n' "$APP" "$SOURCE_SHA" "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
-      - name: Keep failure diagnostics
-        if: failure()
+      - name: Keep failure evidence and receipt
+        if: failure() || cancelled()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: daytona-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ env.OUTPUT_DIR }}/*.log
+          path: ${{ runner.temp }}/factory-output/
           if-no-files-found: ignore
           retention-days: 14
+
+  cleanup:
+    # Independent of the demo job's own finally blocks: runs after success, failure or cancellation.
+    needs: demo
+    if: always() && github.repository == 'shmindmaster/agenthub' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: daytona-factory
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.13'
+      - name: Install the Daytona SDK
+        run: python -m pip install daytona==0.231.1
+      - name: Sweep and count this run's workers
+        env:
+          DAYTONA_FACTORY_API_KEY: ${{ secrets.DAYTONA_FACTORY_API_KEY }}
+        run: |
+          set -euo pipefail
+          python -u ci/daytona-factory/factory.py cleanup --run "$GITHUB_RUN_ID" --output "$RUNNER_TEMP/cleanup"
+          printf '### Cleanup\n\n```json\n%s\n```\n' "$(cat "$RUNNER_TEMP/cleanup/cleanup.json")" >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the cleanup report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: daytona-cleanup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cleanup/cleanup.json
+          if-no-files-found: error
+          retention-days: 90
