@@ -49,7 +49,8 @@ The rates are Daytona v2 on-demand Linux list prices. v2 bills CPU per core
 (one core is 2 vCPUs with SMT), so a worker is 2 cores (4 vCPUs), 8 GiB and
 10 GiB of ephemeral disk, which v2 does not bill. A create does not pin the CPU
 model, so the reservation uses the highest on-demand core rate. The `v0` block
-keeps the v0 per-vCPU rates and limits for `-f platform=v0`.
+keeps the v0 per-vCPU rates and limits for `-f platform=v0`. A batch can mix
+both platforms, so every reservation uses the dearer platform's worst case.
 
 ## Evidence, failure and cleanup
 

@@ -87,6 +87,13 @@ def worst_case_usd(policy):
     return round(attempt * policy["max_job_minutes"] / 60 * (1 + policy["transient_retries"]), 4)
 
 
+def reservation_policy(provider, policy):
+    """A batch may mix v2 and v0 runs, so Daytona reservations use the dearer platform's worst case."""
+    if provider not in ("daytona", "daytona-v0"):
+        return policy
+    return max((load_policy(provider=p) for p in ("daytona", "daytona-v0")), key=worst_case_usd)
+
+
 CASH_FALLBACK = {"true": "disabled",
                  "unreachable-under-cap": "unverified; unreachable under the pilot cap"}
 
@@ -919,7 +926,8 @@ def main():
             runs = json_stream(args.runs.read_text())
             current = json.loads(args.current_run.read_text())
             prior = batch_attempts(runs, current, args.run_attempt, args.batch_start)
-        reservation = preflight(policy, args.credits_usd, args.cash_fallback_disabled, prior)
+        reservation = preflight(reservation_policy(args.provider, policy), args.credits_usd,
+                                args.cash_fallback_disabled, prior)
         args.output.write_text(json.dumps(reservation, indent=2) + "\n")
         print(json.dumps(reservation), flush=True)
         return

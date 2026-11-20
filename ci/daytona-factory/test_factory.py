@@ -133,6 +133,10 @@ class BudgetTests(unittest.TestCase):
         self.assertAlmostEqual(factory.worst_case_usd(v0), round(hourly * 0.5 * 2, 4))
         self.assertEqual((v0["max_job_minutes"], v0["max_concurrent_workers"], v0["gpu"]), (30, 1, 0))
         self.assertIn("daytona.com/pricing", self.policy["rates_source"])
+        # A batch can mix platforms, so either platform reserves the dearer worst case.
+        for provider in ("daytona", "daytona-v0"):
+            reserve = factory.reservation_policy(provider, factory.load_policy(provider=provider))
+            self.assertEqual(factory.worst_case_usd(reserve), factory.worst_case_usd(self.policy))
 
     def test_preflight_fails_closed(self):
         for credits, fallback in ((None, "true"), (0, "true"), (200, "false"), (200, None),
