@@ -28,6 +28,7 @@ $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
 . (Join-Path $PSScriptRoot 'SkillFrontmatterYaml.ps1')
 . (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
 . (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
+. (Join-Path $PSScriptRoot 'lib\SharedSkillOwnership.ps1')
 
 # -UserProfile has to actually move where this script writes, or it is a
 # safety promise the script does not keep. Registry skillsDir values are
@@ -57,7 +58,8 @@ $statePath = Join-Path $runtimeRoot 'managed-skills.json'
 $capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 # Owner direction 2026-10-30: deploy plugins only. Loose skills are not copied
 # into host skill libraries, and -Apply -Prune removes the copies already there,
-# including unmanaged ones. Absent keeps the historical deploy-loose-skills
+# including unmanaged ones. Installer-verified third-party skills stay in
+# the shared library. Absent keeps the historical deploy-loose-skills
 # behavior so fixture tests that do not set the flag stay valid.
 $script:deployLooseSkills = $true
 if ($capabilities.PSObject.Properties.Name -contains 'deployLooseSkills') {
@@ -443,13 +445,26 @@ foreach ($retired in @($capabilities.retiredFleetSkills)) {
   }
 }
 
+$registeredSharedSkillPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+if ($Apply -and $Prune) {
+  $nativeConnectorsPath = Join-Path $root 'registry/native-connectors.json'
+  if (Test-Path -LiteralPath $nativeConnectorsPath -PathType Leaf) {
+    $nativeConnectors = Get-Content -LiteralPath $nativeConnectorsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($registeredPath in @(Get-RegisteredSharedSkillPaths -UserProfile $UserProfile -NativeConnectors $nativeConnectors)) {
+      [void]$registeredSharedSkillPaths.Add((Resolve-PhysicalWritePath $registeredPath))
+    }
+  }
+}
+
 $retiredPruned = 0
 if ($Apply -and $Prune) {
   foreach ($destination in @($retiredDestinations.Keys)) {
     if (-not (Test-Path -LiteralPath $destination)) { continue }
     if ($desired.ContainsKey($destination)) { continue }   # a live skill reclaimed the name
     if ($cliRetiredDestinations.ContainsKey($destination) -and (Test-ReparsePoint $destination)) { continue }
-    Remove-Item -LiteralPath (Resolve-PhysicalWritePath $destination) -Recurse -Force
+    $physical = Resolve-PhysicalWritePath $destination
+    if ($registeredSharedSkillPaths.Contains($physical)) { continue }
+    Remove-Item -LiteralPath $physical -Recurse -Force
     $retiredPruned++
   }
 }
@@ -509,7 +524,9 @@ foreach ($entry in $cliDirs.Values) {
       Write-Host "CLI-SKILLS-DIR retired skill still present (drift; -Apply -Prune removes it): $path"
     } elseif ($entry.shipped.Contains($name)) {
       if ($Apply -and $Prune) {
-        Remove-Item -LiteralPath (Resolve-PhysicalWritePath $path) -Recurse -Force
+        $physical = Resolve-PhysicalWritePath $path
+        if ($registeredSharedSkillPaths.Contains($physical)) { continue }
+        Remove-Item -LiteralPath $physical -Recurse -Force
         $cliShadowPruned++
         & $cliRow 'shadow-pruned'
         Write-Host "CLI-SKILLS-DIR shadow copy removed: $path"
@@ -530,6 +547,8 @@ $yamlNeedsRepair = 0
 if ($Apply -and $Prune) {
   foreach ($destination in @($prior.managed.Keys)) {
     if ($desired.ContainsKey($destination) -or -not (Test-Path -LiteralPath $destination)) { continue }
+    $physical = Resolve-PhysicalWritePath $destination
+    if ($registeredSharedSkillPaths.Contains($physical)) { continue }
     # Same stored-format rule as the replace guard above.
     $currentHash = if (Test-LegacyManagedHash $destination) { Get-TreeHashLegacy $destination } else { Get-TreeHash $destination }
     if ($currentHash -ne $prior.managed[$destination].hash) {
@@ -540,7 +559,7 @@ if ($Apply -and $Prune) {
       }
       Write-Host "PLUGINS-ONLY removing modified managed skill: $destination"
     }
-    Remove-Item -LiteralPath (Resolve-PhysicalWritePath $destination) -Recurse -Force
+    Remove-Item -LiteralPath $physical -Recurse -Force
     $pruned++
   }
 }
@@ -573,6 +592,7 @@ if (-not $script:deployLooseSkills -and $Apply -and $Prune) {
         continue
       }
       $physical = (Resolve-PhysicalWritePath $child.FullName).TrimEnd('\', '/')
+      if ($registeredSharedSkillPaths.Contains($physical)) { continue }
       if (-not $removedPhysical.Add($physical)) { continue }
       if (-not (Test-Path -LiteralPath $child.FullName)) { continue }
       $target = Join-Path $retiredRoot $child.Name

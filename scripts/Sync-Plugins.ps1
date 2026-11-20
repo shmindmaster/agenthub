@@ -15,6 +15,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/PathBinding.ps1')
 . (Join-Path $PSScriptRoot 'lib/HostCatalog.ps1')
 . (Join-Path $PSScriptRoot 'lib/PluginTransaction.ps1')
+. (Join-Path $PSScriptRoot 'lib/SharedSkillOwnership.ps1')
 $liveProfile = [IO.Path]::GetFullPath((Get-AgentHubDefaultHome))
 $live = $UserProfile.TrimEnd('\', '/') -eq $liveProfile.TrimEnd('\', '/')
 $root = $RepositoryRoot.Replace('\', '/')
@@ -502,7 +503,8 @@ if (-not $HostId -or $HostId -eq 'claude') {
     }
 }
 if (-not $HostId) {
-    foreach ($skill in @(Get-ChildItem -LiteralPath (Join-Path $UserProfile '.agents/skills') -Force -ErrorAction SilentlyContinue)) {
+    $nativeConnectors = Read-Document (Join-Path $root 'registry/native-connectors.json')
+    foreach ($skill in @(Get-UnmanagedSharedSkills -UserProfile $UserProfile -NativeConnectors $nativeConnectors)) {
         $conflicts += [pscustomobject]@{ host='shared'; status='unmanaged'; kind='loose-skill'; name=$skill.Name }
     }
 }

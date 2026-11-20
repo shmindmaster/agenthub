@@ -137,6 +137,7 @@ $targets = @(
     @{ HostId = 'devin'; Path = (Join-Path $roaming 'devin/mcp_config.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'warp'; Path = (Join-Path $userHome '.warp/.mcp.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'kilo'; Path = (Join-Path $userHome '.config/kilo/config.json'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
+    @{ HostId = 'kilo'; Path = (Join-Path $userHome '.config/kilo/kilo.jsonc'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
     @{ HostId = 'mimo-code'; Path = (Join-Path $userHome '.config/mimocode/mimocode.jsonc'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
     @{ HostId = 'mimo-code'; Path = (Join-Path $userHome '.config/mimocode/config.json'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
 )
@@ -156,13 +157,12 @@ foreach ($strayHook in (Join-Path $userHome '.cursor/hooks.json'), (Join-Path $u
     Assert-True (-not (Test-Path -LiteralPath $strayHook)) "a hook file outside any plugin is back: $strayHook"
 }
 
-$sharedSkills = Join-Path $userHome '.agents/skills'
-if (Test-Path -LiteralPath $sharedSkills) {
-    # Codex owns synced/ for its native skill distribution. This policy forbids
-    # AgentHub's old loose copies, not skills managed by the host itself.
-    $loose = @(Get-ChildItem -LiteralPath $sharedSkills -Force | Where-Object Name -ne 'synced')
-    Assert-True ($loose.Count -eq 0) "~/.agents/skills has unmanaged loose entries: $($loose.Name -join ', ')"
-}
+# Native Codex distribution and explicitly registered vendor installer receipts
+# are permitted. All other loose entries still fail the check.
+. (Join-Path $repoRoot 'scripts/lib/SharedSkillOwnership.ps1')
+$nativeConnectors = Get-Content -LiteralPath (Join-Path $repoRoot 'registry/native-connectors.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$loose = @(Get-UnmanagedSharedSkills -UserProfile $userHome -NativeConnectors $nativeConnectors)
+Assert-True ($loose.Count -eq 0) "~/.agents/skills has unmanaged loose entries: $($loose.Name -join ', ')"
 
 Write-Host "Test-PluginOnlyMcp: passed=$passed failed=$($failures.Count) configsChecked=$checked"
 if ($failures.Count -gt 0) {

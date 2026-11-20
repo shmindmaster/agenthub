@@ -45,6 +45,7 @@
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep the vendor AWS plugin and disable its bundled aws-mcp through plugin-scoped MCP policy when the hosted connection owns this server."
         },
         "cursor": {
+          "parallel": "Use Parallel's official hosted MCP through Cursor's native remote MCP configuration and keep the anonymous tool subset.",
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint for Cursor. Use its native remote MCP configuration and consent flow, with no local proxy."
         },
         "grok": {
@@ -54,10 +55,12 @@
         "antigravity": {},
         "copilot": {},
         "vscode-insiders": {
+          "parallel": "Use Parallel's official hosted MCP through VS Code's native HTTP server configuration and keep the anonymous tool subset.",
           "github": "Copilot's own GitHub endpoint with OAuth. The catalog github plugin needs a personal access token instead.",
           "clerk": "Clerk CLI targets stable VS Code, so Insiders uses its own remote entry with Copilot official skills."
         },
         "cline": {
+          "parallel": "Use Cline Streamable HTTP configuration for anonymous Parallel search and fetch. Keep tool auto-approval empty.",
           "adobe-for-creativity": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "context7": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "descript": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
@@ -80,7 +83,9 @@
           "aws-mcp": "AWS now supports a direct hosted OAuth endpoint, replacing the local SigV4 proxy after native consent and connection verification. This remains an owner-configured exception, not a generated mcpServers row. Preserve the running connection until the replacement works and retain profile switching only as an explicitly selected local fallback.",
           "clerk": "No official Clerk OpenCode plugin format; vendor CLI configures the hosted remote MCP, no local process."
         },
-        "amp": {},
+        "amp": {
+          "parallel": "Use the vendor hosted anonymous HTTP endpoint through the native Amp client."
+        },
         "devin": {},
         "warp": {
           "context7": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
@@ -90,7 +95,9 @@
           "notion": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
         },
-        "kilo": {},
+        "kilo": {
+          "parallel": "Use kilo mcp add to register the vendor hosted anonymous HTTP endpoint in kilo.jsonc."
+        },
         "mimo-code": {}
       }
     },
@@ -152,6 +159,36 @@
     "2024-11-05"
   ],
   "mcpServers": [
+    {
+      "id": "parallel",
+      "name": "Parallel Web Research",
+      "scope": "global-default",
+      "transport": "http",
+      "activationMode": "shared-remote",
+      "url": "https://mcp.parallel.ai/mcp?tools=web_search,web_fetch",
+      "credentialPolicy": "none-in-config; anonymous free tier only.",
+      "protocol": {
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-11-20",
+        "verification": "Anonymous initialize, notifications/initialized and tools/list succeeded; web_fetch returned content from example.com. Only web_search and web_fetch were advertised on this URL."
+      },
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
+      "pluginOwnersByHost": {
+        "claude": "parallel@parallel-agent-skills",
+        "codex": "parallel@parallel-web",
+        "devin": "parallel@upstream",
+        "copilot": "parallel@upstream",
+        "factory": "parallel@parallel-agent-skills",
+        "antigravity": "parallel@upstream",
+        "grok": "parallel@parallel-agent-skills (imported from Claude)"
+      },
+      "hosts": ["cursor", "vscode-insiders", "amp", "cline"],
+      "hostScopeNote": "Initial managed streamable HTTP targets. Kilo uses its native user command and stores the entry in kilo.jsonc. Client discovery and tool execution are checked separately from the endpoint probe.",
+      "notes": "Official endpoint: https://parallel.ai/mcp. Use public queries and URLs. OAuth via the vendor login endpoint and API-key usage can bill the connected Parallel account; neither is configured by the fleet default."
+    },
     {
       "id": "github",
       "name": "GitHub (shmindmaster)",

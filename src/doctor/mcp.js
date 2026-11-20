@@ -56,7 +56,14 @@ export function readMcpSource(source) {
   }
   const map = doc && typeof doc === 'object' ? doc[source.key] : undefined;
   if (!map || typeof map !== 'object' || Array.isArray(map)) return result;
-  for (const [name, raw] of Object.entries(map)) {
+  const nested = source.dialect === 'opencode' ? map.servers : null;
+  const isNestedMap = nested && typeof nested === 'object' && !Array.isArray(nested)
+    && typeof nested.type !== 'string' && typeof nested.transport !== 'string'
+    && typeof nested.url !== 'string' && typeof nested.enabled !== 'boolean'
+    && typeof nested.command !== 'string' && !Array.isArray(nested.command);
+  const entries = Object.entries(map).filter(([name]) => name !== 'servers' || !isNestedMap);
+  if (isNestedMap) entries.push(...Object.entries(nested));
+  for (const [name, raw] of new Map(entries)) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
     result.servers.push({ ...normalizeServer(name, raw, source.dialect), source: source.path });
   }
@@ -106,7 +113,7 @@ export function normalizeServer(name, raw, dialect) {
     if (dialect === 'codex') {
       if (typeof raw.bearer_token_env_var === 'string' || raw.env_http_headers) authConfigured = true;
     }
-    if (raw.oauth || raw.auth || raw.authProviderType) authConfigured = true;
+    if (raw.oauth || raw.auth || raw.authProviderType || raw.headersHelper) authConfigured = true;
   }
 
   const type = String(raw.type ?? raw.transport ?? '').toLowerCase();
@@ -259,6 +266,9 @@ function checkUrl(url) {
     parsed.password = 'redacted';
   }
   for (const [key, value] of [...parsed.searchParams.entries()]) {
+    // AWS documents this literal as an OAuth discovery switch for older clients.
+    if (key === 'oauth' && value === 'initialize' && parsed.protocol === 'https:' &&
+        /^aws-mcp\.[a-z0-9-]+\.api\.aws$/i.test(parsed.hostname)) continue;
     if (value && !isReference(value) && (SENSITIVE_NAME.test(key) || tokenKind(value))) {
       hits.push({ where: `url ?${key}=`, kind: tokenKind(value) ?? `literal ${key} in query string` });
       parsed.searchParams.set(key, 'redacted');

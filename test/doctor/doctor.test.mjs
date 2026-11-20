@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { bindPath, buildHostCatalog, createPathContext } from '../../src/doctor/hosts.js';
-import { isReference, normalizeServer, unpinnedPackage } from '../../src/doctor/mcp.js';
+import { isReference, normalizeServer, readMcpSource, unpinnedPackage } from '../../src/doctor/mcp.js';
 import { probeOne, runDoctor } from '../../src/doctor/doctor.js';
 import { renderText } from '../../src/doctor/render.js';
 import { fake, makeHome, platform, roamingRoot, snapshot } from './fixtures.mjs';
@@ -23,6 +23,22 @@ const newHome = () => {
 };
 const codes = (report) => report.findings.map((f) => f.code);
 const find = (report, code, subject) => report.findings.filter((f) => f.code === code && (!subject || f.subject === subject));
+
+test('OpenCode Doctor distinguishes a server named servers from a nested server map', () => {
+  const h = newHome();
+  const legacy = { type: 'remote', url: 'https://example.test/mcp' };
+  const local = { type: 'local', command: ['node', 'server.js'] };
+  const path = join(h.home, '.config/opencode/opencode.json');
+  const read = (mcp) => {
+    h.write('.config/opencode/opencode.json', { mcp });
+    return readMcpSource({ path, format: 'jsonc', key: 'mcp', dialect: 'opencode' }).servers
+      .map(({ name, transport }) => [name, transport]);
+  };
+
+  assert.deepEqual(read({ servers: legacy }), [['servers', 'http']]);
+  assert.deepEqual(read({ servers: { type: local, url: legacy } }), [['type', 'stdio'], ['url', 'http']]);
+  assert.deepEqual(read({ flat: legacy, servers: { nested: local } }), [['flat', 'http'], ['nested', 'stdio']]);
+});
 
 // ---------------------------------------------------------------------------
 // Path binding
@@ -317,6 +333,10 @@ test('compares with an AgentHub registry when one is given', async () => {
   assert.equal(find(report, 'REGISTRY_UNMANAGED_INSTRUCTIONS').length, 1);
 });
 
+const initializeResult = JSON.stringify({
+  jsonrpc: '2.0', id: 1, result: { protocolVersion: '2025-06-18', serverInfo: { name: 'fixture' }, capabilities: {} },
+});
+
 test('--probe-remote sends one unauthenticated initialize per remote server and reports open servers', async () => {
   const h = newHome();
   h.write('.cursor/mcp.json', {
@@ -329,7 +349,7 @@ test('--probe-remote sends one unauthenticated initialize per remote server and 
   const seen = [];
   const fetchImpl = async (url, init) => {
     seen.push({ url, auth: init.headers.authorization ?? init.headers.Authorization ?? null, body: JSON.parse(init.body).method });
-    return new Response('{}', { status: url.includes('open.') ? 200 : 401 });
+    return new Response(initializeResult, { status: url.includes('open.') ? 200 : 401 });
   };
   const report = await runDoctor({ home: h.home, env: h.env(), registry: false, probeRemote: true, fetchImpl });
   assert.deepEqual(seen.map((s) => s.url).sort(), ['https://locked.example.test/mcp', 'https://open.example.test/mcp']);
@@ -339,16 +359,35 @@ test('--probe-remote sends one unauthenticated initialize per remote server and 
   assert.equal(report.network, 'probe-remote');
 });
 
-test('probeOne classifies a real HTTP server by status', async () => {
+test('the documented AWS OAuth switch is public while a literal query credential stays flagged', async () => {
+  const h = newHome();
+  h.write('.cursor/mcp.json', {
+    mcpServers: {
+      aws: { url: 'https://aws-mcp.us-east-1.api.aws/mcp?oauth=initialize' },
+      other: { url: 'https://example.test/mcp?oauth=initialize' },
+    },
+  });
+  const report = await runDoctor({ home: h.home, env: h.env(), registry: false });
+  assert.deepEqual(find(report, 'MCP_INLINE_SECRET').map((finding) => finding.subject), ['other']);
+});
+
+test('probeOne distinguishes MCP, an HTML login page and an authentication challenge', async () => {
   const server = createServer((req, res) => {
-    res.statusCode = req.url === '/open' ? 200 : 401;
-    res.end('{}');
+    res.statusCode = req.url === '/locked' ? 401 : 200;
+    if (req.url === '/sse') {
+      res.setHeader('content-type', 'text/event-stream');
+      res.end('event: message\ndata: ' + initializeResult + '\n\n');
+      return;
+    }
+    res.end(req.url === '/open' ? initializeResult : '<html>Login</html>');
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const { port } = server.address();
   try {
     assert.equal((await probeOne(`http://127.0.0.1:${port}/open`, fetch, 2000)).outcome, 'open');
     assert.equal((await probeOne(`http://127.0.0.1:${port}/locked`, fetch, 2000)).outcome, 'requires-auth');
+    assert.equal((await probeOne(`http://127.0.0.1:${port}/sse`, fetch, 2000)).outcome, 'open');
+    assert.equal((await probeOne(`http://127.0.0.1:${port}/login`, fetch, 2000)).outcome, 'error');
   } finally {
     server.close();
   }

@@ -1,5 +1,9 @@
 # Recording
 
+## BrowserSkill supplementary capture
+
+When AH Browser selects Tencent BrowserSkill for an authorized signed-in profile, capture an explicitly selected task tab with the vendor video workflow. Stop and export it to the media job, then verify playback and visually review visible data. Record the URL or scenario, exact product revision, viewport, role and observed result with the asset. BrowserSkill exports silent MP4; it supplies no Media Studio pointer action clock. Use the timed AH Browser or scene recorder for footage governed by the pointer path gate.
+
 ## Scenes module
 
 `capture/scenes.mjs` exports `options = { baseUrl, storageState?, viewport?, deviceScaleFactor?, recast?: { S05: { autoZoom: false } } }`, `order = [...]`, and one `async S05(h, ctx)` per screen beat. Drive the product only through `h.go`, `h.approach`, `h.click`, `h.typeText`, `h.uploadFile`, `h.fillValue`, `h.selectOption`, `h.pointAt`, `h.hoverHold`, `h.smoothScroll`, `h.expect`, `h.hold`. End every interaction beat with `h.expect(locator, 'label')`. Pacing is built into the helpers, so never add `page.waitForTimeout`; re-pace or split the beat.
