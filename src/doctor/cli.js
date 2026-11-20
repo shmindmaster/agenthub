@@ -20,8 +20,8 @@ Options:
   --home <dir>        Inspect <dir> as the home directory (fixtures, other users)
   --registry <dir>    Compare with the AgentHub registry in <dir>
   --no-registry       Compare agents with each other even inside an AgentHub checkout
-  --native            Read MCP and skill inventory from the installed Devin CLI
-                      for the current profile. Cannot be combined with --home.
+  --native            Read inventory from the installed Devin CLI or Windows
+                      AutoClaw runtime. Cannot be combined with --home.
   --native-health     Check MCP connectivity through the installed Grok CLI. May
                       connect to remote services or start configured MCP processes.
                       Cannot be combined with --home.

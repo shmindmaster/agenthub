@@ -48,7 +48,7 @@ export function renderText(report, options = {}) {
     'native-health': 'native MCP connectivity checks',
     'probe-remote+native-health': 'remote probes and native MCP connectivity checks',
   }[report.network];
-  const nativeInventory = report.native?.devin || report.nativeHealth?.grok;
+  const nativeInventory = report.native?.devin || report.native?.autoclaw || report.nativeHealth?.grok;
   lines.push(`${c.bold('AgentHub doctor')} ${report.version} ${c.dim(`· read-only · ${network}`)}`);
   const registry =
     report.registry.mode === 'agenthub'
@@ -121,6 +121,19 @@ export function renderText(report, options = {}) {
       ? `${devin.mcp.length} MCP servers (${devin.mcp.filter((server) => server.enabled).length} enabled), ${devin.skills.length} skills`
       : devin.status === 'unavailable' ? 'CLI executable not found' : 'CLI inventory failed';
     lines.push(`NATIVE Devin CLI: ${inventory}.`);
+  }
+  if (report.native?.autoclaw) {
+    const autoclaw = report.native.autoclaw;
+    const statuses = {
+      unavailable: 'Windows bundled runtime not found',
+      'no-account': 'no initialized desktop runtime profile found',
+      'ambiguous-account': 'multiple desktop runtime profiles found',
+      failed: 'bundled runtime inventory failed',
+    };
+    const inventory = autoclaw.status === 'listed'
+      ? `${autoclaw.plugins.length} plugins (${autoclaw.plugins.filter((plugin) => plugin.enabled).length} enabled), ${autoclaw.skills.length} skills`
+      : statuses[autoclaw.status];
+    lines.push(`NATIVE AutoClaw: ${inventory}.`);
   }
   if (report.nativeHealth?.grok) {
     const grok = report.nativeHealth.grok;

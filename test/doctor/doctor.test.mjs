@@ -24,6 +24,45 @@ const newHome = () => {
 const codes = (report) => report.findings.map((f) => f.code);
 const find = (report, code, subject) => report.findings.filter((f) => f.code === code && (!subject || f.subject === subject));
 
+test('AutoClaw native inventory uses the bundled runtime in the single initialized account', { skip: platform !== 'windows' }, async () => {
+  const h = newHome();
+  const accountRoot = 'AppData/Roaming/AutoClaw-oversea-official/accounts';
+  const home = name => `${accountRoot}/${name}/runtime/zcode-runtime/home`;
+  const options = {
+    env: h.env({ USERPROFILE: h.home, HOME: 'synthetic-home', ZCODE_HOME: 'synthetic-override' }),
+    hosts: ['autoclaw'], native: true, registry: false,
+  };
+  const runNative = async () => (await runDoctor(options)).native.autoclaw;
+  assert.equal((await runNative()).status, 'unavailable');
+
+  const plugin = { id: 'browser@market', enabled: true, version: '1.3.7', declaredMcpServerNames: ['search'] };
+  h.write('AppData/Local/Programs/AutoClaw2/resources/vendor/zcode/zcode.cjs', `
+    const assert = require('node:assert/strict');
+    const { join } = require('node:path');
+    assert.equal(process.env.HOME, undefined);
+    assert.equal(process.env.ZCODE_HOME, undefined);
+    assert.equal(process.env.USERPROFILE, process.cwd());
+    assert.equal(process.cwd(), ${JSON.stringify(join(h.home, ...home('account-id').split('/')))});
+    const [group, ...args] = process.argv.slice(2);
+    assert.deepEqual(args, ['list', '--json', '--cwd', process.cwd()]);
+    assert.ok(['plugins', 'skills'].includes(group));
+    console.log(JSON.stringify(group === 'plugins'
+      ? [{ ...${JSON.stringify(plugin)}, dataPath: process.cwd(), diagnostics: ['synthetic-sensitive-output'] }]
+      : { skills: [{ name: 'built-in' }, { name: 'browse', qualifiedName: 'browser:browse' }] }));
+  `);
+  assert.equal((await runNative()).status, 'no-account');
+  h.write(`${home('account-id')}/.zcode/cli/fixture.json`, {});
+  h.write(`${accountRoot}/uninitialized/placeholder.json`, {});
+  assert.deepEqual(await runNative(), {
+    status: 'listed',
+    plugins: [{ id: plugin.id, version: plugin.version, enabled: true, declaredMcpServers: ['search'] }],
+    skills: ['built-in', 'browser:browse'],
+  });
+  assert.match(renderText(await runDoctor(options)), /AutoClaw: 1 plugins \(1 enabled\), 2 skills/);
+  h.write(`${home('second-account')}/.zcode/cli/fixture.json`, {});
+  assert.equal((await runNative()).status, 'ambiguous-account');
+});
+
 test('Cline Doctor reads native nested transports and flat entries without exposing credentials', async () => {
   const h = newHome();
   const syntheticKey = 'sk-' + 'a'.repeat(40);

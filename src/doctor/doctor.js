@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path';
 import { buildHostCatalog, createPathContext, packageRoot } from './hosts.js';
 import { commandExists, isLoopback, readMcpSource, unpinnedPackage } from './mcp.js';
 import { listRuleFiles, listSkills, readInstructionFile } from './files.js';
-import { checkGrokMcp, inspectDevin } from './native.js';
+import { checkGrokMcp, inspectAutoClaw, inspectDevin } from './native.js';
 
 export const REPORT_SCHEMA_VERSION = 1;
 const LARGE_INSTRUCTIONS_TOKENS = 8000;
@@ -78,9 +78,10 @@ export async function runDoctor(options = {}) {
   compareHosts(detected, findings);
   if (registry) compareWithRegistry(detected, registry, findings);
   const probes = options.probeRemote ? await probeRemoteServers(detected, findings, options) : null;
-  /** @type {{ devin?: Awaited<ReturnType<typeof inspectDevin>> } | undefined} */
+  /** @type {{ devin?: Awaited<ReturnType<typeof inspectDevin>>, autoclaw?: Awaited<ReturnType<typeof inspectAutoClaw>> } | undefined} */
   const native = options.native ? {} : undefined;
   if (native && (!wanted || wanted.has('devin'))) native.devin = await inspectDevin(ctx, env);
+  if (native && (!wanted || wanted.has('autoclaw'))) native.autoclaw = await inspectAutoClaw(ctx, env);
 
   const nativeHealth = options.nativeHealth && (!wanted || wanted.has('grok'))
     ? { grok: await checkGrokMcp(ctx, env, options.nativeHealthTimeoutMs) }
@@ -98,7 +99,7 @@ export async function runDoctor(options = {}) {
     readOnly: true,
     network: options.probeRemote
       ? (nativeHealth ? 'probe-remote+native-health' : 'probe-remote')
-      : nativeHealth ? 'native-health' : native?.devin ? 'native-cli' : 'none',
+      : nativeHealth ? 'native-health' : native?.devin || native?.autoclaw ? 'native-cli' : 'none',
     platform: ctx.platform,
     home: ctx.home,
     registry: registry ? { mode: 'agenthub', path: registry.root } : { mode: 'host-vs-host', path: null },
