@@ -6,7 +6,8 @@ import { delimiter, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
-const DEADLINE_MS = 10_000;
+const INVENTORY_TIMEOUT_MS = 10_000;
+const NATIVE_HEALTH_TIMEOUT_MS = 120_000;
 
 /**
  * @param {import('./hosts.js').PathContext} ctx
@@ -34,13 +35,14 @@ function findNativeExecutable(ctx, env, name) {
 /**
  * @param {import('./hosts.js').PathContext} ctx
  * @param {NodeJS.ProcessEnv} env
+ * @param {number} timeout
  */
-function nativeOptions(ctx, env) {
+function nativeOptions(ctx, env, timeout) {
   return {
     cwd: ctx.home,
     env,
     encoding: /** @type {const} */ ('utf8'),
-    timeout: DEADLINE_MS,
+    timeout,
     maxBuffer: 4 * 1024 * 1024,
     windowsHide: true,
   };
@@ -56,7 +58,7 @@ export async function inspectDevin(ctx, env) {
 
   try {
     const read = async (/** @type {string} */ group) => {
-      const { stdout } = await run(executable, [group, 'list', '--json', '--process-model', 'in-process'], nativeOptions(ctx, env));
+      const { stdout } = await run(executable, [group, 'list', '--json', '--process-model', 'in-process'], nativeOptions(ctx, env, INVENTORY_TIMEOUT_MS));
       const data = JSON.parse(stdout);
       if (!Array.isArray(data)) throw new Error('Expected an array from Devin');
       return data;
@@ -79,13 +81,14 @@ export async function inspectDevin(ctx, env) {
 /**
  * @param {import('./hosts.js').PathContext} ctx
  * @param {NodeJS.ProcessEnv} env
+ * @param {number} [timeout]
  */
-export async function checkGrokMcp(ctx, env) {
+export async function checkGrokMcp(ctx, env, timeout = NATIVE_HEALTH_TIMEOUT_MS) {
   const executable = findNativeExecutable(ctx, env, 'grok');
   if (!executable) return { status: /** @type {const} */ ('unavailable') };
 
   try {
-    const stdout = await run(executable, ['mcp', 'doctor', '--json'], nativeOptions(ctx, env))
+    const stdout = await run(executable, ['mcp', 'doctor', '--json'], nativeOptions(ctx, env, timeout))
       .then((result) => result.stdout, (error) => {
         // Grok exits 1 when a server fails, even when it emits a complete report.
         if (error?.code === 1 && typeof error.stdout === 'string') return error.stdout;
@@ -94,7 +97,8 @@ export async function checkGrokMcp(ctx, env) {
     const data = JSON.parse(stdout);
     if (!Array.isArray(data?.servers)) throw new Error('Expected Grok server diagnostics');
     const mcp = data.servers.map((/** @type {{ name?: unknown, transport?: unknown, healthy?: unknown, checks?: unknown }} */ entry) => {
-      if (typeof entry?.healthy !== 'boolean' || !Array.isArray(entry.checks)) {
+      if (typeof entry?.name !== 'string' || !/^[a-z0-9_-]{1,200}$/i.test(entry.name) ||
+          typeof entry.healthy !== 'boolean' || !Array.isArray(entry.checks)) {
         throw new Error('Invalid Grok server diagnostic');
       }
       const disabled = entry.checks.some((check) => check?.label === 'disabled in config' && check.passed === false);
@@ -103,7 +107,7 @@ export async function checkGrokMcp(ctx, env) {
       const discovered = entry.checks.find((check) => check?.passed === true && /^\d+ tools? discovered$/.test(check.label));
       const tools = discovered ? Number.parseInt(discovered.label, 10) : null;
       return {
-        name: identifier(entry.name),
+        name: entry.name,
         transport: typeof entry.transport === 'string' && ['http', 'stdio', 'sse'].includes(entry.transport) ? entry.transport : 'unknown',
         outcome: entry.healthy ? 'healthy' : disabled ? 'disabled' : requiresAuth ? 'requires-auth' : 'failed',
         tools: Number.isSafeInteger(tools) ? tools : null,

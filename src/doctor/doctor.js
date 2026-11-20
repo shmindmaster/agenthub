@@ -41,6 +41,7 @@ const MCP_CONFIG_OWNERS = { 'cursor-agent': 'cursor', 'opencode-desktop': 'openc
  * @property {boolean} [nativeHealth]    Run supported native MCP connectivity checks.
  * @property {boolean} [native]          Run supported native inventory commands for the current user.
  * @property {number} [probeTimeoutMs]
+ * @property {number} [nativeHealthTimeoutMs]
  * @property {typeof fetch} [fetchImpl]
  * @property {string} [agentsPath]
  */
@@ -82,7 +83,7 @@ export async function runDoctor(options = {}) {
   if (native && (!wanted || wanted.has('devin'))) native.devin = await inspectDevin(ctx, env);
 
   const nativeHealth = options.nativeHealth && (!wanted || wanted.has('grok'))
-    ? { grok: await checkGrokMcp(ctx, env) }
+    ? { grok: await checkGrokMcp(ctx, env, options.nativeHealthTimeoutMs) }
     : undefined;
 
   mergeDuplicateFindings(findings);

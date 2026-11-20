@@ -164,7 +164,7 @@ test('Grok native MCP health handles exit 1, preserves outcomes, and drops raw d
   const cli = join(env.PATH, 'grok');
   const checks = (label, passed, detail) => [{ label, passed, detail }];
   const servers = [
-    { name: 'plugin-search', healthy: true, transport: 'http', target: 'https://vendor.example/private-value',
+    { name: '_plugin-search', healthy: true, transport: 'http', target: 'https://vendor.example/private-value',
       checks: checks('3 tools discovered', true) },
     { name: 'opt-out', healthy: false, transport: 'stdio', checks: checks('disabled in config', false) },
     { name: 'login', healthy: false, transport: 'http', checks: checks('handshake failed', false, 'Auth required: private-value') },
@@ -173,6 +173,7 @@ test('Grok native MCP health handles exit 1, preserves outcomes, and drops raw d
   const writeStub = () => {
     writeFileSync(cli, `#!/bin/sh
 if [ "$PWD" != "$HOME" ] || [ "$*" != "mcp doctor --json" ]; then exit 3; fi
+if [ -n "$AGENTHUB_TEST_SLEEP" ]; then /bin/sleep 0.2; fi
 printf '%s\\n' '${JSON.stringify({ servers, sources: ['private-value'] })}'
 echo private-value >&2
 exit 1
@@ -193,7 +194,7 @@ exit 1
     grok: {
       status: 'checked',
       mcp: [
-        { name: 'plugin-search', transport: 'http', outcome: 'healthy', tools: 3 },
+        { name: '_plugin-search', transport: 'http', outcome: 'healthy', tools: 3 },
         { name: 'opt-out', transport: 'stdio', outcome: 'disabled', tools: null },
         { name: 'login', transport: 'http', outcome: 'requires-auth', tools: null },
         { name: 'unreachable', transport: 'http', outcome: 'failed', tools: null },
@@ -206,6 +207,14 @@ exit 1
   const combinedReport = JSON.parse(combined.stdout);
   assert.equal(combinedReport.network, 'probe-remote+native-health');
   assert.ok(Array.isArray(combinedReport.probes));
+
+  const slowEnv = { ...env, AGENTHUB_TEST_SLEEP: '1' };
+  const timesOut = runCli(root, [...args, '--native-health', '--native-timeout', '20'], slowEnv);
+  assert.equal(timesOut.status, 0, timesOut.stderr);
+  assert.deepEqual(JSON.parse(timesOut.stdout).nativeHealth, { grok: { status: 'failed' } });
+  const withinDeadline = runCli(root, [...args, '--native-health', '--native-timeout', '1500'], slowEnv);
+  assert.equal(withinDeadline.status, 0, withinDeadline.stderr);
+  assert.deepEqual(JSON.parse(withinDeadline.stdout).nativeHealth, JSON.parse(report.stdout).nativeHealth);
 
   servers[0].name = 'https://vendor.example/private-value';
   writeStub();
