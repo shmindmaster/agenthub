@@ -46,6 +46,8 @@ function Read-Json([string]$RelPath) {
 $mcps    = Read-Json 'registry\mcps.json'
 $formats = Read-Json 'registry\plugin-formats.json'
 $conn    = Read-Json 'registry\native-connectors.json'
+$agents  = Read-Json 'registry\agents.json'
+$activeHostIds = @($agents.activeAgents | ForEach-Object id)
 
 # Per-host plugin ownership: a server a plugin supplies is never written to
 # the host's MCP config, so its absence there is correct rather than drift.
@@ -182,6 +184,9 @@ foreach ($server in @($mcps.mcpServers)) {
     }
 
     foreach ($hostId in $hosts) {
+        # Inactive hosts keep their native schema and eligibility declarations.
+        # The sync engine does not deploy them on this workstation.
+        if ($hostId -notin $activeHostIds) { continue }
         if (-not $hostConfig.ContainsKey($hostId)) { continue }
         if ($notInConfig.ContainsKey("$hostId/$id")) { continue }   # delivered off-config; see $notInConfig
         if ($pluginOnlyAllowed.ContainsKey($hostId) -and $id -notin $pluginOnlyAllowed[$hostId]) { continue }
