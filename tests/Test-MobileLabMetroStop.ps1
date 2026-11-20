@@ -83,6 +83,10 @@ if [ "$scenario" = bound ]; then
   done
   [ "$up" = true ] || { echo LISTENER-NEVER-BOUND; exit 1; }
   pkill() { kill "$listener" 2>/dev/null || true; }
+else
+  # A failed TCP connect may itself take seconds on Windows. Verify that
+  # metro_stop does not add a poll delay once no listener is found.
+  sleep() { die 'metro_stop attempted to sleep in the free-port scenario'; }
 fi
 start=$(date +%s)
 metro_stop "$port"
@@ -110,10 +114,9 @@ echo "PORT-FREE ELAPSED=$elapsed"
         "exit $($bound.Exit), metro_stop took ${boundElapsed}s: $($bound.Out) $($bound.Err)"
 
     $free = Invoke-Scenario 'free' $port
-    $freeElapsed = if ($free.Out -match 'ELAPSED=(\d+)') { [int]$Matches[1] } else { -1 }
-    Report 'metro_stop returns promptly when nothing holds the port' `
-        (($free.Exit -eq 0) -and ($free.Out -match 'PORT-FREE') -and ($freeElapsed -ge 0) -and ($freeElapsed -lt 3)) `
-        "exit $($free.Exit), metro_stop took ${freeElapsed}s: $($free.Out) $($free.Err)"
+    Report 'metro_stop returns without a poll delay when nothing holds the port' `
+        (($free.Exit -eq 0) -and ($free.Out -match 'PORT-FREE')) `
+        "exit $($free.Exit): $($free.Out) $($free.Err)"
 }
 finally {
     Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
