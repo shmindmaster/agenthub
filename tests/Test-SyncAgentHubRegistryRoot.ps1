@@ -112,14 +112,13 @@ function Test-EmptyRegistryRootFailsLoudly {
 # instead"); the fleet now has one rule instead of two. Behavior 6 below pins
 # it down so this cannot quietly regress.
 #
-# .git and node_modules are excluded: the script reads registry/, scripts/ and
-# packages/, and copying history would dominate the runtime for nothing. ---
-function Copy-RepositoryToScratch {
+# Copy the audit inputs only. Host caches and private overlays in the checkout
+# are not inputs to the script-location check.
+function Copy-AuditFixture {
     param([string]$Destination)
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    foreach ($entry in @(Get-ChildItem -LiteralPath $repoRoot -Force)) {
-        if ($entry.Name -in @('.git', 'node_modules')) { continue }
-        Copy-Item -LiteralPath $entry.FullName -Destination $Destination -Recurse -Force
+    foreach ($directory in 'registry', 'scripts', 'packages') {
+        Copy-Item -LiteralPath (Join-Path $repoRoot $directory) -Destination $Destination -Recurse -Force
     }
 }
 function Test-NoRegistryRootSelfDerivesFromScriptLocation {
@@ -127,7 +126,7 @@ function Test-NoRegistryRootSelfDerivesFromScriptLocation {
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-self-derive-profile-" + [guid]::NewGuid())
     $marker = 'agenthub-task0c-canary-' + [guid]::NewGuid().ToString('N')
     try {
-        Copy-RepositoryToScratch -Destination $scratchRoot
+        Copy-AuditFixture -Destination $scratchRoot
         $scratchAgentsJson = Join-Path $scratchRoot 'registry\agents.json'
         $scratchScript = Join-Path $scratchRoot 'scripts\Sync-AgentHub.ps1'
         if (-not (Test-Path -LiteralPath $scratchAgentsJson) -or -not (Test-Path -LiteralPath $scratchScript)) {
