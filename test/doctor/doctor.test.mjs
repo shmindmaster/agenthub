@@ -109,10 +109,20 @@ test('ZCode Doctor reads native user MCP settings without requiring agent-wide r
   const options = { home: h.home, env: h.env(), registry: repoRoot, hosts: ['zcode'] };
   assert.equal((await runDoctor(options)).hosts.length, 0);
   h.write('.zcode/cli/config.json', {
-    mcp: { servers: { parallel: { type: 'http', url: 'https://example.test/mcp', enabled: true } } },
+    mcp: { servers: {
+      parallel: { type: 'http', url: 'https://example.test/mcp', enabled: true },
+      compatible: { type: 'remote', url: 'https://example.test/mcp', enable: false },
+      local: { command: 'node', args: [], environment: { MODE: 'fixture' } },
+      importedCodex: { url: 'https://example.test/mcp', http_headers_helper: 'fixture' },
+      importedRuntime: { command: 'node', env_vars: ['FIXTURE'] },
+      servers: { remote: { type: 'remote', url: 'https://example.test/mcp' } },
+    } },
   });
   const report = await runDoctor(options);
-  assert.deepEqual(report.hosts[0].mcp.servers.map(({ name, transport }) => [name, transport]), [['parallel', 'http']]);
+  assert.deepEqual(report.hosts[0].mcp.servers.map(({ name, transport, enabled }) => [name, transport, enabled]),
+    [['compatible', 'http', false], ['local', 'stdio', true], ['parallel', 'http', true]]);
+  const rejected = report.findings.find(({ code }) => code === 'MCP_NATIVE_ENTRY_IGNORED');
+  assert.match(rejected.message, /importedCodex, importedRuntime, servers/);
   assert.ok(!codes(report).includes('REGISTRY_MISSING'));
 });
 
