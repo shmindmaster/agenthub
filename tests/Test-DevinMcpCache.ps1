@@ -78,8 +78,8 @@ function Get-DevinCloudFleet {
         }
         Check 'Windows cache does not contain plaintext key' (-not ([IO.File]::ReadAllText($cache)).Contains('cog_SYNTHETICfixtureOnly'))
     } else {
-        Check 'cache directory mode is 0700' ((& stat -c '%a' -- (Split-Path $cache)) -eq '700')
-        Check 'cache file mode is 0600' ((& stat -c '%a' -- $cache) -eq '600')
+        Check 'cache directory mode is 0700' ([IO.File]::GetUnixFileMode((Split-Path $cache)) -eq [IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
+        Check 'cache file mode is 0600' ([IO.File]::GetUnixFileMode($cache) -eq [IO.UnixFileMode]'UserRead, UserWrite')
     }
     $entry = Get-Content $cache -Raw -Encoding UTF8 | ConvertFrom-Json
     $entry.created = [DateTimeOffset]::UtcNow.AddHours(-13).ToUnixTimeSeconds()
