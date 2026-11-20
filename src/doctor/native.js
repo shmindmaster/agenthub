@@ -1,7 +1,7 @@
 // @ts-check
 
 import { execFile } from 'node:child_process';
-import { statSync } from 'node:fs';
+import { accessSync, constants, statSync } from 'node:fs';
 import { delimiter, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -22,7 +22,13 @@ export async function inspectDevin(ctx, env) {
   const candidates = pathDirs.map((dir) => join(dir, baseName));
   if (windows) candidates.unshift(join(ctx.localData, 'Microsoft', 'WinGet', 'Links', baseName));
   const executable = candidates.find((path) => {
-    try { return isAbsolute(path) && statSync(path).isFile(); } catch { return false; }
+    try {
+      if (!isAbsolute(path) || !statSync(path).isFile()) return false;
+      if (!windows) accessSync(path, constants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
   });
   if (!executable) return { status: /** @type {const} */ ('unavailable') };
 

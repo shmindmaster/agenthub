@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -98,6 +98,12 @@ test('native Devin discovery is opt-in and returns only inventory fields', { ski
   dirs.push(home);
   const env = { ...emptyPath(), HOME: home, USERPROFILE: home };
   const cli = join(env.PATH, 'devin');
+  const firstBin = join(home, 'bin');
+  mkdirSync(firstBin);
+  const nonExecutable = join(firstBin, 'devin');
+  writeFileSync(nonExecutable, 'not executable');
+  chmodSync(nonExecutable, 0o644);
+  env.PATH = [firstBin, env.PATH].join(delimiter);
   writeFileSync(cli, `#!/bin/sh
 if [ "$PWD" != "$HOME" ] || [ "$2 $3 $4 $5" != "list --json --process-model in-process" ]; then exit 3; fi
 case "$1" in
