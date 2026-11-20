@@ -133,6 +133,7 @@ const MCP_LAYOUT = {
   cursor: [{ field: 'mcp', key: 'mcpServers' }],
   'cursor-agent': [{ template: '{userHome}/.cursor/mcp.json', key: 'mcpServers' }],
   amp: [{ field: 'settings', key: 'amp.mcpServers' }],
+  kilo: [{ template: '{userHome}/.config/kilo/kilo.jsonc', key: 'mcp', dialect: 'opencode' }, { field: 'mcp', key: 'mcp', dialect: 'opencode' }],
   devin: [{ field: 'mcp', key: 'mcpServers' }, { field: 'config', key: 'mcpServers', file: 'mcp_config.json' }],
   factory: [{ field: 'mcp', key: 'mcpServers' }],
   'vscode-insiders': [{ field: 'mcp', key: 'servers' }],

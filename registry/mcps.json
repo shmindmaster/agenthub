@@ -82,7 +82,9 @@
           "aws-mcp": "AWS now supports a direct hosted OAuth endpoint, replacing the local SigV4 proxy after native consent and connection verification. This remains an owner-configured exception, not a generated mcpServers row. Preserve the running connection until the replacement works and retain profile switching only as an explicitly selected local fallback.",
           "clerk": "No official Clerk OpenCode plugin format; vendor CLI configures the hosted remote MCP, no local process."
         },
-        "amp": {},
+        "amp": {
+          "parallel": "Use the vendor hosted anonymous HTTP endpoint through the native Amp client."
+        },
         "devin": {},
         "warp": {
           "context7": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
@@ -92,7 +94,9 @@
           "notion": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
         },
-        "kilo": {},
+        "kilo": {
+          "parallel": "Use kilo mcp add to register the vendor hosted anonymous HTTP endpoint in kilo.jsonc."
+        },
         "mimo-code": {}
       }
     },
@@ -177,10 +181,11 @@
         "devin": "parallel@upstream",
         "copilot": "parallel@upstream",
         "factory": "parallel@parallel-agent-skills",
-        "antigravity": "parallel@upstream"
+        "antigravity": "parallel@upstream",
+        "grok": "parallel@parallel-agent-skills (imported from Claude)"
       },
-      "hosts": ["cursor", "vscode-insiders"],
-      "hostScopeNote": "Initial native streamable HTTP targets. Client discovery and tool execution are checked separately from the endpoint probe.",
+      "hosts": ["cursor", "vscode-insiders", "amp"],
+      "hostScopeNote": "Initial managed streamable HTTP targets. Kilo uses its native user command and stores the entry in kilo.jsonc. Client discovery and tool execution are checked separately from the endpoint probe.",
       "notes": "Official endpoint: https://parallel.ai/mcp. Use public queries and URLs. OAuth via the vendor login endpoint and API-key usage can bill the connected Parallel account; neither is configured by the fleet default."
     },
     {

@@ -137,6 +137,7 @@ $targets = @(
     @{ HostId = 'devin'; Path = (Join-Path $roaming 'devin/mcp_config.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'warp'; Path = (Join-Path $userHome '.warp/.mcp.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'kilo'; Path = (Join-Path $userHome '.config/kilo/config.json'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
+    @{ HostId = 'kilo'; Path = (Join-Path $userHome '.config/kilo/kilo.jsonc'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
     @{ HostId = 'mimo-code'; Path = (Join-Path $userHome '.config/mimocode/mimocode.jsonc'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
     @{ HostId = 'mimo-code'; Path = (Join-Path $userHome '.config/mimocode/config.json'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
 )
