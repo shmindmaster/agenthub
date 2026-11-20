@@ -281,14 +281,14 @@ function Test-RealRegistryKeepsWarpRetired {
 # down and dated. A registry with no inactive hosts passes trivially and
 # correctly -- there is nothing to justify. ---
 function Test-InactiveHostsCarryAJustification {
-    $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    param([Parameter(Mandatory)]$Agents)
     if (-not $agents.PSObject.Properties['inactiveAgents']) {
         return @{ Passed = $false; Detail = "registry/agents.json has no inactiveAgents property at all; the schema changed and this assertion no longer checks what it claims to." }
     }
     $inactive = @($agents.inactiveAgents)
     $unjustified = [Collections.Generic.List[string]]::new()
     foreach ($agent in $inactive) {
-        $notes = if ($agent.fleetRole -eq 'retired' -and $agent.PSObject.Properties['retiredNote']) {
+        $notes = if ($agent.fleetRole -eq 'retired') {
             [string]$agent.retiredNote
         } else {
             [string]$agent.notes
@@ -340,8 +340,19 @@ Report 'a registry with zero active hosts fails naming that cause and the remedy
 $r4 = Test-RealRegistryKeepsWarpRetired
 Report 'the real registry keeps decommissioned Warp inactive and retired' $r4.Passed $r4.Detail
 
-$r5 = Test-InactiveHostsCarryAJustification
+$agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$r5 = Test-InactiveHostsCarryAJustification -Agents $agents
 Report 'every host marked inactive in the real registry carries a dated justification' $r5.Passed $r5.Detail
+
+$fixture = [pscustomobject]@{
+    inactiveAgents = @(
+        [pscustomobject]@{ id = 'zz-retired'; fleetRole = 'retired'; notes = 'Installed on 2026-11-09.' },
+        [pscustomobject]@{ id = 'zz-inactive'; fleetRole = 'supported'; notes = 'Temporarily unavailable since 2026-11-09.' }
+    )
+}
+$r6 = Test-InactiveHostsCarryAJustification -Agents $fixture
+Report 'dated general notes justify inactivity but not retirement' `
+    (-not $r6.Passed -and $r6.Detail -match '\bzz-retired\b' -and $r6.Detail -notmatch '\bzz-inactive\b') $r6.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
