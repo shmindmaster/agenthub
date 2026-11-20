@@ -1,7 +1,7 @@
 // Delivery: copy the gated ads to the canonical library as `NN - Title (ratio).mp4` + .srt, update that folder's
-// README (Marketing / sales films table and a per-film section), hash every delivered file, delete reproducible
-// intermediates. The film number is computed at deliver time from what exists; it is never hardcoded.
-import { copyFileSync, existsSync, openSync, closeSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+// README (Marketing / sales films table and a per-film section), and hash every delivered file.
+// The film number is computed at deliver time from what exists; it is never hardcoded.
+import { copyFileSync, existsSync, openSync, closeSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileSha } from './util.mjs';
 
@@ -87,10 +87,4 @@ export function deliverFiles(o) {
   const entry = o.readmeEntry({ nn, lengths, delivered });
   writeFileSync(o.readmePath, updateReadme(readme, { ...entry, nn, title: o.title, lengths }), 'utf8');
   return { nn, delivered, readme: o.readmePath };
-}
-
-export function deleteIntermediates(paths) {
-  const removed = [];
-  for (const p of paths) if (existsSync(p)) { rmSync(p, { recursive: true, force: true }); removed.push(p); }
-  return removed;
 }
