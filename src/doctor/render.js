@@ -41,7 +41,13 @@ export function renderText(report, options = {}) {
     p && report.home && p.toLowerCase().startsWith(report.home.toLowerCase()) ? '~' + p.slice(report.home.length) : p;
   const lines = [];
 
-  const network = report.network === 'none' ? 'no network' : report.network === 'probe-remote' ? 'probed remote MCP servers' : 'native CLI';
+  const network = {
+    none: 'no network',
+    'probe-remote': 'probed remote MCP servers',
+    'native-cli': 'native CLI',
+    'native-health': 'native MCP connectivity checks',
+  }[report.network];
+  const nativeInventory = report.native?.devin || report.nativeHealth?.grok;
   lines.push(`${c.bold('AgentHub doctor')} ${report.version} ${c.dim(`· read-only · ${network}`)}`);
   const registry =
     report.registry.mode === 'agenthub'
@@ -63,8 +69,8 @@ export function renderText(report, options = {}) {
     });
     const header = [
       'AGENT',
-      report.native?.devin ? 'MCP (FILES)' : 'MCP',
-      report.native?.devin ? 'SKILLS (FILES)' : 'SKILLS',
+      nativeInventory ? 'MCP (FILES)' : 'MCP',
+      nativeInventory ? 'SKILLS (FILES)' : 'SKILLS',
       'INSTRUCTIONS',
       'ISSUES',
     ];
@@ -115,11 +121,23 @@ export function renderText(report, options = {}) {
       : devin.status === 'unavailable' ? 'CLI executable not found' : 'CLI inventory failed';
     lines.push(`NATIVE Devin CLI: ${inventory}.`);
   }
-  if (report.findings.length || report.probes?.length || report.native?.devin) lines.push('');
+  if (report.nativeHealth?.grok) {
+    const grok = report.nativeHealth.grok;
+    if (grok.status === 'checked') {
+      for (const { name, outcome, tools } of grok.mcp) {
+        const count = tools === null ? '' : ` (${tools} tools)`;
+        lines.push(`NATIVE Grok MCP ${name}: ${outcome}${count}.`);
+      }
+      if (!grok.mcp.length) lines.push('NATIVE Grok MCP: no servers reported.');
+    } else {
+      lines.push(`NATIVE Grok MCP: ${grok.status === 'unavailable' ? 'CLI executable not found' : 'CLI health check failed'}.`);
+    }
+  }
+  if (report.findings.length || report.probes?.length || nativeInventory) lines.push('');
 
   const s = report.summary;
-  const inventoryType = report.native?.devin ? ' from files' : '';
-  const writeStatus = report.native?.devin ? 'Doctor did not write any files.' : 'Nothing was written.';
+  const inventoryType = nativeInventory ? ' from files' : '';
+  const writeStatus = nativeInventory ? 'Doctor did not write any files.' : 'Nothing was written.';
   const counts = [
     s.high ? c.red(`${s.high} high`) : `${s.high} high`,
     s.warn ? c.yellow(`${s.warn} warn`) : `${s.warn} warn`,
