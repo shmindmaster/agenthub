@@ -1,7 +1,7 @@
 function Get-UnmanagedSharedSkills {
     param(
         [Parameter(Mandatory)][string]$UserProfile,
-        [Parameter(Mandatory)][object]$NativeConnectors
+        [AllowNull()][object]$NativeConnectors
     )
 
     $agentDirectory = Join-Path $UserProfile '.agents'
