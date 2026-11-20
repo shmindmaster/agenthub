@@ -12,6 +12,7 @@
       "executable": "{userHome}/AppData/Local/Programs/ZCode/ZCode.exe",
       "nativePaths": {
         "config": "{userHome}/.zcode/cli/config.json",
+        "skillsDir": "{userHome}/.zcode/skills",
         "sharedSkillsDir": "{userHome}/.agents/skills"
       },
       "platformPaths": {

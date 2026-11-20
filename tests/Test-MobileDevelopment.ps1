@@ -319,7 +319,7 @@ Report 'old package and split skill residues are absent' (
 $alias = @{}; foreach ($row in @($capabilities.surfaceAliases)) { $alias[[string]$row.surfaceId] = [string]$row.inheritsHostId }
 $activeAgents = @($agents.activeAgents | Where-Object status -eq 'active')
 $activeHosts = @($activeAgents | ForEach-Object { if ($alias.ContainsKey([string]$_.id)) { $alias[[string]$_.id] } else { [string]$_.id } } | Sort-Object -Unique)
-$mappedHosts = @($mobileCapability[0].hostMappings.hostId | Sort-Object -Unique)
+$mappedHosts = @($mobileCapability[0].hostMappings.hostId | Where-Object { $_ -in $activeHosts } | Sort-Object -Unique)
 $deployedCatalogRoot = Join-Path (Join-Path $env:LOCALAPPDATA 'AgentHub') (([string]$mobileCapability[0].deployedCatalog.runtimeRelativeRoot) -replace '/', '\')
 $deployedCatalogPath = Join-Path $deployedCatalogRoot ([string]$mobileCapability[0].deployedCatalog.entrypoint)
 $deployedAuthorityRoot = Join-Path (Join-Path $env:LOCALAPPDATA 'AgentHub') (([string]$mobileCapability[0].deployedCatalog.authorityRuntimeRelativeRoot) -replace '/', '\')
@@ -358,7 +358,7 @@ Report 'all active coding hosts map the mobile plugin skills and receive the cat
     (Test-Sequence @($mobileCapability[0].deployedCatalog.arguments) @('catalog')) -and `
     (Test-Sequence $catalogAuthorityFiles @('mcps.json','mobile-development.json','mobile-scope.json','repo-standard.json')) -and `
     (Test-Sequence $moduleAuthorityFiles $catalogAuthorityFiles) -and `
-    @($mobileCapability[0].hostMappings | Where-Object { [string]$_.deploymentStatus -notmatch 'loose-skills' -or 'skills' -notin @($_.components) -or 'catalog' -notin @($_.components) }).Count -eq 0 -and `
+    @($mobileCapability[0].hostMappings | Where-Object { [string]$_.deploymentStatus -notin 'managed-loose-skills','native-plugin-installed' -or 'skills' -notin @($_.components) -or 'catalog' -notin @($_.components) }).Count -eq 0 -and `
     $mobileDeploymentFailures.Count -eq 0 -and `
     $labSkillText -notmatch [regex]::Escape('C:\Repos\shmindmaster\agenthub\packages\mobile-development') -and `
     $platformSkillText -notmatch [regex]::Escape('C:\Repos\shmindmaster\agenthub\packages\mobile-development') -and `

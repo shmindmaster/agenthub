@@ -24,7 +24,7 @@ Use Settings → MCP for native connector inventory and use the managed marketpl
 
 For model sign-in use the desktop **Connect** action for the intended Z.ai or BigModel account, or the vendor CLI's `login` command. Parallel's official marketplace package declares its Search MCP. For the funded personal account, Parallel's current authenticated route is `https://mcp.parallel.ai/mcp?login` with OAuth enabled in the native MCP form. Keep tokens in the host or provider credential store. [ZCode model connection](https://zcode.z.ai/en/docs/configuration) · [Parallel MCP](https://parallel.ai/mcp)
 
-The Windows desktop protocol discovered the Parallel Search, AssemblyAI Docs and AssemblyAI service declarations. Separate unauthenticated endpoint checks initialized the Parallel Search and AssemblyAI Docs services and received OAuth challenges for the Parallel login endpoint and the AssemblyAI service. A bounded native connection check timed out. Funded account consent and calls from a ZCode session still require acceptance.
+The Windows desktop protocol discovered the Parallel Search, AssemblyAI Docs and AssemblyAI service declarations. Separate unauthenticated endpoint checks initialized the Parallel Search and AssemblyAI Docs services and received OAuth challenges for the Parallel login endpoint and the AssemblyAI service. A bounded native connection check timed out. The anonymous Parallel endpoint returned seven tools and its web_fetch call retrieved the expected public test page. Separate unauthenticated checks initialized Clerk, Exa and AWS; Descript, Linear, Notion and Devin returned authorization challenges. Funded Parallel consent and tool calls from a ZCode session still require acceptance.
 
 ## Browser
 

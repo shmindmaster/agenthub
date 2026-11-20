@@ -676,10 +676,18 @@
             "skills",
             "catalog"
           ]
+        },
+        {
+          "hostId": "zcode",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills",
+            "catalog"
+          ]
         }
       ],
       "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the source public contract at packages/mobile-development/mobile.ps1, the AgentHub-managed deployed runtime package, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",
-      "hostScopeNote": "All active coding hosts receive both loose skills and resolve the catalog through the fleet-managed package under %LOCALAPPDATA%/AgentHub/capabilities/mobile-development, independent of a repository checkout or native marketplace state. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration.",
+      "hostScopeNote": "All active coding hosts receive both skills through their declared route and resolve the catalog through the fleet-managed package under %LOCALAPPDATA%/AgentHub/capabilities/mobile-development, independent of a repository checkout or native marketplace state. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration.",
       "hostMappingsNote": "Every active coding host maps the plugin skills and the catalog, and tests/Test-MobileDevelopment.ps1 enforces that, because reading the contract needs no device. The appium-mobile server is narrowed to claude and codex in registry/mcps.json (2026-10-13 pin, narrowed 2026-08-19 after measurement showed every host that opened it spawned a node process of roughly 93 MB with no mobile work in flight), so only those two rows carry the mcp component and only those two can run a session. 2026-11-10: kilo and mimo-code became active hosts and are mapped here for the skills and the catalog, which is a host-independent PowerShell entry point; the same release added the remote Linux Android worker (mobile.ps1 remote), which any host with ssh can call. 2026-11-11: qwen became an active dispatch host (SH-4421) and is mapped here for the skills and the catalog on the same terms. Nothing is installed by default: deployLooseSkills is false, so these rows describe what a host may be given on demand, not what it currently holds."
     },
     {

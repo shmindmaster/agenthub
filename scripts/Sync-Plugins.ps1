@@ -29,7 +29,8 @@ $hostCatalog = @{}
 foreach ($agent in $agents.activeAgents) {
     if (Test-AgentHubHostSyncEnabled -Agent $agent) { $hostCatalog[$agent.id] = $agent }
 }
-$nativeMarketplace = $HostId -in @('autoclaw', 'zcode')
+$nativeMarketplaceHosts = @('autoclaw', 'zcode')
+$nativeMarketplace = $HostId -in $nativeMarketplaceHosts
 if ($HostId -and -not $nativeMarketplace -and -not $hostCatalog.ContainsKey($HostId)) { throw "Unknown active host: $HostId" }
 if ($AutoClawAccount -and $HostId -ne 'autoclaw') { throw '-AutoClawAccount requires -HostId autoclaw.' }
 if ($IncludePrivateOverlay -and -not $nativeMarketplace) { throw '-IncludePrivateOverlay requires -HostId autoclaw or zcode.' }
@@ -416,7 +417,7 @@ $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument
     $private = Test-AgentHubCapabilityPrivate $cap
     foreach ($mapping in $cap.hostMappings) {
         $target = [string]$mapping.hostId
-        if (-not $hostCatalog.ContainsKey($target) -or ($HostId -and $HostId -ne $target)) { continue }
+        if ($target -in $nativeMarketplaceHosts -or -not $hostCatalog.ContainsKey($target) -or ($HostId -and $HostId -ne $target)) { continue }
         $nativeOwner = if ($mapping.nativeOwnerHost) { [string]$mapping.nativeOwnerHost } else { $target }
         # Route and marketplace always follow the owner, never the surface:
         # an alias inherits its owner's effective route so a misleading
