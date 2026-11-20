@@ -88,6 +88,21 @@ test('Cline Doctor reads native nested transports and flat entries without expos
   assert.doesNotMatch(JSON.stringify(report), new RegExp(syntheticKey));
 });
 
+test('Cline Doctor reports the separate VS Code Insiders MCP file', async () => {
+  const h = newHome();
+  const settings = join(roamingRoot(h.home), 'Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json');
+  h.write('.cline/data/settings/cline_mcp_settings.json', {
+    mcpServers: { cli: { type: 'streamableHttp', url: 'https://cli.example.test/mcp' } },
+  });
+  h.writeAbs(settings, {
+    mcpServers: { editor: { type: 'streamableHttp', url: 'https://editor.example.test/mcp', disabled: true } },
+  });
+  const report = await runDoctor({ home: h.home, env: h.env(), registry: false, hosts: ['cline'] });
+  const { sources, servers } = report.hosts[0].mcp;
+  assert.equal(sources.filter(({ exists }) => exists).length, 2);
+  assert.deepEqual(servers.map(({ name, enabled }) => [name, enabled]), [['cli', true], ['editor', false]]);
+});
+
 test('ZCode Doctor reads native user MCP settings without requiring agent-wide registrations', async () => {
   const h = newHome();
   h.write('.agents/skills/shared/SKILL.md', 'Shared skill fixture');

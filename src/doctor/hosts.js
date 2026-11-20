@@ -130,7 +130,10 @@ const MCP_LAYOUT = {
   copilot: [{ field: 'mcp', key: 'mcpServers' }],
   antigravity: [{ field: 'mcp', key: 'mcpServers' }, { field: 'legacyMcp', key: 'mcpServers' }],
   warp: [{ field: 'mcp', key: 'mcpServers' }],
-  cline: [{ field: 'mcp', key: 'mcpServers', dialect: 'cline' }],
+  cline: [
+    { field: 'mcp', key: 'mcpServers', dialect: 'cline' },
+    { field: 'mcpVSCodeInsiders', key: 'mcpServers', dialect: 'cline' },
+  ],
   cursor: [{ field: 'mcp', key: 'mcpServers' }],
   'cursor-agent': [{ template: '{userHome}/.cursor/mcp.json', key: 'mcpServers' }],
   amp: [{ field: 'settings', key: 'amp.mcpServers' }],

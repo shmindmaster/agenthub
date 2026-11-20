@@ -1777,30 +1777,42 @@ function ConvertTo-ClineMcpEntry {
 
 function Sync-HostMcp-Cline {
     param(
-        [pscustomobject]$Agent,
+        [string]$Path,
         [hashtable]$McpEntries,
         [string[]]$SuppressedKeys = @(),
+        [switch]$AddMissingRemotesOnly,
         [switch]$WhatIf,
         [switch]$Prune
     )
 
-    $path = $Agent.nativePaths.mcp
     if (-not $path) { return @{ status='unsupported-path'; note='Cline MCP path missing' } }
 
     $root = @{ mcpServers = @{} }
-    if (Test-Path -LiteralPath $path) {
-        $existing = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+    $original = if (Test-Path -LiteralPath $path -PathType Leaf) {
+        Get-Content -LiteralPath $path -Raw -Encoding UTF8
+    }
+    $stableExistingJson = Get-StableJsonString @{}
+    if ($null -ne $original) {
+        $existing = $original | ConvertFrom-Json
+        $stableExistingJson = Get-StableJsonString $existing
         $root = ConvertTo-Hashtable $existing
         if (-not $root.ContainsKey('mcpServers')) { $root.mcpServers = @{} }
     }
 
-    $servers = Normalize-McpTargetKeys -Target (ConvertTo-Hashtable $root.mcpServers)
-    $servers = Remove-McpTargetKeys -Target $servers -Keys $SuppressedKeys
+    $servers = ConvertTo-Hashtable $root.mcpServers
+    if (-not $AddMissingRemotesOnly) {
+        $servers = Normalize-McpTargetKeys -Target $servers
+        $servers = Remove-McpTargetKeys -Target $servers -Keys $SuppressedKeys
+    }
     $canonicalKeys = @{}
     foreach ($key in $McpEntries.Keys) {
         $targetKey = Resolve-McpAliasKey $key
         $canonicalKeys[$targetKey] = $true
-        $target = ConvertTo-ClineMcpEntry (ConvertTo-Hashtable $McpEntries[$key])
+        $canonical = ConvertTo-Hashtable $McpEntries[$key]
+        if ($AddMissingRemotesOnly -and ($servers.ContainsKey($targetKey) -or
+            $canonical.type -ne 'http' -or $canonical.url -notlike 'https://*' -or $canonical.ContainsKey('headers'))) { continue }
+        $target = ConvertTo-ClineMcpEntry $canonical
+        if ($AddMissingRemotesOnly -and $canonical.auth -eq 'oauth') { $target.disabled = $true }
 
         if (-not $servers.ContainsKey($targetKey)) {
             $servers[$targetKey] = $target
@@ -1838,7 +1850,7 @@ function Sync-HostMcp-Cline {
         }
     }
 
-    if ($Prune) {
+    if ($Prune -and -not $AddMissingRemotesOnly) {
         foreach ($key in @($script:hostOwnedMcpKeys)) { if ($key) { $canonicalKeys[$key] = $true } }
         foreach ($key in @($servers.Keys)) {
             if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key))) {
@@ -1849,15 +1861,17 @@ function Sync-HostMcp-Cline {
 
     $root.mcpServers = $servers
     $stableNewJson = Get-StableJsonString $root
-    $stableExistingJson = if (Test-Path -LiteralPath $path) {
-        Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
-    } else { Get-StableJsonString @{} }
     $changed = $stableExistingJson -ne $stableNewJson
     if ($WhatIf) { return @{ status = (Resolve-McpAuditStatus $changed); path = $path } }
 
+    if ($AddMissingRemotesOnly -and
+        ((-not (Test-Path -LiteralPath $path -PathType Leaf)) -or
+         ($original -cne (Get-Content -LiteralPath $path -Raw -Encoding UTF8)))) {
+        return @{ status='conflict'; path=$path; note='Cline extension settings changed during sync' }
+    }
     $destDir = Split-Path $path -Parent
     if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
-    Write-Utf8NoBom -Path $path -Content $stableNewJson
+    if ($changed) { Write-Utf8NoBom -Path $path -Content $stableNewJson }
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
     return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
@@ -2374,8 +2388,12 @@ foreach ($agent in $agentsToSync) {
             $hostDrift.mcp += $r
         }
         'cline' {
-            $r = Sync-HostMcp-Cline -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Cline -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
+            $extensionPath = $agent.nativePaths.mcpVSCodeInsiders
+            if ($extensionPath -and (Test-Path -LiteralPath $extensionPath -PathType Leaf)) {
+                $hostDrift.mcp += Sync-HostMcp-Cline -Path $extensionPath -McpEntries $hostMcpEntries -AddMissingRemotesOnly -WhatIf:$whatIfMode
+            }
         }
     }
 
@@ -2401,7 +2419,8 @@ if ($Validate -or $Apply -or $Audit) {
         '{userHome}/.copilot/mcp-config.json',
         '{userHome}/.codeium/windsurf/mcp_config.json',
         '{userHome}/.warp/.mcp.json',
-        '{userHome}/.cline/data/settings/cline_mcp_settings.json'
+        '{userHome}/.cline/data/settings/cline_mcp_settings.json',
+        '{roamingConfig}/Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json'
     ) | ForEach-Object { Expand-AgentHubPathTemplate -Value $_ -Context $pathBinding }
     foreach ($f in $configFiles) {
         # Test-JsonParse returns a bool (used elsewhere via its side effect on

@@ -12,20 +12,19 @@ $script:state=@{managedFiles=@{}}
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('agenthub-cline-deferred-' + [guid]::NewGuid())
 [IO.Directory]::CreateDirectory($fixture) | Out-Null
 $path=Join-Path $fixture 'mcp.json'
-$agent=[pscustomobject]@{nativePaths=@{mcp=$path}}
 function Assert([bool]$Ok,[string]$Name) { if(-not $Ok){throw "FAIL: $Name"}; Write-Host "PASS: $Name" }
 try {
     $seed=@{mcpServers=@{sample=@{type='streamableHttp';url='https://old.example/mcp';disabled=$true;autoApprove=@('read');headers=@{Authorization='synthetic-fixture'};oauth=@{fixture='keep'}}}}
     [IO.File]::WriteAllText($path,($seed | ConvertTo-Json -Depth 10))
     $entries=@{sample=@{type='http';url='https://new.example/mcp';headers=@{Authorization='${env:FIXTURE_UNRESOLVED}'}}; fresh=@{type='http';url='https://fresh.example/mcp'}}
-    $first=Sync-HostMcp-Cline -Agent $agent -McpEntries $entries
+    $first=Sync-HostMcp-Cline -Path $path -McpEntries $entries
     $result=Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert ($result.mcpServers.sample.disabled -eq $true -and (@($result.mcpServers.sample.autoApprove) -join ',') -eq 'read') 'deferred activation and approval choice survive transport sync'
     Assert ($result.mcpServers.sample.url -eq 'https://new.example/mcp') 'canonical transport refresh still applies'
     Assert ($result.mcpServers.sample.headers.Authorization -eq 'synthetic-fixture' -and $result.mcpServers.sample.oauth.fixture -eq 'keep') 'unresolved placeholders preserve existing authentication'
     Assert ($result.mcpServers.fresh.disabled -eq $false -and @($result.mcpServers.fresh.autoApprove).Count -eq 0) 'new server uses documented defaults'
     $before=[IO.File]::ReadAllText($path)
-    $second=Sync-HostMcp-Cline -Agent $agent -McpEntries $entries
+    $second=Sync-HostMcp-Cline -Path $path -McpEntries $entries
     Assert ($before -eq [IO.File]::ReadAllText($path) -and $second.status -eq 'unchanged') 'second sync is byte-identical and reports unchanged'
 } finally {
     $resolved=[IO.Path]::GetFullPath($fixture)
