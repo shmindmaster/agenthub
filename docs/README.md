@@ -39,6 +39,7 @@ stranger-safe first run. For this private fleet checkout, also use
 
 ## Operations
 
+- [runbooks/desktop-integrations.md](./runbooks/desktop-integrations.md) — Windows inventory and app-owned connector verification for AutoClaw, Grok Bot, and Manus Studio.
 - [runbooks/claude-gateway-tools.md](./runbooks/claude-gateway-tools.md) — deferred
   tool loading, offline Chat translation checks and local schema-size refusal.
 

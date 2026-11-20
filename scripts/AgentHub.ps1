@@ -294,6 +294,10 @@ function Invoke-Inventory {
     }
 
     $rows = [Collections.Generic.List[object]]::new()
+    $invokingProfile = Get-AgentHubDefaultHome
+    $canReadAppx = (Get-AgentHubHostPlatformId) -eq 'windows' -and $invokingProfile -and
+        [IO.Path]::GetFullPath($UserProfile).TrimEnd('\', '/') -eq [IO.Path]::GetFullPath($invokingProfile).TrimEnd('\', '/') -and
+        (Get-Command Get-AppxPackage -ErrorAction SilentlyContinue)
     foreach ($entry in $allHosts) {
         $agent = $entry.Agent
         $hostId = [string]$agent.id
@@ -320,7 +324,19 @@ function Invoke-Inventory {
                 })
             }
         }
-        if (-not $pathFieldFound) {
+        if ($agent.windowsAppxName) {
+            $packageName = [string]$agent.windowsAppxName
+            $present = $null
+            if ($canReadAppx) {
+                $package = @(Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue |
+                    Where-Object Name -CEQ $packageName)
+                $present = $package.Count -gt 0
+            }
+            $rows.Add([pscustomobject]@{
+                HostId = $hostId; Status = $entry.Status; Field = 'windowsAppxName'
+                Declared = $packageName; EffectivePath = $packageName; Present = $present
+            })
+        } elseif (-not $pathFieldFound) {
             $rows.Add([pscustomobject]@{
                 HostId = $hostId; Status = $entry.Status; Field = '(no path fields declared)'
                 Declared = $null; EffectivePath = $null; Present = $false
@@ -333,8 +349,10 @@ function Invoke-Inventory {
     foreach ($row in $rows) {
         Write-Host ("{0,-20} {1,-10} {2,-28} {3,-8} {4}" -f $row.HostId, $row.Status, $row.Field, $row.Present, $row.EffectivePath)
     }
-    $presentCount = @($rows | Where-Object Present).Count
-    Write-Host ("SUMMARY: {0} hosts, {1} path fields checked, {2} present, {3} missing." -f $allHosts.Count, $rows.Count, $presentCount, ($rows.Count - $presentCount))
+    $presentCount = @($rows | Where-Object Present -EQ $true).Count
+    $missingCount = @($rows | Where-Object Present -EQ $false).Count
+    $unprobedCount = $rows.Count - $presentCount - $missingCount
+    Write-Host ("SUMMARY: {0} hosts, {1} inventory fields, {2} present, {3} missing, {4} unprobed." -f $allHosts.Count, $rows.Count, $presentCount, $missingCount, $unprobedCount)
     return 0
 }
 
