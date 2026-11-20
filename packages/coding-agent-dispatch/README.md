@@ -182,6 +182,11 @@ created. Hosted cloud aliases are explicitly refused.
 pwsh -NoProfile -File .\packages\coding-agent-dispatch\skills\dispatch\Invoke-CodingAgent.ps1 -List
 ```
 
+`devin-cloud` lists as `callable` only while its policy is enabled and a key
+source is present (an in-process `DEVIN_CLOUD_API_KEY` override, or `op` on
+PATH with `OP_SERVICE_ACCOUNT_TOKEN` set); otherwise it lists as `refused`
+with the reason. The check never runs `op read`.
+
 Deployment is a separate gate. Audit the fleet rows with
 `Sync-Plugins.ps1 -RepositoryRoot <repo> -UserProfile <profile> -PluginId coding-agent-dispatch -Json`
 and install onto hosts with the same command plus `-Apply` once the audit is
