@@ -54,7 +54,8 @@ export function readMcpSource(source) {
     result.error = `could not parse ${source.format.toUpperCase()}: ${error instanceof Error ? error.message : String(error)}`;
     return result;
   }
-  const map = doc && typeof doc === 'object' ? doc[source.key] : undefined;
+  const map = objectOrEmpty(doc)[source.key] ??
+    source.key.split('.').reduce((value, key) => objectOrEmpty(value)[key], doc);
   if (!map || typeof map !== 'object' || Array.isArray(map)) return result;
   const nested = source.dialect === 'opencode' ? map.servers : null;
   const isNestedMap = nested && typeof nested === 'object' && !Array.isArray(nested)

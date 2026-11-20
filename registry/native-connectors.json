@@ -878,6 +878,14 @@
             "note": "The matching upstream release was installed through the vendor marketplace. Native desktop runtime readback discovered all 15 skills and connected to the plugin MCP with eight tools. Funded personal authentication and tool invocation remain unverified."
           },
           {
+            "hostId": "zcode",
+            "channel": "parallel@parallel-agent-skills",
+            "installedVersion": "0.12.0",
+            "current": true,
+            "updateCommand": "pwsh -NoProfile -File scripts/AgentHub.ps1 plugins -HostId zcode -PluginId parallel -Apply",
+            "note": "Standalone Windows ZCode reports the enabled marketplace plugin at the installed version. Funded personal authentication and in-agent tool invocation remain unverified."
+          },
+          {
             "hostId": "cursor",
             "channel": "cursor-marketplace",
             "installedVersion": null,

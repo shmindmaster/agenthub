@@ -3,6 +3,30 @@
   "generatedAt": "2026-09-02T00:00:00-05:00",
   "activeAgents": [
     {
+      "id": "zcode",
+      "fleetRole": "inventory-only",
+      "name": "Z.ai ZCode",
+      "version": "3.18.2",
+      "versionProbe": "file-version",
+      "versionProbeNote": "Read Windows desktop executable metadata without launching the app.",
+      "executable": "{userHome}/AppData/Local/Programs/ZCode/ZCode.exe",
+      "nativePaths": {
+        "config": "{userHome}/.zcode/cli/config.json",
+        "sharedSkillsDir": "{userHome}/.agents/skills"
+      },
+      "platformPaths": {
+        "windows": {
+          "nativePaths": {
+            "bundledRuntime": "{localData}/Programs/ZCode/resources/glm/zcode.cjs"
+          }
+        }
+      },
+      "supportedCapabilities": ["skills", "mcp", "plugins"],
+      "status": "inventory-only",
+      "versionObserved": "Windows signed desktop build 3.18.2.10443 matches vendor desktop release 3.18.2. Bundled CLI reported 0.17.1.",
+      "notes": "SH-5036. Standalone ZCode has its own user profile and explicit native marketplace deployment and Doctor readback. General fleet sync and dispatch exclude it. See docs/runbooks/zcode.md for verified surfaces."
+    },
+    {
       "id": "autoclaw",
       "fleetRole": "inventory-only",
       "name": "Z.ai AutoClaw Desktop",

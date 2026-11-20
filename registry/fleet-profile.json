@@ -278,6 +278,10 @@
     ],
     "exemptions": [
       {
+        "hostId": "zcode",
+        "reason": "Native marketplace deployment and inventory. Governed headless dispatch and provider authentication have yet to be verified."
+      },
+      {
         "hostId": "autoclaw",
         "reason": "Inventory only. The vendor documents desktop customization but no governed headless dispatch contract."
       },

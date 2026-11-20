@@ -39,6 +39,7 @@ ALIASES = {"cursor-agent": "cursor", "opencode-desktop": "opencode",
 # bridged, installed or probed, only recorded.
 BLOCKED = {
     "autoclaw": "AutoClaw Desktop is inventory only. Clerk skill import and scoped MCP authorization are unverified.",
+    "zcode": "Standalone ZCode uses its own marketplace profile. Clerk's native plugin compatibility and scoped MCP authorization are unverified.",
     "grokbot": "Grok Bot is inventory only. Clerk skill import and scoped MCP authorization are unverified.",
     "manus": "Manus Desktop is inventory only. Clerk skill import and scoped MCP authorization are unverified.",
     "qwen": "Clerk route discovery-required: Qwen Code became a dispatch host on 2026-11-11; whether it loads the "

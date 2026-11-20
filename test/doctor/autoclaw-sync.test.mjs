@@ -46,6 +46,12 @@ test('AutoClaw audit reports package drift and missing installs without writing'
   assert.equal(calls.length, 2);
 });
 
+test('standalone ZCode reports its own host on marketplace readback', async () => {
+  const { runtime } = fixture();
+  const result = await syncAutoClawPlugins(runtime, [agenthub, parallel], base, { host: 'zcode', plugin: 'parallel' });
+  assert.deepEqual(result.mappings.map(({ host, plugin }) => [host, plugin]), [['zcode', 'parallel@parallel-agent-skills']]);
+});
+
 test('AutoClaw applies native updates and installs with on-demand enablement, then converges', async () => {
   const { runtime } = fixture();
   const result = await syncAutoClawPlugins(runtime, [agenthub, parallel], base, { apply: true });

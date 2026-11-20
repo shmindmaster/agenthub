@@ -29,10 +29,10 @@ $hostCatalog = @{}
 foreach ($agent in $agents.activeAgents) {
     if (Test-AgentHubHostSyncEnabled -Agent $agent) { $hostCatalog[$agent.id] = $agent }
 }
-if ($HostId -and $HostId -ne 'autoclaw' -and -not $hostCatalog.ContainsKey($HostId)) { throw "Unknown active host: $HostId" }
-if ($HostId -ne 'autoclaw' -and ($AutoClawAccount -or $IncludePrivateOverlay)) {
-    throw 'AutoClaw account and overlay options require -HostId autoclaw.'
-}
+$nativeMarketplace = $HostId -in @('autoclaw', 'zcode')
+if ($HostId -and -not $nativeMarketplace -and -not $hostCatalog.ContainsKey($HostId)) { throw "Unknown active host: $HostId" }
+if ($AutoClawAccount -and $HostId -ne 'autoclaw') { throw '-AutoClawAccount requires -HostId autoclaw.' }
+if ($IncludePrivateOverlay -and -not $nativeMarketplace) { throw '-IncludePrivateOverlay requires -HostId autoclaw or zcode.' }
 
 function Read-Document([string]$Path) {
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
@@ -363,12 +363,12 @@ function Get-GreenCiRun([string]$Head) {
     return [string]$run.databaseId
 }
 
-if ($HostId -eq 'autoclaw') {
-    if (-not $IsWindows -or -not $live) { throw 'AutoClaw requires the invoking Windows profile.' }
-    if (($Apply -or $IncludePrivateOverlay) -and -not $AutoClawAccount) {
+if ($nativeMarketplace) {
+    if (-not $IsWindows -or -not $live) { throw "$HostId requires the invoking Windows profile." }
+    if ($HostId -eq 'autoclaw' -and ($Apply -or $IncludePrivateOverlay) -and -not $AutoClawAccount) {
         throw 'AutoClaw apply or private overlay selection requires -AutoClawAccount.'
     }
-    $arguments = @((Join-Path $PSScriptRoot 'sync-autoclaw-plugins.mjs'), '--root', $root)
+    $arguments = @((Join-Path $PSScriptRoot 'sync-autoclaw-plugins.mjs'), '--root', $root, '--host', $HostId.ToLowerInvariant())
     if ($AutoClawAccount) { $arguments += @('--account', $AutoClawAccount) }
     if ($IncludePrivateOverlay) {
         if (-not $overlay) { throw 'A private AgentHub overlay was not found.' }
@@ -394,8 +394,9 @@ if ($HostId -eq 'autoclaw') {
             $deploymentDirectory = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub/runtime/plugin-deployment'
             [void][IO.Directory]::CreateDirectory($deploymentDirectory)
             $lock = [IO.File]::Open((Join-Path $deploymentDirectory 'deployment.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
-            if (Get-Process -Name '*AutoClaw*' -ErrorAction SilentlyContinue) {
-                throw 'Close AutoClaw before applying native plugin changes.'
+            $processName = if ($HostId -eq 'autoclaw') { '*AutoClaw*' } else { 'ZCode' }
+            if (Get-Process -Name $processName -ErrorAction SilentlyContinue) {
+                throw "Close $HostId before applying native plugin changes."
             }
             $arguments += '--apply'
         }
