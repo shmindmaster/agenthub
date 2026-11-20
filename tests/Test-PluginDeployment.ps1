@@ -91,9 +91,9 @@ try {
     [IO.File]::WriteAllText((Join-Path $backup 'scripts/example.ps1'), 'Write-Output 999')
     if (Test-PluginRollbackSource $backup $source 'ah-browser' '1.0.0') { throw 'Modified rollback source retained ownership' }
 
-    # --- Host-local skill projections: kilo (~/.kilocode/skills) and mimo-code
-    # (~/.mimocode/skills) observe the dispatch skill through the same junction
-    # contract as OpenCode and Warp. Junction on Windows, SymbolicLink elsewhere.
+    # --- Host-local skill projections: Kilo audits its dispatch link, but
+    # retired MiMo Code stays out of the plan even with old files on disk.
+    # Junction on Windows, SymbolicLink elsewhere.
     function New-TestLink([string]$Path, [string]$Target) {
         $kind = if ($env:OS -eq 'Windows_NT') { 'Junction' } else { 'SymbolicLink' }
         New-Item -ItemType $kind -Path $Path -Target $Target | Out-Null
@@ -104,8 +104,8 @@ try {
     if ($LASTEXITCODE) { throw "dispatch audit failed: $audit" }
     $dispatchReport = $audit | ConvertFrom-Json
     $kiloStatus = [string](@($dispatchReport.mappings | Where-Object host -EQ 'kilo')).status
-    $mimoStatus = [string](@($dispatchReport.mappings | Where-Object host -EQ 'mimo-code')).status
-    if ($kiloStatus -ne 'missing' -or $mimoStatus -ne 'missing') { throw "uninstalled skill links should audit missing, got kilo=$kiloStatus mimo-code=$mimoStatus" }
+    if ($kiloStatus -ne 'missing') { throw "uninstalled Kilo skill link should audit missing, got $kiloStatus" }
+    if (@($dispatchReport.mappings | Where-Object host -EQ 'mimo-code').Count) { throw 'Retired MiMo Code must not be audited' }
     if (@(Get-ChildItem $skillHome -Force).Count) { throw 'Read-only audit created files in the skill home' }
     $dispatchSkill = Join-Path $root 'packages/coding-agent-dispatch/skills/dispatch'
     [void][IO.Directory]::CreateDirectory((Join-Path $skillHome '.kilocode/skills'))
@@ -114,16 +114,16 @@ try {
     New-TestLink (Join-Path $skillHome '.mimocode/skills/dispatch') $dispatchSkill
     $dispatchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $skillHome -PluginId coding-agent-dispatch -Json | ConvertFrom-Json)
     $kiloStatus = [string](@($dispatchReport.mappings | Where-Object host -EQ 'kilo')).status
-    $mimoStatus = [string](@($dispatchReport.mappings | Where-Object host -EQ 'mimo-code')).status
-    if ($kiloStatus -ne 'current' -or $mimoStatus -ne 'current') { throw "linked dispatch skill not current: kilo=$kiloStatus mimo-code=$mimoStatus" }
+    if ($kiloStatus -ne 'current') { throw "linked Kilo dispatch skill should audit current, got $kiloStatus" }
+    if (@($dispatchReport.mappings | Where-Object host -EQ 'mimo-code').Count) { throw 'Retired MiMo Code must not be audited even with an old managed link' }
     Remove-Item -LiteralPath (Join-Path $skillHome '.kilocode/skills/dispatch') -Force
     New-TestLink (Join-Path $skillHome '.kilocode/skills/dispatch') (Join-Path $root 'packages/browser/skills/automate')
     Remove-Item -LiteralPath (Join-Path $skillHome '.mimocode/skills/dispatch') -Force
     [void][IO.Directory]::CreateDirectory((Join-Path $skillHome '.mimocode/skills/dispatch'))
     $dispatchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $skillHome -PluginId coding-agent-dispatch -Json | ConvertFrom-Json)
     $kiloStatus = [string](@($dispatchReport.mappings | Where-Object host -EQ 'kilo')).status
-    $mimoStatus = [string](@($dispatchReport.mappings | Where-Object host -EQ 'mimo-code')).status
-    if ($kiloStatus -ne 'unmanaged' -or $mimoStatus -ne 'unmanaged') { throw "foreign skill content not unmanaged: kilo=$kiloStatus mimo-code=$mimoStatus" }
+    if ($kiloStatus -ne 'unmanaged') { throw "foreign Kilo dispatch skill should audit unmanaged, got $kiloStatus" }
+    if (@($dispatchReport.mappings | Where-Object host -EQ 'mimo-code').Count) { throw 'Retired MiMo Code must not be audited even with old unmanaged files' }
 
     # --- Surface routing: cursor and cursor-agent observe Claude's install,
     # which Cursor imports, and vscode-insiders observes Copilot's; one owner
