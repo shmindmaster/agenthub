@@ -1076,6 +1076,23 @@
       },
       {
         "hostId": "devin",
+        "surfaceId": "devin-desktop",
+        "capabilities": {
+          "browser.isolated": null,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "verifiedOn": "2026-11-20",
+        "verification": "Verified installed Windows PE product version 3.14.30825 without launching the app. Cognition documents that Devin Local shares CLI customization discovery and exposes loaded plugins, skills and MCPs in Customize. Live Desktop loading and OAuth acceptance remain pending.",
+        "capabilityNotEstablished": {
+          "browser.isolated": "Cognition documents a Devin Desktop preview pane for local web apps with element selection and error capture. This surface has not been tested against the fleet browser capabilities.",
+          "browser.authenticated": "No signed-in Desktop browser profile was exercised."
+        }
+      },
+      {
+        "hostId": "devin",
         "surfaceId": "devin-cloud",
         "capabilities": {
           "browser.isolated": null,
