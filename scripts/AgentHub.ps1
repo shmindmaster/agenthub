@@ -328,9 +328,13 @@ function Invoke-Inventory {
             $packageName = [string]$agent.windowsAppxName
             $present = $null
             if ($canReadAppx) {
-                $package = @(Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue |
-                    Where-Object Name -CEQ $packageName)
-                $present = $package.Count -gt 0
+                try {
+                    $package = @(Get-AppxPackage -Name $packageName -ErrorAction Stop |
+                        Where-Object Name -CEQ $packageName)
+                    $present = $package.Count -gt 0
+                } catch {
+                    Write-Verbose "AppX inventory could not query $packageName."
+                }
             }
             $rows.Add([pscustomobject]@{
                 HostId = $hostId; Status = $entry.Status; Field = 'windowsAppxName'
