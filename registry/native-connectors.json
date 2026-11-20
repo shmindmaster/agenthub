@@ -1185,7 +1185,7 @@
           "mobile.expo-eas-guidance"
         ],
         "required": false,
-        "note": "Official Expo plugin (expo/skills, plugin expo 1.15.5 at 88d9bd7, observed 2026-11-19): 23 skills plus the Expo remote MCP (https://mcp.expo.dev/mcp). Load expo-overview first; load eas-simulator only when a remote EAS simulator is in scope, because eas-* skills drive paid EAS services and the shmindmaster account is on the Free plan with no simulator entitlement (eas simulator:availability returned available=false on 2026-11-19). The skills CLI discovered the catalog with `npx skills add expo/skills --list`. Do not vendor Expo skills into AgentHub; packages/mobile-development keeps the device lab and platform gate and defers Expo and EAS how-to to this plugin. Each host uses its own native channel, never ~/.agents/skills, which Test-PluginOnlyMcp requires to stay empty.",
+        "note": "Official Expo plugin (expo/skills, plugin expo 1.15.5 at 88d9bd7, observed 2026-11-19): 23 skills plus the Expo remote MCP (https://mcp.expo.dev/mcp). Load expo-overview first; load eas-simulator only when a remote EAS simulator is in scope, because eas-* skills drive paid EAS services; check `eas simulator:availability --json` in a linked project before any simulator session. The skills CLI discovered the catalog with `npx skills add expo/skills --list`. Do not vendor Expo skills into AgentHub; packages/mobile-development keeps the device lab and platform gate and defers Expo and EAS how-to to this plugin. Each host uses its own native channel, never ~/.agents/skills, which Test-PluginOnlyMcp requires to stay empty.",
         "observedAt": "2026-11-19",
         "hostChannels": [
           {
