@@ -53,7 +53,7 @@ echo cog_SYNTHETICfixtureOnly
 '@
         $opPath = Join-Path $bin 'op'
         [IO.File]::WriteAllText($opPath, $op)
-        & chmod 700 -- $opPath
+        [IO.File]::SetUnixFileMode($opPath, [IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
     }
     $lib = [IO.File]::ReadAllText((Join-Path $source 'DevinCloudLib.ps1'))
     $stub = @'

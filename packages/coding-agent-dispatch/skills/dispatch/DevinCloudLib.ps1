@@ -175,7 +175,7 @@ function Set-DevinMcpCachePermissions {
         Set-Acl -LiteralPath $Path -AclObject $acl
     } else {
         $mode = if ($Directory) { '700' } else { '600' }
-        & chmod $mode -- $Path 2>$null
+        & chmod $mode $Path 2>$null
         if ($LASTEXITCODE -ne 0) { throw 'Cannot secure cache path' }
     }
 }
