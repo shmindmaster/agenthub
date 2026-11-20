@@ -405,7 +405,7 @@
     "cursor-agent": {
       "enabled": true,
       "readOnly": null,
-      "readOnlyNote": "2026-11-11 not established. `cursor-agent --help`: \"--mode <mode> ... plan: read-only/planning (analyze, propose plans, no edits). ask: Q&A style for explanations and questions (read-only).\" The dispatcher already passes --mode ask, but the registered ~/bin/cursor-agent.cmd shim also passes --yolo --sandbox disabled --approve-mcps (\"-f, --force Force allow commands unless explicitly denied\"), and help does not say which wins. -ReadOnly is refused until that is settled.",
+      "readOnlyNote": "The dispatcher calls the vendor CLI with --mode ask. The documented read-only mode still needs a governed end-to-end test, including tool permissions, before enabling -ReadOnly.",
       "reason": "account smoke ok 2026-10-22",
       "verifiedOn": "2026-10-22"
     },
