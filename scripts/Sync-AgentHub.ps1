@@ -1952,8 +1952,7 @@ function Sync-HostMcp-OpenCode {
 
         $entries = $root.mcp
         $nativeEntries = $root.mcp.servers
-        $useNativeEntry = $nativeEntries -is [hashtable] -and
-            ($nativeEntries.ContainsKey($key) -or -not $entries.ContainsKey($key))
+        $useNativeEntry = $nativeEntries -is [hashtable] -and -not $entries.ContainsKey($key)
         if ($useNativeEntry) {
             $entries = $nativeEntries
             if ($target.ContainsKey('enabled')) {
