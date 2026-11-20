@@ -22,7 +22,7 @@ Devin; Grok and Antigravity install the official upstream checkout. Cursor
 loads a real local plugin folder. Cline CLI loads the official plugin through
 its package loader; its separate extension needs its documented direct entry.
 Amp gets a runtime registration adapter pointing at upstream skills, with the
-remote MCP attached only to the routing skill. OpenCode gets
+remote MCP attached only to the routing skill. OpenCode and Warp get
 host-local upstream skills and a direct remote entry; VS Code Insiders uses the
 Copilot plugin catalog and its own MCP configuration. Desktop/CLI aliases share
 their primary host configuration. Nothing is copied into `~/.agents/skills`.
@@ -196,7 +196,8 @@ The registry owns the dedicated Cursor rule destination; the Clerk installer
 renders only the following bounded policy block. Existing user rules are
 preserved. [Cursor documents user rule files in `~/.cursor/rules`](https://prod.cursor.com/help/customization/rules).
 This establishes a documented IDE destination, not fresh-session discovery or
-CLI global-rule loading.
+CLI global-rule loading. Warp global rules require its separate Warp Drive UI;
+the installer does not launch Warp or claim that policy has been activated there.
 
 <!-- clerk-companion:start -->
 Use Clerk for personal application authentication and organization permissions;
@@ -215,12 +216,11 @@ installation, discovery, OAuth and actual role acceptance as separate stages.
 Read the full acceptance contract at https://github.com/shmindmaster/agenthub/blob/main/docs/runbooks/clerk-auth.md.
 <!-- clerk-companion:end -->
 
-Kilo gets the official Clerk skills in its native skill root
-(`~/.kilocode/skills`) and no Clerk server, because
-`activationPolicy.pluginOnly` permits no direct MCP entry there. The audit
-accepts a missing remote only for Kilo and still requires its skills. Warp and
-MiMo Code were retired on 2026-11-19 (`inactiveAgents`); the installer's
-`warp` and `mimo-code` entries are inert because neither host is active.
+Kilo and MiMo Code get the official Clerk skills in their native skill roots
+(`~/.kilocode/skills`, `~/.mimocode/skills`) and no Clerk server, because
+`activationPolicy.pluginOnly` permits no direct MCP entry on either host. The audit
+accepts a missing remote only for these two hosts and still requires their skills.
 `BLOCKED` in scripts/Install-ClerkFleet.py stays as the place to record a host with
 no approved route. No host is recorded there at present; Kiro was removed when it was
 retired on 2026-11-17.
+Warp and MiMo Code were retired on 2026-11-19 (`inactiveAgents`), but `scripts/Install-ClerkFleet.py` does not read `activeAgents`: it still lists both in `BRIDGES` (and MiMo Code in `SKILLS_ONLY`), so `--apply` still targets them where they remain installed. Removing them from the installer is a pending code change.
