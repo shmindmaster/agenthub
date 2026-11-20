@@ -132,6 +132,7 @@ $targets = @(
     @{ HostId = 'antigravity'; Path = (Join-Path $userHome '.gemini/antigravity/mcp_config.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'copilot'; Path = (Join-Path $userHome '.copilot/mcp-config.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'cline'; Path = (Join-Path $userHome '.cline/data/settings/cline_mcp_settings.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
+    @{ HostId = 'cline'; Path = (Join-Path $roaming 'Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'opencode'; Path = (Join-Path $userHome '.config/opencode/opencode.json'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
     @{ HostId = 'vscode-insiders'; Path = (Join-Path $roaming 'Code - Insiders/User/mcp.json'); Reader = { param($p) Get-JsonKeys $p 'servers' } }
     @{ HostId = 'amp'; Path = (Join-Path $userHome '.config/amp/settings.json'); Reader = { param($p) Get-JsonKeys $p 'amp.mcpServers' } }

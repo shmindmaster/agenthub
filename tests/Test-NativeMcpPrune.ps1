@@ -27,11 +27,13 @@ try {
     $agents = @()
     $hosts = @{}
     $paths = @{}
+    $clineExtension = Join-Path $profile 'cline-extension.json'
     foreach ($id in @('claude','codex','cursor','grok','opencode','cline','windsurf','factory')) {
         $ext = if ($id -in @('codex','grok')) { 'toml' } else { 'json' }
         $path = Join-Path $profile "$id.$ext"
         $paths[$id] = $path
         $agents += @{ id=$id; name=$id; status='active'; nativePaths=@{config=$path; mcp=$path; mcpUser=$path} }
+        if ($id -eq 'cline') { $agents[-1].nativePaths.mcpVSCodeInsiders = $clineExtension }
         $hosts[$id] = if ($id -eq 'factory') { @{} } else { @{'aws-mcp'='Owner-configured native OAuth connection.'} }
         if ($ext -eq 'toml') {
             [IO.File]::WriteAllText($path, "[mcp_servers.aws-mcp]`nurl = 'https://aws.example/mcp?oauth=initialize'`nenabled = false`n[mcp_servers.stray]`ncommand = 'old'`n")
@@ -61,13 +63,20 @@ try {
     $agents += @{id='warp';name='warp';status='active';nativePaths=@{mcp=$empty}}
     Write-Json (Join-Path $registryDir 'agents.json') @{activeAgents=$agents;inactiveAgents=@()}
     $parallelEndpoint = 'https://parallel.example/mcp'
-    $parallel = @{id='parallel';scope='global-default';transport='http';activationMode='shared-remote';url=$parallelEndpoint;hosts=@('opencode')}
-    $existing = @{id='existing-remote';scope='global-default';transport='http';activationMode='shared-remote';url='https://managed.example';hosts=@('opencode')}
+    $parallel = @{id='parallel';scope='global-default';transport='http';activationMode='shared-remote';url=$parallelEndpoint;hosts=@('opencode','cline')}
+    $clineOAuth = @{id='cline-oauth';scope='global-default';transport='http';activationMode='shared-remote';url='https://managed.example/consent';credentialPolicy='oauth';hosts=@('cline')}
+    $clineApproved = @{id='existing-remote';scope='global-default';transport='http';activationMode='shared-remote';url='https://managed.example';hosts=@('opencode','cline')}
+    $clineHeaders = @{id='cline-headers';scope='global-default';transport='http';activationMode='shared-remote';url='https://managed.example/headers';headers=@{'X-Fixture'='do-not-copy'};hosts=@('cline')}
+    foreach ($key in @('parallel','cline-oauth','existing-remote','cline-headers')) { $hosts.cline[$key] = 'Hosted fixture server.' }
+    Write-Json $clineExtension @{mcpServers=@{
+        'existing-remote'=@{type='streamableHttp';url='https://native.example';disabled=$false;oauth=@{fixture='ide-only'};autoApprove=@('read')}
+        'owner-tool'=@{type='stdio';command='owner-tool'}
+    }}
     $nativeHelper = @{id='devin';scope='owner-configured';transport='http';activationMode='shared-remote';url='https://devin.example/mcp';hosts=@('claude','codex')}
     $hosts.claude['devin'] = 'Preserve an existing dynamic helper.'
     $hosts.codex['devin'] = 'Preserve an existing dynamic helper.'
     [IO.File]::AppendAllText($paths.codex, "[mcp_servers.devin]`nurl = 'https://devin.example/mcp'`nhttp_headers_helper = 'native-helper'`n")
-    Write-Json (Join-Path $registryDir 'mcps.json') @{activationPolicy=@{pluginOnly=@{hosts=$hosts}};mcpServers=@($parallel,$existing,$nativeHelper)}
+    Write-Json (Join-Path $registryDir 'mcps.json') @{activationPolicy=@{pluginOnly=@{hosts=$hosts}};mcpServers=@($parallel,$clineOAuth,$clineApproved,$clineHeaders,$nativeHelper)}
     # Simulate a vendor package supplying the same key, without making AWS a
     # generated registry row. Its ownership must not suppress a direct exception.
     $package = Join-Path $fixture 'packages/native-fixture'
@@ -78,6 +87,15 @@ try {
     $syncArgs = @('-NoProfile','-File',(Join-Path $repoRoot 'scripts/Sync-AgentHub.ps1'),'-Apply','-Prune','-RegistryRoot',$fixture,'-UserProfile',$profile)
     $run = & $hostExe @syncArgs 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Fixture sync failed: $run" }
+    $ideRaw = Get-Content -LiteralPath $clineExtension -Raw -Encoding UTF8
+    $ide = ($ideRaw | ConvertFrom-Json).mcpServers
+    Assert-True ($ide.parallel.url -eq $parallelEndpoint -and $ide.parallel.type -eq 'streamableHttp' -and
+        $ide.parallel.disabled -eq $false -and @($ide.parallel.autoApprove).Count -eq 0) 'Cline extension gets anonymous Parallel in its own settings'
+    Assert-True ($ide.'cline-oauth'.disabled -eq $true -and
+        $null -eq $ide.'cline-oauth'.PSObject.Properties['oauth']) 'Cline extension gets an inactive OAuth entry without copied authorization'
+    Assert-True ($ide.'existing-remote'.url -eq 'https://native.example' -and $ide.'existing-remote'.oauth.fixture -eq 'ide-only' -and
+        $ide.'existing-remote'.disabled -eq $false -and $ide.'existing-remote'.autoApprove[0] -eq 'read') 'Cline extension retains its existing endpoint, OAuth and approval settings'
+    Assert-True ($ide.'owner-tool'.command -eq 'owner-tool' -and $null -eq $ide.PSObject.Properties['cline-headers']) 'Cline extension sync keeps local overrides and skips deployment of entries with headers'
     $first = @{}
     foreach ($id in @('claude','codex','cursor','grok','opencode','cline','windsurf')) {
         $raw = Get-Content -LiteralPath $paths[$id] -Raw -Encoding UTF8
@@ -104,6 +122,7 @@ try {
     Assert-True (-not $absent.Contains('aws-mcp')) 'an allowed native connection is not generated when absent'
     $run = & $hostExe @syncArgs 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Second fixture sync failed: $run" }
+    Assert-True ($ideRaw -ceq (Get-Content -LiteralPath $clineExtension -Raw -Encoding UTF8)) 'Cline extension settings are byte-stable on repeat apply'
     foreach ($id in $first.Keys) {
         Assert-True ($first[$id] -ceq (Get-Content -LiteralPath $paths[$id] -Raw -Encoding UTF8)) "$id is byte-stable after a second prune"
     }
@@ -113,11 +132,13 @@ try {
         $first.codex.Contains("http_headers_helper = 'native-helper'")) 'All-scope prune preserves an existing owner-configured helper exactly'
     $claude = Get-Content -LiteralPath $paths.claude -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($null -eq $claude.mcpServers.PSObject.Properties['devin']) 'All-scope sync does not generate an owner-configured server without its helper'
+    Remove-Item -LiteralPath $clineExtension
 
     Write-Json $paths.opencode @{mcp=@{servers=@{type='remote';url='https://legacy.example'}}}
     $legacySyncArgs = $syncArgs | Where-Object { $_ -ne '-Prune' }
     $run = & $hostExe @legacySyncArgs 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Legacy fixture sync failed: $run" }
+    Assert-True (-not (Test-Path -LiteralPath $clineExtension)) 'Sync does not create a missing Cline extension settings file'
     $legacy = Get-Content -LiteralPath $paths.opencode -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($legacy.mcp.parallel.url -eq $parallelEndpoint -and $legacy.mcp.servers.url -eq 'https://legacy.example' -and
         $null -eq $legacy.mcp.servers.PSObject.Properties['parallel']) 'OpenCode keeps a legacy server named servers and writes Parallel beside it'

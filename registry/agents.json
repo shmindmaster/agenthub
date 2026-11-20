@@ -427,6 +427,7 @@
         "dataDir": "{userHome}/.cline",
         "config": "{userHome}/.cline/data/settings",
         "mcp": "{userHome}/.cline/data/settings/cline_mcp_settings.json",
+        "mcpVSCodeInsiders": "{roamingConfig}/Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json",
         "instructions": "{userHome}/.cline/data/settings/rules/00-agenthub.md",
         "instructionHeader": "# Cline CLI Global Rules",
         "instructionFormat": "markdown",
