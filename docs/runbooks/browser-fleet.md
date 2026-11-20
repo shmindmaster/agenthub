@@ -37,6 +37,34 @@ These are setup routes and vendor claims. A working receipt requires a fresh ses
 
 BrowserSkill documents Chrome and Edge. Use a named instance and an authorized extension from the vendor manual. The ChatGPT extension and OpenCode Browse document a wider set of Chromium browsers. Confirm the official extension supports the specific browser before attempting to connect it. Firefox and WebKit use the isolated Playwright CLI where installed for compatibility testing; desktop Safari is a separate browser and needs its own verification. [BrowserSkill](https://browserskill.weixin.qq.com/manual.en.html) · [OpenCode Browse](https://opencode.ai/product/browse) · [Playwright browsers](https://playwright.dev/docs/browsers)
 
+### Isolated Edge with a domain allowlist
+
+On Windows with Edge 157 and agent-browser 0.43.0, putting the URL in the first command of a fresh allowlisted session can report a successful navigation and leave the next command at `about:blank`. Start the session with a URL-less `open`, then navigate separately. Keep the same session and allowlist on each command. Verify the active URL before interacting with the page.
+
+```powershell
+$wrapper = 'packages/browser/skills/automate/scripts/browse.mjs'
+$edge = Join-Path ${env:ProgramFiles(x86)} 'Microsoft/Edge/Application/msedge.exe'
+$session = "ah-edge-$([guid]::NewGuid().ToString('N'))"
+$browserArgs = @('--session', $session, '--allowed-domains', '127.0.0.1')
+$fixtureUrl = 'http://127.0.0.1:8080/'
+
+try {
+    node $wrapper @browserArgs --executable-path $edge open
+    if ($LASTEXITCODE -ne 0) { throw 'Edge did not start.' }
+    node $wrapper @browserArgs open $fixtureUrl
+    if ($LASTEXITCODE -ne 0) { throw 'Edge navigation failed.' }
+    $activeUrl = node $wrapper @browserArgs get url
+    if ($LASTEXITCODE -ne 0 -or $activeUrl -ne $fixtureUrl) {
+        throw 'Edge did not retain the requested page.'
+    }
+    node $wrapper @browserArgs snapshot -i
+} finally {
+    node $wrapper @browserArgs close
+}
+```
+
+Set `$fixtureUrl` to the running loopback fixture. The tested sequence retained the page across form submission, table extraction, console and network inspection, and video capture. A navigation to the non-allowlisted `localhost` hostname was denied and the allowed page remained active.
+
 ## Remote MCP and OAuth
 
 - Use the vendor's native marketplace/plugin if it supplies the requested integration with the right transport and permissions. Register the official remote endpoint through a supported native configuration when the vendor documents that path. Keep one integration owner per host. Use local browser helpers only on demand where the browser and profile live. Remote tools do not inherit a local browser profile.
