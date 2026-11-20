@@ -30,7 +30,7 @@ import { parseJsonc, parseToml } from './parsers.js';
  * @property {boolean} exists
  * @property {string | null} error
  * @property {McpServer[]} servers
- * @property {string[]} ignoredEntries
+ * @property {McpServer[]} ignoredEntries
  */
 
 /**
@@ -66,14 +66,14 @@ export function readMcpSource(source) {
   const entries = Object.entries(map).filter(([name]) => name !== 'servers' || !isNestedMap);
   if (isNestedMap) entries.push(...Object.entries(nested));
   for (const [name, raw] of new Map(entries)) {
-    if (source.dialect === 'zcode') {
-      const config = readZCodeConnection(raw);
-      if (config) result.servers.push({ ...normalizeServer(name, config, source.dialect), source: source.path });
-      else result.ignoredEntries.push(name);
+    const config = source.dialect === 'zcode' ? readZCodeConnection(raw) : raw;
+    if (source.dialect === 'zcode' && !config) {
+      const ignored = normalizeServer(name, objectOrEmpty(raw), source.dialect);
+      result.ignoredEntries.push({ ...ignored, enabled: false, source: source.path });
       continue;
     }
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
-    result.servers.push({ ...normalizeServer(name, raw, source.dialect), source: source.path });
+    if (!config || typeof config !== 'object' || Array.isArray(config)) continue;
+    result.servers.push({ ...normalizeServer(name, config, source.dialect), source: source.path });
   }
   result.servers.sort((a, b) => a.name.localeCompare(b.name));
   return result;
