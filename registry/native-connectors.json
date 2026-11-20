@@ -870,6 +870,14 @@
             "note": "OpenCode 2 user configuration lists the vendor npm package. The locally cached installed manifest matched npm version 1.2.0. Search and extract still require a verified Parallel account in OpenCode."
           },
           {
+            "hostId": "autoclaw",
+            "channel": "parallel@parallel-agent-skills",
+            "installedVersion": "0.12.0",
+            "current": true,
+            "updateCommand": "Use the bundled ZCode CLI with the selected AutoClaw account profile. Add parallel-web/parallel-agent-skills and install parallel@parallel-agent-skills in user scope.",
+            "note": "The matching upstream release was installed through the vendor marketplace. Native desktop runtime readback discovered all 15 skills and connected to the plugin MCP with eight tools. Funded personal authentication and tool invocation remain unverified."
+          },
+          {
             "hostId": "cursor",
             "channel": "cursor-marketplace",
             "installedVersion": null,

@@ -1,0 +1,16 @@
+# AutoClaw setup and acceptance
+
+The Windows AutoClaw 2.5.3 app includes a ZCode 0.17.1 runtime. The desktop uses an account-specific runtime home and a newline-delimited desktop app-server protocol. Legacy `~/.openclaw-autoclaw` settings belong to a separate configuration path. Use Z.ai's documented desktop import and connector settings when managing a session from the app. [AutoClaw skills](https://autoclaw.z.ai/en/docs/advanced/skill/) · [MCP and connectors](https://autoclaw.z.ai/en/docs/advanced/mcp-connectors/) · [ZCode plugins](https://zcode.z.ai/en/docs/plugin)
+
+## Native package setup
+
+1. Select the intended AutoClaw account before writing. On the observed Windows build, the desktop launches the bundled runtime from `resources/vendor/zcode/zcode.cjs` with the account's `runtime/zcode-runtime/home` as its child process profile. Set the child process home explicitly. Confirm the effective plugin inventory before adding a marketplace.
+2. Stage a clean, tracked public AgentHub checkout for the local marketplace. It uses the existing Claude-compatible manifest. Add that directory with the bundled runtime's `plugins marketplace add <directory> --scope user`. Install each catalog entry using `plugins install <name>@agenthub --scope user`.
+3. Add Parallel's official marketplace using `plugins marketplace add parallel-web/parallel-agent-skills --scope user`. Install `parallel@parallel-agent-skills` with `plugins install parallel@parallel-agent-skills --scope user`. The marketplace uses the vendor package as published. [Parallel Agent Skills](https://docs.parallel.ai/integrations/agent-skills)
+4. Read back installation and skills with `plugins list --json` and `skills list --json`. The desktop protocol's `plugins/list` and `mcp/list` confirm desktop-runtime discovery and connection state. Confirm the account and scopes before starting OAuth or permitting tool calls.
+
+## Windows acceptance
+
+The existing AutoClaw account reported all seven public AgentHub plugins enabled and all 15 Parallel skills discovered. The desktop runtime connected to Parallel and AssemblyAI Docs and reported eight and three tools respectively. The AssemblyAI service returned a failed connection in the credential-free check.
+
+Fleet sync integration, same-channel update verification, account-specific private overlay deployment, desktop UI acceptance, and a tool invocation from an AutoClaw conversation remain open. To check the official update channel in the app, use Settings → About. [AutoClaw installation and updates](https://autoclaw.z.ai/en/docs/getting-started/install/)
