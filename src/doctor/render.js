@@ -48,7 +48,7 @@ export function renderText(report, options = {}) {
     'native-health': 'native MCP connectivity checks',
     'probe-remote+native-health': 'remote probes and native MCP connectivity checks',
   }[report.network];
-  const nativeInventory = report.native?.devin || report.native?.autoclaw || report.nativeHealth?.grok;
+  const nativeInventory = report.native?.devin || report.native?.autoclaw || report.native?.zcode || report.nativeHealth?.grok;
   lines.push(`${c.bold('AgentHub doctor')} ${report.version} ${c.dim(`· read-only · ${network}`)}`);
   const registry =
     report.registry.mode === 'agenthub'
@@ -122,18 +122,21 @@ export function renderText(report, options = {}) {
       : devin.status === 'unavailable' ? 'CLI executable not found' : 'CLI inventory failed';
     lines.push(`NATIVE Devin CLI: ${inventory}.`);
   }
-  if (report.native?.autoclaw) {
-    const autoclaw = report.native.autoclaw;
+  for (const [label, desktop] of /** @type {const} */ ([
+    ['AutoClaw', report.native?.autoclaw],
+    ['ZCode', report.native?.zcode],
+  ])) {
+    if (!desktop) continue;
     const statuses = {
       unavailable: 'Windows bundled runtime not found',
       'no-account': 'no initialized desktop runtime profile found',
       'ambiguous-account': 'multiple desktop runtime profiles found',
       failed: 'bundled runtime inventory failed',
     };
-    const inventory = autoclaw.status === 'listed'
-      ? `${autoclaw.plugins.length} plugins (${autoclaw.plugins.filter((plugin) => plugin.enabled).length} enabled), ${autoclaw.skills.length} skills`
-      : statuses[autoclaw.status];
-    lines.push(`NATIVE AutoClaw: ${inventory}.`);
+    const inventory = desktop.status === 'listed'
+      ? `${desktop.plugins.length} plugins (${desktop.plugins.filter((plugin) => plugin.enabled).length} enabled), ${desktop.skills.length} skills`
+      : statuses[desktop.status];
+    lines.push(`NATIVE ${label}: ${inventory}.`);
   }
   if (report.nativeHealth?.grok) {
     const grok = report.nativeHealth.grok;

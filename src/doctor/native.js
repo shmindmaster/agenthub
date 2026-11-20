@@ -109,24 +109,7 @@ export function openAutoClawRuntime(ctx, env, accountEmail) {
     if (!matches.length) return { status: /** @type {const} */ ('no-account') };
     if (matches.length > 1) return { status: /** @type {const} */ ('ambiguous-account') };
 
-    const [{ home }] = matches;
-    const childEnv = Object.fromEntries(Object.entries(env)
-      .filter(([key]) => !['HOME', 'USERPROFILE', 'ZCODE_HOME'].includes(key.toUpperCase())));
-    childEnv.USERPROFILE = home;
-    return {
-      status: /** @type {const} */ ('ready'),
-      async invoke(/** @type {string[]} */ args, cwd = home, timeout = INVENTORY_TIMEOUT_MS) {
-        try {
-          const { stdout } = await run(process.execPath, [runtime, ...args, '--json', '--cwd', cwd],
-            nativeOptions({ ...ctx, home: cwd }, childEnv, timeout));
-          const data = JSON.parse(stdout);
-          if (data == null || data.ok === false) throw new Error('Native operation failed');
-          return data;
-        } catch {
-          throw new Error('Bundled AutoClaw command failed.');
-        }
-      },
-    };
+    return bundledZCode(ctx, env, runtime, matches[0].home);
   } catch {
     return { status: /** @type {const} */ ('failed') };
   }
@@ -136,19 +119,72 @@ export function openAutoClawRuntime(ctx, env, accountEmail) {
  * @param {import('./hosts.js').PathContext} ctx
  * @param {NodeJS.ProcessEnv} env
  */
+export function openZCodeRuntime(ctx, env) {
+  if (ctx.platform !== 'windows' || process.platform !== 'win32') return { status: /** @type {const} */ ('unavailable') };
+  const runtime = join(ctx.localData, 'Programs', 'ZCode', 'resources', 'glm', 'zcode.cjs');
+  try {
+    if (!statSync(runtime, { throwIfNoEntry: false })?.isFile()) return { status: /** @type {const} */ ('unavailable') };
+    return bundledZCode(ctx, env, runtime, ctx.home);
+  } catch {
+    return { status: /** @type {const} */ ('failed') };
+  }
+}
+
+/**
+ * @param {import('./hosts.js').PathContext} ctx
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string} runtime
+ * @param {string} home
+ */
+function bundledZCode(ctx, env, runtime, home) {
+  const childEnv = Object.fromEntries(Object.entries(env)
+    .filter(([key]) => !['HOME', 'USERPROFILE', 'ZCODE_HOME'].includes(key.toUpperCase())));
+  childEnv.USERPROFILE = home;
+  return {
+    status: /** @type {const} */ ('ready'),
+    async invoke(/** @type {string[]} */ args, cwd = home, timeout = INVENTORY_TIMEOUT_MS) {
+      try {
+        const { stdout } = await run(process.execPath, [runtime, ...args, '--json', '--cwd', cwd],
+          nativeOptions({ ...ctx, home: cwd }, childEnv, timeout));
+        const data = JSON.parse(stdout);
+        if (data == null || data.ok === false) throw new Error('Native operation failed');
+        return data;
+      } catch {
+        throw new Error('Bundled ZCode command failed.');
+      }
+    },
+  };
+}
+
+/**
+ * @param {import('./hosts.js').PathContext} ctx
+ * @param {NodeJS.ProcessEnv} env
+ */
 export async function inspectAutoClaw(ctx, env) {
-  const runtime = openAutoClawRuntime(ctx, env);
+  return inspectZCodeInventory(openAutoClawRuntime(ctx, env));
+}
+
+/**
+ * @param {import('./hosts.js').PathContext} ctx
+ * @param {NodeJS.ProcessEnv} env
+ */
+export async function inspectZCode(ctx, env) {
+  return inspectZCodeInventory(openZCodeRuntime(ctx, env));
+}
+
+/** @param {ReturnType<typeof openAutoClawRuntime> | ReturnType<typeof openZCodeRuntime>} runtime */
+async function inspectZCodeInventory(runtime) {
   if (runtime.status !== 'ready') return { status: runtime.status };
   try {
     const plugins = await runtime.invoke(['plugins', 'list']);
     const inventory = await runtime.invoke(['skills', 'list']);
-    if (!Array.isArray(plugins) || !Array.isArray(inventory?.skills)) throw new Error('Invalid AutoClaw inventory');
+    if (!Array.isArray(plugins) || !Array.isArray(inventory?.skills)) throw new Error('Invalid native inventory');
     return {
       status: /** @type {const} */ ('listed'),
       plugins: plugins.map((entry) => {
         const parts = typeof entry?.id === 'string' ? entry.id.split('@') : [];
         if (parts.length !== 2 || typeof entry.enabled !== 'boolean' || !Array.isArray(entry.declaredMcpServerNames)) {
-          throw new Error('Invalid AutoClaw plugin inventory');
+          throw new Error('Invalid native plugin inventory');
         }
         return {
           id: parts.map(identifier).join('@'),

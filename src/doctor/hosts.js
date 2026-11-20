@@ -124,6 +124,7 @@ const MCP_LAYOUT = {
   claude: [{ field: 'mcpUser', key: 'mcpServers' }],
   codex: [{ field: 'config', format: 'toml', key: 'mcp_servers', dialect: 'codex' }],
   grok: [{ field: 'config', format: 'toml', key: 'mcp_servers', dialect: 'codex' }],
+  zcode: [{ field: 'config', key: 'mcp.servers' }],
   opencode: [{ field: 'config', key: 'mcp', dialect: 'opencode', file: 'opencode.json' }],
   'opencode-desktop': [{ field: 'config', key: 'mcp', dialect: 'opencode', file: 'opencode.json' }],
   copilot: [{ field: 'mcp', key: 'mcpServers' }],

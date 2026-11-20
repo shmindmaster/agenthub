@@ -88,6 +88,38 @@ test('Cline Doctor reads native nested transports and flat entries without expos
   assert.doesNotMatch(JSON.stringify(report), new RegExp(syntheticKey));
 });
 
+test('ZCode Doctor reads native user MCP settings without requiring agent-wide registrations', async () => {
+  const h = newHome();
+  h.write('.zcode/cli/config.json', {
+    mcp: { servers: { parallel: { type: 'http', url: 'https://example.test/mcp', enabled: true } } },
+  });
+  const report = await runDoctor({ home: h.home, env: h.env(), registry: repoRoot, hosts: ['zcode'] });
+  assert.deepEqual(report.hosts[0].mcp.servers.map(({ name, transport }) => [name, transport]), [['parallel', 'http']]);
+  assert.ok(!codes(report).includes('REGISTRY_MISSING'));
+});
+
+test('standalone ZCode native inventory uses the Windows user profile', { skip: platform !== 'windows' }, async () => {
+  const h = newHome();
+  h.write('AppData/Local/Programs/ZCode/resources/glm/zcode.cjs', `
+    const assert = require('node:assert/strict');
+    assert.equal(process.env.ZCODE_HOME, undefined);
+    assert.equal(process.env.USERPROFILE, ${JSON.stringify(h.home)});
+    assert.equal(process.cwd(), process.env.USERPROFILE);
+    const data = process.argv[2] === 'plugins'
+      ? [{ id: 'parallel@parallel-agent-skills', enabled: true, version: '0.12.0', declaredMcpServerNames: ['parallel'] }]
+      : { skills: [{ qualifiedName: 'parallel:search' }] };
+    console.log(JSON.stringify(data));
+  `);
+  const report = await runDoctor({
+    env: h.env({ USERPROFILE: h.home, ZCODE_HOME: 'synthetic-override' }),
+    hosts: ['zcode'], native: true, registry: false,
+  });
+  assert.deepEqual(Object.keys(report.native), ['zcode']);
+  assert.deepEqual(report.native.zcode.skills, ['parallel:search']);
+  assert.deepEqual(report.native.zcode.plugins[0].declaredMcpServers, ['parallel']);
+  assert.match(renderText(report), /ZCode: 1 plugins \(1 enabled\), 1 skills/);
+});
+
 test('OpenCode Doctor distinguishes a server named servers from a nested server map', () => {
   const h = newHome();
   const legacy = { type: 'remote', url: 'https://example.test/mcp' };

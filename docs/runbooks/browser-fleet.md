@@ -31,6 +31,7 @@ These are setup routes and vendor claims. A working receipt requires a fresh ses
 | Amp | Use AH Browser locally when no callable browser is exposed. Desktop/mobile clients and Orbs have their own contexts and need evidence separately. [Amp docs](https://ampcode.com/docs) |
 | Kiro and KiroCrew | Use the IDE or CLI's approved tool route or a shell-capable AH Browser session. Treat Web and Crew as separate surfaces. Browser delivery for local profile interaction is unverified. [Kiro surfaces](https://kiro.dev/docs/) |
 | Z.ai AutoClaw | The bundled desktop runtime discovers AH Browser. Establish native browser scope and control with a disposable fixture before using personal profiles. Verify the desktop browser session separately. [AutoClaw setup and acceptance](autoclaw.md) |
+| Z.ai ZCode | The standalone desktop installs the official Browser Use plugin alongside AH Browser. Use the right-hand Browser panel for visible work and a dedicated AgentHub browser session for recording or structured extraction. [ZCode setup and acceptance](zcode.md) |
 | Warp/Oz, Qwen Code, MiMo, Gemini CLI, Windsurf/Cascade and CodeRabbit | Inactive or specialist lanes. Do not turn prior retirement into an install target. A future reactivated CLI can use its documented vendor interface or an approved shell route. |
 
 ## Browser engines

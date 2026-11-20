@@ -113,8 +113,11 @@ $hostExe = (Get-Process -Id $PID).Path
 if ($Command -ne 'plugins' -and ($HostId -or $PluginId -or $Json)) {
     throw 'Plugin filters and -Json are only supported by the plugins command.'
 }
-if (($AutoClawAccount -or $IncludePrivateOverlay) -and ($Command -ne 'plugins' -or $HostId -ne 'autoclaw')) {
-    throw 'AutoClaw account and overlay options require plugins -HostId autoclaw.'
+if ($AutoClawAccount -and ($Command -ne 'plugins' -or $HostId -ne 'autoclaw')) {
+    throw '-AutoClawAccount requires plugins -HostId autoclaw.'
+}
+if ($IncludePrivateOverlay -and ($Command -ne 'plugins' -or $HostId -notin @('autoclaw', 'zcode'))) {
+    throw '-IncludePrivateOverlay requires plugins -HostId autoclaw or zcode.'
 }
 if ([string]::IsNullOrWhiteSpace($Command) -or $Command -notin $ValidCommands) {
     Write-Host "FAIL: unknown subcommand '$Command'. Valid subcommands: $($ValidCommands -join ', ')." -ForegroundColor Red

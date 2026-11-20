@@ -4,7 +4,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { createPathContext } from '../src/doctor/hosts.js';
-import { openAutoClawRuntime } from '../src/doctor/native.js';
+import { openAutoClawRuntime, openZCodeRuntime } from '../src/doctor/native.js';
 
 const parallel = {
   name: 'parallel-agent-skills',
@@ -78,7 +78,7 @@ function sourceStatus(market, entry, base) {
   return /^[a-f0-9]{40}-[a-f0-9]{40}\/marketplace$/.test(suffix) ? 'drift' : 'blocked';
 }
 
-export async function syncAutoClawPlugins(runtime, markets, base, { apply, plugin } = {}) {
+export async function syncAutoClawPlugins(runtime, markets, base, { apply, plugin, host = 'autoclaw' } = {}) {
   const selected = markets.map((market) => ({
     ...market,
     plugins: market.plugins.filter((row) => !plugin || [row.name, row.capability, `${row.name}@${market.name}`].includes(plugin)),
@@ -126,7 +126,7 @@ export async function syncAutoClawPlugins(runtime, markets, base, { apply, plugi
     else if (!observed) status = 'missing';
     else if (observed.version !== expected || (plugin.disabled && observed.enabled !== false)) status = 'drift';
     return {
-      host: 'autoclaw', plugin: id, expected, observed: observed?.version ?? null,
+      host, plugin: id, expected, observed: observed?.version ?? null,
       enabled: observed?.enabled ?? null, expectedEnabled: plugin.disabled ? false : null, status,
     };
   }));
@@ -153,18 +153,25 @@ export async function syncAutoClawPlugins(runtime, markets, base, { apply, plugi
 async function main() {
   const { values } = parseArgs({ options: {
     root: { type: 'string' }, overlay: { type: 'string' }, account: { type: 'string' },
+    host: { type: 'string', default: 'autoclaw' },
     plugin: { type: 'string' }, apply: { type: 'boolean' }, json: { type: 'boolean' },
   } });
-  if (values.apply && !values.account) throw new Error('AutoClaw apply requires an explicit account.');
+  if (!['autoclaw', 'zcode'].includes(values.host)) throw new Error('Unsupported native marketplace host.');
+  if (values.host === 'autoclaw' && (values.apply || values.overlay) && !values.account) {
+    throw new Error('AutoClaw apply or private overlay audit requires an explicit account.');
+  }
+  if (values.host === 'zcode' && values.account) throw new Error('Standalone ZCode uses the invoking Windows profile.');
   const ctx = createPathContext({});
-  const runtime = openAutoClawRuntime(ctx, process.env, values.account);
-  if (runtime.status !== 'ready') throw new Error(`AutoClaw runtime status is ${runtime.status}.`);
+  const runtime = values.host === 'zcode'
+    ? openZCodeRuntime(ctx, process.env)
+    : openAutoClawRuntime(ctx, process.env, values.account);
+  if (runtime.status !== 'ready') throw new Error(`${values.host} runtime status is ${runtime.status}.`);
   const base = join(ctx.localData, 'AgentHub', 'runtime', 'autoclaw-marketplaces');
   const { mcpServers } = json(join(values.root, 'registry', 'mcps.json'));
   const disabled = new Set(mcpServers.filter((server) => server.startupEnabled === false &&
     server.activationMode === 'on-demand-local' && server.owner?.type === 'capability').map((server) => server.owner.id));
   const roots = [values.root];
-  if (values.account && values.overlay) roots.push(values.overlay);
+  if (values.overlay) roots.push(values.overlay);
   if (values.apply) for (const root of roots) {
     const dirty = run('git', ['status', '--porcelain', '--', ...sourcePaths], root);
     if (dirty) throw new Error('Apply requires committed marketplace sources.');
