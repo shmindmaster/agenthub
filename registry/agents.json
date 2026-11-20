@@ -13,13 +13,21 @@
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe"
       },
+      "platformPaths": {
+        "windows": {
+          "nativePaths": {
+            "bundledRuntime": "{localData}/Programs/AutoClaw2/resources/vendor/zcode/zcode.cjs"
+          }
+        }
+      },
       "supportedCapabilities": [
         "skills",
-        "mcp"
+        "mcp",
+        "plugins"
       ],
       "status": "inventory-only",
-      "versionObserved": "2026-11-20: Windows uninstall registry reports 2.5.3; executable product version 2.5.3.515 and Authenticode signature verified. Vendor release currency and live app discovery are pending.",
-      "notes": "SH-5029. Official Z.ai desktop app. Vendor documents adding skill files (https://autoclaw.z.ai/docs/advanced/skill/) and custom MCP servers through app settings (https://autoclaw.z.ai/docs/advanced/mcp-connectors/). AgentHub has no verified deployment, plugin or headless dispatch contract for AutoClaw. Upstream OpenClaw formats do not establish AutoClaw compatibility."
+      "versionObserved": "2026-11-20: Windows uninstall registry reports 2.5.3; executable product version 2.5.3.515 and Authenticode signature verified. The bundled ZCode 0.17.1 runtime responded to its native desktop protocol. Same-channel app release currency remains unverified.",
+      "notes": "SH-5029. All seven public AgentHub plugins and the Parallel vendor plugin were installed into the existing AutoClaw account on Windows and read back through the bundled desktop runtime. Automated AgentHub sync remains disabled until it can resolve the intended account and manage native plugin state. Desktop UI, private overlay, and model tool calls still require acceptance."
     },
     {
       "id": "grokbot",

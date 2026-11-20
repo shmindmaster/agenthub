@@ -186,6 +186,9 @@ function Test-AlreadyTargetPathIsNotNested {
 function Test-RegistryPlatformPathsResolvePerOs {
     . (Join-Path $repoRoot 'scripts\lib\HostCatalog.ps1')
     $expectations = @(
+        @{ Platform = 'windows'; Home = 'C:\synth'; Host = 'autoclaw'; Field = 'bundledRuntime'; Expected = 'C:\synth\AppData\Local\Programs\AutoClaw2\resources\vendor\zcode\zcode.cjs' }
+        @{ Platform = 'darwin'; Home = '/Users/synth'; Host = 'autoclaw'; Field = 'bundledRuntime'; Expected = $null }
+        @{ Platform = 'linux'; Home = '/home/synth'; Host = 'autoclaw'; Field = 'bundledRuntime'; Expected = $null }
         @{ Platform = 'darwin'; Home = '/Users/synth'; Host = 'devin'; Field = 'config'; Expected = '/Users/synth/.config/devin/config.json' }
         @{ Platform = 'linux'; Home = '/home/synth'; Host = 'devin'; Field = 'config'; Expected = '/home/synth/.config/devin/config.json' }
         @{ Platform = 'windows'; Home = 'C:\synth'; Host = 'devin'; Field = 'config'; Expected = 'C:\synth\AppData\Roaming\devin\config.json' }

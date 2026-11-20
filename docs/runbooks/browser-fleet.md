@@ -30,7 +30,7 @@ These are setup routes and vendor claims. A working receipt requires a fresh ses
 | Manus Desktop and Web | Add a remote connector through Connectors → Create → Add MCP by URL. Verify the Desktop and Web clients separately. Select an authorized Browser Operator profile for tasks that need signed-in browser state. [Manus connectors](https://www.manus.im/features/connectors) |
 | Amp | Use AH Browser locally when no callable browser is exposed. Desktop/mobile clients and Orbs have their own contexts and need evidence separately. [Amp docs](https://ampcode.com/docs) |
 | Kiro and KiroCrew | Use the IDE or CLI's approved tool route or a shell-capable AH Browser session. Treat Web and Crew as separate surfaces. Browser delivery for local profile interaction is unverified. [Kiro surfaces](https://kiro.dev/docs/) |
-| Z.ai AutoClaw | Vendor documents browser automation and app MCP connections. Use a disposable authorized fixture to establish app browser profile scope and automation controls before connecting personal profiles. No CLI/IDE adapter is assumed. [AutoClaw](https://autoclaw.z.ai/about/) · [MCP](https://autoclaw.z.ai/docs/advanced/mcp-connectors/) |
+| Z.ai AutoClaw | The bundled desktop runtime discovers AH Browser. Establish native browser scope and control with a disposable fixture before using personal profiles. Verify the desktop browser session separately. [AutoClaw setup and acceptance](autoclaw.md) |
 | Warp/Oz, Qwen Code, MiMo, Gemini CLI, Windsurf/Cascade and CodeRabbit | Inactive or specialist lanes. Do not turn prior retirement into an install target. A future reactivated CLI can use its documented vendor interface or an approved shell route. |
 
 ## Browser engines
