@@ -13,6 +13,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/CapabilityGraph.ps1')
 . (Join-Path $PSScriptRoot 'RegistryContentHash.ps1')
 . (Join-Path $PSScriptRoot 'lib/PathBinding.ps1')
+. (Join-Path $PSScriptRoot 'lib/HostCatalog.ps1')
 . (Join-Path $PSScriptRoot 'lib/PluginTransaction.ps1')
 $liveProfile = [IO.Path]::GetFullPath((Get-AgentHubDefaultHome))
 $live = $UserProfile.TrimEnd('\', '/') -eq $liveProfile.TrimEnd('\', '/')
@@ -22,7 +23,9 @@ $agents = Get-Content (Join-Path $root 'registry/agents.json') -Raw -Encoding UT
 $capabilities = Get-Content (Join-Path $root 'registry/capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $mcpRegistry = Get-Content (Join-Path $root 'registry/mcps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $hostCatalog = @{}
-foreach ($agent in $agents.activeAgents) { $hostCatalog[$agent.id] = $agent }
+foreach ($agent in $agents.activeAgents) {
+    if (Test-AgentHubHostSyncEnabled -Agent $agent) { $hostCatalog[$agent.id] = $agent }
+}
 if ($HostId -and -not $hostCatalog.ContainsKey($HostId)) { throw "Unknown active host: $HostId" }
 
 function Read-Document([string]$Path) {
