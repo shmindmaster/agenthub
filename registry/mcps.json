@@ -52,7 +52,11 @@
         "grok": {
           "aws-mcp": "A native remote override selects AWS's hosted OAuth endpoint while vendor skills remain installed. Preserve the existing disabled state and verify that the effective source replaces the bundled proxy before enabling."
         },
-        "factory": {},
+        "factory": {
+          "web-reader": "Preserve the existing Z.ai Coding Plan hosted Web Reader connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server.",
+          "web-search-prime": "Preserve the existing Z.ai Coding Plan hosted Web Search connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server.",
+          "zread": "Preserve the existing Z.ai Coding Plan hosted repository documentation connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server."
+        },
         "antigravity": {},
         "copilot": {},
         "vscode-insiders": {
@@ -71,7 +75,9 @@
           "notion": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "posthog": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "sentry": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
-          "clerk": "Cline extension has no plugin MCP loader; official upstream plugin also serves the CLI. Remote only, off by default."
+          "clerk": "Cline extension has no plugin MCP loader; official upstream plugin also serves the CLI. Remote only, off by default.",
+          "gcp-storage": "Preserve the existing Google-hosted Cloud Storage MCP in Cline's native remote configuration. Google Cloud authorization is independent.",
+          "google-drive": "Preserve the existing Google-hosted Drive MCP in Cline's native remote configuration. Google Workspace OAuth is independent."
         },
         "opencode": {
           "parallel": "Use Parallel's official hosted search and fetch endpoint through OpenCode's native remote MCP configuration. The vendor npm plugin is a separate integration that requires personal authorization.",
@@ -83,7 +89,11 @@
           "notion": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "sentry": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
           "aws-mcp": "AWS now supports a direct hosted OAuth endpoint, replacing the local SigV4 proxy after native consent and connection verification. This remains an owner-configured exception, not a generated mcpServers row. Preserve the running connection until the replacement works and retain profile switching only as an explicitly selected local fallback.",
-          "clerk": "No official Clerk OpenCode plugin format; vendor CLI configures the hosted remote MCP, no local process."
+          "clerk": "No official Clerk OpenCode plugin format; vendor CLI configures the hosted remote MCP, no local process.",
+          "gcp-bigquery": "Preserve the existing Google-hosted BigQuery MCP in OpenCode's native remote configuration. Google Cloud authorization is independent.",
+          "gcp-run": "Preserve the existing Google-hosted Cloud Run MCP in OpenCode's native remote configuration. Google Cloud authorization is independent.",
+          "gcp-storage": "Preserve the existing Google-hosted Cloud Storage MCP in OpenCode's native remote configuration. Google Cloud authorization is independent.",
+          "google-drive": "Preserve the existing Google-hosted Drive MCP in OpenCode's native remote configuration. Google Workspace OAuth is independent."
         },
         "amp": {
           "parallel": "Use the vendor hosted anonymous HTTP endpoint through the native Amp client."
