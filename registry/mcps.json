@@ -57,6 +57,7 @@
           "web-search-prime": "Preserve the existing Z.ai Coding Plan hosted Web Search connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server.",
           "zread": "Preserve the existing Z.ai Coding Plan hosted repository documentation connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server."
         },
+        "zcode": {},
         "antigravity": {},
         "copilot": {},
         "vscode-insiders": {

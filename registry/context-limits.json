@@ -131,6 +131,7 @@
     ]
   },
   "noDocumentedSetting": {
+    "zcode": "Model context limits are managed by the selected ZCode provider. A portable fleet context override has not been established.",
     "cursor": "Compaction runs at about 90% of the window and Cursor offers no setting. Run /summarize at phase boundaries. 300K context is already selected.",
     "copilot": "No compaction setting; it compacts at about 80%, confirmed in session logs. Tool search is already automatic.",
     "grok": "Compaction stays at 80%. It is the server default, and raising it would pass the 200K price step in xAI's API table. Bash output is already capped at 40000 bytes.",

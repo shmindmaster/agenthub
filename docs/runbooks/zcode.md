@@ -1,6 +1,6 @@
 # Z.ai ZCode
 
-On the verified Windows host, standalone ZCode Desktop is the signed 3.18.2 release (file build 3.18.2.10443). Its bundled Agent CLI reports 0.17.1. AgentHub uses the invoking Windows user's `~/.zcode/cli` profile for this install. AutoClaw's account-specific ZCode runtime has a separate profile. [Install](https://zcode.z.ai/en/docs/install) · [ZCode source and distributions](https://github.com/zai-org/ZCode/blob/main/README.en.md)
+Standalone ZCode is a retained fleet agent. On the verified Windows host, ZCode Desktop is the signed 3.18.2 release (file build 3.18.2.10443). Its bundled Agent CLI reports 0.17.1. AgentHub uses the invoking Windows user's `~/.zcode/cli` profile for this install. AutoClaw's account-specific ZCode runtime has a separate profile. [Install](https://zcode.z.ai/en/docs/install) · [ZCode source and distributions](https://github.com/zai-org/ZCode/blob/main/README.en.md)
 
 ## Configure and verify
 
@@ -16,13 +16,15 @@ Omit `-IncludePrivateOverlay` for public AgentHub and Parallel only. Use `-Plugi
 
 The desktop and bundled CLI are the verified installation surfaces. ZCode Desktop is also the vendor's development environment, with an integrated terminal, previews and DevTools. The open-source unified distribution also provides TUI and local Web modes. Its launcher and Web mode require separate installation and acceptance. Remote Development runs tasks in a separate workspace over SSH, Docker or WSL. Remote Control and Bot Channel connect to an existing desktop session. Both routes need separate acceptance. [ZCode IDE](https://zcode.z.ai/en/docs/ADE-tools) · [ZCode distribution](https://github.com/zai-org/ZCode/blob/main/README.en.md#zcode-cli-distribution)
 
+AgentHub dispatch awaits a successful model request from a disposable workspace. The Windows desktop bundle needed explicit paths to its built-in and personal provider configuration for a headless prompt. With both paths set, the CLI started and returned "Select a model before sending a message." Marketplace and skill inventory run independently of model selection.
+
 ## MCP and accounts
 
 Use Settings → MCP for native connector inventory and use the managed marketplace plugin where it supplies the service. For additional services ZCode supports HTTP and SSE, with OAuth for compatible remote servers. Use **Open authorization** on that service's row and approve with the intended provider account, then verify the resulting tool list and make a read-only call in a fresh workspace. Local stdio uses the runtime environment. Direct user MCP entries live under `mcp.servers` in `~/.zcode/cli/config.json`. Doctor reads that user file and lists declared plugin MCP names using the native CLI. Account approval and tool invocation are separate checks. [ZCode MCP](https://zcode.z.ai/en/docs/mcp-services)
 
 For model sign-in use the desktop **Connect** action for the intended Z.ai or BigModel account, or the vendor CLI's `login` command. Parallel's official marketplace package declares its Search MCP. For the funded personal account, Parallel's current authenticated route is `https://mcp.parallel.ai/mcp?login` with OAuth enabled in the native MCP form. Keep tokens in the host or provider credential store. [ZCode model connection](https://zcode.z.ai/en/docs/configuration) · [Parallel MCP](https://parallel.ai/mcp)
 
-The Windows desktop protocol discovered the Parallel Search, AssemblyAI Docs and AssemblyAI service declarations. Separate unauthenticated endpoint checks initialized the Parallel Search and AssemblyAI Docs services and received OAuth challenges for the Parallel login endpoint and the AssemblyAI service. A bounded native connection check timed out. Funded account consent and calls from a ZCode session still require acceptance.
+The Windows desktop protocol discovered the Parallel Search, AssemblyAI Docs and AssemblyAI service declarations. Separate unauthenticated endpoint checks initialized the Parallel Search and AssemblyAI Docs services and received OAuth challenges for the Parallel login endpoint and the AssemblyAI service. A bounded native connection check timed out. The anonymous Parallel endpoint returned seven tools and its web_fetch call retrieved the expected public test page. Separate unauthenticated checks initialized Clerk, Exa and AWS; Descript, Linear, Notion and Devin returned authorization challenges. Funded Parallel consent and tool calls from a ZCode session still require acceptance.
 
 ## Browser
 

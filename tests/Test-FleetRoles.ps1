@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
-Behavior tests for the six-host authority contract (SH-4669): the real registry
-satisfies it, and synthetic registries that add an unknown role, a seventh
+Behavior tests for the retained-host authority contract (SH-4669): the real registry
+satisfies it, and synthetic registries that add an unknown role, an extra
 retained host, a mis-owned companion, a demoted family or a missing role are rejected.
 A retired-labelled host may be moved back to active (owner direction 2026-11-13: roles are labels, not blocks).
 Run: pwsh -NoProfile -File tests/Test-FleetRoles.ps1
@@ -27,7 +27,7 @@ Report 'unknown role is rejected' (($e -join ';') -match "unknown fleetRole 'fri
 
 $r = New-Registry; (Find-Host $r 'cline').fleetRole = 'retained'
 $e = @(Test-AgentFleetRoles -Agents $r)
-Report 'seventh retained host is rejected' (($e -join ';') -match 'not one of the six families: cline')
+Report 'host outside retained roster is rejected' (($e -join ';') -match 'outside the retained roster: cline')
 
 $r = New-Registry; (Find-Host $r 'kilo').fleetRole = 'supported'
 $e = @(Test-AgentFleetRoles -Agents $r)
@@ -39,6 +39,13 @@ Report 'devin is recorded as retained' ([string](Find-Host $r 'devin').fleetRole
 (Find-Host $r 'devin').fleetRole = 'supported'
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'demoting devin is rejected' (($e -join ';') -match 'not marked retained: devin')
+
+$r = New-Registry
+$zcode = Find-Host $r 'zcode'
+Report 'standalone zcode is an active retained host' ($zcode.fleetRole -eq 'retained' -and $zcode.status -eq 'active')
+$zcode.fleetRole = 'supported'
+$e = @(Test-AgentFleetRoles -Agents $r)
+Report 'demoting zcode is rejected' (($e -join ';') -match 'not marked retained: zcode')
 
 $r = New-Registry; (Find-Host $r 'opencode-desktop').fleetOwner = 'cline'
 $e = @(Test-AgentFleetRoles -Agents $r)
