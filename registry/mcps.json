@@ -42,7 +42,8 @@
         },
         "codex": {
           "node_repl": "Written by Codex itself; its bundled browser, chrome and computer-use plugins need it.",
-          "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep the vendor AWS plugin and disable its bundled aws-mcp through plugin-scoped MCP policy when the hosted connection owns this server."
+          "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep the vendor AWS plugin and disable its bundled aws-mcp through plugin-scoped MCP policy when the hosted connection owns this server.",
+          "devin": "No vendor plugin carries the official Devin MCP server. Preserve the owner-configured remote entry using the native Codex http_headers_helper with AgentHub's 1Password-backed Get-DevinMcpHeaders.ps1. Fleet sync never generates this entry."
         },
         "cursor": {
           "parallel": "Use Parallel's official hosted MCP through Cursor's native remote MCP configuration and keep the anonymous tool subset.",
@@ -634,13 +635,14 @@
       "id": "devin",
       "name": "Devin (official MCP: sessions, playbooks, knowledge, DeepWiki)",
       "scope": "owner-configured",
-      "scopeNote": "Not global-default, so a default-scope Sync-AgentHub run never writes it: the sync's Claude writer has no headersHelper field, and a bare url entry would only fail authentication. activationPolicy.pluginOnly.hosts.claude.devin keeps the owner-configured entry from being pruned. A -ScopeProfile all run would add a bare entry where none exists; configure the helper first.",
+      "scopeNote": "Fleet sync skips owner-configured entries in every scope, including all. The Claude and Codex plugin-only exceptions preserve existing native helper entries during pruning.",
       "transport": "http",
       "activationMode": "shared-remote",
       "url": "https://mcp.devin.ai/mcp",
       "credentialPolicy": "native-headers-helper",
       "headersHelper": {
         "claude": "pwsh -NoProfile -NonInteractive -File \"{registryRoot}/packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1\"",
+        "codex": "pwsh -NoProfile -NonInteractive -File \"{registryRoot}/packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1\"",
         "claudeNote": "Claude Code headersHelper (https://code.claude.com/docs/en/mcp#use-dynamic-headers-for-custom-authentication): the command prints {\"Authorization\": \"Bearer <key>\", \"X-Org-Id\": \"<org>\"} as JSON. {registryRoot} is the AgentHub checkout; give the host an absolute path. The helper reads dispatchPolicy.devin-cloud.cloudBudgetAuthorization (keyOpRef, orgId) and refuses with exit 3 when the policy is disabled or no key resolves."
       },
       "protocol": {
@@ -653,9 +655,10 @@
         "id": "mcp-registry"
       },
       "hosts": [
-        "claude"
+        "claude",
+        "codex"
       ],
-      "hostScopeNote": "Claude only for now. Codex documents an equivalent http_headers_helper, but the sync's Codex writer emits only bearer_token_env_var and env_http_headers, which would require a key-bearing environment variable at host launch; owner direction 2026-11-19 forbids that, so Codex is left out until a helper-aware entry is configured. Other hosts have no documented dynamic-header hook here and stay off.",
+      "hostScopeNote": "Claude and Codex preserve an owner-configured native dynamic header hook. Use headersHelper for Claude and http_headers_helper for Codex. Other hosts remain outside this scope.",
       "notes": "Official Devin MCP server (https://docs.devin.ai/work-with-devin/devin-mcp): Streamable HTTP at https://mcp.devin.ai/mcp, bearer service-user key (cog_). An org-scoped service-user key resolves its organization automatically; the helper still sends X-Org-Id org-d986482cea0c49689c6c9a590ecbdf7b so an enterprise key or PAT targets the same org. Tools cover session create/search/interact/gather, playbooks, knowledge, schedules, integrations, Devin Review and DeepWiki. Spend guard: the MCP client receives the raw key, so the ACU cap and the concurrency cap in dispatchPolicy.devin-cloud are enforced only by the dispatcher adapter, never on this lane. Sessions created through devin_session_create must pass max_acu_limit 10 and the agenthub tag by convention. Beyond that, the documented Devin-side controls are organization-level ACU limits (https://docs.devin.ai/admin/billing/org-acu-limits), user-level ACU limits (https://docs.devin.ai/admin/billing/user-acu-limits), both monthly caps, and the v3 Organization max_session_acu_limit field, a per-session limit on the organization. The owner has not yet set an org-level per-session limit. Nothing in AgentHub enforces any of these on MCP-created sessions. Deployed 2026-11-19 as a user-scope Claude entry with the headersHelper command; see protocol.verification. The service-user key expires 2027-02-17."
     }
   ]

@@ -2220,8 +2220,10 @@ $persistentExceptionServers = @($mcpsReg.mcpServers | Where-Object {
 })
 $candidateServers = @(($scopedCandidateServers + $persistentExceptionServers) |
     Sort-Object -Property id -Unique | Where-Object {
-        [string]$_.activationMode -ne 'on-demand-local' -or
-        (Resolve-McpAliasKey ([string]$_.id)) -in $persistedOnDemandLocalMcpKeys
+        # The generic writers cannot reproduce native authentication helpers.
+        [string]$_.scope -ne 'owner-configured' -and (
+            [string]$_.activationMode -ne 'on-demand-local' -or
+            (Resolve-McpAliasKey ([string]$_.id)) -in $persistedOnDemandLocalMcpKeys)
     })
 $optInExceptionServers = @($mcpsReg.mcpServers | Where-Object {
     (Resolve-McpAliasKey ([string]$_.id)) -in $optInDisabledLocalMcpKeys
