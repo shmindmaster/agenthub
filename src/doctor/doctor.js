@@ -11,6 +11,8 @@ import { listRuleFiles, listSkills, readInstructionFile } from './files.js';
 
 export const REPORT_SCHEMA_VERSION = 1;
 const LARGE_INSTRUCTIONS_TOKENS = 8000;
+/** @type {Record<string, string>} */
+const MCP_CONFIG_OWNERS = { 'cursor-agent': 'cursor', 'opencode-desktop': 'opencode' };
 
 /** @typedef {'high' | 'warn' | 'info'} Severity */
 
@@ -454,14 +456,20 @@ function compareWithRegistry(hosts, registry, findings) {
   const resolveAlias = (/** @type {string} */ id) => (aliases[id] ?? id).toLowerCase();
   const servers = Array.isArray(registry.mcps.mcpServers) ? registry.mcps.mcpServers : [];
   const known = new Set(servers.map((/** @type {any} */ s) => resolveAlias(String(s.id))));
+  const pluginOnlyHosts = registry.mcps.activationPolicy?.pluginOnly?.hosts ?? {};
   for (const host of hosts) {
     if (!registry.activeHosts.has(host.id) || !host.mcp.sources.length) continue;
     const have = new Set(host.mcp.servers.map((s) => resolveAlias(s.name)));
+    const owner = MCP_CONFIG_OWNERS[host.id] ?? host.id;
+    const direct = Object.hasOwn(pluginOnlyHosts, owner)
+      ? new Set(Object.keys(pluginOnlyHosts[owner] ?? {}).map(resolveAlias))
+      : null;
     const expected = servers.filter((/** @type {any} */ s) => {
       if ((s.scope ?? 'global-default') !== 'global-default') return false;
       if (s.activationMode === 'on-demand-local') return false;
-      if (Array.isArray(s.hosts) && s.hosts.length && !s.hosts.includes(host.id)) return false;
-      if (s.pluginOwnersByHost && s.pluginOwnersByHost[host.id]) return false;
+      if (Array.isArray(s.hosts) && s.hosts.length && !s.hosts.includes(owner)) return false;
+      if (s.pluginOwnersByHost && s.pluginOwnersByHost[owner]) return false;
+      if (direct && !direct.has(resolveAlias(String(s.id)))) return false;
       return true;
     });
     /** @type {string[]} */
