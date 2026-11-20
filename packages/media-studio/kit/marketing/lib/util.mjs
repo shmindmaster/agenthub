@@ -24,7 +24,6 @@ export function writeJson(path, value) {
   writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
   renameSync(tmp, path);
 }
-export const ensureDir = (dir) => { mkdirSync(dir, { recursive: true }); return dir; };
 export const exists = existsSync;
 export const round = (n, d = 3) => Math.round(n * 10 ** d) / 10 ** d;
 export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));

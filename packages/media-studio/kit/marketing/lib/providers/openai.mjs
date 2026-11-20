@@ -148,8 +148,6 @@ export const OPENAI_MODELS = {
   realtimeSpeechPremium: 'gpt-realtime-2.1',
   moderation: 'omni-moderation-latest',
 };
-/** Built-in voices. OpenAI recommends marin and cedar for the best quality; audition against Azure DragonHD. */
-export const OPENAI_VOICES = ['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
 
 /**
  * Text generation with the Responses API. `stable` is the cacheable prefix (brand guide, product facts, rules, output
