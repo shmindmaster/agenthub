@@ -510,8 +510,8 @@
       "id": "amp",
       "fleetRole": "supported",
       "name": "Sourcegraph Amp",
-      "version": "0.0.1795118441-g890419",
-      "versionObserved": "2026-11-20: verified using the registered launcher version command.",
+      "version": "0.0.1795176040-g0dd132",
+      "versionObserved": "2026-11-20: verified using the registered launcher after the WinGet upgrade.",
       "executable": "{localData}/Microsoft/WinGet/Links/amp.exe",
       "executableNote": "WinGet supplies the stable Windows executable alias.",
       "nativePaths": {
@@ -549,6 +549,11 @@
       "versionObserved": "2026-11-20: verified using the registered launcher version command.",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
       "platformPaths": {
+        "windows": {
+          "nativePaths": {
+            "desktopExecutable": "{localData}/Programs/Devin/Devin.exe"
+          }
+        },
         "darwin": {
           "nativePaths": {
             "config": "{userHome}/.config/devin/config.json",
@@ -735,7 +740,7 @@
       "notes": "2026-10-21 reconciliation: the recorded ~/.codeium/windsurf configuration tree is now absent; the earlier configuration inventory below is historical. Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%/Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch.",
       "headlessDispatchNote": "Windsurf routes to the installed Devin CLI; dispatch and autonomy restrictions on Devin also apply.",
       "inactiveNote": "Moved to inactiveAgents 2026-10-22: no windsurf executable on PATH or under %LOCALAPPDATA%/Programs and no ~/.codeium directory (hostInventory.notInstalled already recorded this). An active entry made Sync-AgentHub report drift and create ~/.codeium/windsurf/mcp_config.json for a host that is not installed. Dispatch of `windsurf` still routes to Devin per the dispatcher. Reactivate after an install is verified.",
-      "renamedNote": "Checked 2026-11-04: Windsurf is now Devin Desktop. Version 3.11.238 is installed at %LOCALAPPDATA%/Programs/Devin/Devin.exe with its own CLI, and both read %APPDATA%/devin. Do not reactivate this row; the `devin` row is the host.",
+      "renamedNote": "Devin Desktop and the CLI share the Devin Local harness and customization discovery. The devin row owns the executable bindings, and fleet-profile.json records Devin Desktop as a separate surface.",
       "retiredNote": "2026-11-04: The Windsurf row stays inactive because Devin Desktop is tracked under the devin row."
     },
     {
