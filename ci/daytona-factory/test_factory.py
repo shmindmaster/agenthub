@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -124,8 +125,14 @@ class BudgetTests(unittest.TestCase):
                     factory.load_policy(path)
 
     def test_worst_case_reserves_the_retry(self):
-        hourly = 4 * 0.0504 + 8 * 0.0162 + 5 * 0.000108
+        # Daytona v2: 2 cores at the top on-demand core rate, 8 GiB, free ephemeral disk.
+        hourly = 2 * 0.164 + 8 * 0.0113
         self.assertAlmostEqual(factory.worst_case_usd(self.policy), round(hourly * 0.5 * 2, 4))
+        v0 = factory.load_policy(provider="daytona-v0")
+        hourly = 4 * 0.0504 + 8 * 0.0162 + 5 * 0.000108
+        self.assertAlmostEqual(factory.worst_case_usd(v0), round(hourly * 0.5 * 2, 4))
+        self.assertEqual((v0["max_job_minutes"], v0["max_concurrent_workers"], v0["gpu"]), (30, 1, 0))
+        self.assertIn("daytona.com/pricing", self.policy["rates_source"])
 
     def test_preflight_fails_closed(self):
         for credits, fallback in ((None, "true"), (0, "true"), (200, "false"), (200, None),
@@ -244,7 +251,54 @@ class BudgetTests(unittest.TestCase):
         self.assertIn("pnpm install", build)
         self.assertIn("corepack enable pnpm", dockerfile)
 
-    def test_daytona_provider_calls_v0_without_an_api_url(self):
+    def test_daytona_provider_uses_v2_search_images_and_a_delete_lifecycle(self):
+        client = mock.MagicMock()
+        root = SimpleNamespace(Daytona=mock.Mock(return_value=client),
+                               DaytonaConfig=mock.Mock(side_effect=lambda **kw: kw))
+        v2 = SimpleNamespace(Resources=lambda **kw: kw)
+        errors = SimpleNamespace(NotFoundError=LookupError)
+        live = SimpleNamespace(labels={"run": "1"}, state="started", refresh_data=mock.Mock())
+        gone = SimpleNamespace(labels={"run": "1"}, state="destroyed", refresh_data=mock.Mock())
+        missing = SimpleNamespace(labels={"run": "1"}, state="started",
+                                  refresh_data=mock.Mock(side_effect=LookupError))
+        client.v2.search.side_effect = [SimpleNamespace(items=[live, gone], next_cursor="c"),
+                                        SimpleNamespace(items=[missing], next_cursor=None)]
+        modules = {"daytona": root, "daytona.v2": v2, "daytona.v2.errors": errors}
+        with mock.patch.dict(sys.modules, modules), \
+                mock.patch.dict(factory.os.environ, {"DAYTONA_FACTORY_API_KEY": "test"}):
+            provider = factory.make_provider("daytona", factory.load_policy())
+            self.assertEqual(provider.find({"run": "1"}), [live])
+            _, detail = provider.create("render", "w", {"run": "1"}, 10, None)
+        root.DaytonaConfig.assert_called_once_with(api_key="test")
+        self.assertEqual(client.v2.search.call_args_list[1].kwargs["cursor"], "c")
+        client.v2.list.assert_not_called()
+        client.v0.create.assert_not_called()
+        (image,), kwargs = client.v2.create.call_args
+        self.assertEqual((image, detail["image"]), (factory.RENDER_IMAGE, factory.RENDER_IMAGE))
+        self.assertEqual(kwargs["lifecycle_policy"], {"timeout_seconds": 600, "on_timeout": "delete"})
+        self.assertEqual(kwargs["resources"]["cpu_max"], 2)
+        self.assertFalse(kwargs["spot"])
+
+    def test_daytona_v2_worker_maps_timeouts_bytes_and_bounded_downloads(self):
+        box = mock.MagicMock()
+        worker = factory.DaytonaWorker(box)
+        box.exec.return_value = SimpleNamespace(exit_code=3, reason="exited", output="log")
+        errors = SimpleNamespace(ProcessExecutionTimeoutError=TimeoutError)
+        with mock.patch.dict(sys.modules, {"daytona.v2.errors": errors}):
+            self.assertEqual(worker.exec("x", 10), (3, "log"))
+            self.assertEqual(box.exec.call_args.kwargs["execution_timeout"], 10)
+            box.exec.return_value = SimpleNamespace(exit_code=None, reason="timed_out", output="")
+            self.assertEqual(worker.exec("x", 10)[0], 124)
+            box.exec.side_effect = TimeoutError
+            self.assertEqual(worker.exec("x", 10)[0], 124)
+        worker.upload(b"data", "/w/a")
+        box.fs.write_bytes.assert_called_once_with("/w/a", b"data")
+        worker.download("/w/a", Path("a"), 0)
+        signal = box.fs.download_file.call_args.kwargs["cancel"]
+        time.sleep(1.05)
+        self.assertTrue(signal.is_set())
+
+    def test_daytona_v0_fallback_calls_v0_without_an_api_url(self):
         client = mock.MagicMock()
         root = SimpleNamespace(Daytona=mock.Mock(return_value=client),
                                DaytonaConfig=mock.Mock(side_effect=lambda **kw: kw))
@@ -254,7 +308,7 @@ class BudgetTests(unittest.TestCase):
         modules = {"daytona": root, "daytona.v0": v0}
         with mock.patch.dict(sys.modules, modules), \
                 mock.patch.dict(factory.os.environ, {"DAYTONA_FACTORY_API_KEY": "test"}):
-            provider = factory.DaytonaProvider()
+            provider = factory.make_provider("daytona-v0", factory.load_policy(provider="daytona-v0"))
             provider.find({"run": "1"})
             provider.create("build", "w", {"run": "1"}, 10, None)
         root.DaytonaConfig.assert_called_once_with(api_key="test")

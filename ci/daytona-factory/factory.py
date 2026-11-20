@@ -36,16 +36,21 @@ PROBES = ("none", "fail", "hang")
 WORK = "/tmp/factory"
 BUILD_SNAPSHOT = "factory-node-build-v1"
 RENDER_SNAPSHOT = "rexa-remotion-4-0-517"
+# Daytona v2 images built from the Dockerfiles beside this file (see README).
+BUILD_IMAGE = "factory-node-build-v2"
+RENDER_IMAGE = "rexa-remotion-4-0-517-v2"
 LOCAL_IMAGE = "factory-local-worker"
 PURPOSE = "daytona-factory"
 GONE = {"destroyed", "destroying"}
+V2_LIVE = ("queued", "creating", "starting", "started", "pausing", "paused", "stopping",
+           "stopped", "error")
 
 
 class Cancelled(RuntimeError):
     pass
 
 
-# Set by the signal handler: the Daytona SDK re-raises a Cancelled raised inside a blocking
+# Set by the signal handler: the Daytona v0 SDK re-raises a Cancelled raised inside a blocking
 # request as DaytonaError, so the exception type alone cannot identify a cancelled run.
 CANCEL_SIGNAL = []
 
@@ -54,8 +59,11 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def load_policy(path=POLICY_FILE):
+def load_policy(path=POLICY_FILE, provider="daytona"):
+    """Daytona v2 rates and limits are the default; the v0 fallback overlays its own block."""
     policy = json.loads(Path(path).read_text(encoding="utf-8"))
+    if provider == "daytona-v0":
+        policy = {**policy, **policy["v0"]}
     if policy["gpu"] != 0 or policy["max_concurrent_workers"] != 1:
         raise ValueError("Budget policy must keep zero GPU and one concurrent worker.")
     if not 0 < policy["max_job_minutes"] <= 30 or policy["transient_retries"] > 1:
@@ -280,7 +288,139 @@ def verify_receipt(root, app, revision, suite="demo", factory_commit=None):
         return False
 
 
+class DeadlineSignal:
+    """A transfer cancel signal (``is_set``) that fires once a deadline passes."""
+
+    def __init__(self, seconds):
+        self.end = time.monotonic() + seconds
+
+    def is_set(self):
+        return time.monotonic() >= self.end
+
+
+def daytona_client():
+    from daytona import Daytona, DaytonaConfig
+    return Daytona(DaytonaConfig(api_key=os.environ["DAYTONA_FACTORY_API_KEY"]))
+
+
+def daytona_transient(error):
+    # SDK 2.x shares these bases between the v0 and v2 namespaces.
+    from daytona import (DaytonaConnectionError, DaytonaRateLimitError,
+                         DaytonaServiceUnavailableError, DaytonaTimeoutError)
+    return isinstance(error, (DaytonaRateLimitError, DaytonaTimeoutError, DaytonaConnectionError,
+                              DaytonaServiceUnavailableError, ConnectionError))
+
+
 class DaytonaWorker:
+    """A Daytona v2 sandbox."""
+
+    def __init__(self, box):
+        self.box = box
+        self.id = box.id
+
+    def resources(self):
+        box = self.box
+        return {"cpu": box.cpu_max or box.cpu, "gpu": getattr(box, "gpu", None) or 0,
+                "memory_gib": box.memory_max or box.memory, "disk_gib": box.disk_max or box.disk}
+
+    def exec(self, command, seconds):
+        from daytona.v2.errors import ProcessExecutionTimeoutError
+        try:
+            # execution_timeout makes the sandbox kill the process tree; timeout bounds the wait.
+            result = self.box.exec(command, timeout=seconds + 30, execution_timeout=max(1, int(seconds)))
+        except ProcessExecutionTimeoutError:
+            return 124, ""
+        if result.exit_code is None or result.reason == "timed_out":
+            return 124, result.output or ""
+        return result.exit_code, result.output or ""
+
+    def upload(self, source, destination):
+        if isinstance(source, bytes):
+            self.box.fs.write_bytes(destination, source)
+        else:
+            self.box.fs.upload_file(str(source), destination)
+
+    def download(self, source, destination, seconds):
+        cancel = DeadlineSignal(max(1, seconds))
+        if not source.endswith(".log"):
+            self.box.fs.download_file(source, str(destination), cancel=cancel)
+            return
+        # The v2 sandbox file proxy answers 403 for any path ending in ".log"; read a hard link.
+        staged = f"{source}.export"
+        code, _ = self.exec(f"ln -f {shlex.quote(source)} {shlex.quote(staged)}", 15)
+        if code != 0:
+            raise RuntimeError(f"Could not stage {Path(source).name} for download")
+        try:
+            self.box.fs.download_file(staged, str(destination), cancel=cancel)
+        finally:
+            self.exec(f"rm -f {shlex.quote(staged)}", 15)
+
+    def signed_preview(self, port, ttl):
+        link = self.box.ports.signed_preview_link(port, expires_in_seconds=ttl)
+        return link.url, self.box.ports.expire_signed_preview_links
+
+    def delete(self):
+        self.box.delete(timeout=180)
+
+
+class DaytonaProvider:
+    """Daytona v2 (``client.v2``): images, lifecycle-policy deletion and indexed search."""
+    name = "daytona"
+    platform = "v2"
+    metered = True
+    image = BUILD_IMAGE
+
+    def __init__(self, policy):
+        self.client = daytona_client()
+        self.limits = policy["worker_limits"]
+
+    def find(self, labels):
+        # Search is eventually consistent, so every hit is re-read before it counts as live.
+        from daytona.v2.errors import NotFoundError
+        hits, cursor = [], None
+        while True:
+            page = self.client.v2.search(labels=labels, states=V2_LIVE, limit=100, cursor=cursor)
+            hits += page.items
+            cursor = page.next_cursor
+            if not cursor:
+                break
+        live = []
+        for box in hits:
+            try:
+                box.refresh_data()
+            except NotFoundError:
+                continue
+            if all((box.labels or {}).get(k) == v for k, v in labels.items()) \
+                    and str(box.state).lower() not in GONE:
+                live.append(box)
+        return live
+
+    def remove(self, box):
+        from daytona.v2.errors import NotFoundError
+        try:
+            box.delete(timeout=180)
+        except NotFoundError:
+            pass
+
+    def create(self, role, name, labels, ttl_minutes, cache_key):
+        from daytona.v2 import Resources
+        image = RENDER_IMAGE if role == "render" else BUILD_IMAGE
+        size = self.limits
+        box = self.client.v2.create(
+            image, name=name, labels=labels, user="root", spot=False,
+            resources=Resources(cpu=size["cpu"], cpu_max=size["cpu"], memory=size["memory_gib"],
+                                memory_max=size["memory_gib"], disk=size["disk_gib"],
+                                disk_max=size["disk_gib"]),
+            # The platform deletes the sandbox at the job deadline even if this runner dies.
+            lifecycle_policy={"timeout_seconds": ttl_minutes * 60, "on_timeout": "delete"},
+            wait_seconds=180)
+        box.refresh_data()  # the create response omits the allocated resources
+        return DaytonaWorker(box), {"image": image, "cache": None}
+
+    transient = staticmethod(daytona_transient)
+
+
+class DaytonaV0Worker:
     def __init__(self, box):
         self.box = box
         self.id = box.id
@@ -304,17 +444,23 @@ class DaytonaWorker:
         # The pinned SDK reads the timeout positionally; 0 would mean no timeout.
         self.box.fs.download_file(source, str(destination), max(1, int(seconds)))
 
+    def signed_preview(self, port, ttl):
+        link = self.box.create_signed_preview_url(port, expires_in_seconds=ttl)
+        return link.url, lambda: self.box.expire_signed_preview_url(port, link.token)
+
     def delete(self):
         self.box.delete(wait=True)
 
 
-class DaytonaProvider:
-    name = "daytona"
+class DaytonaV0Provider:
+    """Fallback to Daytona v0 (``client.v0``) snapshots: ``--provider daytona-v0``."""
+    name = "daytona-v0"
+    platform = "v0"
     metered = True
+    image = BUILD_SNAPSHOT
 
-    def __init__(self):
-        from daytona import Daytona, DaytonaConfig
-        self.client = Daytona(DaytonaConfig(api_key=os.environ["DAYTONA_FACTORY_API_KEY"]))
+    def __init__(self, policy):
+        self.client = daytona_client()
 
     def find(self, labels):
         # Deleted sandboxes stay listed while Daytona destroys them; they no longer run.
@@ -337,12 +483,9 @@ class DaytonaProvider:
             snapshot=snapshot, name=name, labels=labels, public=False,
             auto_stop_interval=ttl_minutes, auto_delete_interval=0, ttl_minutes=ttl_minutes,
         ), timeout=180)
-        return DaytonaWorker(box), {"snapshot": snapshot, "cache": None}
+        return DaytonaV0Worker(box), {"snapshot": snapshot, "cache": None}
 
-    @staticmethod
-    def transient(error):
-        from daytona.v0 import DaytonaRateLimitError, DaytonaTimeoutError
-        return isinstance(error, (DaytonaRateLimitError, DaytonaTimeoutError, ConnectionError))
+    transient = staticmethod(daytona_transient)
 
 
 def docker(*args, check=True, timeout=120):
@@ -388,6 +531,7 @@ class LocalWorker:
 class LocalProvider:
     """Self-hosted Docker stand-in: same scripts, limits, labels and deadline; unmetered."""
     name = "local"
+    platform = "docker"
     metered = False
 
     def __init__(self, policy):
@@ -421,8 +565,11 @@ class LocalProvider:
         return False
 
 
+PROVIDERS = {"daytona": DaytonaProvider, "daytona-v0": DaytonaV0Provider, "local": LocalProvider}
+
+
 def make_provider(name, policy):
-    return DaytonaProvider() if name == "daytona" else LocalProvider(policy)
+    return PROVIDERS[name](policy)
 
 
 def remote(box, command, seconds):
@@ -554,8 +701,8 @@ class Job:
                 self.export(box, record, ("tests.log",) if cancelled else EXPORTS)
 
     def preview(self, box):
-        if self.provider.name == "daytona":
-            return preview(box.box, self.args.app)
+        if self.provider.metered:
+            return preview(box, self.args.app)
         body = remote(box, "curl -fsS http://127.0.0.1:4173/", 30)
         if self.args.app not in body.lower():
             raise RuntimeError("The local preview did not return the app shell.")
@@ -565,9 +712,12 @@ class Job:
         args = self.args
         with self.worker("render", "render") as (box, record):
             try:
-                if self.provider.name == "daytona":
-                    remote(box, f"mkdir -p {WORK}/public {WORK}/out && ln -s /opt/base/node_modules "
-                                f"{WORK}/node_modules", 30)
+                if self.provider.metered:
+                    # The v2 image ships node_modules as one archive (see render.Dockerfile).
+                    remote(box, f"mkdir -p {WORK}/public {WORK}/out && "
+                                f"if [ -f /opt/base/node_modules.tar.gz ]; then "
+                                f"tar -xzf /opt/base/node_modules.tar.gz -C /opt/base; fi && "
+                                f"ln -s /opt/base/node_modules {WORK}/node_modules", 120)
                     box.upload(args.output / "capture.webm", f"{WORK}/public/capture.webm")
                     box.upload(HERE / "render.tsx", f"{WORK}/index.tsx")
                     box.upload((HERE / "render.sh").read_bytes(), f"{WORK}/render.sh")
@@ -593,21 +743,21 @@ def preview(box, app):
     ttl = 120
     port = 4173
     opener = build_opener(NoRedirect())
-    link = box.create_signed_preview_url(port, expires_in_seconds=ttl)
+    url, revoke = box.signed_preview(port, ttl)
     try:
-        parsed = urlsplit(link.url)
+        parsed = urlsplit(url)
         if parsed.scheme != "https" or parsed.hostname is None:
             raise RuntimeError("Daytona returned an invalid HTTPS preview URL.")
-        with opener.open(link.url, timeout=20) as response:
+        with opener.open(url, timeout=20) as response:
             if response.status != 200 or app.encode() not in response.read(200_000).lower():
                 raise RuntimeError("The signed preview did not return the app shell.")
     except HTTPError as error:
         raise RuntimeError(f"Signed preview returned HTTP {error.code}.") from None
     finally:
-        box.expire_signed_preview_url(port, link.token)
+        revoke()
 
     try:
-        with opener.open(link.url, timeout=15):
+        with opener.open(url, timeout=15):
             raise RuntimeError("The revoked preview still returned content.")
     except HTTPError as error:
         if error.code not in {302, 401, 403, 404, 410}:
@@ -661,6 +811,7 @@ def run(args, policy):
     receipt = {"schema": 2, "status": "running", "app": args.app, "suite": args.suite,
                "probe": args.probe, "commit": args.sha, "factory_commit": args.factory_commit,
                "run": args.run, "run_url": run_url(), "provider": provider.name,
+               "platform": provider.platform,
                "lockfiles": locks, "policy": {k: policy[k] for k in (
                    "max_job_minutes", "transient_retries", "gpu", "worker_limits",
                    "max_concurrent_workers")},
@@ -706,14 +857,16 @@ def cleanup(args, policy):
     provider = make_provider(args.provider, policy)
     labels = {"purpose": PURPOSE, "run": args.run}
     found = provider.find(labels)
+    # Record states before deletion: a v2 sandbox object reflects its state after delete().
+    seen = [{"id": getattr(item, "id", item),
+             "state": str(getattr(getattr(item, "state", None), "value", getattr(item, "state", None)))}
+            for item in found]
     for item in found:
         provider.remove(item)
     remaining = provider.find(labels)
     report = {"run": args.run, "provider": provider.name, "checked_at": now(),
               "found_before_sweep": len(found), "remaining_after_sweep": len(remaining),
-              "found": [{"id": getattr(item, "id", item),
-                         "state": str(getattr(getattr(item, "state", None), "value", None))}
-                        for item in found],
+              "found": seen,
               "active_factory_workers": len(provider.find({"purpose": PURPOSE}))}
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "cleanup.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -731,7 +884,8 @@ def main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--suite", choices=SUITES, default="demo")
     parser.add_argument("--probe", choices=PROBES, default="none")
-    parser.add_argument("--provider", choices=("daytona", "local"), default="daytona")
+    parser.add_argument("--provider", choices=tuple(PROVIDERS), default="daytona",
+                        help="daytona = Daytona v2; daytona-v0 = the v0 fallback; local = Docker")
     parser.add_argument("--run", default=os.getenv("GITHUB_RUN_ID"))
     parser.add_argument("--budget", type=Path, help="Preflight reservation written by 'preflight'.")
     parser.add_argument("--credits-usd", type=float)
@@ -744,7 +898,7 @@ def main():
     parser.add_argument("--deadline-epoch", type=int, help="Job-level deadline (Unix seconds).")
     parser.add_argument("--factory-commit", default=os.getenv("GITHUB_SHA"))
     args = parser.parse_args()
-    policy = load_policy()
+    policy = load_policy(provider=args.provider)
 
     if args.command == "cleanup":
         return cleanup(args, policy)

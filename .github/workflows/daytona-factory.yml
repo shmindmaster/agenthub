@@ -27,6 +27,11 @@ on:
         description: Build again even when a verified artifact exists
         type: boolean
         default: false
+      platform:
+        description: Daytona platform; v0 is the fallback to the v0 snapshots
+        type: choice
+        options: [v2, v0]
+        default: v2
 
 permissions:
   contents: read
@@ -48,6 +53,7 @@ jobs:
       SOURCE_SHA: ${{ inputs.sha }}
       SUITE: ${{ inputs.suite }}
       PROBE: ${{ inputs.probe }}
+      PROVIDER: ${{ inputs.platform == 'v0' && 'daytona-v0' || 'daytona' }}
     steps:
       - name: Start the job clock
         run: |
@@ -131,7 +137,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             --jq '{id, status, run_attempt, created_at}' > "$RUNNER_TEMP/current-run.json"
           mkdir -p "$OUTPUT_DIR"
-          python ci/daytona-factory/factory.py preflight --credits-usd "$CREDITS_USD" \
+          python ci/daytona-factory/factory.py preflight --provider "$PROVIDER" --credits-usd "$CREDITS_USD" \
             --cash-fallback-disabled "$CASH_FALLBACK_DISABLED" --runs "$RUNNER_TEMP/batch-runs.jsonl" \
             --current-run "$RUNNER_TEMP/current-run.json" --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --batch-start "$BATCH_START" --output "$RUNNER_TEMP/budget.json"
@@ -144,8 +150,8 @@ jobs:
           DAYTONA_FACTORY_API_KEY: ${{ secrets.DAYTONA_FACTORY_API_KEY }}
         run: |
           set -euo pipefail
-          python -u ci/daytona-factory/factory.py run --app "$APP" --sha "$SOURCE_SHA" --repo "$SOURCE_DIR" \
-            --output "$OUTPUT_DIR" --suite "$SUITE" --probe "$PROBE" --budget "$RUNNER_TEMP/budget.json" \
+          python -u ci/daytona-factory/factory.py run --provider "$PROVIDER" --app "$APP" --sha "$SOURCE_SHA" \
+            --repo "$SOURCE_DIR" --output "$OUTPUT_DIR" --suite "$SUITE" --probe "$PROBE" --budget "$RUNNER_TEMP/budget.json" \
             --deadline-epoch "$JOB_DEADLINE"
           python ci/daytona-factory/factory.py verify --app "$APP" --sha "$SOURCE_SHA" --suite "$SUITE" --output "$OUTPUT_DIR"
       - name: Store private artifacts
@@ -181,6 +187,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: daytona-factory
     timeout-minutes: 10
+    env:
+      PROVIDER: ${{ inputs.platform == 'v0' && 'daytona-v0' || 'daytona' }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -195,7 +203,7 @@ jobs:
           DAYTONA_FACTORY_API_KEY: ${{ secrets.DAYTONA_FACTORY_API_KEY }}
         run: |
           set -euo pipefail
-          python -u ci/daytona-factory/factory.py cleanup --run "$GITHUB_RUN_ID" --output "$RUNNER_TEMP/cleanup"
+          python -u ci/daytona-factory/factory.py cleanup --provider "$PROVIDER" --run "$GITHUB_RUN_ID" --output "$RUNNER_TEMP/cleanup"
           printf '### Cleanup\n\n```json\n%s\n```\n' "$(cat "$RUNNER_TEMP/cleanup/cleanup.json")" >> "$GITHUB_STEP_SUMMARY"
       - name: Keep the cleanup report
         if: always()
