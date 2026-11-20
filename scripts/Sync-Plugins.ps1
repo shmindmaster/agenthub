@@ -538,8 +538,10 @@ if ($Apply) {
         # fresh so a surface whose owner install just verified is skipped.
         if (-not (Test-PluginRowPending $row)) { continue }
         if ((Get-RowNativeHost $row) -eq 'vscode-insiders') {
+            if (-not $row.detail) {
+                $row.detail = 'Register the package through chat.pluginLocations or its approved Copilot catalog.'
+            }
             $row.status = 'blocked'
-            $row.detail = 'Register the package through chat.pluginLocations or its approved Copilot catalog.'
             continue
         }
         $entry = [pscustomobject]@{ host=$row.host; plugin=$row.plugin; previous=$row.observed; previousPath=$row.previousPath; desired=$row.expected; sourceHash=$row.sourceHash; backup=$null; status='started' }
