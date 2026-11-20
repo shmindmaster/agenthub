@@ -225,7 +225,11 @@ class DaytonaWorker:
                 "memory_gib": self.box.memory, "disk_gib": self.box.disk}
 
     def exec(self, command, seconds):
-        result = self.box.process.exec(command, timeout=seconds)
+        from daytona import DaytonaProcessExecutionTimeoutError
+        try:
+            result = self.box.process.exec(command, timeout=seconds)
+        except DaytonaProcessExecutionTimeoutError:
+            return 124, ""
         return result.exit_code, result.result or ""
 
     def upload(self, source, destination):

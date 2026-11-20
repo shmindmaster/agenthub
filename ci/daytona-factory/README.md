@@ -29,8 +29,10 @@ for a transient worker-creation error. Before any metered launch the workflow
 reserves the worst case (largest allowed worker for the whole lifetime, times
 the retry) for this run and every earlier run since `DAYTONA_PILOT_BATCH_START`.
 The reservation must fit the smaller of $10 and 10% of
-`DAYTONA_ELIGIBLE_CREDITS_USD`, and `DAYTONA_CASH_FALLBACK_DISABLED` must be
-`true`. The owner sets these three variables on the `daytona-factory`
+`DAYTONA_ELIGIBLE_CREDITS_USD`. `DAYTONA_CASH_FALLBACK_DISABLED` must be
+`true` (auto top-up checked off) or `unreachable-under-cap` (auto top-up not
+verified, but the cap stays below the attested credits). The receipt records
+which one applied and never claims a disabled fallback that was not checked. The owner sets these three variables on the `daytona-factory`
 environment after checking the Daytona wallet; a missing value refuses the
 launch. Workers are checked for GPU and for CPU, memory and disk above the
 policy limits after creation, and their TTL never outlives the job deadline.
@@ -45,7 +47,11 @@ the worker before it is deleted. A cancelled run keeps only `tests.log`
 because the runner is killed seconds later. Only a passed, unprobed receipt
 can be reused. The separate `cleanup` job runs after success, failure or
 cancellation, deletes and counts every worker labeled with the run, and fails
-if any outlived its job.
+if any outlived its job. A Daytona sandbox that is already destroying
+no longer counts as a live worker. The cancellation signal is tracked
+separately because the Daytona SDK re-raises an interrupt as `DaytonaError`.
+The Daytona provider has no package cache: every worker starts from its
+snapshot, and the reusable layer is the hash-verified artifact.
 
 `--provider local` runs the same scripts, limits, labels, deadline, export and
 cleanup on a self-hosted Docker worker built from
