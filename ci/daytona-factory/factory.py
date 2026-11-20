@@ -46,6 +46,11 @@ class Cancelled(RuntimeError):
     pass
 
 
+# Set by the signal handler: the Daytona SDK re-raises a Cancelled raised inside a blocking
+# request as DaytonaError, so the exception type alone cannot identify a cancelled run.
+CANCEL_SIGNAL = []
+
+
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -466,7 +471,7 @@ class Job:
                     self.export(box, record, ("preview.log", "capture.webm", "claim.png"))
             finally:
                 # A cancelled runner is killed seconds later, so keep only the log before deletion.
-                cancelled = isinstance(sys.exc_info()[1], Cancelled)
+                cancelled = isinstance(sys.exc_info()[1], Cancelled) or bool(CANCEL_SIGNAL)
                 self.export(box, record, ("tests.log",) if cancelled else EXPORTS)
 
     def preview(self, box):
@@ -545,6 +550,7 @@ def install_cancellation():
     def cancel(signum, frame):
         for sig in (signal.SIGINT, signal.SIGTERM):
             signal.signal(sig, signal.SIG_IGN)
+        CANCEL_SIGNAL.append(signum)
         raise Cancelled(f"Cancelled by signal {signum}")
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, cancel)
@@ -587,7 +593,9 @@ def run(args, policy):
     except Cancelled as error:
         receipt["status"], failure = "cancelled", error
     except Exception as error:
-        receipt["status"], failure = "failed", error
+        if CANCEL_SIGNAL:
+            error = Cancelled(f"Cancelled by signal {CANCEL_SIGNAL[0]}")
+        receipt["status"], failure = ("cancelled" if CANCEL_SIGNAL else "failed"), error
     finally:
         receipt["error"] = None if failure is None else (
             str(failure) if isinstance(failure, (ValueError, RuntimeError)) else type(failure).__name__)

@@ -262,6 +262,20 @@ class JobTests(unittest.TestCase):
         self.assertEqual(job.workers["build"]["exported"], ["tests.log"])
         self.assertEqual(provider.live, set())
 
+    def test_cancellation_wrapped_by_the_sdk_still_exports_only_the_log(self):
+        provider = FakeProvider()
+        def cancel():
+            factory.CANCEL_SIGNAL.append(15)
+            raise RuntimeError("DaytonaError")
+        provider.on_build = cancel
+        try:
+            job, _, error = self.build(provider)
+        finally:
+            factory.CANCEL_SIGNAL.clear()
+        self.assertIsInstance(error, RuntimeError)
+        self.assertEqual(job.workers["build"]["exported"], ["tests.log"])
+        self.assertEqual(provider.live, set())
+
     def test_a_corrupt_download_is_removed_and_not_reported_exported(self):
         provider = FakeProvider()
         real = FakeBox.download
