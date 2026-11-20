@@ -308,7 +308,7 @@ def daytona_transient(error):
     from daytona import (DaytonaConnectionError, DaytonaRateLimitError,
                          DaytonaServiceUnavailableError, DaytonaTimeoutError)
     return isinstance(error, (DaytonaRateLimitError, DaytonaTimeoutError, DaytonaConnectionError,
-                              DaytonaServiceUnavailableError, ConnectionError))
+                              DaytonaServiceUnavailableError, ConnectionError, TimeoutError))
 
 
 class DaytonaWorker:
@@ -866,6 +866,7 @@ def cleanup(args, policy):
     validate_run(args.run)
     provider = make_provider(args.provider, policy)
     labels = {"purpose": PURPOSE, "run": args.run}
+    time.sleep(getattr(provider, "index_lag_seconds", 0))
     found = provider.find(labels)
     # Record states before deletion: a v2 sandbox object reflects its state after delete().
     seen = [{"id": getattr(item, "id", item),

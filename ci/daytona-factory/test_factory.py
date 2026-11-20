@@ -279,6 +279,28 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(kwargs["resources"]["cpu_max"], 2)
         self.assertFalse(kwargs["spot"])
 
+    def test_v2_workers_are_found_before_indexing_and_unstarted_ones_are_retried(self):
+        client = mock.MagicMock()
+        root = SimpleNamespace(Daytona=mock.Mock(return_value=client),
+                               DaytonaConfig=mock.Mock(side_effect=lambda **kw: kw))
+        v2 = SimpleNamespace(Resources=lambda **kw: kw)
+        errors = SimpleNamespace(NotFoundError=LookupError)
+        box = SimpleNamespace(id="sbx_1", labels={"run": "1"}, state="started",
+                              refresh_data=mock.Mock(), delete=mock.Mock())
+        client.v2.create.return_value = box
+        client.v2.search.return_value = SimpleNamespace(items=[], next_cursor=None)
+        modules = {"daytona": root, "daytona.v2": v2, "daytona.v2.errors": errors}
+        with mock.patch.dict(sys.modules, modules), \
+                mock.patch.dict(factory.os.environ, {"DAYTONA_FACTORY_API_KEY": "test"}):
+            provider = factory.make_provider("daytona", factory.load_policy())
+            provider.create("build", "w", {"run": "1"}, 10, None)
+            self.assertEqual(provider.find({"run": "1"}), [box])
+            box.state = "starting"
+            with self.assertRaises(TimeoutError) as raised:
+                provider.create("build", "w", {"run": "1"}, 10, None)
+            self.assertTrue(provider.transient(raised.exception))
+            box.delete.assert_called_once()
+
     def test_daytona_v2_worker_maps_timeouts_bytes_and_bounded_downloads(self):
         box = mock.MagicMock()
         worker = factory.DaytonaWorker(box)
