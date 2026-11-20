@@ -249,7 +249,31 @@ try {
     $script:listedEntry = [pscustomobject]@{ version = '1.0.0'; marketplace = 'other-market' }
     $obs = Get-PluginObservation $copilotRow
     if ($obs.status -ne 'unmanaged') { throw "wrong marketplace was not preserved as unmanaged: $($obs.status)" }
-    Write-Host 'RESULT: 40 passed, 0 failed'
+    $UserProfile = Join-Path $testRoot.FullName 'editor-profile'
+    $settingsDir = Join-Path $UserProfile 'AppData/Roaming/Code - Insiders/User'
+    $null = New-Item -ItemType Directory -Path $settingsDir -Force
+    $settingsPath = Join-Path $settingsDir 'settings.json'
+    $editorRow = [pscustomobject]@{
+        host = 'vscode-insiders'; nativeOwnerHost = 'vscode-insiders'; plugin = 'ah-x'
+        route = 'native-local-plugin'; source = 'C:\fixtures\plugin'; expectedEnabled = $false
+    }
+    Set-Content -LiteralPath $settingsPath -Encoding utf8 -Value @'
+{
+  "chat.pluginLocations": {
+    // The commented entry is not the registered value.
+    // "C:/fixtures/plugin": true,
+    "C:/fixtures/plugin": false,
+  },
+}
+'@
+    if ((Get-PluginObservation $editorRow).status -ne 'current') { throw 'Disabled VS Code plugin did not match its expected state.' }
+    $editorRow.expectedEnabled = $true
+    if ((Get-PluginObservation $editorRow).status -ne 'drift') { throw 'Disabled VS Code plugin did not report drift when enablement was required.' }
+    Set-Content -LiteralPath $settingsPath -Encoding utf8 -Value '{"chat.pluginLocations":{"C:\\fixtures\\plugin":true}}'
+    if ((Get-PluginObservation $editorRow).status -ne 'current') { throw 'Enabled VS Code plugin did not match its expected state.' }
+    $editorRow.expectedEnabled = $false
+    if ((Get-PluginObservation $editorRow).status -ne 'drift') { throw 'Enabled VS Code plugin did not report drift when disabled registration was required.' }
+    Write-Host 'RESULT: 44 passed, 0 failed'
 } finally {
     $resolved = (Get-Item -LiteralPath $testRoot.FullName).FullName
     if ($resolved -eq $testRoot.FullName -and (Split-Path -Parent $resolved) -eq $testRoot.Parent.FullName) {

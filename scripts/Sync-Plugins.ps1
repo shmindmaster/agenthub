@@ -211,17 +211,24 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
         }
         'vscode-insiders' {
             $settingsPath = Join-Path $UserProfile 'AppData/Roaming/Code - Insiders/User/settings.json'
-            # VS Code uses JSONC. Match just the path entry in chat.pluginLocations.
-            if (Test-Path -LiteralPath $settingsPath) {
-                $settings = Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8
-                if ($settings -match '(?s)"chat\.pluginLocations"\s*:\s*\{([^}]+)\}') {
-                    $locations = $Matches[1]
-                    foreach ($path in $source, $source.Replace('\', '/')) {
-                        $key = [regex]::Escape(($path | ConvertTo-Json -Compress))
-                        if ($locations -match "$key\s*:\s*true\b") { return New-Observation '' $source 'current' }
-                    }
+            if (-not (Test-Path -LiteralPath $settingsPath -PathType Leaf)) { return }
+            $settings = Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
+            $locations = $settings['chat.pluginLocations']
+            if ($null -eq $locations) { return }
+            if ($locations -isnot [System.Collections.IDictionary]) {
+                return New-Observation '' '' 'blocked' 'chat.pluginLocations must be a path-to-Boolean object.'
+            }
+            $sourcePath = $source.Replace('\', '/')
+            $paths = @($locations.Keys | Where-Object { $_.Replace('\', '/') -ieq $sourcePath })
+            if (-not $paths.Count) { return }
+            foreach ($path in $paths) {
+                $enabled = $locations[$path]
+                if ($enabled -isnot [bool] -or $enabled -ne $Row.expectedEnabled) {
+                    return New-Observation '' $source 'drift' "chat.pluginLocations requires enabled=$($Row.expectedEnabled) for this package."
                 }
             }
+            if (-not $Row.expectedEnabled) { return New-Observation '' $source 'current' 'Registered and disabled as configured.' }
+            return New-Observation '' $source 'current'
         }
     }
 }
@@ -349,6 +356,7 @@ $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument
         $row = [pscustomobject]@{
             host=$target; plugin=$manifest.name; capability=$cap.id; route=$route
             nativeOwnerHost=$nativeOwner
+            expectedEnabled=($ownerMapping.nativePluginEnabled ?? $true)
             expected=$manifest.version; observed=$null; status=$null; detail=$null
             source=$source; sourceHash=$cap.contentHash; relative=[string]$cap.canonicalSource; marketplace=$market
             previousPath=$null; catalog=$cap.deployedCatalog
@@ -364,6 +372,9 @@ $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument
             } elseif (-not $ownerSelfOwned) {
                 $row.status = 'blocked'; $row.detail = "nativeOwnerHost '$nativeOwner' has no self-owned $($cap.id) mapping; chained or cyclic owners are refused."
             }
+        }
+        if (-not $row.status -and $nativeOwner -eq 'vscode-insiders' -and $row.expectedEnabled -isnot [bool]) {
+            $row.status = 'blocked'; $row.detail = 'nativePluginEnabled must be a Boolean.'
         }
         if (-not $row.status) { Set-PluginStatus $row }
         $row
