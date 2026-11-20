@@ -781,6 +781,61 @@
         ]
       },
       {
+        "extensionId": "exa-agent-skills",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/exa-labs/agent-skills",
+        "maintainer": "Exa",
+        "license": "MIT",
+        "capabilityKind": "skills",
+        "declaresMcpServers": false,
+        "required": false,
+        "provides": ["research.exa-api"],
+        "observedAt": "2026-11-20",
+        "sharedSkillNames": ["build-with-exa", "company-research", "exa-contents", "exa-search", "lead-generation"],
+        "install": {
+          "command": "npx skills add exa-labs/agent-skills --global --skill '*' --agent <supported-agent> --yes",
+          "docs": "https://github.com/exa-labs/agent-skills#installation"
+        },
+        "note": "Exa publishes these API skills separately from its MCP plugin. The shared fallback requires the upstream installer receipt. API authorization is independent.",
+        "hostChannels": [
+          {
+            "hostId": "opencode",
+            "channel": "upstream-skills-cli",
+            "installedVersion": "9d220cc",
+            "current": true,
+            "updateCommand": "npx skills add exa-labs/agent-skills --global --skill '*' --agent opencode --yes"
+          }
+        ]
+      },
+      {
+        "extensionId": "cline-desktop-commander-overview",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/cline/skills",
+        "maintainer": "Cline",
+        "license": "Apache-2.0",
+        "capabilityKind": "skills",
+        "declaresMcpServers": false,
+        "required": false,
+        "provides": ["desktop.commander-guidance"],
+        "observedAt": "2026-11-20",
+        "sharedSkillNames": ["desktop-commander-overview"],
+        "note": "Preserve the Cline-maintained shared skill verified by its upstream installer receipt. This does not register or run a Desktop Commander MCP server.",
+        "hostChannels": [
+          {
+            "hostId": "cline",
+            "channel": "upstream-skills-cli",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add cline/skills --global --skill desktop-commander-overview --agent cline --yes",
+            "note": "The shared copy matches upstream. Cline also has a separate host-local copy with differing content; effective discovery and local provenance still need verification."
+          }
+        ]
+      },
+      {
         "extensionId": "parallel-agent-skills",
         "kind": "plugin",
         "provenance": "official-upstream",
