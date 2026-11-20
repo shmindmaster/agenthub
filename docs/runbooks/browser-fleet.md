@@ -60,3 +60,5 @@ BrowserSkill documents Chrome and Edge. Use a named instance and an authorized e
 ## Fleet health checks
 
 Run `node scripts/agenthub-cli.mjs doctor --all --probe-remote` to audit installed configurations and validate anonymous MCP handshakes. A successful handshake and an authentication challenge are distinct results. Use host-native MCP listing for plugin-provided or signed-in servers and verify permitted calls before recording tool-level acceptance. Use `scripts/Sync-Plugins.ps1` in audit mode to compare AgentHub and private package versions with installed plugin versions.
+
+Doctor reports a missing direct registration for a plugin-only host only if the server is allowed by that host's direct MCP policy and otherwise belongs in its default sync scope. Native plugin and account-level connector discovery still require host readback.

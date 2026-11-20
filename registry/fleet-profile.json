@@ -280,6 +280,14 @@
       {
         "hostId": "autoclaw",
         "reason": "Inventory only. The vendor documents desktop customization but no governed headless dispatch contract."
+      },
+      {
+        "hostId": "grokbot",
+        "reason": "Inventory only. Grok Bot account connectors and cloud computer are separate from the Grok Build dispatch contract."
+      },
+      {
+        "hostId": "manus",
+        "reason": "Inventory only. No verified governed dispatch contract for the installed desktop interface."
       }
     ],
     "notes": [

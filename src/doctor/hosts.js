@@ -241,6 +241,7 @@ function describeHost(rawEntry, ctx) {
   const markers = [
     ...mcp.map((m) => m.path),
     ...['config', 'settings', 'configHome', 'dataDir', 'mcpUser', 'mcp'].map((f) => bind(paths[f])),
+    bind(paths.vendorExecutable),
     instructions,
     ...skillsDirs,
     ...rulesDirs,

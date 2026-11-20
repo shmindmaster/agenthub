@@ -79,6 +79,10 @@ test('hosts whose layout differs by OS resolve to their documented macOS and Lin
   assert.ok(host(mac, 'devin').markers.includes('/Users/dev/.config/devin/config.json'), 'Devin is ~/.config/devin on macOS');
   assert.ok(host(linux, 'devin').markers.includes('/home/dev/.config/devin/config.json'));
   assert.ok(host(win, 'devin').markers.includes('C:\\Users\\dev\\AppData\\Roaming\\devin\\config.json'));
+  assert.ok(host(win, 'autoclaw').markers.includes('C:\\Users\\dev\\AppData\\Local\\Programs\\AutoClaw2\\AutoClaw2.exe'));
+  assert.ok(host(win, 'grokbot').markers.includes('C:\\Users\\dev\\AppData\\Local\\Programs\\Grok Bot\\Grok Bot.exe'));
+  assert.ok(host(win, 'manus').markers.includes('C:\\Users\\dev\\AppData\\Local\\Packages\\ManusAI.Manus_vajzd2mq3s8wj'));
+  assert.deepEqual(host(linux, 'manus').markers, []);
 
   assert.ok(host(mac, 'warp').markers.includes('/Users/dev/.warp'), 'Warp config home is ~/.warp on macOS');
   assert.ok(host(linux, 'warp').markers.includes('/home/dev/.config/warp-terminal'));
@@ -331,6 +335,20 @@ test('compares with an AgentHub registry when one is given', async () => {
   assert.match(missing[0].message, /: docs\.$/);
   assert.match(find(report, 'REGISTRY_UNKNOWN')[0].message, /mine/);
   assert.equal(find(report, 'REGISTRY_UNMANAGED_INSTRUCTIONS').length, 1);
+
+  const mcpPath = join(registry, 'registry', 'mcps.json');
+  h.write('.codex/config.toml', '[mcp_servers.github]\nurl = "https://api.example.test/mcp"\n');
+  h.write('.cursor/mcp.json', { mcpServers: { github: { url: 'https://api.example.test/mcp' } } });
+  const mcpRegistry = JSON.parse(readFileSync(mcpPath, 'utf8'));
+  mcpRegistry.activationPolicy = {
+    pluginOnly: { hosts: { claude: { 'old-docs': 'Allowed direct endpoint' }, codex: {}, cursor: { github: 'Allowed direct endpoint' } } },
+  };
+  mcpRegistry.mcpServers.push({ id: 'other-default', transport: 'http', url: 'https://other.example.test/mcp' });
+  writeFileSync(mcpPath, JSON.stringify(mcpRegistry));
+  const policyReport = await runDoctor({ home: h.home, env: h.env(), registry });
+  assert.deepEqual(find(policyReport, 'REGISTRY_MISSING').map(({ hosts, message }) => [hosts, message]), [
+    [['claude'], 'Claude Code is missing 1 MCP server(s) the registry deploys to it: docs.'],
+  ]);
 });
 
 const initializeResult = JSON.stringify({
