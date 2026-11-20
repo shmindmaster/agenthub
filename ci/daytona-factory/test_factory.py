@@ -384,12 +384,15 @@ class JobTests(unittest.TestCase):
     def test_a_corrupt_download_is_removed_and_not_reported_exported(self):
         provider = FakeProvider()
         real = FakeBox.download
-        def corrupt(box, source, destination):
-            real(box, source, destination)
+        def corrupt(box, source, destination, seconds):
+            real(box, source, destination, seconds)
             if Path(source).name == "journeys.tar.gz":
                 Path(destination).write_bytes(b"tampered")
-        with mock.patch.object(FakeBox, "download", corrupt):
+        with mock.patch.object(FakeBox, "download", corrupt), \
+                mock.patch("builtins.print") as printed:
             job, _, _ = self.build(provider)
+        self.assertIn(("download", "journeys.tar.gz", 300), provider.log)
+        printed.assert_any_call("Export of journeys.tar.gz failed (RuntimeError)", flush=True)
         self.assertNotIn("journeys.tar.gz", job.workers["build"]["exported"])
         self.assertFalse((job.args.output / "journeys.tar.gz").exists())
 
