@@ -3,7 +3,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![CI](https://github.com/shmindmaster/agenthub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shmindmaster/agenthub/actions/workflows/ci.yml)
 
-**Works in Claude Code but not in Codex? `npx @shmindmaster/agenthub doctor` shows every MCP server, skill and instruction file each of your coding agents actually loads, and what's broken, in about 10 seconds. Read-only. No account. No PowerShell.**
+**Works in Claude Code but not in Codex? `npx @shmindmaster/agenthub doctor` inspects your coding agents' MCP configuration, installed skill files and instructions, and identifies common problems. Read-only. No account. No PowerShell.**
 
 ```bash
 npx @shmindmaster/agenthub doctor
@@ -41,11 +41,11 @@ That output is from a test fixture home, trimmed. Run it against your own machin
 ## What doctor checks
 
 - **Which agents are set up**, from their config files: Claude Code, Claude Desktop, OpenAI Codex, Cursor and the Cursor CLI, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Kilo CLI, Warp, Windsurf, VS Code and VS Code Insiders. Paths come from [`registry/agents.json`](./registry/agents.json) and resolve per OS.
-- **What each one loads**: its MCP servers (JSON, JSONC and TOML configs in each agent's own dialect), its skills including the shared `~/.agents/skills` library, and its global instruction files with a rough token count.
+- **What each host's files declare**: MCP servers (JSON, JSONC and TOML configs in each agent's own dialect), skills including the shared `~/.agents/skills` library, and global instruction files with a rough token count.
 - **Risky MCP configs**: API keys and tokens written into a config (the value is never printed), remote servers over plain `http://`, remote servers with no credentials configured, commands that are not on `PATH` so the server cannot start, and `npx`/`uvx` packages with no pinned version.
 - **Drift**: the same server defined differently in two agents, servers set up in some agents but not others, two different copies of one skill, skills without `name`/`description` frontmatter, and instruction files that differ between agents. Inside an AgentHub checkout, or with `--registry <dir>`, it also compares each agent with the registry.
 
-It never writes a file, starts a server or opens a network connection. `--probe-remote` is the one exception you opt into: it sends a single MCP `initialize` request, with no credentials, to each remote server that has none configured, and reports the ones that answer anyway.
+By default Doctor reads files without starting a subprocess or connecting to the network. `--probe-remote` sends an unauthenticated MCP `initialize` request to remote servers without configured credentials. `--native` runs Devin's in-process CLI listing commands from the current user's home and reports effective MCP and skill discovery, including entries supplied by plugins. Native discovery does not exercise an MCP tool or verify its credentials. [Devin CLI plugins](https://docs.devin.ai/cli/extensibility/plugins/overview)
 
 | Option | What it does |
 | --- | --- |
@@ -53,6 +53,7 @@ It never writes a file, starts a server or opens a network connection. `--probe-
 | `--host codex,cursor` | Only check these agents |
 | `--home <dir>` | Inspect another home directory, such as a fixture or a teammate's copied config |
 | `--probe-remote` | Check whether remote MCP servers without credentials answer anyway |
+| `--native` | Read native Devin CLI discovery alongside the file audit. Use `--host devin --native --json` to see the names and activation state. |
 | `--strict` | Exit 1 when there is any high-severity finding, for CI |
 | `--no-registry` | Compare agents with each other even inside an AgentHub checkout |
 | `--verbose` | List every info finding |
