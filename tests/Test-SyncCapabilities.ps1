@@ -936,7 +936,7 @@ function Test-CopyVerificationRejectsBadCopies {
     }
 }
 
-function Test-PluginsOnlyRemovesLooseSkills {
+function Test-PluginsOnlyPrunesUnregisteredLooseSkills {
     $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-plugins-only-cap' -HostId 'zz-plugins-only-host' -SkillName 'sample-skill' -SkillContent 'canonical content v1'
     $pluginFile = $null
     try {
@@ -947,6 +947,29 @@ function Test-PluginsOnlyRemovesLooseSkills {
         $unmanaged = Join-Path $fixture.SkillsDir 'unmanaged-skill'
         New-Item -ItemType Directory -Path $unmanaged -Force | Out-Null
         [IO.File]::WriteAllText((Join-Path $unmanaged 'SKILL.md'), 'third-party skill', [Text.UTF8Encoding]::new($false))
+        $agentDirectory = Join-Path $fixture.UserProfile '.agents'
+        $sharedSkills = Join-Path $agentDirectory 'skills'
+        $agentsPath = Join-Path $fixture.RegistryDir 'agents.json'
+        $agents = Get-Content -LiteralPath $agentsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $agents.activeAgents[0].nativePaths | Add-Member -NotePropertyName sharedSkillsDir -NotePropertyValue '{userHome}/.agents/skills'
+        $agents | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $agentsPath -Encoding UTF8
+
+        $registered = 'parallel-web-search'
+        $unverified = 'parallel-web-fetch'
+        foreach ($skill in @($registered, $unverified)) {
+            $skillDir = Join-Path $sharedSkills $skill
+            New-Item -ItemType Directory -Path $skillDir -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path $skillDir 'SKILL.md') -Value "Fixture for $skill" -Encoding UTF8
+        }
+        @{ thirdPartyExtensions = @{ extensions = @(@{
+            upstream = 'https://github.com/parallel-web/parallel-agent-skills'
+            sharedSkillNames = @($registered, $unverified)
+        }) } } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $fixture.RegistryDir 'native-connectors.json') -Encoding UTF8
+        @{ skills = @{
+            $registered = @{ source = 'parallel-web/parallel-agent-skills'; sourceType = 'github'; skillPath = "skills/$registered/SKILL.md" }
+            $unverified = @{ source = 'unverified/other'; sourceType = 'github'; skillPath = "skills/$unverified/SKILL.md" }
+        } } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $agentDirectory '.skill-lock.json') -Encoding UTF8
+
         $pluginDir = Join-Path (Split-Path -Parent $fixture.SkillsDir) 'plugins\sample-plugin'
         New-Item -ItemType Directory -Path $pluginDir -Force | Out-Null
         $pluginFile = Join-Path $pluginDir 'plugin.json'
@@ -967,6 +990,12 @@ function Test-PluginsOnlyRemovesLooseSkills {
         if (Test-Path -LiteralPath $unmanaged) {
             return @{ Passed = $false; Detail = 'unmanaged loose skill was still present' }
         }
+        if (-not (Test-Path -LiteralPath (Join-Path $sharedSkills "$registered/SKILL.md") -PathType Leaf)) {
+            return @{ Passed = $false; Detail = 'installer-verified Parallel skill was removed' }
+        }
+        if (Test-Path -LiteralPath (Join-Path $sharedSkills $unverified)) {
+            return @{ Passed = $false; Detail = 'unverified copy of a Parallel skill was still present' }
+        }
         if (-not (Test-Path -LiteralPath $pluginFile)) {
             return @{ Passed = $false; Detail = 'plugin file next to the skill library was removed' }
         }
@@ -980,8 +1009,8 @@ function Test-PluginsOnlyRemovesLooseSkills {
     }
 }
 
-$rPluginsOnly = Test-PluginsOnlyRemovesLooseSkills
-Report 'plugins-only mode removes managed and unmanaged loose skills and leaves a sibling plugin' $rPluginsOnly.Passed $rPluginsOnly.Detail
+$rPluginsOnly = Test-PluginsOnlyPrunesUnregisteredLooseSkills
+Report 'plugins-only prune preserves receipt-verified skills and removes other loose skills' $rPluginsOnly.Passed $rPluginsOnly.Detail
 
 $rJunction = Test-JunctionRuntimeWritesKeepLogicalLedger
 Report 'junction runtime writes preserve canonical ledger keys and converge' $rJunction.Passed $rJunction.Detail

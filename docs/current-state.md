@@ -123,6 +123,12 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+Plugin audit and capability pruning use the same registered upstream and
+installer receipt check for shared skills. Plugins-only pruning keeps verified
+Parallel skills in the shared library and removes unregistered copies. Doctor
+reads nested and legacy OpenCode MCP maps, including a legacy server named
+`servers`.
+
 - **RepoWise refresh and serving (2026-11-04):** package 1.4.1 refreshes only
   entries whose files moved (`Invoke-RepoWiseRefreshChanged.ps1`), re-renders the
   affected pages, and every session on every host shares one server that exits after 30

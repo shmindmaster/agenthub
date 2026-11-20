@@ -1,10 +1,11 @@
-function Get-UnmanagedSharedSkills {
+function Get-RegisteredSharedSkillPaths {
     param(
         [Parameter(Mandatory)][string]$UserProfile,
         [AllowNull()][object]$NativeConnectors
     )
 
     $agentDirectory = Join-Path $UserProfile '.agents'
+    $skillsDirectory = Join-Path $agentDirectory 'skills'
     $lockPath = Join-Path $agentDirectory '.skill-lock.json'
     $lock = $null
     if (Test-Path -LiteralPath $lockPath -PathType Leaf) {
@@ -12,23 +13,29 @@ function Get-UnmanagedSharedSkills {
         catch { Write-Verbose "Cannot read the shared skill installer receipt: $_" }
     }
 
-    $managed = @{}
+    if (-not $lock.skills) { return }
     foreach ($extension in $NativeConnectors.thirdPartyExtensions.extensions) {
-        if (-not $lock.skills) { break }
         $source = [string]$extension.upstream -replace '^https://github\.com/', ''
         foreach ($name in $extension.sharedSkillNames) {
             $entry = $lock.skills.PSObject.Properties[$name].Value
             if ($entry.source -eq $source -and $entry.sourceType -eq 'github' -and
                 $entry.skillPath -ceq "skills/$name/SKILL.md") {
-                $managed[$name] = $true
+                $skillPath = Join-Path $skillsDirectory $name
+                if (Test-Path -LiteralPath (Join-Path $skillPath 'SKILL.md') -PathType Leaf) {
+                    [IO.Path]::GetFullPath($skillPath)
+                }
             }
         }
     }
+}
 
-    Get-ChildItem -LiteralPath (Join-Path $agentDirectory 'skills') -Force -ErrorAction SilentlyContinue |
-        Where-Object {
-            $_.Name -ne 'synced' -and
-            (-not $managed.ContainsKey($_.Name) -or
-                -not (Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') -PathType Leaf))
-        }
+function Get-UnmanagedSharedSkills {
+    param(
+        [Parameter(Mandatory)][string]$UserProfile,
+        [AllowNull()][object]$NativeConnectors
+    )
+
+    $registeredPaths = @(Get-RegisteredSharedSkillPaths -UserProfile $UserProfile -NativeConnectors $NativeConnectors)
+    Get-ChildItem -LiteralPath (Join-Path $UserProfile '.agents/skills') -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne 'synced' -and $_.FullName -notin $registeredPaths }
 }

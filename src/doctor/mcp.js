@@ -57,10 +57,12 @@ export function readMcpSource(source) {
   const map = doc && typeof doc === 'object' ? doc[source.key] : undefined;
   if (!map || typeof map !== 'object' || Array.isArray(map)) return result;
   const nested = source.dialect === 'opencode' ? map.servers : null;
-  const entries = Object.entries(map).filter(([name]) => name !== 'servers' || !nested);
-  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
-    entries.push(...Object.entries(nested));
-  }
+  const isNestedMap = nested && typeof nested === 'object' && !Array.isArray(nested)
+    && typeof nested.type !== 'string' && typeof nested.transport !== 'string'
+    && typeof nested.url !== 'string' && typeof nested.enabled !== 'boolean'
+    && typeof nested.command !== 'string' && !Array.isArray(nested.command);
+  const entries = Object.entries(map).filter(([name]) => name !== 'servers' || !isNestedMap);
+  if (isNestedMap) entries.push(...Object.entries(nested));
   for (const [name, raw] of new Map(entries)) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
     result.servers.push({ ...normalizeServer(name, raw, source.dialect), source: source.path });

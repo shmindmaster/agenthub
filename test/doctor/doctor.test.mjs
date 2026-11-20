@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { bindPath, buildHostCatalog, createPathContext } from '../../src/doctor/hosts.js';
-import { isReference, normalizeServer, unpinnedPackage } from '../../src/doctor/mcp.js';
+import { isReference, normalizeServer, readMcpSource, unpinnedPackage } from '../../src/doctor/mcp.js';
 import { probeOne, runDoctor } from '../../src/doctor/doctor.js';
 import { renderText } from '../../src/doctor/render.js';
 import { fake, makeHome, platform, roamingRoot, snapshot } from './fixtures.mjs';
@@ -23,6 +23,22 @@ const newHome = () => {
 };
 const codes = (report) => report.findings.map((f) => f.code);
 const find = (report, code, subject) => report.findings.filter((f) => f.code === code && (!subject || f.subject === subject));
+
+test('OpenCode Doctor distinguishes a server named servers from a nested server map', () => {
+  const h = newHome();
+  const legacy = { type: 'remote', url: 'https://example.test/mcp' };
+  const local = { type: 'local', command: ['node', 'server.js'] };
+  const path = join(h.home, '.config/opencode/opencode.json');
+  const read = (mcp) => {
+    h.write('.config/opencode/opencode.json', { mcp });
+    return readMcpSource({ path, format: 'jsonc', key: 'mcp', dialect: 'opencode' }).servers
+      .map(({ name, transport }) => [name, transport]);
+  };
+
+  assert.deepEqual(read({ servers: legacy }), [['servers', 'http']]);
+  assert.deepEqual(read({ servers: { type: local, url: legacy } }), [['type', 'stdio'], ['url', 'http']]);
+  assert.deepEqual(read({ flat: legacy, servers: { nested: local } }), [['flat', 'http'], ['nested', 'stdio']]);
+});
 
 // ---------------------------------------------------------------------------
 // Path binding
