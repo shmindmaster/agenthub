@@ -1,10 +1,10 @@
 # Retained-host authority contract (Linear SH-4409 / SH-4669; Kiro retired 2026-11-17,
-# leaving five; Devin retained 2026-11-19 under SH-4969, making six). Every registered
+# Devin retained under SH-4969; standalone ZCode retained under SH-5036). Every registered
 # host carries one fleetRole. Exactly the product families listed below are retained;
 # every other live host is supported (installed, current and fully wired but not part of
-# the six-family core), inventoried while onboarding, retired, or a non-agent surface.
+# the retained roster), inventoried while onboarding, retired, or a non-agent surface.
 # Returns error strings; an empty list means the registry satisfies the contract.
-$script:AhRetainedHostIds = @('claude', 'codex', 'opencode', 'kilo', 'factory', 'devin')
+$script:AhRetainedHostIds = @('claude', 'codex', 'opencode', 'kilo', 'factory', 'devin', 'zcode')
 $script:AhFleetRoles = @('retained', 'companion', 'editor', 'terminal-preserved', 'supported', 'retired', 'inventory-only')
 
 function Test-AgentFleetRoles {
@@ -23,8 +23,8 @@ function Test-AgentFleetRoles {
     if (($role -eq 'inventory-only') -ne ([string]$h.status -eq 'inventory-only')) {
       $errors.Add("inventory-only role and status must agree: $id")
     }
-    if ($role -eq 'retained' -and $id -notin $script:AhRetainedHostIds) { $errors.Add("host is retained but is not one of the six families: $id") }
-    if ($role -ne 'retained' -and $id -in $script:AhRetainedHostIds) { $errors.Add("one of the six families is not marked retained: $id") }
+    if ($role -eq 'retained' -and $id -notin $script:AhRetainedHostIds) { $errors.Add("host is retained but is outside the retained roster: $id") }
+    if ($role -ne 'retained' -and $id -in $script:AhRetainedHostIds) { $errors.Add("a roster member is not marked retained: $id") }
     if ($role -eq 'companion') {
       $owner = [string]$h.fleetOwner
       if ($owner -notin $script:AhRetainedHostIds) { $errors.Add("companion surface must name a retained fleetOwner: $id -> '$owner'") }

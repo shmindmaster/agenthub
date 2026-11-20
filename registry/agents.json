@@ -4,7 +4,7 @@
   "activeAgents": [
     {
       "id": "zcode",
-      "fleetRole": "inventory-only",
+      "fleetRole": "retained",
       "name": "Z.ai ZCode",
       "version": "3.18.2",
       "versionProbe": "file-version",
@@ -22,9 +22,9 @@
         }
       },
       "supportedCapabilities": ["skills", "mcp", "plugins"],
-      "status": "inventory-only",
+      "status": "active",
       "versionObserved": "Windows signed desktop build 3.18.2.10443 matches vendor desktop release 3.18.2. Bundled CLI reported 0.17.1.",
-      "notes": "SH-5036. Standalone ZCode has its own user profile and explicit native marketplace deployment and Doctor readback. General fleet sync and dispatch exclude it. See docs/runbooks/zcode.md for verified surfaces."
+      "notes": "SH-5036. Standalone ZCode is a retained fleet agent with its own user profile, native marketplace deployment and Doctor readback. Plugin deployment uses the native plugins command. Dispatch needs a working noninteractive model route. See docs/runbooks/zcode.md for verified surfaces."
     },
     {
       "id": "autoclaw",

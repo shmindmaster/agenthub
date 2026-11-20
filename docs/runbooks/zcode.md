@@ -1,6 +1,6 @@
 # Z.ai ZCode
 
-On the verified Windows host, standalone ZCode Desktop is the signed 3.18.2 release (file build 3.18.2.10443). Its bundled Agent CLI reports 0.17.1. AgentHub uses the invoking Windows user's `~/.zcode/cli` profile for this install. AutoClaw's account-specific ZCode runtime has a separate profile. [Install](https://zcode.z.ai/en/docs/install) · [ZCode source and distributions](https://github.com/zai-org/ZCode/blob/main/README.en.md)
+Standalone ZCode is a retained fleet agent. On the verified Windows host, ZCode Desktop is the signed 3.18.2 release (file build 3.18.2.10443). Its bundled Agent CLI reports 0.17.1. AgentHub uses the invoking Windows user's `~/.zcode/cli` profile for this install. AutoClaw's account-specific ZCode runtime has a separate profile. [Install](https://zcode.z.ai/en/docs/install) · [ZCode source and distributions](https://github.com/zai-org/ZCode/blob/main/README.en.md)
 
 ## Configure and verify
 
@@ -15,6 +15,8 @@ node scripts/agenthub-cli.mjs doctor --host zcode --native
 Omit `-IncludePrivateOverlay` for public AgentHub and Parallel only. Use `-PluginId parallel` to limit the marketplace operation to Parallel. The dedicated command uses the native bundled CLI to register tracked AgentHub marketplace snapshots and the official Parallel GitHub marketplace. The seven public packages, three private packages and Parallel 0.12.0 were read back at their expected versions on Windows. The private on-demand LinkedIn plugin is installed and starts disabled. Use Settings → Plugins in ZCode to inspect active packages in the workspace. [ZCode plugins](https://zcode.z.ai/en/docs/plugin) · [Parallel Agent Skills](https://docs.parallel.ai/integrations/agent-skills)
 
 The desktop and bundled CLI are the verified installation surfaces. ZCode Desktop is also the vendor's development environment, with an integrated terminal, previews and DevTools. The open-source unified distribution also provides TUI and local Web modes. Its launcher and Web mode require separate installation and acceptance. Remote Development runs tasks in a separate workspace over SSH, Docker or WSL. Remote Control and Bot Channel connect to an existing desktop session. Both routes need separate acceptance. [ZCode IDE](https://zcode.z.ai/en/docs/ADE-tools) · [ZCode distribution](https://github.com/zai-org/ZCode/blob/main/README.en.md#zcode-cli-distribution)
+
+AgentHub dispatch awaits a successful model request from a disposable workspace. The Windows desktop bundle needed explicit paths to its built-in and personal provider configuration for a headless prompt. With both paths set, the CLI started and returned "Select a model before sending a message." Marketplace and skill inventory run independently of model selection.
 
 ## MCP and accounts
 
