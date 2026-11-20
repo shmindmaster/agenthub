@@ -39,6 +39,7 @@ BUILD_SNAPSHOT = "factory-node-build-v1"
 RENDER_SNAPSHOT = "rexa-remotion-4-0-517"
 LOCAL_IMAGE = "factory-local-worker"
 PURPOSE = "daytona-factory"
+GONE = {"destroyed", "destroying"}
 
 
 class Cancelled(RuntimeError):
@@ -241,12 +242,18 @@ class DaytonaProvider:
         self.client = Daytona(DaytonaConfig(api_url=API, api_key=os.environ["DAYTONA_FACTORY_API_KEY"]))
 
     def find(self, labels):
+        # Deleted sandboxes stay listed while Daytona destroys them; they no longer run.
         from daytona import ListSandboxesQuery
         return [box for box in self.client.list(ListSandboxesQuery(labels=labels))
-                if all((box.labels or {}).get(k) == v for k, v in labels.items())]
+                if all((box.labels or {}).get(k) == v for k, v in labels.items())
+                and str(getattr(box.state, "value", box.state)).lower() not in GONE]
 
     def remove(self, box):
-        box.delete(wait=True)
+        from daytona import DaytonaNotFoundError
+        try:
+            box.delete(wait=True)
+        except DaytonaNotFoundError:
+            pass
 
     def create(self, role, name, labels, ttl_minutes, cache_key):
         from daytona import CreateSandboxFromSnapshotParams
