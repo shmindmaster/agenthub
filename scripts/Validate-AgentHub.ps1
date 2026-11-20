@@ -464,7 +464,9 @@ if ($errors.Count -gt 0) {
   exit 1
 }
 
-Write-Output "PASS: $($packageNames.Count) capability packages, $($catalogNames.Count) installable plugins, $(@($mcps.mcpServers).Count) MCP servers, $(@($agents.activeAgents).Count) active agents."
+$inventoryOnlyCount = @($agents.activeAgents | Where-Object status -eq 'inventory-only').Count
+$activeAgentCount = @($agents.activeAgents).Count - $inventoryOnlyCount
+Write-Output "PASS: $($packageNames.Count) capability packages, $($catalogNames.Count) installable plugins, $(@($mcps.mcpServers).Count) MCP servers, $activeAgentCount active agents, $inventoryOnlyCount inventory-only agents."
 # Terminate explicitly. The stale-path scan above is the last native command, and
 # `rg` exits 1 when it finds nothing -- the passing case. Without this, a clean
 # validation inherits that 1 and every caller reads PASS as a failure.

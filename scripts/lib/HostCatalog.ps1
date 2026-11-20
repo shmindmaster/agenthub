@@ -8,9 +8,8 @@
 
 function Test-AgentHubHostSyncEnabled {
     param([Parameter(Mandatory)]$Agent)
-    # Retirement is explicit and is not the historical inactive label. Keep
-    # inventory and paths, but never recreate an owner-retired deployment.
-    return -not ($Agent.PSObject.Properties['status'] -and [string]$Agent.status -eq 'retired')
+    # Retired and inventory-only hosts remain discoverable without receiving sync writes.
+    return -not ($Agent.PSObject.Properties['status'] -and [string]$Agent.status -in @('retired', 'inventory-only'))
 }
 
 function Import-AgentHubBoundHostCatalog {

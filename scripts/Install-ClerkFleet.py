@@ -38,6 +38,7 @@ ALIASES = {"cursor-agent": "cursor", "opencode-desktop": "opencode",
 # Explicit dispositions for installed hosts with no approved Clerk route: never
 # bridged, installed or probed, only recorded.
 BLOCKED = {
+    "autoclaw": "AutoClaw Desktop is inventory only. Clerk skill import and scoped MCP authorization are unverified.",
     "qwen": "Clerk route discovery-required: Qwen Code became a dispatch host on 2026-11-11; whether it loads the "
             "Clerk skills or an MCP server has not been established, and no mapping has been approved for it.",
 }
