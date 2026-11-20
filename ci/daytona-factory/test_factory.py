@@ -257,10 +257,11 @@ class BudgetTests(unittest.TestCase):
                                DaytonaConfig=mock.Mock(side_effect=lambda **kw: kw))
         v2 = SimpleNamespace(Resources=lambda **kw: kw)
         errors = SimpleNamespace(NotFoundError=LookupError)
-        live = SimpleNamespace(labels={"run": "1"}, state="started", refresh_data=mock.Mock())
-        gone = SimpleNamespace(labels={"run": "1"}, state="destroyed", refresh_data=mock.Mock())
-        missing = SimpleNamespace(labels={"run": "1"}, state="started",
+        live = SimpleNamespace(id="a", labels={"run": "1"}, state="started", refresh_data=mock.Mock())
+        gone = SimpleNamespace(id="b", labels={"run": "1"}, state="destroyed", refresh_data=mock.Mock())
+        missing = SimpleNamespace(id="c", labels={"run": "1"}, state="started",
                                   refresh_data=mock.Mock(side_effect=LookupError))
+        client.v2.create.return_value.state = "started"
         client.v2.search.side_effect = [SimpleNamespace(items=[live, gone], next_cursor="c"),
                                         SimpleNamespace(items=[missing], next_cursor=None)]
         modules = {"daytona": root, "daytona.v2": v2, "daytona.v2.errors": errors}
@@ -281,8 +282,11 @@ class BudgetTests(unittest.TestCase):
 
     def test_v2_workers_are_found_before_indexing_and_unstarted_ones_are_retried(self):
         client = mock.MagicMock()
+        sdk_errors = {name: type(name, (Exception,), {}) for name in (
+            "DaytonaConnectionError", "DaytonaRateLimitError", "DaytonaServiceUnavailableError",
+            "DaytonaTimeoutError")}
         root = SimpleNamespace(Daytona=mock.Mock(return_value=client),
-                               DaytonaConfig=mock.Mock(side_effect=lambda **kw: kw))
+                               DaytonaConfig=mock.Mock(side_effect=lambda **kw: kw), **sdk_errors)
         v2 = SimpleNamespace(Resources=lambda **kw: kw)
         errors = SimpleNamespace(NotFoundError=LookupError)
         box = SimpleNamespace(id="sbx_1", labels={"run": "1"}, state="started",
