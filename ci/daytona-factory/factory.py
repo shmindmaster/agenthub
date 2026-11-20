@@ -425,6 +425,13 @@ class Job:
             yield box, record
         finally:
             box.delete()
+            # Daytona can still list a deleted sandbox as live for a moment; wait until it does not.
+            for _ in range(30):
+                if not self.provider.find(labels):
+                    break
+                time.sleep(2)
+            else:
+                raise RuntimeError(f"{role} worker is still listed after deletion")
             record.update(deleted=True, deleted_at=now(), seconds=round(time.monotonic() - started, 1))
             print(f"{role} worker {box.id} deleted", flush=True)
 
@@ -631,6 +638,9 @@ def cleanup(args, policy):
     remaining = provider.find(labels)
     report = {"run": args.run, "provider": provider.name, "checked_at": now(),
               "found_before_sweep": len(found), "remaining_after_sweep": len(remaining),
+              "found": [{"id": getattr(item, "id", item),
+                         "state": str(getattr(getattr(item, "state", None), "value", None))}
+                        for item in found],
               "active_factory_workers": len(provider.find({"purpose": PURPOSE}))}
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "cleanup.json").write_text(json.dumps(report, indent=2) + "\n")
