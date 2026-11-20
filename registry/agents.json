@@ -34,7 +34,7 @@
       },
       "supportedCapabilities": ["mcp", "plugins"],
       "status": "inventory-only",
-      "versionObserved": "2026-11-20: Windows PE file version 1.2.3, product version 1.2.3.0, valid Anysphere Authenticode signature. Vendor release currency and account connector readback are pending.",
+      "versionObserved": "Version 1.2.3 is recorded for Windows inventory. Release currency and account connector discovery are separate checks.",
       "notes": "SH-5032. Distinct from Grok Build. The Apps catalog and custom HTTPS connector are documented at https://docs.x.ai/grok-bot/computer-and-apps. Custom connector approval and OAuth run in the app account. No verified AgentHub deployment or dispatch route."
     },
     {
@@ -52,7 +52,7 @@
       },
       "supportedCapabilities": ["skills", "mcp"],
       "status": "inventory-only",
-      "versionObserved": "2026-11-20: WinGet lists Microsoft Store package 9PHV7M7V4S5L at 2.1.5.0. Windows reports Store signature and Ok package status for ManusAI.Manus. Vendor release currency and app discovery are pending.",
+      "versionObserved": "Version 2.1.5.0 is recorded for the Microsoft Store package. Release currency and application discovery are separate checks.",
       "notes": "SH-5032. The vendor documents account connectors and custom MCP at https://www.manus.im/features/connectors and SKILL.md imports at https://www.manus.im/features/agent-skills. No verified AgentHub deployment or dispatch route."
     },
     {
@@ -430,7 +430,7 @@
       "name": "Cursor",
       "version": "3.29.9",
       "executable": "{userHome}/bin/cursor.cmd",
-      "executableNote": "The managed launcher was absent on the Windows inventory machine. The Cursor installer supplied the native launcher at nativePaths.vendorExecutable.",
+      "executableNote": "The managed shim is optional. Cursor distributes the launcher documented under nativePaths.vendorExecutable.",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
         "mcp": "{userHome}/.cursor/mcp.json",
@@ -467,7 +467,7 @@
       "name": "Cursor Agent CLI",
       "version": "2026.11.05-86047df",
       "executable": "{userHome}/bin/cursor-agent.cmd",
-      "executableNote": "The managed launcher was absent on the Windows inventory machine. The vendor CLI launcher was present at nativePaths.vendorExecutable.",
+      "executableNote": "The managed shim is optional. The CLI installer distributes the launcher documented under nativePaths.vendorExecutable.",
       "platformPaths": {
         "darwin": {
           "executable": "{userHome}/.local/bin/cursor-agent",
