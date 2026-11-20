@@ -124,8 +124,9 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 ## Operational today
 
 Plugin audit and capability pruning use the same registered upstream and
-installer receipt check for shared skills. Plugins-only pruning keeps verified
-Parallel skills in the shared library and removes unregistered copies. Doctor
+installer receipt check for shared skills, including the invoking user's
+`XDG_STATE_HOME` when set. Plugins-only pruning keeps verified Parallel skills
+in the shared library and removes unregistered copies. Doctor
 reads nested and legacy OpenCode MCP maps, including a legacy server named
 `servers`.
 

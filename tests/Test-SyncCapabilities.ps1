@@ -1012,6 +1012,39 @@ function Test-PluginsOnlyPrunesUnregisteredLooseSkills {
 $rPluginsOnly = Test-PluginsOnlyPrunesUnregisteredLooseSkills
 Report 'plugins-only prune preserves receipt-verified skills and removes other loose skills' $rPluginsOnly.Passed $rPluginsOnly.Detail
 
+function Test-XdgSharedSkillReceipt {
+    . (Join-Path $repoRoot 'scripts/lib/SharedSkillOwnership.ps1')
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-xdg-cap' -HostId 'zz-xdg-host' -SkillName 'sample-skill' -SkillContent 'canonical content v1'
+    $previousStateHome = $env:XDG_STATE_HOME
+    try {
+        function Get-AgentHubDefaultHome { $fixture.UserProfile }
+        $env:XDG_STATE_HOME = Join-Path $fixture.Root 'installer-state'
+        $receipt = Join-Path $env:XDG_STATE_HOME 'skills/.skill-lock.json'
+        $skill = 'parallel-web-search'
+        $relativeSkill = ".agents/skills/$skill/SKILL.md"
+        $otherProfile = Join-Path $fixture.Root 'alternate-profile'
+        $expected = Join-Path $fixture.UserProfile $relativeSkill
+        foreach ($path in @($expected, (Join-Path $otherProfile $relativeSkill), $receipt)) {
+            [void][IO.Directory]::CreateDirectory((Split-Path -Parent $path))
+            [IO.File]::WriteAllText($path, 'fixture')
+        }
+        @{ skills = @{
+            $skill = @{ source = 'parallel-web/parallel-agent-skills'; sourceType = 'github'; skillPath = "skills/$skill/SKILL.md" }
+        } } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $receipt -Encoding UTF8
+        $registry = @{ thirdPartyExtensions = @{ extensions = @(@{
+            upstream = 'https://github.com/parallel-web/parallel-agent-skills'; sharedSkillNames = @($skill)
+        }) } }
+        $found = @(Get-RegisteredSharedSkillPaths -UserProfile $fixture.UserProfile -NativeConnectors $registry)
+        $other = @(Get-RegisteredSharedSkillPaths -UserProfile $otherProfile -NativeConnectors $registry)
+        return ($found.Count -eq 1 -and $found[0] -eq (Split-Path -Parent $expected) -and $other.Count -eq 0)
+    } finally {
+        $env:XDG_STATE_HOME = $previousStateHome
+        Remove-SyncCapabilitiesFixture -Fixture $fixture
+    }
+}
+
+Report 'XDG installer receipt protects the invoking profile only' (Test-XdgSharedSkillReceipt) 'expected the receipt to recognize one skill in its own profile only'
+
 $rJunction = Test-JunctionRuntimeWritesKeepLogicalLedger
 Report 'junction runtime writes preserve canonical ledger keys and converge' $rJunction.Passed $rJunction.Detail
 $rBadCopy = Test-CopyVerificationRejectsBadCopies
