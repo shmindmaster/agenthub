@@ -1,5 +1,7 @@
 # Documentation Map
 
+See the [browser setup and acceptance runbook](runbooks/browser-fleet.md) for native browser tools, user collaboration, recording and remote MCP setup.
+
 Start with [development/quickstart.md](./development/quickstart.md) for a
 stranger-safe first run. For this private fleet checkout, also use
 [current-state.md](./current-state.md) for verified repository reality.

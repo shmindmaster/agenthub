@@ -534,8 +534,8 @@ async function probeRemoteServers(hosts, findings, options) {
         code: 'MCP_REMOTE_UNAUTHENTICATED',
         hosts: hostIds,
         subject: name,
-        message: `MCP server '${name}' (${url}) answered an initialize request with no credentials (HTTP ${result.status}). Anyone who knows the URL can use it.`,
-        fix: 'Confirm that is intended; otherwise put it behind OAuth or a token.',
+        message: `MCP server '${name}' (${url}) answered an initialize request with no credentials (HTTP ${result.status}). Tool calls can still require sign-in.`,
+        fix: 'Verify tool discovery and authorization in the intended host.',
       });
     }
     const index = findings.findIndex((f) => f.code === 'MCP_REMOTE_NO_CREDENTIALS' && f.subject === name);
@@ -567,17 +567,61 @@ export async function probeOne(url, doFetch, timeoutMs) {
       }),
     });
     try {
-      await response.body?.cancel();
-    } catch {
-      // body already consumed or not cancellable
+      if (response.status === 401 || response.status === 403) return { outcome: 'requires-auth', status: response.status };
+      if (response.ok) {
+        if (await hasMcpInitializeResult(response)) return { outcome: 'open', status: response.status };
+        return { outcome: 'error', status: response.status, detail: 'HTTP response did not contain an MCP initialize result' };
+      }
+      return { outcome: 'error', status: response.status };
+    } finally {
+      void response.body?.cancel().catch(() => {});
     }
-    if (response.status === 401 || response.status === 403) return { outcome: 'requires-auth', status: response.status };
-    if (response.status >= 200 && response.status < 300) return { outcome: 'open', status: response.status };
-    return { outcome: 'error', status: response.status };
   } catch (error) {
     return { outcome: 'error', status: null, detail: error instanceof Error ? error.message : String(error) };
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/** @param {Response} response */
+async function hasMcpInitializeResult(response) {
+  const reader = response.body?.getReader();
+  if (!reader) return false;
+  const isSse = /^text\/event-stream\b/i.test(response.headers.get('content-type') ?? '');
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let received = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return !isSse && isMcpInitializeResult(buffer + decoder.decode());
+      received += value.byteLength;
+      if (received > 64 * 1024) return false;
+      buffer += decoder.decode(value, { stream: true });
+      if (!isSse) continue;
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = events.pop() ?? '';
+      for (const event of events) {
+        const data = event.split(/\r?\n/).filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice(5).trimStart()).join('\n');
+        if (isMcpInitializeResult(data)) return true;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/** @param {string} text */
+function isMcpInitializeResult(text) {
+  try {
+    const response = JSON.parse(text);
+    return response?.jsonrpc === '2.0' && response.id === 1 &&
+      typeof response.result?.protocolVersion === 'string' &&
+      typeof response.result?.serverInfo?.name === 'string' &&
+      response.result.capabilities !== null && typeof response.result.capabilities === 'object';
+  } catch {
+    return false;
   }
 }
 
