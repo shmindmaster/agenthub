@@ -1082,7 +1082,7 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "9159593E4BCED8E6C5C1E52484472B54D99DD5E26706DA3CB425C31981D2BBC3",
+      "contentHash": "31E7BDDF58D9C9E19F9437F75E0A76069A2DBE1249EC263407E50172B52C9D08",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [
