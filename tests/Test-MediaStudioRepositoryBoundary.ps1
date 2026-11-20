@@ -100,9 +100,19 @@ foreach ($repoEntry in $standard.repos.PSObject.Properties) {
     $productRoot = Join-Path $fleetRoot $repoEntry.Name
     if (-not (Test-Path -LiteralPath (Join-Path $productRoot '.git'))) { continue }
     $scannedProducts++
-    $listed = @(& git -C $productRoot ls-files --cached --others --exclude-standard 2>$null)
+    $bare = (& git -C $productRoot rev-parse --is-bare-repository 2>$null) -eq 'true'
     if ($LASTEXITCODE -ne 0) {
-        $productionDrift.Add("$($repoEntry.Name): git ls-files failed")
+        $productionDrift.Add("$($repoEntry.Name): cannot read repository type")
+        continue
+    }
+    # Archived bare repositories have a committed tree and no working files.
+    $listed = if ($bare) {
+        @(& git -C $productRoot ls-tree -r --name-only HEAD 2>$null)
+    } else {
+        @(& git -C $productRoot ls-files --cached --others --exclude-standard 2>$null)
+    }
+    if ($LASTEXITCODE -ne 0) {
+        $productionDrift.Add("$($repoEntry.Name): cannot list repository paths")
         continue
     }
     foreach ($relativeRaw in $listed) {
@@ -115,9 +125,15 @@ foreach ($repoEntry in $standard.repos.PSObject.Properties) {
             continue
         }
         if ($relative -notmatch '(^|/)package\.json$') { continue }
-        $manifestPath = Join-Path $productRoot ($relative -replace '/', '\')
         try {
-            $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $manifestText = if ($bare) {
+                $lines = & git -C $productRoot show "HEAD:$relative" 2>$null
+                if ($LASTEXITCODE -ne 0) { throw "Cannot read $relative from HEAD" }
+                $lines -join "`n"
+            } else {
+                Get-Content -LiteralPath (Join-Path $productRoot $relative) -Raw -Encoding UTF8
+            }
+            $manifest = $manifestText | ConvertFrom-Json
             $dependencyNames = @('dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies') |
                 ForEach-Object {
                     $group = $manifest.PSObject.Properties[$_].Value
