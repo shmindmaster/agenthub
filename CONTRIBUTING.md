@@ -29,7 +29,7 @@ Or: `npm run init` then `npm run validate`.
 
 ## Rules
 
-- Secrets stay in environment variables or the OS credential store. Registry files reference names, never values.
+- Secrets stay in environment variables or the OS credential store, except the Devin MCP headers helper's 12-hour owner-only cache under local app data (DPAPI-encrypted on Windows, 0600 on Unix) to avoid exhausting the 1Password read quota. Registry files reference names, never values.
 - A `-UserProfile` override must not write the live profile. Do not weaken `tests/Test-SyncInstructions.ps1` or `tests/Test-SyncAgentHubRegistryRoot.ps1`.
 - Core must not import `overlays/personal` or a `visibility: private` package as a default dependency.
 - Use official host formats. Do not invent a plugin manifest for a host that has none.
