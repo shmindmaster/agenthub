@@ -678,7 +678,8 @@
       "notes": "2026-10-21 reconciliation: the recorded ~/.codeium/windsurf configuration tree is now absent; the earlier configuration inventory below is historical. Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%/Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch.",
       "headlessDispatchNote": "Windsurf routes to the installed Devin CLI; dispatch and autonomy restrictions on Devin also apply.",
       "inactiveNote": "Moved to inactiveAgents 2026-10-22: no windsurf executable on PATH or under %LOCALAPPDATA%/Programs and no ~/.codeium directory (hostInventory.notInstalled already recorded this). An active entry made Sync-AgentHub report drift and create ~/.codeium/windsurf/mcp_config.json for a host that is not installed. Dispatch of `windsurf` still routes to Devin per the dispatcher. Reactivate after an install is verified.",
-      "renamedNote": "Checked 2026-11-04: Windsurf is now Devin Desktop. Version 3.11.238 is installed at %LOCALAPPDATA%/Programs/Devin/Devin.exe with its own CLI, and both read %APPDATA%/devin. Do not reactivate this row; the `devin` row is the host."
+      "renamedNote": "Checked 2026-11-04: Windsurf is now Devin Desktop. Version 3.11.238 is installed at %LOCALAPPDATA%/Programs/Devin/Devin.exe with its own CLI, and both read %APPDATA%/devin. Do not reactivate this row; the `devin` row is the host.",
+      "retiredNote": "2026-11-04: The Windsurf row stays inactive because Devin Desktop is tracked under the devin row."
     },
     {
       "id": "mimo-desktop",
@@ -701,7 +702,8 @@
         "plugins"
       ],
       "status": "inactive",
-      "notes": "Installed on 2026-11-09. Sign-in is by Xiaomi account. Plugins install only through the in-app store, and the store catalog could not be listed because the console is JavaScript-rendered. No MCP servers configured. Bundled remotion and hyperframes plugin sources are Codex-marketplace repackages per the audit. Not a dispatch target."
+      "notes": "Installed on 2026-11-09. Sign-in is by Xiaomi account. Plugins install only through the in-app store, and the store catalog could not be listed because the console is JavaScript-rendered. No MCP servers configured. Bundled remotion and hyperframes plugin sources are Codex-marketplace repackages per the audit. Not a dispatch target.",
+      "retiredNote": "2026-11-09 fleet audit: MiMo Desktop is inventory-only, with no dispatch or capability deployments."
     },
     {
       "id": "coderabbit",
@@ -718,7 +720,8 @@
       },
       "supportedCapabilities": [],
       "status": "inactive",
-      "notes": "Installed on 2026-11-09. Not a skills host: it installs the code-review and autofix skills into other agents with `npx skills add coderabbitai/skills`. Those skills were removed from every host on 2026-11-04 and are absent. No MCP surface is documented. Cloud review service. Not a dispatch target and no capability is mapped to it."
+      "notes": "Installed on 2026-11-09. Not a skills host: it installs the code-review and autofix skills into other agents with `npx skills add coderabbitai/skills`. Those skills were removed from every host on 2026-11-04 and are absent. No MCP surface is documented. Cloud review service. Not a dispatch target and no capability is mapped to it.",
+      "retiredNote": "2026-11-09 fleet audit: CodeRabbit is inventory-only, with no dispatch or capability deployments."
     },
     {
       "id": "mimo-code",
