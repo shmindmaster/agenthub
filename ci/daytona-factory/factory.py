@@ -370,22 +370,27 @@ class DaytonaProvider:
     metered = True
     image = BUILD_IMAGE
 
+    # Search is eventually consistent: a sweep waits this long for a just-created worker to appear.
+    index_lag_seconds = 15
+
     def __init__(self, policy):
         self.client = daytona_client()
         self.limits = policy["worker_limits"]
+        self.created = {}
 
     def find(self, labels):
-        # Search is eventually consistent, so every hit is re-read before it counts as live.
+        # Every hit is re-read before it counts as live; workers this process created are re-read
+        # by ID because they may not be indexed yet.
         from daytona.v2.errors import NotFoundError
-        hits, cursor = [], None
+        hits, cursor = dict(self.created), None
         while True:
             page = self.client.v2.search(labels=labels, states=V2_LIVE, limit=100, cursor=cursor)
-            hits += page.items
+            hits.update((box.id, box) for box in page.items)
             cursor = page.next_cursor
             if not cursor:
                 break
         live = []
-        for box in hits:
+        for box in hits.values():
             try:
                 box.refresh_data()
             except NotFoundError:
@@ -414,7 +419,12 @@ class DaytonaProvider:
             # The platform deletes the sandbox at the job deadline even if this runner dies.
             lifecycle_policy={"timeout_seconds": ttl_minutes * 60, "on_timeout": "delete"},
             wait_seconds=180)
+        self.created[box.id] = box
         box.refresh_data()  # the create response omits the allocated resources
+        if str(box.state) != "started":
+            # create() hands back a sandbox that is still starting once wait_seconds runs out.
+            self.remove(box)
+            raise TimeoutError(f"Worker did not start within 180 seconds ({box.state})")
         return DaytonaWorker(box), {"image": image, "cache": None}
 
     transient = staticmethod(daytona_transient)
