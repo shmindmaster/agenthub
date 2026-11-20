@@ -45,7 +45,7 @@
     One of: init, inventory, validate, sync, drift, plugins.
 
 .PARAMETER Apply
-    Only meaningful for 'sync'. Without it, 'sync' audits (the default,
+    Supported by 'sync' and 'plugins'. Without it, 'sync' audits (the default,
     identical in effect to 'drift'). With it, 'sync' deploys -- but only
     after 'validate' passes first; if validate fails, -Apply is refused
     outright and zero delegated sync scripts are run. Deploying from a
@@ -74,6 +74,8 @@ param(
     [string]$UserProfile,
     [string]$HostId,
     [string]$PluginId,
+    [string]$AutoClawAccount,
+    [switch]$IncludePrivateOverlay,
     [switch]$Json
 )
 
@@ -110,6 +112,9 @@ $hostExe = (Get-Process -Id $PID).Path
 
 if ($Command -ne 'plugins' -and ($HostId -or $PluginId -or $Json)) {
     throw 'Plugin filters and -Json are only supported by the plugins command.'
+}
+if (($AutoClawAccount -or $IncludePrivateOverlay) -and ($Command -ne 'plugins' -or $HostId -ne 'autoclaw')) {
+    throw 'AutoClaw account and overlay options require plugins -HostId autoclaw.'
 }
 if ([string]::IsNullOrWhiteSpace($Command) -or $Command -notin $ValidCommands) {
     Write-Host "FAIL: unknown subcommand '$Command'. Valid subcommands: $($ValidCommands -join ', ')." -ForegroundColor Red
@@ -368,6 +373,8 @@ switch ($Command) {
         $argsForPlugins = @('-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile)
         if ($HostId) { $argsForPlugins += @('-HostId', $HostId) }
         if ($PluginId) { $argsForPlugins += @('-PluginId', $PluginId) }
+        if ($AutoClawAccount) { $argsForPlugins += @('-AutoClawAccount', $AutoClawAccount) }
+        if ($IncludePrivateOverlay) { $argsForPlugins += '-IncludePrivateOverlay' }
         if ($Json) { $argsForPlugins += '-Json' }
         if ($Apply) { $argsForPlugins += '-Apply' }
         & pwsh -NoProfile -File (Join-Path $ScriptsDir 'Sync-Plugins.ps1') @argsForPlugins

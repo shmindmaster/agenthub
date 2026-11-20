@@ -874,7 +874,7 @@
             "channel": "parallel@parallel-agent-skills",
             "installedVersion": "0.12.0",
             "current": true,
-            "updateCommand": "Use the bundled ZCode CLI with the selected AutoClaw account profile. Add parallel-web/parallel-agent-skills and install parallel@parallel-agent-skills in user scope.",
+            "updateCommand": "pwsh -NoProfile -File scripts/AgentHub.ps1 plugins -HostId autoclaw -PluginId parallel -AutoClawAccount <account-email> -Apply",
             "note": "The matching upstream release was installed through the vendor marketplace. Native desktop runtime readback discovered all 15 skills and connected to the plugin MCP with eight tools. Funded personal authentication and tool invocation remain unverified."
           },
           {

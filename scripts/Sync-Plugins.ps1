@@ -5,6 +5,8 @@ param(
     [Parameter(Mandatory)][string]$UserProfile,
     [string]$HostId,
     [string]$PluginId,
+    [string]$AutoClawAccount,
+    [switch]$IncludePrivateOverlay,
     [switch]$Json,
     [switch]$Apply
 )
@@ -27,7 +29,10 @@ $hostCatalog = @{}
 foreach ($agent in $agents.activeAgents) {
     if (Test-AgentHubHostSyncEnabled -Agent $agent) { $hostCatalog[$agent.id] = $agent }
 }
-if ($HostId -and -not $hostCatalog.ContainsKey($HostId)) { throw "Unknown active host: $HostId" }
+if ($HostId -and $HostId -ne 'autoclaw' -and -not $hostCatalog.ContainsKey($HostId)) { throw "Unknown active host: $HostId" }
+if ($HostId -ne 'autoclaw' -and ($AutoClawAccount -or $IncludePrivateOverlay)) {
+    throw 'AutoClaw account and overlay options require -HostId autoclaw.'
+}
 
 function Read-Document([string]$Path) {
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
@@ -337,6 +342,71 @@ function Get-MappingRoute($Cap, [string]$OwnerHost, [string]$DeploymentStatus) {
     return $DeploymentStatus
 }
 
+function Assert-PublishedPluginSource {
+    if (-not $live) { throw 'Apply requires the invoking user profile. Use audit for alternate profiles.' }
+    $branch = & git -C $root branch --show-current
+    $head = & git -C $root rev-parse HEAD
+    $origin = & git -C $root remote get-url origin
+    if ($branch -ne 'main' -or $origin -notmatch '(^|[/:])shmindmaster/agenthub(\.git)?$' -or
+        @(& git -C $root status --porcelain).Count) { throw 'Apply requires the clean AgentHub main checkout.' }
+    $remote = & git -C $root ls-remote --exit-code origin refs/heads/main
+    if ($LASTEXITCODE -ne 0 -or ($remote -split '\s+')[0] -ne $head) { throw 'The checkout must match published origin/main.' }
+    $null = Get-GreenCiRun $head
+    $null = Invoke-Client pwsh @('-NoProfile','-File',(Join-Path $PSScriptRoot 'Validate-AgentHub.ps1'),'-RepositoryRoot',$root)
+    return $head
+}
+
+function Get-GreenCiRun([string]$Head) {
+    $runs = @(Invoke-Client gh @('run','list','--repo','shmindmaster/agenthub','--workflow','CI','--commit',$Head,'--limit','5','--json','conclusion,databaseId') | ConvertFrom-Json)
+    $run = $runs | Where-Object conclusion -EQ 'success' | Select-Object -First 1
+    if (-not $run) { throw 'Apply requires successful CI for the exact published commit.' }
+    return [string]$run.databaseId
+}
+
+if ($HostId -eq 'autoclaw') {
+    if (-not $IsWindows -or -not $live) { throw 'AutoClaw requires the invoking Windows profile.' }
+    if (($Apply -or $IncludePrivateOverlay) -and -not $AutoClawAccount) {
+        throw 'AutoClaw apply or private overlay selection requires -AutoClawAccount.'
+    }
+    $arguments = @((Join-Path $PSScriptRoot 'sync-autoclaw-plugins.mjs'), '--root', $root)
+    if ($AutoClawAccount) { $arguments += @('--account', $AutoClawAccount) }
+    if ($IncludePrivateOverlay) {
+        if (-not $overlay) { throw 'A private AgentHub overlay was not found.' }
+        $arguments += @('--overlay', $overlay)
+    }
+    if ($PluginId) { $arguments += @('--plugin', $PluginId) }
+    if ($Json) { $arguments += '--json' }
+    $lock = $null
+    try {
+        if ($Apply) {
+            $null = Assert-PublishedPluginSource
+            if ($IncludePrivateOverlay) {
+                $overlayOrigin = Invoke-Client git @('-C', $overlay, 'remote', 'get-url', 'origin')
+                $overlayHead = Invoke-Client git @('-C', $overlay, 'rev-parse', 'HEAD')
+                if ($overlayOrigin -notmatch '(^|[/:])shmindmaster/agenthub-private(\.git)?$') {
+                    throw 'Apply requires the canonical private overlay checkout.'
+                }
+                $overlayRemote = Invoke-Client git @('-C', $overlay, 'ls-remote', '--exit-code', 'origin', 'refs/heads/main')
+                if (($overlayRemote -split '\s+')[0] -ne $overlayHead) {
+                    throw 'The private overlay must match its published main.'
+                }
+            }
+            $deploymentDirectory = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub/runtime/plugin-deployment'
+            [void][IO.Directory]::CreateDirectory($deploymentDirectory)
+            $lock = [IO.File]::Open((Join-Path $deploymentDirectory 'deployment.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+            if (Get-Process -Name '*AutoClaw*' -ErrorAction SilentlyContinue) {
+                throw 'Close AutoClaw before applying native plugin changes.'
+            }
+            $arguments += '--apply'
+        }
+        & node @arguments
+        $code = $LASTEXITCODE
+    } finally {
+        if ($lock) { $lock.Dispose() }
+    }
+    exit $code
+}
+
 $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilities -OverlayRoot $overlay) {
     $source = Resolve-AgentHubPackageRoot -RepositoryRoot $root -Capability $cap -OverlayRoot $overlay
     $manifest = Read-Document (Join-Path $source 'plugin.json')
@@ -382,27 +452,6 @@ $rows = foreach ($cap in Get-AgentHubEffectiveCapabilities -CapabilitiesDocument
 }
 $rows = @($rows | Sort-Object host, plugin)
 if (-not $rows.Count) { throw 'No plugin mappings matched the filters.' }
-
-function Assert-PublishedPluginSource {
-    if (-not $live) { throw 'Apply requires the invoking user profile. Use audit for alternate profiles.' }
-    $branch = & git -C $root branch --show-current
-    $head = & git -C $root rev-parse HEAD
-    $origin = & git -C $root remote get-url origin
-    if ($branch -ne 'main' -or $origin -notmatch '(^|[/:])shmindmaster/agenthub(\.git)?$' -or
-        @(& git -C $root status --porcelain).Count) { throw 'Apply requires the clean AgentHub main checkout.' }
-    $remote = & git -C $root ls-remote --exit-code origin refs/heads/main
-    if ($LASTEXITCODE -ne 0 -or ($remote -split '\s+')[0] -ne $head) { throw 'The checkout must match published origin/main.' }
-    $null = Get-GreenCiRun $head
-    $null = Invoke-Client pwsh @('-NoProfile','-File',(Join-Path $PSScriptRoot 'Validate-AgentHub.ps1'),'-RepositoryRoot',$root)
-    return $head
-}
-
-function Get-GreenCiRun([string]$Head) {
-    $runs = @(Invoke-Client gh @('run','list','--repo','shmindmaster/agenthub','--workflow','CI','--commit',$Head,'--limit','5','--json','conclusion,databaseId') | ConvertFrom-Json)
-    $run = $runs | Where-Object conclusion -EQ 'success' | Select-Object -First 1
-    if (-not $run) { throw 'Apply requires successful CI for the exact published commit.' }
-    return [string]$run.databaseId
-}
 
 function Invoke-PluginInstall($Row) {
     $name = $Row.plugin

@@ -15,4 +15,15 @@ Run `agenthub doctor --host autoclaw --native --json` for repeatable inventory o
 
 The existing AutoClaw account reported all seven public AgentHub plugins enabled and all 15 Parallel skills discovered. The desktop runtime connected to Parallel and AssemblyAI Docs and reported eight and three tools respectively. The AssemblyAI service returned a failed connection in the credential-free check.
 
-Fleet sync integration, same-channel update verification, account-specific private overlay deployment, desktop UI acceptance, and a tool invocation from an AutoClaw conversation remain open. To check the official update channel in the app, use Settings → About. [AutoClaw installation and updates](https://autoclaw.z.ai/en/docs/getting-started/install/)
+## Manage the native plugin catalog
+
+```powershell
+pwsh -NoProfile -File scripts/AgentHub.ps1 plugins -HostId autoclaw -Json
+pwsh -NoProfile -File scripts/AgentHub.ps1 plugins -HostId autoclaw -AutoClawAccount <account-email> -Apply
+```
+
+Close AutoClaw before applying. The account must already be initialized on this Windows profile. The command compares the installed inventory with the public AgentHub catalog and the Parallel marketplace. Use `-PluginId` to select one plugin. Use `-IncludePrivateOverlay` with an explicit account only when that account is authorized for the private overlay. Apply requires validated, published AgentHub main and, if selected, the published private overlay main.
+
+AgentHub stages tracked files under its local runtime directory and uses ZCode to register the catalogs and install or update plugins. It reports marketplace ownership conflicts without replacing the existing source. It preserves existing enablement choices and keeps capability-owned local MCPs with `startupEnabled: false` disabled. The built-in AutoClaw plugins remain under vendor control. General fleet sync and dispatch exclude AutoClaw.
+
+Same-channel app update verification, desktop UI acceptance, and an authenticated tool invocation from an AutoClaw conversation remain open. To check the official update channel in the app, use Settings → About. [AutoClaw installation and updates](https://autoclaw.z.ai/en/docs/getting-started/install/)
