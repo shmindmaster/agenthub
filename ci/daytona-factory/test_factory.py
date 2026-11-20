@@ -105,21 +105,28 @@ class BudgetTests(unittest.TestCase):
         self.assertAlmostEqual(factory.worst_case_usd(self.policy), round(hourly * 0.5 * 2, 4))
 
     def test_preflight_fails_closed(self):
-        for credits, fallback in ((None, True), (0, True), (200, False), (200, None)):
+        for credits, fallback in ((None, "true"), (0, "true"), (200, "false"), (200, None),
+                                  (200, True), (200, "")):
             with self.subTest(credits=credits, fallback=fallback), self.assertRaises(ValueError):
                 factory.preflight(self.policy, credits, fallback, 0)
         with self.assertRaises(ValueError):
-            factory.preflight(self.policy, 200, True, -1)
+            factory.preflight(self.policy, 200, "true", -1)
 
     def test_cap_is_the_smaller_of_ten_dollars_and_ten_percent(self):
-        self.assertEqual(factory.preflight(self.policy, 200, True, 0)["cap_usd"], 10)
-        self.assertEqual(factory.preflight(self.policy, 20, True, 0)["cap_usd"], 2)
+        self.assertEqual(factory.preflight(self.policy, 200, "true", 0)["cap_usd"], 10)
+        self.assertEqual(factory.preflight(self.policy, 20, "true", 0)["cap_usd"], 2)
         per_run = factory.worst_case_usd(self.policy)
         allowed = int(2 // per_run)
-        self.assertEqual(factory.preflight(self.policy, 20, True, allowed - 1)["reserved_usd"],
+        self.assertEqual(factory.preflight(self.policy, 20, "true", allowed - 1)["reserved_usd"],
                          round(per_run * allowed, 4))
         with self.assertRaises(ValueError):
-            factory.preflight(self.policy, 20, True, allowed)
+            factory.preflight(self.policy, 20, "true", allowed)
+
+    def test_unverified_fallback_is_recorded_as_unreachable_under_cap(self):
+        reservation = factory.preflight(self.policy, 900, "unreachable-under-cap", 0)
+        self.assertEqual(reservation["cap_usd"], 10)
+        self.assertEqual(reservation["cash_fallback"], "unverified; unreachable under the pilot cap")
+        self.assertEqual(factory.preflight(self.policy, 900, "true", 0)["cash_fallback"], "disabled")
 
     def test_gpu_or_oversized_workers_are_rejected(self):
         factory.check_resources(self.policy, {"cpu": 2, "gpu": 0, "memory_gib": 4, "disk_gib": None})

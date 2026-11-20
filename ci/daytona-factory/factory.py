@@ -72,10 +72,17 @@ def worst_case_usd(policy):
     return round(attempt * policy["max_job_minutes"] / 60 * (1 + policy["transient_retries"]), 4)
 
 
-def preflight(policy, credits_usd, cash_fallback_disabled, prior_runs):
-    """Fail closed unless funding is attested and the reservation fits the pilot cap."""
-    if cash_fallback_disabled is not True:
-        raise ValueError("Cash fallback is not attested as disabled; metered launch refused.")
+CASH_FALLBACK = {"true": "disabled",
+                 "unreachable-under-cap": "unverified; unreachable under the pilot cap"}
+
+
+def preflight(policy, credits_usd, cash_fallback, prior_runs):
+    """Fail closed unless funding is attested and the reservation fits the pilot cap.
+
+    cash_fallback is "true" when the owner attests auto top-up is off, or
+    "unreachable-under-cap" when it is unverified but the cap is below the attested credits."""
+    if cash_fallback not in CASH_FALLBACK:
+        raise ValueError("Cash fallback is not attested as disabled or unreachable; metered launch refused.")
     if credits_usd is None or credits_usd <= 0:
         raise ValueError("No attested eligible credit balance; metered launch refused.")
     if prior_runs < 0:
@@ -85,9 +92,11 @@ def preflight(policy, credits_usd, cash_fallback_disabled, prior_runs):
     reserved = round(per_run * (prior_runs + 1), 4)
     if reserved > cap:
         raise ValueError(f"Reserving ${reserved} would exceed the ${cap} pilot cap.")
+    if cash_fallback == "unreachable-under-cap" and cap >= credits_usd:
+        raise ValueError("The pilot cap does not stay below the attested credits.")
     return {"funding": "daytona free credits", "credits_usd": credits_usd, "cap_usd": cap,
             "worst_case_usd_per_run": per_run, "prior_runs": prior_runs, "reserved_usd": reserved,
-            "cash_fallback_disabled": True}
+            "cash_fallback": CASH_FALLBACK[cash_fallback]}
 
 
 def check_resources(policy, resources):
@@ -634,7 +643,7 @@ def main():
     if args.command == "cleanup":
         return cleanup(args, policy)
     if args.command == "preflight":
-        reservation = preflight(policy, args.credits_usd, args.cash_fallback_disabled == "true",
+        reservation = preflight(policy, args.credits_usd, args.cash_fallback_disabled,
                                 -1 if args.prior_runs is None else args.prior_runs)
         args.output.write_text(json.dumps(reservation, indent=2) + "\n")
         print(json.dumps(reservation), flush=True)
