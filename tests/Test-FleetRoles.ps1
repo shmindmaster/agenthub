@@ -29,14 +29,14 @@ $r = New-Registry; (Find-Host $r 'cline').fleetRole = 'retained'
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'seventh retained host is rejected' (($e -join ';') -match 'not one of the six families: cline')
 
-$r = New-Registry; (Find-Host $r 'kilo').fleetRole = 'pending-retirement'
+$r = New-Registry; (Find-Host $r 'kilo').fleetRole = 'supported'
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'demoting a retained family is rejected' (($e -join ';') -match 'not marked retained: kilo')
 
 # SH-4969 (owner direction 2026-11-19): Devin is a first-class retained agent.
 $r = New-Registry
 Report 'devin is recorded as retained' ([string](Find-Host $r 'devin').fleetRole -eq 'retained') ([string](Find-Host $r 'devin').fleetRole)
-(Find-Host $r 'devin').fleetRole = 'pending-retirement'
+(Find-Host $r 'devin').fleetRole = 'supported'
 $e = @(Test-AgentFleetRoles -Agents $r)
 Report 'demoting devin is rejected' (($e -join ';') -match 'not marked retained: devin')
 

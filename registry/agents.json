@@ -167,7 +167,7 @@
     },
     {
       "id": "copilot",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "supported",
       "name": "GitHub Copilot CLI",
       "version": "1.0.108",
       "executable": "{userHome}/bin/copilot.cmd",
@@ -197,7 +197,7 @@
     },
     {
       "id": "antigravity",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "supported",
       "name": "Google Antigravity",
       "version": "1.5.5",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
@@ -238,7 +238,7 @@
     },
     {
       "id": "antigravity-desktop",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "supported",
       "name": "Antigravity Desktop",
       "version": "2.29.0",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
@@ -264,7 +264,7 @@
     },
     {
       "id": "antigravity-ide",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "supported",
       "name": "Antigravity IDE",
       "version": "unknown",
       "executable": "{userHome}/AppData/Local/Programs/Antigravity IDE/Antigravity IDE.exe",
@@ -293,7 +293,7 @@
     },
     {
       "id": "grok",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "supported",
       "name": "Grok CLI",
       "version": "1.0.77",
       "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run.",
@@ -383,7 +383,7 @@
     },
     {
       "id": "cline",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "supported",
       "name": "Cline CLI / ACP / Kanban",
       "version": "3.0.74",
       "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `cline.cmd --version` printed 3.0.73. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported 3.0.71. `cline update` reported already on cline 3.0.71 and kanban 0.1.70. No upgrade or downgrade was performed by this inventory correction.",
@@ -425,7 +425,7 @@
     },
     {
       "id": "cursor",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "supported",
       "name": "Cursor",
       "version": "3.29.9",
       "executable": "{userHome}/bin/cursor.cmd",
@@ -460,7 +460,7 @@
     },
     {
       "id": "cursor-agent",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "supported",
       "name": "Cursor Agent CLI",
       "version": "2026.11.05-86047df",
       "executable": "{userHome}/bin/cursor-agent.cmd",
@@ -505,7 +505,7 @@
     },
     {
       "id": "amp",
-      "fleetRole": "pending-retirement",
+      "fleetRole": "supported",
       "name": "Sourcegraph Amp",
       "version": "0.0.1794240032-ga42e06",
       "versionObserved": "2026-10-14: verified installed launcher/file version 0.0.1792022479-ge66e24. Manual forward update and launcher reconciliation; active sessions preserved.",
@@ -688,57 +688,6 @@
       "notes": "Installed on 2026-11-09, OpenCode-compatible fork. Promoted to active 2026-11-10 on owner direction; dispatch enabled the same day after the governed command and the guarded peer agent were verified (fleet-profile dispatchPolicy.kilo). `kilo` and `kilocode` are two shims for the same install (identical version and help). Plugins install with `kilo plugin <npm>` (npm array in config); plugin format is PLUGIN.yaml. Loads ~/.agents/skills natively by default, which the plugin-only policy keeps empty. No Kilo VS Code extension installed. Subagents and rules support are not established.",
       "acpNote": "`kilo acp` and `kilo serve` are help-discovered entry points (2026-11-10); ACP protocol initialization, session handoff and authenticated inference are not established.",
       "headlessDispatchNote": "`kilo run --auto --format json --dir <cwd> --model mimo/mimo-v2.6-pro --agent peer <prompt>` verified 2026-11-10: returned READY, exit 0, and a denied command stayed denied under --auto. Auth is the MiMo provider through MIMO_API_KEY in config.json -- a separately authorized Token Plan key, not an account login."
-    },
-    {
-      "id": "mimo-code",
-      "fleetRole": "pending-retirement",
-      "name": "MiMo Code CLI",
-      "version": "0.1.16",
-      "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. `mimo run` default-model smoke 2026-11-10 returned READY (agent build, model mimo-v2.6-pro); the governed dispatch command returned READY under agent peer the same day.",
-      "executable": "{userHome}/AppData/Roaming/npm/mimo.cmd",
-      "nativePaths": {
-        "config": "{userHome}/.config/mimocode/config.json",
-        "configNote": "Carries the MiMo provider. The same directory also holds mimocode.jsonc, which is where the MCP key is recorded.",
-        "mcp": "{userHome}/.config/mimocode/mimocode.jsonc",
-        "mcpKey": "mcp",
-        "mcpNote": "Same shape as OpenCode. OAuth tokens go to ~/.local/share/mimocode/mcp-auth.json. `mimo providers list` 2026-11-10 shows one credential (Xiaomi Token Plan Singapore). No MCP servers recorded on 2026-11-09.",
-        "skillsDir": "{userHome}/.mimocode/skills",
-        "skillsDirNote": "Native MiMo skill root per https://github.com/xiaomimimo/mimo-code/blob/main/README.md and docs/compose/spec/skill-external-root-defaults.md (2026-11-10). Host-local skill links only; this is not an ah-* plugin format.",
-        "instructions": null,
-        "instructionsNote": "Not established for AgentHub deployment; discovery required before any instruction file is written. Sync-Instructions reaches inactive hosts; promoting to active does not deploy global instructions until a file contract is verified."
-      },
-      "supportedCapabilities": [
-        "skills",
-        "mcp",
-        "plugins",
-        "acp"
-      ],
-      "status": "active",
-      "notes": "Installed on 2026-11-09, OpenCode fork. Promoted to active 2026-11-10 on owner direction; dispatch enabled the same day after the governed command and the guarded peer agent were verified (fleet-profile dispatchPolicy.mimo-code). Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories; ~/.agents/skills stays empty under the plugin-only policy. Subagents and rules support are not established.",
-      "acpNote": "`mimo acp` and `mimo serve` are help-discovered entry points (2026-11-10); ACP protocol initialization, session handoff and authenticated inference are not established.",
-      "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> --model xiaomi-token-plan-sgp/mimo-v2.6-pro --agent peer <prompt>` verified 2026-11-10: returned READY, exit 0, and a denied command stayed denied under --yolo. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan key credential (a stored key, not an OAuth account login)."
-    },
-    {
-      "id": "qwen",
-      "fleetRole": "pending-retirement",
-      "name": "Qwen Code",
-      "version": "0.27.1",
-      "versionObserved": "2026-11-11: `qwen --version` printed 0.27.1 (npm global shim). `qwen --help` the same day documented the OpenAI-compatible auth path (--auth-type openai, OPENAI_* variables, --openai-api-key/--openai-base-url), --approval-mode plan|yolo and the positional one-shot prompt the dispatch route uses.",
-      "executable": "{userHome}/AppData/Roaming/npm/qwen.cmd",
-      "nativePaths": {
-        "config": "{userHome}/.qwen/settings.json",
-        "skillsDir": "{userHome}/.qwen/skills",
-        "instructions": null,
-        "instructionsNote": "Not established for AgentHub deployment."
-      },
-      "supportedCapabilities": [
-        "skills",
-        "mcp",
-        "acp"
-      ],
-      "status": "active",
-      "notes": "Installed (npm @qwen-code/qwen-code 0.27.1). Gemini-CLI-family fork: -p/--prompt headless and --acp both verified in --help 2026-11-10. A `qwen -p` smoke crashed in resolveModelConfig even though ~/.qwen/settings.json exists with selectedType nvidia and a configured model, so the stored configuration is not trusted. `qwen auth` is a removed command. Promoted to active and dispatchable 2026-11-11 on owner direction (Linear SH-4421): the route bypasses the stored settings entirely and carries the Xiaomi Token Plan credential in the child environment only; a real model run through it is still unverified.",
-      "headlessDispatchNote": "`qwen --auth-type openai -m mimo-v2.6-pro --approval-mode yolo -o json <prompt>` built from `qwen --help` 0.27.1 and the vendor Token Plan integration page on 2026-11-11; not exercised with a model run. -ReadOnly swaps yolo for plan (help: 'Analyze only, do not modify files or execute commands'). Auth: MIMO_API_KEY and MIMO_BASE_URL in the dispatcher environment become OPENAI_API_KEY, OPENAI_BASE_URL and OPENAI_MODEL in the child; both must be present and plan-shaped. The child also carries the same GIT_CONFIG_*/GH_CONFIG_DIR push guard as warp."
     }
   ],
   "inactiveAgents": [
@@ -823,6 +772,59 @@
       "supportedCapabilities": [],
       "status": "inactive",
       "notes": "Installed on 2026-11-09. Not a skills host: it installs the code-review and autofix skills into other agents with `npx skills add coderabbitai/skills`. Those skills were removed from every host on 2026-11-04 and are absent. No MCP surface is documented. Cloud review service. Not a dispatch target and no capability is mapped to it."
+    },
+    {
+      "id": "mimo-code",
+      "fleetRole": "retired",
+      "name": "MiMo Code CLI",
+      "version": "0.1.16",
+      "versionObserved": "2026-11-09: read-only `mimo --version` printed 0.1.16. `mimo run` default-model smoke 2026-11-10 returned READY (agent build, model mimo-v2.6-pro); the governed dispatch command returned READY under agent peer the same day.",
+      "executable": "{userHome}/AppData/Roaming/npm/mimo.cmd",
+      "nativePaths": {
+        "config": "{userHome}/.config/mimocode/config.json",
+        "configNote": "Carries the MiMo provider. The same directory also holds mimocode.jsonc, which is where the MCP key is recorded.",
+        "mcp": "{userHome}/.config/mimocode/mimocode.jsonc",
+        "mcpKey": "mcp",
+        "mcpNote": "Same shape as OpenCode. OAuth tokens go to ~/.local/share/mimocode/mcp-auth.json. `mimo providers list` 2026-11-10 shows one credential (Xiaomi Token Plan Singapore). No MCP servers recorded on 2026-11-09.",
+        "skillsDir": "{userHome}/.mimocode/skills",
+        "skillsDirNote": "Native MiMo skill root per https://github.com/xiaomimimo/mimo-code/blob/main/README.md and docs/compose/spec/skill-external-root-defaults.md (2026-11-10). Host-local skill links only; this is not an ah-* plugin format.",
+        "instructions": null,
+        "instructionsNote": "Not established for AgentHub deployment; discovery required before any instruction file is written. Sync-Instructions reaches inactive hosts; promoting to active does not deploy global instructions until a file contract is verified."
+      },
+      "supportedCapabilities": [
+        "skills",
+        "mcp",
+        "plugins",
+        "acp"
+      ],
+      "status": "inactive",
+      "notes": "Installed on 2026-11-09, OpenCode fork. Promoted to active 2026-11-10 on owner direction; dispatch enabled the same day after the governed command and the guarded peer agent were verified (fleet-profile dispatchPolicy.mimo-code). Plugins install with `mimo plugin -g <npm>` and are OpenCode-format; the vendor plugins docs page returned 404 on 2026-11-09. No official plugin store found. Also reads ~/.agents/skills and .claude/.codex/.opencode compatibility directories; ~/.agents/skills stays empty under the plugin-only policy. Subagents and rules support are not established.",
+      "acpNote": "`mimo acp` and `mimo serve` are help-discovered entry points (2026-11-10); ACP protocol initialization, session handoff and authenticated inference are not established.",
+      "headlessDispatchNote": "`mimo run --yolo --format json --dir <cwd> --model xiaomi-token-plan-sgp/mimo-v2.6-pro --agent peer <prompt>` verified 2026-11-10: returned READY, exit 0, and a denied command stayed denied under --yolo. Its auto-approve flag is --yolo (--dangerously-skip-permissions), not OpenCode's --auto. Auth: one stored Xiaomi Token Plan key credential (a stored key, not an OAuth account login).",
+      "retiredNote": "Removed 2026-11-19 on owner direction: uninstalled from this PC and dropped from the fleet."
+    },
+    {
+      "id": "qwen",
+      "fleetRole": "retired",
+      "name": "Qwen Code",
+      "version": "0.27.1",
+      "versionObserved": "2026-11-11: `qwen --version` printed 0.27.1 (npm global shim). `qwen --help` the same day documented the OpenAI-compatible auth path (--auth-type openai, OPENAI_* variables, --openai-api-key/--openai-base-url), --approval-mode plan|yolo and the positional one-shot prompt the dispatch route uses.",
+      "executable": "{userHome}/AppData/Roaming/npm/qwen.cmd",
+      "nativePaths": {
+        "config": "{userHome}/.qwen/settings.json",
+        "skillsDir": "{userHome}/.qwen/skills",
+        "instructions": null,
+        "instructionsNote": "Not established for AgentHub deployment."
+      },
+      "supportedCapabilities": [
+        "skills",
+        "mcp",
+        "acp"
+      ],
+      "status": "inactive",
+      "notes": "Installed (npm @qwen-code/qwen-code 0.27.1). Gemini-CLI-family fork: -p/--prompt headless and --acp both verified in --help 2026-11-10. A `qwen -p` smoke crashed in resolveModelConfig even though ~/.qwen/settings.json exists with selectedType nvidia and a configured model, so the stored configuration is not trusted. `qwen auth` is a removed command. Promoted to active and dispatchable 2026-11-11 on owner direction (Linear SH-4421): the route bypasses the stored settings entirely and carries the Xiaomi Token Plan credential in the child environment only; a real model run through it is still unverified.",
+      "headlessDispatchNote": "`qwen --auth-type openai -m mimo-v2.6-pro --approval-mode yolo -o json <prompt>` built from `qwen --help` 0.27.1 and the vendor Token Plan integration page on 2026-11-11; not exercised with a model run. -ReadOnly swaps yolo for plan (help: 'Analyze only, do not modify files or execute commands'). Auth: MIMO_API_KEY and MIMO_BASE_URL in the dispatcher environment become OPENAI_API_KEY, OPENAI_BASE_URL and OPENAI_MODEL in the child; both must be present and plan-shaped. The child also carries the same GIT_CONFIG_*/GH_CONFIG_DIR push guard as warp.",
+      "retiredNote": "Removed 2026-11-19 on owner direction: uninstalled from this PC and dropped from the fleet."
     }
   ]
 }
