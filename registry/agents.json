@@ -197,6 +197,7 @@
         "instructionFormat": "markdown",
         "mcp": "{userHome}/.copilot/mcp-config.json",
         "skillsDir": "{userHome}/.copilot/skills",
+        "skillsDirNote": "Absent on the fleet PC at the November 20 inventory. Copilot also documents the shared ~/.agents/skills path, which exists here and is the AgentHub deployment target.",
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Copilot CLI documents personal skills at ~/.copilot/skills or ~/.agents/skills. AgentHub deploys once to the master library.",
         "pluginsDir": "{userHome}/.copilot/installed-plugins"
@@ -402,6 +403,7 @@
         "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Cursor natively discovers ~/.agents/skills and ~/.cursor/skills. AgentHub deploys once to the master library; ~/.cursor/skills is a directory junction so cursor-agent still sees the documented Cursor path.",
         "agentsDir": "{userHome}/.cursor/agents",
         "rulesDir": "{userHome}/.cursor/rules",
+        "rulesDirNote": "Absent on the fleet PC at the November 20 inventory. The separately documented User Rules surface is managed through Cursor settings. Directory presence or editor discovery has not been established.",
         "instructions": null,
         "instructionHeader": null,
         "instructionFormat": "mdc",
