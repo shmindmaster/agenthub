@@ -3,6 +3,7 @@
   "workers_per_attempt": 2,
   "max_job_minutes": 30,
   "export_reserve_seconds": 180,
+  "teardown_reserve_seconds": 60,
   "transient_retries": 1,
   "pilot_cap_usd": 10,
   "pilot_cap_credit_fraction": 0.1,

@@ -40,7 +40,9 @@ class FactoryTests(unittest.TestCase):
         receipt = {"schema": 2, "status": "passed", "probe": "none", "app": "abacare",
                    "commit": "a" * 40, "suite": "demo", "factory_commit": "f" * 40,
                    "preview": {"status": "verified and revoked"},
-                   "workers": {"build": dict(worker), "render": dict(worker)}}
+                   "workers": {"build": {**worker, "exported": ["capture.webm", "journeys.tar.gz",
+                                                               "tests.log"]},
+                               "render": {**worker, "exported": ["demo.mp4"]}}}
         receipt.update(changes)
         return receipt
 
@@ -54,7 +56,8 @@ class FactoryTests(unittest.TestCase):
             self.assertEqual(json.loads((root / "receipt.json").read_text()), receipt)
             self.assertTrue(verify())
             self.assertFalse(verify("b" * 40))
-            factory.write_receipt(root, self.receipt(workers={}))
+            with self.assertRaises(ValueError):
+                factory.write_receipt(root, self.receipt(workers={}))
             self.assertFalse(verify())
             not_exported = self.receipt()
             not_exported["workers"]["build"]["exported_before_delete"] = False
@@ -78,6 +81,25 @@ class FactoryTests(unittest.TestCase):
             (root / "tests.log").write_text("boom", encoding="utf-8")
             receipt = factory.write_receipt(root, self.receipt(status="failed", suite="journey"))
             self.assertEqual(set(receipt["files"]), {"tests.log"})
+            self.assertFalse(factory.verify_receipt(root, "abacare", "a" * 40, "journey", "f" * 40))
+
+    def test_files_this_attempt_did_not_export_are_never_hashed_or_verified(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("tests.log", "journeys.tar.gz"):
+                (root / name).write_text(name, encoding="utf-8")
+            stale = self.receipt(suite="journey")
+            stale["workers"] = {"build": {"deleted": True, "exported_before_delete": True,
+                                          "exported": ["tests.log"]}}
+            with self.assertRaises(ValueError):
+                factory.write_receipt(root, stale)
+            written = json.loads((root / "receipt.json").read_text(encoding="utf-8"))
+            self.assertEqual((written["status"], set(written["files"])), ("failed", {"tests.log"}))
+            # A hand-edited receipt that hashes an unexported file still does not verify.
+            written.update(status="passed", files={
+                name: {"sha256": factory.digest(root / name), "bytes": (root / name).stat().st_size}
+                for name in ("tests.log", "journeys.tar.gz")})
+            (root / "receipt.json").write_text(json.dumps(written), encoding="utf-8")
             self.assertFalse(factory.verify_receipt(root, "abacare", "a" * 40, "journey", "f" * 40))
 
 
@@ -148,6 +170,79 @@ class BudgetTests(unittest.TestCase):
             deadline.bound(10)
         self.assertEqual(deadline.bound(500, export=True), 100)
 
+    def test_teardown_tail_must_sit_inside_the_export_reserve(self):
+        for value in (0, 180, 400):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "budget.json"
+                path.write_text(json.dumps({**self.policy, "teardown_reserve_seconds": value}))
+                with self.assertRaises(ValueError):
+                    factory.load_policy(path)
+
+    def test_export_operations_end_before_the_teardown_tail(self):
+        clock = [0.0]
+        deadline = factory.Deadline(30, 180, clock=lambda: clock[0], teardown_seconds=60)
+        clock[0] = 1800 - 100
+        self.assertEqual(deadline.export_bound(300), 40)
+        clock[0] = 1800 - 60
+        with self.assertRaises(RuntimeError):
+            deadline.export_bound(300)
+
+    def run_record(self, id, attempt, status="completed", created="2026-11-21T10:00:00Z"):
+        return {"id": id, "status": status, "run_attempt": attempt, "created_at": created}
+
+    def test_batch_counts_every_started_attempt(self):
+        current = self.run_record(30, 3, "in_progress")
+        runs = [self.run_record(10, 2), self.run_record(20, 1), current,
+                self.run_record(40, 2, "queued")]
+        self.assertEqual(factory.batch_attempts(runs, current, 3, "2026-11-21"), 2 + 1 + 2 + 1)
+        stream = "".join(json.dumps(r, indent=2) + "\n" for r in runs)
+        self.assertEqual(factory.json_stream(stream), runs)
+
+    def test_reruns_of_pre_batch_runs_are_refused_every_time(self):
+        old = self.run_record(111, 1, "in_progress", created="2026-11-20T09:00:00Z")
+        # The batch moves forward; the old run is absent from the batch list on every rerun.
+        for attempt in range(2, 6):
+            with self.subTest(attempt=attempt), self.assertRaisesRegex(ValueError, "before DAYTONA"):
+                factory.batch_attempts([], dict(old, run_attempt=attempt), attempt, "2026-11-21")
+        with self.assertRaisesRegex(ValueError, "before DAYTONA"):
+            factory.batch_attempts([], old, 2, "2026-11-20T09:00:01Z")
+        self.assertEqual(factory.batch_attempts([old], old, 2, "2026-11-20T09:00:00Z"), 1)
+
+    def test_preflight_cli_refuses_a_pre_batch_rerun(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "runs.jsonl").write_text("")
+            (root / "current.json").write_text(json.dumps(
+                self.run_record(111, 4, "in_progress", created="2026-11-20T09:00:00Z")))
+            done = subprocess.run(
+                ["python3", str(Path(factory.__file__)), "preflight", "--credits-usd", "200",
+                 "--cash-fallback-disabled", "true", "--runs", str(root / "runs.jsonl"),
+                 "--current-run", str(root / "current.json"), "--run-attempt", "4",
+                 "--batch-start", "2026-11-21", "--output", str(root / "budget.json")],
+                capture_output=True, text=True)
+            self.assertNotEqual(done.returncode, 0)
+            self.assertIn("pre-batch", done.stderr)
+            self.assertFalse((root / "budget.json").exists())
+
+    def test_upload_paths_never_depend_on_a_step_set_variable(self):
+        workflow = (factory.HERE.parent.parent / ".github/workflows/daytona-factory.yml").read_text()
+        paths = [line.split("path:", 1)[1].strip() for line in workflow.splitlines()
+                 if line.strip().startswith("path:")]
+        self.assertTrue(paths)
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertTrue(path.startswith("${{ runner.temp }}/"))
+
+    def test_local_worker_image_carries_what_the_abacare_setup_starts(self):
+        dockerfile = (factory.HERE / "local-worker.Dockerfile").read_text()
+        build = (factory.HERE / "build.sh").read_text()
+        for service, package in (("postgresql", "postgresql"), ("redis-server", "redis-server")):
+            with self.subTest(service=service):
+                self.assertIn(f"service {service} start", build)
+                self.assertRegex(dockerfile, rf"apt-get install[^\n]*(\n[^\n]*\\?)*\b{package}\b")
+        self.assertIn("pnpm install", build)
+        self.assertIn("corepack enable pnpm", dockerfile)
+
     def test_run_ids_are_numeric_or_local(self):
         for run in ("123", "local-1"):
             self.assertEqual(factory.validate_run(run), run)
@@ -182,8 +277,10 @@ class FakeBox:
     def upload(self, source, destination):
         pass
 
-    def download(self, source, destination):
-        self.provider.log.append(("download", Path(source).name))
+    def download(self, source, destination, seconds):
+        self.provider.log.append(("download", Path(source).name, seconds))
+        if self.provider.on_download:
+            self.provider.on_download(Path(source).name, seconds)
         Path(destination).write_bytes(self.provider.outputs[Path(source).name])
 
     def delete(self):
@@ -197,6 +294,7 @@ class FakeProvider:
 
     def __init__(self, build_exit=0, create_errors=(), outputs=None, gpu=0, on_build=None):
         self.build_exit, self.gpu, self.on_build = build_exit, gpu, on_build
+        self.on_download = None
         self.create_errors = list(create_errors)
         self.outputs = outputs if outputs is not None else {"tests.log": b"ok", "journeys.tar.gz": b"v"}
         self.live, self.log = set(), []
@@ -222,15 +320,18 @@ class FakeProvider:
 
 
 class JobTests(unittest.TestCase):
-    def job(self, provider, root):
+    def job(self, provider, root, deadline=None):
         args = SimpleNamespace(app="revolva", run="local-1", sha="a" * 40, repo=Path("."),
                                suite="journey", probe="none", output=root)
-        return factory.Job(args, provider, factory.load_policy(), factory.Deadline(30, 180))
+        return factory.Job(args, provider, factory.load_policy(),
+                           deadline or factory.Deadline(30, 180, teardown_seconds=60))
 
-    def build(self, provider):
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        job = self.job(provider, Path(tmp.name))
+    def build(self, provider, deadline=None, root=None):
+        if root is None:
+            tmp = tempfile.TemporaryDirectory()
+            self.addCleanup(tmp.cleanup)
+            root = Path(tmp.name)
+        job = self.job(provider, root, deadline)
         with mock.patch.object(factory.subprocess, "run"):
             try:
                 return job, job.build("key"), None
@@ -295,13 +396,70 @@ class JobTests(unittest.TestCase):
     def test_cancellation_during_export_is_not_swallowed(self):
         provider = FakeProvider()
         real = FakeBox.download
-        def cancel_on_archive(box, source, destination):
+        def cancel_on_archive(box, source, destination, seconds):
             if Path(source).name == "journeys.tar.gz":
                 raise factory.Cancelled("Cancelled by signal 15")
-            real(box, source, destination)
+            real(box, source, destination, seconds)
         with mock.patch.object(FakeBox, "download", cancel_on_archive):
             job, _, error = self.build(provider)
         self.assertIsInstance(error, factory.Cancelled)
+        self.assertTrue(job.workers["build"]["deleted"])
+        self.assertEqual(provider.live, set())
+
+    def test_a_failed_export_never_keeps_an_earlier_runs_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "journeys.tar.gz").write_bytes(b"revision A")
+            provider = FakeProvider()
+            real = FakeBox.exec
+            def flaky(box, command, seconds):
+                if command.startswith("test -s") and command.endswith("journeys.tar.gz"):
+                    raise ConnectionError("worker unreachable")
+                return real(box, command, seconds)
+            with mock.patch.object(FakeBox, "exec", flaky):
+                job, _, error = self.build(provider, root=root)
+            self.assertIsNone(error)
+            self.assertFalse((root / "journeys.tar.gz").exists())
+            self.assertNotIn("journeys.tar.gz", job.workers["build"]["exported"])
+            receipt = {"schema": 2, "status": "passed", "probe": "none", "app": "revolva",
+                       "commit": "a" * 40, "suite": "journey", "factory_commit": "f" * 40,
+                       "preview": None, "workers": job.workers}
+            with self.assertRaises(ValueError):
+                factory.write_receipt(root, receipt)
+            self.assertFalse(factory.verify_receipt(root, "revolva", "a" * 40, "journey", "f" * 40))
+
+    def test_run_clears_earlier_evidence_before_starting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("journeys.tar.gz", "tests.log", "receipt.json", "notes.txt"):
+                (root / name).write_text("revision A")
+            args = SimpleNamespace(run="local-1", suite="journey", app="revolva", output=root,
+                                   deadline_epoch=None, budget=None, provider="fake", repo=Path("."),
+                                   sha="a" * 40, probe="none", factory_commit="f" * 40)
+            with mock.patch.object(factory, "make_provider", side_effect=RuntimeError("stop")), \
+                    mock.patch.object(factory, "install_cancellation"), self.assertRaises(RuntimeError):
+                factory.run(args, factory.load_policy())
+            self.assertEqual(sorted(p.name for p in root.iterdir()), ["notes.txt"])
+
+    def test_downloads_are_bounded_by_the_export_window(self):
+        clock = [0.0]
+        deadline = factory.Deadline(30, 180, clock=lambda: clock[0], teardown_seconds=60)
+        provider = FakeProvider()
+        def build_until_late():
+            clock[0] = 1800 - 150
+        provider.on_build = build_until_late
+        def stalled(name, seconds):
+            # Every transfer stalls for 70 s; the provider gives up at the timeout it was handed.
+            clock[0] += min(70, seconds)
+            if seconds < 70:
+                raise TimeoutError(name)
+        provider.on_download = stalled
+        job, _, error = self.build(provider, deadline)
+        self.assertIsInstance(error, RuntimeError)  # build ended past the test deadline
+        timeouts = [e[2] for e in provider.log if e[0] == "download"]
+        self.assertEqual(timeouts, [90, 20])
+        self.assertLessEqual(clock[0], 1800 - 60)
+        self.assertEqual(job.workers["build"]["exported"], ["tests.log"])
         self.assertTrue(job.workers["build"]["deleted"])
         self.assertEqual(provider.live, set())
 

@@ -50,7 +50,10 @@ jobs:
       PROBE: ${{ inputs.probe }}
     steps:
       - name: Start the job clock
-        run: echo "JOB_DEADLINE=$(( $(date +%s) + 30 * 60 - 90 ))" >> "$GITHUB_ENV"
+        run: |
+          echo "JOB_DEADLINE=$(( $(date +%s) + 30 * 60 - 90 ))" >> "$GITHUB_ENV"
+          echo "SOURCE_DIR=$RUNNER_TEMP/factory-source" >> "$GITHUB_ENV"
+          echo "OUTPUT_DIR=$RUNNER_TEMP/factory-output" >> "$GITHUB_ENV"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
@@ -63,8 +66,6 @@ jobs:
           set -euo pipefail
           case "$APP" in abacare|empowera|revolva) ;; *) exit 2 ;; esac
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          echo "SOURCE_DIR=$RUNNER_TEMP/factory-source" >> "$GITHUB_ENV"
-          echo "OUTPUT_DIR=$RUNNER_TEMP/factory-output" >> "$GITHUB_ENV"
           case "$SUITE/$PROBE" in demo/*|journey/*) ;; *) exit 2 ;; esac
           if [[ "$SUITE" == journey && "$APP" == abacare ]]; then
             echo "::error::No journey suite is defined for abacare."; exit 2
@@ -122,17 +123,18 @@ jobs:
             exit 1
           }
           # Every started run attempt in the batch, including earlier attempts of this run, counts as a
-          # full worst-case reservation; an attempt still waiting to start does not.
-          prior=$(gh api --paginate --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/daytona-factory.yml/runs" \
-            -f created=">=$BATCH_START" --jq ".workflow_runs[]
-              | if .id == $GITHUB_RUN_ID then $GITHUB_RUN_ATTEMPT - 1
-                elif (.status | IN(\"queued\", \"waiting\", \"pending\", \"requested\")) then .run_attempt - 1
-                else .run_attempt end" \
-            | awk '{ total += $1 } END { print total + 0 }')
+          # full worst-case reservation; an attempt still waiting to start does not. A rerun of a run
+          # created before the batch start is refused (factory.py batch_attempts).
+          gh api --paginate --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/daytona-factory.yml/runs" \
+            -f created=">=$BATCH_START" --jq '.workflow_runs[] | {id, status, run_attempt, created_at}' \
+            > "$RUNNER_TEMP/batch-runs.jsonl"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --jq '{id, status, run_attempt, created_at}' > "$RUNNER_TEMP/current-run.json"
           mkdir -p "$OUTPUT_DIR"
           python ci/daytona-factory/factory.py preflight --credits-usd "$CREDITS_USD" \
-            --cash-fallback-disabled "$CASH_FALLBACK_DISABLED" --prior-runs "$prior" \
-            --output "$RUNNER_TEMP/budget.json"
+            --cash-fallback-disabled "$CASH_FALLBACK_DISABLED" --runs "$RUNNER_TEMP/batch-runs.jsonl" \
+            --current-run "$RUNNER_TEMP/current-run.json" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --batch-start "$BATCH_START" --output "$RUNNER_TEMP/budget.json"
       - name: Install the Daytona SDK
         if: steps.reuse.outputs.hit != 'true'
         run: python -m pip install daytona==0.231.1
@@ -152,7 +154,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ steps.request.outputs.artifact }}
-          path: ${{ env.OUTPUT_DIR }}/
+          path: ${{ runner.temp }}/factory-output/
           if-no-files-found: error
           retention-days: 90
           compression-level: 0
@@ -168,7 +170,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: daytona-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.OUTPUT_DIR }}/
+          path: ${{ runner.temp }}/factory-output/
           if-no-files-found: ignore
           retention-days: 14
 

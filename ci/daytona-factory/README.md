@@ -27,7 +27,10 @@ to load a policy that loosens them: one concurrent worker, zero GPU, a
 30-minute lifetime that includes setup and evidence export, and one retry only
 for a transient worker-creation error. Before any metered launch the workflow
 reserves the worst case (largest allowed worker for the whole lifetime, times
-the retry) for this run and every earlier run since `DAYTONA_PILOT_BATCH_START`.
+the retry) for this run and every started attempt of every run created since
+`DAYTONA_PILOT_BATCH_START`. GitHub keeps a run's creation time across reruns,
+so a rerun of a run created before the batch start is refused; dispatch a fresh
+run instead.
 The reservation must fit the smaller of $10 and 10% of
 `DAYTONA_ELIGIBLE_CREDITS_USD`. `DAYTONA_CASH_FALLBACK_DISABLED` must be
 `true` (auto top-up checked off) or `unreachable-under-cap` (auto top-up not
@@ -43,7 +46,12 @@ Every run writes `receipt.json`, including failed and cancelled runs: status,
 source, factory and lockfile hashes, toolchain, worker IDs, resources, start,
 end and per-worker seconds, cache key and hit, budget reservation, estimated
 cost, and the size and SHA-256 of every exported file. Evidence is copied off
-the worker before it is deleted. A cancelled run keeps only `tests.log`
+the worker before it is deleted. Every evidence check and download is bounded
+by the export window and stops `teardown_reserve_seconds` before the deadline,
+so a stalled transfer cannot block deletion or the receipt. A run clears
+earlier evidence from its output directory first, and the receipt hashes only
+files this attempt exported, so a failed export never passes on an earlier
+run's copy. A cancelled run keeps only `tests.log`
 because the runner is killed seconds later. Only a passed, unprobed receipt
 can be reused. The separate `cleanup` job runs after success, failure or
 cancellation, deletes and counts every worker labeled with the run, and fails
@@ -56,7 +64,8 @@ snapshot, and the reusable layer is the hash-verified artifact.
 `--provider local` runs the same scripts, limits, labels, deadline, export and
 cleanup on a self-hosted Docker worker built from
 [`local-worker.Dockerfile`](./local-worker.Dockerfile), with package caches on
-a volume keyed by the image and lockfile hashes. It is unmetered and does not
+a volume keyed by the image and lockfile hashes. The image carries the
+PostgreSQL, Redis and Corepack-managed pnpm that the ABACare setup starts. It is unmetered and does not
 exercise Daytona's API, signed previews or wallet.
 
 GitHub keeps one active run and queues up to 100 pending runs across all three

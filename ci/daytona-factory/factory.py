@@ -61,6 +61,8 @@ def load_policy(path=POLICY_FILE):
         raise ValueError("Budget policy must keep zero GPU and one concurrent worker.")
     if not 0 < policy["max_job_minutes"] <= 30 or policy["transient_retries"] > 1:
         raise ValueError("Budget policy exceeds the 30-minute, one-retry pilot limits.")
+    if not 0 < policy["teardown_reserve_seconds"] < policy["export_reserve_seconds"]:
+        raise ValueError("Budget policy must keep a teardown tail inside the export reserve.")
     return policy
 
 
@@ -105,6 +107,51 @@ def preflight(policy, credits_usd, cash_fallback, prior_runs):
             "cash_fallback": CASH_FALLBACK[cash_fallback]}
 
 
+def parse_time(value):
+    """An ISO date (midnight UTC) or date-time, as GitHub and the batch variable write them."""
+    parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def batch_attempts(runs, current, run_attempt, batch_start):
+    """Started run attempts in the batch before this one; refuse a rerun of a pre-batch run.
+
+    GitHub keeps a run's original id and created_at across reruns, so the batch's run list never
+    includes a run created before the batch even when it is rerun after it. Such a rerun would
+    reserve one attempt and escape the cap, so it is refused; dispatch a fresh run instead."""
+    start = parse_time(batch_start)
+    if parse_time(current["created_at"]) < start:
+        raise ValueError("This run was created before DAYTONA_PILOT_BATCH_START; reruns of pre-batch "
+                         "runs are refused. Dispatch a fresh run.")
+    if run_attempt < 1:
+        raise ValueError("Run attempt must be known.")
+    total = 0
+    for run in runs:
+        if parse_time(run["created_at"]) < start:
+            continue
+        if run["id"] == current["id"]:
+            total += run_attempt - 1
+        elif run["status"] in {"queued", "waiting", "pending", "requested"}:
+            total += run["run_attempt"] - 1
+        else:
+            total += run["run_attempt"]
+    if not any(run["id"] == current["id"] for run in runs):
+        total += run_attempt - 1
+    return total
+
+
+def json_stream(text):
+    """Concatenated JSON values, as `gh api --paginate --jq` prints them."""
+    decoder, values, index = json.JSONDecoder(), [], 0
+    while True:
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if index == len(text):
+            return values
+        value, index = decoder.raw_decode(text, index)
+        values.append(value)
+
+
 def check_resources(policy, resources):
     limits = policy["worker_limits"]
     if resources.get("gpu"):
@@ -118,10 +165,11 @@ def check_resources(policy, resources):
 class Deadline:
     """One wall-clock budget for setup, tests and export; export keeps a reserved tail."""
 
-    def __init__(self, minutes, reserve_seconds, clock=time.monotonic):
+    def __init__(self, minutes, reserve_seconds, clock=time.monotonic, teardown_seconds=0):
         self.clock = clock
         self.end = clock() + minutes * 60
         self.reserve = reserve_seconds
+        self.teardown = teardown_seconds
 
     def left(self, export=False):
         return self.end - self.clock() - (0 if export else self.reserve)
@@ -130,6 +178,13 @@ class Deadline:
         left = int(self.left(export))
         if left <= 0:
             raise RuntimeError("Job deadline reached")
+        return max(1, min(seconds, left))
+
+    def export_bound(self, seconds):
+        """Each evidence operation ends before the tail kept for deletion and the receipt."""
+        left = int(self.end - self.clock() - self.teardown)
+        if left <= 0:
+            raise RuntimeError("Export window closed; keeping the rest for deletion and the receipt")
         return max(1, min(seconds, left))
 
     def ttl_minutes(self):
@@ -183,9 +238,12 @@ def run_url():
 
 
 def write_receipt(root, receipt):
-    """Hash every exported file; a passed receipt must also hold the suite's required set."""
+    """Hash the files this attempt exported; a passed receipt must also hold the suite's required set.
+
+    Files left in the output directory by an earlier run are never hashed, even when an export
+    failed and left them in place."""
     present = {p.name for p in root.iterdir() if p.is_file() and p.stat().st_size
-               and p.name in REQUIRED[receipt["suite"]] | OPTIONAL}
+               and p.name in (REQUIRED[receipt["suite"]] | OPTIONAL) & exported_names(receipt)}
     missing = receipt["status"] == "passed" and not REQUIRED[receipt["suite"]] <= present
     if missing:
         receipt.update(status="failed", error="Expected output is missing or empty.")
@@ -195,6 +253,11 @@ def write_receipt(root, receipt):
     if missing:
         raise ValueError(receipt["error"])
     return receipt
+
+
+def exported_names(receipt):
+    return {name for worker in (receipt.get("workers") or {}).values()
+            for name in worker.get("exported", [])}
 
 
 def verify_receipt(root, app, revision, suite="demo", factory_commit=None):
@@ -210,7 +273,7 @@ def verify_receipt(root, app, revision, suite="demo", factory_commit=None):
             and (suite != "demo" or receipt["preview"]["status"] in {"verified and revoked",
                                                                      "verified in worker"})
             and workers and all(w["deleted"] and w["exported_before_delete"] for w in workers.values())
-            and REQUIRED[suite] <= files.keys() <= REQUIRED[suite] | OPTIONAL
+            and REQUIRED[suite] <= files.keys() <= (REQUIRED[suite] | OPTIONAL) & exported_names(receipt)
             and all((root / name).stat().st_size == info["bytes"] > 0
                     and digest(root / name) == info["sha256"] for name, info in files.items())
         )
@@ -238,8 +301,9 @@ class DaytonaWorker:
     def upload(self, source, destination):
         self.box.fs.upload_file(source if isinstance(source, bytes) else str(source), destination)
 
-    def download(self, source, destination):
-        self.box.fs.download_file(source, str(destination))
+    def download(self, source, destination, seconds):
+        # The pinned SDK reads the timeout positionally; 0 would mean no timeout.
+        self.box.fs.download_file(source, str(destination), max(1, int(seconds)))
 
     def delete(self):
         self.box.delete(wait=True)
@@ -315,8 +379,8 @@ class LocalWorker:
                 source = path
             docker("cp", str(source), f"{self.name}:{destination}", timeout=300)
 
-    def download(self, source, destination):
-        docker("cp", f"{self.name}:{source}", str(destination), timeout=300)
+    def download(self, source, destination, seconds):
+        docker("cp", f"{self.name}:{source}", str(destination), timeout=max(1, int(seconds)))
 
     def delete(self):
         docker("rm", "--force", self.name)
@@ -369,14 +433,14 @@ def remote(box, command, seconds):
     return output
 
 
-def exists(box, path):
-    return box.exec(f"test -s {shlex.quote(path)}", 15)[0] == 0
+def exists(box, path, deadline):
+    return box.exec(f"test -s {shlex.quote(path)}", deadline.export_bound(15))[0] == 0
 
 
-def download(box, source, destination):
-    expected = remote(box, f"sha256sum {shlex.quote(source)}", 60).split()[0]
+def download(box, source, destination, deadline):
     try:
-        box.download(source, destination)
+        expected = remote(box, f"sha256sum {shlex.quote(source)}", deadline.export_bound(60)).split()[0]
+        box.download(source, destination, deadline.export_bound(300))
         if digest(destination) != expected:
             raise RuntimeError(f"Download integrity check failed for {destination.name}")
     except BaseException:
@@ -444,8 +508,10 @@ class Job:
         try:
             for name in names:
                 try:
-                    if self.deadline.left(export=True) > 0 and exists(box, f"{WORK}/out/{name}"):
-                        download(box, f"{WORK}/out/{name}", self.args.output / name)
+                    # Never leave an earlier run's copy in place when this export fails.
+                    (self.args.output / name).unlink(missing_ok=True)
+                    if exists(box, f"{WORK}/out/{name}", self.deadline):
+                        download(box, f"{WORK}/out/{name}", self.args.output / name, self.deadline)
                         exported.append(name)
                 except Cancelled:
                     raise
@@ -575,11 +641,14 @@ def run(args, policy):
     if args.suite == "journey" and args.app not in JOURNEY_APPS:
         raise ValueError(f"No journey suite is defined for {args.app}.")
     args.output.mkdir(parents=True, exist_ok=True)
+    for name in REQUIRED["demo"] | REQUIRED["journey"] | OPTIONAL | {"receipt.json"}:
+        (args.output / name).unlink(missing_ok=True)
     started, clock = now(), time.monotonic()
     minutes = policy["max_job_minutes"]
     if args.deadline_epoch:
         minutes = min(minutes, (args.deadline_epoch - time.time()) / 60)
-    deadline = Deadline(minutes, policy["export_reserve_seconds"])
+    deadline = Deadline(minutes, policy["export_reserve_seconds"],
+                        teardown_seconds=policy["teardown_reserve_seconds"])
     install_cancellation()
     budget = json.loads(args.budget.read_text()) if args.budget else None
     provider = make_provider(args.provider, policy)
@@ -669,6 +738,10 @@ def main():
     parser.add_argument("--credits-usd", type=float)
     parser.add_argument("--cash-fallback-disabled", default="")
     parser.add_argument("--prior-runs", type=int)
+    parser.add_argument("--runs", type=Path, help="JSON lines of this workflow's runs since the batch start.")
+    parser.add_argument("--current-run", type=Path, help="JSON of this workflow run.")
+    parser.add_argument("--run-attempt", type=int, default=int(os.getenv("GITHUB_RUN_ATTEMPT", "0")))
+    parser.add_argument("--batch-start", default=os.getenv("BATCH_START"))
     parser.add_argument("--deadline-epoch", type=int, help="Job-level deadline (Unix seconds).")
     parser.add_argument("--factory-commit", default=os.getenv("GITHUB_SHA"))
     args = parser.parse_args()
@@ -677,8 +750,12 @@ def main():
     if args.command == "cleanup":
         return cleanup(args, policy)
     if args.command == "preflight":
-        reservation = preflight(policy, args.credits_usd, args.cash_fallback_disabled,
-                                -1 if args.prior_runs is None else args.prior_runs)
+        prior = -1 if args.prior_runs is None else args.prior_runs
+        if args.runs:
+            runs = json_stream(args.runs.read_text())
+            current = json.loads(args.current_run.read_text())
+            prior = batch_attempts(runs, current, args.run_attempt, args.batch_start)
+        reservation = preflight(policy, args.credits_usd, args.cash_fallback_disabled, prior)
         args.output.write_text(json.dumps(reservation, indent=2) + "\n")
         print(json.dumps(reservation), flush=True)
         return
