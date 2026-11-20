@@ -616,6 +616,12 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'race' -RunId `$env:RACE_RUN 
     # --- The MCP headers helper: op read at connect time, headers on stdout only. ---
     $helperPath = Join-Path $dispatchDir 'Get-DevinMcpHeaders.ps1'
     Check 'the Devin MCP headers helper exists' (Test-Path -LiteralPath $helperPath -PathType Leaf) $helperPath
+    $helperFixture = Join-Path $fixture 'helper'
+    $null = New-Item -ItemType Directory -Path $helperFixture
+    Copy-Item -LiteralPath $helperPath -Destination $helperFixture
+    $helperLib = [IO.File]::ReadAllText($libPath) + "`nfunction Get-DevinMcpCacheDirectory { return (Join-Path `$env:AGENTHUB_ROOT 'mcp-cache') }`n"
+    [IO.File]::WriteAllText((Join-Path $helperFixture 'DevinCloudLib.ps1'), $helperLib)
+    $helperPath = Join-Path $helperFixture 'Get-DevinMcpHeaders.ps1'
     $liveFleet | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
     $r = Run-Child @('-NoProfile', '-NonInteractive', '-File', $helperPath) $envOp
     $headers = if ($r.Exit -eq 0) { try { $r.Out | ConvertFrom-Json } catch { $null } } else { $null }
@@ -623,9 +629,9 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'race' -RunId `$env:RACE_RUN 
     Check 'the helper keeps the key off stderr' ($r.Err -notmatch [regex]::Escape($syntheticKey))
     $r = Run-Child @('-NoProfile', '-NonInteractive', '-File', $helperPath) $envNoToken
     Check 'the helper refuses with exit 3 and no headers when the service-account token is unset' ($r.Exit -eq 3 -and [string]::IsNullOrWhiteSpace($r.Out) -and $r.Err -match 'OP_SERVICE_ACCOUNT_TOKEN') "exit=$($r.Exit) err=$($r.Err)"
-    $leaks = @(Get-ChildItem -LiteralPath $fixture -Recurse -File | Where-Object { $_.Directory.FullName -notin @($failingOp, $keyOp) } |
+    $leaks = @(Get-ChildItem -LiteralPath $fixture -Recurse -File | Where-Object { $_.Directory.FullName -notin @($failingOp, $keyOp, (Join-Path $fixture 'mcp-cache')) } |
         Where-Object { [IO.File]::ReadAllText($_.FullName).Contains($syntheticKey) } | ForEach-Object { $_.FullName })
-    Check 'the helper writes the key to no file' ($leaks.Count -eq 0) ($leaks -join '; ')
+    Check 'the helper writes the key to no file outside its protected cache' ($leaks.Count -eq 0) ($leaks -join '; ')
     $hostsDoc = [IO.File]::ReadAllText((Join-Path $dispatchDir 'references\hosts.md'))
     $planDoc = [IO.File]::ReadAllText((Join-Path $repoRoot 'docs\plans\active\devin-peer-orchestration.md'))
     foreach ($doc in @(@{ Name = 'hosts.md'; Text = $hostsDoc }, @{ Name = 'devin-peer-orchestration.md'; Text = $planDoc })) {

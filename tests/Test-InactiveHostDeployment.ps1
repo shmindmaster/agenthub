@@ -258,30 +258,15 @@ function Test-AllInactiveRegistryFailsNamingTheCause {
     }
 }
 
-# --- Behavior 5: the real registry keeps warp on the shared skills
-# directory. docs.warp.dev/agent-platform/capabilities/skills documents a
-# root scope that mirrors Warp's multi-tool project search and names
-# ~/.agents/skills first; Warp additionally scans ~/.claude/skills,
-# ~/.codex/skills and the rest, so it is the one host that already sees other
-# hosts' skills. Losing this field silently restores 29 redundant copies
-# under ~/.warp/skills, which is the kind of quiet regression no fixture test
-# would notice. ---
-function Test-RealRegistryKeepsWarpOnSharedSkillsDir {
+# --- Behavior 5: the decommissioned Warp host stays out of default sync. ---
+function Test-RealRegistryKeepsWarpRetired {
     $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-    $warp = @($agents.activeAgents) | Where-Object id -eq 'warp' | Select-Object -First 1
-    if (-not $warp) {
-        return @{ Passed = $false; Detail = "warp is not present in registry/agents.json activeAgents, so this assertion checked nothing." }
+    if (@($agents.activeAgents | Where-Object id -eq 'warp').Count -ne 0) {
+        return @{ Passed = $false; Detail = 'Warp is decommissioned and must not be in activeAgents.' }
     }
-    $shared = [string]$warp.nativePaths.sharedSkillsDir
-    if ([string]::IsNullOrWhiteSpace($shared)) {
-        return @{ Passed = $false; Detail = "warp no longer declares nativePaths.sharedSkillsDir. It would fall back to a private copy of every skill under ~/.warp/skills, duplicating skills Warp already reads from the other hosts' documented directories." }
-    }
-    if ($shared -notmatch '[\\/]\.agents[\\/]skills$') {
-        return @{ Passed = $false; Detail = "warp's sharedSkillsDir is '$shared', which is not the documented ~/.agents/skills root scope." }
-    }
-    $codex = @($agents.activeAgents) | Where-Object id -eq 'codex' | Select-Object -First 1
-    if ($codex -and [string]$codex.nativePaths.sharedSkillsDir -ne $shared) {
-        return @{ Passed = $false; Detail = "warp's sharedSkillsDir '$shared' does not match codex's '$([string]$codex.nativePaths.sharedSkillsDir)'. They must resolve to the identical path to collapse to one deployment instead of two." }
+    $warp = @($agents.inactiveAgents | Where-Object id -eq 'warp')
+    if ($warp.Count -ne 1 -or $warp[0].status -ne 'inactive' -or $warp[0].fleetRole -ne 'retired') {
+        return @{ Passed = $false; Detail = 'Expected exactly one inactive, retired Warp row in inactiveAgents.' }
     }
     return @{ Passed = $true; Detail = $null }
 }
@@ -296,14 +281,18 @@ function Test-RealRegistryKeepsWarpOnSharedSkillsDir {
 # down and dated. A registry with no inactive hosts passes trivially and
 # correctly -- there is nothing to justify. ---
 function Test-InactiveHostsCarryAJustification {
-    $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    param([Parameter(Mandatory)]$Agents)
     if (-not $agents.PSObject.Properties['inactiveAgents']) {
         return @{ Passed = $false; Detail = "registry/agents.json has no inactiveAgents property at all; the schema changed and this assertion no longer checks what it claims to." }
     }
     $inactive = @($agents.inactiveAgents)
     $unjustified = [Collections.Generic.List[string]]::new()
     foreach ($agent in $inactive) {
-        $notes = [string]$agent.notes
+        $notes = if ($agent.fleetRole -eq 'retired') {
+            [string]$agent.retiredNote
+        } else {
+            [string]$agent.notes
+        }
         # A justification has to say something and say WHEN, because the failure
         # mode is a label that was true once and quietly stopped being true.
         if ([string]::IsNullOrWhiteSpace($notes) -or $notes -notmatch '\b20\d{2}-\d{2}-\d{2}\b') {
@@ -334,7 +323,7 @@ function Test-InactiveHostsCarryAJustification {
         return @{ Passed = $false; Detail = $detail }
     }
     if ($unjustified.Count -gt 0) {
-        return @{ Passed = $false; Detail = "host(s) marked inactive with no dated justification in notes: $($unjustified -join ', '). An inactive label gates deployment; it must record why and when, or it becomes a stale claim nothing can audit." }
+        return @{ Passed = $false; Detail = "host(s) marked inactive with no dated justification: $($unjustified -join ', '). Use retiredNote for retirement or notes for other inactive hosts. An inactive label gates deployment; it must record why and when, or it becomes a stale claim nothing can audit." }
     }
     return @{ Passed = $true; Detail = $null }
 }
@@ -348,11 +337,22 @@ Report '-IncludeInactiveAgents restores deployment to inactive hosts' $r2.Passed
 $r3 = Test-AllInactiveRegistryFailsNamingTheCause
 Report 'a registry with zero active hosts fails naming that cause and the remedy' $r3.Passed $r3.Detail
 
-$r4 = Test-RealRegistryKeepsWarpOnSharedSkillsDir
-Report 'the real registry keeps warp on the documented shared ~/.agents/skills directory' $r4.Passed $r4.Detail
+$r4 = Test-RealRegistryKeepsWarpRetired
+Report 'the real registry keeps decommissioned Warp inactive and retired' $r4.Passed $r4.Detail
 
-$r5 = Test-InactiveHostsCarryAJustification
+$agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$r5 = Test-InactiveHostsCarryAJustification -Agents $agents
 Report 'every host marked inactive in the real registry carries a dated justification' $r5.Passed $r5.Detail
+
+$fixture = [pscustomobject]@{
+    inactiveAgents = @(
+        [pscustomobject]@{ id = 'zz-retired'; fleetRole = 'retired'; notes = 'Installed on 2026-11-09.' },
+        [pscustomobject]@{ id = 'zz-inactive'; fleetRole = 'supported'; notes = 'Temporarily unavailable since 2026-11-09.' }
+    )
+}
+$r6 = Test-InactiveHostsCarryAJustification -Agents $fixture
+Report 'dated general notes justify inactivity but not retirement' `
+    (-not $r6.Passed -and $r6.Detail -match '\bzz-retired\b' -and $r6.Detail -notmatch '\bzz-inactive\b') $r6.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

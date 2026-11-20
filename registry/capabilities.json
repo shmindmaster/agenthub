@@ -693,7 +693,7 @@
         "produce",
         "finish"
       ],
-      "contentHash": "705D02C6FD8C98B0AD0F92D3A040ABDC63A780993765A903E51C36CD7818553A",
+      "contentHash": "319C9707415A3C9F213C0FEB5F3B530F692EB7CDE5203C35B0C168DE4348783F",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -830,7 +830,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "C834E274594EBF167688917CC3046B44625C31321C5EB114AEE89C80FF2B04A0",
+      "contentHash": "662127DD105799411C80381DEE6080AA44CA1109866B0A570186E0998AD13915",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [

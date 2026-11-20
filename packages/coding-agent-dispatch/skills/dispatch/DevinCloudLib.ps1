@@ -12,8 +12,9 @@
 
   Key path (owner direction 2026-11-19): `op read <keyOpRef>` through the
   1Password service account (OP_SERVICE_ACCOUNT_TOKEN), run as a windowless
-  child whose stdout is captured into memory only. The key is never written to
-  disk, a log or the User/Machine environment. DEVIN_CLOUD_API_KEY is honoured
+  child whose stdout is captured into memory. Only the MCP helper opts into a
+  protected 12-hour local cache (DPAPI on Windows); session actions do not.
+  The key is never written to a log or the User/Machine environment. DEVIN_CLOUD_API_KEY is honoured
   only as an explicit in-process override (a caller that already resolved the
   key, or a test). Every line this library prints passes through
   Protect-DevinCloudText, which masks the key, and anything shaped like a cog_
@@ -162,8 +163,80 @@ function Get-DevinCloudPersistedKeyScopes {
     return @(@('User', 'Machine') | Where-Object { -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($Name, $_)) })
 }
 
-function Resolve-DevinCloudKey {
+function Set-DevinMcpCachePermissions {
+    param([string]$Path, [switch]$Directory)
+    if ((Get-Item -LiteralPath $Path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unsafe cache path' }
+    if ($env:OS -eq 'Windows_NT') {
+        $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+        $acl = if ($Directory) { [Security.AccessControl.DirectorySecurity]::new() } else { [Security.AccessControl.FileSecurity]::new() }
+        $acl.SetOwner($sid)
+        $acl.SetAccessRuleProtection($true, $false)
+        $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'Allow'))
+        Set-Acl -LiteralPath $Path -AclObject $acl
+    } else {
+        $mode = if ($Directory) { '700' } else { '600' }
+        & chmod $mode $Path 2>$null
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot secure cache path' }
+    }
+}
+
+function Get-DevinMcpCacheDirectory {
+    $base = [Environment]::GetFolderPath('LocalApplicationData')
+    if ([string]::IsNullOrWhiteSpace($base)) { throw 'No local cache directory' }
+    return (Join-Path $base 'AgentHub/devin-mcp')
+}
+
+function Read-DevinMcpCachedKey {
     param([Parameter(Mandatory)] $Config)
+    if ([string]::IsNullOrWhiteSpace($env:OP_SERVICE_ACCOUNT_TOKEN)) {
+        throw (New-DevinCloudRefusal 'Devin MCP requires an in-process 1Password service-account token')
+    }
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $id = ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Config.KeyOpRef)))).Replace('-', '') } finally { $sha.Dispose() }
+    $mutex = [Threading.Mutex]::new($false, "AgentHub-DevinMcp-$id")
+    $locked = $false
+    try {
+        try { $locked = $mutex.WaitOne(60000) } catch [Threading.AbandonedMutexException] { $locked = $true }
+        if (-not $locked) { throw (New-DevinCloudRefusal 'Devin MCP credential cache is busy') }
+        $path = $null
+        try {
+            $dir = Get-DevinMcpCacheDirectory
+            $null = New-Item -ItemType Directory -Path $dir -Force
+            Set-DevinMcpCachePermissions $dir -Directory
+            $path = Join-Path $dir "$id.json"
+            if (Test-Path -LiteralPath $path) {
+                Set-DevinMcpCachePermissions $path
+                $entry = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+                $age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$entry.created
+                if ($entry.version -eq 1 -and $age -ge 0 -and $age -lt 43200) {
+                    $key = [string]$entry.key
+                    if ($env:OS -eq 'Windows_NT') {
+                        $credential = [Management.Automation.PSCredential]::new('cache', (ConvertTo-SecureString $key))
+                        $key = $credential.GetNetworkCredential().Password
+                    }
+                    if ($key -match '^cog_\S+$') { return $key }
+                }
+            }
+        } catch { $null = $_ }
+        $key = Read-DevinCloudKeyFromOp -Config $Config
+        if ($key -notmatch '^cog_\S+$') { throw (New-DevinCloudRefusal 'Devin MCP credential read returned an invalid key') }
+        if ($path) {
+            try {
+                $stored = if ($env:OS -eq 'Windows_NT') { ConvertFrom-SecureString (ConvertTo-SecureString $key -AsPlainText -Force) } else { $key }
+                if (-not (Test-Path -LiteralPath $path)) { [IO.File]::WriteAllText($path, '') }
+                Set-DevinMcpCachePermissions $path
+                [IO.File]::WriteAllText($path, (@{ version = 1; created = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); key = $stored } | ConvertTo-Json -Compress))
+            } catch { $null = $_ }
+        }
+        return $key
+    } finally {
+        if ($locked) { $mutex.ReleaseMutex() }
+        $mutex.Dispose()
+    }
+}
+
+function Resolve-DevinCloudKey {
+    param([Parameter(Mandatory)] $Config, [switch]$McpCache)
     # The key is runtime-only. A value persisted in the User or Machine
     # environment reaches every process on the machine, so it is refused.
     $persisted = @(Get-DevinCloudPersistedKeyScopes -Name $Config.KeyEnv)
@@ -175,7 +248,7 @@ function Resolve-DevinCloudKey {
         # Consume the in-process override so no later child (git, op) inherits it.
         [Environment]::SetEnvironmentVariable($Config.KeyEnv, $null, 'Process')
     }
-    $key = if (-not [string]::IsNullOrWhiteSpace($override)) { $override.Trim() } else { Read-DevinCloudKeyFromOp -Config $Config }
+    $key = if (-not [string]::IsNullOrWhiteSpace($override)) { $override.Trim() } elseif ($McpCache) { Read-DevinMcpCachedKey -Config $Config } else { Read-DevinCloudKeyFromOp -Config $Config }
     $script:DevinCloudKey = $key
     if ($key -notmatch '^cog_') {
         throw (New-DevinCloudRefusal (Get-DevinCloudKeyRefusalText $Config 'the value found is not a cog_ service-user key'))

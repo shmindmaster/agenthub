@@ -1,5 +1,16 @@
 # coding-agent-dispatch
 
+The Devin MCP headers helper caches successful 1Password reads for 12 hours in
+the current user's local application data directory under `AgentHub/devin-mcp`,
+outside the checkout. A mutex coalesces concurrent connects. The directory and
+files are owner-only (0700/0600 on Unix, protected current-user ACLs on Windows);
+Windows values are additionally DPAPI-encrypted for the current user. Cache
+misses, expiry and corruption re-read 1Password; failed or empty reads are not
+cached. Delete that directory to refresh immediately after key rotation.
+Process environment overrides bypass the cache, and policy is checked on every
+connect. Devin Cloud session actions continue to resolve credentials without
+the MCP disk cache.
+
 Version 0.8.14 (the root `plugin.json` is the single version authority; `SKILL.md`
 metadata and every host projection carry the same number and
 `tests/validate-dispatch.ps1` enforces parity). The package is a full plugin:
