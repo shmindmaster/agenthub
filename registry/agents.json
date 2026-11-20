@@ -59,7 +59,7 @@
       "id": "claude",
       "fleetRole": "retained",
       "name": "Claude Code",
-      "version": "2.1.321",
+      "version": "2.1.326",
       "executable": "{userHome}/.local/bin/claude.exe",
       "platformPaths": {
         "darwin": {
@@ -126,13 +126,13 @@
         "headless"
       ],
       "status": "active",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `claude.exe --version` printed 2.1.304 (Claude Code). Earlier: 2026-10-14: verified installed launcher/file version 2.1.300. Manual forward update and launcher reconciliation; active sessions preserved."
+      "versionObserved": "2026-11-20: verified using the registered launcher version command."
     },
     {
       "id": "codex",
       "fleetRole": "retained",
       "name": "OpenAI Codex",
-      "version": "0.167.0",
+      "version": "0.171.0",
       "executable": "{userHome}/bin/codex.cmd",
       "executableNote": "Stable launcher prefers the installed Codex CLI junction, then the Desktop bundled CLI. CLI and Desktop versions are independent.",
       "nativePaths": {
@@ -156,15 +156,15 @@
         "plugins"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: verified installed launcher/file version 0.162.1. Manual forward update and launcher reconciliation; active sessions preserved.",
+      "versionObserved": "2026-11-20: verified using the registered launcher version command.",
       "headlessDispatchNote": "codex exec --skip-git-repo-check - reads stdin, including in a scratch cwd without a repository. The installed shim selects cli-api; establish included allowance or explicitly authorize a credit budget before live dispatch."
     },
     {
       "id": "opencode",
       "fleetRole": "retained",
       "name": "OpenCode",
-      "version": "2.3.0",
-      "versionObserved": "2026-11-14: the registered wrapper returned opencode v2.3.0 (SH-4674). The wrapper selects the newest installed Desktop-bundled 2.x x64 CLI numerically. Previous observation 2026-10-23: bare opencode and the wrapper both returned opencode v2.1.4.",
+      "version": "2.3.2",
+      "versionObserved": "2026-11-20: verified using the registered launcher version command.",
       "executable": "{userHome}/.local/bin/opencode.cmd",
       "nativePaths": {
         "config": "{userHome}/.config/opencode",
@@ -198,7 +198,8 @@
       "fleetRole": "companion",
       "fleetOwner": "opencode",
       "name": "OpenCode Desktop",
-      "version": "2.3.0",
+      "version": "2.3.2",
+      "versionObserved": "2026-11-20: verified executable file version without launching the desktop app.",
       "executable": "{userHome}/AppData/Local/Programs/ai.opencode.desktop/OpenCode.exe",
       "executableNote": "2026-11-03: installed executable and ProductVersion 2.2.5.0 verified on disk without launching the GUI.",
       "versionProbe": "file-version",
@@ -222,7 +223,7 @@
       "id": "copilot",
       "fleetRole": "supported",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.108",
+      "version": "1.0.114",
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
@@ -247,13 +248,13 @@
         "acp"
       ],
       "status": "active",
-      "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run."
+      "versionObserved": "2026-11-20: verified using the registered launcher version command."
     },
     {
       "id": "antigravity",
       "fleetRole": "supported",
       "name": "Google Antigravity",
-      "version": "1.5.5",
+      "version": "1.5.7",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
@@ -288,13 +289,13 @@
       "status": "active",
       "notes": "Installed CLI on 2026-10-14 is 1.3.5 at %LOCALAPPDATA%\\agy\\bin\\agy.exe. Path layout was documented against Antigravity CLI 1.1.8 and still uses ~/.gemini/antigravity-cli/plugins and ~/.gemini/config/mcp_config.json. Desktop and IDE use ~/.gemini/config skills, agents, and plugins. The extra ~/.gemini/antigravity/mcp_config.json is synchronized temporarily as a compatibility path and is not the canonical authority.",
       "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded the WinGet Links\\agy.exe shim, which is still absent. The real CLI is %LOCALAPPDATA%\\agy\\bin\\agy.exe. `agy --version` returned 1.3.5 and the updater reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
-      "versionObserved": "Observed 2026-10-22 by the full release suite: the declared agy.exe --version returned 1.4.5. No upgrade was performed."
+      "versionObserved": "2026-11-20: verified using the registered launcher version command."
     },
     {
       "id": "antigravity-desktop",
       "fleetRole": "supported",
       "name": "Antigravity Desktop",
-      "version": "2.29.0",
+      "version": "2.33.0",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed 2.24.0.",
@@ -314,7 +315,7 @@
       "surfaceType": "companion-desktop",
       "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry.",
       "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded this GUI as absent. Antigravity.exe is present and its PE FileVersion is 2.23.0. This is a desktop window. Do not launch it to read the version or to dispatch a task.",
-      "versionObserved": "Observed 2026-10-22 by the full release suite: the declared executable PE FileVersion was 2.25.0. The GUI was not launched."
+      "versionObserved": "2026-11-20: verified executable file version without launching the desktop app."
     },
     {
       "id": "antigravity-ide",
@@ -349,8 +350,8 @@
       "id": "grok",
       "fleetRole": "supported",
       "name": "Grok CLI",
-      "version": "1.0.77",
-      "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run.",
+      "version": "1.0.89",
+      "versionObserved": "2026-11-20: verified using the registered launcher version command.",
       "versionNote": "Corrected 2026-08-19. This is NOT a version bump: the previously recorded 0.2.114 belongs to a different product line entirely and was never an observation of this install. Every artifact this install owns agrees on the 1.0.x scheme of xai-org/grok-build -- the binary's own `grok --version` (returned `grok 1.0.5 (5115b46bc9) [stable]`), the previous binary grok.exe.old at 1.0.4, ~/.grok/version.json, and ~/.grok/CHANGELOG.json. Nothing on this machine contains the string 0.2.114. What product 0.2.114 actually named was NOT determined and is recorded here as unresolved rather than guessed at.",
       "executable": "{userHome}/.grok/bin/grok.exe",
       "nativePaths": {
@@ -387,9 +388,9 @@
       "fleetRole": "supported",
       "name": "Cline CLI / ACP / Kanban",
       "version": "3.0.74",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `cline.cmd --version` printed 3.0.73. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported 3.0.71. `cline update` reported already on cline 3.0.71 and kanban 0.1.70. No upgrade or downgrade was performed by this inventory correction.",
-      "executable": "{userHome}/.local/bin/cline.cmd",
-      "executableNote": "Corrected 2026-08-11: the declaration read {userHome}/bin/cline.cmd, which does not exist. Cline installs to %USERPROFILE%/.local/bin, the same root `claude` uses, and ships both cline.cmd and cline.ps1 there; PowerShell's Get-Command resolves the .ps1 first, so a check that compares against Get-Command output alone will disagree with this declaration even though both are the same install. .cmd is declared because it is the form callable from any shell.",
+      "versionObserved": "Observed 2026-11-20: the Windows npm launcher returned 3.0.74 after installing the official Cline CLI package.",
+      "executable": "{roamingConfig}/npm/cline.cmd",
+      "executableNote": "The official global npm package installed this launcher under the Windows user's npm prefix. The earlier .local/bin launcher was absent on this workstation.",
       "nativePaths": {
         "dataDir": "{userHome}/.cline",
         "config": "{userHome}/.cline/data/settings",
@@ -428,9 +429,8 @@
       "id": "cursor",
       "fleetRole": "supported",
       "name": "Cursor",
-      "version": "3.29.9",
-      "executable": "{userHome}/bin/cursor.cmd",
-      "executableNote": "The managed shim is optional. Cursor distributes the launcher documented under nativePaths.vendorExecutable.",
+      "version": "3.31.11",
+      "executable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
         "mcp": "{userHome}/.cursor/mcp.json",
@@ -458,16 +458,15 @@
         "plugins"
       ],
       "status": "active",
-      "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher was re-verified against Cursor 3.17.8 on 2026-08-22; native local plugins expose the canonical AgentHub packages.",
-      "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run."
+      "notes": "Owner reauthorized dispatch on 2026-07-30. Local dispatch uses the separate Cursor Agent CLI. Native Cursor plugins expose the canonical AgentHub packages.",
+      "versionObserved": "2026-11-20: verified using the registered launcher version command."
     },
     {
       "id": "cursor-agent",
       "fleetRole": "supported",
       "name": "Cursor Agent CLI",
-      "version": "2026.11.05-86047df",
-      "executable": "{userHome}/bin/cursor-agent.cmd",
-      "executableNote": "The managed shim is optional. The CLI installer distributes the launcher documented under nativePaths.vendorExecutable.",
+      "version": "2026.11.19-f005e9d",
+      "executable": "{userHome}/AppData/Local/cursor-agent/cursor-agent.cmd",
       "platformPaths": {
         "darwin": {
           "executable": "{userHome}/.local/bin/cursor-agent",
@@ -503,18 +502,18 @@
       ],
       "status": "active",
       "surfaceType": "companion-cli",
-      "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration.",
-      "versionObserved": "2026-10-22: full release suite verified cursor-agent.cmd --version returns 2026.10.19-6bbf2c4. No upgrade performed.",
+      "notes": "Owner reauthorized dispatch on 2026-07-30. Use the vendor CLI with the arguments declared by the dispatcher. Cursor plugins and configuration are shared with the IDE.",
+      "versionObserved": "2026-11-20: verified using the registered launcher version command.",
       "headlessDispatchNote": "2026-10-14: native headless contract verified; prior smoke failed authentication. Owner action: run agent login in the owner terminal; dispatcher alias cursor-agent login is equivalent. Do not authenticate automatically."
     },
     {
       "id": "amp",
       "fleetRole": "supported",
       "name": "Sourcegraph Amp",
-      "version": "0.0.1794240032-ga42e06",
-      "versionObserved": "2026-10-14: verified installed launcher/file version 0.0.1792022479-ge66e24. Manual forward update and launcher reconciliation; active sessions preserved.",
-      "executable": "{userHome}/.amp/bin/amp.exe",
-      "executableNote": "Corrected 2026-08-11: the declaration read the WinGet shim path %LOCALAPPDATA%/Microsoft/WinGet/Links/amp.exe, which does not exist. Amp is installed at %USERPROFILE%/.amp/bin/amp.exe and that is what `amp` resolves to on PATH. A WinGet Links shim is written only for packages installed through WinGet, so the old path recorded an installation method this host never used rather than a path that later moved.",
+      "version": "0.0.1795118441-g890419",
+      "versionObserved": "2026-11-20: verified using the registered launcher version command.",
+      "executable": "{localData}/Microsoft/WinGet/Links/amp.exe",
+      "executableNote": "WinGet supplies the stable Windows executable alias.",
       "nativePaths": {
         "settings": "{userHome}/.config/amp/settings.json",
         "mcp": "{userHome}/.config/amp/settings.json",
@@ -546,7 +545,8 @@
       "fleetRole": "retained",
       "fleetRoleNote": "Retained 2026-11-19 (SH-4969) on the owner's direction that Devin 'should be a first class agent from now'. Three lanes: the local CLI (dispatchPolicy.devin, devin -p in C:/wt worktrees), Devin Cloud through the v3 API adapter (dispatchPolicy.devin-cloud) or the official Devin MCP server, and Linear (assign the ticket to Devin).",
       "name": "Devin Desktop / CLI",
-      "version": "3000.12.32",
+      "version": "3000.14.30821",
+      "versionObserved": "2026-11-20: verified using the registered launcher version command.",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
       "platformPaths": {
         "darwin": {
@@ -597,8 +597,8 @@
       "id": "factory",
       "fleetRole": "retained",
       "name": "Factory Droid",
-      "version": "1.12.1",
-      "versionObserved": "Observed 2026-11-14 (SH-4676): `droid update` upgraded 1.10.0 -> 1.12.1 (checksum verified by the updater) after `droid doctor` reported the auto-update stalled; `droid --version` then printed 1.12.1 and doctor passed (auto-update on, Execute shell ok). Earlier: 1.10.0 observed 2026-11-13 (SH-4669, read-only) at %USERPROFILE%\\bin\\droid.exe after the older npm @factory/cli 1.4.1 under mise node 24.20.0 was uninstalled at owner request; 0.245.1 on 2026-10-22.",
+      "version": "1.15.0",
+      "versionObserved": "2026-11-20: verified using the registered launcher version command.",
       "versionNote": "Corrected 2026-10-14. The 2026-08-19 observation of 0.195.0 from app-0.152.0 is historical. The live binary is %USERPROFILE%\\bin\\droid.exe and `droid --version` returned 0.241.1. `droid update` reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/bin/droid.exe",
       "executableNote": "Corrected 2026-10-14. The versioned Factory\\app-0.152.0\\resources\\bin\\droid.exe path is absent. The installed CLI is %USERPROFILE%\\bin\\droid.exe. `droid --version` returned 0.241.1.",
@@ -636,7 +636,7 @@
       "id": "vscode-insiders",
       "fleetRole": "editor",
       "name": "VS Code Insiders",
-      "version": "1.147.0-insider",
+      "version": "1.148.0-insider",
       "executable": "{userHome}/AppData/Local/Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd",
       "nativePaths": {
         "mcp": "{roamingConfig}/Code - Insiders/User/mcp.json",
@@ -662,7 +662,7 @@
       "versionProbe": "cli",
       "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded this launcher as absent. code-insiders.cmd is present. It is an editor, not a headless dispatch target. `code-insiders.cmd --version` returned 1.142.0-insider. No installer was run.",
       "versionProbeNote": "versionProbe stays cli. The declared launcher exists and `code-insiders.cmd --version` prints and exits. Corrected 2026-10-14 from the stale note that said the executable was absent.",
-      "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run."
+      "versionObserved": "2026-11-20: verified using the registered launcher version command."
     },
     {
       "id": "kilo",
