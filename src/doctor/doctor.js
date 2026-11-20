@@ -1,13 +1,14 @@
 // @ts-check
 // `agenthub doctor`: a read-only inventory of the coding agents on this
-// machine. It reads config files and never writes, starts a server, or opens
-// a network connection unless the caller passes probeRemote.
+// machine. The default reads only config files. The caller can opt into
+// native inventory commands and anonymous remote probes.
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { buildHostCatalog, createPathContext, packageRoot } from './hosts.js';
 import { commandExists, isLoopback, readMcpSource, unpinnedPackage } from './mcp.js';
 import { listRuleFiles, listSkills, readInstructionFile } from './files.js';
+import { inspectDevin } from './native.js';
 
 export const REPORT_SCHEMA_VERSION = 1;
 const LARGE_INSTRUCTIONS_TOKENS = 8000;
@@ -37,6 +38,7 @@ const MCP_CONFIG_OWNERS = { 'cursor-agent': 'cursor', 'opencode-desktop': 'openc
  * @property {string[]} [hosts]          Limit the report to these host ids.
  * @property {boolean} [includeMissing]  Also list hosts that were not found.
  * @property {boolean} [probeRemote]     Send one unauthenticated MCP initialize to each remote server.
+ * @property {boolean} [native]          Run supported native inventory commands for the current user.
  * @property {number} [probeTimeoutMs]
  * @property {typeof fetch} [fetchImpl]
  * @property {string} [agentsPath]
@@ -46,6 +48,7 @@ const MCP_CONFIG_OWNERS = { 'cursor-agent': 'cursor', 'opencode-desktop': 'openc
  * @param {DoctorOptions} [options]
  */
 export async function runDoctor(options = {}) {
+  if (options.native && options.home) throw new Error('--native requires the current user profile. Remove --home.');
   const env = options.env ?? process.env;
   const ctx = createPathContext({
     platform: options.platform,
@@ -72,6 +75,9 @@ export async function runDoctor(options = {}) {
   compareHosts(detected, findings);
   if (registry) compareWithRegistry(detected, registry, findings);
   const probes = options.probeRemote ? await probeRemoteServers(detected, findings, options) : null;
+  /** @type {{ devin?: Awaited<ReturnType<typeof inspectDevin>> } | undefined} */
+  const native = options.native ? {} : undefined;
+  if (native && (!wanted || wanted.has('devin'))) native.devin = await inspectDevin(ctx, env);
 
   mergeDuplicateFindings(findings);
   const order = { high: 0, warn: 1, info: 2 };
@@ -83,7 +89,7 @@ export async function runDoctor(options = {}) {
     tool: 'agenthub doctor',
     version: packageVersion(),
     readOnly: true,
-    network: options.probeRemote ? 'probe-remote' : 'none',
+    network: options.probeRemote ? 'probe-remote' : native?.devin ? 'native-cli' : 'none',
     platform: ctx.platform,
     home: ctx.home,
     registry: registry ? { mode: 'agenthub', path: registry.root } : { mode: 'host-vs-host', path: null },
@@ -91,6 +97,7 @@ export async function runDoctor(options = {}) {
     notFound: hosts.filter((h) => !h.detected).map((h) => h.id),
     findings,
     probes,
+    ...(native ? { native } : {}),
     summary: {
       hostsChecked: hosts.length,
       hostsFound: detected.length,

@@ -11,8 +11,7 @@ Usage:
   agenthub doctor [options]
 
 Reads each agent's MCP servers, skills and global instruction files, compares
-them, and flags risky MCP configs. Read-only: it writes nothing, starts no
-server, and makes no network request unless you pass --probe-remote.
+them, and flags risky MCP configs. By default, it only reads files.
 
 Options:
   --json              Print the full report as JSON
@@ -21,6 +20,8 @@ Options:
   --home <dir>        Inspect <dir> as the home directory (fixtures, other users)
   --registry <dir>    Compare with the AgentHub registry in <dir>
   --no-registry       Compare agents with each other even inside an AgentHub checkout
+  --native            Read MCP and skill inventory from the installed Devin CLI
+                      for the current profile. Cannot be combined with --home.
   --probe-remote      Send one unauthenticated MCP initialize to each remote server
                       that has no credentials configured, to see if it answers
   --timeout <ms>      Probe timeout per server (default 5000)
@@ -36,8 +37,8 @@ Exit codes: 0 report printed; 1 --strict and high findings; 2 usage or runtime e
  * @param {string[]} argv
  */
 export function parseDoctorArgs(argv) {
-  /** @type {{ json: boolean, hosts: string[], all: boolean, home?: string, registry?: string | false, probeRemote: boolean, timeout: number, strict: boolean, verbose: boolean, color?: boolean, help: boolean }} */
-  const opts = { json: false, hosts: [], all: false, probeRemote: false, timeout: 5000, strict: false, verbose: false, help: false };
+  /** @type {{ json: boolean, hosts: string[], all: boolean, home?: string, registry?: string | false, probeRemote: boolean, native: boolean, timeout: number, strict: boolean, verbose: boolean, color?: boolean, help: boolean }} */
+  const opts = { json: false, hosts: [], all: false, probeRemote: false, native: false, timeout: 5000, strict: false, verbose: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const [flag, inline] = arg.startsWith('--') && arg.includes('=') ? [arg.slice(0, arg.indexOf('=')), arg.slice(arg.indexOf('=') + 1)] : [arg, undefined];
@@ -55,6 +56,7 @@ export function parseDoctorArgs(argv) {
       case '--registry': opts.registry = value(); break;
       case '--no-registry': opts.registry = false; break;
       case '--probe-remote': opts.probeRemote = true; break;
+      case '--native': opts.native = true; break;
       case '--timeout': {
         const n = Number(value());
         if (!Number.isFinite(n) || n <= 0) throw new UsageError('--timeout needs a positive number of milliseconds');
@@ -103,6 +105,7 @@ export async function main(argv, io = {}) {
       hosts: opts.hosts,
       includeMissing: opts.all,
       probeRemote: opts.probeRemote,
+      native: opts.native,
       probeTimeoutMs: opts.timeout,
     });
     if (opts.json) stdout.write(JSON.stringify(report, null, 2) + '\n');

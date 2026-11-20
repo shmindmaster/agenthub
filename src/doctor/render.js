@@ -41,7 +41,7 @@ export function renderText(report, options = {}) {
     p && report.home && p.toLowerCase().startsWith(report.home.toLowerCase()) ? '~' + p.slice(report.home.length) : p;
   const lines = [];
 
-  const network = report.network === 'none' ? 'no network' : 'probed remote MCP servers';
+  const network = report.network === 'none' ? 'no network' : report.network === 'probe-remote' ? 'probed remote MCP servers' : 'native CLI';
   lines.push(`${c.bold('AgentHub doctor')} ${report.version} ${c.dim(`· read-only · ${network}`)}`);
   const registry =
     report.registry.mode === 'agenthub'
@@ -61,7 +61,13 @@ export function renderText(report, options = {}) {
       const issueText = [high ? c.red(`${high} high`) : '', warn ? c.yellow(`${warn} warn`) : ''].filter(Boolean).join(' · ') || c.green('ok');
       return [h.name, String(h.mcp.servers.length), String(h.skills.items.length), instructionsCell(h), issueText];
     });
-    const header = ['AGENT', 'MCP', 'SKILLS', 'INSTRUCTIONS', 'ISSUES'];
+    const header = [
+      'AGENT',
+      report.native?.devin ? 'MCP (FILES)' : 'MCP',
+      report.native?.devin ? 'SKILLS (FILES)' : 'SKILLS',
+      'INSTRUCTIONS',
+      'ISSUES',
+    ];
     const widths = header.map((title, i) => Math.max(title.length, ...rows.map((r) => visible(r[i]).length)));
     widths[0] = Math.min(widths[0], 26);
     const fmt = (/** @type {string[]} */ cells) =>
@@ -102,16 +108,25 @@ export function renderText(report, options = {}) {
       lines.push(`PROBE ${probe.server} ${c.dim(probe.url)}: ${outcome}`);
     }
   }
-  if (report.findings.length || report.probes?.length) lines.push('');
+  if (report.native?.devin) {
+    const devin = report.native.devin;
+    const inventory = devin.status === 'listed'
+      ? `${devin.mcp.length} MCP servers (${devin.mcp.filter((server) => server.enabled).length} enabled), ${devin.skills.length} skills`
+      : devin.status === 'unavailable' ? 'CLI executable not found' : 'CLI inventory failed';
+    lines.push(`NATIVE Devin CLI: ${inventory}.`);
+  }
+  if (report.findings.length || report.probes?.length || report.native?.devin) lines.push('');
 
   const s = report.summary;
+  const inventoryType = report.native?.devin ? ' from files' : '';
+  const writeStatus = report.native?.devin ? 'Doctor did not write any files.' : 'Nothing was written.';
   const counts = [
     s.high ? c.red(`${s.high} high`) : `${s.high} high`,
     s.warn ? c.yellow(`${s.warn} warn`) : `${s.warn} warn`,
     `${s.info} info`,
   ].join(', ');
   lines.push(
-    `${c.bold('Summary:')} ${s.hostsFound} of ${s.hostsChecked} agents found, ${s.mcpServers} MCP server entries, ${s.skills} skills. ${counts}. Nothing was written.`,
+    `${c.bold('Summary:')} ${s.hostsFound} of ${s.hostsChecked} agents found, ${s.mcpServers} MCP server entries, ${s.skills} skills${inventoryType}. ${counts}. ${writeStatus}`,
   );
   return lines.join('\n') + '\n';
 

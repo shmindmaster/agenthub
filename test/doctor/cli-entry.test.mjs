@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -77,6 +77,69 @@ test('doctor runs from the npm package with no PowerShell on PATH', () => {
   const r = runCli(root, ['doctor', '--home', home, '--json'], emptyPath());
   assert.equal(r.status, 0, r.stderr);
   assert.equal(JSON.parse(r.stdout).readOnly, true);
+});
+
+test('native Devin inventory refuses a fixture home and reports an absent CLI explicitly', () => {
+  const root = packageShapedCopy();
+  const home = mkdtempSync(join(tmpdir(), 'agenthub-native-home-'));
+  dirs.push(home);
+  const env = { ...emptyPath(), HOME: home, USERPROFILE: home };
+  const r = runCli(root, ['doctor', '--native', '--host', 'devin', '--json'], env);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout).native, { devin: { status: 'unavailable' } });
+  const fixture = runCli(root, ['doctor', '--native', '--home', home], env);
+  assert.equal(fixture.status, 2);
+  assert.match(fixture.stderr, /--native requires the current user profile/);
+});
+
+test('native Devin discovery is opt-in and returns only inventory fields', { skip: process.platform === 'win32' && 'needs an executable POSIX CLI stub' }, () => {
+  const root = packageShapedCopy();
+  const home = mkdtempSync(join(tmpdir(), 'agenthub-native-home-'));
+  dirs.push(home);
+  const env = { ...emptyPath(), HOME: home, USERPROFILE: home };
+  const cli = join(env.PATH, 'devin');
+  const firstBin = join(home, 'bin');
+  mkdirSync(firstBin);
+  const nonExecutable = join(firstBin, 'devin');
+  writeFileSync(nonExecutable, 'not executable');
+  chmodSync(nonExecutable, 0o644);
+  env.PATH = [firstBin, env.PATH].join(delimiter);
+  writeFileSync(cli, `#!/bin/sh
+if [ "$PWD" != "$HOME" ] || [ "$2 $3 $4 $5" != "list --json --process-model in-process" ]; then exit 3; fi
+case "$1" in
+  mcp) printf '%s\\n' '[{"name":"native-search","enabled":true,"transport":"http","source":"plugin https://vendor.example/native-plugin","url":"https://vendor.example/mcp?key=private-value"}]' ;;
+  skills) printf '%s\\n' '[{"name":"native-search:query","description":"private-value","base_dir":"/private-value"}]' ;;
+  *) exit 4 ;;
+esac
+`);
+  chmodSync(cli, 0o755);
+
+  const options = ['doctor', '--host', 'devin', '--json'];
+  const offline = runCli(root, options, env);
+  assert.equal(offline.status, 0, offline.stderr);
+  assert.equal(JSON.parse(offline.stdout).native, undefined);
+  const listed = runCli(root, [...options, '--native'], env);
+  assert.equal(listed.status, 0, listed.stderr);
+  assert.doesNotMatch(listed.stdout, /private-value|vendor\.example/);
+  assert.deepEqual(JSON.parse(listed.stdout).native, {
+    devin: {
+      status: 'listed',
+      mcp: [{ name: 'native-search', enabled: true, transport: 'http', plugin: true }],
+      skills: ['native-search:query'],
+    },
+  });
+
+  writeFileSync(cli, "#!/bin/sh\necho '[{\"name\":\"https://vendor.example/private-path\"}]'\n");
+  const malformed = runCli(root, [...options, '--native'], env);
+  assert.equal(malformed.status, 0, malformed.stderr);
+  assert.doesNotMatch(malformed.stdout + malformed.stderr, /vendor\.example|private-path/);
+  assert.deepEqual(JSON.parse(malformed.stdout).native, { devin: { status: 'failed' } });
+
+  writeFileSync(cli, '#!/bin/sh\necho private-value >&2\nexit 1\n');
+  const failed = runCli(root, [...options, '--native'], env);
+  assert.equal(failed.status, 0, failed.stderr);
+  assert.doesNotMatch(failed.stdout + failed.stderr, /private-value/);
+  assert.deepEqual(JSON.parse(failed.stdout).native, { devin: { status: 'failed' } });
 });
 
 test('in a clone without pwsh, sync exits 127 at once with an install hint', () => {
