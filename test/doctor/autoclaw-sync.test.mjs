@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { syncAutoClawPlugins } from '../../scripts/sync-autoclaw-plugins.mjs';
 
@@ -57,4 +60,48 @@ test('AutoClaw apply refuses a conflicting source before refreshing any marketpl
   const { runtime, calls } = fixture(resolve('some-other-marketplace'));
   await assert.rejects(syncAutoClawPlugins(runtime, [agenthub, parallel], base, { apply: true }), /different source owner/);
   assert.deepEqual(calls, [['plugins', 'marketplace', 'list']]);
+});
+
+test('AutoClaw registers a missing or superseded marketplace with tracked content only', async (t) => {
+  const temp = mkdtempSync(join(tmpdir(), 'agenthub-autoclaw-'));
+  t.after(() => rmSync(temp, { recursive: true, force: true }));
+  const root = join(temp, 'repo');
+  mkdirSync(join(root, '.claude-plugin'), { recursive: true });
+  mkdirSync(join(root, 'packages', 'example'), { recursive: true });
+  writeFileSync(join(root, '.claude-plugin', 'marketplace.json'), '{}');
+  writeFileSync(join(root, 'packages', 'example', 'README.md'), 'committed');
+  const git = (...args) => execFileSync('git', args, { cwd: root, windowsHide: true, stdio: 'pipe' });
+  git('init', '-q');
+  git('add', '.claude-plugin', 'packages');
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'fixture');
+  writeFileSync(join(root, 'packages', 'example', 'README.md'), 'working tree edit');
+  writeFileSync(join(root, 'packages', 'example', 'local.txt'), 'untracked');
+
+  const base = join(temp, 'snapshots');
+  const current = join(base, 'agenthub', `${'a'.repeat(40)}-${'b'.repeat(40)}`, 'marketplace');
+  const previous = join(base, 'agenthub', `${'c'.repeat(40)}-${'d'.repeat(40)}`, 'marketplace');
+  const market = { ...agenthub, root, directory: current };
+  for (const source of [undefined, previous]) {
+    let path = source;
+    const runtime = {
+      async invoke(args, cwd) {
+        if (args[1] === 'marketplace' && args[2] === 'list') {
+          return path ? [{ name: market.name, source: { source: 'directory', path } }] : [];
+        }
+        if (args[1] === 'marketplace' && args[2] === 'add') {
+          assert.deepEqual(args.slice(3), ['./marketplace', '--scope', 'user']);
+          assert.equal(cwd, dirname(current));
+          assert.equal(readFileSync(join(current, 'packages', 'example', 'README.md'), 'utf8'), 'committed');
+          assert.equal(existsSync(join(current, 'packages', 'example', 'local.txt')), false);
+          path = current;
+          return {};
+        }
+        assert.deepEqual(args, ['plugins', 'list', '--available']);
+        return { installed: [{ id: 'ah-example@agenthub', version: '2.0.0', enabled: true }], available: [] };
+      },
+    };
+    const report = await syncAutoClawPlugins(runtime, [market], base, { apply: true, plugin: 'ah-example' });
+    assert.deepEqual(report.changes, [{ marketplace: 'agenthub', action: 'register' }]);
+    assert.deepEqual(report.marketplaces, [{ name: 'agenthub', status: 'current' }]);
+  }
 });

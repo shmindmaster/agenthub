@@ -55,10 +55,10 @@ function stageMarketplace(market) {
   mkdirSync(parent, { recursive: true });
   const temporary = mkdtempSync(join(parent, 'staging-'));
   try {
-    const archive = join(temporary, 'tracked.zip');
+    const archive = join(temporary, 'tracked.tar');
     const contents = join(temporary, 'marketplace');
     mkdirSync(contents);
-    run('git', ['archive', '--format=zip', `--output=${archive}`, 'HEAD', '--', ...sourcePaths], market.root);
+    run('git', ['archive', '--format=tar', `--output=${archive}`, 'HEAD', '--', ...sourcePaths], market.root);
     run('tar', ['-xf', archive, '-C', contents], temporary);
     rmSync(archive);
     renameSync(temporary, target);
@@ -181,7 +181,7 @@ async function main() {
   if (values.apply && result.mappings.some((row) => row.status !== 'current')) process.exitCode = 1;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     console.error(error instanceof SyntaxError ? 'Invalid AutoClaw marketplace data.' : error.message);
     process.exitCode = 1;
