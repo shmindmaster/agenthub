@@ -864,10 +864,10 @@
           {
             "hostId": "opencode",
             "channel": "@parallel-web/opencode-plugin",
-            "installedVersion": "1.2.0",
-            "current": true,
+            "installedVersion": null,
+            "current": null,
             "updateCommand": "opencode plugin add @parallel-web/opencode-plugin",
-            "note": "OpenCode 2 user configuration lists the vendor npm package. The locally cached installed manifest matched npm version 1.2.0. Search and extract still require a verified Parallel account in OpenCode."
+            "note": "OpenCode 2 lists this configured npm package without a runtime plugin ID or version. The cached manifest and npm both reported 1.2.0. The native remote MCP named parallel reports connected for the separate anonymous search and fetch route. Native npm plugin loading, personal authorization and its tools remain unverified."
           },
           {
             "hostId": "autoclaw",

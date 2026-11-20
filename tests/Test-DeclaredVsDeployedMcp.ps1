@@ -31,6 +31,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+. (Join-Path $repoRoot 'scripts/lib/McpConfigShape.ps1')
 
 $failures = [Collections.Generic.List[string]]::new()
 function Report {
@@ -115,6 +116,11 @@ function Get-DeployedIds([string]$McpPath, [string]$McpKey) {
     # indistinguishable from the missing-file signal above. The comma operator
     # wraps it so an empty set stays an empty set.
     if ($null -eq $node) { return ,@() }
+    if ($McpKey -eq 'mcp' -and (Test-OpenCodeNativeMcpCatalog $node.servers)) {
+        $flatIds = @($node.PSObject.Properties.Name | Where-Object { $_ -ne 'servers' })
+        $nativeIds = @($node.servers.PSObject.Properties.Name)
+        return ,@(($flatIds + $nativeIds) | Sort-Object -Unique)
+    }
     return ,@($node.PSObject.Properties.Name)
 }
 

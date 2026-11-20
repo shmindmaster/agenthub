@@ -37,7 +37,18 @@ try {
             [IO.File]::WriteAllText($path, "[mcp_servers.aws-mcp]`nurl = 'https://aws.example/mcp?oauth=initialize'`nenabled = false`n[mcp_servers.stray]`ncommand = 'old'`n")
         } elseif ($id -eq 'opencode') {
             $hosts[$id]['browse'] = 'Host-owned browser relay.'
-            Write-Json $path @{mcp=@{legacyStray=@{type='remote';url='https://old.example'};servers=@{'aws-mcp'=@{type='remote';url='https://aws.example/mcp?oauth=initialize';disabled=$true;pool=$true};browse=@{type='local';command=@('browse','mcp');pool=$true};stray=@{type='remote';url='https://old.example'}}}}
+            $hosts[$id]['parallel'] = 'Hosted anonymous search and fetch.'
+            $hosts[$id]['existing-remote'] = 'Managed legacy entry with a native override.'
+            Write-Json $path @{mcp=@{
+                legacyStray=@{type='remote';url='https://old.example'}
+                'existing-remote'=@{type='remote';url='https://legacy.example';enabled=$false}
+                servers=@{
+                    'aws-mcp'=@{type='remote';url='https://aws.example/mcp?oauth=initialize';disabled=$true;pool=$true}
+                    browse=@{type='local';command=@('browse','mcp');pool=$true}
+                    stray=@{type='remote';url='https://old.example'}
+                    'existing-remote'=@{type='remote';url='https://native.example';pool=$true}
+                }
+            }}
         } else {
             Write-Json $path @{mcpServers=@{'aws-mcp'=@{type='http';url='https://aws.example/mcp?oauth=initialize';headers=@{'X-Fixture'='preserve'}};stray=@{command='old'}}}
         }
@@ -49,7 +60,10 @@ try {
     $hosts['warp'] = @{'aws-mcp'='Allowed only when owner-configured.'}
     $agents += @{id='warp';name='warp';status='active';nativePaths=@{mcp=$empty}}
     Write-Json (Join-Path $registryDir 'agents.json') @{activeAgents=$agents;inactiveAgents=@()}
-    Write-Json (Join-Path $registryDir 'mcps.json') @{activationPolicy=@{pluginOnly=@{hosts=$hosts}};mcpServers=@()}
+    $parallelEndpoint = 'https://parallel.example/mcp'
+    $parallel = @{id='parallel';scope='global-default';transport='http';activationMode='shared-remote';url=$parallelEndpoint;hosts=@('opencode')}
+    $existing = @{id='existing-remote';scope='global-default';transport='http';activationMode='shared-remote';url='https://managed.example';hosts=@('opencode')}
+    Write-Json (Join-Path $registryDir 'mcps.json') @{activationPolicy=@{pluginOnly=@{hosts=$hosts}};mcpServers=@($parallel,$existing)}
     # Simulate a vendor package supplying the same key, without making AWS a
     # generated registry row. Its ownership must not suppress a direct exception.
     $package = Join-Path $fixture 'packages/native-fixture'
@@ -75,6 +89,11 @@ try {
     }
     $oc = Get-Content -LiteralPath $paths.opencode -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($oc.mcp.servers.browse.command[0] -eq 'browse' -and $oc.mcp.servers.'aws-mcp'.disabled -eq $true -and $oc.mcp.servers.'aws-mcp'.pool -eq $true) 'OpenCode preserves native nested connections and their switches'
+    Assert-True ($oc.mcp.servers.parallel.url -eq $parallelEndpoint -and $oc.mcp.servers.parallel.type -eq 'remote' -and
+        $null -eq $oc.mcp.PSObject.Properties['parallel'] -and
+        $null -eq $oc.mcp.servers.parallel.PSObject.Properties['enabled']) 'OpenCode writes a managed remote to its native nested catalog without a flat duplicate'
+    Assert-True ($oc.mcp.'existing-remote'.url -eq 'https://managed.example' -and $oc.mcp.'existing-remote'.enabled -eq $false -and
+        $oc.mcp.servers.'existing-remote'.url -eq 'https://native.example' -and $oc.mcp.servers.'existing-remote'.pool -eq $true) 'OpenCode keeps an existing native override and the legacy disable switch'
     $negative = Get-Content -LiteralPath $paths.factory -Raw -Encoding UTF8
     Assert-True (-not $negative.Contains('aws.example')) 'exceptions do not leak into the next host'
     $absent = Get-Content -LiteralPath $paths.warp -Raw -Encoding UTF8
@@ -84,6 +103,14 @@ try {
     foreach ($id in $first.Keys) {
         Assert-True ($first[$id] -ceq (Get-Content -LiteralPath $paths[$id] -Raw -Encoding UTF8)) "$id is byte-stable after a second prune"
     }
+
+    Write-Json $paths.opencode @{mcp=@{servers=@{type='remote';url='https://legacy.example'}}}
+    $legacySyncArgs = $syncArgs | Where-Object { $_ -ne '-Prune' }
+    $run = & $hostExe @legacySyncArgs 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Legacy fixture sync failed: $run" }
+    $legacy = Get-Content -LiteralPath $paths.opencode -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ($legacy.mcp.parallel.url -eq $parallelEndpoint -and $legacy.mcp.servers.url -eq 'https://legacy.example' -and
+        $null -eq $legacy.mcp.servers.PSObject.Properties['parallel']) 'OpenCode keeps a legacy server named servers and writes Parallel beside it'
 } finally {
     $resolved = [IO.Path]::GetFullPath($fixture)
     if (-not $resolved.StartsWith($scratch.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe fixture cleanup path' }

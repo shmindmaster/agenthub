@@ -55,6 +55,7 @@ $RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot).TrimEnd('\', '/')
 $RegistryDir       = Join-Path $RegistryRoot 'registry'
 . (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
 . (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
+. (Join-Path $PSScriptRoot 'lib\McpConfigShape.ps1')
 if ([string]::IsNullOrWhiteSpace($UserProfile)) {
     $UserProfile = Get-AgentHubDefaultHome
 }
@@ -1941,7 +1942,8 @@ function Sync-HostMcp-OpenCode {
     $root.mcp = Remove-McpTargetKeys -Target $root.mcp -Keys $SuppressedKeys
     # OpenCode 2.3 writes native entries inside mcp.servers; older configs can
     # still contain flat entries alongside that container.
-    if ($root.mcp.ContainsKey('servers') -and $root.mcp.servers -is [hashtable]) {
+    $hasNativeMcpCatalog = Test-OpenCodeNativeMcpCatalog $root.mcp.servers
+    if ($hasNativeMcpCatalog) {
         $root.mcp.servers = Normalize-McpTargetKeys -Target $root.mcp.servers
         $root.mcp.servers = Remove-McpTargetKeys -Target $root.mcp.servers -Keys $SuppressedKeys
     }
@@ -1950,14 +1952,24 @@ function Sync-HostMcp-OpenCode {
         $canonical = $McpEntries[$key]
         $target = ConvertTo-OpenCodeMcpEntry $canonical
 
-        if (-not $root.mcp.ContainsKey($key)) {
-            $root.mcp[$key] = $target
-            if (-not $root.mcp[$key].ContainsKey('enabled')) { $root.mcp[$key].enabled = $true }
+        $entries = $root.mcp
+        $useNativeEntry = $hasNativeMcpCatalog -and -not $entries.ContainsKey($key)
+        if ($useNativeEntry) {
+            $entries = $root.mcp.servers
+            if ($target.ContainsKey('enabled')) {
+                if (-not $target.enabled) { $target.disabled = $true }
+                $target.Remove('enabled')
+            }
+        }
+
+        if (-not $entries.ContainsKey($key)) {
+            $entries[$key] = $target
+            if (-not $useNativeEntry -and -not $target.ContainsKey('enabled')) { $target.enabled = $true }
             continue
         }
 
-        $existing = $root.mcp[$key]
-        if (-not ($existing -is [hashtable])) { $existing = ConvertTo-Hashtable $existing; $root.mcp[$key] = $existing }
+        $existing = $entries[$key]
+        if (-not ($existing -is [hashtable])) { $existing = ConvertTo-Hashtable $existing; $entries[$key] = $existing }
 
         if ($target.type -eq 'local') {
             foreach ($staleField in @('url','headers','args','env','oauth')) {
@@ -1984,14 +1996,14 @@ function Sync-HostMcp-OpenCode {
         foreach ($managedMap in @('headers', 'environment')) {
             if ($target.ContainsKey($managedMap)) { $existing[$managedMap] = $target[$managedMap] }
         }
-        if (-not $existing.ContainsKey('enabled')) { $existing.enabled = $true }
+        if (-not $useNativeEntry -and -not $existing.ContainsKey('enabled')) { $existing.enabled = $true }
     }
 
     if ($Prune) {
         $keep = @{}
         foreach ($k in $McpEntries.Keys) { $keep[(Resolve-McpAliasKey $k)] = $true }
         foreach ($k in @($script:hostOwnedMcpKeys)) { if ($k) { $keep[$k] = $true } }
-        if ($root.mcp.ContainsKey('servers') -and $root.mcp.servers -is [hashtable]) {
+        if ($hasNativeMcpCatalog) {
             foreach ($k in @($root.mcp.servers.Keys)) {
                 if (-not $keep.ContainsKey((Resolve-McpAliasKey $k))) { $root.mcp.servers.Remove($k) }
             }
