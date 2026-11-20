@@ -24,6 +24,31 @@ const newHome = () => {
 const codes = (report) => report.findings.map((f) => f.code);
 const find = (report, code, subject) => report.findings.filter((f) => f.code === code && (!subject || f.subject === subject));
 
+test('Cline Doctor reads native nested transports and flat entries without exposing credentials', async () => {
+  const h = newHome();
+  const syntheticKey = 'sk-' + 'a'.repeat(40);
+  h.write('.cline/data/settings/cline_mcp_settings.json', {
+    mcpServers: {
+      local: { transport: { type: 'stdio', command: 'node', args: ['server.js'] } },
+      remote: {
+        transport: { type: 'streamableHttp', url: 'https://example.test/sse', headers: { Authorization: 'Bearer ' + syntheticKey } },
+        disabled: true,
+        oauth: { clientId: 'fixture' },
+      },
+      flat: { type: 'streamableHttp', url: 'https://example.test/mcp' },
+      legacy: { transportType: 'sse', url: 'https://example.test/events' },
+    },
+  });
+  const report = await runDoctor({ home: h.home, env: h.env(), registry: false });
+  const { servers } = report.hosts.find(({ id }) => id === 'cline').mcp;
+  assert.deepEqual(servers.map(({ name, transport, enabled }) => [name, transport, enabled]), [
+    ['flat', 'http', true], ['legacy', 'sse', true], ['local', 'stdio', true], ['remote', 'http', false],
+  ]);
+  assert.equal(servers.find(({ name }) => name === 'local').fingerprint, 'stdio:node server.js');
+  assert.equal(servers.find(({ name }) => name === 'remote').authConfigured, true);
+  assert.doesNotMatch(JSON.stringify(report), new RegExp(syntheticKey));
+});
+
 test('OpenCode Doctor distinguishes a server named servers from a nested server map', () => {
   const h = newHome();
   const legacy = { type: 'remote', url: 'https://example.test/mcp' };
