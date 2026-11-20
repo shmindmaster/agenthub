@@ -173,6 +173,18 @@ function inspectHost(host, ctx, env, findings, detectOnPath) {
         path: source.path,
       });
     }
+    if (detected && source.ignoredEntries.length) {
+      findings.push({
+        severity: 'warn',
+        code: 'MCP_NATIVE_ENTRY_IGNORED',
+        hosts: [host.id],
+        subject: source.path,
+        message: `The native MCP schema rejects these entries: ${source.ignoredEntries.map(({ name }) => name).join(', ')}.`,
+        fix: 'Reconfigure these entries through native MCP settings with the provider-supported transport and authentication.',
+        path: source.path,
+      });
+      for (const ignored of source.ignoredEntries) checkServer(host, ignored, ctx, env, findings);
+    }
     for (const server of source.servers) {
       if (!servers.some((s) => s.name === server.name)) servers.push(server);
     }

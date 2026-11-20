@@ -28,7 +28,7 @@ export const defaultAgentsPath = join(packageRoot, 'registry', 'agents.json');
  * @property {string} path
  * @property {'json' | 'toml'} format
  * @property {string} key      Property holding the server map. 'amp.mcpServers' is one literal key.
- * @property {'generic' | 'opencode' | 'codex' | 'cline'} dialect
+ * @property {'generic' | 'opencode' | 'codex' | 'cline' | 'zcode'} dialect
  */
 
 /**
@@ -124,7 +124,7 @@ const MCP_LAYOUT = {
   claude: [{ field: 'mcpUser', key: 'mcpServers' }],
   codex: [{ field: 'config', format: 'toml', key: 'mcp_servers', dialect: 'codex' }],
   grok: [{ field: 'config', format: 'toml', key: 'mcp_servers', dialect: 'codex' }],
-  zcode: [{ field: 'config', key: 'mcp.servers' }],
+  zcode: [{ field: 'config', key: 'mcp.servers', dialect: 'zcode' }],
   opencode: [{ field: 'config', key: 'mcp', dialect: 'opencode', file: 'opencode.json' }],
   'opencode-desktop': [{ field: 'config', key: 'mcp', dialect: 'opencode', file: 'opencode.json' }],
   copilot: [{ field: 'mcp', key: 'mcpServers' }],

@@ -30,6 +30,7 @@ import { parseJsonc, parseToml } from './parsers.js';
  * @property {boolean} exists
  * @property {string | null} error
  * @property {McpServer[]} servers
+ * @property {McpServer[]} ignoredEntries
  */
 
 /**
@@ -38,7 +39,7 @@ import { parseJsonc, parseToml } from './parsers.js';
  */
 export function readMcpSource(source) {
   /** @type {McpReadResult} */
-  const result = { path: source.path, exists: false, error: null, servers: [] };
+  const result = { path: source.path, exists: false, error: null, servers: [], ignoredEntries: [] };
   let text;
   try {
     if (!statSync(source.path).isFile()) return result;
@@ -65,11 +66,50 @@ export function readMcpSource(source) {
   const entries = Object.entries(map).filter(([name]) => name !== 'servers' || !isNestedMap);
   if (isNestedMap) entries.push(...Object.entries(nested));
   for (const [name, raw] of new Map(entries)) {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
-    result.servers.push({ ...normalizeServer(name, raw, source.dialect), source: source.path });
+    const config = source.dialect === 'zcode' ? readZCodeConnection(raw) : raw;
+    if (source.dialect === 'zcode' && !config) {
+      const ignored = normalizeServer(name, objectOrEmpty(raw), source.dialect);
+      result.ignoredEntries.push({ ...ignored, enabled: false, source: source.path });
+      continue;
+    }
+    if (!config || typeof config !== 'object' || Array.isArray(config)) continue;
+    result.servers.push({ ...normalizeServer(name, config, source.dialect), source: source.path });
   }
   result.servers.sort((a, b) => a.name.localeCompare(b.name));
   return result;
+}
+
+const zcodeCommonFields = ['type', 'enabled', 'alwaysLoad', 'isolation', 'protocolVersion', 'timeoutMs'];
+const zcodeStdioFields = new Set([...zcodeCommonFields, 'command', 'args', 'cwd', 'env']);
+const zcodeRemoteFields = new Set([...zcodeCommonFields, 'url', 'headers', 'oauth']);
+
+/**
+ * Normalize the compatibility aliases from the native ZCode parser. Reject
+ * foreign fields and invalid transport shapes that the runtime ignores.
+ * @param {unknown} value
+ */
+function readZCodeConnection(value) {
+  const {
+    enable, environment, http_headers, timeout: _timeout,
+    startup_timeout_sec: _startupTimeout, ...config
+  } = objectOrEmpty(value);
+  if (enable === false) config.enabled = false;
+  if (config.type === 'remote') config.type = 'http';
+  if (typeof config.type !== 'string') {
+    if (typeof config.command === 'string' && config.command.trim()) config.type = 'stdio';
+    else if (typeof config.url === 'string' && config.url.trim()) config.type = 'http';
+  }
+  if (config.env === undefined && environment !== undefined) config.env = environment;
+  if (config.type === 'stdio') {
+    if (typeof config.command === 'string' && config.command.length &&
+        Object.keys(config).every((key) => zcodeStdioFields.has(key))) return config;
+  }
+  if (config.type === 'http' || config.type === 'sse') {
+    if (config.headers === undefined && http_headers !== undefined) config.headers = http_headers;
+    if (typeof config.url === 'string' && config.url.length &&
+        Object.keys(config).every((key) => zcodeRemoteFields.has(key))) return config;
+  }
+  return null;
 }
 
 /**
