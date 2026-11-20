@@ -95,7 +95,9 @@ export async function runDoctor(options = {}) {
     tool: 'agenthub doctor',
     version: packageVersion(),
     readOnly: true,
-    network: nativeHealth ? 'native-health' : options.probeRemote ? 'probe-remote' : native?.devin ? 'native-cli' : 'none',
+    network: options.probeRemote
+      ? (nativeHealth ? 'probe-remote+native-health' : 'probe-remote')
+      : nativeHealth ? 'native-health' : native?.devin ? 'native-cli' : 'none',
     platform: ctx.platform,
     home: ctx.home,
     registry: registry ? { mode: 'agenthub', path: registry.root } : { mode: 'host-vs-host', path: null },

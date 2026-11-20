@@ -201,6 +201,12 @@ exit 1
     },
   });
 
+  const combined = runCli(root, [...args, '--native-health', '--probe-remote'], env);
+  assert.equal(combined.status, 0, combined.stderr);
+  const combinedReport = JSON.parse(combined.stdout);
+  assert.equal(combinedReport.network, 'probe-remote+native-health');
+  assert.ok(Array.isArray(combinedReport.probes));
+
   servers[0].name = 'https://vendor.example/private-value';
   writeStub();
   const malformed = runCli(root, [...args, '--native-health'], env);

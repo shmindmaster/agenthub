@@ -46,6 +46,7 @@ export function renderText(report, options = {}) {
     'probe-remote': 'probed remote MCP servers',
     'native-cli': 'native CLI',
     'native-health': 'native MCP connectivity checks',
+    'probe-remote+native-health': 'remote probes and native MCP connectivity checks',
   }[report.network];
   const nativeInventory = report.native?.devin || report.nativeHealth?.grok;
   lines.push(`${c.bold('AgentHub doctor')} ${report.version} ${c.dim(`· read-only · ${network}`)}`);
