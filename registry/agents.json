@@ -9,13 +9,13 @@
       "version": "3.18.2",
       "versionProbe": "file-version",
       "versionProbeNote": "Read Windows desktop executable metadata without launching the app.",
+      "executable": "{userHome}/AppData/Local/Programs/ZCode/ZCode.exe",
       "nativePaths": {
         "config": "{userHome}/.zcode/cli/config.json",
-        "skillsDir": "{userHome}/.agents/skills"
+        "sharedSkillsDir": "{userHome}/.agents/skills"
       },
       "platformPaths": {
         "windows": {
-          "executable": "{localData}/Programs/ZCode/ZCode.exe",
           "nativePaths": {
             "bundledRuntime": "{localData}/Programs/ZCode/resources/glm/zcode.cjs"
           }

@@ -90,10 +90,13 @@ test('Cline Doctor reads native nested transports and flat entries without expos
 
 test('ZCode Doctor reads native user MCP settings without requiring agent-wide registrations', async () => {
   const h = newHome();
+  h.write('.agents/skills/shared/SKILL.md', 'Shared skill fixture');
+  const options = { home: h.home, env: h.env(), registry: repoRoot, hosts: ['zcode'] };
+  assert.equal((await runDoctor(options)).hosts.length, 0);
   h.write('.zcode/cli/config.json', {
     mcp: { servers: { parallel: { type: 'http', url: 'https://example.test/mcp', enabled: true } } },
   });
-  const report = await runDoctor({ home: h.home, env: h.env(), registry: repoRoot, hosts: ['zcode'] });
+  const report = await runDoctor(options);
   assert.deepEqual(report.hosts[0].mcp.servers.map(({ name, transport }) => [name, transport]), [['parallel', 'http']]);
   assert.ok(!codes(report).includes('REGISTRY_MISSING'));
 });
