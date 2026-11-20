@@ -454,9 +454,9 @@ if (-not (Test-Path -LiteralPath $subagentFormatsFile)) {
   }
 }
 
-$stale = @(rg -l --hidden --glob '!node_modules/**' --glob '!tests/validate.ps1' `
-  'packages/(handoff-plugins/plugins|portfolio-plugins)|agenthub[/\\]capabilities[/\\]|agenthub[/\\](reports|state|generated)[/\\]' `
-  $root 2>$null)
+$stalePattern = 'packages/(handoff-plugins/plugins|portfolio-plugins)|agenthub[/\\]capabilities[/\\]|agenthub[/\\](reports|state|generated)[/\\]'
+$stale = @(git -C $root grep --untracked -I -l -E -e $stalePattern -- . ':!node_modules/**' ':!tests/validate.ps1')
+if ($LASTEXITCODE -gt 1) { Fail 'could not scan for stale legacy paths' }
 if ($stale.Count -gt 0) { Fail "stale legacy paths remain: $($stale -join ', ')" }
 
 if ($errors.Count -gt 0) {
@@ -467,7 +467,5 @@ if ($errors.Count -gt 0) {
 $inventoryOnlyCount = @($agents.activeAgents | Where-Object status -eq 'inventory-only').Count
 $activeAgentCount = @($agents.activeAgents).Count - $inventoryOnlyCount
 Write-Output "PASS: $($packageNames.Count) capability packages, $($catalogNames.Count) installable plugins, $(@($mcps.mcpServers).Count) MCP servers, $activeAgentCount active agents, $inventoryOnlyCount inventory-only agents."
-# Terminate explicitly. The stale-path scan above is the last native command, and
-# `rg` exits 1 when it finds nothing -- the passing case. Without this, a clean
-# validation inherits that 1 and every caller reads PASS as a failure.
+# git grep exits 1 when a clean scan finds no matches.
 exit 0
