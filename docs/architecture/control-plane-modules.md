@@ -89,10 +89,12 @@ private packages live only under overlays/personal/packages/
 loads. `overlays/personal.example/` is the template for a fresh checkout.
 `AGENTHUB_OVERLAY=off` resolves the public graph only. Absence of the
 overlay directory is the same as off. `Get-AgentHubOverlayRoot` checks an
-explicit `AGENTHUB_OVERLAY` first, then the current checkout, then (for a
-linked worktree) its primary checkout, using `.git` -> `gitdir:` ->
-`commondir` without spawning Git. Private package sources are rebased onto
-that resolved overlay root.
+explicit `AGENTHUB_OVERLAY` first (a path that does not exist is an error),
+then the current checkout's `overlays/personal`, then (for a linked
+worktree) its primary checkout's, using `.git` -> `gitdir:` -> `commondir`
+without spawning Git, and finally an `agenthub-private` clone holding
+`overlay.json` beside the checkout or beside its primary checkout. Private package sources are
+rebased onto that resolved overlay root.
 
 The overlay is gitignored, so a linked worktree under `C:\wt` never contains
 it. Sync and validate runs report the primary-checkout overlay path when

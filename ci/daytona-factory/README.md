@@ -1,6 +1,6 @@
 # Daytona Build and Demo Factory
 
-Open **Actions → Daytona Build and Demo Factory → Run workflow** in the private
+Open **Actions → Daytona Build and Demo Factory → Run workflow** in the
 AgentHub repository. Use `main` as the workflow branch, select an application and
 enter the full source commit. The commit must be reachable from the app's
 `main` branch or, for ABACare, `dev`.

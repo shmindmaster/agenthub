@@ -21,24 +21,39 @@ and per-host deployment:
   `gateway-profiles.json`, `product-video-delivery.json` — host format and
   delivery records. `native-connectors.json` -> `thirdPartyExtensions` is
   the inventory of official plugins and skills AgentHub does not own
-  (Superpowers, Firecrawl, Clerk, Railway, Framer, Remotion,
+  (Superpowers, Clerk, Daytona, Expo, Framer, Remotion,
   `slack-skills-plugin`, and similar). Those install from each host's
   official channel. AgentHub marketplace entries are only for capabilities
-  this repo authors. Slack read/write is `packages/slack`: one tool
-  contract, one identity, plugin-gated until the gateway is
-  production-proven. Host-native Slack plugins are optional UX.
+  no vendor marketplace provides (vendor-first, SH-4636). Firecrawl,
+  Supabase and Railway were removed on 2026-11-06.
 
 ## Flow
 
 ```text
-packages/<capability>  ──hash──▶  registry/capabilities.json
+policy-core.md / global-agent-policy.md   agents/*.agent.md
+        │                                       │
+        ▼                                       ▼
+Sync-Instructions.ps1                   Sync-Subagents.ps1
+(host instruction files)                (native subagent files)
+
+packages/<capability>  ──hash──▶  registry/capabilities.json + mcps.json
         │                                │
         ▼                                ▼
 Sync-Capabilities.ps1            Sync-AgentHub.ps1
-(loose skills to hosts)          (instructions + MCP config to hosts)
-        │                                │
-        └────── Validate-AgentHub.ps1 + tests/ keep both honest ──┘
+(loose skills to hosts)          (MCP config to hosts)
+        │
+        ▼
+Sync-Plugins.ps1 (native ah-* plugins, or managed loose skills
+                  on hosts with no plugin format)
+
+Validate-AgentHub.ps1 + tests/ keep every step honest.
 ```
+
+`scripts/lib/SyncOrchestrator.ps1` runs validate, then Sync-Instructions,
+Sync-Subagents, Sync-Capabilities and Sync-AgentHub in that order.
+`Sync-Plugins.ps1` is invoked separately through `scripts/AgentHub.ps1`.
+Only hosts in `activeAgents` are targeted; `inactiveAgents` rows are kept
+for detection and sweeping.
 
 - `scripts/AgentHub.ps1` is the lifecycle entry point
   (inventory / validate / sync / drift). Path materialization, host

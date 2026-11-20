@@ -57,3 +57,11 @@ Owner direction on 2026-11-17 retired Kiro (`kiro`, the CLI and IDE) and KiroCre
 Removed: the `kiro` and `kirocrew` agent records, the `kiro` entries in `managedHosts`, autonomy, host-setting and dispatch-policy rows, the `kiro` host mappings in six capability rows, the plugin-format row, the MCP `hostInventory` and `sessionStart` entries, the context-limits note, the dispatcher contract, roles and `kiro/` profile directory, `Install-KiroProfiles.ps1`, `New-KiroCloudPowers.ps1`, the Kiro tests, and the two Kiro runbooks. Git history is unchanged.
 
 Local installation: read-only checks on 2026-11-17 found `kiro-cli` and `kiro` absent from `PATH`, no `~/bin/kiro*.cmd`, no `%LOCALAPPDATA%ProgramsKiro` and no `%LOCALAPPDATA%ProgramsKiroCrew`, and no running Kiro process. Leftovers remain: `%LOCALAPPDATA%Kiro-Cli` holds `bun.exe`, `data.sqlite3` and run receipts but no `kiro-cli.exe`, and `~/.kiro` still holds `agents`, `powers`, `skills`, `steering`, `settings`, `sessions`, `crew` and a `secrets.json`. No uninstall command was run and nothing was deleted, because those folders may hold the only copy of owner-authored agents, steering and credentials; the owner decides whether to remove them. The check covered those paths only and does not claim a whole-machine search.
+
+## 2026-11-19 Update — Warp, MiMo Code and Qwen Code retired
+
+Owner direction. MiMo Code and Qwen Code were uninstalled and moved to
+`inactiveAgents` in `registry/agents.json` (#164), and the `pending-retirement`
+fleet role was renamed `supported`. Warp was uninstalled (app, config and skill
+links) and moved to `inactiveAgents` the same day (#165). The sync no longer
+targets any of the three; `doctor` still detects them from the inactive rows.
