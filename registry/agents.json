@@ -11,8 +11,14 @@
       "versionProbeNote": "Read Windows executable metadata. AutoClaw Desktop is a GUI app and must not be launched for a version probe.",
       "executable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe",
       "nativePaths": {
-        "vendorExecutable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe",
-        "bundledRuntime": "{localData}/Programs/AutoClaw2/resources/vendor/zcode/zcode.cjs"
+        "vendorExecutable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe"
+      },
+      "platformPaths": {
+        "windows": {
+          "nativePaths": {
+            "bundledRuntime": "{localData}/Programs/AutoClaw2/resources/vendor/zcode/zcode.cjs"
+          }
+        }
       },
       "supportedCapabilities": [
         "skills",
