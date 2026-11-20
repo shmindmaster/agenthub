@@ -133,7 +133,10 @@ class Deadline:
         return max(1, min(seconds, left))
 
     def ttl_minutes(self):
-        return max(1, int(self.left(export=True) // 60) + 1)
+        minutes = int(self.left(export=True) // 60)
+        if minutes < 1:
+            raise RuntimeError("Job deadline reached before a worker could start")
+        return minutes
 
 
 def validate_request(app, revision):
@@ -600,6 +603,8 @@ def run(args, policy):
         receipt["preview"] = job.build(cache_key)
         if args.suite == "demo":
             job.render()
+        if CANCEL_SIGNAL:
+            raise Cancelled(f"Cancelled by signal {CANCEL_SIGNAL[0]}")
         receipt["status"] = "passed"
     except Cancelled as error:
         receipt["status"], failure = "cancelled", error

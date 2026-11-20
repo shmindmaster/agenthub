@@ -138,7 +138,11 @@ class BudgetTests(unittest.TestCase):
         clock = [0.0]
         deadline = factory.Deadline(30, 180, clock=lambda: clock[0])
         self.assertEqual(deadline.bound(5000), 1620)
-        self.assertEqual(deadline.ttl_minutes(), 31)
+        self.assertEqual(deadline.ttl_minutes(), 30)
+        clock[0] = 1745
+        with self.assertRaises(RuntimeError):
+            deadline.ttl_minutes()
+        clock[0] = 0
         clock[0] = 1700
         with self.assertRaises(RuntimeError):
             deadline.bound(10)
