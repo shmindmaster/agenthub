@@ -1,7 +1,7 @@
 // @ts-check
 
 import { execFile } from 'node:child_process';
-import { accessSync, constants, statSync } from 'node:fs';
+import { accessSync, constants, readdirSync, statSync } from 'node:fs';
 import { delimiter, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -74,6 +74,62 @@ export async function inspectDevin(ctx, env) {
   } catch {
     // Native stderr and URLs can contain credentials. Keep subprocess output
     // private even when the command fails or a newer host changes its schema.
+    return { status: /** @type {const} */ ('failed') };
+  }
+}
+
+/**
+ * @param {import('./hosts.js').PathContext} ctx
+ * @param {NodeJS.ProcessEnv} env
+ */
+export async function inspectAutoClaw(ctx, env) {
+  if (ctx.platform !== 'windows' || process.platform !== 'win32') return { status: /** @type {const} */ ('unavailable') };
+  const runtime = join(ctx.localData, 'Programs', 'AutoClaw2', 'resources', 'vendor', 'zcode', 'zcode.cjs');
+  const accounts = join(ctx.roamingConfig, 'AutoClaw-oversea-official', 'accounts');
+
+  try {
+    if (!statSync(runtime, { throwIfNoEntry: false })?.isFile()) return { status: /** @type {const} */ ('unavailable') };
+    const profiles = statSync(accounts, { throwIfNoEntry: false })?.isDirectory()
+      ? readdirSync(accounts, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(accounts, entry.name, 'runtime', 'zcode-runtime', 'home'))
+        .filter((home) => statSync(join(home, '.zcode', 'cli'), { throwIfNoEntry: false })?.isDirectory())
+      : [];
+    if (!profiles.length) return { status: /** @type {const} */ ('no-account') };
+    if (profiles.length > 1) return { status: /** @type {const} */ ('ambiguous-account') };
+
+    const [home] = profiles;
+    const childEnv = Object.fromEntries(Object.entries(env)
+      .filter(([key]) => !['HOME', 'USERPROFILE', 'ZCODE_HOME'].includes(key.toUpperCase())));
+    childEnv.USERPROFILE = home;
+    const read = async (/** @type {string} */ group) => {
+      const { stdout } = await run(process.execPath, [runtime, group, 'list', '--json', '--cwd', home],
+        nativeOptions({ ...ctx, home }, childEnv, INVENTORY_TIMEOUT_MS));
+      return JSON.parse(stdout);
+    };
+    const plugins = await read('plugins');
+    const inventory = await read('skills');
+    if (!Array.isArray(plugins) || !Array.isArray(inventory?.skills)) throw new Error('Invalid AutoClaw inventory');
+    return {
+      status: /** @type {const} */ ('listed'),
+      plugins: plugins.map((entry) => {
+        const parts = typeof entry?.id === 'string' ? entry.id.split('@') : [];
+        if (parts.length !== 2 || typeof entry.enabled !== 'boolean' || !Array.isArray(entry.declaredMcpServerNames)) {
+          throw new Error('Invalid AutoClaw plugin inventory');
+        }
+        return {
+          id: parts.map(identifier).join('@'),
+          version: typeof entry.version === 'string' && entry.version.length <= 80 &&
+            /^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9a-z.+-]+)?$/i.test(entry.version) ? entry.version : null,
+          enabled: entry.enabled,
+          declaredMcpServers: entry.declaredMcpServerNames.map(identifier),
+        };
+      }),
+      skills: inventory.skills.map((/** @type {{qualifiedName?: unknown, name?: unknown}} */ entry) =>
+        identifier(entry?.qualifiedName ?? entry?.name)),
+    };
+  } catch {
+    // The desktop runtime includes profile paths and internal diagnostics in its output.
     return { status: /** @type {const} */ ('failed') };
   }
 }

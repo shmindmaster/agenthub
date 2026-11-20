@@ -9,6 +9,8 @@ The Windows AutoClaw 2.5.3 app includes a ZCode 0.17.1 runtime. The desktop uses
 3. Add Parallel's official marketplace using `plugins marketplace add parallel-web/parallel-agent-skills --scope user`. Install `parallel@parallel-agent-skills` with `plugins install parallel@parallel-agent-skills --scope user`. The marketplace uses the vendor package as published. [Parallel Agent Skills](https://docs.parallel.ai/integrations/agent-skills)
 4. Read back installation and skills with `plugins list --json` and `skills list --json`. The desktop protocol's `plugins/list` and `mcp/list` confirm desktop-runtime discovery and connection state. Confirm the account and scopes before starting OAuth or permitting tool calls.
 
+Run `agenthub doctor --host autoclaw --native --json` for repeatable inventory on Windows. Doctor uses the bundled runtime only when it finds exactly one initialized account profile. The JSON includes plugin IDs, versions, enablement, declared MCP names, and skill names. It excludes account paths, vendor diagnostics, and raw subprocess output. Desktop MCP connectivity and OAuth need their own live checks.
+
 ## Windows acceptance
 
 The existing AutoClaw account reported all seven public AgentHub plugins enabled and all 15 Parallel skills discovered. The desktop runtime connected to Parallel and AssemblyAI Docs and reported eight and three tools respectively. The AssemblyAI service returned a failed connection in the credential-free check.
