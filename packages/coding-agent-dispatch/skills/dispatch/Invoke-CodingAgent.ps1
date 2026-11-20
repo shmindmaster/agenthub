@@ -1162,6 +1162,20 @@ function Get-DevinCloudPolicyRefusal {
     return $null
 }
 
+# -List reports devin-cloud callable only when a create could resolve a key:
+# the in-process override, or op on PATH with OP_SERVICE_ACCOUNT_TOKEN set. It
+# checks presence only; it never runs op read or prints a value.
+function Get-DevinCloudKeySourceRefusal {
+    if (-not [string]::IsNullOrWhiteSpace($script:DevinCloudKeyOverride)) { return $null }
+    if (-not (Get-Command op -CommandType Application -ErrorAction SilentlyContinue)) {
+        return 'no Devin Cloud key source (the 1Password CLI op is not on PATH and no in-process DEVIN_CLOUD_API_KEY override); a create would refuse with exit 3'
+    }
+    if ([string]::IsNullOrWhiteSpace($env:OP_SERVICE_ACCOUNT_TOKEN)) {
+        return 'no Devin Cloud key source (OP_SERVICE_ACCOUNT_TOKEN is not set and no in-process DEVIN_CLOUD_API_KEY override); a create would refuse with exit 3'
+    }
+    return $null
+}
+
 if ($List) {
     foreach ($agent in ($agents | Sort-Object { [string]$_.id })) {
         $row = Get-HostRow -Agent $agent
@@ -1176,6 +1190,7 @@ if ($List) {
     # has no read-only mode, so it is listed only without -ReadOnly.
     if (-not $ReadOnly) {
         $cloudRefusal = Get-DevinCloudPolicyRefusal
+        if (-not $cloudRefusal) { $cloudRefusal = Get-DevinCloudKeySourceRefusal }
         if ($cloudRefusal) { Write-Output ("devin-cloud`trefused`t{0}" -f $cloudRefusal) }
         else { Write-Output "devin-cloud`tcallable`tcloud-adapter" }
     }

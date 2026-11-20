@@ -623,8 +623,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','devin-cloud','-Prompt','ok')
     Check 'a disabled devin-cloud policy refuses with its reason' ($r.Exit -eq 3 -and $r.Err -match 'synthetic cloud block') $r.Err
     $fleet.dispatchPolicy['devin-cloud'] = ($liveCloud | ConvertTo-Json -Depth 10 | ConvertFrom-Json); Save-Fixture
-    $r = Run @('-List')
-    Check 'list reports devin-cloud callable through its adapter when enabled' ($r.Out -match "(?m)^devin-cloud\tcallable\tcloud-adapter") $r.Out
     $r = Run @('-HostId','devin-cloud','-PromptFile',(Join-Path $repoRoot 'AGENTS.md'),'-Cwd',$scratch,'-RunId','sh4969-show','-MaxAcu','25','-Repo','shmindmaster/agenthub','-Title','t','-ShowCommand')
     Check 'devin-cloud show command names the adapter create action and its options' ($r.Exit -eq 0 -and $r.Out -match 'Invoke-DevinCloud\.ps1' -and $r.Out -match '-Action create' -and $r.Out -match '-MaxAcu 25' -and $r.Out -match '-RunId sh4969-show' -and $r.Out -match '-Repo shmindmaster/agenthub') "$($r.Out) $($r.Err)"
     foreach ($bad in @(@('-ReadOnly'), @('-Model','swe-2-high'), @('-Role','reviewer'))) {
@@ -641,6 +639,12 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $oldCloudKey = [Environment]::GetEnvironmentVariable('DEVIN_CLOUD_API_KEY', 'Process')
     try {
         [Environment]::SetEnvironmentVariable('OP_SERVICE_ACCOUNT_TOKEN', $null, 'Process')
+        [Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', $null, 'Process')
+        $r = Run @('-List')
+        Check 'list reports devin-cloud refused when no key source is reachable' ($r.Out -match "(?m)^devin-cloud\trefused\tno Devin Cloud key source" -and $r.Out -notmatch "(?m)^devin-cloud\tcallable") $r.Out
+        [Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', 'cog_SYNTHETIClistKEY0123456789abcdQRST', 'Process')
+        $r = Run @('-List')
+        Check 'list reports devin-cloud callable through its adapter with a key source' ($r.Out -match "(?m)^devin-cloud\tcallable\tcloud-adapter" -and $r.Out -notmatch 'SYNTHETIClistKEY') $r.Out
         [Environment]::SetEnvironmentVariable('DEVIN_CLOUD_API_KEY', $null, 'Process')
         $r = Run @('-HostId','devin-cloud','-Prompt','ok','-Cwd',$scratch,'-RunId','sh4969-nokey')
         Check 'devin-cloud without a key refuses with exit 3 naming the 1Password item' ($r.Exit -eq 3 -and $r.Err -match 'Business & Apps' -and $r.Err -match 'OP_SERVICE_ACCOUNT_TOKEN' -and [string]::IsNullOrWhiteSpace($r.Out)) "exit=$($r.Exit) $($r.Err)"

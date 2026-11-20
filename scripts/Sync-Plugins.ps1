@@ -260,7 +260,7 @@ function Test-SkillCopy([string]$Source, [string]$Destination, [string]$Client) 
     return -not @(Compare-Object $sourceSkills $installedSkills).Count
 }
 
-$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; amp='amp'; opencode='opencode'; warp='warp'; 'vscode-insiders'='code-insiders'; kilo='kilo'; 'mimo-code'='mimo'; qwen='qwen' }
+$clients = @{ claude='claude'; codex='codex'; cursor='cursor'; factory='droid'; devin='devin'; antigravity='agy'; grok='grok'; copilot='copilot'; amp='amp'; opencode='opencode'; 'vscode-insiders'='code-insiders'; kilo='kilo'; 'mimo-code'='mimo'; qwen='qwen' }
 
 # A mapping may declare nativeOwnerHost: the surface row is reported under its
 # own hostId but every observation, client call and install resolves through
@@ -272,8 +272,6 @@ function Get-RowNativeHost($Row) {
 # These compatibility routes are documented exceptions to a registry's generic
 # loose-skill or native mapping. They must never trigger a second install.
 $blockedRoutes = @{
-    'warp/linkedin'='The Warp skill needs a local bridge this host cannot use.'
-    'opencode/linkedin'='This skill needs a local bridge not carried by the OpenCode link installer.'
     'opencode/aws'='The OpenCode link installer excludes this local proxy.'
     'cline/aws'='Cline requires the approved native MCP settings for this proxy.'
 }
@@ -287,7 +285,7 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     if ($Row.route -eq 'preprovisioned-loose-skills' -or $nativeHost -eq 'windsurf') {
         $Row.status = 'blocked'; $Row.detail = 'Legacy surface. Use the managed Devin host when available.'; return
     }
-    if ($Row.route -eq 'managed-loose-skills' -and $nativeHost -notin 'opencode','warp','copilot','kilo','mimo-code','qwen') {
+    if ($Row.route -eq 'managed-loose-skills' -and $nativeHost -notin 'opencode','warp','copilot','kilo','mimo-code','qwen','cline','amp') {
         $Row.status = 'blocked'; $Row.detail = 'Registry maps loose skills on a plugin-only host. Reconcile its approved native owner before installing.'; return
     }
     if ($live -and $clients.ContainsKey($nativeHost) -and
