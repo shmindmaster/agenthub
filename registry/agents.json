@@ -22,6 +22,40 @@
       "notes": "SH-5029. Official Z.ai desktop app. Vendor documents adding skill files (https://autoclaw.z.ai/docs/advanced/skill/) and custom MCP servers through app settings (https://autoclaw.z.ai/docs/advanced/mcp-connectors/). AgentHub has no verified deployment, plugin or headless dispatch contract for AutoClaw. Upstream OpenClaw formats do not establish AutoClaw compatibility."
     },
     {
+      "id": "grokbot",
+      "fleetRole": "inventory-only",
+      "name": "Grok Bot Desktop",
+      "version": "1.2.3",
+      "versionProbe": "file-version",
+      "versionProbeNote": "Read Windows executable metadata without launching the app.",
+      "executable": "{userHome}/AppData/Local/Programs/Grok Bot/Grok Bot.exe",
+      "nativePaths": {
+        "vendorExecutable": "{userHome}/AppData/Local/Programs/Grok Bot/Grok Bot.exe"
+      },
+      "supportedCapabilities": ["mcp", "plugins"],
+      "status": "inventory-only",
+      "versionObserved": "Version 1.2.3 is recorded for Windows inventory. Release currency and account connector discovery are separate checks.",
+      "notes": "SH-5032. Distinct from Grok Build. The Apps catalog and custom HTTPS connector are documented at https://docs.x.ai/grok-bot/computer-and-apps. Custom connector approval and OAuth run in the app account. No verified AgentHub deployment or dispatch route."
+    },
+    {
+      "id": "manus",
+      "fleetRole": "inventory-only",
+      "name": "Manus Studio",
+      "version": "2.1.5.0",
+      "versionProbe": "winget-package",
+      "versionPackageId": "9PHV7M7V4S5L",
+      "windowsAppxName": "ManusAI.Manus",
+      "versionProbeNote": "Query the installed Microsoft Store package without launching Manus Studio.",
+      "executableNote": "The Microsoft Store manages the executable path. Use the AppX package identity for inventory.",
+      "nativePaths": {
+        "dataDir": "{userHome}/AppData/Local/Packages/ManusAI.Manus_vajzd2mq3s8wj"
+      },
+      "supportedCapabilities": ["skills", "mcp"],
+      "status": "inventory-only",
+      "versionObserved": "Version 2.1.5.0 is recorded for the Microsoft Store package. Release currency and application discovery are separate checks.",
+      "notes": "SH-5032. The vendor documents account connectors and custom MCP at https://www.manus.im/features/connectors and SKILL.md imports at https://www.manus.im/features/agent-skills. No verified AgentHub deployment or dispatch route."
+    },
+    {
       "id": "claude",
       "fleetRole": "retained",
       "name": "Claude Code",
@@ -396,6 +430,7 @@
       "name": "Cursor",
       "version": "3.29.9",
       "executable": "{userHome}/bin/cursor.cmd",
+      "executableNote": "The managed shim is optional. Cursor distributes the launcher documented under nativePaths.vendorExecutable.",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
         "mcp": "{userHome}/.cursor/mcp.json",
@@ -432,6 +467,7 @@
       "name": "Cursor Agent CLI",
       "version": "2026.11.05-86047df",
       "executable": "{userHome}/bin/cursor-agent.cmd",
+      "executableNote": "The managed shim is optional. The CLI installer distributes the launcher documented under nativePaths.vendorExecutable.",
       "platformPaths": {
         "darwin": {
           "executable": "{userHome}/.local/bin/cursor-agent",

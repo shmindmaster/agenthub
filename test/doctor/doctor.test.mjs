@@ -79,6 +79,10 @@ test('hosts whose layout differs by OS resolve to their documented macOS and Lin
   assert.ok(host(mac, 'devin').markers.includes('/Users/dev/.config/devin/config.json'), 'Devin is ~/.config/devin on macOS');
   assert.ok(host(linux, 'devin').markers.includes('/home/dev/.config/devin/config.json'));
   assert.ok(host(win, 'devin').markers.includes('C:\\Users\\dev\\AppData\\Roaming\\devin\\config.json'));
+  assert.ok(host(win, 'autoclaw').markers.includes('C:\\Users\\dev\\AppData\\Local\\Programs\\AutoClaw2\\AutoClaw2.exe'));
+  assert.ok(host(win, 'grokbot').markers.includes('C:\\Users\\dev\\AppData\\Local\\Programs\\Grok Bot\\Grok Bot.exe'));
+  assert.ok(host(win, 'manus').markers.includes('C:\\Users\\dev\\AppData\\Local\\Packages\\ManusAI.Manus_vajzd2mq3s8wj'));
+  assert.deepEqual(host(linux, 'manus').markers, []);
 
   assert.ok(host(mac, 'warp').markers.includes('/Users/dev/.warp'), 'Warp config home is ~/.warp on macOS');
   assert.ok(host(linux, 'warp').markers.includes('/home/dev/.config/warp-terminal'));
