@@ -40,7 +40,7 @@ That output is from a test fixture home, trimmed. Run it against your own machin
 
 ## What doctor checks
 
-- **Which agents are set up**, from their config files: Claude Code, Claude Desktop, OpenAI Codex, Cursor and the Cursor CLI, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp, Windsurf, VS Code and VS Code Insiders. Paths come from [`registry/agents.json`](./registry/agents.json) and resolve per OS.
+- **Which agents are set up**, from their config files: Claude Code, Claude Desktop, OpenAI Codex, Cursor and the Cursor CLI, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Kilo CLI, Warp, Windsurf, VS Code and VS Code Insiders. Paths come from [`registry/agents.json`](./registry/agents.json) and resolve per OS.
 - **What each one loads**: its MCP servers (JSON, JSONC and TOML configs in each agent's own dialect), its skills including the shared `~/.agents/skills` library, and its global instruction files with a rough token count.
 - **Risky MCP configs**: API keys and tokens written into a config (the value is never printed), remote servers over plain `http://`, remote servers with no credentials configured, commands that are not on `PATH` so the server cannot start, and `npx`/`uvx` packages with no pinned version.
 - **Drift**: the same server defined differently in two agents, servers set up in some agents but not others, two different copies of one skill, skills without `name`/`description` frontmatter, and instruction files that differ between agents. Inside an AgentHub checkout, or with `--registry <dir>`, it also compares each agent with the registry.
@@ -79,7 +79,7 @@ You describe your setup once, in this repository. AgentHub works out what each h
 
 A host with no documented location for one of these is skipped rather than guessed at.
 
-The registry describes Claude Code, OpenAI Codex, Cursor and Cursor Agent, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp and VS Code Insiders. Windsurf and OpenCode Desktop are marked unverified.
+The registry's active hosts are the six retained families (Claude Code, OpenAI Codex, OpenCode, Kilo CLI, Factory Droid and Devin), the supported hosts (GitHub Copilot CLI, Google Antigravity, Grok CLI, Cline, Cursor, Cursor Agent and Amp), VS Code Insiders as an editor, and OpenCode Desktop as a companion. Retired hosts (Windsurf, Warp, MiMo Code, MiMo Desktop, Qwen Code and CodeRabbit) stay in `inactiveAgents`: `doctor` still detects them, but `sync` no longer targets them.
 
 ### Why you can trust it with your agents' config
 
