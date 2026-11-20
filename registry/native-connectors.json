@@ -836,6 +836,35 @@
         ]
       },
       {
+        "extensionId": "desktop-commander-skills",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/wonderwhy-er/DesktopCommanderMCP",
+        "maintainer": "Desktop Commander",
+        "license": "MIT",
+        "capabilityKind": "skills",
+        "declaresMcpServers": false,
+        "required": false,
+        "provides": ["desktop.commander-guidance"],
+        "observedAt": "2026-11-20",
+        "sharedSkillNames": ["ai-tools-setup", "computer-health-check", "knowledge-base", "obsidian-vault", "terminal"],
+        "install": {
+          "command": "npx skills add wonderwhy-er/DesktopCommanderMCP --global --skill ai-tools-setup computer-health-check knowledge-base obsidian-vault terminal --agent opencode --yes",
+          "docs": "https://github.com/wonderwhy-er/DesktopCommanderMCP/tree/main/skills"
+        },
+        "note": "The shared fallback requires five upstream installer receipts. Keep Cline's separately sourced desktop-commander-overview out of this install. Skill delivery does not provision or establish Desktop Commander MCP access.",
+        "hostChannels": [
+          {
+            "hostId": "opencode",
+            "channel": "upstream-skills-cli",
+            "installedVersion": "9a101b1",
+            "current": true,
+            "updateCommand": "npx skills add wonderwhy-er/DesktopCommanderMCP --global --skill ai-tools-setup computer-health-check knowledge-base obsidian-vault terminal --agent opencode --yes"
+          }
+        ]
+      },
+      {
         "extensionId": "parallel-agent-skills",
         "kind": "plugin",
         "provenance": "official-upstream",
