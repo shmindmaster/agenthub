@@ -74,12 +74,15 @@ export function readMcpSource(source) {
 /**
  * @param {string} name
  * @param {Record<string, any>} raw
- * @param {'generic' | 'opencode' | 'codex'} dialect
+ * @param {import('./hosts.js').McpSource['dialect']} dialect
  * @returns {McpServer}
  */
 export function normalizeServer(name, raw, dialect) {
   /** @type {SecretHit[]} */
   const secrets = [];
+  // Cline's CLI nests connection fields. Activation and OAuth stay on the server entry.
+  const nativeTransport = objectOrEmpty(raw.transport);
+  const connection = dialect === 'cline' && typeof nativeTransport.type === 'string' ? nativeTransport : raw;
   let command = null;
   /** @type {string[]} */
   let args = [];
@@ -104,11 +107,11 @@ export function normalizeServer(name, raw, dialect) {
     enabled = raw.enabled !== false;
     authConfigured = raw.oauth !== undefined && raw.oauth !== false;
   } else {
-    command = typeof raw.command === 'string' ? raw.command : null;
-    args = Array.isArray(raw.args) ? raw.args.map(String) : [];
-    url = firstString(raw.url, raw.httpUrl, raw.serverUrl, raw.uri);
-    envRaw = objectOrEmpty(raw.env);
-    headersRaw = { ...objectOrEmpty(raw.headers), ...objectOrEmpty(raw.http_headers), ...objectOrEmpty(raw.requestInit?.headers) };
+    command = typeof connection.command === 'string' ? connection.command : null;
+    args = Array.isArray(connection.args) ? connection.args.map(String) : [];
+    url = firstString(connection.url, connection.httpUrl, connection.serverUrl, connection.uri);
+    envRaw = objectOrEmpty(connection.env);
+    headersRaw = { ...objectOrEmpty(connection.headers), ...objectOrEmpty(connection.http_headers), ...objectOrEmpty(connection.requestInit?.headers) };
     enabled = raw.disabled !== true && raw.enabled !== false;
     if (dialect === 'codex') {
       if (typeof raw.bearer_token_env_var === 'string' || raw.env_http_headers) authConfigured = true;
@@ -116,11 +119,14 @@ export function normalizeServer(name, raw, dialect) {
     if (raw.oauth || raw.auth || raw.authProviderType || raw.headersHelper) authConfigured = true;
   }
 
-  const type = String(raw.type ?? raw.transport ?? '').toLowerCase();
+  const type = (firstString(connection.type, connection.transport, dialect === 'cline' ? connection.transportType : null) ?? '').toLowerCase();
   /** @type {McpServer['transport']} */
   let transport = 'unknown';
   if (command) transport = 'stdio';
-  else if (url) transport = type === 'sse' || /\/sse\/?$/.test(url) ? 'sse' : 'http';
+  else if (url) {
+    const isSse = type === 'sse' || (dialect === 'cline' ? type === '' : /\/sse\/?$/.test(url));
+    transport = isSse ? 'sse' : 'http';
+  }
   if (type === 'stdio' || type === 'local') transport = command ? 'stdio' : transport;
 
   const env = redactMap(envRaw, 'env', secrets);

@@ -28,7 +28,7 @@ export const defaultAgentsPath = join(packageRoot, 'registry', 'agents.json');
  * @property {string} path
  * @property {'json' | 'toml'} format
  * @property {string} key      Property holding the server map. 'amp.mcpServers' is one literal key.
- * @property {'generic' | 'opencode' | 'codex'} dialect
+ * @property {'generic' | 'opencode' | 'codex' | 'cline'} dialect
  */
 
 /**
@@ -118,7 +118,7 @@ export function bindPath(template, ctx) {
  * Per-host MCP config locations and dialects, matching how
  * scripts/Sync-AgentHub.ps1 writes each host. `field` names a nativePaths
  * entry; `template` is used when the registry has no field for it.
- * @type {Record<string, Array<{ field?: string, template?: string, format?: 'json' | 'toml', key?: string, dialect?: 'generic' | 'opencode' | 'codex', file?: string }>>}
+ * @type {Record<string, Array<{ field?: string, template?: string, format?: 'json' | 'toml', key?: string, dialect?: McpSource['dialect'], file?: string }>>}
  */
 const MCP_LAYOUT = {
   claude: [{ field: 'mcpUser', key: 'mcpServers' }],
@@ -129,7 +129,7 @@ const MCP_LAYOUT = {
   copilot: [{ field: 'mcp', key: 'mcpServers' }],
   antigravity: [{ field: 'mcp', key: 'mcpServers' }, { field: 'legacyMcp', key: 'mcpServers' }],
   warp: [{ field: 'mcp', key: 'mcpServers' }],
-  cline: [{ field: 'mcp', key: 'mcpServers' }],
+  cline: [{ field: 'mcp', key: 'mcpServers', dialect: 'cline' }],
   cursor: [{ field: 'mcp', key: 'mcpServers' }],
   'cursor-agent': [{ template: '{userHome}/.cursor/mcp.json', key: 'mcpServers' }],
   amp: [{ field: 'settings', key: 'amp.mcpServers' }],
