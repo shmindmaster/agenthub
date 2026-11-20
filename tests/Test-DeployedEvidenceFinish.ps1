@@ -44,6 +44,12 @@ function Expand-HomePath([string]$Raw) {
 
 $caps = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$marketplace = Get-Content -LiteralPath (Join-Path $repoRoot '.claude-plugin\marketplace.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$mediaPlugin = $marketplace.plugins | Where-Object source -eq './packages/media-studio'
+if (-not $mediaPlugin.name) { throw 'Media Studio is missing from the AgentHub marketplace.' }
+$pluginCacheRoots = foreach ($hostDir in '.claude', '.codex') {
+    Join-Path $HOME "$hostDir\plugins\cache\$($marketplace.name)\$($mediaPlugin.name)"
+}
 
 $staleCompose = [Collections.Generic.List[string]]::new()
 $staleDesktop = [Collections.Generic.List[string]]::new()
@@ -76,10 +82,8 @@ foreach ($a in @($agents.activeAgents)) {
     }
 }
 
-foreach ($pluginCompose in @(
-        (Join-Path $HOME '.claude\plugins\cache\agenthub\media-studio\*\skills\finish\references\compose.md'),
-        (Join-Path $HOME '.codex\plugins\cache\agenthub\media-studio\*\skills\finish\references\compose.md')
-    )) {
+foreach ($cacheRoot in $pluginCacheRoots) {
+    $pluginCompose = Join-Path $cacheRoot '*\skills\finish\references\compose.md'
     foreach ($copy in @(Get-Item -Path $pluginCompose -ErrorAction SilentlyContinue)) {
         $composeHits++
         if ([IO.File]::ReadAllText($copy.FullName) -notmatch 'Finish-Media') { $staleCompose.Add($copy.FullName) }
@@ -100,16 +104,13 @@ Report 'Cursor skillsDir no longer carries desktop-evidence (retired 2026-10-30)
     "stale copy at $cursorDesktop"
 
 $pluginFinish = [Collections.Generic.List[string]]::new()
-foreach ($cacheRoot in @(
-        (Join-Path $HOME '.claude\plugins\cache\agenthub\media-studio'),
-        (Join-Path $HOME '.codex\plugins\cache\agenthub\media-studio')
-    )) {
+foreach ($cacheRoot in $pluginCacheRoots) {
     if (-not (Test-Path -LiteralPath $cacheRoot)) { continue }
     Get-ChildItem -LiteralPath $cacheRoot -Recurse -Filter 'Finish-Media.ps1' -File -ErrorAction SilentlyContinue |
         ForEach-Object { $pluginFinish.Add($_.FullName) }
 }
 Report 'Claude or Codex plugin cache ships Finish-Media.ps1' ($pluginFinish.Count -gt 0) `
-    "checked under ~/.claude and ~/.codex plugins/cache/agenthub/media-studio (any version)"
+    "checked under ~/.claude and ~/.codex plugins/cache/$($marketplace.name)/$($mediaPlugin.name) (any version)"
 
 $finish = Join-Path $repoRoot 'packages\media-studio\scripts\Finish-Media.ps1'
 Report 'skill-documented Finish-Media.ps1 exists in the package' (Test-Path -LiteralPath $finish) $finish
