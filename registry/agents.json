@@ -7,6 +7,8 @@
       "fleetRole": "inventory-only",
       "name": "Z.ai AutoClaw Desktop",
       "version": "2.5.3",
+      "versionProbe": "file-version",
+      "versionProbeNote": "Read Windows executable metadata. AutoClaw Desktop is a GUI app and must not be launched for a version probe.",
       "executable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe"
