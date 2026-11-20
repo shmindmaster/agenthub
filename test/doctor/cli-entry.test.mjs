@@ -142,6 +142,88 @@ esac
   assert.deepEqual(JSON.parse(failed.stdout).native, { devin: { status: 'failed' } });
 });
 
+test('Grok MCP health refuses a fixture home and reports an absent CLI explicitly', () => {
+  const root = packageShapedCopy();
+  const home = mkdtempSync(join(tmpdir(), 'agenthub-native-home-'));
+  dirs.push(home);
+  const env = { ...emptyPath(), HOME: home, USERPROFILE: home };
+  const args = ['doctor', '--native-health', '--host', 'grok', '--json'];
+  const result = runCli(root, args, env);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout).nativeHealth, { grok: { status: 'unavailable' } });
+  const fixture = runCli(root, [...args, '--home', home], env);
+  assert.equal(fixture.status, 2);
+  assert.match(fixture.stderr, /--native-health requires the current user profile/);
+});
+
+test('Grok native MCP health handles exit 1, preserves outcomes, and drops raw diagnostics', { skip: process.platform === 'win32' && 'needs an executable POSIX CLI stub' }, () => {
+  const root = packageShapedCopy();
+  const home = mkdtempSync(join(tmpdir(), 'agenthub-native-home-'));
+  dirs.push(home);
+  const env = { ...emptyPath(), HOME: home, USERPROFILE: home };
+  const cli = join(env.PATH, 'grok');
+  const checks = (label, passed, detail) => [{ label, passed, detail }];
+  const servers = [
+    { name: '_plugin-search', healthy: true, transport: 'http', target: 'https://vendor.example/private-value',
+      checks: checks('3 tools discovered', true) },
+    { name: 'opt-out', healthy: false, transport: 'stdio', checks: checks('disabled in config', false) },
+    { name: 'login', healthy: false, transport: 'http', checks: checks('handshake failed', false, 'Auth required: private-value') },
+    { name: 'unreachable', healthy: false, transport: 'http', checks: checks('handshake failed', false, 'private-value') },
+  ];
+  const writeStub = () => {
+    writeFileSync(cli, `#!/bin/sh
+if [ "$PWD" != "$HOME" ] || [ "$*" != "mcp doctor --json" ]; then exit 3; fi
+if [ -n "$AGENTHUB_TEST_SLEEP" ]; then /bin/sleep 0.2; fi
+printf '%s\\n' '${JSON.stringify({ servers, sources: ['private-value'] })}'
+echo private-value >&2
+exit 1
+`);
+    chmodSync(cli, 0o755);
+  };
+  writeStub();
+  const args = ['doctor', '--host', 'grok', '--json'];
+  for (const flags of [[], ['--native']]) {
+    const offline = runCli(root, [...args, ...flags], env);
+    assert.equal(offline.status, 0, offline.stderr);
+    assert.equal(JSON.parse(offline.stdout).nativeHealth, undefined);
+  }
+  const report = runCli(root, [...args, '--native-health'], env);
+  assert.equal(report.status, 0, report.stderr);
+  assert.doesNotMatch(report.stdout + report.stderr, /private-value|vendor\.example/);
+  assert.deepEqual(JSON.parse(report.stdout).nativeHealth, {
+    grok: {
+      status: 'checked',
+      mcp: [
+        { name: '_plugin-search', transport: 'http', outcome: 'healthy', tools: 3 },
+        { name: 'opt-out', transport: 'stdio', outcome: 'disabled', tools: null },
+        { name: 'login', transport: 'http', outcome: 'requires-auth', tools: null },
+        { name: 'unreachable', transport: 'http', outcome: 'failed', tools: null },
+      ],
+    },
+  });
+
+  const combined = runCli(root, [...args, '--native-health', '--probe-remote'], env);
+  assert.equal(combined.status, 0, combined.stderr);
+  const combinedReport = JSON.parse(combined.stdout);
+  assert.equal(combinedReport.network, 'probe-remote+native-health');
+  assert.ok(Array.isArray(combinedReport.probes));
+
+  const slowEnv = { ...env, AGENTHUB_TEST_SLEEP: '1' };
+  const timesOut = runCli(root, [...args, '--native-health', '--native-timeout', '20'], slowEnv);
+  assert.equal(timesOut.status, 0, timesOut.stderr);
+  assert.deepEqual(JSON.parse(timesOut.stdout).nativeHealth, { grok: { status: 'failed' } });
+  const withinDeadline = runCli(root, [...args, '--native-health', '--native-timeout', '1500'], slowEnv);
+  assert.equal(withinDeadline.status, 0, withinDeadline.stderr);
+  assert.deepEqual(JSON.parse(withinDeadline.stdout).nativeHealth, JSON.parse(report.stdout).nativeHealth);
+
+  servers[0].name = 'https://vendor.example/private-value';
+  writeStub();
+  const malformed = runCli(root, [...args, '--native-health'], env);
+  assert.equal(malformed.status, 0, malformed.stderr);
+  assert.doesNotMatch(malformed.stdout + malformed.stderr, /private-value|vendor\.example/);
+  assert.deepEqual(JSON.parse(malformed.stdout).nativeHealth, { grok: { status: 'failed' } });
+});
+
 test('in a clone without pwsh, sync exits 127 at once with an install hint', () => {
   const root = packageShapedCopy();
   writeFileSync(join(root, 'scripts', 'AgentHub.ps1'), '# stub engine\n');

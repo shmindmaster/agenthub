@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path';
 import { buildHostCatalog, createPathContext, packageRoot } from './hosts.js';
 import { commandExists, isLoopback, readMcpSource, unpinnedPackage } from './mcp.js';
 import { listRuleFiles, listSkills, readInstructionFile } from './files.js';
-import { inspectDevin } from './native.js';
+import { checkGrokMcp, inspectDevin } from './native.js';
 
 export const REPORT_SCHEMA_VERSION = 1;
 const LARGE_INSTRUCTIONS_TOKENS = 8000;
@@ -38,8 +38,10 @@ const MCP_CONFIG_OWNERS = { 'cursor-agent': 'cursor', 'opencode-desktop': 'openc
  * @property {string[]} [hosts]          Limit the report to these host ids.
  * @property {boolean} [includeMissing]  Also list hosts that were not found.
  * @property {boolean} [probeRemote]     Send one unauthenticated MCP initialize to each remote server.
+ * @property {boolean} [nativeHealth]    Run supported native MCP connectivity checks.
  * @property {boolean} [native]          Run supported native inventory commands for the current user.
  * @property {number} [probeTimeoutMs]
+ * @property {number} [nativeHealthTimeoutMs]
  * @property {typeof fetch} [fetchImpl]
  * @property {string} [agentsPath]
  */
@@ -49,6 +51,7 @@ const MCP_CONFIG_OWNERS = { 'cursor-agent': 'cursor', 'opencode-desktop': 'openc
  */
 export async function runDoctor(options = {}) {
   if (options.native && options.home) throw new Error('--native requires the current user profile. Remove --home.');
+  if (options.nativeHealth && options.home) throw new Error('--native-health requires the current user profile. Remove --home.');
   const env = options.env ?? process.env;
   const ctx = createPathContext({
     platform: options.platform,
@@ -79,6 +82,10 @@ export async function runDoctor(options = {}) {
   const native = options.native ? {} : undefined;
   if (native && (!wanted || wanted.has('devin'))) native.devin = await inspectDevin(ctx, env);
 
+  const nativeHealth = options.nativeHealth && (!wanted || wanted.has('grok'))
+    ? { grok: await checkGrokMcp(ctx, env, options.nativeHealthTimeoutMs) }
+    : undefined;
+
   mergeDuplicateFindings(findings);
   const order = { high: 0, warn: 1, info: 2 };
   findings.sort((a, b) => order[a.severity] - order[b.severity] || a.code.localeCompare(b.code) || a.subject.localeCompare(b.subject));
@@ -89,7 +96,9 @@ export async function runDoctor(options = {}) {
     tool: 'agenthub doctor',
     version: packageVersion(),
     readOnly: true,
-    network: options.probeRemote ? 'probe-remote' : native?.devin ? 'native-cli' : 'none',
+    network: options.probeRemote
+      ? (nativeHealth ? 'probe-remote+native-health' : 'probe-remote')
+      : nativeHealth ? 'native-health' : native?.devin ? 'native-cli' : 'none',
     platform: ctx.platform,
     home: ctx.home,
     registry: registry ? { mode: 'agenthub', path: registry.root } : { mode: 'host-vs-host', path: null },
@@ -98,6 +107,7 @@ export async function runDoctor(options = {}) {
     findings,
     probes,
     ...(native ? { native } : {}),
+    ...(nativeHealth ? { nativeHealth } : {}),
     summary: {
       hostsChecked: hosts.length,
       hostsFound: detected.length,
