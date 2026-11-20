@@ -1,7 +1,7 @@
 // @ts-check
 
 import { execFile } from 'node:child_process';
-import { accessSync, constants, readdirSync, statSync } from 'node:fs';
+import { accessSync, constants, readdirSync, readFileSync, statSync } from 'node:fs';
 import { delimiter, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -81,8 +81,9 @@ export async function inspectDevin(ctx, env) {
 /**
  * @param {import('./hosts.js').PathContext} ctx
  * @param {NodeJS.ProcessEnv} env
+ * @param {string} [accountEmail]
  */
-export async function inspectAutoClaw(ctx, env) {
+export function openAutoClawRuntime(ctx, env, accountEmail) {
   if (ctx.platform !== 'windows' || process.platform !== 'win32') return { status: /** @type {const} */ ('unavailable') };
   const runtime = join(ctx.localData, 'Programs', 'AutoClaw2', 'resources', 'vendor', 'zcode', 'zcode.cjs');
   const accounts = join(ctx.roamingConfig, 'AutoClaw-oversea-official', 'accounts');
@@ -92,23 +93,55 @@ export async function inspectAutoClaw(ctx, env) {
     const profiles = statSync(accounts, { throwIfNoEntry: false })?.isDirectory()
       ? readdirSync(accounts, { withFileTypes: true })
         .filter((entry) => entry.isDirectory())
-        .map((entry) => join(accounts, entry.name, 'runtime', 'zcode-runtime', 'home'))
-        .filter((home) => statSync(join(home, '.zcode', 'cli'), { throwIfNoEntry: false })?.isDirectory())
+        .map((entry) => {
+          const directory = join(accounts, entry.name);
+          return { directory, home: join(directory, 'runtime', 'zcode-runtime', 'home') };
+        })
+        .filter(({ home }) => statSync(join(home, '.zcode', 'cli'), { throwIfNoEntry: false })?.isDirectory())
       : [];
-    if (!profiles.length) return { status: /** @type {const} */ ('no-account') };
-    if (profiles.length > 1) return { status: /** @type {const} */ ('ambiguous-account') };
+    const matches = accountEmail ? profiles.filter(({ directory }) => {
+      const path = join(directory, 'account-profile.json');
+      if (!statSync(path, { throwIfNoEntry: false })?.isFile()) return false;
+      const profile = JSON.parse(readFileSync(path, 'utf8')).profile;
+      return profile?.isGuest !== true && typeof profile?.email === 'string' &&
+        profile.email.toLowerCase() === accountEmail.toLowerCase();
+    }) : profiles;
+    if (!matches.length) return { status: /** @type {const} */ ('no-account') };
+    if (matches.length > 1) return { status: /** @type {const} */ ('ambiguous-account') };
 
-    const [home] = profiles;
+    const [{ home }] = matches;
     const childEnv = Object.fromEntries(Object.entries(env)
       .filter(([key]) => !['HOME', 'USERPROFILE', 'ZCODE_HOME'].includes(key.toUpperCase())));
     childEnv.USERPROFILE = home;
-    const read = async (/** @type {string} */ group) => {
-      const { stdout } = await run(process.execPath, [runtime, group, 'list', '--json', '--cwd', home],
-        nativeOptions({ ...ctx, home }, childEnv, INVENTORY_TIMEOUT_MS));
-      return JSON.parse(stdout);
+    return {
+      status: /** @type {const} */ ('ready'),
+      async invoke(/** @type {string[]} */ args, cwd = home, timeout = INVENTORY_TIMEOUT_MS) {
+        try {
+          const { stdout } = await run(process.execPath, [runtime, ...args, '--json', '--cwd', cwd],
+            nativeOptions({ ...ctx, home: cwd }, childEnv, timeout));
+          const data = JSON.parse(stdout);
+          if (data == null || data.ok === false) throw new Error('Native operation failed');
+          return data;
+        } catch {
+          throw new Error('Bundled AutoClaw command failed.');
+        }
+      },
     };
-    const plugins = await read('plugins');
-    const inventory = await read('skills');
+  } catch {
+    return { status: /** @type {const} */ ('failed') };
+  }
+}
+
+/**
+ * @param {import('./hosts.js').PathContext} ctx
+ * @param {NodeJS.ProcessEnv} env
+ */
+export async function inspectAutoClaw(ctx, env) {
+  const runtime = openAutoClawRuntime(ctx, env);
+  if (runtime.status !== 'ready') return { status: runtime.status };
+  try {
+    const plugins = await runtime.invoke(['plugins', 'list']);
+    const inventory = await runtime.invoke(['skills', 'list']);
     if (!Array.isArray(plugins) || !Array.isArray(inventory?.skills)) throw new Error('Invalid AutoClaw inventory');
     return {
       status: /** @type {const} */ ('listed'),
