@@ -46,6 +46,9 @@
       "versionPackageId": "9PHV7M7V4S5L",
       "windowsAppxName": "ManusAI.Manus",
       "versionProbeNote": "Query the installed Microsoft Store package without launching Manus Studio.",
+      "nativePaths": {
+        "dataDir": "{userHome}/AppData/Local/Packages/ManusAI.Manus_vajzd2mq3s8wj"
+      },
       "supportedCapabilities": ["skills", "mcp"],
       "status": "inventory-only",
       "versionObserved": "2026-11-20: WinGet lists Microsoft Store package 9PHV7M7V4S5L at 2.1.5.0. Windows reports Store signature and Ok package status for ManusAI.Manus. Vendor release currency and app discovery are pending.",
