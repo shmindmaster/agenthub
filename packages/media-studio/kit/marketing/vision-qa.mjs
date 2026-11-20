@@ -266,5 +266,3 @@ if (isMain()) {
   console.log(JSON.stringify({ ok: report.ok, blocking: report.blocking, report: out }));
   process.exit(report.ok ? 0 : 1);
 }
-const __file = fileURLToPath(import.meta.url);
-export const moduleDir = dirname(__file);
