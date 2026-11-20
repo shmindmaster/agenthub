@@ -287,7 +287,7 @@ function Set-PluginStatus($Row, [switch]$Fresh) {
     if ($Row.route -eq 'preprovisioned-loose-skills' -or $nativeHost -eq 'windsurf') {
         $Row.status = 'blocked'; $Row.detail = 'Legacy surface. Use the managed Devin host when available.'; return
     }
-    if ($Row.route -eq 'managed-loose-skills' -and $nativeHost -notin 'opencode','warp','copilot','kilo','mimo-code','qwen') {
+    if ($Row.route -eq 'managed-loose-skills' -and $nativeHost -notin 'opencode','warp','copilot','kilo','mimo-code','qwen','cline','amp') {
         $Row.status = 'blocked'; $Row.detail = 'Registry maps loose skills on a plugin-only host. Reconcile its approved native owner before installing.'; return
     }
     if ($live -and $clients.ContainsKey($nativeHost) -and
