@@ -281,7 +281,10 @@ function Invoke-Inventory {
 
     $allHosts = [Collections.Generic.List[object]]::new()
     if ($agentsReg.PSObject.Properties['activeAgents'] -and $agentsReg.activeAgents) {
-        foreach ($a in @($agentsReg.activeAgents)) { $allHosts.Add([pscustomobject]@{ Agent = $a; Status = 'active' }) }
+        foreach ($a in @($agentsReg.activeAgents)) {
+            $status = if ($a.status -eq 'inventory-only') { 'inventory-only' } else { 'active' }
+            $allHosts.Add([pscustomobject]@{ Agent = $a; Status = $status })
+        }
     }
     if ($agentsReg.PSObject.Properties['inactiveAgents'] -and $agentsReg.inactiveAgents) {
         foreach ($a in @($agentsReg.inactiveAgents)) { $allHosts.Add([pscustomobject]@{ Agent = $a; Status = 'inactive' }) }

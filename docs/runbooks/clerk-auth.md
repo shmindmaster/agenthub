@@ -223,3 +223,4 @@ accepts a missing remote only for these two hosts and still requires their skill
 `BLOCKED` in scripts/Install-ClerkFleet.py stays as the place to record a host with
 no approved route. No host is recorded there at present; Kiro was removed when it was
 retired on 2026-11-17.
+Warp and MiMo Code were retired on 2026-11-19 (`inactiveAgents`), but `scripts/Install-ClerkFleet.py` does not read `activeAgents`: it still lists both in `BRIDGES` (and MiMo Code in `SKILLS_ONLY`), so `--apply` still targets them where they remain installed. Removing them from the installer is a pending code change.

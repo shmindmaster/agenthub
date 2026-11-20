@@ -3,6 +3,25 @@
   "generatedAt": "2026-09-02T00:00:00-05:00",
   "activeAgents": [
     {
+      "id": "autoclaw",
+      "fleetRole": "inventory-only",
+      "name": "Z.ai AutoClaw Desktop",
+      "version": "2.5.3",
+      "versionProbe": "file-version",
+      "versionProbeNote": "Read Windows executable metadata. AutoClaw Desktop is a GUI app and must not be launched for a version probe.",
+      "executable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe",
+      "nativePaths": {
+        "vendorExecutable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe"
+      },
+      "supportedCapabilities": [
+        "skills",
+        "mcp"
+      ],
+      "status": "inventory-only",
+      "versionObserved": "2026-11-20: Windows uninstall registry reports 2.5.3; executable product version 2.5.3.515 and Authenticode signature verified. Vendor release currency and live app discovery are pending.",
+      "notes": "SH-5029. Official Z.ai desktop app. Vendor documents adding skill files (https://autoclaw.z.ai/docs/advanced/skill/) and custom MCP servers through app settings (https://autoclaw.z.ai/docs/advanced/mcp-connectors/). AgentHub has no verified deployment, plugin or headless dispatch contract for AutoClaw. Upstream OpenClaw formats do not establish AutoClaw compatibility."
+    },
+    {
       "id": "claude",
       "fleetRole": "retained",
       "name": "Claude Code",
@@ -180,6 +199,7 @@
         "instructionFormat": "markdown",
         "mcp": "{userHome}/.copilot/mcp-config.json",
         "skillsDir": "{userHome}/.copilot/skills",
+        "skillsDirNote": "Absent on the fleet PC at the November 20 inventory. Copilot also documents the shared ~/.agents/skills path, which exists here and is the AgentHub deployment target.",
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Copilot CLI documents personal skills at ~/.copilot/skills or ~/.agents/skills. AgentHub deploys once to the master library.",
         "pluginsDir": "{userHome}/.copilot/installed-plugins"
@@ -385,6 +405,7 @@
         "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Cursor natively discovers ~/.agents/skills and ~/.cursor/skills. AgentHub deploys once to the master library; ~/.cursor/skills is a directory junction so cursor-agent still sees the documented Cursor path.",
         "agentsDir": "{userHome}/.cursor/agents",
         "rulesDir": "{userHome}/.cursor/rules",
+        "rulesDirNote": "Absent on the fleet PC at the November 20 inventory. The separately documented User Rules surface is managed through Cursor settings. Directory presence or editor discovery has not been established.",
         "instructions": null,
         "instructionHeader": null,
         "instructionFormat": "mdc",

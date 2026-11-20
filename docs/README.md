@@ -16,6 +16,8 @@ stranger-safe first run. For this private fleet checkout, also use
 
 - [architecture/control-plane-modules.md](./architecture/control-plane-modules.md) —
   PathBinding, host catalog, capability overlay, and the public/personal split.
+- [architecture/mobile-lab-remote-android.md](./architecture/mobile-lab-remote-android.md) —
+  remote Android lane of the mobile device lab.
 - [architecture/overview.md](./architecture/overview.md) — registry model and
   validation layers (fleet checkout).
 - [architecture/portfolio-policy.md](./architecture/portfolio-policy.md) —
@@ -60,6 +62,16 @@ stranger-safe first run. For this private fleet checkout, also use
   CodeBuild pull-request CI template, read-only preflight, and IAM boundary.
 - [runbooks/do-interim-release.md](./runbooks/do-interim-release.md) — DigitalOcean
   CI runner kit (`ci/do-runner`), SHA-tag image releases, rollback, and AWS target.
+- [runbooks/pr-review.md](./runbooks/pr-review.md) — the host-enforced
+  read-only PR reviewer run through the dispatcher.
+- [../ci/daytona-factory/README.md](../ci/daytona-factory/README.md) — Daytona
+  build and demo factory workflow: Daytona v2 by default, `platform=v0`
+  fallback, pilot budget and cleanup controls.
+
+## Verification
+
+- [verification/README.md](./verification/README.md) — implemented, tested and
+  verified state per surface, with coverage, readiness and test logs.
 
 ## Execution
 
@@ -73,8 +85,8 @@ stranger-safe first run. For this private fleet checkout, also use
   reversible skill cleanup and native on-demand tool discovery.
 - [usage-diet-2026-10-26.md](./fleet/usage-diet-2026-10-26.md) — Claude Code
   startup-context measurements, plugins/connectors cut, rollback per change.
-- [retired-hosts-2026-10-21.md](./fleet/retired-hosts-2026-10-21.md) — Qoder,
-  Qwen Code, and Hermes retirement record.
+- [retired-hosts-2026-10-21.md](./fleet/retired-hosts-2026-10-21.md) — retired
+  host record: Qoder, Hermes, Gemini CLI, Kiro, Warp, MiMo Code and Qwen Code.
 - [account-logins-2026-10-21.md](./fleet/account-logins-2026-10-21.md) — host
   account-authentication commands and verified gates.
 - [goal-setting-by-host-2026-10-21.md](./fleet/goal-setting-by-host-2026-10-21.md) — per-host
@@ -82,6 +94,8 @@ stranger-safe first run. For this private fleet checkout, also use
 
 ## Proposals
 
+- [proposals/consolidation-and-naming.md](./proposals/consolidation-and-naming.md) —
+  plugin consolidation and `ah-` naming proposal (SH-4636/SH-4637).
 - [proposals/media-studio-2.1-sync-and-build.md](./proposals/media-studio-2.1-sync-and-build.md) —
   proposed media-studio 2.1: word-synced text, diagrams that build on narration
   beats, emphasis role tokens, and the word-sync gate (review only).
