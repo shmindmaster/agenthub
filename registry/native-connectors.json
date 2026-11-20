@@ -856,23 +856,26 @@
           {
             "hostId": "factory",
             "channel": "parallel@parallel-agent-skills",
-            "installedVersion": null,
-            "current": null,
-            "updateCommand": "droid plugin marketplace add https://github.com/parallel-web/parallel-agent-skills && droid plugin install parallel@parallel-agent-skills --scope user"
+            "installedVersion": "0.12.0",
+            "current": true,
+            "updateCommand": "droid plugin marketplace add https://github.com/parallel-web/parallel-agent-skills && droid plugin install parallel@parallel-agent-skills --scope user",
+            "note": "Droid plugin list returned the enabled user-scope install at the current upstream revision ccc87e3c15d6. Local and vendor manifests agree on version 0.12.0. An authenticated invocation in Droid remains unverified."
           },
           {
             "hostId": "opencode",
             "channel": "@parallel-web/opencode-plugin",
-            "installedVersion": null,
-            "current": null,
-            "updateCommand": "opencode plugin add @parallel-web/opencode-plugin"
+            "installedVersion": "1.2.0",
+            "current": true,
+            "updateCommand": "opencode plugin add @parallel-web/opencode-plugin",
+            "note": "OpenCode 2 user configuration lists the vendor npm package. The locally cached installed manifest matched npm version 1.2.0. Search and extract still require a verified Parallel account in OpenCode."
           },
           {
             "hostId": "cursor",
-            "channel": "upstream-skills",
+            "channel": "cursor-marketplace",
             "installedVersion": null,
             "current": null,
-            "updateCommand": "npx skills add parallel-web/parallel-agent-skills --global --skill '*' --agent cursor --yes"
+            "updateCommand": "Open Cursor Customize and install Parallel from the Cursor Marketplace, or run /add-plugin parallel in Cursor chat",
+            "note": "Parallel documents the native Cursor Marketplace install at https://docs.parallel.ai/integrations/cursor-marketplace. Marketplace installation remains unverified. Cursor CLI successfully listed web_search and web_fetch from the separately configured hosted MCP."
           }
         ]
       },
