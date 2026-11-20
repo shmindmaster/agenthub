@@ -272,8 +272,6 @@ function Get-RowNativeHost($Row) {
 # These compatibility routes are documented exceptions to a registry's generic
 # loose-skill or native mapping. They must never trigger a second install.
 $blockedRoutes = @{
-    'warp/linkedin'='The Warp skill needs a local bridge this host cannot use.'
-    'opencode/linkedin'='This skill needs a local bridge not carried by the OpenCode link installer.'
     'opencode/aws'='The OpenCode link installer excludes this local proxy.'
     'cline/aws'='Cline requires the approved native MCP settings for this proxy.'
 }
