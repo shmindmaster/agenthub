@@ -389,49 +389,6 @@ function Test-MarkdownFrontmatter {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Generic file deployment
-# ---------------------------------------------------------------------------
-function Deploy-File {
-    param(
-        [string]$SourcePath,
-        [string]$DestPath,
-        [string]$OwnerCapability,
-        [switch]$WhatIf
-    )
-
-    if (-not (Test-Path -LiteralPath $SourcePath)) {
-        return @{ status = 'source-missing' }
-    }
-
-    $sourceHash = Get-FileHash256 $SourcePath
-    $destHash   = Get-FileHash256 $DestPath
-
-    if ($sourceHash -eq $destHash) {
-        $script:state.managedFiles[$DestPath] = @{ capability=$OwnerCapability; hash=$sourceHash }
-        return @{ status = 'unchanged'; hash = $sourceHash }
-    }
-
-    # Detect user-owned path conflicts: a file exists at the destination but
-    # is not recorded in managed state. In WhatIf mode, report the conflict
-    # without mutating or creating directories so the preview is complete.
-    $isManaged = $script:state.managedFiles.ContainsKey($DestPath)
-    $destExists = Test-Path -LiteralPath $DestPath
-    if ($WhatIf) {
-        if ($destExists -and -not $isManaged) {
-            return @{ status = 'user-owned-conflict'; sourceHash=$sourceHash; destHash=$destHash; path=$DestPath }
-        }
-        return @{ status = 'drift'; sourceHash=$sourceHash; destHash=$destHash }
-    }
-
-    $destDir = Split-Path $DestPath -Parent
-    if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
-
-    Copy-Item -LiteralPath $SourcePath -Destination $DestPath -Force
-    $script:state.managedFiles[$DestPath] = @{ capability=$OwnerCapability; hash=$sourceHash }
-    return @{ status = 'updated'; hash = $sourceHash }
-}
-
 function Remove-ManagedJunction {
     <#
     PowerShell 5.1 can throw an internal NullReferenceException when
