@@ -18,6 +18,9 @@ gh workflow run daytona-factory.yml -R shmindmaster/agenthub --ref main \
   -f app=revolva -f sha=<full-commit-sha> -f suite=journey
 gh workflow run daytona-factory.yml -R shmindmaster/agenthub --ref main \
   -f app=empowera -f sha=<full-commit-sha> -f probe=fail   # or probe=hang, then cancel
+# Fall back to Daytona v0 and its snapshots:
+gh workflow run daytona-factory.yml -R shmindmaster/agenthub --ref main \
+  -f app=revolva -f sha=<full-commit-sha> -f platform=v0
 ```
 
 ## Budget and lifetime controls
@@ -39,6 +42,15 @@ which one applied and never claims a disabled fallback that was not checked. The
 environment after checking the Daytona wallet; a missing value refuses the
 launch. Workers are checked for GPU and for CPU, memory and disk above the
 policy limits after creation, and their TTL never outlives the job deadline.
+On Daytona v2 the TTL is the sandbox lifecycle policy (`on_timeout: delete`),
+so the platform deletes a worker at the deadline even if the runner dies.
+
+The rates are Daytona v2 on-demand Linux list prices. v2 bills CPU per core
+(one core is 2 vCPUs with SMT), so a worker is 2 cores (4 vCPUs), 8 GiB and
+10 GiB of ephemeral disk, which v2 does not bill. A create does not pin the CPU
+model, so the reservation uses the highest on-demand core rate. The `v0` block
+keeps the v0 per-vCPU rates and limits for `-f platform=v0`. A batch can mix
+both platforms, so every reservation uses the dearer platform's worst case.
 
 ## Evidence, failure and cleanup
 
@@ -57,13 +69,36 @@ can be reused. The separate `cleanup` job runs after success, failure or
 cancellation, deletes and counts every worker labeled with the run, and fails
 if any outlived its job. A Daytona sandbox that is already destroying
 no longer counts as a live worker. The cancellation signal is tracked
-separately because the Daytona SDK re-raises an interrupt as `DaytonaError`.
+separately because the Daytona v0 SDK re-raises an interrupt as `DaytonaError`.
 The Daytona provider has no package cache: every worker starts from its
-snapshot, and the reusable layer is the hash-verified artifact.
+image, and the reusable layer is the hash-verified artifact.
+
 The workflow installs Daytona SDK 2.x with its v0 extra
-(`daytona[v0-sdk]==2.0.0`, which bundles the 0.231.1 v0 client) and the
-provider calls Daytona v0 through `client.v0`. SDK 2.x has no API URL setting;
-the default Daytona v0 API is implied.
+(`daytona[v0-sdk]==2.0.0`). SDK 2.x has no API URL setting. The default
+provider, `--provider daytona`, calls Daytona v2 through `client.v2`; the same
+key works on both platforms. It finds workers with `GET /sandboxes/search`
+(paged, eventually consistent, so every hit is re-read before it counts) and
+creates them from two images in the default project:
+`factory-node-build-v2` from [`node-build.Dockerfile`](./node-build.Dockerfile)
+and `rexa-remotion-4-0-517-v2` from [`render.Dockerfile`](./render.Dockerfile).
+These rebuild the v0 snapshots `factory-node-build-v1` and
+`rexa-remotion-4-0-517`, which did not appear as v2 images. A v2 build stores
+at most 16384 new files, so the build image starts from the full Debian Python
+image and leaves Python 3.13 to uv, and the render image ships `node_modules`
+as one archive that the render step unpacks. The v2 file proxy refuses paths
+ending in `.log`, so logs are downloaded through a hard link. Build an image
+again after editing its Dockerfile (an identical named build returns the
+existing image; a changed one needs a new name in `factory.py`):
+
+```python
+from daytona import Daytona
+from daytona.v2 import ImageBuilder
+image = Daytona().v2.images.build(
+    ImageBuilder.from_dockerfile(open("node-build.Dockerfile").read()), name="factory-node-build-v2")
+```
+
+`--provider daytona-v0` keeps the Daytona v0 path through `client.v0` and the
+v0 snapshots.
 
 `--provider local` runs the same scripts, limits, labels, deadline, export and
 cleanup on a self-hosted Docker worker built from
