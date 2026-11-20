@@ -602,9 +602,9 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'race' -RunId `$env:RACE_RUN 
         Check 'devin MCP is the official Streamable HTTP endpoint' ($m.url -eq 'https://mcp.devin.ai/mcp' -and $m.transport -eq 'http' -and $m.activationMode -eq 'shared-remote')
         # Owner direction 2026-11-19: no persisted secret and no key-bearing env var in a host config.
         Check 'devin MCP carries no static or env-expanded auth header' ($null -eq $m.headers -and ($m | ConvertTo-Json -Depth 10) -notmatch '\$\{env:|\{env:|DEVIN_CLOUD_API_KEY|DEVIN_API_KEY|cog_[A-Za-z0-9_-]{8,}')
-        Check 'devin MCP authenticates through the headers helper' ($m.credentialPolicy -eq 'native-headers-helper' -and [string]$m.headersHelper.claude -match 'Get-DevinMcpHeaders\.ps1')
-        Check 'devin MCP is declared for claude only, with a plugin-only exception' ((@($m.hosts) -join ',') -eq 'claude' -and -not [string]::IsNullOrWhiteSpace([string]$mcps.activationPolicy.pluginOnly.hosts.claude.devin))
-        Check 'devin MCP is never written by a default-scope sync' ([string]$m.scope -ne 'global-default')
+        Check 'devin MCP authenticates through the same native headers helper on both hosts' ($m.credentialPolicy -eq 'native-headers-helper' -and [string]$m.headersHelper.claude -match 'Get-DevinMcpHeaders\.ps1' -and $m.headersHelper.codex -ceq $m.headersHelper.claude)
+        Check 'devin MCP is declared for Claude and Codex with native exceptions' ((@($m.hosts | Sort-Object) -join ',') -eq 'claude,codex' -and -not [string]::IsNullOrWhiteSpace([string]$mcps.activationPolicy.pluginOnly.hosts.claude.devin) -and -not [string]::IsNullOrWhiteSpace([string]$mcps.activationPolicy.pluginOnly.hosts.codex.devin))
+        Check 'devin MCP is owner-configured' ([string]$m.scope -eq 'owner-configured')
         # A revision is accepted only when its verification records the authenticated probe that returned it.
         $protoOk = if ($null -eq $m.protocol.revision) { [string]$m.protocol.verification -match 'cannot be established' } else { ([string]$m.protocol.revision -match '^\d{4}-\d{2}-\d{2}$') -and ([string]$m.protocol.verification -match 'Authenticated probe') -and ([string]$m.protocol.verification -match ('protocolVersion ' + [regex]::Escape([string]$m.protocol.revision))) }
         Check 'devin MCP records no invented protocol verification (null, or a revision backed by a recorded authenticated probe)' ($protoOk -and [string]$m.notes -match 'docs\.devin\.ai/work-with-devin/devin-mcp')

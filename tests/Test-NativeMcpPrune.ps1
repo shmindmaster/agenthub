@@ -63,7 +63,11 @@ try {
     $parallelEndpoint = 'https://parallel.example/mcp'
     $parallel = @{id='parallel';scope='global-default';transport='http';activationMode='shared-remote';url=$parallelEndpoint;hosts=@('opencode')}
     $existing = @{id='existing-remote';scope='global-default';transport='http';activationMode='shared-remote';url='https://managed.example';hosts=@('opencode')}
-    Write-Json (Join-Path $registryDir 'mcps.json') @{activationPolicy=@{pluginOnly=@{hosts=$hosts}};mcpServers=@($parallel,$existing)}
+    $nativeHelper = @{id='devin';scope='owner-configured';transport='http';activationMode='shared-remote';url='https://devin.example/mcp';hosts=@('claude','codex')}
+    $hosts.claude['devin'] = 'Preserve an existing dynamic helper.'
+    $hosts.codex['devin'] = 'Preserve an existing dynamic helper.'
+    [IO.File]::AppendAllText($paths.codex, "[mcp_servers.devin]`nurl = 'https://devin.example/mcp'`nhttp_headers_helper = 'native-helper'`n")
+    Write-Json (Join-Path $registryDir 'mcps.json') @{activationPolicy=@{pluginOnly=@{hosts=$hosts}};mcpServers=@($parallel,$existing,$nativeHelper)}
     # Simulate a vendor package supplying the same key, without making AWS a
     # generated registry row. Its ownership must not suppress a direct exception.
     $package = Join-Path $fixture 'packages/native-fixture'
@@ -103,6 +107,12 @@ try {
     foreach ($id in $first.Keys) {
         Assert-True ($first[$id] -ceq (Get-Content -LiteralPath $paths[$id] -Raw -Encoding UTF8)) "$id is byte-stable after a second prune"
     }
+    $run = & $hostExe @syncArgs -ScopeProfile all 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "All-scope fixture sync failed: $run" }
+    Assert-True ((Get-Content -LiteralPath $paths.codex -Raw -Encoding UTF8) -ceq $first.codex -and
+        $first.codex.Contains("http_headers_helper = 'native-helper'")) 'All-scope prune preserves an existing owner-configured helper exactly'
+    $claude = Get-Content -LiteralPath $paths.claude -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ($null -eq $claude.mcpServers.PSObject.Properties['devin']) 'All-scope sync does not generate an owner-configured server without its helper'
 
     Write-Json $paths.opencode @{mcp=@{servers=@{type='remote';url='https://legacy.example'}}}
     $legacySyncArgs = $syncArgs | Where-Object { $_ -ne '-Prune' }
