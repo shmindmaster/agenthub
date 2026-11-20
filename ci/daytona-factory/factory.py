@@ -33,7 +33,6 @@ EXPORTS = ("tests.log", "toolchain.json", "evidence.tar.gz", "journeys.tar.gz")
 SUITES = tuple(REQUIRED)
 JOURNEY_APPS = {"empowera", "revolva"}
 PROBES = ("none", "fail", "hang")
-API = "https://app.daytona.io/api"
 WORK = "/tmp/factory"
 BUILD_SNAPSHOT = "factory-node-build-v1"
 RENDER_SNAPSHOT = "rexa-remotion-4-0-517"
@@ -291,7 +290,7 @@ class DaytonaWorker:
                 "memory_gib": self.box.memory, "disk_gib": self.box.disk}
 
     def exec(self, command, seconds):
-        from daytona import DaytonaProcessExecutionTimeoutError
+        from daytona.v0 import DaytonaProcessExecutionTimeoutError
         try:
             result = self.box.process.exec(command, timeout=seconds)
         except DaytonaProcessExecutionTimeoutError:
@@ -315,26 +314,26 @@ class DaytonaProvider:
 
     def __init__(self):
         from daytona import Daytona, DaytonaConfig
-        self.client = Daytona(DaytonaConfig(api_url=API, api_key=os.environ["DAYTONA_FACTORY_API_KEY"]))
+        self.client = Daytona(DaytonaConfig(api_key=os.environ["DAYTONA_FACTORY_API_KEY"]))
 
     def find(self, labels):
         # Deleted sandboxes stay listed while Daytona destroys them; they no longer run.
-        from daytona import ListSandboxesQuery
-        return [box for box in self.client.list(ListSandboxesQuery(labels=labels))
+        from daytona.v0 import ListSandboxesQuery
+        return [box for box in self.client.v0.list(ListSandboxesQuery(labels=labels))
                 if all((box.labels or {}).get(k) == v for k, v in labels.items())
                 and str(getattr(box.state, "value", box.state)).lower() not in GONE]
 
     def remove(self, box):
-        from daytona import DaytonaNotFoundError
+        from daytona.v0 import DaytonaNotFoundError
         try:
             box.delete(wait=True)
         except DaytonaNotFoundError:
             pass
 
     def create(self, role, name, labels, ttl_minutes, cache_key):
-        from daytona import CreateSandboxFromSnapshotParams
+        from daytona.v0 import CreateSandboxFromSnapshotParams
         snapshot = RENDER_SNAPSHOT if role == "render" else BUILD_SNAPSHOT
-        box = self.client.create(CreateSandboxFromSnapshotParams(
+        box = self.client.v0.create(CreateSandboxFromSnapshotParams(
             snapshot=snapshot, name=name, labels=labels, public=False,
             auto_stop_interval=ttl_minutes, auto_delete_interval=0, ttl_minutes=ttl_minutes,
         ), timeout=180)
@@ -342,7 +341,7 @@ class DaytonaProvider:
 
     @staticmethod
     def transient(error):
-        from daytona import DaytonaRateLimitError, DaytonaTimeoutError
+        from daytona.v0 import DaytonaRateLimitError, DaytonaTimeoutError
         return isinstance(error, (DaytonaRateLimitError, DaytonaTimeoutError, ConnectionError))
 
 

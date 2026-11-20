@@ -60,6 +60,10 @@ no longer counts as a live worker. The cancellation signal is tracked
 separately because the Daytona SDK re-raises an interrupt as `DaytonaError`.
 The Daytona provider has no package cache: every worker starts from its
 snapshot, and the reusable layer is the hash-verified artifact.
+The workflow installs Daytona SDK 2.x with its v0 extra
+(`daytona[v0-sdk]==2.0.0`, which bundles the 0.231.1 v0 client) and the
+provider calls Daytona v0 through `client.v0`. SDK 2.x has no API URL setting;
+the default Daytona v0 API is implied.
 
 `--provider local` runs the same scripts, limits, labels, deadline, export and
 cleanup on a self-hosted Docker worker built from
