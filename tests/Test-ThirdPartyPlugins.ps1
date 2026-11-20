@@ -95,6 +95,21 @@ if ($remotion) {
         'remotion.provides must include video.programmatic-composition'
 }
 
+$expo = @($extensions | Where-Object { $_.extensionId -eq 'expo' })[0]
+Report 'expo official plugin is tracked rather than vendored' ($null -ne $expo) 'expo missing'
+if ($expo) {
+    Report 'expo is optional and points at the official expo/skills upstream' `
+        ((-not [bool]$expo.required) -and $expo.upstream -eq 'https://github.com/expo/skills') `
+        "expo.required must be false and upstream must be https://github.com/expo/skills, got '$($expo.upstream)'"
+    Report 'expo declares mobile.expo-eas-guidance' `
+        (@($expo.provides) -contains 'mobile.expo-eas-guidance') `
+        'expo.provides must include mobile.expo-eas-guidance'
+}
+$daytona = @($extensions | Where-Object { $_.extensionId -eq 'daytona' })[0]
+Report 'daytona official skills package stays tracked from daytona/skills' `
+    ($null -ne $daytona -and $daytona.upstream -eq 'https://github.com/daytona/skills' -and $daytona.kind -eq 'skills-package') `
+    'daytona must stay a skills-package tracked from https://github.com/daytona/skills'
+
 $cw = @($extensions | Where-Object { $_.extensionId -eq 'creative-writing-skills' })[0]
 if ($cw) {
     Report 'creative-writing-skills is optional' (-not [bool]$cw.required) 'creative-writing-skills.required must be false'

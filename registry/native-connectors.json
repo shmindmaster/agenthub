@@ -1122,7 +1122,7 @@
           "compute.daytona-sandboxes"
         ],
         "required": false,
-        "note": "Every retained host carries Daytona from the vendor. Claude, Factory and Devin install it from their catalog, Grok imports Claude's copy, Codex installs daytona@daytona from the vendor marketplace (github.com/daytona/skills), and Antigravity installs it from the same git repository. AgentHub no longer ships ah-daytona (SH-4636, 2026-11-13).",
+        "note": "Every retained host carries Daytona from the vendor. Claude, Factory and Devin install it from their catalog, Grok imports Claude's copy, Codex installs daytona@daytona from the vendor marketplace (github.com/daytona/skills), and Antigravity installs it from the same git repository. AgentHub no longer ships ah-daytona (SH-4636, 2026-11-13). Upstream re-checked 2026-11-19: daytona/skills@f156aec discovers one skill, daytona, which covers Daytona v2 (daytona.v2, api.daytona.com) and v0 (app.daytona.io); the factory in ci/daytona-factory pins the v0 SDK (daytona==0.231.1). Host currency was not re-observed.",
         "observedAt": "2026-11-13",
         "hostChannels": [
           {
@@ -1166,6 +1166,89 @@
             "plugin": "daytona",
             "current": true,
             "updateCommand": "agy plugin install https://github.com/daytona/skills.git"
+          }
+        ]
+      },
+      {
+        "extensionId": "expo",
+        "kind": "plugin",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/expo/skills",
+        "maintainer": "Expo (650 Industries)",
+        "license": "MIT",
+        "install": {
+          "command": "npx skills add expo/skills",
+          "docs": "https://docs.expo.dev/skills/"
+        },
+        "provides": [
+          "mobile.expo-eas-guidance"
+        ],
+        "required": false,
+        "note": "Official Expo plugin (expo/skills, plugin expo 1.15.5 at 88d9bd7, observed 2026-11-19): 23 skills plus the Expo remote MCP (https://mcp.expo.dev/mcp). Load expo-overview first; load eas-simulator only when a remote EAS simulator is in scope, because eas-* skills drive paid EAS services; check `eas simulator:availability --json` in a linked project before any simulator session. The skills CLI discovered the catalog with `npx skills add expo/skills --list`. Do not vendor Expo skills into AgentHub; packages/mobile-development keeps the device lab and platform gate and defers Expo and EAS how-to to this plugin. Each host uses its own native channel, never ~/.agents/skills, which Test-PluginOnlyMcp requires to stay empty.",
+        "observedAt": "2026-11-19",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "native-plugin",
+            "plugin": "expo@claude-plugins-official",
+            "current": null,
+            "updateCommand": "claude plugin install expo@claude-plugins-official",
+            "note": "Not observed on this host (current: null = not established). Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current after the host's plugin list is read."
+          },
+          {
+            "hostId": "codex",
+            "channel": "native-plugin",
+            "plugin": "expo@openai-curated",
+            "current": null,
+            "updateCommand": "codex plugin add expo@openai-curated",
+            "note": "Not observed on this host (current: null = not established). Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current after the host's plugin list is read."
+          },
+          {
+            "hostId": "factory",
+            "channel": "native-plugin",
+            "plugin": "expo@claude-plugins-official",
+            "current": null,
+            "updateCommand": "droid plugin install expo@claude-plugins-official",
+            "note": "Not observed on this host (current: null = not established). Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current after the host's plugin list is read."
+          },
+          {
+            "hostId": "grok",
+            "channel": "imported-from-claude",
+            "plugin": "expo",
+            "current": null,
+            "updateCommand": "Follows Claude: grok imports the plugin installed for Claude",
+            "note": "Current once Claude carries it."
+          },
+          {
+            "hostId": "devin",
+            "channel": "upstream-plugin",
+            "plugin": "expo (github.com/expo/skills/tree/main/plugins/expo)",
+            "current": null,
+            "updateCommand": "Devin plugin install from https://github.com/expo/skills/tree/main/plugins/expo (personal scope, owner approval)",
+            "note": "Devin loads the plugin's .claude-plugin manifest. Not installed in Devin by this change; the owner approves the install."
+          },
+          {
+            "hostId": "antigravity",
+            "channel": "upstream-git",
+            "plugin": "expo",
+            "current": null,
+            "updateCommand": "agy plugin install https://github.com/expo/skills.git",
+            "note": "Not observed on this host (current: null = not established). Owner installs it with the host's own command (hostPrivateExtensionPolicy); set current after the host's plugin list is read."
+          },
+          {
+            "hostId": "opencode",
+            "channel": null,
+            "plugin": null,
+            "current": false,
+            "note": "No verified native Expo plugin channel for this host yet; deliberate gap until one is documented. Do not fall back to a global ~/.agents/skills install."
+          },
+          {
+            "hostId": "kilo",
+            "channel": null,
+            "plugin": null,
+            "current": false,
+            "note": "No verified native Expo plugin channel for this host yet; deliberate gap until one is documented. Do not fall back to a global ~/.agents/skills install."
           }
         ]
       },
