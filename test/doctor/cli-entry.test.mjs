@@ -129,6 +129,12 @@ esac
     },
   });
 
+  writeFileSync(cli, "#!/bin/sh\necho '[{\"name\":\"https://vendor.example/private-path\"}]'\n");
+  const malformed = runCli(root, [...options, '--native'], env);
+  assert.equal(malformed.status, 0, malformed.stderr);
+  assert.doesNotMatch(malformed.stdout + malformed.stderr, /vendor\.example|private-path/);
+  assert.deepEqual(JSON.parse(malformed.stdout).native, { devin: { status: 'failed' } });
+
   writeFileSync(cli, '#!/bin/sh\necho private-value >&2\nexit 1\n');
   const failed = runCli(root, [...options, '--native'], env);
   assert.equal(failed.status, 0, failed.stderr);

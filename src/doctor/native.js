@@ -63,7 +63,7 @@ export async function inspectDevin(ctx, env) {
 
 /** @param {unknown} value */
 function identifier(value) {
-  if (typeof value !== 'string' || !/^[a-z0-9._:/-]{1,200}$/i.test(value)) {
+  if (typeof value !== 'string' || value.length > 200 || !/^[a-z0-9][a-z0-9._-]*(?::[a-z0-9][a-z0-9._-]*)?$/i.test(value)) {
     throw new Error('Invalid Devin inventory name');
   }
   return value;
