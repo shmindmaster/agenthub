@@ -22,6 +22,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $repoRoot 'scripts/lib/McpConfigShape.ps1')
 $failures = New-Object System.Collections.Generic.List[string]
 $passed = 0
 
@@ -86,7 +87,7 @@ function Get-JsonKeys([string]$Path, [string]$Property) {
     if (-not $node -or $null -eq $node.Value) { return @() }
     # A disabled entry is how Devin and Antigravity switch a plugin's server off. It runs nothing.
     $entries = @($node.Value.PSObject.Properties)
-    if ($Property -eq 'mcp' -and $node.Value.servers) {
+    if ($Property -eq 'mcp' -and (Test-OpenCodeNativeMcpCatalog $node.Value.servers)) {
         $entries = @($entries | Where-Object Name -ne 'servers') + @($node.Value.servers.PSObject.Properties)
     }
     return @($entries | Where-Object { $_.Value.disabled -ne $true -and $_.Value.enabled -ne $false } | ForEach-Object Name)

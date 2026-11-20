@@ -103,6 +103,14 @@ try {
     foreach ($id in $first.Keys) {
         Assert-True ($first[$id] -ceq (Get-Content -LiteralPath $paths[$id] -Raw -Encoding UTF8)) "$id is byte-stable after a second prune"
     }
+
+    Write-Json $paths.opencode @{mcp=@{servers=@{type='remote';url='https://legacy.example'}}}
+    $legacySyncArgs = $syncArgs | Where-Object { $_ -ne '-Prune' }
+    $run = & $hostExe @legacySyncArgs 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Legacy fixture sync failed: $run" }
+    $legacy = Get-Content -LiteralPath $paths.opencode -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ($legacy.mcp.parallel.url -eq $parallelEndpoint -and $legacy.mcp.servers.url -eq 'https://legacy.example' -and
+        $null -eq $legacy.mcp.servers.PSObject.Properties['parallel']) 'OpenCode keeps a legacy server named servers and writes Parallel beside it'
 } finally {
     $resolved = [IO.Path]::GetFullPath($fixture)
     if (-not $resolved.StartsWith($scratch.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe fixture cleanup path' }
