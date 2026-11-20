@@ -60,6 +60,7 @@
           "clerk": "Clerk CLI targets stable VS Code, so Insiders uses its own remote entry with Copilot official skills."
         },
         "cline": {
+          "parallel": "Use Cline Streamable HTTP configuration for anonymous Parallel search and fetch. Keep tool auto-approval empty.",
           "adobe-for-creativity": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "context7": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "descript": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
@@ -184,7 +185,7 @@
         "antigravity": "parallel@upstream",
         "grok": "parallel@parallel-agent-skills (imported from Claude)"
       },
-      "hosts": ["cursor", "vscode-insiders", "amp"],
+      "hosts": ["cursor", "vscode-insiders", "amp", "cline"],
       "hostScopeNote": "Initial managed streamable HTTP targets. Kilo uses its native user command and stores the entry in kilo.jsonc. Client discovery and tool execution are checked separately from the endpoint probe.",
       "notes": "Official endpoint: https://parallel.ai/mcp. Use public queries and URLs. OAuth via the vendor login endpoint and API-key usage can bill the connected Parallel account; neither is configured by the fleet default."
     },
