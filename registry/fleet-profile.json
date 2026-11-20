@@ -405,7 +405,7 @@
     "cursor-agent": {
       "enabled": true,
       "readOnly": null,
-      "readOnlyNote": "The dispatcher calls the vendor CLI with --mode ask. The documented read-only mode still needs a governed end-to-end test, including tool permissions, before enabling -ReadOnly.",
+      "readOnlyNote": "2026-11-20 The dispatcher calls the vendor CLI with --mode ask. The documented read-only mode still needs a governed end-to-end test, including tool permissions, before enabling -ReadOnly.",
       "reason": "account smoke ok 2026-10-22",
       "verifiedOn": "2026-10-22"
     },
