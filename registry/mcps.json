@@ -73,6 +73,7 @@
           "clerk": "Cline extension has no plugin MCP loader; official upstream plugin also serves the CLI. Remote only, off by default."
         },
         "opencode": {
+          "parallel": "Use Parallel's official hosted search and fetch endpoint through OpenCode's native remote MCP configuration. The vendor npm plugin is a separate integration that requires personal authorization.",
           "browse": "OpenCode's native real-profile browser integration uses a host-owned local relay. Preserve its native registration; cloud browsers do not inherit desktop logins.",
           "desktop-commander": "Existing owner-configured local device and filesystem fallback. Prefer adequate host tools and keep activation task-scoped; the hosted Desktop Commander route still requires a local device agent.",
           "descript": "OpenCode has no plugin catalog for this server, and a remote entry is its documented route. Runs no local process.",
@@ -185,8 +186,8 @@
         "antigravity": "parallel@upstream",
         "grok": "parallel@parallel-agent-skills (imported from Claude)"
       },
-      "hosts": ["cursor", "vscode-insiders", "amp", "cline"],
-      "hostScopeNote": "Initial managed streamable HTTP targets. Kilo uses its native user command and stores the entry in kilo.jsonc. Client discovery and tool execution are checked separately from the endpoint probe.",
+      "hosts": ["cursor", "vscode-insiders", "amp", "cline", "opencode"],
+      "hostScopeNote": "Managed streamable HTTP targets. OpenCode 2 uses mcp.servers and may return an empty catalog while MCP connections initialize. Kilo uses its native user command and stores the entry in kilo.jsonc. Client discovery and tool execution are checked separately from the endpoint probe.",
       "notes": "Official endpoint: https://parallel.ai/mcp. Use public queries and URLs. OAuth via the vendor login endpoint and API-key usage can bill the connected Parallel account; neither is configured by the fleet default."
     },
     {

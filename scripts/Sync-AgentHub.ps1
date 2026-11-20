@@ -1950,14 +1950,26 @@ function Sync-HostMcp-OpenCode {
         $canonical = $McpEntries[$key]
         $target = ConvertTo-OpenCodeMcpEntry $canonical
 
-        if (-not $root.mcp.ContainsKey($key)) {
-            $root.mcp[$key] = $target
-            if (-not $root.mcp[$key].ContainsKey('enabled')) { $root.mcp[$key].enabled = $true }
+        $entries = $root.mcp
+        $nativeEntries = $root.mcp.servers
+        $useNativeEntry = $nativeEntries -is [hashtable] -and
+            ($nativeEntries.ContainsKey($key) -or -not $entries.ContainsKey($key))
+        if ($useNativeEntry) {
+            $entries = $nativeEntries
+            if ($target.ContainsKey('enabled')) {
+                if (-not $target.enabled) { $target.disabled = $true }
+                $target.Remove('enabled')
+            }
+        }
+
+        if (-not $entries.ContainsKey($key)) {
+            $entries[$key] = $target
+            if (-not $useNativeEntry -and -not $target.ContainsKey('enabled')) { $target.enabled = $true }
             continue
         }
 
-        $existing = $root.mcp[$key]
-        if (-not ($existing -is [hashtable])) { $existing = ConvertTo-Hashtable $existing; $root.mcp[$key] = $existing }
+        $existing = $entries[$key]
+        if (-not ($existing -is [hashtable])) { $existing = ConvertTo-Hashtable $existing; $entries[$key] = $existing }
 
         if ($target.type -eq 'local') {
             foreach ($staleField in @('url','headers','args','env','oauth')) {
@@ -1984,7 +1996,7 @@ function Sync-HostMcp-OpenCode {
         foreach ($managedMap in @('headers', 'environment')) {
             if ($target.ContainsKey($managedMap)) { $existing[$managedMap] = $target[$managedMap] }
         }
-        if (-not $existing.ContainsKey('enabled')) { $existing.enabled = $true }
+        if (-not $useNativeEntry -and -not $existing.ContainsKey('enabled')) { $existing.enabled = $true }
     }
 
     if ($Prune) {

@@ -115,6 +115,11 @@ function Get-DeployedIds([string]$McpPath, [string]$McpKey) {
     # indistinguishable from the missing-file signal above. The comma operator
     # wraps it so an empty set stays an empty set.
     if ($null -eq $node) { return ,@() }
+    if ($McpKey -eq 'mcp' -and $null -ne $node.PSObject.Properties['servers']) {
+        $flatIds = @($node.PSObject.Properties.Name | Where-Object { $_ -ne 'servers' })
+        $nativeIds = @($node.servers.PSObject.Properties.Name)
+        return ,@(($flatIds + $nativeIds) | Sort-Object -Unique)
+    }
     return ,@($node.PSObject.Properties.Name)
 }
 
