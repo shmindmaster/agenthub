@@ -1122,7 +1122,7 @@
           "compute.daytona-sandboxes"
         ],
         "required": false,
-        "note": "Every retained host carries Daytona from the vendor. Claude, Factory and Devin install it from their catalog, Grok imports Claude's copy, Codex installs daytona@daytona from the vendor marketplace (github.com/daytona/skills), and Antigravity installs it from the same git repository. AgentHub no longer ships ah-daytona (SH-4636, 2026-11-13). Upstream re-checked 2026-11-19: daytona/skills@f156aec discovers one skill, daytona, which covers Daytona v2 (daytona.v2, api.daytona.com) and v0 (app.daytona.io); the factory in ci/daytona-factory pins the v0 SDK (daytona==0.231.1). Host currency was not re-observed.",
+        "note": "Every retained host carries Daytona from the vendor. Claude, Factory and Devin install it from their catalog, Grok imports Claude's copy, Codex installs daytona@daytona from the vendor marketplace (github.com/daytona/skills), and Antigravity installs it from the same git repository. AgentHub no longer ships ah-daytona (SH-4636, 2026-11-13). Upstream re-checked 2026-11-19: daytona/skills@f156aec discovers one skill, daytona, which covers Daytona v2 (daytona.v2, api.daytona.com) and v0 (app.daytona.io); the factory in ci/daytona-factory pins SDK 2.x (daytona[v0-sdk]==2.0.0) and stays on Daytona v0 through client.v0. Host currency was not re-observed.",
         "observedAt": "2026-11-13",
         "hostChannels": [
           {

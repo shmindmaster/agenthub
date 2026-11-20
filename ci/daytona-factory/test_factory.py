@@ -2,6 +2,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -242,6 +243,25 @@ class BudgetTests(unittest.TestCase):
                 self.assertRegex(dockerfile, rf"apt-get install[^\n]*(\n[^\n]*\\?)*\b{package}\b")
         self.assertIn("pnpm install", build)
         self.assertIn("corepack enable pnpm", dockerfile)
+
+    def test_daytona_provider_calls_v0_without_an_api_url(self):
+        client = mock.MagicMock()
+        root = SimpleNamespace(Daytona=mock.Mock(return_value=client),
+                               DaytonaConfig=mock.Mock(side_effect=lambda **kw: kw))
+        v0 = SimpleNamespace(ListSandboxesQuery=lambda labels: labels,
+                             CreateSandboxFromSnapshotParams=lambda **kw: kw)
+        client.v0.list.return_value = []
+        modules = {"daytona": root, "daytona.v0": v0}
+        with mock.patch.dict(sys.modules, modules), \
+                mock.patch.dict(factory.os.environ, {"DAYTONA_FACTORY_API_KEY": "test"}):
+            provider = factory.DaytonaProvider()
+            provider.find({"run": "1"})
+            provider.create("build", "w", {"run": "1"}, 10, None)
+        root.DaytonaConfig.assert_called_once_with(api_key="test")
+        client.v0.list.assert_called_once()
+        client.v0.create.assert_called_once()
+        workflow = (factory.HERE.parent.parent / ".github/workflows/daytona-factory.yml").read_text()
+        self.assertIn('pip install "daytona[v0-sdk]==2.', workflow)
 
     def test_run_ids_are_numeric_or_local(self):
         for run in ("123", "local-1"):
