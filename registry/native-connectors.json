@@ -1331,9 +1331,10 @@
             "hostId": "devin",
             "channel": "upstream-plugin",
             "plugin": "expo (github.com/expo/skills/tree/main/plugins/expo)",
-            "current": null,
-            "updateCommand": "Devin plugin install from https://github.com/expo/skills/tree/main/plugins/expo (personal scope, owner approval)",
-            "note": "Devin loads the plugin's .claude-plugin manifest. Not installed in Devin by this change; the owner approves the install."
+            "installedVersion": "1.15.5",
+            "current": true,
+            "updateCommand": "devin plugins update expo --process-model in-process",
+            "note": "Installed from expo/skills#plugins/expo in local scope. Fresh native readback found 23 Expo skills and enabled Expo MCP at the official HTTPS endpoint. OAuth and signed-in tools remain unverified."
           },
           {
             "hostId": "antigravity",
