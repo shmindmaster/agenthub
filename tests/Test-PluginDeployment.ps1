@@ -125,6 +125,17 @@ try {
     if ($kiloStatus -ne 'unmanaged') { throw "foreign Kilo dispatch skill should audit unmanaged, got $kiloStatus" }
     if (@($dispatchReport.mappings | Where-Object host -EQ 'mimo-code').Count) { throw 'Retired MiMo Code must not be audited even with old unmanaged files' }
 
+    foreach ($hostFolder in '.kilocode', '.config/opencode') {
+        $researchHome = Join-Path $skillHome $hostFolder
+        $install = & pwsh -NoProfile -File (Join-Path $root 'scripts/Install-WarpSkills.ps1') -Root $root -WarpHome $researchHome -PluginId research
+        if ($LASTEXITCODE) { throw "Research skill installation failed for $hostFolder`: $install" }
+    }
+    $researchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $skillHome -PluginId research -Json | ConvertFrom-Json)
+    foreach ($researchHost in 'kilo', 'opencode') {
+        $researchRow = @($researchReport.mappings | Where-Object host -EQ $researchHost)
+        if ([string]$researchRow.status -ne 'current') { throw "Research skill install did not audit current on $researchHost" }
+    }
+
     # --- Surface routing: cursor and cursor-agent observe Claude's install,
     # which Cursor imports, and vscode-insiders observes Copilot's; one owner
     # install satisfies every row and no second Cursor copy is made. ---

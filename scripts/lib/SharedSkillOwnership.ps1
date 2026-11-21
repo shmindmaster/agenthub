@@ -1,6 +1,28 @@
 # Shared by deployment, pruning and the live policy test.
 . (Join-Path $PSScriptRoot 'PathBinding.ps1')
 
+function Test-AutoClawBrowserSkillMirror {
+    param([string]$Source, [string]$Shared)
+
+    $files = @('SKILL.md', 'dist/autoglm-browser-service.exe')
+    foreach ($relativePath in $files) {
+        $sourceFile = Join-Path $Source $relativePath
+        $sharedFile = Join-Path $Shared $relativePath
+        if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf) -or
+            -not (Test-Path -LiteralPath $sharedFile -PathType Leaf) -or
+            (Get-FileHash -LiteralPath $sourceFile).Hash -ne (Get-FileHash -LiteralPath $sharedFile).Hash) {
+            return $false
+        }
+    }
+    # The exported skill contains the document and executable. Additional files
+    # can change what another host discovers, so flag the directory in that case.
+    $sharedFiles = @(Get-ChildItem -LiteralPath $Shared -Recurse -File -Force)
+    if ($sharedFiles.Count -ne $files.Count) { return $false }
+    $signature = Get-AuthenticodeSignature -LiteralPath (Join-Path $Shared $files[1])
+    return ($signature.Status -eq 'Valid' -and
+        $signature.SignerCertificate.Subject -match '(?:^|, )O=JINGSHENG HENGXING TECHNOLOGY PTE\. LTD\.(?:,|$)')
+}
+
 function Get-RegisteredSharedSkillPaths {
     param(
         [Parameter(Mandatory)][string]$UserProfile,
@@ -9,6 +31,26 @@ function Get-RegisteredSharedSkillPaths {
 
     $agentDirectory = Join-Path $UserProfile '.agents'
     $skillsDirectory = Join-Path $agentDirectory 'skills'
+    # AutoClaw deploys this mirror from its account-native skill store. Unlike
+    # shared installs from GitHub, it does not produce a skills CLI receipt.
+    if ((Get-AgentHubHostPlatformId) -eq 'windows') {
+        $shared = Join-Path $skillsDirectory 'autoglm-browser-agent'
+        if (Test-Path -LiteralPath $shared -PathType Container) {
+            $context = New-AgentHubPathBindingContext -TargetUserProfile $UserProfile
+            $accounts = Join-Path $context.EffectiveRoamingConfig 'AutoClaw-oversea-official/accounts'
+            foreach ($account in @(Get-ChildItem -LiteralPath $accounts -Directory -ErrorAction SilentlyContinue)) {
+                $source = Join-Path $account.FullName 'runtime/zwork-agent/skills/autoglm-browser-agent'
+                try {
+                    if (Test-AutoClawBrowserSkillMirror -Source $source -Shared $shared) {
+                        [IO.Path]::GetFullPath($shared)
+                        break
+                    }
+                } catch {
+                    Write-Verbose 'Could not verify the AutoClaw browser skill mirror.'
+                }
+            }
+        }
+    }
     $lockPath = Join-Path $agentDirectory '.skill-lock.json'
     # The installer uses XDG state for the invoking account only. A profile
     # override must not use that account's receipt to authorize another tree.

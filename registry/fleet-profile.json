@@ -12,16 +12,12 @@
     "amp",
     "devin",
     "factory",
-    "windsurf",
     "copilot",
     "grok",
     "antigravity",
-    "warp",
     "cline",
     "vscode-insiders",
-    "kilo",
-    "mimo-code",
-    "qwen"
+    "kilo"
   ],
   "launchDefaults": {
     "copilot": [

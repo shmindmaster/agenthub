@@ -14,6 +14,8 @@ stranger-safe first run. For this private fleet checkout, also use
 
 ## Architecture
 
+- [Portfolio intelligence direction](architecture/portfolio-intelligence.md) — proposed commercial pilots, product opportunities and evidence requirements.
+
 - [architecture/control-plane-modules.md](./architecture/control-plane-modules.md) —
   PathBinding, host catalog, capability overlay, and the public/personal split.
 - [architecture/mobile-lab-remote-android.md](./architecture/mobile-lab-remote-android.md) —
@@ -40,6 +42,8 @@ stranger-safe first run. For this private fleet checkout, also use
 - [development/chrome-cdp.md](./development/chrome-cdp.md) — browser MCP notes.
 
 ## Operations
+
+- [Research workflows and verification](runbooks/research.md) — Exa, Parallel and Tavily routing, native acceptance and scope.
 
 - [runbooks/desktop-integrations.md](./runbooks/desktop-integrations.md) — Windows inventory and app-owned connector verification for AutoClaw, Grok Bot, and Manus Studio.
 - [runbooks/zcode.md](./runbooks/zcode.md) — Standalone ZCode inventory, native marketplace deployment, MCP, and browser setup.

@@ -46,6 +46,11 @@
       "name": "ah-funding",
       "displayName": "AH-Funding",
       "source": "./packages/funding"
+    },
+    {
+      "name": "ah-research",
+      "displayName": "AH-Research",
+      "source": "./packages/research"
     }
   ]
 }

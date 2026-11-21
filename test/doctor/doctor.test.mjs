@@ -111,6 +111,7 @@ test('ZCode Doctor reads native user MCP settings without requiring agent-wide r
   const testKey = 'example-fixture-abcdefgh12345678';
   h.write('.zcode/cli/config.json', {
     mcp: { servers: {
+      'exa-anonymous': { type: 'http', url: 'https://mcp.exa.ai/mcp' },
       parallel: { type: 'http', url: 'https://example.test/mcp', enabled: true },
       compatible: { type: 'remote', url: 'https://example.test/mcp', enable: false },
       local: { command: 'node', args: [], environment: { MODE: 'fixture' } },
@@ -121,12 +122,14 @@ test('ZCode Doctor reads native user MCP settings without requiring agent-wide r
   });
   const report = await runDoctor(options);
   assert.deepEqual(report.hosts[0].mcp.servers.map(({ name, transport, enabled }) => [name, transport, enabled]),
-    [['compatible', 'http', false], ['local', 'stdio', true], ['parallel', 'http', true]]);
+    [['compatible', 'http', false], ['exa-anonymous', 'http', true],
+      ['local', 'stdio', true], ['parallel', 'http', true]]);
   const rejected = report.findings.find(({ code }) => code === 'MCP_NATIVE_ENTRY_IGNORED');
   assert.match(rejected.message, /importedCodex, importedRuntime, servers/);
   assert.ok(report.findings.some(({ code, subject }) => code === 'MCP_INLINE_SECRET' && subject === 'importedRuntime'));
   assert.ok(!JSON.stringify(report).includes(testKey));
   assert.ok(!codes(report).includes('REGISTRY_MISSING'));
+  assert.doesNotMatch(report.findings.find(({ code }) => code === 'REGISTRY_UNKNOWN').message, /exa-anonymous/);
 });
 
 test('standalone ZCode native inventory uses the Windows user profile', { skip: platform !== 'windows' }, async () => {

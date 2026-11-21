@@ -1045,6 +1045,40 @@ function Test-XdgSharedSkillReceipt {
 
 Report 'XDG installer receipt protects the invoking profile only' (Test-XdgSharedSkillReceipt) 'expected the receipt to recognize one skill in its own profile only'
 
+function Test-AutoClawSharedSkillProvenance {
+    . (Join-Path $repoRoot 'scripts/lib/SharedSkillOwnership.ps1')
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-autoclaw' -HostId 'zz-host' -SkillName 'sample-skill' -SkillContent 'fixture'
+    try {
+        $source = Join-Path $fixture.Root 'account-skill'
+        $shared = Join-Path $fixture.Root 'shared-skill'
+        foreach ($directory in $source, $shared) {
+            [void][IO.Directory]::CreateDirectory((Join-Path $directory 'dist'))
+            [IO.File]::WriteAllText((Join-Path $directory 'SKILL.md'), 'fixture')
+            [IO.File]::WriteAllText((Join-Path $directory 'dist/autoglm-browser-service.exe'), 'fixture executable')
+        }
+        $signatureStatus = 'Valid'
+        function Get-AuthenticodeSignature([string]$LiteralPath) {
+            [pscustomobject]@{
+                Status = $signatureStatus
+                SignerCertificate = @{ Subject = 'CN=AutoClaw, O=JINGSHENG HENGXING TECHNOLOGY PTE. LTD., C=SG' }
+            }
+        }
+        if (-not (Test-AutoClawBrowserSkillMirror -Source $source -Shared $shared)) { return $false }
+        $signatureStatus = 'NotSigned'
+        if (Test-AutoClawBrowserSkillMirror -Source $source -Shared $shared) { return $false }
+        $signatureStatus = 'Valid'
+        [IO.File]::WriteAllText((Join-Path $shared 'extra.js'), 'unexpected')
+        if (Test-AutoClawBrowserSkillMirror -Source $source -Shared $shared) { return $false }
+        Remove-Item -LiteralPath (Join-Path $shared 'extra.js')
+        [IO.File]::WriteAllText((Join-Path $shared 'SKILL.md'), 'changed')
+        return (-not (Test-AutoClawBrowserSkillMirror -Source $source -Shared $shared))
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $fixture
+    }
+}
+
+Report 'AutoClaw mirror requires the vendor signature and matching shared files' (Test-AutoClawSharedSkillProvenance) 'expected only the matching signed mirror to pass'
+
 $rJunction = Test-JunctionRuntimeWritesKeepLogicalLedger
 Report 'junction runtime writes preserve canonical ledger keys and converge' $rJunction.Passed $rJunction.Detail
 $rBadCopy = Test-CopyVerificationRejectsBadCopies

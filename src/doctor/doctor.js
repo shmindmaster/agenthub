@@ -517,7 +517,7 @@ function compareWithRegistry(hosts, registry, findings) {
         fix: 'Run `agenthub sync` to see the full drift report, then `agenthub sync --apply`.',
       });
     }
-    const extra = [...have].filter((id) => !known.has(id));
+    const extra = [...have].filter((id) => !known.has(id) && !direct?.has(id));
     if (extra.length) {
       findings.push({
         severity: 'info',

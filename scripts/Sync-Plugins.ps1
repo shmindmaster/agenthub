@@ -514,7 +514,8 @@ function Invoke-PluginInstall($Row) {
         'cline' {
             $dest = Join-Path $UserProfile ".agents/plugins/$name"
             [void][IO.Directory]::CreateDirectory((Split-Path -Parent $dest))
-            New-Item -ItemType Junction -Path $dest -Target $source | Out-Null
+            $linkKind = if ($IsWindows) { 'Junction' } else { 'SymbolicLink' }
+            New-Item -ItemType $linkKind -Path $dest -Target $source | Out-Null
         }
         { $_ -in 'opencode','warp','kilo','mimo-code','qwen' } {
             $dest = switch ($_) { 'warp' { '.warp' } 'kilo' { '.kilocode' } 'mimo-code' { '.mimocode' } 'qwen' { '.qwen' } default { '.config/opencode' } }

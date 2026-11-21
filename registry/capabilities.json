@@ -1324,6 +1324,128 @@
       "kind": "workflow",
       "maturity": "beta",
       "provenance": "agenthub-owned"
+    },
+    {
+      "id": "research",
+      "owner": "packages/research",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/research",
+      "managedSkillNames": [
+        "research-code",
+        "research-docs",
+        "research-deep",
+        "research-entities",
+        "research-monitor"
+      ],
+      "contentHash": "A8C7294F43BF8ABD41BC2CCA2B93738123873BC81644FC700EFBABD88E31FB1A",
+      "hashBasis": "packages/research",
+      "status": "active-canonical",
+      "kind": "workflow",
+      "maturity": "beta",
+      "provenance": "agenthub-owned",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor-agent",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "native-extension-junction",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "kilo",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "zcode",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        }
+      ],
+      "notes": "Five task-scoped research workflows route to native Exa, Parallel and Tavily tools. Vendor plugins and native remote connections own provider access independently. The mappings describe installation routes."
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",

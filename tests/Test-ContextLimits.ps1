@@ -29,10 +29,24 @@ foreach ($row in $registry.settings) {
     Assert-True (-not [string]::IsNullOrWhiteSpace($row.why)) "$($row.host) $($row.key -join '.') has no reason"
     Assert-True (-not [string]::IsNullOrWhiteSpace($row.source)) "$($row.host) $($row.key -join '.') has no source"
 }
+Assert-True (@($registry.settings | Where-Object {
+    $_.host -eq 'cline' -and $_.key[0] -eq 'mcpServers' -and $_.key[-1] -eq 'disabled'
+}).Count -eq 0) 'context settings must not change Cline MCP activation'
+Assert-True ('tavily' -notin @($registry.removedPlugins.names)) 'Tavily is active and must not be reported as a removed plugin'
 
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "context-limits-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $fixture | Out-Null
 try {
+    $clineDir = Join-Path $fixture '.cline/data/settings'
+    New-Item -ItemType Directory -Path $clineDir -Force | Out-Null
+    $clineConfig = Join-Path $clineDir 'cline_mcp_settings.json'
+    $clineOriginal = '{"mcpServers":{"enabled":{"disabled":false},"deferred":{"disabled":true},"default":{}}}'
+    [IO.File]::WriteAllText($clineConfig, $clineOriginal)
+    $realRegistryScript = Join-Path $repoRoot 'scripts/Set-ContextLimits.py'
+    $realRegistryApply = @(& python $realRegistryScript --home $fixture --registry $registryPath --apply 2>&1 | ForEach-Object { "$_" })
+    Assert-True ($LASTEXITCODE -eq 0) "real registry fixture apply failed: $($realRegistryApply -join ' ')"
+    Assert-True ([IO.File]::ReadAllText($clineConfig) -ceq $clineOriginal) 'context apply changed Cline per-server activation state'
+
     $secret = 'fixture-secret-value-do-not-print'
     New-Item -ItemType Directory -Path (Join-Path $fixture 'a') | Out-Null
     $json = Join-Path $fixture 'a/settings.json'

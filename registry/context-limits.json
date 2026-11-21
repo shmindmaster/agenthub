@@ -110,20 +110,11 @@
       "value": 25600,
       "why": "Halves the default. The full output stays on disk.",
       "source": "https://opencode.ai/config.json"
-    },
-    {
-      "host": "cline",
-      "file": "~/.cline/data/settings/cline_mcp_settings.json",
-      "format": "json",
-      "key": ["mcpServers", "*", "disabled"],
-      "value": true,
-      "why": "Servers stay off by default, as on the other hosts. Turn one on in Cline's MCP panel when a task needs it.",
-      "source": "https://docs.cline.bot/cline-cli/configuration"
     }
   ],
   "removedPlugins": {
     "why": "Removed 2026-11-04 from every host: under 5 calls in 30 days of Claude and Codex logs, frozen spend, or a duplicate of a kept plugin. Set-ContextLimits.py reports any that return. Reinstall from the host's catalog when a task needs one.",
-    "names": ["adobe-for-creativity", "azure", "azure-cosmos-db-assistant", "canva", "coderabbit", "posthog", "remotion", "runway-api", "slack", "superpowers", "tavily", "typescript-lsp"],
+    "names": ["adobe-for-creativity", "azure", "azure-cosmos-db-assistant", "canva", "coderabbit", "posthog", "remotion", "runway-api", "slack", "superpowers", "typescript-lsp"],
     "configs": [
       { "host": "claude", "file": "~/.claude/settings.json", "format": "json", "key": "enabledPlugins" },
       { "host": "codex", "file": "~/.codex/config.toml", "format": "toml", "key": "plugins" },
@@ -131,6 +122,7 @@
     ]
   },
   "noDocumentedSetting": {
+    "cline": "No context setting has been established. MCP activation is controlled per server in Cline and is preserved by context-limit operations.",
     "zcode": "Model context limits are managed by the selected ZCode provider. A portable fleet context override has not been established.",
     "cursor": "Compaction runs at about 90% of the window and Cursor offers no setting. Run /summarize at phase boundaries. 300K context is already selected.",
     "copilot": "No compaction setting; it compacts at about 80%, confirmed in session logs. Tool search is already automatic.",
