@@ -838,7 +838,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "620BFA1EA67CD6F725FF1DAD541F9269CE721090CE7CB830A882B8C5F255B81A",
+      "contentHash": "65E472A69A62C06E9E0E2A6D537806071216912C31EDD4CEDFFF36946301CEA4",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [

@@ -85,3 +85,12 @@ test('a lost mutation response is reconciled by reading the issue without issuin
   assert.equal(requests.filter(([name]) => name === 'save_issue').length, 1);
   assert.equal(requests.filter(([name]) => name === 'get_issue').length, 2);
 });
+
+test('releasing our claim preserves the status of work that now has an assignee', async () => {
+  const { connect, item } = fixture({ itemFields: { status: 'In Progress', assigneeId: 'operator', labels: ['Maintenance', 'agent:forge'] } });
+  const client = await connect();
+  assert.equal(await client.release(issue, 'Ready', 'Released our claim.'), true);
+  assert.equal(item.status, 'In Progress');
+  assert.equal(item.assigneeId, 'operator');
+  assert.deepEqual(item.labels, ['Maintenance']);
+});

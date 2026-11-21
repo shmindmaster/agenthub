@@ -60,6 +60,13 @@ export const repoFor = (labels, config) => {
   return key ? { key, ...config.repos[key] } : null;
 };
 
+export function claimRouting(receipt, stateBefore, config) {
+  const labels = preClaimLabels(receipt.labels, config.linear);
+  const claimConflict = Boolean(receipt.assigneeId) || labels.some((label) => label.startsWith('agent:'));
+  const eligible = !claimConflict && !isEligible({ state: stateBefore, labels }, config.linear);
+  return { claimConflict, repo: eligible ? repoFor(labels, config) : null };
+}
+
 // Pull the last JSON object out of an agent's final message.
 export function parseAgentJson(text) {
   const starts = [...text.matchAll(/\{/g)].map((m) => m.index);
@@ -446,10 +453,10 @@ export async function main(argv) {
       && !isEligible({ state: current.status, labels: current.labels }, config.linear));
     claimed = candidate;
     row.issue = claimed.issue;
-    const labelsAfter = preClaimLabels(receipt.labels, config.linear);
-    const repo = repoFor(labelsAfter, config);
-    claimConflict = Boolean(receipt.assigneeId) || labelsAfter.some((label) => label.startsWith('agent:'));
-    if (!repo || claimConflict || isEligible({ state: claimed.stateBefore, labels: labelsAfter }, config.linear)) {
+    const routing = claimRouting(receipt, claimed.stateBefore, config);
+    const { repo } = routing;
+    claimConflict = routing.claimConflict;
+    if (!repo) {
       throw new Error('claim changed before implementation');
     }
     // 2. clone and implement

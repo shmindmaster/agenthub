@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import {
-  GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday, linearScopeVerified, linearSite, verifiedCandidate,
+  GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday, linearScopeVerified, linearSite, verifiedCandidate, claimRouting,
   acquireLock, lockState, touchedPackages, packageFollowUp, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify, wasIneligible,
 } from '../skills/dispatch/forge-intake.mjs';
 
@@ -39,6 +39,14 @@ test('only a mapped app label yields a repository', () => {
   assert.equal(repoFor(bug.labels, config).repo, 'shmindmaster/agenthub');
   assert.equal(repoFor(['app:abacare', 'type:bug'], config), null);
   assert.equal(repoFor(['app:pendoah', 'type:bug'], config), null);
+});
+
+test('a routing change after claiming stops implementation without overwriting another agent’s claim', () => {
+  const labels = [...bug.labels, config.linear.claimLabel];
+  assert.equal(claimRouting({ labels }, 'Ready', config).repo.repo, 'shmindmaster/agenthub');
+  assert.deepEqual(claimRouting({ labels: ['Bug', config.linear.claimLabel] }, 'Ready', config), { claimConflict: false, repo: null });
+  assert.deepEqual(claimRouting({ labels: [...labels, 'agent:codex'] }, 'Ready', config), { claimConflict: true, repo: null });
+  assert.deepEqual(claimRouting({ labels, assigneeId: 'operator' }, 'Ready', config), { claimConflict: true, repo: null });
 });
 
 test('branch names are short, lowercase and carry the issue id', () => {
