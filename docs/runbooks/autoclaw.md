@@ -27,3 +27,5 @@ Close AutoClaw before applying. The account must already be initialized on this 
 AgentHub stages tracked files under its local runtime directory and uses ZCode to register the catalogs and install or update plugins. It reports marketplace ownership conflicts without replacing the existing source. It preserves existing enablement choices and keeps capability-owned local MCPs with `startupEnabled: false` disabled. The built-in AutoClaw plugins remain under vendor control. General fleet sync and dispatch exclude AutoClaw.
 
 Same-channel app update verification, desktop UI acceptance, and an authenticated tool invocation from an AutoClaw conversation remain open. To check the official update channel in the app, use Settings → About. [AutoClaw installation and updates](https://autoclaw.z.ai/en/docs/getting-started/install/)
+
+AutoClaw mirrors its account-owned `autoglm-browser-agent` into the shared Windows skills directory. AgentHub recognizes the mirror when the skill document and signed service match the vendor account copy. The app reconciles that mirror on startup. Keep the account-owned skill intact and investigate any content mismatch before pruning.

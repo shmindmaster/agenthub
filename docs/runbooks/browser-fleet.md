@@ -81,6 +81,8 @@ Use the same provider endpoints and tool capabilities across the fleet. Keep exi
 | Parallel research | `https://mcp.parallel.ai/mcp?login&tools=web_research` | Native OAuth under the intended Parallel account. A separate research-only connection keeps duplicate search tools out of context. Before using it, verify the account and usage attribution. |
 | Tavily | `https://mcp.tavily.com/mcp/` | Native OAuth for search, extract, crawl, map and research. Use the intended account and keep consent with the host. |
 
+Use `parallel-research` for the optional research-only registration. Where the host supports an off switch, keep it off until you are ready to consent and verify the account.
+
 [Parallel MCP and billing](https://docs.parallel.ai/integrations/mcp/quickstart) · [Parallel Agent Skills](https://github.com/parallel-web/parallel-agent-skills) · [Tavily MCP](https://docs.tavily.com/documentation/mcp)
 
 | Interface | Native setup and readback |

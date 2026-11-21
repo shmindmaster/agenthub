@@ -37,11 +37,13 @@
       "note": "Owner direction 2026-11-04: no direct MCP entries beyond what a host needs, on every coding host. Each key under hosts is a plugin-only host, and its value lists the only direct entries allowed there, with the reason. pluginOwnersByHost on each server records which plugin carries it. tests/Test-PluginOnlyMcp.ps1 fails on any other entry. Hosts not listed here keep the older write-everything behaviour.",
       "hosts": {
         "claude": {
+          "parallel": "Preserve the native anonymous fallback while the marketplace Parallel Search entry is independently verified.",
           "tavily": "Tavily documents native Streamable HTTP and account OAuth in Claude Code. Preserve the user-level connection.",
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep vendor AWS skills and suppress plugin:aws-core:aws-mcp when the hosted connection owns this server. Native OAuth consent is per host and AWS identity.",
           "devin": "No vendor plugin carries the official Devin MCP server. Owner-configured remote entry whose native headersHelper runs packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1, which reads the key with op read through the 1Password service account at connect time; no key or key-bearing variable is stored in the config (SH-4969)."
         },
         "codex": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel": "Preserve the native anonymous search and fetch route. Keep vendor Parallel skills distinct from MCP delivery.",
           "tavily": "Preserve the vendor-documented native Codex MCP and its OAuth consent.",
           "node_repl": "Written by Codex itself; its bundled browser, chrome and computer-use plugins need it.",
@@ -54,11 +56,14 @@
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint for Cursor. Use its native remote MCP configuration and consent flow, with no local proxy."
         },
         "grok": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel": "Preserve the existing native hosted Parallel route when Grok imports Claude plugins.",
           "tavily": "Preserve the native Grok Build Streamable HTTP entry and its OAuth consent.",
           "aws-mcp": "A native remote override selects AWS's hosted OAuth endpoint while vendor skills remain installed. Preserve the existing disabled state and verify that the effective source replaces the bundled proxy before enabling."
         },
         "factory": {
+          "context7": "Preserve the existing user-level Context7 vendor HTTP connection and its independently managed authorization.",
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel-search": "Preserve Droid’s native hosted anonymous Parallel entry and its existing server name.",
           "tavily": "Preserve Droid’s native vendor-hosted HTTP entry. Authorize with /mcp and the Droid keyring.",
           "web-reader": "Preserve the existing Z.ai Coding Plan hosted Web Reader connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server.",
@@ -66,6 +71,7 @@
           "zread": "Preserve the existing Z.ai Coding Plan hosted repository documentation connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server."
         },
         "zcode": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Use ZCode’s native hosted MCP with OAuth enabled in its MCP settings."
         },
         "antigravity": {
@@ -81,6 +87,7 @@
           "clerk": "Clerk CLI targets stable VS Code, so Insiders uses its own remote entry with Copilot official skills."
         },
         "cline": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel": "Use Cline Streamable HTTP configuration for anonymous Parallel search and fetch. Keep tool auto-approval empty.",
           "adobe-for-creativity": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
           "context7": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
@@ -97,6 +104,7 @@
           "tavily": "Preserve the Tavily-hosted Streamable HTTP entry and native OAuth state in Cline CLI and the extension. Authorize each surface in Cline."
         },
         "opencode": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve the OpenCode native hosted remote MCP and its OAuth settings.",
           "parallel": "Use Parallel's official hosted search and fetch endpoint through OpenCode's native remote MCP configuration. The vendor npm plugin is a separate integration that requires personal authorization.",
           "browse": "OpenCode's native real-profile browser integration uses a host-owned local relay. Preserve its native registration; cloud browsers do not inherit desktop logins.",
@@ -129,6 +137,7 @@
           "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
         },
         "kilo": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve Kilo’s remote MCP entry in kilo.jsonc and its native OAuth state.",
           "parallel": "Use kilo mcp add to register the vendor hosted anonymous HTTP endpoint in kilo.jsonc."
         },
@@ -222,6 +231,27 @@
       "hosts": ["cursor", "vscode-insiders", "amp", "cline", "opencode"],
       "hostScopeNote": "Managed streamable HTTP targets. OpenCode 2 uses mcp.servers and may return an empty catalog while MCP connections initialize. Kilo uses its native user command and stores the entry in kilo.jsonc. Client discovery and tool execution are checked separately from the endpoint probe.",
       "notes": "Official endpoint: https://parallel.ai/mcp. Use public queries and URLs. OAuth via the vendor login endpoint and API-key usage can bill the connected Parallel account; neither is configured by the fleet default."
+    },
+    {
+      "id": "parallel-research",
+      "name": "Parallel Research",
+      "scope": "owner-configured",
+      "scopeNote": "Optional user-level OAuth registration. Preserve native activation and authorization state.",
+      "transport": "http",
+      "activationMode": "shared-remote",
+      "url": "https://mcp.parallel.ai/mcp?login&tools=web_research",
+      "credentialPolicy": "oauth",
+      "protocol": {
+        "revision": null,
+        "verifiedOn": "2026-11-20",
+        "verification": "Anonymous initialize on the vendor login endpoint returned HTTP 401 with a WWW-Authenticate challenge. Could not establish the protocol revision without an authenticated handshake."
+      },
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
+      "hosts": ["cline", "codex", "factory", "grok", "kilo", "opencode", "zcode"],
+      "notes": "The anonymous Parallel registration keeps search and fetch available. The OAuth tool filter prevents duplicate search and fetch tools. Confirm the intended account before use."
     },
     {
       "id": "tavily",
