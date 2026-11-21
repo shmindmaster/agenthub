@@ -13,7 +13,7 @@ import os
 import sys
 
 from daytona import Daytona
-from daytona.v2 import MacosResources
+from daytona.v2 import DISABLED, MacosResources
 
 REGION = "us-east-bos-1"
 MODEL = "m4pro-12c-48g"
@@ -25,6 +25,9 @@ SANDBOXES = {
 # Two sandboxes share the m4pro-12c-48g host: half the cores and RAM each,
 # with disk kept under the per-sandbox share left by the first box.
 RESOURCES = MacosResources(cpu=6, memory=24, disk=100)
+# The default 300-second sandbox timeout would stop these boxes between uses.
+# 86400 is the organization plan maximum; idle expiry is cleared.
+LIFECYCLE = {"timeout_seconds": 86400, "idle_expiry_seconds": DISABLED}
 
 
 def client() -> Daytona:
@@ -60,6 +63,17 @@ def main() -> None:
 
     if action == "status":
         return
+    if action == "wake":
+        # Manual, capability-invoked refresh: start stopped boxes and re-arm
+        # the 24-hour sandbox timeout. No scheduled job is registered.
+        for sandbox in existing.values():
+            if str(sandbox.state) != "started":
+                d.v2.start(sandbox.id)
+            policy = sandbox.update_lifecycle_policy(
+                timeout_seconds=86400, idle_expiry_seconds=DISABLED
+            )
+            print("wake", sandbox.name, "timeout_at", getattr(policy, "timeout_at", None))
+        return
     if action == "stop":
         # Stopping every sandbox and clearing auto_renew lets the reservation
         # end with its current 24-hour period; no charge after that.
@@ -92,6 +106,7 @@ def main() -> None:
             labels=labels,
             persistent=True,
             reservation=reservation.id,
+            lifecycle_policy=LIFECYCLE,
             # The SDK allows auto_renew only when it creates the reservation
             # itself (reservation="new"). Ours was created with auto_renew=True.
             region=REGION,
