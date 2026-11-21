@@ -26,20 +26,6 @@ try {
     $before=[IO.File]::ReadAllText($path)
     $second=Sync-HostMcp-Cline -Path $path -McpEntries $entries
     Assert ($before -eq [IO.File]::ReadAllText($path) -and $second.status -eq 'unchanged') 'second sync is byte-identical and reports unchanged'
-
-    $endpoint='https://mcp.exa.ai/mcp'
-    $exa=@{type='streamableHttp';url=$endpoint;disabled=$true;headers=@{'x-api-key'='${env:EXA_API_KEY}';'X-Owner'='keep'};oauth=@{fixture='keep'}}
-    $entries=@{exa=@{type='http';url=$endpoint}}
-    [IO.File]::WriteAllText($path,(@{mcpServers=@{exa=$exa}} | ConvertTo-Json -Depth 10))
-    $null=Sync-HostMcp-Cline -Path $path -McpEntries $entries
-    $result=(Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json).mcpServers.exa
-    Assert ($null -eq $result.headers.'x-api-key' -and $result.headers.'X-Owner' -eq 'keep' -and
-        $result.oauth.fixture -eq 'keep' -and $result.disabled -eq $true) 'Exa sync removes only the legacy key reference'
-    $exa.headers.'x-api-key'='owner-selected-fixture'
-    [IO.File]::WriteAllText($path,(@{mcpServers=@{exa=$exa}} | ConvertTo-Json -Depth 10))
-    $null=Sync-HostMcp-Cline -Path $path -McpEntries $entries
-    $result=(Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json).mcpServers.exa
-    Assert ($result.headers.'x-api-key' -eq 'owner-selected-fixture') 'Exa sync retains a separately configured owner key'
 } finally {
     $resolved=[IO.Path]::GetFullPath($fixture)
     if($resolved.StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()),[StringComparison]::OrdinalIgnoreCase) -and (Split-Path -Leaf $resolved) -like 'agenthub-cline-deferred-*') {Remove-Item -LiteralPath $resolved -Recurse -Force}

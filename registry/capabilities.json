@@ -1337,7 +1337,7 @@
         "research-entities",
         "research-monitor"
       ],
-      "contentHash": "D68030948C6AA4F63BC099133EE3DF29D524B4CD027ACA6069727AB04D015847",
+      "contentHash": "A8C7294F43BF8ABD41BC2CCA2B93738123873BC81644FC700EFBABD88E31FB1A",
       "hashBasis": "packages/research",
       "status": "active-canonical",
       "kind": "workflow",

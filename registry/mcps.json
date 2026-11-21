@@ -443,6 +443,7 @@
         "id": "mcp-registry"
       },
       "notes": "Official MCP: https://exa.ai/docs/get-started/exa-mcp. Account Agent access and Websets have separate native authorization and acceptance.",
+      "hosts": ["cline", "opencode", "warp"],
       "hostConfigOverrides": {
         "opencode": {
           "enabled": false
