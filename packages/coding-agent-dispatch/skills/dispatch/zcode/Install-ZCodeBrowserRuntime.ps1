@@ -8,7 +8,7 @@ $node = Get-Command node -CommandType Application | Select-Object -First 1
 & $node.Source -e "if (typeof require('node:module').registerHooks !== 'function') process.exit(1)"
 if ($LASTEXITCODE -ne 0) { throw 'ZCode Browser Use requires Node with node:module registerHooks support.' }
 
-$manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'package.json') -Raw | ConvertFrom-Json
+$manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $version = $manifest.dependencies.'playwright-core'
 $runtime = Join-Path $env:LOCALAPPDATA "AgentHub/runtime/coding-agent-dispatch/zcode/playwright-$version"
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null

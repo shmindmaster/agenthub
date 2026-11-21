@@ -138,13 +138,33 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             $agents.activeAgents += @{ id = 'zcode'; executable = $stub; nativePaths = @{ bundledRuntime = $bundle } }
             Save-Fixture
             $zcodeTask = Join-Path $fixture 'zcode-task.txt'
-            $zcodePrompt = "Say `"ZCODE`" & use the given text.`nSecond line."
+            $zcodePrompt = "Say `"ZCODE`" & use the given text.`nSecond line." + ('x' * 35000)
             [IO.File]::WriteAllText($zcodeTask, $zcodePrompt, [Text.UTF8Encoding]::new($false))
             $r = Run @('-HostId','zcode','-PromptFile',$zcodeTask,'-Cwd',$scratch)
             $result = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-            Check 'Windows ZCode dispatch uses the bundled CLI and intact prompt' ($result -and $result.Arguments[-1] -ceq $zcodePrompt -and $result.Arguments -contains 'guarded') $r.Err
+            Check 'Windows ZCode dispatch preserves a prompt beyond the OS argument limit' ($result -and $result.Arguments[-1] -ceq $zcodePrompt -and $result.Arguments -contains 'guarded') $r.Err
             $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-ZCodeBrowser')
             Check 'Windows ZCode browser refuses without its pinned runtime' ($r.Exit -eq 3 -and $r.Err -match 'Install-ZCodeBrowserRuntime')
+            $edgeBeforeZCode = ${env:ProgramFiles(x86)}
+            try {
+                ${env:ProgramFiles(x86)} = Join-Path $fixture 'zcode-edge'
+                $edgeDir = Join-Path ${env:ProgramFiles(x86)} 'Microsoft/Edge/Application'
+                $null = New-Item -ItemType Directory -Path $edgeDir -Force
+                $null = New-Item -ItemType File -Path (Join-Path $edgeDir 'msedge.exe')
+                $packageFile = Join-Path $repoRoot 'packages/coding-agent-dispatch/skills/dispatch/zcode/package.json'
+                $version = (Get-Content -LiteralPath $packageFile -Raw -Encoding UTF8 | ConvertFrom-Json).dependencies.'playwright-core'
+                $packageDir = Join-Path $env:LOCALAPPDATA "AgentHub/runtime/coding-agent-dispatch/zcode/playwright-$version/node_modules/playwright-core"
+                $null = New-Item -ItemType Directory -Path $packageDir -Force
+                '{}' | Set-Content -LiteralPath (Join-Path $packageDir 'package.json')
+                'export const verifiedLoader = true;' | Set-Content -LiteralPath (Join-Path $packageDir 'index.mjs')
+                'import("playwright-core").then(({ verifiedLoader }) => { console.log(JSON.stringify({ verifiedLoader, args: process.argv.slice(2) })); }).catch(() => process.exit(9));' |
+                    Set-Content -LiteralPath $bundle
+                $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-ZCodeBrowser')
+                $browserResult = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+                Check 'Windows ZCode browser loads pinned Playwright and uses a fresh profile' ($browserResult.verifiedLoader -and $browserResult.args -contains '--no-browser-state' -and $browserResult.args -contains 'headless' -and $browserResult.args[-1] -eq 'ok') $r.Err
+            } finally {
+                ${env:ProgramFiles(x86)} = $edgeBeforeZCode
+            }
             $agents.activeAgents = @($agents.activeAgents | Where-Object id -ne 'zcode')
             Save-Fixture
         } finally {
@@ -153,6 +173,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $r = Run @('-HostId','codex','-Prompt','ok','-ZCodeBrowser')
     Check 'Other hosts refuse the ZCode browser option' ($r.Exit -eq 3 -and $r.Err -match 'applies only to -HostId zcode')
+    $r = Run @('-Forge','-HostId','codex-zai','-Cwd','/srv/work/agenthub-runner/worktrees/demo','-ZCodeBrowser','-ShowCommand')
+    Check 'Forge refuses the ZCode browser option before resolving a remote host' ($r.Exit -eq 3 -and $r.Err -match 'local dispatcher')
     $r = Run @('-List')
     Check 'list succeeds' ($r.Exit -eq 0) $r.Err
     $fleet.dispatchPolicy['codex'] = @{ enabled = $false; reason = 'response capture is not verified'; ownerAction = 'run a bounded smoke after the output fix' }; Save-Fixture

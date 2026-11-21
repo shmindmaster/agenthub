@@ -302,6 +302,10 @@
     ]
   },
   "hostSettings": {
+    "zcode": {
+      "authMode": "account",
+      "loginCommand": "ZCode Desktop > Connect > Z.ai Coding Plan"
+    },
     "cline": {
       "provider": "openai-compatible",
       "model": "qwen3.8-max-0902",
@@ -414,7 +418,8 @@
       "enabled": true,
       "readOnly": null,
       "readOnlyNote": "2026-11-21 Guarded unattended mode is not an enforced read-only contract.",
-      "reason": "Windows desktop bundle uses the native guarded CLI and its existing provider profile. Browser Use is opt-in."
+      "verifiedOn": "2026-11-21",
+      "reason": "Owner authorized Windows ZCode dispatch in SH-5036. The guarded CLI captured the exact prompt response through AgentHub on the saved subscription. Native headless Browser Use passed with the pinned Playwright runtime."
     },
     "cursor": {
       "enabled": true,

@@ -217,6 +217,10 @@ if ($Forge) {
     $forgeCatalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'forge-hosts.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 }
 
+if ($ZCodeBrowser -and ($Forge -or $Auth -or $List -or ([string]$HostId).Trim() -ne 'zcode')) {
+    Write-Refusal 3 '-ZCodeBrowser applies only to -HostId zcode on the local dispatcher.'
+}
+
 if ($Auth) {
     if ($Prompt -or $PromptFile -or $Cwd -or $List -or $ShowCommand -or $ReadOnly -or
         $Role -or $Title -or $SessionId -or $Model -or $AnthropicApiKey -or
@@ -244,6 +248,7 @@ if ($Auth) {
             claude = 'claude auth login; check with claude auth status'
             qwen = 'qwen; run /auth and choose QwenCloud Token Plan'
             mimo = 'mimo providers; select the MiMo Token Plan'
+            zcode = 'In ZCode Desktop, use Connect to sign in to the intended Z.ai Coding Plan and select its model.'
             cline = 'cline auth'
             opencode = 'opencode; run /connect and choose the intended provider'
             'opencode-zai' = 'Use -HostId opencode -Model zai-coding-plan/glm-5.3; the Windows launcher reads ZAI_CODING_PLAN_API_KEY.'
@@ -543,17 +548,18 @@ function Get-DispatchTable {
     # already baked into that shim are not added again.
     return @{
         'zcode' = @{
-            Mode = 'direct-argument'
+            Mode = 'stdin'
             Build = {
                 param($PromptText, $Work, $File)
                 $launch = Resolve-ZCodeLaunch $targetAgent
-                $arguments = @()
+                $loader = Join-Path $PSScriptRoot 'zcode/launch-preload.mjs'
+                $arguments = @('--import', ([uri]::new($loader)).AbsoluteUri)
                 $childEnv = @{
                     ZCODE_BUILTIN_PROVIDER_CONFIG_FILE = $launch.Builtin
                     ZCODE_PERSONAL_PROVIDER_CONFIG_FILE = $launch.Personal
                 }
                 if ($ZCodeBrowser) {
-                    $package = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'zcode/package.json') | ConvertFrom-Json
+                    $package = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $PSScriptRoot 'zcode/package.json') | ConvertFrom-Json
                     $version = $package.dependencies.'playwright-core'
                     $runtime = Join-Path (Get-AgentHubDefaultLocalData) "AgentHub/runtime/coding-agent-dispatch/zcode/playwright-$version"
                     if (-not (Test-Path -LiteralPath (Join-Path $runtime 'node_modules/playwright-core/index.mjs') -PathType Leaf)) {
@@ -563,15 +569,13 @@ function Get-DispatchTable {
                     if (-not (Test-Path -LiteralPath $edge -PathType Leaf)) {
                         Write-Refusal 3 'refused zcode: Microsoft Edge is absent from its Windows installation path'
                     }
-                    $loader = Join-Path $PSScriptRoot 'zcode/playwright-loader.mjs'
-                    $arguments = @('--import', ([uri]::new($loader)).AbsoluteUri)
                     $childEnv.AGENTHUB_ZCODE_PLAYWRIGHT_ROOT = $runtime
                 }
                 $arguments += @($launch.Runtime, '--cwd', $Work, '--no-color', '--mode', 'guarded')
                 if ($ZCodeBrowser) {
                     $arguments += @('--surface', 'desktop', '--browser-use', 'headless', '--browser-executable', $edge, '--no-browser-state')
                 }
-                @{ Args = $arguments + @('--prompt', $PromptText); Env = $childEnv }
+                @{ Args = $arguments + @('--prompt'); Stdin = $PromptText; Env = $childEnv }
             }
         }
         'claude' = @{
@@ -1253,7 +1257,6 @@ if ([string]::IsNullOrWhiteSpace($HostId)) {
     Write-Refusal 3 'Pass -HostId, or -List to see which hosts are callable.'
 }
 $requested = $HostId.Trim()
-if ($ZCodeBrowser -and $requested -ne 'zcode') { Write-Refusal 3 '-ZCodeBrowser applies only to -HostId zcode.' }
 if ($requested -in @('jules', 'cursor-cloud', 'copilot-agent')) {
     Write-Refusal 3 "refused ${requested}: hosted cloud execution is disabled; owner must authorize this specific task, model, cadence, stop condition and cost budget before enabling a verified cloud adapter"
 }
@@ -1534,7 +1537,7 @@ $accountScrub = @{
     'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'warp'         = @('WARP_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'grok'         = @('XAI_API_KEY')
-    'zcode'        = @('ZAI_API_KEY', 'Z_AI_API_KEY', 'BIGMODEL_API_KEY', 'GLM_API_KEY', 'ZCODE_HOME', 'ZCODE_PROVIDER_OPTIONS', 'ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE', 'NODE_OPTIONS')
+    'zcode'        = @('ZAI_API_KEY', 'Z_AI_API_KEY', 'BIGMODEL_API_KEY', 'GLM_API_KEY', 'ZCODE_HOME', 'ZCODE_PROVIDER_OPTIONS', 'ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE', 'AGENTHUB_ZCODE_PLAYWRIGHT_ROOT', 'NODE_OPTIONS')
     'factory'      = @('FACTORY_API_KEY')
     'cursor-agent' = @('CURSOR_API_KEY')
     'amp'          = @('AMP_API_KEY')
