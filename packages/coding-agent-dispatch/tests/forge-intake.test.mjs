@@ -6,8 +6,8 @@ import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import {
-  GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday, linearScopeVerified, linearSite, verifiedCandidate, claimPrompt, linearStateWrite,
-  acquireLock, lockState, touchedPackages, packageFollowUp, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify, wasIneligible,
+  GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday, linearScopeVerified, linearSite, verifiedCandidate,
+  acquireLock, lockState, touchedPackages, packageFollowUp, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify, wasIneligible,
 } from '../skills/dispatch/forge-intake.mjs';
 
 const config = loadConfig(join(fileURLToPath(new URL('../skills/dispatch/', import.meta.url)), 'forge-intake.json'));
@@ -122,11 +122,9 @@ test('diff gate refuses protected paths, secrets, empty and oversized changes', 
   assert.match(checkDiff({ ...ok, files: Array.from({ length: config.limits.maxFiles + 1 }, (_, i) => `f${i}`) }, repo, config.limits).join(), /files exceeds/);
 });
 
-test('each phase gets a Linear tool allowlist, and only select and finish can write', () => {
+test('neither model phase can get Linear write tools', () => {
   const writes = (phase) => config.linear.toolsByPhase[phase].some((t) => t.startsWith('save_') || t.startsWith('create_'));
   assert.equal(writes('select'), false);
-  assert.equal(writes('claim'), true);
-  assert.equal(writes('finish'), true);
   assert.equal(writes('implement'), false);
   for (const phase of Object.keys(config.linear.toolsByPhase)) assert.ok(!config.linear.toolsByPhase[phase].some((t) => /^(delete|merge|unshare)/.test(t)));
   const args = linearArgs(config.linear, 'implement');
@@ -136,8 +134,8 @@ test('each phase gets a Linear tool allowlist, and only select and finish can wr
   assert.match(args[5], /^mcp_servers\.linear_example\.enabled_tools=\["get_issue","list_comments"\]$/);
   assert.equal(args.length, 6, 'a read-only phase approves nothing');
   const select = linearArgs(config.linear, 'select').filter((a) => a !== '-c');
-  assert.ok(linearArgs(config.linear, 'claim').includes('mcp_servers.linear_example.tools.save_issue.approval_mode="approve"'));
   assert.ok(!select.some((a) => a.includes('save_issue')));
+  assert.throws(() => linearArgs({ ...config.linear, toolsByPhase: { select: ['get_team', 'save_issue'] } }, 'select'), /invalid read-only/);
   assert.ok(!select.some((a) => a.includes('.tools.get_issue.')));
 });
 
@@ -264,7 +262,7 @@ test('workspace verification requires a real team result from the configured con
   assert.equal(linearScopeVerified(log({ type: 'agent_message', text: teamId }), config.linear), false);
 });
 
-test('candidate and write evidence bind a Ready issue to the exact team and project', () => {
+test('candidate evidence binds a Ready issue to the exact team and project', () => {
   const { linear } = config;
   const item = { id: 'CORE-82', uuid: '33333333-3333-4333-8333-333333333333', status: 'Ready', labels: bug.labels, teamId: site.teamId, projectId: site.projectId };
   const event = (tool, args, data) => JSON.stringify({ type: 'item.completed', item: { type: 'mcp_tool_call', server: linear.server, tool, arguments: args, status: 'completed', error: null, result: { content: [{ type: 'text', text: JSON.stringify(data) }], structured_content: null } } });
@@ -282,9 +280,6 @@ test('candidate and write evidence bind a Ready issue to the exact team and proj
   const stale = { ...item, status: 'In Progress', labels: [...item.labels, 'agent:forge'], updatedAt: '2026-11-21T01:00:00.000Z' };
   assert.equal(verifiedCandidate(select(stale), config, { ...reply, outcome: 'expired' }, [], null, now)?.uuid, item.uuid);
   assert.equal(verifiedCandidate(select({ ...stale, updatedAt: now }), config, { ...reply, outcome: 'expired' }, [], null, now), null);
-  const write = (id) => event('save_issue', { id, state: 'In Progress' }, { ...item, status: 'In Progress' });
-  assert.ok(linearStateWrite(write(item.uuid), linear, item, 'In Progress'));
-  assert.equal(linearStateWrite(write('wrong'), linear, item, 'In Progress'), undefined);
   assert.throws(() => linearSite({ ...site, workspace: '../other' }), /invalid Linear workspace/);
   assert.throws(() => linearSite({ ...site, projectId: 'name' }), /invalid Linear team or project UUID/);
 });
@@ -342,9 +337,4 @@ test('prompts carry the guardrails the wrapper relies on', () => {
   assert.equal(packageFollowUp(touchedPackages(['scripts/s.mjs'])), '');
   assert.match(packageFollowUp(['a', 'b']), /Packages changed: a, b\. Reviewer follow-up before merge/);
   assert.match(implement, /do not edit the issue/);
-  const issue = { uuid: '33333333-3333-4333-8333-333333333333', title: 'private title' };
-  assert.match(claimPrompt(config.linear, issue), /save_issue call with exactly/);
-  assert.doesNotMatch(claimPrompt(config.linear, issue), /private title/);
-  assert.match(finishPrompt(config.linear, issue, 'Ready', 'Released'), /"state":"Ready"/);
-  assert.doesNotMatch(finishPrompt(config.linear, issue, 'Ready', 'Released'), /private title/);
 });

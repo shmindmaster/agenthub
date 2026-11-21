@@ -11,9 +11,7 @@
     "mcpUrl": "https://mcp.linear.app/mcp",
     "toolsByPhase": {
       "select": ["get_team", "get_issue", "list_issues"],
-      "claim": ["save_issue"],
-      "implement": ["get_issue", "list_comments"],
-      "finish": ["save_issue", "save_comment"]
+      "implement": ["get_issue", "list_comments"]
     }
   },
   "repos": {
@@ -32,7 +30,6 @@
     "minFreeMemMiB": 4096,
     "selectSeconds": 600,
     "implementSeconds": 2400,
-    "finishSeconds": 600,
     "keepRunDays": 14
   },
   "routes": [

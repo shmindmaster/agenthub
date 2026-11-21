@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // Unattended Forge intake: one eligible Linear issue per run becomes one draft pull request.
-// Runs on Forge as agenthub-runner. Linear reads and writes go through a headless Codex session on a
-// token plan; clone, push and `gh pr create` stay in this script so the model sandbox never holds
+// Runs on Forge as agenthub-runner. The wrapper writes to Linear and GitHub; the headless Codex
+// sessions use read-only Linear tools, so the model sandbox never holds
 // GitHub credentials. Nothing is merged, marked ready or deployed.
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { freemem, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { connectForgeLinear } from './forge-linear.mjs';
 
 const HOME = '/srv/work/agenthub-runner';
 const KILL_SWITCH = join(HOME, '.config/agenthub/forge-intake.disabled');
@@ -201,11 +202,6 @@ For new work query list_issues once for each mapped app label (${Object.keys(con
 ${forcedIssue ? `Take only ${forcedIssue}, and only if it is eligible.` : 'Pick the single eligible issue with the highest priority (Urgent first, then oldest), skipping an issue another session claimed.'}
 If one qualifies, reply {"outcome":"eligible","issue":"${l(config).teamKey}-123"}. If none qualifies, reply {"outcome":"none"}.`;
 
-export const claimPrompt = (linear, issue) => `Use only the ${linear.server} MCP server. Make one save_issue call with exactly ${JSON.stringify({ id: issue.uuid, state: linear.claimedState, addLabels: [linear.claimLabel] })}. Run no shell commands. Reply {"ok":true} after the call succeeds.`;
-
-export const linearStateWrite = (events, linear, issue, state) => linearToolResults(events, linear, 'save_issue')
-  .find(({ args, data }) => args?.id === issue.uuid && args.state === state && data.uuid === issue.uuid && data.status === state);
-
 export const implementPrompt = ({ issue, uuid, branch, repo }) => `You are an unattended coding agent on a Forge worktree of ${repo.repo}, on branch ${branch}. Implement Linear issue ${issue}.
 1. Read the issue by UUID ${uuid} with the Linear MCP (read only: do not edit the issue, comment or change labels; the intake wrapper does that). Only write material suitable for the target repository's audience. Keep private Linear content, screenshots, credentials and customer data out of the diff.
 2. Read AGENTS.md in this repository and follow it, including the package change contract.
@@ -213,8 +209,6 @@ export const implementPrompt = ({ issue, uuid, branch, repo }) => `You are an un
 4. Leave your edits in the working tree. The sandbox makes .git read-only, so do not run git add or git commit: the wrapper commits as "${issue}: ..." after checking the diff. Do not push, open a pull request, merge, change .github/, or touch credentials.
 If the issue is ambiguous, needs a decision from the owner, or needs access you do not have, make no edits and say so.
 Reply with one JSON object and nothing else: {"status":"done"|"blocked","summary":"what changed and why","tests":[{"command":"...","result":"pass|fail|not-run"}],"notes":"limits or follow-ups"}. Use "done" when the change is complete in the working tree, even if some tests could not run here.`;
-
-export const finishPrompt = (linear, issue, state, body) => `Use only the ${linear.server} MCP server. Run no shell commands. Make one save_issue call with exactly ${JSON.stringify({ id: issue.uuid, state, removeLabels: [linear.claimLabel] })}. Then add one comment with save_comment using issueId ${issue.uuid} and body ${JSON.stringify(body)}. Reply {"ok":true} when both calls succeed.`;
 
 // ---- process helpers (not exercised by unit tests) ----
 const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts });
@@ -256,24 +250,23 @@ export function permissionArgs(home, access, listDir) {
   return ['-c', 'default_permissions="intake"', '-c', `permissions.intake=${toml({ filesystem, network: { enabled: false } })}`];
 }
 
-// Codex hides most of the Linear server's 78 tools from the model unless an allowlist names them, so the
-// allowlist both makes save_issue callable and keeps each phase to the tools it needs (no deletes).
-// With approval "never" Codex refuses non-read-only MCP tools, so the write tools a phase lists are
-// approved one by one; nothing outside the allowlist is reachable.
+// The selector and implementer only get the reads they need. Intake never approves a model write.
 export const linearArgs = (linear, phase) => {
   const tools = linear.toolsByPhase[phase];
+  if (!tools?.length || tools.some((tool) => !['get_team', 'get_issue', 'list_issues', 'list_comments'].includes(tool))) {
+    throw new Error(`invalid read-only Linear tools for ${phase}`);
+  }
   const server = `mcp_servers.${linear.server}`;
   return [
     '-c', `${server}.url=${JSON.stringify(linear.mcpUrl)}`,
     '-c', `${server}.required=true`,
     '-c', `${server}.enabled_tools=${JSON.stringify(tools)}`,
-    ...tools.filter((tool) => /^(save|create)_/.test(tool)).flatMap((tool) => ['-c', `${server}.tools.${tool}.approval_mode="approve"`]),
   ];
 };
 
 function runAgent({ route, cwd, access, prompt, seconds, dir, name, linear }) {
   const out = join(dir, `${name}.last.txt`);
-  const observeTools = name !== 'implement';
+  const observeTools = name === 'select';
   const args = ['exec', '--skip-git-repo-check', '--ephemeral', ...(observeTools ? ['--json'] : []), '-C', cwd, ...permissionArgs(HOME, access), ...linearArgs(linear, name), '-o', out, prompt];
   const env = { HOME, PATH: `${HOME}/.local/bin:/usr/bin:/bin`, TERM: 'dumb' };
   return new Promise((resolve) => {
@@ -404,13 +397,6 @@ export async function main(argv) {
   const row = { phase: 'run', outcome: 'none' };
   const cool = (limitedRoute, phase) => record({ phase: 'cooldown', route: limitedRoute.id, during: phase, until: new Date(Date.now() + COOLDOWN_MS).toISOString() });
   const gitPush = (checkout, ...rest) => run('git', [...GIT_SAFE, '-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', 'origin', ...rest], { cwd: checkout, env: GIT_ENV });
-  const closeOut = async (route, issue, targetState, message) => {
-    const fin = await runAgent({ route, cwd: work, access: 'read', prompt: finishPrompt(config.linear, issue, targetState, message), seconds: config.limits.finishSeconds, dir, name: 'finish', linear: config.linear });
-    const write = linearStateWrite(fin.events ?? '', config.linear, issue, targetState);
-    const comment = linearToolResults(fin.events ?? '', config.linear, 'save_comment')
-      .some(({ args, data }) => args?.issueId === issue.uuid && args.body === message && Boolean(data.id));
-    return write && Array.isArray(write.data.labels) && !write.data.labels.includes(config.linear.claimLabel) && comment;
-  };
   let claimed = null; let route = null; let pr = null; let reason = null; let checkout = null;
   let claimConflict = false;
   try {
@@ -421,7 +407,7 @@ export async function main(argv) {
     route = flag('--route') ? config.routes.find((r) => r.id === flag('--route')) : pickRoute(config, ledger, now);
     if (!route) { console.log('forge-intake: no enabled route is available (all cooling down or disabled)'); return 0; }
     row.route = route.id;
-    // 1. Verify a read-only candidate, then claim by its verified UUID in a separate turn.
+    // 1. Verify a read-only candidate, then claim it without model write tools.
     const skip = skipList(ledger, config);
     const sel = await runAgent({ route, cwd: work, access: 'read', prompt: selectPrompt(config, skip, forcedIssue), seconds: config.limits.selectSeconds, dir, name: 'select', linear: config.linear });
     if (sel.limited) { cool(route, 'select'); return console.log(`forge-intake: ${route.id} is at its plan limit; cooling down`); }
@@ -445,21 +431,23 @@ export async function main(argv) {
       throw new Error(`selector proposed an unverified issue; see ${dir}`);
     }
     if (sel.reply.outcome === 'expired') {
-      const released = await closeOut(route, candidate, config.linear.pickStates[0], 'The Forge claim expired.');
+      const writer = await connectForgeLinear(config.linear, HOME);
+      const released = await writer.release(candidate, config.linear.pickStates[0], 'The Forge claim expired.', (current) =>
+        current.status === config.linear.claimedState && !current.assigneeId
+        && Date.parse(now) - Date.parse(current.updatedAt) >= config.linear.staleClaimHours * 3600_000
+        && Boolean(repoFor(current.labels ?? [], config)));
       if (!released) throw new Error(`expired claim release not confirmed for ${candidate.issue}; see ${dir}`);
       record({ phase: 'select', route: route.id, outcome: 'released', issue: candidate.issue });
       return console.log(`forge-intake: released expired claim ${candidate.issue}`);
     }
-    const claim = await runAgent({ route, cwd: work, access: 'read', prompt: claimPrompt(config.linear, candidate), seconds: config.limits.selectSeconds, dir, name: 'claim', linear: config.linear });
-    const receipt = linearStateWrite(claim.events ?? '', config.linear, candidate, config.linear.claimedState);
-    if (!receipt) {
-      if (claim.limited) { cool(route, 'claim'); return console.log(`forge-intake: ${route.id} is at its plan limit; cooling down`); }
-      throw new Error(`Linear claim was not confirmed for ${candidate.issue}; see ${dir}`);
-    }
+    const writer = await connectForgeLinear(config.linear, HOME);
+    const receipt = await writer.claim(candidate, (current) =>
+      !current.assigneeId && Array.isArray(current.labels) && Boolean(repoFor(current.labels, config))
+      && !isEligible({ state: current.status, labels: current.labels }, config.linear));
     claimed = candidate;
     row.issue = claimed.issue;
-    const labelsAfter = receipt.data.labels ?? [];
-    if (!labelsAfter.includes(config.linear.claimLabel) || receipt.data.assigneeId || isEligible({ state: claimed.stateBefore, labels: preClaimLabels(labelsAfter, config.linear) }, config.linear)) {
+    const labelsAfter = receipt.labels ?? [];
+    if (!labelsAfter.includes(config.linear.claimLabel) || receipt.assigneeId || isEligible({ state: claimed.stateBefore, labels: preClaimLabels(labelsAfter, config.linear) }, config.linear)) {
       claimConflict = true;
       throw new Error('claim changed before implementation');
     }
@@ -502,7 +490,13 @@ export async function main(argv) {
     if (claimed && route) {
       const stateAfter = pr ? config.linear.reviewState : claimConflict ? config.linear.claimedState : claimed.stateBefore;
       const message = pr ? `Forge opened a draft pull request for review: ${pr}` : 'Forge released its claim after the run ended without a pull request.';
-      row.linearClosed = Boolean(await closeOut(route, claimed, stateAfter, message));
+      try {
+        const writer = await connectForgeLinear(config.linear, HOME);
+        row.linearClosed = await writer.release(claimed, stateAfter, message);
+      } catch (error) {
+        row.linearClosed = false;
+        console.error(`forge-intake: Linear close-out failed: ${redact(error.message)}`);
+      }
       if (!row.linearClosed) console.error(`forge-intake: Linear close-out for ${claimed.issue} not confirmed; see ${dir}`);
     }
     if (checkout && existsSync(checkout)) {

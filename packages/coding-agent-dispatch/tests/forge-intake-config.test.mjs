@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const LAUNCHER = /^\.local\/bin\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const REPO = /^[^/\s]+\/[^/\s]+$/;
-const PHASES = ['select', 'claim', 'implement', 'finish'];
+const PHASES = ['select', 'implement'];
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isString = (value) => typeof value === 'string' && value.length > 0;
 const isStrings = (value) => Array.isArray(value) && value.length > 0 && value.every(isString);
@@ -135,12 +135,10 @@ test('every intake config rule can fail', () => {
     ['agent claim exclusion', linear('excludeLabelPatterns', config.linear.excludeLabelPatterns.filter((pattern) => pattern !== 'agent:*')), 'linear.excludeLabelPatterns must include agent:*'],
     ['select tools', linear('toolsByPhase', { ...config.linear.toolsByPhase, select: [] }), 'linear.toolsByPhase.select must be a non-empty string array'],
     ['selector write', linear('toolsByPhase', { ...config.linear.toolsByPhase, select: ['save_issue'] }), 'linear.toolsByPhase.select must not include save_issue'],
-    ['claim tools', linear('toolsByPhase', { ...config.linear.toolsByPhase, claim: [] }), 'linear.toolsByPhase.claim must be a non-empty string array'],
     ['implement tools', linear('toolsByPhase', { ...config.linear.toolsByPhase, implement: [] }), 'linear.toolsByPhase.implement must be a non-empty string array'],
-    ['finish tools', linear('toolsByPhase', { ...config.linear.toolsByPhase, finish: [] }), 'linear.toolsByPhase.finish must be a non-empty string array'],
     ['implement save_issue', linear('toolsByPhase', { ...config.linear.toolsByPhase, implement: [...config.linear.toolsByPhase.implement, 'save_issue'] }), 'linear.toolsByPhase.implement must not include save_issue'],
     ['implement save_comment', linear('toolsByPhase', { ...config.linear.toolsByPhase, implement: [...config.linear.toolsByPhase.implement, 'save_comment'] }), 'linear.toolsByPhase.implement must not include save_comment'],
-    ['delete tool', linear('toolsByPhase', { ...config.linear.toolsByPhase, finish: [...config.linear.toolsByPhase.finish, 'delete_issue'] }), 'linear.toolsByPhase.finish must not include delete tool delete_issue'],
+    ['delete tool', linear('toolsByPhase', { ...config.linear.toolsByPhase, implement: [...config.linear.toolsByPhase.implement, 'delete_issue'] }), 'linear.toolsByPhase.implement must not include delete tool delete_issue'],
     ['repos', { repos: {} }, 'repos must be a non-empty object'],
     ['repo key', { repos: { agenthub: validRepo } }, 'agenthub: repo key must start with app:'],
     ['owner/name', repo('repo', 'agenthub'), 'app:agenthub: repo must be an owner/name string'],

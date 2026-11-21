@@ -223,10 +223,10 @@ credentials in the wrapper:
    moving it to Ready and applying `app:agenthub` with `Bug`, `Maintenance`,
    or `Improvement`. Forge returns stale `agent:forge` claims (8 h) to Ready.
    The read-only selector calls Linear MCP for the configured team UUID and
-   queries its project for each mapped app label. Before passing only the
-   verified issue UUID and desired transition to the claim session, the wrapper
-   checks the tool's team, project, state, assignee, and labels. The claim
-   session adds `agent:forge` and sets In Progress.
+   queries its project for each mapped app label. The wrapper verifies the team,
+   project, state, assignee and labels from the actual tool response, then
+   checks the issue again by UUID. It sends only the fixed claim transition
+   and `agent:forge` label to Linear.
 2. **Implement** (permission profile, network off, Linear read-only). The
    agent works in a fresh clone, follows the repository's AGENTS.md, and leaves
    its edits uncommitted: the wrapper commits.
@@ -252,7 +252,7 @@ credentials in the wrapper:
    `pwsh`, with `node scripts/registry-content-hash.mjs packages/<name>`: a
    Node port that produces the same hash and is test-enforced by
    `scripts/registry-content-hash.test.mjs`. CI fails on drift until then.
-4. **Close out** (Linear write allowlist). Comments the PR link, removes
+4. **Close out** (wrapper only). Revalidates the issue, comments the PR link, removes
    `agent:forge`, and sets In Review, or on failure restores the earlier state
    with the reason. It never sets Done. CI on the PR is the verification.
    A person or a different host reviews and marks it ready; nothing is merged
@@ -274,7 +274,9 @@ tool lists exclude every delete.
 Codex exposes only a handful of the Linear server's 78 tools to the model
 unless an allowlist names them, so each phase passes
 `mcp_servers.linear_<workspace>.enabled_tools`. Selection and implementation
-are read-only. Claim and close-out use separate tool allowlists.
+are read-only. The wrapper alone writes through the official Linear MCP
+endpoint. It reads the dedicated, launcher-managed OAuth entry from the
+service account's credential file and uses fixed mutation arguments.
 
 Limits: one issue per run, 6 runs a day, 2 attempts per issue (a PR or a second
 failure retires it from selection), one run at a time, free memory of at least
