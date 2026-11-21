@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts.
 metadata:
-  version: "0.11.4"
+  version: "0.11.5"
 ---
 
 # Dispatch to another coding agent
@@ -79,7 +79,7 @@ widen its allowlist in a brief; see "Forge unattended intake" in
    `-TimeoutSec 7200` for program-scale work. `-ShowCommand` prints the command
    without starting anything. It does not prove that a host will execute it.
 
-   `-Model <id>` picks the model for codex, grok, opencode, cline, warp,
+   `-Model <id>` picks the model for codex, grok, opencode, cline,
    factory, devin, kilo, mimo-code and qwen. Any model the host can reach is
    accepted: `allowedModels` in `dispatchPolicy` records the smoke-verified
    models and does not limit the choice. An unlisted model adds one stderr

@@ -43,7 +43,7 @@ foreach ($hostEntry in $policy.hosts.PSObject.Properties) {
         Assert-True (-not [string]::IsNullOrWhiteSpace([string]$allowed.Value)) "$($hostEntry.Name)/$($allowed.Name) has no reason"
     }
 }
-foreach ($named in 'claude', 'codex', 'cursor', 'grok', 'factory', 'antigravity', 'copilot', 'vscode-insiders', 'cline', 'opencode', 'amp', 'devin', 'warp', 'kilo', 'mimo-code') {
+foreach ($named in 'claude', 'codex', 'cursor', 'grok', 'factory', 'antigravity', 'copilot', 'vscode-insiders', 'cline', 'opencode', 'amp', 'devin', 'kilo', 'mimo-code') {
     Assert-True ($null -ne $policy.hosts.PSObject.Properties[$named]) "coding host '$named' is not plugin-only"
 }
 
@@ -137,7 +137,6 @@ $targets = @(
     @{ HostId = 'vscode-insiders'; Path = (Join-Path $roaming 'Code - Insiders/User/mcp.json'); Reader = { param($p) Get-JsonKeys $p 'servers' } }
     @{ HostId = 'amp'; Path = (Join-Path $userHome '.config/amp/settings.json'); Reader = { param($p) Get-JsonKeys $p 'amp.mcpServers' } }
     @{ HostId = 'devin'; Path = (Join-Path $roaming 'devin/mcp_config.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
-    @{ HostId = 'warp'; Path = (Join-Path $userHome '.warp/.mcp.json'); Reader = { param($p) Get-JsonKeys $p 'mcpServers' } }
     @{ HostId = 'kilo'; Path = (Join-Path $userHome '.config/kilo/config.json'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
     @{ HostId = 'kilo'; Path = (Join-Path $userHome '.config/kilo/kilo.jsonc'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }
     @{ HostId = 'mimo-code'; Path = (Join-Path $userHome '.config/mimocode/mimocode.jsonc'); Reader = { param($p) Get-JsonKeys $p 'mcp' } }

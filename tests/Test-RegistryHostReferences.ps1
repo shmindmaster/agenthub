@@ -282,7 +282,10 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # 2026-11-19 (SH-4969) the owner authorized Devin Cloud and its API with a recorded
     # budget, so devin-cloud joins the list; the cloud-surface guard below still has
     # to clear on its cloudBudgetAuthorization.
-    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin',
+    # Warp was decommissioned 2026-11-19 (docs/fleet/retired-hosts-2026-10-21.md): it was
+    # uninstalled and moved to inactiveAgents, so it left the owner-authorized list; its
+    # dispatch policy record must stay disabled and is pinned below beside windsurf.
+    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'factory', 'devin',
         'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'qwen', 'devin-cloud')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
@@ -321,6 +324,11 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     if (($Policy.PSObject.Properties.Name -contains 'windsurf') -and $Policy.windsurf.enabled -ne $false) {
         $violations.Add('windsurf must stay disabled while registry/agents.json lists it as an inactive agent')
     }
+    # Warp was decommissioned 2026-11-19 (docs/fleet/retired-hosts-2026-10-21.md); its
+    # policy record is retained as history and must stay disabled while it is inactive.
+    if (($Policy.PSObject.Properties.Name -contains 'warp') -and $Policy.warp.enabled -ne $false) {
+        $violations.Add('warp must stay disabled while registry/agents.json lists it as an inactive, retired agent')
+    }
     return $violations
 }
 
@@ -352,7 +360,7 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add("$($entry.Name) has no loginCommand")
         }
     }
-    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf', 'kilo', 'mimo-code', 'qwen')
+    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'windsurf', 'kilo', 'mimo-code', 'qwen')
     foreach ($id in $dispatchHosts) {
         if ($profile.hostSettings.PSObject.Properties.Name -notcontains $id) {
             $violations.Add("$id has no hostSettings authentication record")
@@ -382,14 +390,6 @@ function Test-LiveHostAuthenticationMetadata {
         $openCode.agent -ne 'peer' -or
         $null -ne $openCode.ownerAction) {
         $violations.Add('OpenCode Go dispatch must keep its account login, the opencode-go dispatch default and the subscription-plan host defaults inside allowedModels with no opencode/ (Zen wallet) ids, and the outward-action-denying peer agent')
-    }
-    $warpPolicy = $profile.dispatchPolicy.warp
-    if ($warpPolicy.enabled -eq $true -and (
-        $profile.hostSettings.warp.authMode -ne 'account' -or
-        @($warpPolicy.allowedModels) -notcontains $warpPolicy.model -or
-        [string]$warpPolicy.scope -notmatch '^local-only' -or
-        [string]$warpPolicy.guard -notmatch 'GIT_CONFIG')) {
-        $violations.Add('Warp dispatch must stay local-only on its account login, with its default model inside allowedModels and the recorded child-environment guard')
     }
     $factoryPolicy = $profile.dispatchPolicy.factory
     if ($factoryPolicy.enabled -eq $true -and (

@@ -8,7 +8,7 @@ Contents: Models, Factory and OpenCode roles, Read-only runs, Account hosts, New
 
 Owner direction 2026-11-10: a model or coding plan is allowed on any host where it can be integrated and supported.
 
-- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, warp, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment). Other hosts take no `-Model`.
+- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment). Other hosts take no `-Model`. Warp is retired and dispatch is disabled; it takes no `-Model`.
 - `dispatchPolicy.<host>.allowedModels` records the smoke-verified models. It does not limit the choice. An unlisted model adds one stderr line, `note: <host> model '<id>' is not in the smoke-verified list; passing it through`, and the run continues. The host and its plan decide what the model costs; check the cost before routing an expensive one.
 - The id must be well formed: no whitespace or shell metacharacters; `provider/model` for opencode, kilo and mimo-code; `provider:model` for cline. A malformed id is refused with exit 3.
 
