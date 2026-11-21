@@ -5,6 +5,8 @@ const LINEAR_MCP = 'https://mcp.linear.app/mcp';
 const PROTOCOL = '2025-06-18';
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
+export class LinearAuthorizationError extends Error {}
+
 function accessToken(home, linear, readFile) {
   // The launcher refreshes this service account's native OAuth session during selection.
   const store = JSON.parse(readFile(join(home, '.codex', '.credentials.json'), 'utf8'));
@@ -31,9 +33,12 @@ async function readRpc(response, id) {
 }
 
 function toolData(result) {
-  if (result.isError) throw new Error('Linear MCP rejected the request');
   const content = result.content?.find((item) => item.type === 'text')?.text;
-  const data = result.structuredContent ?? JSON.parse(content ?? '{}');
+  let data;
+  try { data = result.structuredContent ?? JSON.parse(content ?? '{}'); }
+  catch { throw new Error('Linear MCP did not return a structured tool response'); }
+  if (data.status === 401) throw new LinearAuthorizationError('Forge Linear OAuth needs to be refreshed');
+  if (result.isError) throw new Error('Linear MCP rejected the request');
   if (data.error) throw new Error('Linear MCP reported a tool error');
   return data;
 }
@@ -56,6 +61,7 @@ export async function connectForgeLinear(linear, home, { fetchImpl = fetch, read
       method: 'POST', headers, redirect: 'error', signal: AbortSignal.timeout(20_000),
       body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
     });
+    if (response.status === 401) throw new LinearAuthorizationError('Forge Linear OAuth needs to be refreshed');
     if (!response.ok) throw new Error(`Linear MCP ${method} failed (HTTP ${response.status})`);
     if (method === 'initialize') session = response.headers.get('mcp-session-id');
     if (notification) return;
@@ -118,9 +124,17 @@ export async function connectForgeLinear(linear, home, { fetchImpl = fetch, read
       if (after.status !== linear.claimedState || !after.labels?.includes(linear.claimLabel)) throw new Error('Forge Linear claim did not verify');
       return after;
     },
-    async release(issue, targetState, message, verifyCurrent) {
+    async release(issue, targetState, message, verifyCurrent, resume = false) {
       const before = await readIssue(issue);
-      if (!before.labels?.includes(linear.claimLabel) || (verifyCurrent && !verifyCurrent(before))) return false;
+      if (verifyCurrent && !verifyCurrent(before)) return false;
+      if (!before.labels?.includes(linear.claimLabel)) {
+        if (!resume || before.status !== targetState) return false;
+        const response = await call('list_comments', { issueId: issue.uuid });
+        const comments = Array.isArray(response) ? response : response.comments;
+        if (!Array.isArray(comments)) throw new Error('Forge Linear close-out could not verify existing comments');
+        if (comments.some((comment) => comment.body === message)) return true;
+        return Boolean((await call('save_comment', { issueId: issue.uuid, body: message })).id);
+      }
       const state = before.assigneeId || before.status !== linear.claimedState ? before.status : targetState;
       const after = await writeState(issue, before, state, 'release');
       if (after.status !== state || after.labels?.includes(linear.claimLabel)) return false;

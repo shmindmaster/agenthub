@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const LAUNCHER = /^\.local\/bin\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const REPO = /^[^/\s]+\/[^/\s]+$/;
-const PHASES = ['select', 'implement'];
+const PHASES = ['select', 'implement', 'refresh'];
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isString = (value) => typeof value === 'string' && value.length > 0;
 const isStrings = (value) => Array.isArray(value) && value.length > 0 && value.every(isString);
@@ -33,7 +33,7 @@ export function validateIntakeConfig(config) {
       for (const phase of PHASES) {
         if (!isStrings(tools[phase])) errors.push(`linear.toolsByPhase.${phase} must be a non-empty string array`);
       }
-      for (const phase of ['select', 'implement']) {
+      for (const phase of PHASES) {
         if (isStrings(tools[phase])) {
           for (const tool of tools[phase].filter((name) => /^(save|create|update|delete)_/.test(name))) {
             errors.push(`linear.toolsByPhase.${phase} must not include ${tool}`);

@@ -11,7 +11,8 @@
     "mcpUrl": "https://mcp.linear.app/mcp",
     "toolsByPhase": {
       "select": ["get_team", "get_issue", "list_issues"],
-      "implement": ["get_issue", "list_comments"]
+      "implement": ["get_issue", "list_comments"],
+      "refresh": ["get_team"]
     }
   },
   "repos": {

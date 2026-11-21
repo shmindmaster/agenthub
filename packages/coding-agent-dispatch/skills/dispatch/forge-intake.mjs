@@ -8,7 +8,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realp
 import { freemem, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { connectForgeLinear } from './forge-linear.mjs';
+import { connectForgeLinear, LinearAuthorizationError } from './forge-linear.mjs';
 
 const HOME = '/srv/work/agenthub-runner';
 const KILL_SWITCH = join(HOME, '.config/agenthub/forge-intake.disabled');
@@ -265,6 +265,7 @@ export const linearArgs = (linear, phase) => {
   }
   const server = `mcp_servers.${linear.server}`;
   return [
+    '-c', 'mcp_oauth_credentials_store="file"',
     '-c', `${server}.url=${JSON.stringify(linear.mcpUrl)}`,
     '-c', `${server}.required=true`,
     '-c', `${server}.enabled_tools=${JSON.stringify(tools)}`,
@@ -273,7 +274,7 @@ export const linearArgs = (linear, phase) => {
 
 function runAgent({ route, cwd, access, prompt, seconds, dir, name, linear }) {
   const out = join(dir, `${name}.last.txt`);
-  const observeTools = name === 'select';
+  const observeTools = name !== 'implement';
   const args = ['exec', '--skip-git-repo-check', '--ephemeral', ...(observeTools ? ['--json'] : []), '-C', cwd, ...permissionArgs(HOME, access), ...linearArgs(linear, name), '-o', out, prompt];
   const env = { HOME, PATH: `${HOME}/.local/bin:/usr/bin:/bin`, TERM: 'dumb' };
   return new Promise((resolve) => {
@@ -404,6 +405,19 @@ export async function main(argv) {
   const row = { phase: 'run', outcome: 'none' };
   const cool = (limitedRoute, phase) => record({ phase: 'cooldown', route: limitedRoute.id, during: phase, until: new Date(Date.now() + COOLDOWN_MS).toISOString() });
   const gitPush = (checkout, ...rest) => run('git', [...GIT_SAFE, '-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', 'origin', ...rest], { cwd: checkout, env: GIT_ENV });
+  const closeOut = async (route, issue, state, message) => {
+    try {
+      const writer = await connectForgeLinear(config.linear, HOME);
+      return await writer.release(issue, state, message);
+    } catch (error) {
+      if (!(error instanceof LinearAuthorizationError)) throw error;
+      const prompt = `Call only get_team on ${config.linear.server} with query ${config.linear.teamId}. Use no other tools and reply {"ok":true}.`;
+      const auth = await runAgent({ route, cwd: work, access: 'read', prompt, seconds: config.limits.selectSeconds, dir, name: 'refresh', linear: config.linear });
+      if (!linearScopeVerified(auth.events ?? '', config.linear)) throw new Error('Forge could not renew the configured Linear connection');
+      const writer = await connectForgeLinear(config.linear, HOME);
+      return writer.release(issue, state, message, undefined, true);
+    }
+  };
   let claimed = null; let route = null; let pr = null; let reason = null; let checkout = null;
   let claimConflict = false;
   try {
@@ -417,24 +431,21 @@ export async function main(argv) {
     // 1. Verify a read-only candidate, then claim it without model write tools.
     const skip = skipList(ledger, config);
     const sel = await runAgent({ route, cwd: work, access: 'read', prompt: selectPrompt(config, skip, forcedIssue), seconds: config.limits.selectSeconds, dir, name: 'select', linear: config.linear });
+    record({ phase: 'select', route: route.id, outcome: 'attempt' });
     if (sel.limited) { cool(route, 'select'); return console.log(`forge-intake: ${route.id} is at its plan limit; cooling down`); }
     if (!linearScopeVerified(sel.events ?? '', config.linear) || sel.code !== 0 || !['none', 'eligible', 'expired'].includes(sel.reply?.outcome)) {
-      record({ phase: 'select', route: route.id, outcome: 'failed' });
       throw new Error(`Linear selection did not verify ${workspace}/${teamKey} (exit ${sel.code}); see ${dir}`);
     }
     if (sel.reply.outcome === 'none') {
       const mappedLabels = Object.keys(config.repos);
       const lists = scopedIssues(sel.events, config.linear);
       if (!mappedLabels.every((label) => lists.some(({ args }) => args.label === label))) {
-        record({ phase: 'select', route: route.id, outcome: 'failed' });
         throw new Error(`selector did not query the configured applications; see ${dir}`);
       }
-      record({ phase: 'select', route: route.id, outcome: 'none' });
       return console.log(`forge-intake: nothing taken from ${workspace}/${teamKey}`);
     }
     const selected = verifiedCandidate(sel.events, config, sel.reply, skip, forcedIssue, now);
     if (!selected) {
-      record({ phase: 'select', route: route.id, outcome: 'failed' });
       throw new Error(`selector proposed an unverified issue; see ${dir}`);
     }
     const writer = await connectForgeLinear(config.linear, HOME);
@@ -445,7 +456,6 @@ export async function main(argv) {
         && Date.parse(now) - Date.parse(current.updatedAt) >= config.linear.staleClaimHours * 3600_000
         && Boolean(repoFor(current.labels ?? [], config)));
       if (!released) throw new Error(`expired claim release not confirmed for ${candidate.issue}; see ${dir}`);
-      record({ phase: 'select', route: route.id, outcome: 'released', issue: candidate.issue });
       return console.log(`forge-intake: released expired claim ${candidate.issue}`);
     }
     const receipt = await writer.claim(candidate, (current) =>
@@ -498,8 +508,7 @@ export async function main(argv) {
       const stateAfter = pr ? config.linear.reviewState : claimConflict ? config.linear.claimedState : claimed.stateBefore;
       const message = pr ? `Forge opened a draft pull request for review: ${pr}` : 'Forge released its claim after the run ended without a pull request.';
       try {
-        const writer = await connectForgeLinear(config.linear, HOME);
-        row.linearClosed = await writer.release(claimed, stateAfter, message);
+        row.linearClosed = await closeOut(route, claimed, stateAfter, message);
       } catch (error) {
         row.linearClosed = false;
         console.error(`forge-intake: Linear close-out failed: ${redact(error.message)}`);

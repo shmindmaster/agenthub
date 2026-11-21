@@ -137,10 +137,12 @@ test('neither model phase can get Linear write tools', () => {
   for (const phase of Object.keys(config.linear.toolsByPhase)) assert.ok(!config.linear.toolsByPhase[phase].some((t) => /^(delete|merge|unshare)/.test(t)));
   const args = linearArgs(config.linear, 'implement');
   assert.equal(args[0], '-c');
-  assert.match(args[1], /^mcp_servers\.linear_example\.url="https:\/\/mcp\.linear\.app\/mcp"$/);
-  assert.equal(args[3], 'mcp_servers.linear_example.required=true');
-  assert.match(args[5], /^mcp_servers\.linear_example\.enabled_tools=\["get_issue","list_comments"\]$/);
-  assert.equal(args.length, 6, 'a read-only phase approves nothing');
+  assert.equal(args[1], 'mcp_oauth_credentials_store="file"');
+  assert.match(args[3], /^mcp_servers\.linear_example\.url="https:\/\/mcp\.linear\.app\/mcp"$/);
+  assert.equal(args[5], 'mcp_servers.linear_example.required=true');
+  assert.match(args[7], /^mcp_servers\.linear_example\.enabled_tools=\["get_issue","list_comments"\]$/);
+  assert.equal(args.length, 8, 'a read-only phase approves nothing');
+  assert.match(linearArgs(config.linear, 'refresh')[7], /\["get_team"\]$/);
   const select = linearArgs(config.linear, 'select').filter((a) => a !== '-c');
   assert.ok(!select.some((a) => a.includes('save_issue')));
   assert.throws(() => linearArgs({ ...config.linear, toolsByPhase: { select: ['get_team', 'save_issue'] } }, 'select'), /invalid read-only/);

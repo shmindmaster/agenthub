@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { connectForgeLinear } from '../skills/dispatch/forge-linear.mjs';
+import { connectForgeLinear, LinearAuthorizationError } from '../skills/dispatch/forge-linear.mjs';
 
 const linear = {
   server: 'linear_example', mcpUrl: 'https://mcp.linear.app/mcp', teamKey: 'CORE',
@@ -9,7 +9,7 @@ const linear = {
 };
 const issue = { issue: 'CORE-83', uuid: '33333333-3333-4333-8333-333333333333' };
 
-function fixture({ itemFields, teamFields, loseWriteResponse = false } = {}) {
+function fixture({ itemFields, teamFields, loseWriteResponse = false, unauthorized = false, comments = [] } = {}) {
   const requests = [];
   const item = { id: issue.issue, uuid: issue.uuid, teamId: linear.teamId, projectId: linear.projectId,
     status: 'Ready', labels: ['app:agenthub', 'Maintenance'], ...itemFields };
@@ -19,6 +19,7 @@ function fixture({ itemFields, teamFields, loseWriteResponse = false } = {}) {
     assert.equal(options.headers.Authorization, 'Bearer fixture-token');
     const { method, id, params } = JSON.parse(options.body);
     if (method === 'initialize') {
+      if (unauthorized) return new Response(null, { status: 401 });
       return new Response(JSON.stringify({ jsonrpc: '2.0', id, result: { protocolVersion: '2025-06-18' } }), {
         headers: { 'Mcp-Session-Id': 'fixture-session', 'Content-Type': 'application/json' },
       });
@@ -36,7 +37,11 @@ function fixture({ itemFields, teamFields, loseWriteResponse = false } = {}) {
       data = item;
       if (loseWriteResponse) throw new Error('test transport closed');
     }
-    if (name === 'save_comment') data = { id: 'fixture-comment' };
+    if (name === 'list_comments') data = comments;
+    if (name === 'save_comment') {
+      comments.push({ body: args.body });
+      data = { id: 'fixture-comment' };
+    }
     assert.ok(data, name);
     const result = { content: [{ type: 'text', text: JSON.stringify(data) }] };
     return new Response(`event: message\ndata: ${JSON.stringify({ jsonrpc: '2.0', id, result })}\n\n`, {
@@ -104,4 +109,18 @@ test('resolve a scoped textual identifier if Linear omitted the UUID in the list
   await assert.rejects(client.resolveIssue({ issue: 'CORE-84' }), /outside the configured/);
   await assert.rejects(client.resolveIssue({ issue: 'SH-83' }), /identifier is invalid/);
   assert.ok(requests.every(([name]) => !name.startsWith('save_')));
+});
+
+test('expired authentication is detected and resumed close-out never duplicates the comment', async () => {
+  const expired = fixture({ unauthorized: true });
+  await assert.rejects(expired.connect(), LinearAuthorizationError);
+  assert.deepEqual(expired.requests, []);
+  const { connect, requests } = fixture({ itemFields: { status: 'In Review' } });
+  const client = await connect();
+  assert.equal(await client.release(issue, 'Ready', 'Draft'), false);
+  assert.equal(await client.release(issue, 'Ready', 'Draft', undefined, true), false);
+  assert.equal(await client.release(issue, 'In Review', 'Draft', undefined, true), true);
+  assert.equal(await client.release(issue, 'In Review', 'Draft', undefined, true), true);
+  assert.equal(requests.filter(([name]) => name === 'save_comment').length, 1);
+  assert.equal(requests.filter(([name]) => name === 'save_issue').length, 0);
 });
