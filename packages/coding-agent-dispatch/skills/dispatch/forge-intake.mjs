@@ -446,12 +446,12 @@ export async function main(argv) {
       && !isEligible({ state: current.status, labels: current.labels }, config.linear));
     claimed = candidate;
     row.issue = claimed.issue;
-    const labelsAfter = receipt.labels ?? [];
-    if (!labelsAfter.includes(config.linear.claimLabel) || receipt.assigneeId || isEligible({ state: claimed.stateBefore, labels: preClaimLabels(labelsAfter, config.linear) }, config.linear)) {
-      claimConflict = true;
+    const labelsAfter = preClaimLabels(receipt.labels, config.linear);
+    const repo = repoFor(labelsAfter, config);
+    claimConflict = Boolean(receipt.assigneeId) || labelsAfter.some((label) => label.startsWith('agent:'));
+    if (!repo || claimConflict || isEligible({ state: claimed.stateBefore, labels: labelsAfter }, config.linear)) {
       throw new Error('claim changed before implementation');
     }
-    const repo = repoFor(claimed.labels, config);
     // 2. clone and implement
     checkout = join(work, `${claimed.issue.toLowerCase()}-${Date.now()}`);
     const clone = run('gh', ['repo', 'clone', repo.repo, checkout, '--', '--depth', '50', '--branch', repo.base]);
