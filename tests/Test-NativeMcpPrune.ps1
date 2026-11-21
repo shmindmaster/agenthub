@@ -140,18 +140,22 @@ try {
     }
     $run = & $hostExe @syncArgs -ScopeProfile all 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { throw "All-scope fixture sync failed: $run" }
-    Assert-True ((Get-Content -LiteralPath $paths.codex -Raw -Encoding UTF8) -ceq $first.codex -and
-        $first.codex.Contains("http_headers_helper = 'native-helper'")) 'All-scope prune preserves an existing owner-configured helper exactly'
+    $allScopeCodex = Get-Content -LiteralPath $paths.codex -Raw -Encoding UTF8
+    Assert-True ($allScopeCodex -ceq $first.codex -and
+        $allScopeCodex.Contains("http_headers_helper = 'native-helper'")) 'All-scope prune preserves an existing owner-configured helper exactly'
     $claude = Get-Content -LiteralPath $paths.claude -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($null -eq $claude.mcpServers.PSObject.Properties['devin']) 'All-scope sync does not generate an owner-configured server without its helper'
-    Assert-True ($first.codex.Contains("[mcp_servers.parallel]") -and
-        $first.codex.Contains("[mcp_servers.parallel-research]`nurl = '$researchEndpoint'`nenabled = false")) 'All-scope prune keeps both Codex routes and the research off switch'
-    $ocResearch = $oc.mcp.servers.'parallel-research'
-    Assert-True ($ocResearch.url -eq $researchEndpoint -and $ocResearch.disabled -eq $true -and
+    Assert-True ($allScopeCodex.Contains("[mcp_servers.parallel]") -and
+        $allScopeCodex.Contains("[mcp_servers.parallel-research]`nurl = '$researchEndpoint'`nenabled = false")) 'All-scope prune keeps both Codex routes and the research off switch'
+    $allScopeOpenCode = (Get-Content -LiteralPath $paths.opencode -Raw -Encoding UTF8 | ConvertFrom-Json).mcp.servers
+    $ocResearch = $allScopeOpenCode.'parallel-research'
+    Assert-True ($allScopeOpenCode.parallel.url -eq $parallelEndpoint -and
+        $ocResearch.url -eq $researchEndpoint -and $ocResearch.disabled -eq $true -and
         $ocResearch.oauth.fixture -eq 'native') 'OpenCode prune keeps both routes and preserves native research consent'
     $clineSettings = Get-Content -LiteralPath $paths.cline -Raw -Encoding UTF8 | ConvertFrom-Json
+    $allScopeIde = (Get-Content -LiteralPath $clineExtension -Raw -Encoding UTF8 | ConvertFrom-Json).mcpServers
     Assert-True ($null -eq $clineSettings.mcpServers.PSObject.Properties['parallel-research'] -and
-        $null -eq $ide.PSObject.Properties['parallel-research']) 'Sync does not generate an optional research connection in either Cline surface'
+        $null -eq $allScopeIde.PSObject.Properties['parallel-research']) 'Sync does not generate an optional research connection in either Cline surface'
     Remove-Item -LiteralPath $clineExtension
 
     Write-Json $paths.opencode @{mcp=@{servers=@{type='remote';url='https://legacy.example'}}}
