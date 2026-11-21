@@ -215,23 +215,18 @@ draft pull request without any workstation online. A systemd timer on Forge
 catalog at `/opt/agenthub/current`, so the runner cannot edit its own
 allowlist, caps or routes. `forge-intake.json` holds all of them.
 
-A run has three headless Codex sessions on a token plan, and a wrapper that
-keeps GitHub credentials away from the model:
+A run uses isolated headless Codex sessions on a token plan and keeps GitHub
+credentials in the wrapper:
 
-1. **Select and claim** (read-only sandbox). Releases `agent:forge` claims that
-   are stale (8 h), then takes the best unclaimed issue: team Sh-org, state
-   Backlog or Todo, no assignee, labelled `type:bug`, `type:tech-debt` or
-   `area:docs`, labelled with a mapped app (today only `app:agenthub`), and
-   carrying none of `type:epic`, `type:research`, `attention:*`, `agent:*`,
-   `risk:compliance`, `risk:security`, `stage:*`, `lane:*`, `funding:*`. It adds
-   `agent:forge` and sets In Progress (SH-4063). The wrapper re-checks the
-   labels the agent reports and refuses an ineligible claim, and the selector is
-   told to query `list_issues` once for each mapped app label instead of
-   scanning the whole backlog. When the selector has claimed an issue the rules
-   exclude, the close-out restores it to its earlier state with a comment and
-   the wrapper retires it after that single run instead of burning a second
-   one: on 2026-11-12 an `app:empowera` bug was claimed by mistake, restored to
-   Backlog and retired.
+1. **Select and claim**. Forge reads from the team and project bound on the
+   host. Opt in an unassigned issue suitable for the public repository by
+   moving it to Ready and applying `app:agenthub` with `Bug`, `Maintenance`,
+   or `Improvement`. Forge returns stale `agent:forge` claims (8 h) to Ready.
+   The read-only selector calls Linear MCP for the configured team UUID and
+   queries its project for each mapped app label. The wrapper verifies the team,
+   project, state, assignee and labels from the actual tool response, then
+   checks the issue again by UUID. It sends only the fixed claim transition
+   and `agent:forge` label to Linear.
 2. **Implement** (permission profile, network off, Linear read-only). The
    agent works in a fresh clone, follows the repository's AGENTS.md, and leaves
    its edits uncommitted: the wrapper commits.
@@ -244,7 +239,9 @@ keeps GitHub credentials away from the model:
    `.mcp.json` or package `hooks/`, secret-shaped paths or added lines,
    uncommitted leftovers and `git diff --check` failures. Agent-written text is
    redacted for secret-shaped content before it reaches the PR or Linear, and the
-   issue id is validated (`SH-<digits>`) before it becomes a path or branch.
+   issue ID must match the configured team prefix before it becomes a path or
+   branch. The draft uses a generated headline and body with no Linear title,
+   issue body or agent-written summary.
    It pushes `forge/<issue>-<slug>`, opens a **draft** PR, and removes the clone.
    The agent never edits `registry/capabilities.json` or any version: both are
    protected, and a hand-computed hash failed CI on #125. When the diff touches
@@ -255,7 +252,7 @@ keeps GitHub credentials away from the model:
    `pwsh`, with `node scripts/registry-content-hash.mjs packages/<name>`: a
    Node port that produces the same hash and is test-enforced by
    `scripts/registry-content-hash.test.mjs`. CI fails on drift until then.
-4. **Close out** (Linear write allowlist). Comments the PR link, removes
+4. **Close out** (wrapper only). Revalidates the issue, comments the PR link, removes
    `agent:forge`, and sets In Review, or on failure restores the earlier state
    with the reason. It never sets Done. CI on the PR is the verification.
    A person or a different host reviews and marks it ready; nothing is merged
@@ -270,14 +267,18 @@ OAuth login, the plan keys, every other client's login). Measured on Forge on
 write outside the workspace fails, and Codex itself is unaffected (its helper
 binaries under `.local/bin` and `.local/lib` stay readable). A profile cannot be
 mixed with `-s`, and `-c` cannot take quoted dotted keys, so it is passed as one
-inline table. The Linear OAuth session still belongs to the owner's identity, so
-the select and close-out sessions can write to any issue in the workspace; their
-tool lists exclude every delete.
+inline table. The Linear OAuth session belongs to the service account's login.
+Model sessions receive only read tools. The wrapper verifies the workspace
+binding and issue scope before any write.
 
 Codex exposes only a handful of the Linear server's 78 tools to the model
 unless an allowlist names them, so each phase passes
-`mcp_servers.linear.enabled_tools` (select and close-out can write, implement
-cannot, none can delete).
+`mcp_servers.linear_<workspace>.enabled_tools`. Selection and implementation
+are read-only. The wrapper alone writes through the official Linear MCP
+endpoint. It reads the dedicated, launcher-managed OAuth entry from the
+service account's private credential file and uses fixed mutation arguments.
+On an authentication failure during close-out, a read-only Codex session
+refreshes the connection so the wrapper can finish the transition.
 
 Limits: one issue per run, 6 runs a day, 2 attempts per issue (a PR or a second
 failure retires it from selection), one run at a time, free memory of at least
@@ -289,7 +290,7 @@ implemented and opened as a draft PR unattended, and merged after review.
 `codex-mimo` stays disabled: its turns end without a reply (SH-4421). A plan
 that reports a usage or rate limit cools down for 3 hours and the attempt is not
 charged to the issue (Z.ai's 5-hour limit was hit on 2026-11-12 during testing).
-Logs and the ledger live in `~/.local/state/agenthub/forge-intake`, pruned
+Logs and the ledger live in `~/.local/state/agenthub/forge-intake-<workspace>`, pruned
 after 14 days.
 `node forge-intake.mjs --status` prints runs today, the cap, draft PRs,
 failures, retired issues, per-route use, cooling routes, Linear close-outs that
@@ -304,6 +305,20 @@ systemctl start forge-intake.service            # one run now
 touch /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled   # stop
 rm /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled      # resume
 ~~~
+
+Install the root-owned `/etc/agenthub/forge-intake-linear.json` with fields
+`workspace` (slug), `teamKey` (issue prefix), `teamId` (UUID) and `projectId`
+(UUID). Authenticate the corresponding `linear_<workspace>` MCP server as
+`agenthub-runner` with `HOME=/srv/work/agenthub-runner`. For a workspace named
+`example`, run
+`codex -c 'mcp_oauth_credentials_store="file"' -c 'mcp_servers.linear_example.url="https://mcp.linear.app/mcp"' mcp login linear_example --scopes write`.
+Confirm a live run resolves the configured team and queries its project.
+
+For an intake-only release, place the three `forge-intake.mjs`,
+`forge-intake.json` and `forge-linear.mjs` files in a root-owned directory
+under `/opt/agenthub/forge-releases/<revision>`. Set the service's `ExecStart`
+to the released script with a systemd drop-in, reload the daemon, and
+verify a manual service run before enabling the timer.
 
 Install or update (root): put the released tree at
 `/opt/agenthub/catalogs/<sha>` and point `/opt/agenthub/current` at it. Then
