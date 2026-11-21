@@ -1,0 +1,17 @@
+{
+  "name": "ah-research",
+  "version": "1.0.0",
+  "displayName": "AH-Research",
+  "description": "Research technical and business questions with sources.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "engineering",
+    "documentation"
+  ],
+  "skills": "./skills/",
+  "logo": "assets/icon.svg"
+}

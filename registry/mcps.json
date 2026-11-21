@@ -37,6 +37,7 @@
       "note": "Owner direction 2026-11-04: no direct MCP entries beyond what a host needs, on every coding host. Each key under hosts is a plugin-only host, and its value lists the only direct entries allowed there, with the reason. pluginOwnersByHost on each server records which plugin carries it. tests/Test-PluginOnlyMcp.ps1 fails on any other entry. Hosts not listed here keep the older write-everything behaviour.",
       "hosts": {
         "claude": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel": "Preserve the native anonymous fallback while the marketplace Parallel Search entry is independently verified.",
           "tavily": "Tavily documents native Streamable HTTP and account OAuth in Claude Code. Preserve the user-level connection.",
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep vendor AWS skills and suppress plugin:aws-core:aws-mcp when the hosted connection owns this server. Native OAuth consent is per host and AWS identity.",
@@ -51,6 +52,7 @@
           "devin": "No vendor plugin carries the official Devin MCP server. Preserve the owner-configured remote entry using the native Codex http_headers_helper with AgentHub's 1Password-backed Get-DevinMcpHeaders.ps1. Fleet sync never generates this entry."
         },
         "cursor": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve the Cursor native hosted MCP with Tavily OAuth.",
           "parallel": "Use Parallel's official hosted MCP through Cursor's native remote MCP configuration and keep the anonymous tool subset.",
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint for Cursor. Use its native remote MCP configuration and consent flow, with no local proxy."
@@ -71,16 +73,20 @@
           "zread": "Preserve the existing Z.ai Coding Plan hosted repository documentation connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server."
         },
         "zcode": {
+          "exa-anonymous": "Preserve the keyless Exa route while the separate account entry stays disabled.",
+          "exa": "Allow standalone ZCode’s native hosted Exa entry. Use the existing account configuration if present.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Use ZCode’s native hosted MCP with OAuth enabled in its MCP settings."
         },
         "antigravity": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve Antigravity’s native serverUrl entry and native OAuth for the hosted Tavily endpoint."
         },
         "copilot": {
           "tavily": "Preserve the Copilot CLI user-level HTTP registration. Check OAuth support in the installed CLI before relying on tools."
         },
         "vscode-insiders": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve the native VS Code Insiders HTTP entry and OAuth consent.",
           "parallel": "Use Parallel's official hosted MCP through VS Code's native HTTP server configuration and keep the anonymous tool subset.",
           "github": "Copilot's own GitHub endpoint with OAuth. The catalog github plugin needs a personal access token instead.",
@@ -122,10 +128,12 @@
           "google-drive": "Preserve the existing Google-hosted Drive MCP in OpenCode's native remote configuration. Google Workspace OAuth is independent."
         },
         "amp": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve the Amp CLI hosted remote entry and its native OAuth state.",
           "parallel": "Use the vendor hosted anonymous HTTP endpoint through the native Amp client."
         },
         "devin": {
+          "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve Devin CLI’s hosted user-scope entry and native MCP login."
         },
         "warp": {
@@ -250,7 +258,7 @@
         "type": "registry",
         "id": "mcp-registry"
       },
-      "hosts": ["cline", "codex", "factory", "grok", "kilo", "opencode", "zcode"],
+      "hosts": ["amp", "antigravity", "claude", "cline", "codex", "cursor", "devin", "factory", "grok", "kilo", "opencode", "vscode-insiders", "zcode"],
       "notes": "The anonymous Parallel registration keeps search and fetch available. The OAuth tool filter prevents duplicate search and fetch tools. Confirm the intended account before use."
     },
     {
@@ -424,19 +432,17 @@
         "vscode-insiders": "exa@claude-plugins-official"
       },
       "url": "https://mcp.exa.ai/mcp",
-      "headers": {
-        "x-api-key": "${env:EXA_API_KEY}"
-      },
-      "credentialPolicy": "environment-api-key",
+      "credentialPolicy": "none-in-config; default search and fetch are keyless. Preserve independently configured native authentication.",
       "protocol": {
         "revision": "2025-11-25",
-        "verifiedOn": "2026-08-17",
-        "verification": "initialize with x-api-key sourced from EXA_API_KEY returned HTTP 200 and protocolVersion 2025-11-25. The registry stores only the environment reference, never the key value."
+        "verifiedOn": "2026-11-20",
+        "verification": "Anonymous initialize returned HTTP 200 and protocolVersion 2025-11-25. tools/list advertised web_search_exa and web_fetch_exa. A public web_search_exa query returned an IANA source."
       },
       "owner": {
         "type": "registry",
         "id": "mcp-registry"
       },
+      "notes": "Official MCP: https://exa.ai/docs/get-started/exa-mcp. Account Agent access and Websets have separate native authorization and acceptance.",
       "hostConfigOverrides": {
         "opencode": {
           "enabled": false

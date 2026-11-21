@@ -551,6 +551,18 @@ function Remove-McpTargetKeys {
     return $Target
 }
 
+function Remove-LegacyExaKeyReference {
+    param([string]$Key, [hashtable]$Target, [hashtable]$Existing)
+
+    # Older AgentHub defaults supplied this exact reference for basic search.
+    # Native OAuth, literal headers and other user-selected references stay intact.
+    if ($Key -ne 'exa' -or $Target.url -ne 'https://mcp.exa.ai/mcp' -or $Existing.url -ne $Target.url -or
+        $Target.ContainsKey('headers') -or $Existing.headers -isnot [hashtable]) { return }
+    if ($Existing.headers['x-api-key'] -notin @('${env:EXA_API_KEY}', '{env:EXA_API_KEY}')) { return }
+    $Existing.headers.Remove('x-api-key')
+    if ($Existing.headers.Count -eq 0) { $Existing.Remove('headers') }
+}
+
 function Merge-McpServers {
     param(
         [hashtable]$Target,
@@ -1821,6 +1833,7 @@ function Sync-HostMcp-Cline {
 
         $existingServer = ConvertTo-Hashtable $servers[$targetKey]
         $servers[$targetKey] = $existingServer
+        Remove-LegacyExaKeyReference -Key $targetKey -Target $target -Existing $existingServer
         # Activation and approvals are host/user choices. A transport refresh
         # must not re-enable an intentionally deferred server or reset consent.
         foreach ($field in @('type','command','args','cwd','url')) {
@@ -1984,6 +1997,7 @@ function Sync-HostMcp-OpenCode {
 
         $existing = $entries[$key]
         if (-not ($existing -is [hashtable])) { $existing = ConvertTo-Hashtable $existing; $entries[$key] = $existing }
+        Remove-LegacyExaKeyReference -Key $key -Target $target -Existing $existing
 
         if ($target.type -eq 'local') {
             foreach ($staleField in @('url','headers','args','env','oauth')) {

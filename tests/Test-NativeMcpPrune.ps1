@@ -71,7 +71,7 @@ try {
         $hosts[$id]['parallel-research'] = 'Preserve existing consent without provisioning a connection.'
     }
     [IO.File]::AppendAllText($paths.codex, "[mcp_servers.parallel-research]`nurl = '$researchEndpoint'`nenabled = false`n")
-    $openState = Get-Content -LiteralPath $paths.opencode -Raw | ConvertFrom-Json
+    $openState = Get-Content -LiteralPath $paths.opencode -Raw -Encoding UTF8 | ConvertFrom-Json
     $openState.mcp.servers | Add-Member -NotePropertyName 'parallel-research' -NotePropertyValue @{
         type='remote';url=$researchEndpoint;disabled=$true;oauth=@{fixture='native'}
     }

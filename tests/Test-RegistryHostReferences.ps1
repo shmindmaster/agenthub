@@ -444,6 +444,13 @@ function Test-LiveHostAuthenticationMetadata {
         }
     }
     foreach ($violation in @(Get-CodexDispatchEvidenceViolations $profile.dispatchPolicy.codex)) { $violations.Add($violation) }
+    $catalog = Get-Content -LiteralPath (Join-Path $repoRoot 'registry/agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    $activeManagedIds = @($catalog.activeAgents | Where-Object { $_.status -notin @('retired','inventory-only') } | ForEach-Object id)
+    foreach ($id in $profile.managedHosts) {
+        if ($id -notin $activeManagedIds) {
+            $violations.Add("Managed profile host '$id' must be active in the host registry")
+        }
+    }
     if ($profile.managedHosts -notcontains 'cursor-agent') {
         $violations.Add('Cursor Agent CLI must be present in managedHosts')
     }

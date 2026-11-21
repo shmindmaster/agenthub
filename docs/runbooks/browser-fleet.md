@@ -71,19 +71,20 @@ Set `$fixtureUrl` to the running loopback fixture. The tested sequence retained 
 - Use the vendor's native marketplace/plugin if it supplies the requested integration with the right transport and permissions. Register the official remote endpoint through a supported native configuration when the vendor documents that path. Keep one integration owner per host. Use local browser helpers only on demand where the browser and profile live. Remote tools do not inherit a local browser profile.
 - For OAuth, verify the server supports the exact client's login method, expected issuer, and minimal scopes. Use the provider's consent flow under the intended identity. Host login, browser login and MCP OAuth are separate. Keep tokens in native storage or runtime secret references. Preserve existing revocation and write approval controls.
 - For Tavily in Cline, keep the vendor's hosted Streamable HTTP endpoint and Cline-managed OAuth state. A bare HTTP 401 does not establish that the Cline connection needs new consent. The official Cline SDK's passive `probeMcpServerConnection` can refresh a saved authorization without opening a browser. If it still reports authorization required, use `cline mcp` → **Authorize OAuth** and select the intended Tavily account. Check the tool list after connecting. [Cline MCP configuration](https://github.com/cline/cline/blob/main/docs/mcp/mcp-overview.mdx) · [Tavily OAuth](https://github.com/tavily-ai/tavily-mcp#remote-mcp-server-oauth-flow)
-### Parallel and Tavily
+### Research tools
 
 Use the same provider endpoints and tool capabilities across the fleet. Keep existing native names and account grants. Check a fresh session for a duplicate provider tool list when a marketplace also loads an MCP server.
 
 | Provider | Remote endpoint | Access |
 | --- | --- | --- |
+| Exa search and fetch | `https://mcp.exa.ai/mcp` | Keyless technical and semantic discovery. Exa Agent access requires account authorization. |
 | Parallel search and fetch | `https://mcp.parallel.ai/mcp` | Free, rate-limited anonymous access. Append `?tools=web_search,web_fetch` to expose only those two tools. |
 | Parallel research | `https://mcp.parallel.ai/mcp?login&tools=web_research` | Native OAuth under the intended Parallel account. A separate research-only connection keeps duplicate search tools out of context. Before using it, verify the account and usage attribution. |
 | Tavily | `https://mcp.tavily.com/mcp/` | Native OAuth for search, extract, crawl, map and research. Use the intended account and keep consent with the host. |
 
-Use `parallel-research` for the optional research-only registration. Where the host supports an off switch, keep it off until you are ready to consent and verify the account.
+Use `parallel-research` for the optional research-only registration on hosts that allow it in [the MCP registry](../../registry/mcps.json). Sync preserves the registered name and its native state on those hosts. On other surfaces, use the documented plugin or account connection for research. Where the host supports an off switch, keep it off until you are ready to consent and verify the account.
 
-[Parallel MCP and billing](https://docs.parallel.ai/integrations/mcp/quickstart) · [Parallel Agent Skills](https://github.com/parallel-web/parallel-agent-skills) · [Tavily MCP](https://docs.tavily.com/documentation/mcp)
+[Exa MCP](https://exa.ai/docs/get-started/exa-mcp) · [Parallel MCP and billing](https://docs.parallel.ai/integrations/mcp/quickstart) · [Parallel Agent Skills](https://github.com/parallel-web/parallel-agent-skills) · [Tavily MCP](https://docs.tavily.com/documentation/mcp)
 
 | Interface | Native setup and readback |
 | --- | --- |
@@ -100,6 +101,8 @@ Use `parallel-research` for the optional research-only registration. Where the h
 | Antigravity CLI and IDE | Use the vendor Parallel plugin where available. Register Tavily with `serverUrl` in the applicable native `mcp_config.json`. Authorize in Customizations and verify each surface. [Antigravity MCP](https://antigravity.google/docs/ide-mcp) |
 | ZCode and AutoClaw | Keep the vendor Parallel plugin in the relevant profile. Add Tavily as HTTP with OAuth enabled in the native MCP settings. AutoClaw uses an account-specific runtime. Check the effective registration and consent in the intended app and profile. [ZCode MCP](https://zcode.z.ai/en/docs/mcp-services) · [AutoClaw runbook](autoclaw.md) |
 | Hosted agents | Use the service's own connector UI. Manus documents custom remote MCP setup. Confirm each account and workspace. A CLI registration is independent of the hosted account. [Manus Connectors](https://manus.im/docs/integrations/mcp-connectors) |
+
+See [research workflows and verification](research.md) for provider routing and native acceptance.
 
 ## Acceptance per interface
 

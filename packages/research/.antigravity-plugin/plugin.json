@@ -1,0 +1,20 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ah-research",
+  "displayName": "AH-Research",
+  "version": "1.0.0",
+  "description": "Research technical and business questions with sources.",
+  "suggestedPrompts": [
+    "Research an integration using primary sources."
+  ],
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "logo": "assets/icon.svg",
+  "keywords": [
+    "research",
+    "engineering",
+    "documentation"
+  ]
+}
