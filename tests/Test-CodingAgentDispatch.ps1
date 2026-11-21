@@ -110,9 +110,9 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         [IO.File]::WriteAllText($stub, "#!/bin/sh`nexec '$node' '$recorder' `"`$@`"`n")
         [IO.File]::SetUnixFileMode($stub, [IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
     }
-    $ids = @('claude','codex','cursor','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop','kilo','mimo-code','qwen')
+    $ids = @('claude','codex','cursor','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','windsurf','antigravity-desktop','kilo','mimo-code','qwen')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ launchDefaults = @{ devin = @('--permission-mode', 'dangerous', '--respect-workspace-trust', 'false') }; hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode-go/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; qwen = @{ enabled = $true; model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
+    $fleet = @{ launchDefaults = @{ devin = @('--permission-mode', 'dangerous', '--respect-workspace-trust', 'false') }; hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max-0902' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium'; allowedModels = @('swe-2-medium', 'swe-2-high', 'adaptive') }; opencode = @{ model = 'opencode-go/glm-5.3-flash' }; kilo = @{ enabled = $true; agent = 'peer'; model = 'mimo/mimo-v2.6-pro'; allowedModels = @('mimo/mimo-v2.6-pro', 'mimo/mimo-v2.5', 'mimo/x&echo') }; 'mimo-code' = @{ enabled = $true; agent = 'peer'; model = 'xiaomi-token-plan-sgp/mimo-v2.6-pro'; allowedModels = @('xiaomi-token-plan-sgp/mimo-v2.6-pro') }; qwen = @{ enabled = $true; model = 'mimo-v2.6-pro'; allowedModels = @('mimo-v2.6-pro') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -129,7 +129,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'disabled Codex policy refuses a dispatch' ($r.Exit -eq 3 -and $r.Err -match 'response capture is not verified' -and $r.Err -match 'bounded smoke')
     $fleet.dispatchPolicy.Remove('codex'); Save-Fixture
     $r = Run @('-List')
-    foreach ($id in @('claude','codex','amp','devin','warp','qwen')) { Check "$id headless contract" ($r.Out -match "(?m)^$id\tcallable\t") }
+    foreach ($id in @('claude','codex','amp','devin','qwen')) { Check "$id headless contract" ($r.Out -match "(?m)^$id\tcallable\t") }
     foreach ($id in @('cursor','windsurf')) { Check "$id routes to CLI" ($r.Out -match "(?m)^$id\trouted\t") }
     foreach ($id in @('antigravity-desktop')) { Check "$id refuses" ($r.Out -match "(?m)^$id\trefused\t") }
     $r = Run @('-HostId','unknown','-Prompt','ok'); Check 'unknown host refuses' ($r.Exit -eq 3 -and $r.Err -match 'unknown host')
@@ -141,7 +141,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'devin-cloud refuses without an enabled dispatchPolicy record' ($r.Exit -eq 3 -and $r.Err -match 'devin-cloud' -and $r.Err -match 'not enabled') $r.Err
     $r = Run @('-List')
     Check 'list reports devin-cloud refused without its policy' ($r.Out -match "(?m)^devin-cloud\trefused\t") $r.Out
-    foreach ($id in @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','qwen')) {
+    foreach ($id in @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','kilo','mimo-code','qwen')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         if ($id -eq 'copilot' -and $r.Exit -eq 3 -and $r.Err -match 'gh has no token for account sh-pendoah') {
             # Copilot dispatch reads the owner's sh-pendoah gh login; without it the
@@ -171,12 +171,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         if ($id -eq 'cursor-agent') {
             Check 'Cursor uses print text mode, read-only Q&A and trusted workspace' ($d.Arguments -contains '--print' -and $d.Arguments -contains '--output-format' -and $d.Arguments -contains 'text' -and $d.Arguments -contains '--mode' -and $d.Arguments -contains 'ask' -and $d.Arguments -contains '--trust' -and $d.Arguments -contains '--workspace' -and $d.Arguments -contains $scratch)
         }
-        if ($id -eq 'warp') {
-            Check 'warp receives CLI environment' ($d.WarpMode -eq '1' -and $d.Arguments[0] -eq 'agent' -and $d.Arguments[1] -eq 'run')
-            Check 'warp runs locally without a workspace snapshot on the policy model' ($d.Arguments -contains '--no-snapshot' -and $d.Arguments -notcontains 'run-cloud' -and $d.Arguments -notcontains '--environment' -and $d.Arguments -contains 'glm-5.3-flash-fireworks')
-            Check 'warp child cannot push or call gh' ($d.WarpGuard.gitCount -eq '3' -and $d.WarpGuard.pushRewrite -match 'pushInsteadOf$' -and $d.WarpGuard.ghConfigDir -match 'warp-peer-gh$' -and -not $d.WarpGuard.ghToken)
-            Check 'warp passes no MCP flags while mcpConfig is unrecorded' ($d.Arguments -notcontains '--mcp' -and $d.Arguments -notcontains '--mcp-startup-timeout')
-        }
         if ($id -eq 'devin') { Check 'Devin receives prompt file and policy model' ($d.PromptContents -contains 'ok' -and $d.Arguments -contains '--prompt-file' -and $d.Arguments -contains 'swe-2-medium') }
         if ($id -eq 'devin') { Check 'Devin uses account auth without its API key' (-not $d.ApiKeyVars.DEVIN_API_KEY) }
         if ($id -eq 'claude') { Check 'Claude uses account auth without its API key' (-not $d.ApiKeyVars.ANTHROPIC_API_KEY -and -not $d.ApiKeyVars.ANTHROPIC_API_KEY_BACKUP -and $d.Arguments -notcontains '--model') }
@@ -195,7 +189,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'OpenCode Go account uses no API key override' (-not $d.ApiKeyVars.OPENCODE_GO_API_KEY -and -not $d.ApiKeyVars.OPENCODE_API_KEY)
             Check 'OpenCode 2 uses native process cwd without obsolete flag' ($d.Cwd -in @($scratch, $scratchReal) -and $d.Arguments -notcontains '--dir')
         }
-        if ($id -eq 'warp') { Check 'Warp account auth uses no API key override' (-not $d.ApiKeyVars.WARP_API_KEY) }
         if ($id -eq 'kilo') {
             Check 'Kilo runs with auto approval, JSON events and explicit dir' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--auto' -and $d.Arguments -contains '--format' -and $d.Arguments -contains '--dir' -and $d.Arguments -contains $scratch -and $d.Arguments[-1] -eq 'ok')
             Check 'Kilo receives the full provider/model policy id' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'mimo/mimo-v2.6-pro')
@@ -259,13 +252,13 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         opencode = @{ flags = @('--agent', 'readonly'); omits = @('peer') }
         qwen    = @{ flags = @('--approval-mode', 'plan'); omits = @('yolo') }
     }
-    $allDispatchHosts = @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','kilo','mimo-code','qwen')
+    $allDispatchHosts = @('claude','codex','cursor-agent','grok','opencode','antigravity','factory','cline','copilot','amp','devin','kilo','mimo-code','qwen')
     $createdPolicy = @()
     foreach ($id in $allDispatchHosts) {
         if (-not $fleet.dispatchPolicy.ContainsKey($id)) { $fleet.dispatchPolicy[$id] = @{}; $createdPolicy += $id }
     }
     foreach ($id in $readOnlyFixture.Keys) { $fleet.dispatchPolicy[$id]['readOnly'] = $readOnlyFixture[$id] }
-    $fleet.dispatchPolicy['warp']['readOnly'] = $false
+    $fleet.dispatchPolicy['amp']['readOnly'] = $false
     $fleet.dispatchPolicy['grok']['readOnly'] = $null
     Save-Fixture
 
@@ -447,13 +440,13 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'OpenCode refuses -ReadOnly when the readonly agent is not installed' ($r.Exit -eq 3 -and $r.Err -match 'readonly\.md' -and $r.Err -match 'missing') ($r.Out + $r.Err)
     [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText)
 
-    foreach ($id in @('cursor-agent','grok','antigravity','cline','copilot','amp','devin','warp','kilo','mimo-code','cursor','windsurf')) {
+    foreach ($id in @('cursor-agent','grok','antigravity','cline','copilot','amp','devin','kilo','mimo-code','cursor','windsurf')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
         Check "$id refuses -ReadOnly: no enforced read-only mode, no command" ($r.Exit -eq 3 -and $r.Err -match 'has no enforced read-only mode' -and $r.Err -match 'never falls back to a writable run' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
         Check "$id starts no child under -ReadOnly" ($r.Exit -eq 3 -and $r.Out -notmatch '"Arguments"') ($r.Out + $r.Err)
     }
-    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    $r = Run @('-HostId','amp','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
     Check 'a recorded false is reported as checked, none' ($r.Exit -eq 3 -and $r.Err -match 'readOnly is false: checked, none') $r.Err
     $r = Run @('-HostId','grok','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
     Check 'a recorded null is reported as not established' ($r.Exit -eq 3 -and $r.Err -match 'readOnly is not established') $r.Err
@@ -821,39 +814,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
     Check 'Cline routes a listed provider:model per task' ($r.Err -notmatch 'note:' -and $providerIndex -ge 0 -and $d.Arguments[$providerIndex + 1] -eq 'cline' -and $modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'poolside/laguna-s-2.1:free' -and $d.PeerGuard -eq '1') $r.Err
     $fleet.dispatchPolicy.Remove('cline'); Save-Fixture
-    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-Model','claude-5-5-opus-max','-TimeoutSec','5')
-    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
-    Check 'Warp passes an unlisted model through with a note, guard intact' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'claude-5-5-opus-max' -and $d.Arguments -contains '--no-snapshot' -and $d.WarpGuard.gitCount -eq '3' -and -not $d.ApiKeyVars.WARP_API_KEY -and $r.Err -match (PassNote 'warp' 'claude-5-5-opus-max')) $r.Err
-    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-Model','glm 5.3;echo')
-    Check 'Warp refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
-    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-Model','glm-5.3-fireworks','-TimeoutSec','5')
-    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
-    Check 'Warp routes a listed model per task' ($r.Err -notmatch 'note:' -and $modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'glm-5.3-fireworks') $r.Err
-    # dispatchPolicy.warp.mcpConfig is a {userHome} template resolved against the
-    # invoking user's home, so the synthetic home points at the fixture for these
-    # runs and is restored after. The fixture file is deliberately not a real MCP
-    # config; nothing may ever read or print it.
-    $mcpFixtureFile = Join-Path $fixture 'warp-mcp-fixture.json'
-    [IO.File]::WriteAllText($mcpFixtureFile, '{"mcpServers":{"fixture":{"token":"cad-mcp-never-printed"}}}')
-    if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $fixture } else { $env:HOME = $fixture }
-    $fleet.dispatchPolicy.warp['mcpConfig'] = '{userHome}/warp-mcp-fixture.json'; Save-Fixture
-    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
-    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    $mcpIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--mcp') } else { -1 }
-    $mcpTimeoutIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--mcp-startup-timeout') } else { -1 }
-    Check 'Warp passes the resolved mcpConfig path with a bounded startup timeout' ($mcpIndex -ge 0 -and $d.Arguments[$mcpIndex + 1] -eq $mcpFixtureFile -and $mcpTimeoutIndex -ge 0 -and $d.Arguments[$mcpTimeoutIndex + 1] -eq '30s') $r.Err
-    Check 'Warp MCP run never prints the config file contents' ($r.Out -notmatch 'cad-mcp-never-printed' -and $r.Err -notmatch 'cad-mcp-never-printed')
-    $fleet.dispatchPolicy.warp['mcpConfig'] = '{userHome}/warp-mcp-fixture-absent.json'; Save-Fixture
-    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
-    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'Warp still launches without MCP flags when the config file is missing' ($r.Exit -eq 0 -and $null -ne $d -and $d.Arguments -notcontains '--mcp' -and $d.Arguments -notcontains '--mcp-startup-timeout') $r.Err
-    Check 'Missing mcpConfig warns once on stderr with the resolved path' ((@(($r.Err -split '\r?\n') -match 'mcpConfig')).Count -eq 1 -and $r.Err -match 'warp-mcp-fixture-absent\.json') $r.Err
-    $fleet.dispatchPolicy.warp.Remove('mcpConfig'); Save-Fixture
-    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
-    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-    Check 'Warp passes no MCP flags once mcpConfig is removed even with the file present' ($r.Exit -eq 0 -and $null -ne $d -and $d.Arguments -notcontains '--mcp') $r.Err
     if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $oldWindowsHome } else { $env:HOME = $oldPosixHome }
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-Title','x')
     Check 'session title is refused for other hosts' ($r.Exit -eq 3 -and $r.Err -match '-Title applies only')

@@ -497,7 +497,7 @@
       "knownIssue": "RESOLVED 2026-11-10 by the smoke above. History: 2026-10-21 smoke captured no response text; ChatGPT-plan quota was exhausted at 22:00 CT."
     },
     "warp": {
-      "enabled": true,
+      "enabled": false,
       "readOnly": false,
       "readOnlyNote": "2026-11-11 checked, none. `warp agent run --help` (WARP_CLI_MODE=1), every option read: no read-only, plan, sandbox or permission flag. The one lever is \"--profile <ID> Agent profile to configure the terminal session\", and Warp execution profiles are cloud-synced with no CLI edit (see guard). -ReadOnly is refused.",
       "scope": "local-only: oz agent run with --no-snapshot. run-cloud, cloud environments, schedules, handoff and Factories stay prohibited.",
@@ -516,7 +516,7 @@
       "reason": "2026-10-26 (Oz v0.2026.10.14.08.27.stable_03): `oz whoami` succeeds with WARP_API_KEY removed, so the stored account login authenticates. One local smoke, `agent run -C <empty scratch dir> --model glm-5.3-flash-fireworks --no-snapshot --output-format ndjson`, exited 0 in 30 s and returned READY (run 01a17a80-1423-7e43-bb96-7aafdd060bc1, conversation 653d2c55-b99d-46bb-8f7f-709c1509af30). A local run still registers a run record and cloud conversation on oz.warp.dev (agents.cloud_conversation_storage_enabled = true).",
       "guard": "Warp's default execution profile auto-approves commands, code diffs, MCP and child agents with an empty denylist. The ExecutionProfiles preference is cloud-synced: a local settings.toml denylist was overwritten on the next launch, and the Oz log reports 'Attempted to edit CLI default profile, which is not yet supported.' The dispatcher therefore guards through the child environment: GIT_CONFIG_* rewrites https://, git@ and ssh:// push URLs to an unhandled scheme, GH_CONFIG_DIR points at an empty directory, and GH_TOKEN/GITHUB_TOKEN are removed. Verified on a scratch repo: push aborts, fetch URL unchanged, gh reports not logged in. Not guarded: local destructive commands and other cloud CLIs (railway, az, doctl); run Warp only in C:\\wt worktrees. settings.toml agents.warp_agent.other.auto_approve_bypasses_command_denylist = false (backup settings.toml.bak-agenthub-peer-20261026).",
       "verifiedOn": "2026-10-26",
-      "ownerDirection": "2026-10-26: owner asked in the Claude session to enable Warp dispatch local-only (no cloud), run one smoke test with an economical model, and start Warp tasks only after machine load drops. This supersedes, for Warp local runs only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
+      "ownerDirection": "2026-10-26: owner asked in the Claude session to enable Warp dispatch local-only (no cloud), run one smoke test with an economical model, and start Warp tasks only after machine load drops. This supersedes, for Warp local runs only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work'). 2026-11-20 (Technical Writer docs-review): Warp is no longer a supported host, so dispatch is disabled here; the record stays as history and tests/Test-RegistryHostReferences.ps1 pins it disabled while agents.json lists Warp as inactive and retired."
     },
     "devin-cloud": {
       "enabled": true,
