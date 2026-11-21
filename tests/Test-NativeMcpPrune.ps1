@@ -63,7 +63,19 @@ try {
     $agents += @{id='warp';name='warp';status='active';nativePaths=@{mcp=$empty}}
     Write-Json (Join-Path $registryDir 'agents.json') @{activeAgents=$agents;inactiveAgents=@()}
     $parallelEndpoint = 'https://parallel.example/mcp'
-    $parallel = @{id='parallel';scope='global-default';transport='http';activationMode='shared-remote';url=$parallelEndpoint;hosts=@('opencode','cline')}
+    $parallel = @{id='parallel';scope='global-default';transport='http';activationMode='shared-remote';url=$parallelEndpoint;hosts=@('codex','opencode','cline')}
+    $researchEndpoint = 'https://parallel.example/mcp?login&tools=web_research'
+    $research = @{id='parallel-research';scope='owner-configured';transport='http';activationMode='shared-remote';url=$researchEndpoint;hosts=@('codex','opencode','cline')}
+    $hosts.codex['parallel'] = 'Hosted anonymous search and fetch.'
+    foreach ($id in 'codex','opencode','cline') {
+        $hosts[$id]['parallel-research'] = 'Preserve existing consent without provisioning a connection.'
+    }
+    [IO.File]::AppendAllText($paths.codex, "[mcp_servers.parallel-research]`nurl = '$researchEndpoint'`nenabled = false`n")
+    $openState = Get-Content -LiteralPath $paths.opencode -Raw | ConvertFrom-Json
+    $openState.mcp.servers | Add-Member -NotePropertyName 'parallel-research' -NotePropertyValue @{
+        type='remote';url=$researchEndpoint;disabled=$true;oauth=@{fixture='native'}
+    }
+    Write-Json $paths.opencode $openState
     $clineOAuth = @{id='cline-oauth';scope='global-default';transport='http';activationMode='shared-remote';url='https://managed.example/consent';credentialPolicy='oauth';hosts=@('cline')}
     $clineApproved = @{id='existing-remote';scope='global-default';transport='http';activationMode='shared-remote';url='https://managed.example';hosts=@('opencode','cline')}
     $clineHeaders = @{id='cline-headers';scope='global-default';transport='http';activationMode='shared-remote';url='https://managed.example/headers';headers=@{'X-Fixture'='do-not-copy'};hosts=@('cline')}
@@ -76,7 +88,7 @@ try {
     $hosts.claude['devin'] = 'Preserve an existing dynamic helper.'
     $hosts.codex['devin'] = 'Preserve an existing dynamic helper.'
     [IO.File]::AppendAllText($paths.codex, "[mcp_servers.devin]`nurl = 'https://devin.example/mcp'`nhttp_headers_helper = 'native-helper'`n")
-    Write-Json (Join-Path $registryDir 'mcps.json') @{activationPolicy=@{pluginOnly=@{hosts=$hosts}};mcpServers=@($parallel,$clineOAuth,$clineApproved,$clineHeaders,$nativeHelper)}
+    Write-Json (Join-Path $registryDir 'mcps.json') @{activationPolicy=@{pluginOnly=@{hosts=$hosts}};mcpServers=@($parallel,$research,$clineOAuth,$clineApproved,$clineHeaders,$nativeHelper)}
     # Simulate a vendor package supplying the same key, without making AWS a
     # generated registry row. Its ownership must not suppress a direct exception.
     $package = Join-Path $fixture 'packages/native-fixture'
@@ -132,6 +144,14 @@ try {
         $first.codex.Contains("http_headers_helper = 'native-helper'")) 'All-scope prune preserves an existing owner-configured helper exactly'
     $claude = Get-Content -LiteralPath $paths.claude -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($null -eq $claude.mcpServers.PSObject.Properties['devin']) 'All-scope sync does not generate an owner-configured server without its helper'
+    Assert-True ($first.codex.Contains("[mcp_servers.parallel]") -and
+        $first.codex.Contains("[mcp_servers.parallel-research]`nurl = '$researchEndpoint'`nenabled = false")) 'All-scope prune keeps both Codex routes and the research off switch'
+    $ocResearch = $oc.mcp.servers.'parallel-research'
+    Assert-True ($ocResearch.url -eq $researchEndpoint -and $ocResearch.disabled -eq $true -and
+        $ocResearch.oauth.fixture -eq 'native') 'OpenCode prune keeps both routes and preserves native research consent'
+    $clineSettings = Get-Content -LiteralPath $paths.cline -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ($null -eq $clineSettings.mcpServers.PSObject.Properties['parallel-research'] -and
+        $null -eq $ide.PSObject.Properties['parallel-research']) 'Sync does not generate an optional research connection in either Cline surface'
     Remove-Item -LiteralPath $clineExtension
 
     Write-Json $paths.opencode @{mcp=@{servers=@{type='remote';url='https://legacy.example'}}}

@@ -13,7 +13,8 @@ Neither opens the host's config.
 The rule is deliberately narrow, because not every declaration is written to a
 config:
 
-  - shared-remote servers are persisted, so a declared host must carry them.
+  - Managed shared-remote servers are persisted, so a declared host must carry them.
+    Owner-configured servers are optional native registrations on eligible hosts.
   - on-demand-local servers are persisted ONLY if named in
     native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds.
     Anything else is delivered by a plugin or gated behind explicit
@@ -174,6 +175,7 @@ Report 'the all-hosts inventory resolved to a non-empty host set' ($installedHos
 
 $checked = 0
 foreach ($server in @($mcps.mcpServers)) {
+    if ($server.scope -eq 'owner-configured') { continue }
     $id = [string]$server.id
     $hosts = @($server.hosts | Where-Object { $_ })
 
