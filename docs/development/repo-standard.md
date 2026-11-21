@@ -87,9 +87,11 @@ The existing flat-doc `docsExemptions` are unchanged.
 
 ## Tracker authority
 
-Each repo names one: `linear` (SH- IDs), `github-issues` (OSS repos), or
-`none` (small sites/tools; `docs/plans/` covers complex work). AgentHub itself is `linear` (epic SH-4409) since 2026-11-13. No repo-local
-competing backlogs; plans reference tracker IDs, never duplicate status.
+Each repo names one tracker: `linear` (ABACARE team issue IDs),
+`github-issues` (OSS repos), or `none` (small sites and tools can use
+`docs/plans/` for complex work). AgentHub uses the
+[AgentHub project in ABACARE](https://linear.app/abacare/project/agenthub-portfolio-engineering-and-knowledge-a780cf63463d).
+Plans reference tracker IDs and keep status in the tracker.
 
 ## Fleet exceptions and deferred items (2026-08-30)
 
