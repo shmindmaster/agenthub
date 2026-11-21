@@ -122,6 +122,37 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $scratch = Join-Path $fixture 'scratch'
     # A child reports its cwd with symlinks resolved (macOS temp lives under /var -> /private/var).
     $scratchReal = (& $node -e 'process.stdout.write(require("fs").realpathSync(process.argv[1]))' $scratch)
+    if ($env:OS -eq 'Windows_NT') {
+        $userProfileBeforeZCode = $env:USERPROFILE
+        try {
+            $env:USERPROFILE = Join-Path $fixture 'zcode-user'
+            $personalConfig = Join-Path $env:USERPROFILE '.zcode/v2'
+            $resources = Join-Path $fixture 'zcode-resources'
+            foreach ($directory in @($personalConfig, (Join-Path $resources 'glm'), (Join-Path $resources 'config/provider'))) {
+                $null = New-Item -ItemType Directory -Path $directory -Force
+            }
+            '{}' | Set-Content -LiteralPath (Join-Path $personalConfig 'provider_config.json')
+            '{}' | Set-Content -LiteralPath (Join-Path $resources 'config/provider/zcode-builtin.json')
+            $bundle = Join-Path $resources 'glm/zcode.cjs'
+            Copy-Item -LiteralPath $recorder -Destination $bundle
+            $agents.activeAgents += @{ id = 'zcode'; executable = $stub; nativePaths = @{ bundledRuntime = $bundle } }
+            Save-Fixture
+            $zcodeTask = Join-Path $fixture 'zcode-task.txt'
+            $zcodePrompt = "Say `"ZCODE`" & use the given text.`nSecond line."
+            [IO.File]::WriteAllText($zcodeTask, $zcodePrompt, [Text.UTF8Encoding]::new($false))
+            $r = Run @('-HostId','zcode','-PromptFile',$zcodeTask,'-Cwd',$scratch)
+            $result = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+            Check 'Windows ZCode dispatch uses the bundled CLI and intact prompt' ($result -and $result.Arguments[-1] -ceq $zcodePrompt -and $result.Arguments -contains 'guarded') $r.Err
+            $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-ZCodeBrowser')
+            Check 'Windows ZCode browser refuses without its pinned runtime' ($r.Exit -eq 3 -and $r.Err -match 'Install-ZCodeBrowserRuntime')
+            $agents.activeAgents = @($agents.activeAgents | Where-Object id -ne 'zcode')
+            Save-Fixture
+        } finally {
+            $env:USERPROFILE = $userProfileBeforeZCode
+        }
+    }
+    $r = Run @('-HostId','codex','-Prompt','ok','-ZCodeBrowser')
+    Check 'Other hosts refuse the ZCode browser option' ($r.Exit -eq 3 -and $r.Err -match 'applies only to -HostId zcode')
     $r = Run @('-List')
     Check 'list succeeds' ($r.Exit -eq 0) $r.Err
     $fleet.dispatchPolicy['codex'] = @{ enabled = $false; reason = 'response capture is not verified'; ownerAction = 'run a bounded smoke after the output fix' }; Save-Fixture

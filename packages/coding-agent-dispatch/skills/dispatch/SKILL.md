@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts.
 metadata:
-  version: "0.11.5"
+  version: "0.11.6"
 ---
 
 # Dispatch to another coding agent
@@ -93,6 +93,11 @@ widen its allowlist in a brief; see "Forge unattended intake" in
    For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.3`
    on Windows or `-Forge -HostId opencode-zai -Cwd <Forge-worktree>` for an
    interactive session. See the host reference for the Windows tool limits.
+
+   On Windows, `-HostId zcode` uses the bundled CLI and the existing standalone
+   ZCode provider profile. For native headless Browser Use, run
+   `zcode/Install-ZCodeBrowserRuntime.ps1` beside this skill once, then add
+   `-ZCodeBrowser`. It opens a fresh headless Edge profile.
 
    `-Role <role>` picks an OpenCode agent or a Factory custom droid: `peer` (default), `engineer`,
    `reviewer` or `tester` (OpenCode also takes `researcher`). Factory maps `engineer`,

@@ -21,6 +21,8 @@ $requiredFiles = @(
     'skills/dispatch/cline/peer-guard.js', 'skills/dispatch/cline/lightweight-chat.js',
     'skills/dispatch/opencode/lightweight-chat.js',
     'skills/dispatch/factory/runtime-settings.json',
+    'skills/dispatch/zcode/Install-ZCodeBrowserRuntime.ps1', 'skills/dispatch/zcode/playwright-loader.mjs',
+    'skills/dispatch/zcode/package.json', 'skills/dispatch/zcode/package-lock.json',
     'agents/claude/coding-agent.md', 'agents/codex/coding-agent.toml',
     'assets/icon.svg',
     'reviewer/Invoke-PrReview.ps1', 'reviewer/PrReviewLib.ps1',
