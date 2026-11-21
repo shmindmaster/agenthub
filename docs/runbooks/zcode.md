@@ -1,6 +1,6 @@
 # Z.ai ZCode
 
-Standalone ZCode is a retained fleet agent. On the verified Windows host, ZCode Desktop is the signed 3.18.2 release (file build 3.18.2.10443). Its bundled Agent CLI reports 0.17.1. AgentHub uses the invoking Windows user's `~/.zcode/cli` profile for this install. AutoClaw's account-specific ZCode runtime has a separate profile. [Install](https://zcode.z.ai/en/docs/install) · [ZCode source and distributions](https://github.com/zai-org/ZCode/blob/main/README.en.md)
+Standalone ZCode is a retained fleet agent. On the verified Windows host, ZCode Desktop is the installed 3.19.1 release (file build 3.19.1.10833). Its bundled Agent CLI reports 0.18.0. AgentHub uses the invoking Windows user's `~/.zcode/cli` profile for this install. AutoClaw's account-specific ZCode runtime has a separate profile. [Install](https://zcode.z.ai/en/docs/install) · [ZCode source and distributions](https://github.com/zai-org/ZCode/blob/main/README.en.md)
 
 ## Configure and verify
 
@@ -16,7 +16,16 @@ Omit `-IncludePrivateOverlay` for public AgentHub and Parallel only. Use `-Plugi
 
 The desktop and bundled CLI are the verified installation surfaces. ZCode Desktop is also the vendor's development environment, with an integrated terminal, previews and DevTools. The open-source unified distribution also provides TUI and local Web modes. Its launcher and Web mode require separate installation and acceptance. Remote Development runs tasks in a separate workspace over SSH, Docker or WSL. Remote Control and Bot Channel connect to an existing desktop session. Both routes need separate acceptance. [ZCode IDE](https://zcode.z.ai/en/docs/ADE-tools) · [ZCode distribution](https://github.com/zai-org/ZCode/blob/main/README.en.md#zcode-cli-distribution)
 
-AgentHub dispatch awaits a successful model request from a disposable workspace. The Windows desktop bundle needed explicit paths to its built-in and personal provider configuration for a headless prompt. With both paths set, the CLI started and returned "Select a model before sending a message." Marketplace and skill inventory run independently of model selection.
+AgentHub dispatch uses the bundled Windows CLI in guarded mode with the existing standalone provider profile. Sign in and select the intended subscription in ZCode before running unattended work.
+
+```powershell
+$dispatch = 'packages/coding-agent-dispatch/skills/dispatch'
+pwsh -NoProfile -File "$dispatch/Invoke-CodingAgent.ps1" -HostId zcode -Cwd $workspace -PromptFile $task
+pwsh -NoProfile -File "$dispatch/zcode/Install-ZCodeBrowserRuntime.ps1"
+pwsh -NoProfile -File "$dispatch/Invoke-CodingAgent.ps1" -HostId zcode -Cwd $workspace -PromptFile $browserTask -ZCodeBrowser
+```
+
+Browser Use starts Edge headlessly with a fresh profile. The desktop CJS bundle resolves Playwright Core as an external dependency when launched through Node. AgentHub installs the upstream-pinned Playwright Core dependency under its runtime directory and supplies it to the browser-enabled child when the bundle cannot resolve the package. This leaves the vendor installation and user profile intact. Desktop-pane acceptance is a separate check.
 
 ## MCP and accounts
 

@@ -41,6 +41,9 @@
 .PARAMETER Auth
     Print sign-in or provider setup commands for the selected surface.
 
+.PARAMETER ZCodeBrowser
+  Enable ZCode native headless Browser Use in a fresh browser profile.
+
 .PARAMETER HostId
   agents.json id. cursor is accepted and runs cursor-agent.
 
@@ -148,6 +151,7 @@ param(
     [string]$SessionId,
     [string]$Role,
     [switch]$ReadOnly,
+    [switch]$ZCodeBrowser,
     [string]$RunId,
     [string]$MaxAcu,
     [string[]]$Repo,
@@ -213,6 +217,10 @@ if ($Forge) {
     $forgeCatalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'forge-hosts.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 }
 
+if ($ZCodeBrowser -and ($Forge -or $Auth -or $List -or ([string]$HostId).Trim() -ne 'zcode')) {
+    Write-Refusal 3 '-ZCodeBrowser applies only to -HostId zcode on the local dispatcher.'
+}
+
 if ($Auth) {
     if ($Prompt -or $PromptFile -or $Cwd -or $List -or $ShowCommand -or $ReadOnly -or
         $Role -or $Title -or $SessionId -or $Model -or $AnthropicApiKey -or
@@ -240,6 +248,7 @@ if ($Auth) {
             claude = 'claude auth login; check with claude auth status'
             qwen = 'qwen; run /auth and choose QwenCloud Token Plan'
             mimo = 'mimo providers; select the MiMo Token Plan'
+            zcode = 'In ZCode Desktop, use Connect to sign in to the intended Z.ai Coding Plan and select its model.'
             cline = 'cline auth'
             opencode = 'opencode; run /connect and choose the intended provider'
             'opencode-zai' = 'Use -HostId opencode -Model zai-coding-plan/glm-5.3; the Windows launcher reads ZAI_CODING_PLAN_API_KEY.'
@@ -538,6 +547,37 @@ function Get-DispatchTable {
     # A ~/bin or npm .cmd is started through a hidden cmd.exe. Fleet flags
     # already baked into that shim are not added again.
     return @{
+        'zcode' = @{
+            Mode = 'stdin'
+            Build = {
+                param($PromptText, $Work, $File)
+                $launch = Resolve-ZCodeLaunch $targetAgent
+                $loader = Join-Path $PSScriptRoot 'zcode/launch-preload.mjs'
+                $arguments = @('--import', ([uri]::new($loader)).AbsoluteUri)
+                $childEnv = @{
+                    ZCODE_BUILTIN_PROVIDER_CONFIG_FILE = $launch.Builtin
+                    ZCODE_PERSONAL_PROVIDER_CONFIG_FILE = $launch.Personal
+                }
+                if ($ZCodeBrowser) {
+                    $package = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $PSScriptRoot 'zcode/package.json') | ConvertFrom-Json
+                    $version = $package.dependencies.'playwright-core'
+                    $runtime = Join-Path (Get-AgentHubDefaultLocalData) "AgentHub/runtime/coding-agent-dispatch/zcode/playwright-$version"
+                    if (-not (Test-Path -LiteralPath (Join-Path $runtime 'node_modules/playwright-core/index.mjs') -PathType Leaf)) {
+                        Write-Refusal 3 'refused zcode: run zcode/Install-ZCodeBrowserRuntime.ps1 to install the pinned browser dependency'
+                    }
+                    $edge = Join-Path ${env:ProgramFiles(x86)} 'Microsoft/Edge/Application/msedge.exe'
+                    if (-not (Test-Path -LiteralPath $edge -PathType Leaf)) {
+                        Write-Refusal 3 'refused zcode: Microsoft Edge is absent from its Windows installation path'
+                    }
+                    $childEnv.AGENTHUB_ZCODE_PLAYWRIGHT_ROOT = $runtime
+                }
+                $arguments += @($launch.Runtime, '--cwd', $Work, '--no-color', '--mode', 'guarded')
+                if ($ZCodeBrowser) {
+                    $arguments += @('--surface', 'desktop', '--browser-use', 'headless', '--browser-executable', $edge, '--no-browser-state')
+                }
+                @{ Args = $arguments + @('--prompt'); Stdin = $PromptText; Env = $childEnv }
+            }
+        }
         'claude' = @{
             Mode = 'stdin'
             ReadOnly = $true
@@ -1078,6 +1118,19 @@ function Resolve-DeclaredExecutable {
     return $null
 }
 
+function Resolve-ZCodeLaunch {
+    param($Agent)
+    if (-not $isWindowsHost -or -not $Agent.nativePaths.bundledRuntime) { return $null }
+    $runtime = Resolve-DeclaredExecutable -Declared ([string]$Agent.nativePaths.bundledRuntime)
+    $node = Resolve-DeclaredExecutable -Declared 'node.exe'
+    if (-not $runtime -or -not $node) { return $null }
+    $resources = Split-Path -Parent (Split-Path -Parent $runtime)
+    $builtin = Join-Path $resources 'config/provider/zcode-builtin.json'
+    $personal = Join-Path (Get-AgentHubDefaultHome) '.zcode/v2/provider_config.json'
+    if (-not (Test-Path -LiteralPath $builtin -PathType Leaf) -or -not (Test-Path -LiteralPath $personal -PathType Leaf)) { return $null }
+    return @{ Node = $node; Runtime = $runtime; Builtin = $builtin; Personal = $personal }
+}
+
 # -Role names a per-host profile. Only the hosts listed here have any.
 $script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'researcher')
 $script:RoleHosts = @('opencode', 'factory')
@@ -1132,6 +1185,9 @@ function Get-HostRow {
             return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = "routes to $target but that executable is absent" }
         }
         return [pscustomobject]@{ Id = $id; State = 'routed'; Detail = $target }
+    }
+    if ($id -eq 'zcode' -and -not (Resolve-ZCodeLaunch $Agent)) {
+        return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = 'requires Windows, Node, and the installed ZCode bundle and provider files' }
     }
     if ($table.ContainsKey($id)) {
         $exe = Resolve-DeclaredExecutable -Declared ([string]$Agent.executable)
@@ -1335,7 +1391,8 @@ if ($ReadOnly) {
     }
 }
 $targetAgent = Get-AgentRecord -Agents $agents -Id $targetId
-$executable = Resolve-DeclaredExecutable -Declared ([string]$targetAgent.executable)
+$executable = if ($targetId -eq 'zcode') { (Resolve-ZCodeLaunch $targetAgent).Node }
+    else { Resolve-DeclaredExecutable -Declared ([string]$targetAgent.executable) }
 if (-not $executable) { Write-Refusal 2 "refused ${targetId}: executable is absent" }
 if ($targetId -eq 'opencode' -and $script:OpenCodeModel -like 'zai-coding-plan/*') {
     $zaiLauncher = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\zai\opencode-zai.ps1'
@@ -1480,6 +1537,7 @@ $accountScrub = @{
     'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'warp'         = @('WARP_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'grok'         = @('XAI_API_KEY')
+    'zcode'        = @('ZAI_API_KEY', 'Z_AI_API_KEY', 'BIGMODEL_API_KEY', 'GLM_API_KEY', 'ZCODE_HOME', 'ZCODE_PROVIDER_OPTIONS', 'ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE', 'AGENTHUB_ZCODE_PLAYWRIGHT_ROOT', 'NODE_OPTIONS')
     'factory'      = @('FACTORY_API_KEY')
     'cursor-agent' = @('CURSOR_API_KEY')
     'amp'          = @('AMP_API_KEY')
