@@ -419,7 +419,7 @@
       "readOnly": null,
       "readOnlyNote": "2026-11-21 Guarded unattended mode is not an enforced read-only contract.",
       "verifiedOn": "2026-11-21",
-      "reason": "Owner authorized Windows ZCode dispatch in SH-5036. The guarded CLI captured the exact prompt response through AgentHub on the saved subscription. Native headless Browser Use passed with the pinned Playwright runtime."
+      "reason": "Owner authorized Windows ZCode dispatch in SH-5036. The initial guarded launcher captured the exact response on the saved subscription and passed native headless Browser Use. The stdin launcher is covered by dispatcher fixtures."
     },
     "cursor": {
       "enabled": true,
