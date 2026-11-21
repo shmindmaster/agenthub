@@ -79,7 +79,7 @@
     "lexalign":       { "tracker": "linear", "trackerNote": "ABACARE Linear", "agentsExemptions": ["apps/web/AGENTS.md"] },
     "lienwise":       { "tracker": "linear", "trackerNote": "ABACARE Linear" },
     "mahumtech":      { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
-    "rexa":           { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
+    "rexa":           { "tracker": "linear", "trackerNote": "ABACARE Linear; Rexa finish line in Venture Products" },
     "saroshhussain":  { "tracker": "none", "trackerNote": "No external tracker" },
     "subops":         { "tracker": "linear", "trackerNote": "ABACARE Linear; DEBT.md registers accepted debt" },
     "tgiagency":      { "tracker": "none", "trackerNote": "No external tracker" },
