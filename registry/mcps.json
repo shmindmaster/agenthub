@@ -37,30 +37,45 @@
       "note": "Owner direction 2026-11-04: no direct MCP entries beyond what a host needs, on every coding host. Each key under hosts is a plugin-only host, and its value lists the only direct entries allowed there, with the reason. pluginOwnersByHost on each server records which plugin carries it. tests/Test-PluginOnlyMcp.ps1 fails on any other entry. Hosts not listed here keep the older write-everything behaviour.",
       "hosts": {
         "claude": {
+          "tavily": "Tavily documents native Streamable HTTP and account OAuth in Claude Code. Preserve the user-level connection.",
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep vendor AWS skills and suppress plugin:aws-core:aws-mcp when the hosted connection owns this server. Native OAuth consent is per host and AWS identity.",
           "devin": "No vendor plugin carries the official Devin MCP server. Owner-configured remote entry whose native headersHelper runs packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1, which reads the key with op read through the 1Password service account at connect time; no key or key-bearing variable is stored in the config (SH-4969)."
         },
         "codex": {
+          "parallel": "Preserve the native anonymous search and fetch route. Keep vendor Parallel skills distinct from MCP delivery.",
+          "tavily": "Preserve the vendor-documented native Codex MCP and its OAuth consent.",
           "node_repl": "Written by Codex itself; its bundled browser, chrome and computer-use plugins need it.",
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep the vendor AWS plugin and disable its bundled aws-mcp through plugin-scoped MCP policy when the hosted connection owns this server.",
           "devin": "No vendor plugin carries the official Devin MCP server. Preserve the owner-configured remote entry using the native Codex http_headers_helper with AgentHub's 1Password-backed Get-DevinMcpHeaders.ps1. Fleet sync never generates this entry."
         },
         "cursor": {
+          "tavily": "Preserve the Cursor native hosted MCP with Tavily OAuth.",
           "parallel": "Use Parallel's official hosted MCP through Cursor's native remote MCP configuration and keep the anonymous tool subset.",
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint for Cursor. Use its native remote MCP configuration and consent flow, with no local proxy."
         },
         "grok": {
+          "parallel": "Preserve the existing native hosted Parallel route when Grok imports Claude plugins.",
+          "tavily": "Preserve the native Grok Build Streamable HTTP entry and its OAuth consent.",
           "aws-mcp": "A native remote override selects AWS's hosted OAuth endpoint while vendor skills remain installed. Preserve the existing disabled state and verify that the effective source replaces the bundled proxy before enabling."
         },
         "factory": {
+          "parallel-search": "Preserve Droid’s native hosted anonymous Parallel entry and its existing server name.",
+          "tavily": "Preserve Droid’s native vendor-hosted HTTP entry. Authorize with /mcp and the Droid keyring.",
           "web-reader": "Preserve the existing Z.ai Coding Plan hosted Web Reader connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server.",
           "web-search-prime": "Preserve the existing Z.ai Coding Plan hosted Web Search connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server.",
           "zread": "Preserve the existing Z.ai Coding Plan hosted repository documentation connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server."
         },
-        "zcode": {},
-        "antigravity": {},
-        "copilot": {},
+        "zcode": {
+          "tavily": "Use ZCode’s native hosted MCP with OAuth enabled in its MCP settings."
+        },
+        "antigravity": {
+          "tavily": "Preserve Antigravity’s native serverUrl entry and native OAuth for the hosted Tavily endpoint."
+        },
+        "copilot": {
+          "tavily": "Preserve the Copilot CLI user-level HTTP registration. Check OAuth support in the installed CLI before relying on tools."
+        },
         "vscode-insiders": {
+          "tavily": "Preserve the native VS Code Insiders HTTP entry and OAuth consent.",
           "parallel": "Use Parallel's official hosted MCP through VS Code's native HTTP server configuration and keep the anonymous tool subset.",
           "github": "Copilot's own GitHub endpoint with OAuth. The catalog github plugin needs a personal access token instead.",
           "clerk": "Clerk CLI targets stable VS Code, so Insiders uses its own remote entry with Copilot official skills."
@@ -79,9 +94,10 @@
           "clerk": "Cline extension has no plugin MCP loader; official upstream plugin also serves the CLI. Remote only, off by default.",
           "gcp-storage": "Preserve the existing Google-hosted Cloud Storage MCP in Cline's native remote configuration. Google Cloud authorization is independent.",
           "google-drive": "Preserve the existing Google-hosted Drive MCP in Cline's native remote configuration. Google Workspace OAuth is independent.",
-          "tavily": "Preserve the existing Tavily-hosted Streamable HTTP entry and Cline's native OAuth state. Fleet sync does not provision the connection, change the selected account, or approve tools."
+          "tavily": "Preserve the Tavily-hosted Streamable HTTP entry and native OAuth state in Cline CLI and the extension. Authorize each surface in Cline."
         },
         "opencode": {
+          "tavily": "Preserve the OpenCode native hosted remote MCP and its OAuth settings.",
           "parallel": "Use Parallel's official hosted search and fetch endpoint through OpenCode's native remote MCP configuration. The vendor npm plugin is a separate integration that requires personal authorization.",
           "browse": "OpenCode's native real-profile browser integration uses a host-owned local relay. Preserve its native registration; cloud browsers do not inherit desktop logins.",
           "desktop-commander": "Existing owner-configured local device and filesystem fallback. Prefer adequate host tools and keep activation task-scoped; the hosted Desktop Commander route still requires a local device agent.",
@@ -98,9 +114,12 @@
           "google-drive": "Preserve the existing Google-hosted Drive MCP in OpenCode's native remote configuration. Google Workspace OAuth is independent."
         },
         "amp": {
+          "tavily": "Preserve the Amp CLI hosted remote entry and its native OAuth state.",
           "parallel": "Use the vendor hosted anonymous HTTP endpoint through the native Amp client."
         },
-        "devin": {},
+        "devin": {
+          "tavily": "Preserve Devin CLI’s hosted user-scope entry and native MCP login."
+        },
         "warp": {
           "context7": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
           "descript": "Warp has no plugin format, and a remote entry in ~/.warp/.mcp.json is its documented route. Runs no local process.",
@@ -110,6 +129,7 @@
           "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
         },
         "kilo": {
+          "tavily": "Preserve Kilo’s remote MCP entry in kilo.jsonc and its native OAuth state.",
           "parallel": "Use kilo mcp add to register the vendor hosted anonymous HTTP endpoint in kilo.jsonc."
         },
         "mimo-code": {}
@@ -202,6 +222,27 @@
       "hosts": ["cursor", "vscode-insiders", "amp", "cline", "opencode"],
       "hostScopeNote": "Managed streamable HTTP targets. OpenCode 2 uses mcp.servers and may return an empty catalog while MCP connections initialize. Kilo uses its native user command and stores the entry in kilo.jsonc. Client discovery and tool execution are checked separately from the endpoint probe.",
       "notes": "Official endpoint: https://parallel.ai/mcp. Use public queries and URLs. OAuth via the vendor login endpoint and API-key usage can bill the connected Parallel account; neither is configured by the fleet default."
+    },
+    {
+      "id": "tavily",
+      "name": "Tavily",
+      "scope": "owner-configured",
+      "scopeNote": "Use the host's native setup and OAuth flow. Sync preserves the registrations listed in pluginOnly and does not write or copy OAuth state.",
+      "transport": "http",
+      "activationMode": "shared-remote",
+      "url": "https://mcp.tavily.com/mcp/",
+      "credentialPolicy": "oauth",
+      "protocol": {
+        "revision": null,
+        "verifiedOn": "2026-11-20",
+        "verification": "Anonymous initialize returned HTTP 401 with a WWW-Authenticate challenge. Could not establish the protocol revision without an authenticated handshake."
+      },
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
+      "hosts": ["amp", "antigravity", "claude", "cline", "codex", "copilot", "cursor", "devin", "factory", "grok", "kilo", "opencode", "vscode-insiders", "zcode"],
+      "notes": "Official setup: https://docs.tavily.com/documentation/mcp. Use a native OAuth grant for the intended account. Do not include API keys or bearer tokens in the registration."
     },
     {
       "id": "github",
