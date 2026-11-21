@@ -58,6 +58,11 @@
     ],
     "profiles": [
       {
+        "hostId": "zcode",
+        "defaultProfile": "repo-autonomous",
+        "native": { "mode": "guarded" }
+      },
+      {
         "hostId": "codex",
         "defaultProfile": "repo-autonomous",
         "native": {
@@ -297,6 +302,10 @@
     ]
   },
   "hostSettings": {
+    "zcode": {
+      "authMode": "account",
+      "loginCommand": "ZCode Desktop > Connect > Z.ai Coding Plan"
+    },
     "cline": {
       "provider": "openai-compatible",
       "model": "qwen3.8-max-0902",
@@ -405,6 +414,13 @@
     "subscriptionOnly": "Owner direction 2026-11-10: subscriptions only, never a pay-as-you-go wallet. These are the only model refusals besides a malformed id. (1) OpenCode: provider opencode/ is the pay-as-you-go Zen wallet and is refused; use opencode-go/<model>, the Go subscription. (2) MiMo on every host (kilo, mimo-code, qwen on its OpenAI-compatible child environment, opencode mimo-token-plan/*, cline mimo-token-plan:*, and a Codex or Factory model id naming MiMo): the route must be the Xiaomi Token Plan. Provider xiaomi/ (the pay-as-you-go API in MiMo Code's model listing) is refused; MIMO_BASE_URL, when set, must name a token-plan-<region>.xiaomimimo.com host (pay-as-you-go is api.xiaomimimo.com); MIMO_API_KEY, when set, must start with tp- or ttp- (pay-as-you-go keys start with sk-); on qwen both must be present because that route's only credential is the child environment. The dispatcher names the variable and never prints its value."
   },
   "dispatchPolicy": {
+    "zcode": {
+      "enabled": true,
+      "readOnly": null,
+      "readOnlyNote": "2026-11-21 Guarded unattended mode is not an enforced read-only contract.",
+      "verifiedOn": "2026-11-21",
+      "reason": "Owner authorized Windows ZCode dispatch in SH-5036. The initial guarded launcher captured the exact response on the saved subscription and passed native headless Browser Use. The stdin launcher is covered by dispatcher fixtures."
+    },
     "cursor": {
       "enabled": true,
       "scope": "ide-agent, local-cli, cloud-background-agent, api",

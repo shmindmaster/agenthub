@@ -285,8 +285,9 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # Warp was decommissioned 2026-11-19 (docs/fleet/retired-hosts-2026-10-21.md): it was
     # uninstalled and moved to inactiveAgents, so it left the owner-authorized list; its
     # dispatch policy record must stay disabled and is pinned below beside windsurf.
+    # 2026-11-21 (SH-5036) explicitly authorized the verified local ZCode route.
     $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'factory', 'devin',
-        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'qwen', 'devin-cloud')
+        'amp', 'antigravity', 'copilot', 'claude', 'kilo', 'mimo-code', 'qwen', 'zcode', 'devin-cloud')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -360,7 +361,7 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add("$($entry.Name) has no loginCommand")
         }
     }
-    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'windsurf', 'kilo', 'mimo-code', 'qwen')
+    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'windsurf', 'kilo', 'mimo-code', 'qwen', 'zcode')
     foreach ($id in $dispatchHosts) {
         if ($profile.hostSettings.PSObject.Properties.Name -notcontains $id) {
             $violations.Add("$id has no hostSettings authentication record")

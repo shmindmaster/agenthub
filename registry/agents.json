@@ -6,7 +6,7 @@
       "id": "zcode",
       "fleetRole": "retained",
       "name": "Z.ai ZCode",
-      "version": "3.18.2",
+      "version": "3.19.1",
       "versionProbe": "file-version",
       "versionProbeNote": "Read Windows desktop executable metadata without launching the app.",
       "executable": "{userHome}/AppData/Local/Programs/ZCode/ZCode.exe",
@@ -24,8 +24,8 @@
       },
       "supportedCapabilities": ["skills", "mcp", "plugins"],
       "status": "active",
-      "versionObserved": "Windows signed desktop build 3.18.2.10443 matches vendor desktop release 3.18.2. Bundled CLI reported 0.17.1.",
-      "notes": "SH-5036. Standalone ZCode is a retained fleet agent with its own user profile, native marketplace deployment and Doctor readback. Plugin deployment uses the native plugins command. Dispatch needs a working noninteractive model route. See docs/runbooks/zcode.md for verified surfaces."
+      "versionObserved": "Windows desktop executable reports 3.19.1.10833 and bundled CLI 0.18.0.",
+      "notes": "SH-5036. Standalone ZCode is a retained fleet agent with its own user profile, native marketplace deployment and Doctor readback. Plugin deployment uses the native plugins command. The Windows dispatcher uses the bundled CLI with the saved provider profile. See docs/runbooks/zcode.md for verified surfaces."
     },
     {
       "id": "autoclaw",
