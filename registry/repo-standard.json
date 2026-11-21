@@ -55,13 +55,13 @@
   "repos": {
     "abacare": {
       "tracker": "linear",
-      "trackerNote": "Linear SH- IDs",
+      "trackerNote": "ABACARE Linear",
       "docsExemptions": {
         "reason": "The repository's AGENTS.md defines an exact ten-document flat docs layout (D-001); splitting those authoritative documents into taxonomy directories would duplicate knowledge.",
         "paths": ["docs/product", "docs/architecture", "docs/development", "docs/runbooks", "docs/plans", "docs/README.md", "docs/current-state.md", "docs/plans/PLANS.md"]
       }
     },
-    "agenthub":       { "tracker": "linear", "trackerNote": "Linear SH- IDs; epic SH-4409 (AgentHub - Portfolio Engineering & Knowledge). Drift detection and validation stay the correctness authority." },
+    "agenthub":       { "tracker": "linear", "trackerNote": "ABACARE Shared Platform (CORE); AgentHub — Portfolio Engineering & Knowledge. Drift detection and validation stay the correctness authority." },
     "coledger":       { "tracker": "linear", "trackerNote": "Linear" },
     "crewscore": {
       "tracker": "none",
@@ -75,15 +75,15 @@
     "gentlenext":     { "tracker": "linear", "trackerNote": "Linear" },
     "heatlot":        { "tracker": "github-issues", "trackerNote": "OSS (renamed from assay 2026-10-15): GitHub Issues/PRs; verification pack in docs/verification" },
     "gitpin":         { "tracker": "none", "trackerNote": "GitHub repository deleted 2026-11-05; local checkout retained pending cleanup. Historical GitHub Issues/PRs are no longer available.", "agentsExemptions": [".demo\\runtime\\repositories\\atlas-api\\AGENTS.md", ".demo\\runtime\\repositories\\support-ops\\AGENTS.md", ".repocontext-index\\gitpin\\AGENTS.md"] },
-    "lawli":          { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
-    "lexalign":       { "tracker": "linear", "trackerNote": "Linear SH- IDs", "agentsExemptions": ["apps/web/AGENTS.md"] },
-    "lienwise":       { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
+    "lawli":          { "tracker": "linear", "trackerNote": "ABACARE Linear" },
+    "lexalign":       { "tracker": "linear", "trackerNote": "ABACARE Linear", "agentsExemptions": ["apps/web/AGENTS.md"] },
+    "lienwise":       { "tracker": "linear", "trackerNote": "ABACARE Linear" },
     "mahumtech":      { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
-    "rexa":           { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
+    "rexa":           { "tracker": "linear", "trackerNote": "ABACARE Linear; Rexa finish line in Venture Products" },
     "saroshhussain":  { "tracker": "none", "trackerNote": "No external tracker" },
-    "subops":         { "tracker": "linear", "trackerNote": "Linear SH- IDs; DEBT.md registers accepted debt" },
+    "subops":         { "tracker": "linear", "trackerNote": "ABACARE Linear; DEBT.md registers accepted debt" },
     "tgiagency":      { "tracker": "none", "trackerNote": "No external tracker" },
-    "verigence":      { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
-    "warrantygains":  { "tracker": "linear", "trackerNote": "Linear SH- IDs" }
+    "verigence":      { "tracker": "linear", "trackerNote": "ABACARE Linear" },
+    "warrantygains":  { "tracker": "linear", "trackerNote": "ABACARE Linear" }
   }
 }

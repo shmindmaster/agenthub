@@ -47,7 +47,7 @@ pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Apply -Validate   # deploy ma
 
 ## Tracker
 
-Linear. The program is epic SH-4409 under project "AgentHub - Portfolio Engineering & Knowledge"; read SH-4063 first and claim an issue with `agent:<host>` before editing. Git holds code, configuration and docs; Linear holds scope, claims and dependencies. Drift detection and validation remain the correctness authority. Complex multi-session work may add `docs/plans/active/` that references issue IDs.
+Use the [AgentHub — Portfolio Engineering & Knowledge project](https://linear.app/abacare/project/agenthub-portfolio-engineering-and-knowledge-a780cf63463d) in ABACARE's Shared Platform team for project-wide work. Claim the relevant issue with `agent:<host>` before editing. Git holds code, configuration and docs. Linear holds scope, claims and dependencies. Drift detection and validation remain the correctness authority. Complex multi-session work may add `docs/plans/active/` that references issue IDs.
 
 ## Definition of done
 

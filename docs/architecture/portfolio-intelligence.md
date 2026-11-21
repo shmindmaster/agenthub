@@ -11,14 +11,12 @@ authorized server-side provider connections and product-specific controls.
 
 ## Commercial research
 
-Start with ABACare's existing founder pipeline and
-[SH-3805](https://linear.app/shorg/issue/SH-3805). Discover and verify public
-business identities, deduplicate against the existing
-[SH-1334 pipeline](https://linear.app/shorg/issue/SH-1334), and record source
-evidence, unknown fields, product fit, owner and outreach state. Keep proposed
-messages reviewable and measure cost per usable lead. ABACare work uses the
-ABACare AI LLC identity. Confirm the appropriate entity, account and data
-permissions independently for other products.
+Start with ABACare's [founder pipeline](https://linear.app/abacare/issue/ABC-65).
+Discover and verify public business identities, deduplicate against the
+pipeline, and record source evidence, unknown fields, product fit, owner and
+outreach state. Keep proposed messages reviewable and measure cost per usable lead.
+ABACare work uses the ABACare AI LLC identity. Confirm the appropriate entity,
+account and data permissions independently for other products.
 
 Reuse research methods for marketing and customer preparation. Ground public
 product claims in verified release evidence and distinguish proposed,
@@ -40,18 +38,18 @@ These are candidates for evaluation within existing product priorities.
 | LexAlign | Source-grounded authority research for claim review |
 | GentleNext | Community resource discovery and freshness |
 
-ABACare's [SH-2296](https://linear.app/shorg/issue/SH-2296) owns payer-source
-monitoring and impact work. Reuse its source registry and review workflow and
-investigate the inaccessible source under
-[SH-4899](https://linear.app/shorg/issue/SH-4899). Assess provider changes
+For ABACare payer-source monitoring and impact assessment, reuse the
+product's source registry and review workflow. Assess provider changes
 against the current product implementation and approved source access.
+[ABC-106](https://linear.app/abacare/issue/ABC-106) tracks restoring source
+verification for Community Health Choice.
 
-CoLedger buyer validation remains governed by
-[SH-1221](https://linear.app/shorg/issue/SH-1221) and its
-[SH-4240 decision gate](https://linear.app/shorg/issue/SH-4240). Revolva's
-first paid workflow remains under
-[SH-3520](https://linear.app/shorg/issue/SH-3520). Product-specific data,
-approval, legal and clinical requirements remain with their owners.
+CoLedger buyer validation follows
+[VEN-80](https://linear.app/abacare/issue/VEN-80) and its
+[decision gate](https://linear.app/abacare/issue/VEN-118). Revolva's first paid
+workflow is tracked in [VEN-27](https://linear.app/abacare/issue/VEN-27).
+Product-specific data, approval, legal and clinical requirements remain
+with their owners.
 
 ## Shared production capability
 

@@ -202,18 +202,20 @@ client's callback input when supported. Keep the listener private; never
 put the callback URL in chat, logs, or an issue. Verify the resulting
 session by reading a Linear issue from the client that signed in.
 
-Forge operator sessions are interactive. Linux tool isolation and exact-head
-review acceptance are tracked under
-[SH-4409](https://linear.app/shorg/issue/SH-4409).
+Forge operator sessions are interactive. Use the
+[AgentHub project in ABACARE](https://linear.app/abacare/project/agenthub-portfolio-engineering-and-knowledge-a780cf63463d)
+for Linux tool isolation and code review acceptance work.
 
 ## Forge unattended intake
 
 `skills/dispatch/forge-intake.mjs` turns one eligible Linear issue into one
 draft pull request without any workstation online. A systemd timer on Forge
 (`forge-intake.timer`, 30 minutes after the previous run ends) starts
-`forge-intake.service` as `agenthub-runner`. It runs from the root-owned release
-catalog at `/opt/agenthub/current`, so the runner cannot edit its own
-allowlist, caps or routes. `forge-intake.json` holds all of them.
+`forge-intake.service` as `agenthub-runner`. It runs from a root-owned
+catalog or intake-only release. The release's `forge-intake.json` defines
+allowlists, caps and routes. The root-owned `forge-intake-linear.json`
+binds the deployment to its workspace, team and project. The Forge host
+uses the AgentHub project in ABACARE's Shared Platform team (`CORE`).
 
 A run uses isolated headless Codex sessions on a token plan and keeps GitHub
 credentials in the wrapper:
