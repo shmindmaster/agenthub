@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const LAUNCHER = /^\.local\/bin\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const REPO = /^[^/\s]+\/[^/\s]+$/;
+const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const PHASES = ['select', 'implement', 'finish'];
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isString = (value) => typeof value === 'string' && value.length > 0;
@@ -18,9 +19,15 @@ export function validateIntakeConfig(config) {
   const linear = config.linear;
   if (!isObject(linear)) errors.push('linear must be an object');
   else {
-    for (const key of ['team', 'claimLabel', 'claimedState', 'reviewState', 'mcpUrl']) {
+    for (const key of ['claimLabel', 'claimedState', 'reviewState', 'mcpUrl']) {
       if (!isString(linear[key])) errors.push(`linear.${key} must be a non-empty string`);
     }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(linear.workspace ?? '')) errors.push('linear.workspace must be a workspace slug');
+    if (!/^[A-Z]+$/.test(linear.teamKey ?? '')) errors.push('linear.teamKey must be an issue prefix');
+    for (const key of ['teamId', 'projectId']) {
+      if (!UUID.test(linear[key] ?? '')) errors.push(`linear.${key} must be a UUID`);
+    }
+    if (linear.server !== `linear_${linear.workspace}`) errors.push('linear.server must be workspace specific');
     for (const key of ['pickStates', 'includeLabelsAny', 'excludeLabelPatterns']) {
       if (!isStrings(linear[key])) errors.push(`linear.${key} must be a non-empty string array`);
     }
@@ -124,7 +131,11 @@ test('every intake config rule can fail', () => {
   const cases = [
     ['root', { version: 1 }, undefined],
     ['version', { version: 2 }, 'version must be 1'],
-    ['team', linear('team', ''), 'linear.team must be a non-empty string'],
+    ['workspace', linear('workspace', '../old'), 'linear.workspace must be a workspace slug'],
+    ['team key', linear('teamKey', ''), 'linear.teamKey must be an issue prefix'],
+    ['team ID', linear('teamId', 'CORE'), 'linear.teamId must be a UUID'],
+    ['project ID', linear('projectId', ''), 'linear.projectId must be a UUID'],
+    ['server', linear('server', 'linear'), 'linear.server must be workspace specific'],
     ['claim label', linear('claimLabel', ''), 'linear.claimLabel must be a non-empty string'],
     ['claimed state', linear('claimedState', ''), 'linear.claimedState must be a non-empty string'],
     ['review state', linear('reviewState', ''), 'linear.reviewState must be a non-empty string'],

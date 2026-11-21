@@ -10,9 +10,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HOME = '/srv/work/agenthub-runner';
-const STATE = join(HOME, '.local/state/agenthub/forge-intake');
 const KILL_SWITCH = join(HOME, '.config/agenthub/forge-intake.disabled');
-const WORK = join(HOME, 'worktrees/intake');
 const COOLDOWN_MS = 3 * 3600_000; // Z.ai's window is 5 hours; the others reset sooner, so 3 hours is a middle value.
 const CONFIG_PATH = fileURLToPath(new URL('./forge-intake.json', import.meta.url));
 const SECRET_PATTERNS = [/gh[pousr]_[A-Za-z0-9]{20,}/, /github_pat_[A-Za-z0-9_]{20,}/, /\bsk-[A-Za-z0-9_-]{20,}/, /AKIA[0-9A-Z]{16}/, /xox[abprs]-[A-Za-z0-9-]{10,}/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /lin_(?:api|oauth)_[A-Za-z0-9]{20,}/];
@@ -82,8 +80,18 @@ export function skipList(ledger, config) {
 // A plan that reports its quota or rate limit is not at fault for the issue: it cools down and the
 // attempt is not charged to the issue.
 export const LIMIT_PATTERN = /usage limit|rate limit|quota|too many requests|insufficient (?:balance|credit)|limit (?:has been )?reached/i;
-// Only Codex's own error lines count: issue text echoed into the log must not steer retry accounting.
-export const isProviderLimit = (text) => (text || '').split('\n').some((line) => /^\s*error/i.test(line) && LIMIT_PATTERN.test(line));
+// Only Codex errors count: issue text echoed into the log must not steer retry accounting.
+export const isProviderLimit = (text) => (text || '').split('\n').some((line) => {
+  if (/^\s*error/i.test(line)) return LIMIT_PATTERN.test(line);
+  if (!line.startsWith('{')) return false;
+  try {
+    const event = JSON.parse(line);
+    if (event.type === 'error') return LIMIT_PATTERN.test(event.message ?? '');
+    return event.type === 'turn.failed' && LIMIT_PATTERN.test(event.error?.message ?? '');
+  } catch {
+    return false;
+  }
+});
 
 // Model-written text is scanned before it reaches GitHub or Linear.
 export const redact = (value) => {
@@ -91,7 +99,23 @@ export const redact = (value) => {
   return SECRET_PATTERNS.some((re) => re.test(text)) ? '[redacted: secret-shaped text]' : text;
 };
 
-export const validIssueId = (id) => typeof id === 'string' && /^SH-\d{1,7}$/.test(id);
+export const validIssueId = (id, teamKey) => Boolean(teamKey) && typeof id === 'string' && /^([A-Z]+)-\d{1,7}$/.exec(id)?.[1] === teamKey;
+
+export function linearScopeVerified(events, linear) {
+  return events.split('\n').some((line) => {
+    try {
+      const event = JSON.parse(line);
+      const call = event.item;
+      if (event.type !== 'item.completed' || call?.type !== 'mcp_tool_call' || call.server !== linear.server) return false;
+      if (call.tool !== 'get_team' || call.status !== 'completed' || call.error || call.arguments?.query !== linear.teamId) return false;
+      const content = call.result?.content?.find((item) => item.type === 'text')?.text;
+      const team = call.result?.structured_content ?? JSON.parse(content ?? '{}');
+      return team.id === linear.teamId && team.key === linear.teamKey;
+    } catch {
+      return false;
+    }
+  });
+}
 
 export const coolingRoutes = (ledger, now) => new Set(ledger.filter((row) => row.phase === 'cooldown' && row.until > now).map((row) => row.route));
 
@@ -131,18 +155,19 @@ export function checkDiff({ files, addedLines, numstat, modes = [] }, repo, limi
 
 const claimRules = (config) => {
   const l = config.linear;
-  return `Eligible issue: team ${l.team}; state one of ${l.pickStates.join(', ')}; no assignee; at least one of these labels: ${l.includeLabelsAny.join(', ')}; a label that names a mapped app (${Object.keys(config.repos).join(', ')}); and none of these label patterns: ${l.excludeLabelPatterns.join(', ')}. Never pick an epic, an issue that has sub-issues, or one whose body asks for an owner decision, a purchase, an external message, a deployment or access to a client system.`;
+  return `Eligible issue: workspace ${l.workspace}, team ${l.teamKey} (${l.teamId}), project ${l.projectId}; state one of ${l.pickStates.join(', ')}; no assignee; at least one of these labels: ${l.includeLabelsAny.join(', ')}; a label that names a mapped app (${Object.keys(config.repos).join(', ')}); and none of these label patterns: ${l.excludeLabelPatterns.join(', ')}. Never pick an epic, an issue that has sub-issues, or one whose body asks for an owner decision, a purchase, an external message, a deployment or access to a client system.`;
 };
 
 const l = (config) => config.linear;
 
-export const selectPrompt = (config, skip, forcedIssue) => `You are the unattended Forge intake for the owner's Linear backlog. Follow the claim protocol of issue SH-4063. Use only the Linear MCP; run no shell commands.
+export const selectPrompt = (config, skip, forcedIssue) => `You are the unattended Forge intake. Use only the ${l(config).server} MCP server; run no shell commands.
+First call get_team with query ${l(config).teamId}. Proceed only if it returns that exact UUID and key ${l(config).teamKey}. Otherwise stop without writes. Every list_issues call must set team to ${l(config).teamId} and project to ${l(config).projectId}. Only modify issues whose identifier starts with ${l(config).teamKey}- and whose team and project match.
 ${claimRules(config)}
 ${skip.length ? `Never pick these issues: ${skip.join(', ')}.` : ''}
-First release stale claims: any issue labelled ${l(config).claimLabel} that is ${l(config).claimedState} and untouched for ${l(config).staleClaimHours}+ hours loses that label, returns to Backlog and gets a one-line comment saying the Forge claim expired.
+First release stale claims: any issue in that queue labelled ${l(config).claimLabel} that is ${l(config).claimedState} and untouched for ${l(config).staleClaimHours}+ hours loses that label, returns to ${l(config).pickStates[0]} and gets a one-line comment saying the Forge claim expired.
 Search by label: query list_issues once for each mapped app label (${Object.keys(config.repos).join(', ')}) instead of scanning the whole backlog. An issue that lacks a mapped app label is never eligible, however high its priority or however well it matches the other rules.
 ${forcedIssue ? `Take only ${forcedIssue}, and only if it is eligible.` : 'Pick the single eligible issue with the highest priority (Urgent first, then oldest), skipping an issue another session claimed.'}
-If one qualifies: add the label ${l(config).claimLabel} and set it ${l(config).claimedState}. Then read the issue again to detect a duplicate claim: if any other agent:* label or an assignee appeared, remove only ${l(config).claimLabel}, restore the earlier state and reply {"outcome":"none","reason":"lost the claim race"}. Otherwise reply with one JSON object and nothing else: {"outcome":"claimed","issue":"SH-123","title":"...","state_before":"Backlog","labels":["every label the issue had BEFORE you added ${l(config).claimLabel}"],"summary":"two sentences on what the issue asks"}.
+If one qualifies: add the label ${l(config).claimLabel} and set it ${l(config).claimedState}. Then read the issue again to detect a duplicate claim: if any other agent:* label or an assignee appeared, remove only ${l(config).claimLabel}, restore the earlier state and reply {"outcome":"none","reason":"lost the claim race"}. Otherwise reply with one JSON object and nothing else: {"outcome":"claimed","issue":"${l(config).teamKey}-123","title":"...","state_before":"${l(config).pickStates[0]}","labels":["every label the issue had BEFORE you added ${l(config).claimLabel}"],"summary":"two sentences on what the issue asks"}.
 If none qualifies, change nothing and reply {"outcome":"none","reason":"..."}.`;
 
 export const implementPrompt = ({ issue, title, branch, repo }) => `You are an unattended coding agent on a Forge worktree of ${repo.repo}, on branch ${branch}. Implement Linear issue ${issue} ("${title}").
@@ -153,10 +178,10 @@ export const implementPrompt = ({ issue, title, branch, repo }) => `You are an u
 If the issue is ambiguous, needs a decision from the owner, or needs access you do not have, make no edits and say so.
 Reply with one JSON object and nothing else: {"status":"done"|"blocked","summary":"what changed and why","tests":[{"command":"...","result":"pass|fail|not-run"}],"notes":"limits or follow-ups"}. Use "done" when the change is complete in the working tree, even if some tests could not run here.`;
 
-export const finishPrompt = (config, { issue, ok, pr, route, summary, stateBefore, reason }) => `You are the unattended Forge intake closing out Linear issue ${issue}. Use only the Linear MCP; run no shell commands.
+export const finishPrompt = (config, { issue, ok, pr, route, summary, stateBefore, reason }) => `You are the unattended Forge intake closing out Linear issue ${issue}. Use only the ${l(config).server} MCP server; run no shell commands. Modify only ${issue}.
 ${ok
   ? `A draft pull request is open: ${pr}. It was written by Codex on the ${route.plan} (${route.id}) and has had no review. Comment on the issue with the PR link and this summary: ${JSON.stringify(summary)}. State plainly that it is a draft, not reviewed, not merged and not deployed. Remove the label ${config.linear.claimLabel} and set the issue to ${config.linear.reviewState}. Never set it Done.`
-  : `The run did not produce a pull request. Comment on the issue with this reason: ${JSON.stringify(reason)}. Remove the label ${config.linear.claimLabel} and set the issue back to ${stateBefore || 'Backlog'}.`}
+  : `The run did not produce a pull request. Comment on the issue with this reason: ${JSON.stringify(reason)}. Remove the label ${config.linear.claimLabel} and set the issue back to ${stateBefore || l(config).pickStates[0]}.`}
 Reply with {"ok":true} when the issue reflects this, otherwise {"ok":false,"error":"..."}.`;
 
 // ---- process helpers (not exercised by unit tests) ----
@@ -205,29 +230,37 @@ export function permissionArgs(home, access, listDir) {
 // approved one by one; nothing outside the allowlist is reachable.
 export const linearArgs = (linear, phase) => {
   const tools = linear.toolsByPhase[phase];
+  const server = `mcp_servers.${linear.server}`;
   return [
-    '-c', `mcp_servers.linear.url=${JSON.stringify(linear.mcpUrl)}`,
-    '-c', `mcp_servers.linear.enabled_tools=${JSON.stringify(tools)}`,
-    ...tools.filter((tool) => /^(save|create)_/.test(tool)).flatMap((tool) => ['-c', `mcp_servers.linear.tools.${tool}.approval_mode="approve"`]),
+    '-c', `${server}.url=${JSON.stringify(linear.mcpUrl)}`,
+    '-c', `${server}.required=true`,
+    '-c', `${server}.enabled_tools=${JSON.stringify(tools)}`,
+    ...tools.filter((tool) => /^(save|create)_/.test(tool)).flatMap((tool) => ['-c', `${server}.tools.${tool}.approval_mode="approve"`]),
   ];
 };
 
 function runAgent({ route, cwd, access, prompt, seconds, dir, name, linear }) {
   const out = join(dir, `${name}.last.txt`);
-  const args = ['exec', '--skip-git-repo-check', '--ephemeral', '-C', cwd, ...permissionArgs(HOME, access), ...linearArgs(linear, name), '-o', out, prompt];
+  const args = ['exec', '--skip-git-repo-check', '--ephemeral', ...(name === 'select' ? ['--json'] : []), '-C', cwd, ...permissionArgs(HOME, access), ...linearArgs(linear, name), '-o', out, prompt];
   const env = { HOME, PATH: `${HOME}/.local/bin:/usr/bin:/bin`, TERM: 'dumb' };
   return new Promise((resolve) => {
     const child = spawn(join(HOME, route.launcher), args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let tail = '';
+    let stdout = '';
     const sink = (chunk) => { log(dir, `${name}.log`, chunk); tail = (tail + chunk).slice(-6000); };
-    child.stdout.on('data', sink); child.stderr.on('data', sink);
+    child.stdout.on('data', (chunk) => {
+      if (name === 'select') stdout += chunk;
+      sink(chunk);
+    });
+    child.stderr.on('data', sink);
     const timer = setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL'); } catch { /* gone */ } resolve({ code: 'timeout', reply: null }); }, seconds * 1000);
     // A missing or non-executable launcher must fail the phase, not crash the run before close-out.
     child.on('error', (error) => { clearTimeout(timer); log(dir, `${name}.log`, `spawn error: ${error.message}\n`); resolve({ code: 'spawn-error', reply: null }); });
     child.on('close', (code) => {
       clearTimeout(timer);
       const reply = existsSync(out) ? parseAgentJson(readFileSync(out, 'utf8')) : null;
-      resolve({ code, reply, limited: !reply && code !== 0 && isProviderLimit(tail) });
+      const scopeVerified = name === 'select' && linearScopeVerified(stdout, linear);
+      resolve({ code, reply, scopeVerified, limited: !reply && code !== 0 && isProviderLimit(tail) });
     });
   });
 }
@@ -276,12 +309,11 @@ export function summarize(ledger, config, now) {
   };
 }
 
-const readLedger = () => (existsSync(join(STATE, 'ledger.jsonl')) ? readFileSync(join(STATE, 'ledger.jsonl'), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : []);
-const record = (row) => appendFileSync(join(STATE, 'ledger.jsonl'), `${JSON.stringify({ ts: new Date().toISOString(), ...row })}\n`);
+const readLedger = (path) => (existsSync(path) ? readFileSync(path, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : []);
 
-function prune(config) {
+function prune(config, state, work) {
   const cutoff = Date.now() - config.limits.keepRunDays * 86400_000;
-  for (const base of [join(STATE, 'runs'), WORK]) {
+  for (const base of [join(state, 'runs'), work]) {
     if (!existsSync(base)) continue;
     for (const name of readdirSync(base)) {
       const path = join(base, name);
@@ -315,45 +347,57 @@ export function inspectWorktree(dir, repo) {
 
 export async function main(argv) {
   const config = loadConfig();
+  const { workspace, teamKey } = config.linear;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(workspace ?? '')) throw new Error('invalid Linear workspace key');
+  const state = join(HOME, '.local/state/agenthub', `forge-intake-${workspace}`);
+  const work = join(HOME, 'worktrees', `intake-${workspace}`);
+  const ledgerPath = join(state, 'ledger.jsonl');
+  const record = (row) => appendFileSync(ledgerPath, `${JSON.stringify({ ts: new Date().toISOString(), ...row })}\n`);
   const flag = (name) => { const i = argv.indexOf(name); return i === -1 ? null : argv[i + 1] ?? true; };
-  const ledger = readLedger();
+  const forcedIssue = flag('--issue');
+  if (forcedIssue !== null && !validIssueId(forcedIssue, teamKey)) throw new Error(`--issue requires a ${teamKey} issue identifier`);
+  const ledger = readLedger(ledgerPath);
   const now = new Date().toISOString();
   // Read-only report, safe as root or runner: nothing below this branch runs.
   if (flag('--status') !== null) {
-    console.log(JSON.stringify({ disabled: existsSync(KILL_SWITCH), ...lockState(join(STATE, 'lock')), ...summarize(ledger, config, now) }, null, 2));
+    console.log(JSON.stringify({ workspace, team: teamKey, disabled: existsSync(KILL_SWITCH), ...lockState(join(state, 'lock')), ...summarize(ledger, config, now) }, null, 2));
     return 0;
   }
   if (existsSync(KILL_SWITCH)) return console.log('forge-intake: disabled by kill switch');
   if (userInfo().username !== 'agenthub-runner') throw new Error('run as agenthub-runner on Forge');
-  mkdirSync(STATE, { recursive: true }); mkdirSync(WORK, { recursive: true });
-  const lock = join(STATE, 'lock');
+  mkdirSync(state, { recursive: true }); mkdirSync(work, { recursive: true });
+  const lock = join(state, 'lock');
   if (!acquireLock(lock)) return console.log('forge-intake: another run holds the lock');
-  const dir = join(STATE, 'runs', now.replace(/[:.]/g, '-')); mkdirSync(dir, { recursive: true });
+  const dir = join(state, 'runs', now.replace(/[:.]/g, '-')); mkdirSync(dir, { recursive: true });
   const row = { phase: 'run', outcome: 'none' };
   const cool = (limitedRoute, phase) => record({ phase: 'cooldown', route: limitedRoute.id, during: phase, until: new Date(Date.now() + COOLDOWN_MS).toISOString() });
   const gitPush = (checkout, ...rest) => run('git', [...GIT_SAFE, '-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential', 'push', 'origin', ...rest], { cwd: checkout, env: GIT_ENV });
   let claimed = null; let route = null; let pr = null; let reason = null; let checkout = null;
   try {
-    prune(config);
-    if (runsToday(ledger, now) >= config.limits.maxRunsPerDay && !flag('--issue')) return console.log('forge-intake: daily cap reached');
-    if (countToday(ledger, 'select', now) >= config.limits.maxSelectsPerDay && !flag('--issue')) return console.log('forge-intake: daily select cap reached');
+    prune(config, state, work);
+    if (runsToday(ledger, now) >= config.limits.maxRunsPerDay && !forcedIssue) return console.log('forge-intake: daily cap reached');
+    if (countToday(ledger, 'select', now) >= config.limits.maxSelectsPerDay && !forcedIssue) return console.log('forge-intake: daily select cap reached');
     if (freemem() / 1048576 < config.limits.minFreeMemMiB) return console.log('forge-intake: not enough free memory');
     route = flag('--route') ? config.routes.find((r) => r.id === flag('--route')) : pickRoute(config, ledger, now);
     if (!route) { console.log('forge-intake: no enabled route is available (all cooling down or disabled)'); return 0; }
     row.route = route.id;
     // 1. select and claim
-    const sel = await runAgent({ route, cwd: WORK, access: 'read', prompt: selectPrompt(config, skipList(ledger, config), flag('--issue')), seconds: config.limits.selectSeconds, dir, name: 'select', linear: config.linear });
+    const sel = await runAgent({ route, cwd: work, access: 'read', prompt: selectPrompt(config, skipList(ledger, config), forcedIssue), seconds: config.limits.selectSeconds, dir, name: 'select', linear: config.linear });
     if (sel.limited) { cool(route, 'select'); return console.log(`forge-intake: ${route.id} is at its plan limit; cooling down`); }
-    if (!sel.reply || sel.reply.outcome !== 'claimed') { record({ phase: 'select', route: route.id, outcome: 'none' }); row.reason = sel.reply?.reason || `select failed (${sel.code})`; return console.log(`forge-intake: nothing taken: ${row.reason}`); }
+    if (!sel.scopeVerified || sel.code !== 0 || !['none', 'claimed'].includes(sel.reply?.outcome)) {
+      record({ phase: 'select', route: route.id, outcome: 'failed' });
+      throw new Error(`Linear selection did not verify ${workspace}/${teamKey} (exit ${sel.code}); see ${dir}`);
+    }
+    if (sel.reply.outcome === 'none') { record({ phase: 'select', route: route.id, outcome: 'none' }); return console.log(`forge-intake: nothing taken from ${workspace}/${teamKey}: ${redact(sel.reply.reason)}`); }
     // The id comes from the model. Anything but a plain issue id cannot be trusted as a path, branch or close-out target.
-    if (!validIssueId(sel.reply.issue)) { record({ phase: 'run', route: route.id, outcome: 'failed', reason: 'selector returned an invalid issue id', linearClosed: false }); console.error(`forge-intake: invalid issue id from selector; see ${dir}`); return 1; }
+    if (!validIssueId(sel.reply.issue, teamKey) || (forcedIssue && forcedIssue !== sel.reply.issue)) { record({ phase: 'run', route: route.id, outcome: 'failed', reason: 'selector returned an invalid issue id', linearClosed: false }); console.error(`forge-intake: invalid issue id from selector; see ${dir}`); return 1; }
     claimed = sel.reply; row.issue = claimed.issue; claimed.title = String(claimed.title || claimed.issue).slice(0, 160);
     const labelsBefore = preClaimLabels(claimed.labels, config.linear);
     const bad = isEligible({ state: claimed.state_before, labels: labelsBefore }, config.linear);
     const repo = repoFor(labelsBefore, config);
     if (bad || !repo) throw new Error(`claimed an ineligible issue (${bad || 'no mapped repo'})`);
     // 2. clone and implement
-    checkout = join(WORK, `${claimed.issue.toLowerCase()}-${Date.now()}`);
+    checkout = join(work, `${claimed.issue.toLowerCase()}-${Date.now()}`);
     const clone = run('gh', ['repo', 'clone', repo.repo, checkout, '--', '--depth', '50', '--branch', repo.base]);
     if (clone.status !== 0) throw new Error(`clone failed: ${clone.stderr.trim().slice(0, 200)}`);
     const branch = branchName(claimed.issue, claimed.title, failedAttempts(ledger, claimed.issue) + 1);
@@ -379,7 +423,7 @@ export async function main(argv) {
     claimed.summary = redact(impl.reply.summary).slice(0, 2000);
     const followUp = packageFollowUp(touchedPackages(seen.files));
     const body = `Linear: ${claimed.issue}\n\n${claimed.summary}\n\nTests reported by the agent: ${redact(impl.reply.tests || []).slice(0, 2000)}\n\nNotes from the agent: ${redact(impl.reply.notes || 'none').slice(0, 1500)}\n\nOpened unattended by Forge intake on ${route.plan} (${route.id}). Draft: no human has reviewed it, nothing is merged or deployed. CI on this PR is the verification.${followUp}`;
-    const created = run('gh', ['pr', 'create', '--repo', repo.repo, '--draft', '--base', repo.base, '--head', branch, '--title', headline, '--body', body], { cwd: WORK });
+    const created = run('gh', ['pr', 'create', '--repo', repo.repo, '--draft', '--base', repo.base, '--head', branch, '--title', headline, '--body', body], { cwd: work });
     if (created.status !== 0) {
       gitPush(checkout, '--delete', branch);
       throw new Error(`gh pr create failed: ${created.stderr.trim().slice(0, 200)}`);
@@ -389,7 +433,7 @@ export async function main(argv) {
     reason = redact(String(error.message || error)); row.outcome = error.limited ? 'limited' : 'failed'; row.reason = reason; console.error(`forge-intake: ${reason}`);
   } finally {
     if (claimed && route) {
-      const fin = await runAgent({ route, cwd: WORK, access: 'read', prompt: finishPrompt(config, { issue: claimed.issue, ok: Boolean(pr), pr, route, summary: claimed.summary, stateBefore: claimed.state_before, reason }), seconds: config.limits.finishSeconds, dir, name: 'finish', linear: config.linear });
+      const fin = await runAgent({ route, cwd: work, access: 'read', prompt: finishPrompt(config, { issue: claimed.issue, ok: Boolean(pr), pr, route, summary: claimed.summary, stateBefore: claimed.state_before, reason }), seconds: config.limits.finishSeconds, dir, name: 'finish', linear: config.linear });
       row.linearClosed = Boolean(fin.reply?.ok);
       if (!row.linearClosed) console.error(`forge-intake: Linear close-out for ${claimed.issue} not confirmed; see ${dir}`);
     }

@@ -218,13 +218,16 @@ allowlist, caps or routes. `forge-intake.json` holds all of them.
 A run has three headless Codex sessions on a token plan, and a wrapper that
 keeps GitHub credentials away from the model:
 
-1. **Select and claim** (read-only sandbox). Releases `agent:forge` claims that
-   are stale (8 h), then takes the best unclaimed issue: team Sh-org, state
-   Backlog or Todo, no assignee, labelled `type:bug`, `type:tech-debt` or
-   `area:docs`, labelled with a mapped app (today only `app:agenthub`), and
+1. **Select and claim** (read-only sandbox). Forge selects from ABACARE's
+   Shared Platform (`CORE`) team and the AgentHub Portfolio Engineering &
+   Knowledge project. An operator opts in by moving an unassigned issue to
+   Ready and applying `app:agenthub` plus `Bug`, `Maintenance` or `Improvement`.
+   Forge returns stale `agent:forge` claims (8 h) to Ready. It verifies the
+   configured team UUID through Linear MCP and excludes issues carrying
+   `Decision`, `Research`, or any of
    carrying none of `type:epic`, `type:research`, `attention:*`, `agent:*`,
    `risk:compliance`, `risk:security`, `stage:*`, `lane:*`, `funding:*`. It adds
-   `agent:forge` and sets In Progress (SH-4063). The wrapper re-checks the
+   `agent:forge` and sets In Progress. The wrapper re-checks the
    labels the agent reports and refuses an ineligible claim, and the selector is
    told to query `list_issues` once for each mapped app label instead of
    scanning the whole backlog. When the selector has claimed an issue the rules
@@ -244,7 +247,7 @@ keeps GitHub credentials away from the model:
    `.mcp.json` or package `hooks/`, secret-shaped paths or added lines,
    uncommitted leftovers and `git diff --check` failures. Agent-written text is
    redacted for secret-shaped content before it reaches the PR or Linear, and the
-   issue id is validated (`SH-<digits>`) before it becomes a path or branch.
+   issue ID is validated (`CORE-<digits>`) before it becomes a path or branch.
    It pushes `forge/<issue>-<slug>`, opens a **draft** PR, and removes the clone.
    The agent never edits `registry/capabilities.json` or any version: both are
    protected, and a hand-computed hash failed CI on #125. When the diff touches
@@ -276,7 +279,7 @@ tool lists exclude every delete.
 
 Codex exposes only a handful of the Linear server's 78 tools to the model
 unless an allowlist names them, so each phase passes
-`mcp_servers.linear.enabled_tools` (select and close-out can write, implement
+`mcp_servers.linear_abacare.enabled_tools` (select and close-out can write, implement
 cannot, none can delete).
 
 Limits: one issue per run, 6 runs a day, 2 attempts per issue (a PR or a second
@@ -289,7 +292,7 @@ implemented and opened as a draft PR unattended, and merged after review.
 `codex-mimo` stays disabled: its turns end without a reply (SH-4421). A plan
 that reports a usage or rate limit cools down for 3 hours and the attempt is not
 charged to the issue (Z.ai's 5-hour limit was hit on 2026-11-12 during testing).
-Logs and the ledger live in `~/.local/state/agenthub/forge-intake`, pruned
+Logs and the ledger live in `~/.local/state/agenthub/forge-intake-abacare`, pruned
 after 14 days.
 `node forge-intake.mjs --status` prints runs today, the cap, draft PRs,
 failures, retired issues, per-route use, cooling routes, Linear close-outs that
@@ -304,6 +307,11 @@ systemctl start forge-intake.service            # one run now
 touch /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled   # stop
 rm /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled      # resume
 ~~~
+
+Authenticate the dedicated MCP connection as `agenthub-runner` with
+`HOME=/srv/work/agenthub-runner`. Run
+`codex -c 'mcp_servers.linear_abacare.url="https://mcp.linear.app/mcp"' mcp login linear_abacare --scopes write`
+and select ABACARE. Confirm a live run resolves the configured `CORE` team.
 
 Install or update (root): put the released tree at
 `/opt/agenthub/catalogs/<sha>` and point `/opt/agenthub/current` at it. Then

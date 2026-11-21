@@ -6,26 +6,28 @@ import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import {
-  GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday,
+  GIT_ENV, GIT_SAFE, denyPaths, gitFingerprint, isProtected, parseRawModes, permissionArgs, redact, validIssueId, countToday, linearScopeVerified,
   acquireLock, lockState, touchedPackages, packageFollowUp, coolingRoutes, isProviderLimit, summarize, branchName, checkDiff, failedAttempts, finishPrompt, implementPrompt, inspectWorktree, isEligible, isMainModule, linearArgs, loadConfig, parseAgentJson, pickRoute, preClaimLabels, repoFor, runsToday, selectPrompt, skipList, slugify, wasIneligible,
 } from '../skills/dispatch/forge-intake.mjs';
 
 const config = loadConfig(join(fileURLToPath(new URL('../skills/dispatch/', import.meta.url)), 'forge-intake.json'));
 const repo = config.repos['app:agenthub'];
-const bug = { state: 'Backlog', labels: ['from-execution', 'app:agenthub', 'type:bug'] };
+const bug = { state: 'Ready', labels: ['app:agenthub', 'Bug'] };
 
 test('config enables the plan routes that passed execution smokes and a repo allowlist', () => {
   assert.deepEqual(config.routes.filter((r) => r.enabled).map((r) => r.id), ['codex-zai', 'codex-qwen', 'codex-go']);
   assert.ok(config.routes.every((r) => r.launcher.startsWith('.local/bin/codex-')), 'unattended routes are Codex launchers only');
   assert.deepEqual(Object.keys(config.repos), ['app:agenthub']);
   assert.equal(config.linear.claimLabel, 'agent:forge');
+  assert.deepEqual(config.linear.pickStates, ['Ready']);
 });
 
 test('eligibility accepts a small unclaimed bug and refuses the rest', () => {
   assert.equal(isEligible(bug, config.linear), null);
   assert.equal(isEligible({ ...bug, state: 'Done' }, config.linear), 'state');
   assert.equal(isEligible({ ...bug, state: 'In Progress' }, config.linear), 'state');
-  assert.equal(isEligible({ state: 'Todo', labels: ['app:agenthub', 'priority:now'] }, config.linear), 'no include label');
+  assert.equal(isEligible({ ...bug, state: 'Backlog' }, config.linear), 'state');
+  assert.equal(isEligible({ state: 'Ready', labels: ['app:agenthub', 'priority:now'] }, config.linear), 'no include label');
   for (const extra of ['agent:codex', 'type:epic', 'attention:owner', 'risk:compliance', 'risk:security', 'stage:submitted', 'lane:career', 'funding:active']) {
     assert.equal(isEligible({ ...bug, labels: [...bug.labels, extra] }, config.linear), 'excluded label', extra);
   }
@@ -88,6 +90,8 @@ test('a plan at its limit cools down and is not charged to the issue', () => {
   assert.equal(isProviderLimit('ERROR: rate limit exceeded: Usage limit reached for 5 hour. Your limit will reset at 19:25'), true);
   assert.equal(isProviderLimit("ERROR: You've reached your additional usage limit for your plan"), true);
   assert.equal(isProviderLimit('ERROR: 429 Too Many Requests'), true);
+  assert.equal(isProviderLimit('{"type":"turn.failed","error":{"message":"rate limit reached"}}'), true);
+  assert.equal(isProviderLimit('{"type":"item.completed","item":{"text":"rate limit reached"}}'), false);
   assert.equal(isProviderLimit('SyntaxError: unexpected token'), false);
   assert.equal(isProviderLimit('user\nthis issue is about quota and rate limit handling'), false, 'echoed issue text is not a provider error');
   const now = '2026-11-12T12:00:00.000Z';
@@ -124,11 +128,12 @@ test('each phase gets a Linear tool allowlist, and only select and finish can wr
   for (const phase of Object.keys(config.linear.toolsByPhase)) assert.ok(!config.linear.toolsByPhase[phase].some((t) => /^(delete|merge|unshare)/.test(t)));
   const args = linearArgs(config.linear, 'implement');
   assert.equal(args[0], '-c');
-  assert.match(args[1], /^mcp_servers\.linear\.url="https:\/\/mcp\.linear\.app\/mcp"$/);
-  assert.match(args[3], /^mcp_servers\.linear\.enabled_tools=\["get_issue","list_comments"\]$/);
-  assert.equal(args.length, 4, 'a read-only phase approves nothing');
+  assert.match(args[1], /^mcp_servers\.linear_abacare\.url="https:\/\/mcp\.linear\.app\/mcp"$/);
+  assert.equal(args[3], 'mcp_servers.linear_abacare.required=true');
+  assert.match(args[5], /^mcp_servers\.linear_abacare\.enabled_tools=\["get_issue","list_comments"\]$/);
+  assert.equal(args.length, 6, 'a read-only phase approves nothing');
   const select = linearArgs(config.linear, 'select').filter((a) => a !== '-c');
-  assert.ok(select.includes('mcp_servers.linear.tools.save_issue.approval_mode="approve"'));
+  assert.ok(select.includes('mcp_servers.linear_abacare.tools.save_issue.approval_mode="approve"'));
   assert.ok(!select.some((a) => a.includes('.tools.get_issue.')));
 });
 
@@ -137,8 +142,8 @@ test('a retry gets a new branch and the claim label is not evidence against elig
   assert.equal(branchName('SH-9', 'Fix it', 2), 'forge/sh-9-fix-it-r2');
   const labels = preClaimLabels([...bug.labels, 'agent:forge'], config.linear);
   assert.deepEqual(labels, bug.labels);
-  assert.equal(isEligible({ state: 'Backlog', labels }, config.linear), null);
-  assert.equal(isEligible({ state: 'Backlog', labels: [...bug.labels, 'agent:forge'] }, config.linear), 'excluded label');
+  assert.equal(isEligible({ state: 'Ready', labels }, config.linear), null);
+  assert.equal(isEligible({ state: 'Ready', labels: [...bug.labels, 'agent:forge'] }, config.linear), 'excluded label');
   assert.deepEqual(preClaimLabels(undefined, config.linear), []);
 });
 
@@ -235,8 +240,24 @@ test('model-written text is redacted and issue ids are validated before use', ()
   assert.equal(redact(`token ghp_${'a'.repeat(30)} leaked`), '[redacted: secret-shaped text]');
   assert.equal(redact([{ command: 'x', result: `sk-${'b'.repeat(30)}` }]), '[redacted: secret-shaped text]');
   assert.equal(redact(undefined), '""');
-  for (const ok of ['SH-4512', 'SH-1']) assert.equal(validIssueId(ok), true, ok);
-  for (const bad of ['SH-', '../SH-1', 'SH-1/../../x', 'sh-1', 'SH-12345678', 'SH-1; rm -rf /', '', null, undefined, 4512]) assert.equal(validIssueId(bad), false, String(bad));
+  for (const ok of ['CORE-4512', 'CORE-1']) assert.equal(validIssueId(ok, config.linear.teamKey), true, ok);
+  for (const bad of ['SH-4512', 'ABC-1', 'CORE-', '../CORE-1', 'CORE-1/../../x', 'core-1', 'CORE-12345678', 'CORE-1; rm -rf /', '', null, undefined, 4512]) assert.equal(validIssueId(bad, config.linear.teamKey), false, String(bad));
+  assert.equal(validIssueId('anything'), false);
+});
+
+test('workspace verification requires a real team result from the ABACARE connection', () => {
+  const { teamId, teamKey, server } = config.linear;
+  const event = {
+    type: 'item.completed',
+    item: { type: 'mcp_tool_call', server, tool: 'get_team', status: 'completed', arguments: { query: teamId },
+      result: { content: [{ type: 'text', text: JSON.stringify({ id: teamId, key: teamKey }) }] }, error: null },
+  };
+  const log = (item = {}) => JSON.stringify({ ...event, item: { ...event.item, ...item } });
+  assert.equal(linearScopeVerified(log(), config.linear), true);
+  assert.equal(linearScopeVerified(log({ server: 'linear' }), config.linear), false);
+  assert.equal(linearScopeVerified(log({ arguments: { query: teamKey } }), config.linear), false);
+  assert.equal(linearScopeVerified(log({ result: { structured_content: { id: 'other-team', key: teamKey } } }), config.linear), false);
+  assert.equal(linearScopeVerified(log({ type: 'agent_message', text: teamId }), config.linear), false);
 });
 
 test('the diff gate refuses binaries, symlinks, submodules, mode changes and sensitive directories', () => {
@@ -273,14 +294,16 @@ test('a changed git hook or config in the agent tree is detected', (t) => {
 });
 
 test('prompts carry the guardrails the wrapper relies on', () => {
-  const select = selectPrompt(config, ['SH-1'], null);
-  assert.match(select, /SH-4063/);
+  const select = selectPrompt(config, ['CORE-1'], null);
+  assert.ok(select.includes(`get_team with query ${config.linear.teamId}`));
+  assert.ok(select.includes(`project to ${config.linear.projectId}`));
+  assert.doesNotMatch(select, /SH-4063/);
   assert.match(select, /agent:forge/);
   assert.match(select, /lost the claim race/);
   assert.match(select, /query list_issues once for each mapped app label \(app:agenthub\)/);
   assert.match(select, /lacks a mapped app label is never eligible/);
-  assert.match(select, /Never pick these issues: SH-1/);
-  assert.match(selectPrompt(config, [], 'SH-4512'), /Take only SH-4512/);
+  assert.match(select, /Never pick these issues: CORE-1/);
+  assert.match(selectPrompt(config, [], 'CORE-4512'), /Take only CORE-4512/);
   const implement = implementPrompt({ issue: 'SH-4512', title: 'T', branch: 'forge/sh-4512-t', repo });
   assert.match(implement, /Do not push/);
   assert.match(implement, /do not run git add or git commit/);

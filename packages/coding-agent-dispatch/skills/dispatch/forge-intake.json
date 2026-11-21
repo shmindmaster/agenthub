@@ -1,17 +1,21 @@
 {
   "version": 1,
   "linear": {
-    "team": "Sh-org",
+    "workspace": "abacare",
+    "teamKey": "CORE",
+    "teamId": "db9c2bcb-9f00-417b-a5fc-696a6927a6e9",
+    "projectId": "7fbacd70-7cbc-45c1-a581-4b34e37c6647",
+    "server": "linear_abacare",
     "claimLabel": "agent:forge",
-    "pickStates": ["Backlog", "Todo"],
+    "pickStates": ["Ready"],
     "claimedState": "In Progress",
     "reviewState": "In Review",
-    "includeLabelsAny": ["type:bug", "type:tech-debt", "area:docs"],
-    "excludeLabelPatterns": ["type:epic", "type:research", "attention:*", "agent:*", "risk:compliance", "risk:security", "stage:*", "lane:*", "funding:*"],
+    "includeLabelsAny": ["Bug", "Maintenance", "Improvement"],
+    "excludeLabelPatterns": ["Decision", "Research", "type:epic", "type:research", "attention:*", "agent:*", "risk:compliance", "risk:security", "stage:*", "lane:*", "funding:*"],
     "staleClaimHours": 8,
     "mcpUrl": "https://mcp.linear.app/mcp",
     "toolsByPhase": {
-      "select": ["get_issue", "list_issues", "save_issue", "save_comment", "list_comments", "list_issue_statuses", "list_issue_labels"],
+      "select": ["get_team", "get_issue", "list_issues", "save_issue", "save_comment", "list_comments", "list_issue_statuses", "list_issue_labels"],
       "implement": ["get_issue", "list_comments"],
       "finish": ["save_issue", "save_comment", "list_issue_statuses"]
     }
