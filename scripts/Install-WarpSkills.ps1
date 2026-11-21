@@ -85,6 +85,7 @@ if (-not $PluginId -or $PluginId -eq 'product') {
 }
 
 $problems = 0
+$linkKind = if ($IsWindows) { 'Junction' } else { 'SymbolicLink' }
 foreach ($link in $links) {
     $item = Get-Item -LiteralPath $link.Path -Force -ErrorAction SilentlyContinue
     if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -104,7 +105,7 @@ foreach ($link in $links) {
         continue
     }
     [void][IO.Directory]::CreateDirectory((Split-Path -Parent $link.Path))
-    [void](New-Item -ItemType Junction -Path $link.Path -Target $link.Target)
+    [void](New-Item -ItemType $linkKind -Path $link.Path -Target $link.Target)
     Write-Output "linked: $($link.Path)"
 }
 

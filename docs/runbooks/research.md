@@ -22,6 +22,8 @@ Use native tool search or deferred discovery and load detailed skills on demand.
 
 Use the AgentHub marketplace for AH-Research on native plugin hosts. OpenCode and Kilo use the scoped skill installer. For VS Code Insiders, use its native agent-plugin installation and verify discovery from the Copilot chat surface. [VS Code agent plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins)
 
+Cursor and Cursor Agent use the existing Claude import for AH-Research while that import is enabled. Verify a native replacement before changing the import policy. For Exa, new managed remote entries use the keyless route. Existing Cline and OpenCode entries retain their saved account headers and OAuth settings.
+
 ## Acceptance and rollout
 
 | Check | Evidence |
