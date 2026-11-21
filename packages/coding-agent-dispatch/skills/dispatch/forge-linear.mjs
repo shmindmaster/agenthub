@@ -101,6 +101,16 @@ export async function connectForgeLinear(linear, home, { fetchImpl = fetch, read
 
   return {
     readIssue,
+    async resolveIssue(issue) {
+      if (typeof issue.issue !== 'string' || !/^([A-Z]+)-\d{1,7}$/.test(issue.issue) || !issue.issue.startsWith(`${linear.teamKey}-`)) {
+        throw new Error('Forge Linear issue identifier is invalid');
+      }
+      const item = await call('get_issue', { id: issue.issue });
+      if (!UUID.test(item.uuid ?? '')) throw new Error('Forge Linear did not resolve an issue UUID');
+      const resolved = { ...issue, uuid: item.uuid };
+      requireScope(resolved, item);
+      return resolved;
+    },
     async claim(issue, verifyReady) {
       const before = await readIssue(issue);
       if (!verifyReady(before)) throw new Error('Forge Linear issue is no longer eligible');

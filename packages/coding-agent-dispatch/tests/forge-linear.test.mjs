@@ -94,3 +94,14 @@ test('releasing our claim preserves the status of work that now has an assignee'
   assert.equal(item.assigneeId, 'operator');
   assert.deepEqual(item.labels, ['Maintenance']);
 });
+
+test('resolve a scoped textual identifier if Linear omitted the UUID in the list', async () => {
+  const { connect, requests } = fixture();
+  const client = await connect();
+  const resolved = await client.resolveIssue({ issue: issue.issue });
+  assert.deepEqual(resolved, issue);
+  assert.ok(requests.some(([name, args]) => name === 'get_issue' && args.id === issue.issue));
+  await assert.rejects(client.resolveIssue({ issue: 'CORE-84' }), /outside the configured/);
+  await assert.rejects(client.resolveIssue({ issue: 'SH-83' }), /identifier is invalid/);
+  assert.ok(requests.every(([name]) => !name.startsWith('save_')));
+});

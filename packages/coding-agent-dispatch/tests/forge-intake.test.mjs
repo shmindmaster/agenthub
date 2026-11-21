@@ -279,6 +279,8 @@ test('candidate evidence binds a Ready issue to the exact team and project', () 
   const reply = { outcome: 'eligible', issue: item.id };
   const check = (line, skip = [], forced = null) => verifiedCandidate(line, config, reply, skip, forced, now);
   assert.equal(check(select(item))?.uuid, item.uuid);
+  assert.equal(check(select({ ...item, uuid: undefined }))?.issue, item.id);
+  assert.equal(check(select({ ...item, uuid: 'unverified' })), null);
   assert.equal(check(select({ ...item, projectId: site.teamId })), null);
   assert.equal(check(select(item, { team: site.teamId })), null);
   assert.equal(check(select(item), [item.id]), null);
