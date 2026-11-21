@@ -41,6 +41,8 @@ These are candidates for evaluation within existing product priorities.
 For ABACare payer-source monitoring and impact assessment, reuse the
 product's source registry and review workflow. Assess provider changes
 against the current product implementation and approved source access.
+[ABC-106](https://linear.app/abacare/issue/ABC-106) tracks restoring source
+verification for Community Health Choice.
 
 CoLedger buyer validation follows
 [VEN-80](https://linear.app/abacare/issue/VEN-80) and its
