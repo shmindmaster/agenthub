@@ -69,7 +69,22 @@ $files = @(
     'remotion.config.ts',
     'README.md',
     'scene-archetypes.json',
-    'screencast\compose-screencast.mjs',
+    'explainer\theme.json',
+    'explainer\theme.mjs',
+    'explainer\motion.mjs',
+    'explainer\grammar.mjs',
+    'explainer\layout.mjs',
+    'explainer\anchor.mjs',
+    'explainer\frame-metrics.mjs',
+    'explainer\png.mjs',
+    'explainer\build-explainer.mjs',
+    'explainer\measure-explainer-frames.mjs',
+    'explainer\validate-explainer-release.mjs',
+    'explainer\types.ts',
+    'explainer\Stage.tsx',
+    'explainer\Chrome.tsx',
+    'explainer\shots.tsx',
+    'explainer\Explainer.tsx',    'screencast\compose-screencast.mjs',
     'screencast\campaign-contract.mjs',
     'screencast\render-overlay.mjs',
     'screencast\render-code.mjs',
@@ -172,7 +187,17 @@ foreach ($destination in @((Join-Path (Join-Path $RuntimeKit 'screencast') 'mode
     New-Item -ItemType Directory -Force -Path $destination | Out-Null
     foreach ($schema in $modelSpecSchemas) { Copy-Item -LiteralPath $schema.FullName -Destination (Join-Path $destination $schema.Name) -Force }
 }
-foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
+# The explainer engine is a folder of sibling modules whose three CLIs import ./grammar.mjs, exactly like
+# code-stage. Deploying the folder keeps one copy resolvable from _shared\tools without a path shim.
+$explainerSource = Join-Path $packageKit 'explainer'
+if (-not (Test-Path -LiteralPath (Join-Path $explainerSource 'Explainer.tsx'))) {
+    throw "Canonical explainer engine missing: $explainerSource"
+}
+$explainerTarget = Join-Path $sharedTools 'explainer'
+New-Item -ItemType Directory -Force -Path $explainerTarget | Out-Null
+foreach ($item in @(Get-ChildItem -LiteralPath $explainerSource -File | Where-Object { $_.Extension -in @('.mjs', '.json') })) {
+    Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $explainerTarget $item.Name) -Force
+}foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
     $from = Join-Path (Join-Path $packageKit 'screencast') $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical screencast tool missing: $from" }
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
@@ -230,6 +255,7 @@ $managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract
     @($mediaHelpers) +
     @('Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs', 'demo-stack.mjs', 'plugin.json', 'RELEASE-EVIDENCE.md', 'write-story-review.py',
     'model-specs-schemas',  # the model-facing schemas validate-model-specs.mjs reads beside itself
+    'explainer',            # the explainer engine folder: its CLIs import their siblings
     'node_modules')  # node_modules is the capture-lib dependency link the screencast tools resolve from, not a script
 $unmanaged = @(Get-ChildItem -LiteralPath $sharedTools -Force | Where-Object { $_.Name -notin $managedTools } | ForEach-Object Name)
 if ($unmanaged.Count -gt 0) {

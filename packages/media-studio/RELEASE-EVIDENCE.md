@@ -8,6 +8,25 @@ or the existing offset and drift thresholds.
 
 Use this external-workspace contract for every viewer-facing product screencast. It does not impose title or sequence rules on non-product media.
 
+## Media Studio 4.0 explainer engine — verification status (2026-11-22)
+
+`kit/explainer/` is new: a shot grammar, a stage and light layer, per-family layouts, a builder, a frame-measurement tool and a release gate, plus the `Explainer` composition. The method is adapted from a published reference; its toolkit is PolyForm Noncommercial, so nothing was copied — the code, tokens, fixture and thresholds are this repository's own.
+
+**Run and observed on 2026-11-22 (offline, no render):**
+
+- `node --test packages/media-studio/tests/explainer-grammar.test.mjs packages/media-studio/tests/explainer-layout.test.mjs` — 19 pass.
+- `node --test packages/media-studio/tests/explainer-builder.test.mjs` — 10 pass, including the CLI writing props and refusing to write them on a broken plan.
+- `node --test packages/media-studio/tests/explainer-gate.test.mjs` — 14 pass; every rule fires on a one-thing mutation of a passing film.
+- `node --test packages/media-studio/tests/explainer-metrics.test.mjs` — 20 pass, including PNG round-trip, component labelling, static-run and landing-hold detection.
+- `node --test packages/media-studio/tests/build-picture.test.mjs` — 6 pass after the word-anchor logic moved to `kit/explainer/anchor.mjs` and `build-picture.mjs` re-exported it.
+
+**Not run, therefore unestablished:**
+
+- **Typecheck.** `kit/node_modules` is absent on this checkout, so `tsc` cannot resolve `react`, `remotion` or their types. A parse-only pass with `tsc --ignoreConfig` reported no syntax errors, nothing more.
+- **Any render.** The `Explainer` composition has never produced a frame. Layout boxes and entrance timings are tested as data; they have not been seen on screen. A 30-second pilot on sh-forge is the next step, not a completed check.
+- **Deployment.** `Sync-MediaStudioKit.ps1` was not run. Installed hosts remain on `plugin.json` 3.1.14 until it is, and the new `_shared\tools\explainer` folder does not exist yet.
+- **Threshold calibration.** Hero / empty-run / debris / static thresholds are the reference method's measurements expressed as fractions of frame height. The first delivered film measured with `measure-explainer-frames.mjs` is the calibration record; until then the numbers are a starting point, not a proven line.
+- **PR #215 interaction.** Codex owns narration pricing and spend controls on `media/narration-preflight`. The agreed order is #215 first, then this branch refresh of package manifests, deploy list and content hash from published `main`.
 ## Fleet deployment
 
 Native Claude/Codex installation alone does not update Cursor, Grok, Hermes, or

@@ -701,7 +701,7 @@
         "produce",
         "finish"
       ],
-      "contentHash": "C441FE4C16F1D3FAF53A736BDE37829F2030E0BE2585F196DF4A0E4FBD973232",
+      "contentHash": "431F6DB994430B758C612071F248702D3FB35D275168E8692C4587CEFC01AF60",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1449,5 +1449,5 @@
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",
-  "lastCanonicalChangeAt": "2026-10-22T00:00:00Z"
+  "lastCanonicalChangeAt": "2026-11-22T00:00:00Z"
 }
