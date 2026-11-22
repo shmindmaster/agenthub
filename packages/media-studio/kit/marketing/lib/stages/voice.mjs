@@ -90,7 +90,7 @@ async function planOpenAI(ctx, plans, linePath) {
   const { preflightMarketingOpenAI } = await import(source.href);
   const voice = ctx.spec.voice;
   const quote = await preflightMarketingOpenAI({ entity, model: voice.model, voice: voice.voiceId, lines: [...pending.values()],
-    instructions: voice.instructions, snapshot: readJson(narrationFunding) }, ctx.providers.narrationPreflight);
+    instructions: voice.instructions, snapshot: readJson(narrationFunding) }, { ...ctx.providers.narrationPreflight, recoverInterrupted: true });
   ctx.ledger.check('openai', quote.totalMicros / 1e6, 'planned OpenAI narration');
   return { ...quote, byLine: new Map([...pending.keys()].map((key, i) => [key, quote.reservations[i]])) };
 }

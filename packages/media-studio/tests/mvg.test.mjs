@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, symlinkSync } from 'node:fs';
 import { validate } from '../kit/marketing/lib/schema.mjs';
 import { bannedHits, HEALTHCARE_BANNED, estimateCutSeconds, lintSpec, normalizeCuts } from '../kit/marketing/lib/lint.mjs';
@@ -670,11 +671,14 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   const reads = [], calls = [];
   let handshakeFailed = false;
   const key = 'fixture-user-credential';
+  const spendDir = join(root, 'openai-wallet');
+  mkdirSync(spendDir);
+  new DatabaseSync(join(spendDir, 'openai-narration.sqlite3')).close();
   const doc = '### Text tokens\n| Input | $4 | 1M tokens |\n| Cached input | $0.4 | 1M tokens |\n| Output | $24 | 1M tokens |\n' +
     '### Audio tokens\n| Input | $32 | 1M tokens |\n| Cached input | $0.4 | 1M tokens |\n| Output | $64 | 1M tokens |\n### Image tokens';
   const now = Date.parse('2026-11-22T19:00:00Z');
   const ctx = stageCtx('openai-voice-preflight', spec, {
-    narrationPreflight: { key, now, spendDir: join(root, 'openai-wallet'), fetcher: async (url, init) => {
+    narrationPreflight: { key, now, spendDir, fetcher: async (url, init) => {
       reads.push(url);
       if (url.includes('api.openai.com')) assert.equal(init.headers.Authorization, `Bearer ${key}`);
       return new Response(url.endsWith('.md') ? doc : '{}');

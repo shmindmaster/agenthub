@@ -94,7 +94,7 @@ function marketingRealtimeRate(doc) {
 // Marketing keeps beat boundaries for its timing compositor and uses the model and credential of the exact request.
 export async function preflightMarketingOpenAI({ entity, model = models.openai, voice = 'marin', lines, instructions, snapshot },
   { now = Date.now(), fetcher = fetch, key = resolveOpenAIKey(),
-    spendDir = defaultSpendDir() } = {}) {
+    spendDir = defaultSpendDir(), recoverInterrupted = false } = {}) {
   if (!['abacare', 'mahumtech', 'personal'].includes(entity) || !realtimeModels.has(model) || !lines.length)
     throw new Error('OpenAI narration preflight requires an entity, a supported exact Realtime model, and lines');
   if (!realtimeVoices.has(voice)) throw new Error('OpenAI narration requires a supported built-in Realtime voice');
@@ -113,14 +113,14 @@ export async function preflightMarketingOpenAI({ entity, model = models.openai, 
     return { maxOutputTokens, usdMicros: Math.ceil(inputCeiling * rate.textIn + maxOutputTokens * Math.max(rate.out, rate.textOut)) };
   });
   const totalMicros = reservations.reduce((sum, part) => sum + part.usdMicros, 0);
-  const wallet = marketingWallet(spendDir, entity, funding);
+  const wallet = marketingWallet(spendDir, entity, funding, recoverInterrupted);
   const availableMicros = wallet.available();
   if (totalMicros > availableMicros) throw new Error('Insufficient available OpenAI balance for narration');
   return { key, model, rate, availableMicros, reservations, totalMicros, wallet,
     rateEvidence: { url, checkedAt: new Date(now).toISOString(), documentSha256: hash(doc) }, funding };
 }
 
-function marketingWallet(spendDir, entity, funding) {
+function marketingWallet(spendDir, entity, funding, recoverInterrupted) {
   const file = join(spendDir, 'openai-narration.sqlite3');
   const account = funding.credentialSha256;
   const observedAt = Date.parse(funding.observedAt);
@@ -131,9 +131,19 @@ function marketingWallet(spendDir, entity, funding) {
     return db.prepare(`SELECT COALESCE(SUM(micros), 0) AS total FROM voice_spend
       WHERE account = ? AND (completed_at IS NULL OR completed_at >= ?)`).get(account, observedAt).total;
   };
+  const available = () => {
+    if (!existsSync(file)) return budgetMicros;
+    const read = () => withSqliteJournal(file, true, db => Math.max(0, budgetMicros - spent(db)));
+    try { return read(); }
+    catch (error) {
+      const interrupted = error.cause?.errcode === 776 || (error.errcode === 1 && error.message === 'no such table: voice_spend');
+      if (!recoverInterrupted || !interrupted) throw error;
+      recoverLedgers(undefined, spendDir);
+      return read();
+    }
+  };
   return {
-    available: () => !existsSync(file) ? budgetMicros :
-      withSqliteJournal(file, true, db => Math.max(0, budgetMicros - spent(db))),
+    available,
     reserve: (output, lineKey, micros) => {
       mkdirSync(dirname(file), { recursive: true });
       const id = hash(canonical([realpathSync(dirname(output)), basename(output), lineKey]));
@@ -471,7 +481,7 @@ function withSqliteJournal(file, readOnly, work) {
     return work(db);
   } catch (error) {
     if (readOnly && error.errcode === 776)
-      throw new Error('Interrupted local ledger requires narration-preflight.mjs recover-ledgers');
+      throw new Error('Interrupted local ledger requires narration-preflight.mjs recover-ledgers', { cause: error });
     throw error;
   } finally {
     db.close();
