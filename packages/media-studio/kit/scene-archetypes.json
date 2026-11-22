@@ -1,6 +1,9 @@
 {
-  "version": "3.1.14",
+  "version": "4.0.0",
   "composition": "Briefing",
+  "compositions": { "deck": "Briefing", "film": "Explainer" },
+  "explainerGrammar": "explainer/grammar.mjs",
+  "explainerNote": "Every archetype id in this file resolves to a composition family in explainer/grammar.mjs. The build and the release gate refuse an id or visual kind their family cannot compose; the renderer fallback exists only for props written by an older build.",
   "nativeFrame": { "width": 1600, "height": 1000, "fps": 30 },
   "consecutiveRepeat": "forbidden-unless-intentional",
   "cast": {
