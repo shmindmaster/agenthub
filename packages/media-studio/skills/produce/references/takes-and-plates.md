@@ -2,11 +2,11 @@
 
 ## Routing table
 
-Azure first, cheapest option that passes QA. Escalate only the item that failed.
+Use verified rates and eligible funding. Escalate only the item that failed.
 
 | Need | Default | Escape hatch |
 | --- | --- | --- |
-| Narration | Azure standard neural | Neural HD or Dragon HD Omni for principals, then Deepgram for a line that failed a gate |
+| Narration | [Live preflight](narration-preflight.md), with eligible AssemblyAI for long-form work | Use the next funded, compatible governed route. Preserve pinned casts. |
 | Take ASR | `cloud-ai.mjs align` on Azure fast transcription | `--provider assemblyai` only when a job names it |
 | Backlog transcription | Azure batch | `gpt-transcribe` |
 | Real-time STT | Deepgram Nova-3 | None; Azure costs twice as much |
@@ -17,7 +17,7 @@ Azure first, cheapest option that passes QA. Escalate only the item that failed.
 
 ## Take loop
 
-Run this loop for every line:
+Run this loop for each synthesis take. When the route supports grouped text, align the returned audio back to the individual lines before editing.
 
 ```text
 - [ ] Quote, then synthesize through the governed adapter

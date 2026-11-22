@@ -14,9 +14,12 @@ const models = { assemblyai: 'assemblyai-tts-1', deepgram: 'flux-haley-en', open
 const keys = { assemblyai: 'ASSEMBLYAI_API_KEY', deepgram: 'DEEPGRAM_API_KEY', openai: 'OPENAI_API_KEY' };
 const hosts = { us: 'https://tts.us.assemblyai.com', eu: 'https://tts.eu.assemblyai.com' };
 const methods = { assemblyai: 'grouped-http', deepgram: 'native-complete-text-batch', openai: 'realtime-per-request' };
-const limits = { assemblyai: 5000, deepgram: 2000, openai: 1500 };
+const deepgramPolicy = JSON.parse(readFileSync(new URL('./narration-deepgram-policy.json', import.meta.url), 'utf8'));
+const limits = { assemblyai: 5000, deepgram: deepgramPolicy.maxCharacters, openai: 1500 };
 const usd = n => Math.ceil(n * 1e6) / 1e6;
 const count = t => [...t].length;
+const assemblyNanos = (characters, rate) => characters * Math.round(rate.usdPerMillionCharacters * 1000);
+const nanosToUsd = value => Math.ceil(value / 1000) / 1e6;
 const hash = x => createHash('sha256').update(x).digest('hex');
 const canonical = x => JSON.stringify(x);
 const fileJSON = file => JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
@@ -68,7 +71,7 @@ function chunks(text, limit) {
     result.push(remaining.slice(0, cut).join(''));
     remaining = remaining.slice(cut);
   }
-  return [...result, remaining.join('')].filter(block => block.trim());
+  return [...result, remaining.join('')];
 }
 
 export function makeBatches(script, provider) {
@@ -81,15 +84,28 @@ export function makeBatches(script, provider) {
     const speaker = turn.speaker || 'narrator';
     const voice = turn.voices?.[provider] ?? (speakers.size === 1 && !script.explicitCast && !turn.voices ? defaults[provider] : null);
     if (!voice) return null;
+    const text = turn.text.trim();
+    const length = count(text);
     const previous = groups.at(-1);
     if (!turn.keepSeparate && previous && !previous.keepSeparate &&
       previous.speaker === speaker && previous.voice === voice) {
-      previous.text += '\n\n' + turn.text.trim();
-      previous.turns.push(index + 1);
-    } else groups.push({ text: turn.text.trim(), speaker, voice, turns: [index + 1], keepSeparate: !!turn.keepSeparate });
+      const start = previous.length + 2;
+      previous.text += '\n\n' + text;
+      previous.length = start + length;
+      previous.spans.push({ turn: index + 1, start, end: previous.length });
+    } else groups.push({ text, length, speaker, voice, spans: [{ turn: index + 1, start: 0, end: length }],
+      keepSeparate: !!turn.keepSeparate });
   }
-  return groups.flatMap(({ text, speaker, voice, turns }) =>
-    chunks(text, limits[provider]).map(block => ({ text: block, speaker, voice, turns })));
+  return groups.flatMap(({ text, speaker, voice, spans }) => {
+    let offset = 0;
+    return chunks(text, limits[provider]).flatMap(block => {
+      const start = offset;
+      offset += count(block);
+      if (!block.trim()) return [];
+      const turns = spans.filter(span => span.start < offset && span.end > start).map(span => span.turn);
+      return [{ text: block, speaker, voice, turns }];
+    });
+  });
 }
 
 async function response(fetcher, url, options = {}) {
@@ -146,7 +162,7 @@ async function account(provider, script, snapshot, voices, now, fetcher, env) {
       typeof snapshot?.availableUsd !== 'number' || !Number.isFinite(snapshot.availableUsd) || snapshot.availableUsd < 0)
     return { access, ...evidence, balance: 'unknown', balanceSource: 'account dashboard evidence required' };
   return { access, ...evidence, balance: 'dashboard-recorded', availableUsd: snapshot.availableUsd,
-    balanceSource: 'account dashboard', observedAt: snapshot.observedAt };
+    balanceSource: 'account dashboard', observedAt: snapshot.observedAt, credentialSha256: hash(key) };
 }
 
 function estimate(provider, rate, batches) {
@@ -157,10 +173,11 @@ function estimate(provider, rate, batches) {
     return { characters: chars, estimatedUsd: usd(((words / 150 * 1200) * rate.usdPerMillionOutputAudioTokens +
       (Math.ceil(chars / 4) + 100 * batches.length) * rate.usdPerMillionInputTextTokens) / 1e6) };
   }
+  if (provider === 'assemblyai') return { characters: chars, estimatedUsd: nanosToUsd(assemblyNanos(chars, rate)) };
   // Deepgram's existing governed adapter reserves UTF-8 bytes; quoted list cost is per character.
   return { characters: chars, estimatedUsd: usd(chars * rate.usdPerMillionCharacters / 1e6),
     ...(provider === 'deepgram' ? { adapterReservationUsd: usd(batches.reduce((n, b) =>
-      n + Buffer.byteLength(b.text), 0) * rate.usdPerMillionCharacters / 1e6) } : {}) };
+      n + Buffer.byteLength(b.text), 0) * deepgramPolicy.usdMicrosPerUtf8Byte / 1e6) } : {}) };
 }
 
 // The account inventory exposes the speech multiplier. Dialogue settlement can differ,
@@ -207,13 +224,19 @@ export async function preflight(script, { snapshots = {}, fetcher = fetch, now =
     if (!batches) reasons.push('compatible full cast required');
     if (provider === 'assemblyai' && (script.requiresDirection || script.requiresLinkedDialogue))
       reasons.push('requires directed performance or linked dialogue');
-    if (provider === 'deepgram' && (script.requiresDirection || script.requiresLinkedDialogue ||
-      batches?.some(b => !['flux-haley-en', 'flux-sienna-en'].includes(b.voice))))
-      reasons.push('requires unsupported Deepgram cast or performance controls');
+    if (provider === 'deepgram') {
+      if (new Date(now).toISOString().slice(0, 10) > deepgramPolicy.validThrough ||
+          rate?.usdPerMillionCharacters !== deepgramPolicy.usdMicrosPerUtf8Byte)
+        reasons.push('governed Deepgram reservation policy requires refresh');
+      if ((script.language ?? 'english') !== deepgramPolicy.language || script.requiresDirection ||
+          script.requiresLinkedDialogue || batches?.some(b => !deepgramPolicy.voices.includes(b.voice)))
+        reasons.push('requires unsupported Deepgram language, cast or performance controls');
+    }
     if (provider === 'openai' && script.requiresLinkedDialogue)
       reasons.push('Realtime speech renders one speaker per request');
     if ((script.region ?? 'us') === 'eu' && provider !== 'assemblyai') reasons.push('EU synthesis not configured on this lane');
-    return { provider, model: models[provider], method: methods[provider], discountedBatch: false,
+    return { provider, model: models[provider], voices: [...new Set((batches || []).map(b => b.voice))],
+      method: methods[provider], discountedBatch: false,
       rate, rateEvidence, funding, ...quote, requests: batches?.length ?? null, reasons };
   }));
   const eligible = candidates.filter(c => !c.reasons.length);
@@ -236,7 +259,9 @@ export async function executeAssembly(script, quote, authorization, directory, o
   const locked = pinned.candidates?.find(c => c.provider === 'assemblyai');
   const key = (options.env ?? process.env).ASSEMBLYAI_API_KEY;
   const output = resolve(directory);
-  if (current.pick !== 'assemblyai' || quote.pick !== 'assemblyai' ||
+  if (quote.pick !== 'assemblyai' ||
+      expected.reasons.some(reason => reason !== 'insufficient available balance') ||
+      expected.funding.credentialSha256 !== locked?.funding?.credentialSha256 ||
       current.scriptSha256 !== pinned.scriptSha256 ||
       !Number.isFinite(age) || age < 0 || age > fixedGap ||
       (printedHash !== undefined && printedHash !== digest) || authorization.quoteSha256 !== digest ||
@@ -265,28 +290,30 @@ export async function executeAssembly(script, quote, authorization, directory, o
     const stem = join(output, String(i + 1).padStart(4, '0') + '-' + requestHash.slice(0, 20));
     const wav = stem + '.wav', receipt = stem + '.json', marker = stem + '.submitted.json';
     const prior = existsSync(receipt) ? fileJSON(receipt) : null;
-    let reservedUsd = count(batch.text) * expected.rate.usdPerMillionCharacters / 1e6;
+    let reservedNanos = assemblyNanos(count(batch.text), expected.rate);
     if (prior) {
       const submission = fileJSON(marker);
       if (prior.requestSha256 !== requestHash || prior.outputSha256 !== hash(readFileSync(wav)) ||
-          submission.requestSha256 !== requestHash || !Number.isFinite(submission.reservedUsd) || submission.reservedUsd < 0)
+          submission.requestSha256 !== requestHash || !Number.isSafeInteger(submission.reservedNanos) || submission.reservedNanos < 0)
         throw new Error('Cached audio or receipt integrity check failed');
-      reservedUsd = submission.reservedUsd;
+      reservedNanos = submission.reservedNanos;
     } else if (existsSync(marker) || existsSync(wav)) {
       throw new Error('Previously submitted request requires reconciliation');
     }
-    return { batch, input, requestHash, wav, receipt, marker, prior, reservedUsd };
+    return { batch, input, requestHash, wav, receipt, marker, prior, reservedNanos };
   });
-  if (usd(planned.reduce((sum, part) => sum + part.reservedUsd, 0)) > authorization.maxUsd)
+  if (nanosToUsd(planned.reduce((sum, part) => sum + part.reservedNanos, 0)) > authorization.maxUsd)
     throw new Error('Existing reservations plus remaining narration exceed the authorized cap');
+  const remainingUsd = nanosToUsd(planned.reduce((sum, part) => sum + (part.prior ? 0 : part.reservedNanos), 0));
+  if (remainingUsd > expected.funding.availableUsd) throw new Error('Insufficient balance for remaining narration');
   const results = [];
-  for (const { batch, input, requestHash, wav, receipt, marker, prior, reservedUsd } of planned) {
+  for (const { batch, input, requestHash, wav, receipt, marker, prior, reservedNanos } of planned) {
     if (prior) {
       results.push(prior);
       continue;
     }
     // Exclusive marker goes before the provider call. A timeout or torn result stays fenced on rerun.
-    save(marker, { requestSha256: requestHash, quoteSha256: authorization.quoteSha256, reservedUsd }, 'wx');
+    save(marker, { requestSha256: requestHash, quoteSha256: authorization.quoteSha256, reservedNanos }, 'wx');
     const res = await response(fetcher, host + '/v1/speech', {
       method: 'POST', headers: { Authorization: key, 'Content-Type': 'application/json' },
       body: canonical(input), signal: AbortSignal.timeout(240000),
@@ -296,7 +323,7 @@ export async function executeAssembly(script, quote, authorization, directory, o
     writeFileSync(wav, audio, { flag: 'wx' });
     const record = { provider: 'assemblyai', model: models.assemblyai, voice: batch.voice, speaker: batch.speaker,
       turns: batch.turns, requestSha256: requestHash, outputSha256: hash(audio), characters: count(batch.text),
-      estimatedUsd: usd(count(batch.text) * expected.rate.usdPerMillionCharacters / 1e6), actualUsd: null,
+      estimatedUsd: nanosToUsd(reservedNanos), actualUsd: null,
       providerRequestId: res.headers.get('x-request-id'), wav };
     save(receipt + '.tmp', record, 'wx');
     renameSync(receipt + '.tmp', receipt);

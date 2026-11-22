@@ -20,11 +20,12 @@ from functools import lru_cache
 
 BUCKET = "deepgram/usd-micros"
 PRICE_POLICY = "flux-payg-2026-10-24-45-microusd-per-utf8-byte"
-PRICE_VALID_THROUGH = datetime.date(2026, 11, 24)
+NARRATION_POLICY = json.loads(pathlib.Path(__file__).with_name("narration-deepgram-policy.json").read_text(encoding="utf-8"))
+PRICE_VALID_THROUGH = datetime.date.fromisoformat(NARRATION_POLICY["validThrough"])
 ENDPOINT = "https://api.deepgram.com/v2/speak"
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 DEFAULT_VOICE = "flux-sienna-en"
-VOICES = (DEFAULT_VOICE, "flux-haley-en")
+VOICES = tuple(NARRATION_POLICY["voices"])
 
 
 @lru_cache(maxsize=1)
@@ -37,7 +38,7 @@ def runtime_module():
 
 
 def quote(text, *, workspace, revision, dictionary_revision, expressivity, voice=DEFAULT_VOICE):
-    if (not isinstance(text, str) or not text.strip() or len(text) > 2000
+    if (not isinstance(text, str) or not text.strip() or len(text) > NARRATION_POLICY["maxCharacters"]
             or not all(isinstance(x, str) and x.strip() for x in
                        (workspace, revision, dictionary_revision))):
         raise ValueError("Explicit workspace, revision, dictionary revision and 1-2000 input characters required")
@@ -52,7 +53,7 @@ def quote(text, *, workspace, revision, dictionary_revision, expressivity, voice
                "expressivity": float(expressivity), "mip_opt_out": True,
                "text": text, "revision": revision, "dictionary_revision": dictionary_revision,
                "price_policy": PRICE_POLICY, "quality_policy": "owner-voice-five-gates-v1"}
-    maximum = len(text.encode("utf-8")) * 45
+    maximum = len(text.encode("utf-8")) * NARRATION_POLICY["usdMicrosPerUtf8Byte"]
     return {"request": request, "cache_key": runtime_module().request_key(request),
             "bucket": BUCKET, "maximum_usd_micros": maximum,
             "maximum_usd": maximum / 1_000_000,

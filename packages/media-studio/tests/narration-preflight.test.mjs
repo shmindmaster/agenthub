@@ -59,6 +59,7 @@ test('group adjacent same-speaker turns and preserve order, exact Unicode and cu
   assert.equal(plan.length, 4);
   assert.equal([...plan[0].text].length, 5000);
   assert.equal(plan[0].text + plan[1].text, long + '\n\nSecond.');
+  assert.deepEqual(plan.map(p => p.turns), [[1], [1, 2], [3], [4]]);
   assert.deepEqual(plan.map(p => p.speaker), ['A', 'A', 'B', 'A']);
   assert.equal(makeBatches({ entity: 'personal', turns: [{ text: 'A', speaker: 'A' }, { text: 'B', speaker: 'B' }] }, 'assemblyai'), null);
 });
@@ -111,7 +112,8 @@ test('execution requires exact authorization and a current rate, then uses one m
     const result = await executeAssembly(script, quote, authorization, folder, options);
     assert.equal(result[0].actualUsd, null);
     assert.equal(provider.posts[0].stream, false);
-    await executeAssembly(script, quote, authorization, folder, options);
+    await executeAssembly(script, quote, authorization, folder, { ...options,
+      snapshots: { assemblyai: snapshot(env.ASSEMBLYAI_API_KEY, 0) } });
     assert.equal(provider.posts.length, 1);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
@@ -143,4 +145,38 @@ test('manual ElevenLabs check uses live model-specific rates and reports dialogu
   assert.equal(results.speechCreditsPerCharacter, .5);
   assert.equal(results.overageEnabled, false);
   assert.match(results.dialogueRate, /billing history/);
+});
+
+
+test('Deepgram rejects unsupported language and an expired or changed adapter rate', async () => {
+  const provider = fake();
+  const dg = { deepgram: snapshot(env.DEEPGRAM_API_KEY) };
+  const wanted = { ...script, provider: 'deepgram' };
+  for (const field of [
+    { script: { ...wanted, language: 'french' }, now },
+    { script: wanted, now: Date.parse('2026-11-25T00:00:00Z') },
+  ]) {
+    const funds = { deepgram: { ...dg.deepgram, observedAt: new Date(field.now).toISOString() } };
+    const quote = await preflight(field.script, { ...provider, snapshots: funds, now: field.now, env });
+    assert.equal(quote.pick, null);
+    assert.match(quote.candidates[1].reasons.join(' '), /language|refresh/);
+  }
+});
+
+test('exact integer cap works across takes and the quote cannot move to another account', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'studio-narration-'));
+  try {
+    const provider = fake();
+    const text = { ...script, turns: [{ text: 'x'.repeat(4181), keepSeparate: true }, { text: 'x'.repeat(820) }] };
+    const options = { ...provider, snapshots, now, env };
+    const quote = await preflight(text, options);
+    const approval = auth(quote, folder, 0.075015);
+    const other = 'different-account-key';
+    await assert.rejects(executeAssembly(text, quote, approval, folder, { ...options,
+      env: { ...env, ASSEMBLYAI_API_KEY: other }, snapshots: { assemblyai: snapshot(other) } }), /authorization/);
+    assert.equal(provider.posts.length, 0);
+    const records = await executeAssembly(text, quote, approval, folder, options);
+    assert.equal(records.length, 2);
+    assert.equal(provider.posts.length, 2);
+  } finally { rmSync(folder, { recursive: true, force: true }); }
 });
