@@ -81,11 +81,11 @@ export const judge = ({ props, propsSha256, cueSheet, metrics, encoded, requireM
     if (shot.startFrame !== expectedStart) {
       fail('shot-contiguous', `${shot.id} starts at frame ${shot.startFrame}; the previous shot ends at ${expectedStart}`, shot.id);
     }
-    if (familyOf(shot.archetype) !== shot.family) {
-      fail('family-consistent', `${shot.id} declares family ${shot.family} but ${shot.archetype} renders as ${familyOf(shot.archetype)}`, shot.id);
+    if (familyOf(shot.archetype, shot.visual?.kind) !== shot.family) {
+      fail('family-consistent', `${shot.id} declares family ${shot.family} but ${shot.archetype} renders as ${familyOf(shot.archetype, shot.visual?.kind)}`, shot.id);
     }
     const durationSeconds = Number(shot.durationSeconds ?? shot.durationFrames / fps);
-    for (const problem of validateShot({ ...shot, durationSeconds }, { previousFamily: familyOf(shots[index - 1]?.archetype) })) {
+    for (const problem of validateShot({ ...shot, durationSeconds }, { previousFamily: familyOf(shots[index - 1]?.archetype, shots[index - 1]?.visual?.kind) })) {
       fail(problem.rule, problem.message, shot.id);
     }
     const lastBeat = Math.max(0, ...(shot.beats ?? []).map((beat) => Number(beat.atSeconds ?? 0)));

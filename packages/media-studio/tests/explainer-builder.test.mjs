@@ -139,3 +139,25 @@ test('the CLI writes props and a report, and writes no props when it fails', () 
   assert.equal(bad.status, 1);
   assert.match(bad.stdout + bad.stderr, /Nope/);
 });
+
+test('a polyglot archetype takes the composition its visual asks for', () => {
+  // diagram-build carries flow, layers or map in the catalogue. The layers
+  // stack used to be unreachable: the shot resolved to mechanism whatever the
+  // kind, so the only layer composition in the kit could not appear in a film.
+  const layered = clone(plan);
+  const shot = layered.shots.find((entry) => entry.id === 'b');
+  shot.visual = {
+    kind: 'layers',
+    caption: 'revision over plan over commitments',
+    layers: [
+      { label: 'Revision', at: 0.6 },
+      { label: 'Plan', at: 1.7 },
+      { label: 'Commitments', at: 2.6, mark: 'risk' },
+    ],
+  };
+  const result = build({ plan: layered });
+  assert.equal(result.ok, true, errorsOf(result));
+  const built = result.props.shots.find((entry) => entry.id === 'b');
+  assert.equal(built.family, 'layers');
+  assert.equal(built.visual.kind, 'layers');
+});

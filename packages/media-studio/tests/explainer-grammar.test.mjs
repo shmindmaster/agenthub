@@ -108,3 +108,48 @@ test('the family catalogue is specific enough to vary the frame', () => {
   assert.equal(RULES.minHoldSeconds, 1.0);
   assert.ok(familySpec('evidence').tier === 'm');
 });
+
+test('every composition family has a route a plan can actually take', () => {
+  // A family nobody can ask for is dead code with a doctrine row. This is how
+  // `layers` sat advertised but unreachable: the only archetype whose kit
+  // carries a layers visual mapped to `mechanism` whatever the kind was.
+  const reachable = new Set();
+  for (const entry of catalogue.archetypes) {
+    reachable.add(familyOf(entry.id));
+    for (const kind of entry.kit ?? []) reachable.add(familyOf(entry.id, kind));
+  }
+  const dead = Object.keys(FAMILIES).filter((family) => !reachable.has(family));
+  assert.deepEqual(dead, [], 'every family is reachable from the catalogue');
+});
+
+
+
+test('a catalogue kit kind is rendered, or refused out loud — never dropped', () => {
+  // Two failure modes hide here. A kind the family cannot render used to slip
+  // through when the family was type-only (kinds: []), so the shot validated
+  // and the frame showed only text. A kind the catalogue allows but the
+  // resolved family refuses made a legal storyboard fail at build time.
+  const renderable = new Set(Object.values(FAMILIES).flatMap((spec) => spec.kinds));
+  for (const entry of catalogue.archetypes) {
+    for (const kind of entry.kit ?? []) {
+      const problems = validateShot({ id: 'x', archetype: entry.id, visual: { kind }, durationSeconds: 4 });
+      const family = familyOf(entry.id, kind);
+      if (renderable.has(kind)) {
+        assert.ok(family, `${entry.id} + ${kind} resolves to no family`);
+        assert.ok(kindsOf(family).includes(kind), `${entry.id} + ${kind} resolves to ${family}, which does not render it`);
+        // Completeness rules (a CTA needs a label) are other tests' business; the
+        // kind must simply not be refused when the family renders it.
+        assert.equal(
+          problems.some((problem) => problem.rule === 'visual-kind'),
+          false,
+          `${entry.id} + ${kind} is refused although ${family} renders it`,
+        );
+      } else {
+        assert.ok(
+          problems.some((problem) => problem.rule === 'visual-kind'),
+          `${entry.id} + ${kind} is neither rendered nor refused`,
+        );
+      }
+    }
+  }
+});

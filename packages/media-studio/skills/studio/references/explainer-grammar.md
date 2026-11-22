@@ -30,20 +30,20 @@ A subject that is naturally small — a timeline, a formula, a table, a pipeline
 
 ## Composition families
 
-Every archetype in `kit/scene-archetypes.json` maps to exactly one family in `kit/explainer/grammar.mjs`. The family owns the layout; the archetype is the editorial name the storyboard uses.
+Every archetype in `kit/scene-archetypes.json` maps to a family in `kit/explainer/grammar.mjs`. The family owns the layout; the archetype is the editorial name the storyboard uses. Four archetypes are polyglot — the catalogue lets them carry more than one visual kind — and for those the kind picks the family: `diagram-build` + `layers` is the layer stack, `cold-open` + a b-roll or still is the media frame, `talking-head-sidecar` + `sidecar` is the evidence frame. Everything else has one family, whatever the visual.
 
 | Family | Archetypes | Composition | Tier |
 | --- | --- | --- | --- |
 | `statement` | cold-open, kinetic-statement, hero-reveal, lower-third | Type is the picture. Left-aligned, vertically centred, no kicker row, no rule, no scene number. | XL |
 | `number` | kinetic-number | One number owns the frame: 300–360 px, tabular, accent, label beneath, halo behind. Counts up over 20 frames. | XL |
 | `contrast` | before-after, comparison | A vertical seam wipes in; the left state is desaturated, the right is lit. Two states, one difference. | L |
-| `mechanism` | diagram-build, process-flow, drawn-mechanism | The diagram bleeds: nodes and edges fill the frame, each landing on its word, a focus ring moving with the voice. | L |
-| `layers` | — (visual kind `layers`) | A stack rises; the active layer lifts and takes the light. | L |
+| `mechanism` | diagram-build (flow or map visual), process-flow, drawn-mechanism | The diagram bleeds: nodes and edges fill the frame, each landing on its word, a focus ring moving with the voice. | L |
+| `layers` | diagram-build + `layers` visual | A stack rises; the active layer lifts and takes the light. | L |
 | `timeline` | timeline | One rail, events dropping on their beats, a playhead sweeping with the voice. Needs a hero number or a magnified tick. | L |
-| `evidence` | evidence-proof, speaker-slide, data-chart | Claim above at 52–64 px, evidence large below, source in the footer at 22 px. A hairline ties claim to evidence. | M |
+| `evidence` | evidence-proof, speaker-slide, data-chart, talking-head-sidecar + `sidecar` | Claim above at 52–64 px, evidence large below, source in the footer at 22 px. A hairline ties claim to evidence. | M |
 | `quote` | quote-problem | One sentence, 64–88 px, no furniture; an oversized quote glyph at 12% opacity; attribution small and low. | L |
 | `checklist` | checklist-build | Items land one at a time with a drawn check; a dot rail shows progress. Five visible at most. | M |
-| `media` | full-bleed-broll, screen-in-context, talking-head-sidecar | The picture bleeds; text lives in a bottom scrim, never on a card. | XL |
+| `media` | full-bleed-broll, screen-in-context, cold-open + a b-roll or still | The picture bleeds; text lives in a bottom scrim, never on a card. | XL |
 | `sting` | motion-sting | A mark, a beat of motion, gone. | XL |
 | `chapter` | chapter-card | Number ghosted at 18%, label at 96 px, rule wipes in. Two seconds. | XL |
 | `end` | cta-end-frame | One call to action at 84–112 px, one line under it, nothing else. | XL |
@@ -52,7 +52,7 @@ The film-level guards in `grammar.mjs`:
 
 - a shot is 1.5–12 s; longer needs `longShotReason`;
 - no two consecutive shots share a family unless `repeatIsPoint`;
-- type-only families (`statement`, `quote`, `number`) are at most 35% of shots;
+- type-only families (`statement`, `quote`, `number`) are at most 35% of shots, and a shot in one of them may not carry a visual: the family draws with type alone, so a visual it cannot compose is refused at build time rather than dropped at render time;
 - every chapter contains at least one L or XL shot;
 - a film over three minutes needs chapters of 45 s or more.
 
@@ -115,7 +115,7 @@ Choose by the **visual relation**, not by the topic:
 | Gives a magnitude | `number` | the number |
 | Compares two states | `contrast` | the changed side |
 | Shows how something works | `mechanism` | the node being spoken |
-| Shows hierarchy or depth | `layers` | the active layer |
+| Shows hierarchy or depth | `layers` (`diagram-build` + a `layers` visual) | the active layer |
 | Orders events | `timeline` | the current tick, magnified |
 | Proves a claim | `evidence` | the evidence object |
 | States a false belief | `quote` | one sentence |

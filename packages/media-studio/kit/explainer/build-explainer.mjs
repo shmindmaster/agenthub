@@ -66,7 +66,7 @@ export const validatePlan = (plan, cueSheet) => {
     if (!shot.id) fail('shot-id', 'a shot has no id');
     else if (shotIds.has(shot.id)) fail('shot-duplicate', `shot ${shot.id} appears twice`);
     else shotIds.add(shot.id);
-    if (!familyOf(shot.archetype)) fail('archetype-known', `${shot.id}: unknown archetype "${shot.archetype}"`);
+    if (!familyOf(shot.archetype, shot.visual?.kind)) fail('archetype-known', `${shot.id}: unknown archetype "${shot.archetype}"`);
   }
   const cueIds = new Set(cues.map((cue) => cue.id));
   for (const cue of cues) if (!shotIds.has(cue.id)) fail('shot-missing', `cue ${cue.id} has no shot`);
@@ -116,7 +116,7 @@ export const buildExplainer = ({ cueSheet, receipts, plan, fps = 30, width = the
 
   const shots = cues.map((cue, index) => {
     const planShot = byId[cue.id];
-    const family = familyOf(planShot.archetype);
+    const family = familyOf(planShot.archetype, planShot.visual?.kind);
     const startFrame = Math.round(edges[index] * fps);
     const endFrame = Math.round(edges[index + 1] * fps);
     const durationFrames = Math.max(1, endFrame - startFrame);

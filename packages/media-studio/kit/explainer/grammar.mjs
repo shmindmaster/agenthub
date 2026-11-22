@@ -192,7 +192,26 @@ export const RULES = {
   maxCaptionLineChars: 42,
 };
 
-export const familyOf = (archetype) => ARCHETYPE_FAMILY[archetype] ?? null;
+/**
+ * One archetype may be polyglot in the catalogue: `diagram-build` may carry a
+ * flow, a layers stack or a system map (kit/scene-archetypes.json). The kind
+ * decides the composition, because a stack lit as layers and a flow lit as a
+ * diagram are not the same picture. Without this table `layers` was reachable
+ * by no plan at all while the doctrine still offered it.
+ */
+export const ARCHETYPE_KIND_FAMILY = {
+  'cold-open': { broll: 'media', still: 'media' },
+  'diagram-build': { layers: 'layers' },
+  'talking-head-sidecar': { sidecar: 'evidence' },
+};
+
+/**
+ * Composition family for a shot. Pass the visual kind when there is one: an
+ * archetype that can carry more than one kind resolves by kind first, then by
+ * its default family. A one-argument call keeps the default route.
+ */
+export const familyOf = (archetype, kind) =>
+  (kind && ARCHETYPE_KIND_FAMILY[archetype]?.[kind]) ?? ARCHETYPE_FAMILY[archetype] ?? null;
 
 export const familySpec = (family) => {
   const found = FAMILIES[family];
@@ -218,7 +237,7 @@ export const validateShot = (shot, context = {}) => {
     fail('shot-shape', 'shot is not an object');
     return problems;
   }
-  const family = familyOf(shot.archetype);
+  const family = familyOf(shot.archetype, shot.visual?.kind);
   if (!family) {
     fail('archetype-known', `unknown archetype "${shot.archetype}"`);
     return problems;
@@ -229,7 +248,11 @@ export const validateShot = (shot, context = {}) => {
 
   if (spec.visual === 'required' && !kind) {
     fail('visual-required', `${shot.archetype} (${family}) needs a visual of kind ${needs.join(', ')}`);
-  } else if (kind && needs.length && !needs.includes(kind)) {
+  } else if (kind && !needs.length) {
+    // A type-only family drew its picture from type alone. Accepting a visual
+    // here dropped it silently: the shot validated and the frame showed text.
+    fail('visual-kind', `${shot.archetype} (${family}) is type-only and cannot carry a "${kind}" visual`);
+  } else if (kind && !needs.includes(kind)) {
     fail('visual-kind', `${shot.archetype} (${family}) cannot render visual kind "${kind}"`);
   }
   if (shot.archetype === 'chapter-card' && !shot.title && !shot.visual?.title) {
@@ -271,9 +294,9 @@ export const validateFilm = (shots) => {
   let previousFamily = null;
   shots.forEach((shot) => {
     for (const problem of validateShot(shot, { previousFamily })) problems.push(problem);
-    previousFamily = familyOf(shot.archetype);
+    previousFamily = familyOf(shot.archetype, shot.visual?.kind);
   });
-  const typeOnly = shots.filter((shot) => ['statement', 'quote', 'number'].includes(familyOf(shot.archetype))).length;
+  const typeOnly = shots.filter((shot) => ['statement', 'quote', 'number'].includes(familyOf(shot.archetype, shot.visual?.kind))).length;
   if (typeOnly / shots.length > RULES.maxStatementShare) {
     fail(
       'type-only-cap',

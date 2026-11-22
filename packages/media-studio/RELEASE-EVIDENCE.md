@@ -14,11 +14,11 @@ Use this external-workspace contract for every viewer-facing product screencast.
 
 **Run and observed on 2026-11-22 (offline, no render):**
 
-- `node --test packages/media-studio/tests/explainer-grammar.test.mjs packages/media-studio/tests/explainer-layout.test.mjs` — 19 pass.
-- `node --test packages/media-studio/tests/explainer-builder.test.mjs` — 10 pass, including the CLI writing props and refusing to write them on a broken plan.
+- `node --test packages/media-studio/tests/explainer-grammar.test.mjs packages/media-studio/tests/explainer-layout.test.mjs` — 22 pass, including two invariants that close a hole found after the first pass: every composition family is reachable from the catalogue, and every visual kind an archetype may carry is either composed by the family it resolves to or refused at build time rather than dropped at render time.
+- `node --test packages/media-studio/tests/explainer-builder.test.mjs` — 11 pass, including the CLI writing props, refusing to write them on a broken plan, and a polyglot archetype taking the composition its visual asks for (`diagram-build` + a `layers` visual builds as the layer stack).
 - `node --test packages/media-studio/tests/explainer-gate.test.mjs` — 14 pass; every rule fires on a one-thing mutation of a passing film.
 - `node --test packages/media-studio/tests/explainer-metrics.test.mjs` — 21 pass, including PNG round-trip, component labelling, static-run and landing-hold detection, and the measurement CLI writing a report.
-- The whole package suite, all 28 test files in one run: 851 tests, 849 pass, 2 fail. Both failures are in `elevenlabs-provider.test.mjs`, which needs a Python module (`governed_elevenlabs`) this machine does not have; they fail the same way on the tree before this change.
+- The whole package suite, all 28 test files in one run: 854 tests, 852 pass, 2 fail. Both failures are in `elevenlabs-provider.test.mjs`, which needs a Python module (`governed_elevenlabs`) this machine does not have; they fail the same way on the tree before this change.
 - `pwsh -NoProfile -File scripts/Validate-AgentHub.ps1` run from a clean worktree at the committed tip: `PASS: 9 capability packages, 8 installable plugins, 16 MCP servers, 18 active agents, 3 inventory-only agents.` In the working checkout the same script fails only on the pre-existing `coding-agent-dispatch` hash drift, which is another session's uncommitted change.
 - Deployed, then exercised from the deploy destination rather than the source tree: `_shared\tools\explainer\build-explainer.mjs` built the test fixture through the real job layout (6 shots, 2 chapters, 780 frames, 26 s) and `validate-explainer-release.mjs` accepted it (0 failed, 1 warning).
 - `node --test packages/media-studio/tests/build-picture.test.mjs` — 6 pass after the word-anchor logic moved to `kit/explainer/anchor.mjs` and `build-picture.mjs` re-exported it.
