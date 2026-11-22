@@ -35,20 +35,24 @@ def repeated_sources(scenes):
     first_use = {}
     for scene in scenes:
         visual = scene.get("visual") or {}
-        src = visual.get("src")
-        if visual.get("kind") not in SOURCE_KINDS or not isinstance(src, str) or not src.strip():
+        if visual.get("kind") not in SOURCE_KINDS:
             continue
-        # Ignore cache keys and relative-path spellings when identifying source footage.
-        url = urlsplit(src.strip().replace("\\", "/"))
-        source = urlunsplit((url.scheme, url.netloc, posixpath.normpath(url.path or "/"), "", ""))
+        keys = []
         asset = visual.get("sourceAssetId")
-        key = ("asset", asset.strip()) if isinstance(asset, str) and asset.strip() else ("path", source)
-        if key not in first_use:
-            first_use[key] = scene.get("id")
-            continue
+        if isinstance(asset, str) and asset.strip():
+            keys.append(("asset", asset.strip()))
+        src = visual.get("src")
+        if isinstance(src, str) and src.strip():
+            # Ignore cache keys and relative-path spellings when identifying source footage.
+            url = urlsplit(src.strip().replace("\\", "/"))
+            source = urlunsplit((url.scheme, url.netloc, posixpath.normpath(url.path or "/"), "", ""))
+            keys.append(("path", source))
+        previous = next((key for key in keys if key in first_use), None)
         reason = visual.get("reuseReason")
-        if not isinstance(reason, str) or not reason.strip():
-            yield f"scene {scene.get('id')} reuses {key[1]} from {first_use[key]} without a visual reuseReason"
+        if previous and (not isinstance(reason, str) or not reason.strip()):
+            yield f"scene {scene.get('id')} reuses {previous[1]} from {first_use[previous]} without a visual reuseReason"
+        for key in keys:
+            first_use.setdefault(key, scene.get("id"))
 
 
 def classify(scene):

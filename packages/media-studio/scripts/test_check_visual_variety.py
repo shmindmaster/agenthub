@@ -60,6 +60,18 @@ class VarietyTests(unittest.TestCase):
         pictures[1]["visual"]["reuseReason"] = "Return to the photograph to identify the person introduced earlier."
         self.assertTrue(gate.judge(pictures)["ok"])
 
+    def test_asset_id_does_not_hide_a_repeated_path(self):
+        pictures = scenes("still", "broll")
+        pictures[0]["visual"].update(src="board.jpg", sourceAssetId="board")
+        pictures[1]["visual"]["src"] = "board.jpg"
+        self.assertIn("reuses board.jpg from s0", gate.judge(pictures)["reasons"][0])
+
+    def test_planned_sources_are_detected_before_files_exist(self):
+        pictures = scenes("still", "broll")
+        for pic in pictures:
+            pic["visual"]["sourceAssetId"] = "planned-portrait"
+        self.assertIn("reuses planned-portrait from s0", gate.judge(pictures)["reasons"][0])
+
 
 if __name__ == "__main__":
     unittest.main()
