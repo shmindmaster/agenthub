@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -112,6 +112,8 @@ test('execution requires exact authorization and a current rate, then uses one m
     const result = await executeAssembly(script, quote, authorization, folder, options);
     assert.equal(result[0].actualUsd, null);
     assert.equal(provider.posts[0].stream, false);
+    const receipt = join(folder, readdirSync(folder).find(name => /^0001-.*(?<!submitted)\.json$/.test(name)));
+    renameSync(receipt, receipt + '.staged');
     await executeAssembly(script, quote, authorization, folder, { ...options,
       snapshots: { assemblyai: snapshot(env.ASSEMBLYAI_API_KEY, 0) } });
     assert.equal(provider.posts.length, 1);

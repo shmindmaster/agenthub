@@ -289,7 +289,9 @@ export async function executeAssembly(script, quote, authorization, directory, o
     const requestHash = hash(canonical({ host, input }));
     const stem = join(output, String(i + 1).padStart(4, '0') + '-' + requestHash.slice(0, 20));
     const wav = stem + '.wav', receipt = stem + '.json', marker = stem + '.submitted.json';
-    const prior = existsSync(receipt) ? fileJSON(receipt) : null;
+    const staged = receipt + '.staged';
+    const priorFile = existsSync(receipt) ? receipt : existsSync(staged) && existsSync(wav) ? staged : null;
+    const prior = priorFile ? fileJSON(priorFile) : null;
     let reservedNanos = assemblyNanos(count(batch.text), expected.rate);
     if (prior) {
       const submission = fileJSON(marker);
@@ -297,36 +299,42 @@ export async function executeAssembly(script, quote, authorization, directory, o
           submission.requestSha256 !== requestHash || !Number.isSafeInteger(submission.reservedNanos) || submission.reservedNanos < 0)
         throw new Error('Cached audio or receipt integrity check failed');
       reservedNanos = submission.reservedNanos;
+      if (priorFile === staged) renameSync(staged, receipt);
     } else if (existsSync(marker) || existsSync(wav)) {
       throw new Error('Previously submitted request requires reconciliation');
     }
-    return { batch, input, requestHash, wav, receipt, marker, prior, reservedNanos };
+    return { batch, input, requestHash, wav, receipt, marker, staged, prior, reservedNanos };
   });
   if (nanosToUsd(planned.reduce((sum, part) => sum + part.reservedNanos, 0)) > authorization.maxUsd)
     throw new Error('Existing reservations plus remaining narration exceed the authorized cap');
   const remainingUsd = nanosToUsd(planned.reduce((sum, part) => sum + (part.prior ? 0 : part.reservedNanos), 0));
   if (remainingUsd > expected.funding.availableUsd) throw new Error('Insufficient balance for remaining narration');
   const results = [];
-  for (const { batch, input, requestHash, wav, receipt, marker, prior, reservedNanos } of planned) {
+  for (const { batch, input, requestHash, wav, receipt, marker, staged, prior, reservedNanos } of planned) {
     if (prior) {
       results.push(prior);
       continue;
     }
     // Exclusive marker goes before the provider call. A timeout or torn result stays fenced on rerun.
-    save(marker, { requestSha256: requestHash, quoteSha256: authorization.quoteSha256, reservedNanos }, 'wx');
-    const res = await response(fetcher, host + '/v1/speech', {
-      method: 'POST', headers: { Authorization: key, 'Content-Type': 'application/json' },
+    save(marker, { requestSha256: requestHash, quoteSha256: authorization.quoteSha256, reservedNanos,
+      submittedAt: new Date().toISOString(), model: input.model_id, voice: input.voice_id, characters: count(batch.text) }, 'wx');
+    const res = await fetcher(host + '/v1/speech', {
+      method: 'POST', redirect: 'error', headers: { Authorization: key, 'Content-Type': 'application/json' },
       body: canonical(input), signal: AbortSignal.timeout(240000),
     });
+    const providerRequestId = res.headers.get('x-request-id') ?? res.headers.get('x-tts-request-id');
+    save(receipt + '.response', { requestSha256: requestHash, providerRequestId, status: res.status,
+      receivedAt: new Date().toISOString() }, 'wx');
+    if (!res.ok) throw new Error('AssemblyAI HTTP ' + res.status);
     const audio = Buffer.from(await res.arrayBuffer());
     if (!validWav(audio)) throw new Error('AssemblyAI response failed WAV verification');
-    writeFileSync(wav, audio, { flag: 'wx' });
     const record = { provider: 'assemblyai', model: models.assemblyai, voice: batch.voice, speaker: batch.speaker,
       turns: batch.turns, requestSha256: requestHash, outputSha256: hash(audio), characters: count(batch.text),
       estimatedUsd: nanosToUsd(reservedNanos), actualUsd: null,
-      providerRequestId: res.headers.get('x-request-id'), wav };
-    save(receipt + '.tmp', record, 'wx');
-    renameSync(receipt + '.tmp', receipt);
+      providerRequestId, wav };
+    save(staged, record, 'wx');
+    writeFileSync(wav, audio, { flag: 'wx' });
+    renameSync(staged, receipt);
     results.push(record);
   }
   save(join(output, 'narration-manifest.json'), { quoteSha256: authorization.quoteSha256, results });
