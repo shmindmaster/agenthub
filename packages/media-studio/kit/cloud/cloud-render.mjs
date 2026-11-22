@@ -24,7 +24,7 @@ const DEFAULT_KIT = path.resolve(HERE, '..');
 const ARM = 'https://management.azure.com';
 const ARM_API = '2024-03-01';
 // Kit files overlaid on the runtime's kit for remotion/recast jobs (node_modules come from the runtime tarball).
-const KIT_OVERLAY = ['src', 'screencast', 'cloud', 'remotion.config.ts', 'tsconfig.json', 'scene-archetypes.json', 'package.json'];
+const KIT_OVERLAY = ['src', 'explainer', 'screencast', 'cloud', 'remotion.config.ts', 'tsconfig.json', 'scene-archetypes.json', 'package.json'];
 
 // ---------- argument parsing ----------
 export function parseArgs(argv) {
