@@ -26,6 +26,7 @@ import { applyArbitration, buildInstructions, evaluate, parseVerdict, sampleTime
 import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/picture-gate.mjs';
 import { estimateImageUsd, estimateSttUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
 import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
+import { speech as realtimeSpeech } from '../kit/marketing/lib/providers/openai.mjs';
 import { readmeSection } from '../kit/marketing/lib/stages/deliver.mjs';
 import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
 import { assetsStage, musicKey, musicLengthMs, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
@@ -667,6 +668,7 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   const spec = baseSpec();
   spec.voice = { provider: 'openai', voiceId: 'marin', model: 'gpt-realtime-2.1' };
   const reads = [], calls = [];
+  let handshakeFailed = false;
   const key = 'fixture-user-credential';
   const doc = '### Text tokens\n| Input | $4 | 1M tokens |\n| Cached input | $0.4 | 1M tokens |\n| Output | $24 | 1M tokens |\n' +
     '### Audio tokens\n| Input | $32 | 1M tokens |\n| Cached input | $0.4 | 1M tokens |\n| Output | $64 | 1M tokens |\n### Image tokens';
@@ -678,6 +680,7 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
       return new Response(url.endsWith('.md') ? doc : '{}');
     } },
     openai: { speech: async request => {
+      if (handshakeFailed) throw Object.assign(new Error('test handshake failed'), { definitelyUnsubmitted: true });
       calls.push(request);
       assert.equal(request.credential, key);
       assert.equal(request.model, spec.voice.model);
@@ -696,10 +699,13 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   await assert.rejects(voiceStage(ctx), /Insufficient available OpenAI balance/);
   assert.equal(calls.length, 0);
   writeFileSync(funding, JSON.stringify({ ...snapshot, credentialSha256: fingerprint }));
+  handshakeFailed = true;
+  await assert.rejects(voiceStage(ctx), /test handshake failed/);
+  handshakeFailed = false;
   const voice = await voiceStage(ctx);
   assert.equal(calls.length, 3);
   assert.equal(voice.main.lines[0].receipt.billedUsd, 0.0128);
-  assert.equal(reads.filter(url => url.endsWith('/gpt-realtime-2.1.md')).length, 3);
+  assert.equal(reads.filter(url => url.endsWith('/gpt-realtime-2.1.md')).length, 4);
   assert.ok(!JSON.stringify(voice).includes(key));
   delete ctx.flags.narrationFunding;
   await voiceStage(ctx);
@@ -712,6 +718,27 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   writeFileSync(funding, JSON.stringify({ ...snapshot, entity: 'personal', credentialSha256: fingerprint }));
   await assert.rejects(voiceStage(ctx), /different billing entity/);
   assert.equal(calls.length, 3, 'the same credential cannot establish another copy of the balance');
+});
+
+test('Realtime only releases a hold if no response.create was attempted', async () => {
+  class HandshakeFailure {
+    constructor() { queueMicrotask(() => this.onerror()); }
+    close() {}
+  }
+  class SubmissionFailure {
+    constructor() { queueMicrotask(() => this.onopen()); }
+    send(payload) {
+      const message = JSON.parse(payload);
+      if (message.type === 'response.create') {
+        assert.equal(message.response.max_output_tokens, 500);
+        queueMicrotask(() => this.onerror());
+      }
+    }
+    close() {}
+  }
+  const request = { text: 'This is a fixture.', credential: 'fixture', maxOutputTokens: 500 };
+  await assert.rejects(realtimeSpeech({ ...request, WebSocketImpl: HandshakeFailure }), { definitelyUnsubmitted: true });
+  await assert.rejects(realtimeSpeech({ ...request, WebSocketImpl: SubmissionFailure }), { definitelyUnsubmitted: false });
 });
 
 test('voice, timing and assets stages run on mock providers, cache on rerun and charge the ledger', async () => {

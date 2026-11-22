@@ -145,10 +145,15 @@ function marketingWallet(spendDir, entity, funding) {
         db.prepare('INSERT INTO voice_spend VALUES (?, ?, ?, ?, NULL)').run(id, account, entity, micros);
         db.exec('COMMIT');
       });
-      return (billedMicros, completedAt = Date.now()) => withSqliteJournal(file, false, db => {
-        db.prepare('UPDATE voice_spend SET micros = ?, completed_at = ? WHERE request_id = ?')
-          .run(Math.max(micros, billedMicros), completedAt, id);
-      });
+      return {
+        settle: billedMicros => withSqliteJournal(file, false, db => {
+          db.prepare('UPDATE voice_spend SET micros = ?, completed_at = ? WHERE request_id = ?')
+            .run(Math.max(micros, billedMicros), Date.now(), id);
+        }),
+        cancelUnsubmitted: () => withSqliteJournal(file, false, db => {
+          db.prepare('DELETE FROM voice_spend WHERE request_id = ? AND completed_at IS NULL').run(id);
+        }),
+      };
     },
   };
 }
