@@ -153,10 +153,12 @@ function marketingWallet(spendDir, entity, funding, recoverInterrupted) {
         db.exec('COMMIT');
       });
       return {
-        settle: (billedMicros, bytes) => withSqliteJournal(file, false, db => {
-          db.prepare('UPDATE voice_spend SET micros = ?, completed_at = ?, audio_sha256 = ? WHERE request_id = ?')
-            .run(Math.max(micros, billedMicros), Date.now(), hash(bytes), id);
-        }),
+        stageAndPublish: (billedMicros, bytes) => {
+          const staged = output + '.staged';
+          save(staged + '.json', { requestId: id, billedMicros, audioSha256: hash(bytes) }, 'wx');
+          writeFileSync(staged, bytes, { flag: 'wx', flush: true });
+          recoverMarketingAudio(output, lineKey, { spendDir });
+        },
         cancelUnsubmitted: () => withSqliteJournal(file, false, db => {
           db.prepare('DELETE FROM voice_spend WHERE request_id = ? AND completed_at IS NULL').run(id);
         }),
@@ -181,10 +183,27 @@ export function recoverMarketingAudio(output, lineKey, { spendDir = defaultSpend
   const staged = output + '.staged';
   if (!existsSync(staged) || existsSync(output)) return false;
   const id = marketingRequestId(output, lineKey);
-  const row = readMarketingWallet(spendDir, true, db => db.prepare(`SELECT audio_sha256 FROM voice_spend
-    WHERE request_id = ? AND completed_at IS NOT NULL`).get(id));
-  if (!row?.audio_sha256 || hash(readFileSync(staged)) !== row.audio_sha256)
+  const file = join(spendDir, 'openai-narration.sqlite3');
+  if (!existsSync(file) || !existsSync(staged + '.json'))
     throw new Error('Staged OpenAI narration requires reconciliation before it can be reused');
+  const receipt = fileJSON(staged + '.json');
+  const actualHash = hash(readFileSync(staged));
+  if (receipt.requestId !== id || receipt.audioSha256 !== actualHash ||
+      !Number.isSafeInteger(receipt.billedMicros) || receipt.billedMicros < 0)
+    throw new Error('Staged OpenAI narration requires reconciliation before it can be reused');
+  const lookup = db => db.prepare('SELECT completed_at, audio_sha256 FROM voice_spend WHERE request_id = ?').get(id);
+  const verify = row => {
+    if (!row || (row.completed_at !== null && row.audio_sha256 !== actualHash))
+      throw new Error('Staged OpenAI narration settlement does not match the saved audio');
+  };
+  verify(readMarketingWallet(spendDir, true, lookup));
+  withSqliteJournal(file, false, db => {
+    db.exec('BEGIN IMMEDIATE');
+    verify(lookup(db));
+    db.prepare(`UPDATE voice_spend SET micros = MAX(micros, ?), completed_at = ?, audio_sha256 = ?
+      WHERE request_id = ? AND completed_at IS NULL`).run(receipt.billedMicros, Date.now(), actualHash, id);
+    db.exec('COMMIT');
+  });
   renameSync(staged, output);
   return true;
 }

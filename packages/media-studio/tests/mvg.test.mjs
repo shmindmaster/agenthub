@@ -722,6 +722,17 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   await voiceStage(ctx);
   assert.deepEqual(readFileSync(firstOutput), completedAudio);
   assert.equal(calls.length, 3);
+  renameSync(firstOutput, firstOutput + '.staged');
+  const stagedReceipt = readJson(firstOutput + '.staged.json');
+  const spend = new DatabaseSync(join(spendDir, 'openai-narration.sqlite3'));
+  try {
+    spend.prepare('UPDATE voice_spend SET completed_at = NULL, audio_sha256 = NULL WHERE request_id = ?').run(stagedReceipt.requestId);
+    await voiceStage(ctx);
+    assert.equal(spend.prepare('SELECT audio_sha256 FROM voice_spend WHERE request_id = ?').get(stagedReceipt.requestId).audio_sha256,
+      stagedReceipt.audioSha256);
+  } finally { spend.close(); }
+  assert.deepEqual(readFileSync(firstOutput), completedAudio);
+  assert.equal(calls.length, 3, 'recovery settles staged audio without another request');
   ctx.flags.narrationFunding = funding;
   spec.beats[0].voiceTake = 2;
   await assert.rejects(voiceStage(ctx), /Insufficient available OpenAI balance/);
