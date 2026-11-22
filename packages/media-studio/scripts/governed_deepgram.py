@@ -61,8 +61,9 @@ def quote(text, *, workspace, revision, dictionary_revision, expressivity, voice
             "counting": "UTF-8 bytes conservatively reserved at 45 microdollars each; not invoice settlement"}
 
 
-def existing_ledger(root=None):
-    """Refuse absent storage BEFORE invoking the runtime's creating constructor."""
+@contextlib.contextmanager
+def read_existing_budget(root=None):
+    """Read the same aggregate budget used by the adapter without initializing storage."""
     runtime = runtime_module()
     root = (runtime.canonical_default_root(runtime.default_root()) if root is None
             else pathlib.Path(root).absolute())
@@ -76,11 +77,30 @@ def existing_ledger(root=None):
         with contextlib.closing(sqlite3.connect(db.as_uri() + "?mode=ro", uri=True)) as con:
             con.execute("SELECT namespace,key,bucket,maximum,actual,state,receipt FROM requests LIMIT 0")
             row = con.execute("SELECT ceiling FROM budgets WHERE bucket=?", (BUCKET,)).fetchone()
-            if not row:
+            if not row or type(row[0]) is not int or row[0] < 0:
                 raise RuntimeError("Shared Deepgram aggregate budget unset; paid generation disabled")
+            yield root, max(0, row[0] - runtime.Ledger.committed(con, BUCKET))
     except sqlite3.Error:
         raise RuntimeError("Existing shared ledger is unreadable; restore accounting before generation") from None
-    return runtime.Ledger(root)
+
+
+def existing_ledger(root=None):
+    """Refuse absent storage BEFORE invoking the runtime's creating constructor."""
+    with read_existing_budget(root) as (path, _):
+        pass
+    return runtime_module().Ledger(path)
+
+
+if __name__ == "__main__":
+    import sys
+
+    if sys.argv[1:] != ["--budget-status"]:
+        sys.exit("Usage: governed_deepgram.py --budget-status")
+    try:
+        with read_existing_budget() as (_, available):
+            print(json.dumps({"availableUsdMicros": available}))
+    except (OSError, RuntimeError):
+        sys.exit("Deepgram local budget unavailable")
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):

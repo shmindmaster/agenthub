@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readdirSync, renameSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { executeAssembly, inspectElevenLabs, makeBatches, parseRate, preflight } from '../scripts/narration-preflight.mjs';
+import { executeAssembly, inspectElevenLabs, makeBatches, parseRate, preflight, resolveOpenAIKey } from '../scripts/narration-preflight.mjs';
 
 const now = Date.parse('2026-11-22T18:30:00Z');
 const env = { ASSEMBLYAI_API_KEY: 'fixture-key', OPENAI_API_KEY: 'openai-fixture', DEEPGRAM_API_KEY: 'dg-fixture' };
@@ -29,7 +29,7 @@ function fake({ assemblyRateDoc = assemblyRate, voice = stock, postStatus = 200 
       wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
       wav.writeUInt32LE(24000, 24); wav.writeUInt32LE(48000, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
       wav.write('data', 36); wav.writeUInt32LE(2, 40);
-      return new Response(wav, { status: postStatus });
+      return new Response(wav, { status: postStatus, headers: { 'x-request-id': 'fixture-receipt' } });
     }
     if (url.endsWith('models.md')) return new Response(assemblyRateDoc);
     if (url.endsWith('text-to-speech')) return new Response('Flux TTS is $0.045 per 1,000 characters on pay-as-you-go');
@@ -127,9 +127,34 @@ test('ambiguous provider failure fences the exact request without retrying', asy
     const options = { ...provider, snapshots, now, env };
     const quote = await preflight(script, options);
     await assert.rejects(executeAssembly(script, quote, auth(quote, folder), folder, options), /503/);
+    const response = readdirSync(folder).find(name => name.endsWith('.response'));
+    assert.equal(JSON.parse(readFileSync(join(folder, response))).providerRequestId, 'fixture-receipt');
     await assert.rejects(executeAssembly(script, quote, auth(quote, folder), folder, options), /reconciliation/);
     assert.equal(provider.posts.length, 1);
   } finally { rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('Deepgram requires adequate remaining budget from the governed local ledger', async () => {
+  const wanted = { ...script, provider: 'deepgram' };
+  for (const [micros, pick] of [[null, null], [0, null], [1, null], [1_000_000, 'deepgram']]) {
+    const quote = await preflight(wanted, { ...fake(), snapshots, now, env, readDeepgramBudget: () => micros });
+    assert.equal(quote.pick, pick);
+    if (!pick) assert.match(quote.candidates[1].reasons.join(' '), /local budget/);
+  }
+});
+
+test('Windows credential precedence uses the user key and its funding evidence', async () => {
+  const selected = resolveOpenAIKey({ platform: 'win32', env, run: () => ({ status: 0,
+    stdout: '    OPENAI_API_KEY    REG_SZ    user-fixture\r\n' }) });
+  assert.equal(selected, 'user-fixture');
+  const provider = fake();
+  const options = { now, env, openaiKey: selected, fetcher: (url, init) => {
+    if (url.includes('api.openai.com')) assert.equal(init.headers.Authorization, 'Bearer user-fixture');
+    return provider.fetcher(url, init);
+  } };
+  const wanted = { ...script, provider: 'openai' };
+  assert.equal((await preflight(wanted, { ...options, snapshots })).pick, null);
+  assert.equal((await preflight(wanted, { ...options, snapshots: { openai: snapshot(selected) } })).pick, 'openai');
 });
 
 
@@ -181,4 +206,33 @@ test('exact integer cap works across takes and the quote cannot move to another 
     assert.equal(records.length, 2);
     assert.equal(provider.posts.length, 2);
   } finally { rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('renewal prices only missing wallet spend and preserves the cumulative authorized cap', async () => {
+  const parent = mkdtempSync(join(tmpdir(), 'studio-narration-renew-'));
+  const folder = join(parent, 'takes');
+  try {
+    const provider = fake();
+    const text = { ...script, turns: [{ text: 'a'.repeat(2000), keepSeparate: true }, { text: 'b'.repeat(1000) }] };
+    const options = { ...provider, snapshots, now, env, outputDir: folder };
+    const original = await preflight(text, options);
+    await executeAssembly(text, original, auth(original, folder), folder, options);
+    // Simulate an interruption before the second request, retaining the verified first take.
+    for (const name of readdirSync(folder).filter(name => name.startsWith('0002-')))
+      renameSync(join(folder, name), join(parent, name));
+    const later = now + 25 * 60 * 60 * 1000;
+    const refreshed = { ...options, now: later,
+      snapshots: { assemblyai: { ...snapshot(env.ASSEMBLYAI_API_KEY, 0.015), observedAt: new Date(later).toISOString() } } };
+    const quote = await preflight(text, refreshed);
+    const candidate = quote.candidates[0];
+    assert.equal(quote.pick, 'assemblyai');
+    assert.equal(candidate.remainingUsd, 0.015);
+    assert.equal(candidate.priorReservedUsd, 0.03);
+    assert.equal(candidate.estimatedUsd, 0.045);
+    await assert.rejects(executeAssembly(text, quote, auth(quote, folder, 0.015), folder, refreshed), /authorization/);
+    const results = await executeAssembly(text, quote, auth(quote, folder, 0.045), folder, refreshed);
+    assert.equal(results.length, 2);
+    assert.equal(provider.posts.length, 3);
+    assert.equal(provider.posts[2].text, 'b'.repeat(1000));
+  } finally { rmSync(parent, { recursive: true, force: true }); }
 });

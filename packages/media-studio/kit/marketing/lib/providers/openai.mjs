@@ -60,9 +60,10 @@ export async function generateImage({ prompt, model = OPENAI_MODELS.imageDefault
  * Narration through the Realtime API (gpt-realtime-2.1-mini; gpt-realtime-2.1 for complex direction). The session reads the
  * line verbatim with the chosen voice and delivery instructions; audio comes back as 24 kHz mono PCM, returned as WAV.
  */
-export async function speech({ text, voice = 'marin', instructions, model = OPENAI_MODELS.realtimeSpeech, timeoutMs = 60000, WebSocketImpl = globalThis.WebSocket }) {
+export async function speech({ text, voice = 'marin', instructions, model = OPENAI_MODELS.realtimeSpeech,
+  credential = apiKey(), maxOutputTokens, timeoutMs = 60000, WebSocketImpl = globalThis.WebSocket }) {
   if (!WebSocketImpl) throw new OpenAiError('This Node has no WebSocket; use Node 22 or later');
-  const ws = new WebSocketImpl(`wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`, { headers: { Authorization: `Bearer ${apiKey()}` } });
+  const ws = new WebSocketImpl(`wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`, { headers: { Authorization: `Bearer ${credential}` } });
   const chunks = [];
   const usage = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => { try { ws.close(); } catch { /* closing */ } reject(new OpenAiError('OpenAI realtime speech timed out')); }, timeoutMs);
@@ -70,7 +71,8 @@ export async function speech({ text, voice = 'marin', instructions, model = OPEN
       const rule = 'Read the user text aloud exactly as written. Do not add, answer or comment.';
       ws.send(JSON.stringify({ type: 'session.update', session: { type: 'realtime', output_modalities: ['audio'], instructions: instructions ? `${rule} Delivery: ${instructions}` : rule, audio: { output: { voice, format: { type: 'audio/pcm', rate: 24000 } } } } }));
       ws.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] } }));
-      ws.send(JSON.stringify({ type: 'response.create' }));
+      ws.send(JSON.stringify({ type: 'response.create',
+        ...(maxOutputTokens === undefined ? {} : { response: { max_output_tokens: maxOutputTokens } }) }));
     };
     ws.onmessage = (e) => {
       const m = JSON.parse(typeof e.data === 'string' ? e.data : Buffer.from(e.data).toString());

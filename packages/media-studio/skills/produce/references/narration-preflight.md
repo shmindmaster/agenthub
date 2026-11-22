@@ -48,7 +48,7 @@ record, kept locally with the job. For each provider, record these fields:
 
 ```text
 node scripts/narration-preflight.mjs fingerprint assemblyai
-node scripts/narration-preflight.mjs quote job-script.json funding.json > narration-quote.json
+node scripts/narration-preflight.mjs quote job-script.json funding.json voice/assemblyai > narration-quote.json
 ```
 
 Use the installed `_shared/tools/narration-preflight.mjs` when the host loads a
@@ -58,6 +58,11 @@ unknown funding. The command issues read-only requests and quotes AssemblyAI,
 Deepgram Flux and OpenAI Realtime. Keep rate evidence separate from spendable
 funds, and estimated use separate from billed use. Dashboard records are
 point-in-time observations. Recheck shared balances before additional jobs.
+On renewal, include the existing AssemblyAI output directory. Only missing
+takes count against current funding (`remainingUsd`). The total (`estimatedUsd`)
+includes prior verified reservations and remains the amount the job cap covers.
+The quote only reads prior audio and receipts. An unresolved submission or an
+output directory tied to another script or credential makes that directory ineligible.
 
 ## Synthesize
 
@@ -71,7 +76,9 @@ node scripts/narration-preflight.mjs execute job-script.json funding.json narrat
 
 Use one output directory per approved script. WAVs and receipts follow the
 spoken order. Output hashes support reuse. A submitted request with missing or
-invalid output stays fenced for billing reconciliation. Review pronunciation and
+invalid output stays fenced for billing reconciliation. The submission marker
+records the model, voice, time and character count. The response receipt keeps
+the provider request ID and status when received. Review pronunciation and
 speaker continuity, then align or obtain word timing using the accepted output.
 
 - **AssemblyAI** groups adjacent text from the same speaker and voice within
@@ -80,9 +87,12 @@ speaker continuity, then align or obtain word timing using the accepted output.
 - **Deepgram Flux** uses the existing governed `deepgram_cli.py` complete-text
   batch endpoint. Group by speaker, preserve cut boundaries, keep each request
   within that adapter's 2,000-character cap and honor its UTF-8-byte
-  reservation. Keep the separate governed authorization and receipt checks.
+  reservation. Selection also checks the adapter's remaining local ledger
+  capacity. Keep the separate governed authorization and receipt checks.
 - **OpenAI Realtime speech** uses the existing speech adapter at the verified
   standard endpoint rates. Its speech requests have no OpenAI Batch API discount.
+  Standalone marketing runs the same pricing and funding checks before any
+  new OpenAI voice requests, using the Windows user credential when configured.
 - **ElevenLabs** remains an explicit job-specific lane. Use `inspect-elevenlabs model-id` for a read-only check of the live speech multiplier and subscription balance. Reconcile the selected
   model and endpoint against provider history and the actual subscription
   balance. Show an observed estimate separately from the ledger's reservation

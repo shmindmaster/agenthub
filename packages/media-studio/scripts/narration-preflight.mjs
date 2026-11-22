@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Read-only by default. Execute only a pinned, funded AssemblyAI quote.
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const urls = {
   assemblyai: 'https://www.assemblyai.com/docs/getting-started/models.md',
@@ -14,6 +15,7 @@ const models = { assemblyai: 'assemblyai-tts-1', deepgram: 'flux-haley-en', open
 const keys = { assemblyai: 'ASSEMBLYAI_API_KEY', deepgram: 'DEEPGRAM_API_KEY', openai: 'OPENAI_API_KEY' };
 const hosts = { us: 'https://tts.us.assemblyai.com', eu: 'https://tts.eu.assemblyai.com' };
 const methods = { assemblyai: 'grouped-http', deepgram: 'native-complete-text-batch', openai: 'realtime-per-request' };
+const realtimeModels = new Set([models.openai, 'gpt-realtime-2.1']);
 const deepgramPolicy = JSON.parse(readFileSync(new URL('./narration-deepgram-policy.json', import.meta.url), 'utf8'));
 const limits = { assemblyai: 5000, deepgram: deepgramPolicy.maxCharacters, openai: 1500 };
 const usd = n => Math.ceil(n * 1e6) / 1e6;
@@ -25,6 +27,24 @@ const canonical = x => JSON.stringify(x);
 const fileJSON = file => JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 const save = (file, value, flag = 'w') => writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { flag });
 const fixedGap = 24 * 60 * 60 * 1000;
+
+export function resolveOpenAIKey({ env = process.env, platform = process.platform, run = spawnSync } = {}) {
+  if (platform === 'win32' && !env.NODE_TEST_CONTEXT) {
+    const result = run('reg', ['query', 'HKCU\\Environment', '/v', keys.openai],
+      { encoding: 'utf8', windowsHide: true, timeout: 5000 });
+    const match = result.status === 0 && result.stdout.match(/OPENAI_API_KEY\s+REG_(?:EXPAND_)?SZ\s+(.+)/);
+    if (match?.[1].trim()) return match[1].trim();
+  }
+  return env.OPENAI_API_KEY || null;
+}
+
+function deepgramBudget() {
+  const script = fileURLToPath(new URL('./governed_deepgram.py', import.meta.url));
+  const result = spawnSync(process.platform === 'win32' ? 'python' : 'python3', ['-B', script, '--budget-status'],
+    { encoding: 'utf8', windowsHide: true, timeout: 5000 });
+  if (result.status !== 0) return null;
+  try { return JSON.parse(result.stdout).availableUsdMicros; } catch { return null; }
+}
 
 export function parseRate(provider, doc) {
   const num = value => value !== undefined && Number.isFinite(+value) && +value > 0 ? +value : null;
@@ -41,6 +61,41 @@ export function parseRate(provider, doc) {
   const input = num(text.match(/\| Input \| \$([\d.]+) \| 1M tokens \|/)?.[1]);
   const output = num(audio.match(/\| Output \| \$([\d.]+) \| 1M tokens \|/)?.[1]);
   return input === null || output === null ? null : { usdPerMillionInputTextTokens: input, usdPerMillionOutputAudioTokens: output };
+}
+
+function marketingRealtimeRate(doc) {
+  const [text, audio] = [doc.match(/### Text tokens([\s\S]*?)### Audio tokens/)?.[1],
+    doc.match(/### Audio tokens([\s\S]*?)### Image tokens/)?.[1]];
+  const row = (section, label) => Number(section?.match(new RegExp(`\\| ${label} \\| \\$([\\d.]+) \\| 1M tokens \\|`))?.[1]);
+  const rate = { in: row(audio, 'Input'), out: row(audio, 'Output'), textIn: row(text, 'Input'),
+    textOut: row(text, 'Output'), cachedIn: row(audio, 'Cached input'), cachedTextIn: row(text, 'Cached input') };
+  return Object.values(rate).every(n => Number.isFinite(n) && n >= 0) ? rate : null;
+}
+
+// Marketing keeps beat boundaries for its timing compositor and uses the model and credential of the exact request.
+export async function preflightMarketingOpenAI({ entity, model = models.openai, lines, instructions, snapshot },
+  { now = Date.now(), fetcher = fetch, key = resolveOpenAIKey() } = {}) {
+  if (!['abacare', 'mahumtech', 'personal'].includes(entity) || !realtimeModels.has(model) || !lines.length)
+    throw new Error('OpenAI narration preflight requires an entity, a supported exact Realtime model, and lines');
+  const url = `https://developers.openai.com/api/docs/models/${model}.md`;
+  const [doc, funding] = await Promise.all([
+    response(fetcher, url).then(r => r.text()),
+    account('openai', { entity }, snapshot, [], now, fetcher, key, model),
+  ]);
+  const rate = marketingRealtimeRate(doc);
+  if (!rate || funding.access !== 'verified' || funding.balance !== 'dashboard-recorded')
+    throw new Error('OpenAI narration needs current model rates, access, and fresh funding evidence for this credential and entity');
+  const reservations = lines.map(text => {
+    const words = text.trim().split(/\s+/).length;
+    const maxOutputTokens = Math.min(4096, Math.max(256, 18 * words + 256));
+    const inputCeiling = Buffer.byteLength(text) + Buffer.byteLength(instructions || '') + 256;
+    return { maxOutputTokens, usdMicros: Math.ceil(inputCeiling * rate.textIn + maxOutputTokens * Math.max(rate.out, rate.textOut)) };
+  });
+  const totalMicros = reservations.reduce((sum, part) => sum + part.usdMicros, 0);
+  const availableMicros = Math.floor(funding.availableUsd * 1e6);
+  if (totalMicros > availableMicros) throw new Error('Insufficient available OpenAI balance for narration');
+  return { key, model, rate, availableMicros, reservations, totalMicros,
+    rateEvidence: { url, checkedAt: new Date(now).toISOString(), documentSha256: hash(doc) }, funding };
 }
 
 function validate(script) {
@@ -114,8 +169,7 @@ async function response(fetcher, url, options = {}) {
   return res;
 }
 
-async function account(provider, script, snapshot, voices, now, fetcher, env) {
-  const key = env[keys[provider]];
+async function account(provider, script, snapshot, voices, now, fetcher, key, model = models[provider]) {
   if (!key) return { access: 'missing-key', balance: 'unknown' };
   let access = 'unverified';
   let balanceEndpoint = null;
@@ -129,7 +183,7 @@ async function account(provider, script, snapshot, voices, now, fetcher, env) {
       access = catalog.length && catalog.every(v => v.source === 'assemblyai' && v.visibility === 'public' && v.status === 'active' &&
         v.language === language && v.ready_models?.includes(models[provider])) ? 'verified' : 'voice-ineligible';
     } else if (provider === 'openai') {
-      await response(fetcher, 'https://api.openai.com/v1/models/' + models[provider],
+      await response(fetcher, 'https://api.openai.com/v1/models/' + model,
         { headers: { Authorization: 'Bearer ' + key } });
       access = 'verified';
     } else {
@@ -203,8 +257,10 @@ export async function inspectElevenLabs(modelId, { fetcher = fetch, env = proces
   };
 }
 
-export async function preflight(script, { snapshots = {}, fetcher = fetch, now = Date.now(), env = process.env } = {}) {
+export async function preflight(script, { snapshots = {}, fetcher = fetch, now = Date.now(), env = process.env,
+  openaiKey = env === process.env ? resolveOpenAIKey() : env.OPENAI_API_KEY, readDeepgramBudget = deepgramBudget, outputDir } = {}) {
   validate(script);
+  const output = outputDir ? resolve(outputDir) : null;
   const candidates = await Promise.all(Object.keys(models).map(async provider => {
     const batches = makeBatches(script, provider);
     let rate = null, rateEvidence = null;
@@ -214,17 +270,36 @@ export async function preflight(script, { snapshots = {}, fetcher = fetch, now =
       if (rate) rateEvidence = { url: urls[provider], checkedAt: new Date(now).toISOString(), documentSha256: hash(doc) };
     } catch { /* No rate from an unavailable or changed source. */ }
     const funding = await account(provider, script, snapshots[provider], [...new Set((batches || []).map(b => b.voice))],
-      now, fetcher, env);
+      now, fetcher, provider === 'openai' ? openaiKey : env[keys[provider]]);
     const quote = estimate(provider, rate, batches || []);
     const reasons = [];
+    let localBudgetUsd = null, remainingUsd = quote.estimatedUsd, priorReservedUsd = 0, cacheError = null;
     if (!rate) reasons.push('current rate unavailable');
     if (funding.access !== 'verified') reasons.push('voice or account access unverified');
     if (funding.balance !== 'dashboard-recorded') reasons.push('available account balance unknown');
-    if (quote.estimatedUsd !== null && funding.availableUsd < (quote.adapterReservationUsd ?? quote.estimatedUsd)) reasons.push('insufficient available balance');
+    if (provider === 'assemblyai' && output && batches && rate && env.ASSEMBLYAI_API_KEY) {
+      try {
+        const plan = assemblyPlan(script, output, rate, env.ASSEMBLYAI_API_KEY, hash(canonical(script)));
+        const priorNanos = plan.reduce((sum, part) => sum + (part.prior ? part.reservedNanos : 0), 0);
+        const remainingNanos = plan.reduce((sum, part) => sum + (part.prior ? 0 : part.reservedNanos), 0);
+        priorReservedUsd = nanosToUsd(priorNanos);
+        remainingUsd = nanosToUsd(remainingNanos);
+        quote.estimatedUsd = nanosToUsd(priorNanos + remainingNanos);
+      } catch (error) {
+        cacheError = error.message;
+      }
+    }
+    if (remainingUsd !== null && funding.availableUsd < (quote.adapterReservationUsd ?? remainingUsd)) reasons.push('insufficient available balance');
     if (!batches) reasons.push('compatible full cast required');
     if (provider === 'assemblyai' && (script.requiresDirection || script.requiresLinkedDialogue))
       reasons.push('requires directed performance or linked dialogue');
     if (provider === 'deepgram') {
+      const available = funding.access === 'verified' ? readDeepgramBudget() : null;
+      if (!Number.isSafeInteger(available) || available < 0) reasons.push('governed Deepgram local budget unavailable');
+      else {
+        localBudgetUsd = available / 1e6;
+        if (quote.adapterReservationUsd > localBudgetUsd) reasons.push('insufficient governed Deepgram local budget');
+      }
       if (new Date(now).toISOString().slice(0, 10) > deepgramPolicy.validThrough ||
           rate?.usdPerMillionCharacters !== deepgramPolicy.usdMicrosPerUtf8Byte)
         reasons.push('governed Deepgram reservation policy requires refresh');
@@ -237,28 +312,29 @@ export async function preflight(script, { snapshots = {}, fetcher = fetch, now =
     if ((script.region ?? 'us') === 'eu' && provider !== 'assemblyai') reasons.push('EU synthesis not configured on this lane');
     return { provider, model: models[provider], voices: [...new Set((batches || []).map(b => b.voice))],
       method: methods[provider], discountedBatch: false,
-      rate, rateEvidence, funding, ...quote, requests: batches?.length ?? null, reasons };
+      rate, rateEvidence, funding, ...quote, remainingUsd, priorReservedUsd, localBudgetUsd, cacheError,
+      requests: batches?.length ?? null, reasons };
   }));
-  const eligible = candidates.filter(c => !c.reasons.length);
+  const eligible = candidates.filter(c => !c.reasons.length && !c.cacheError);
   const assembly = eligible.find(c => c.provider === 'assemblyai');
   const longForm = script.longForm ?? script.turns.reduce((n, t) => n + t.text.trim().split(/\s+/).length, 0) >= 1200;
   const pick = script.provider ? eligible.find(c => c.provider === script.provider) :
     (longForm && assembly) || eligible.sort((a, b) => a.estimatedUsd - b.estimatedUsd)[0];
   return { schema: 1, checkedAt: new Date(now).toISOString(), scriptSha256: hash(canonical(script)),
-    entity: script.entity, region: script.region ?? 'us', longForm, candidates, pick: pick?.provider ?? null,
+    entity: script.entity, region: script.region ?? 'us', outputDir: output, longForm, candidates, pick: pick?.provider ?? null,
     assemblyExecution: pick?.provider === 'assemblyai' ? 'available after exact job authorization' : 'use selected governed adapter',
     elevenlabs: 'explicit owner-authorized lane only; never chosen by automatic routing' };
 }
 
 export async function executeAssembly(script, quote, authorization, directory, options = {}) {
-  const current = await preflight(script, options);
+  const output = resolve(directory);
+  const current = await preflight(script, { ...options, outputDir: output });
   const { quoteSha256: printedHash, ...pinned } = quote;
   const age = Date.parse(current.checkedAt) - Date.parse(pinned.checkedAt);
   const digest = hash(canonical(pinned));
   const expected = current.candidates.find(c => c.provider === 'assemblyai');
   const locked = pinned.candidates?.find(c => c.provider === 'assemblyai');
   const key = (options.env ?? process.env).ASSEMBLYAI_API_KEY;
-  const output = resolve(directory);
   if (quote.pick !== 'assemblyai' ||
       expected.reasons.some(reason => reason !== 'insufficient available balance') ||
       expected.funding.credentialSha256 !== locked?.funding?.credentialSha256 ||
@@ -267,11 +343,13 @@ export async function executeAssembly(script, quote, authorization, directory, o
       (printedHash !== undefined && printedHash !== digest) || authorization.quoteSha256 !== digest ||
       typeof authorization.ownerApproval !== 'string' || !authorization.ownerApproval.trim() ||
       authorization.entity !== script.entity ||
+      (pinned.outputDir && pinned.outputDir !== output) ||
       typeof authorization.outputDir !== 'string' || resolve(authorization.outputDir) !== output ||
       typeof authorization.maxUsd !== 'number' || !Number.isFinite(authorization.maxUsd) ||
       authorization.maxUsd < expected.estimatedUsd || expected.estimatedUsd !== locked?.estimatedUsd ||
       canonical(expected.rate) !== canonical(locked.rate))
     throw new Error('Fresh funded quote and exact AssemblyAI job authorization required');
+  if (expected.cacheError) throw new Error(expected.cacheError);
   mkdirSync(output, { recursive: true });
   const identity = join(output, 'assemblyai-job.json');
   const lock = { entity: script.entity, scriptSha256: current.scriptSha256, credentialSha256: hash(key) };
@@ -280,38 +358,17 @@ export async function executeAssembly(script, quote, authorization, directory, o
   } catch (error) {
     if (error.code !== 'EEXIST' || canonical(fileJSON(identity)) !== canonical(lock)) throw error;
   }
-  const batches = makeBatches(script, 'assemblyai');
+  const planned = assemblyPlan(script, output, expected.rate, key, current.scriptSha256);
   const host = hosts[current.region];
   const fetcher = options.fetcher ?? fetch;
-  const planned = batches.map((batch, i) => {
-    const input = { model_id: models.assemblyai, voice_id: batch.voice, text: batch.text, sample_rate: 24000,
-      language: script.language ?? 'english', encoding: 'pcm_s16le', container: 'wav', stream: false };
-    const requestHash = hash(canonical({ host, input }));
-    const stem = join(output, String(i + 1).padStart(4, '0') + '-' + requestHash.slice(0, 20));
-    const wav = stem + '.wav', receipt = stem + '.json', marker = stem + '.submitted.json';
-    const staged = receipt + '.staged';
-    const priorFile = existsSync(receipt) ? receipt : existsSync(staged) && existsSync(wav) ? staged : null;
-    const prior = priorFile ? fileJSON(priorFile) : null;
-    let reservedNanos = assemblyNanos(count(batch.text), expected.rate);
-    if (prior) {
-      const submission = fileJSON(marker);
-      if (prior.requestSha256 !== requestHash || prior.outputSha256 !== hash(readFileSync(wav)) ||
-          submission.requestSha256 !== requestHash || !Number.isSafeInteger(submission.reservedNanos) || submission.reservedNanos < 0)
-        throw new Error('Cached audio or receipt integrity check failed');
-      reservedNanos = submission.reservedNanos;
-      if (priorFile === staged) renameSync(staged, receipt);
-    } else if (existsSync(marker) || existsSync(wav)) {
-      throw new Error('Previously submitted request requires reconciliation');
-    }
-    return { batch, input, requestHash, wav, receipt, marker, staged, prior, reservedNanos };
-  });
   if (nanosToUsd(planned.reduce((sum, part) => sum + part.reservedNanos, 0)) > authorization.maxUsd)
     throw new Error('Existing reservations plus remaining narration exceed the authorized cap');
   const remainingUsd = nanosToUsd(planned.reduce((sum, part) => sum + (part.prior ? 0 : part.reservedNanos), 0));
   if (remainingUsd > expected.funding.availableUsd) throw new Error('Insufficient balance for remaining narration');
   const results = [];
-  for (const { batch, input, requestHash, wav, receipt, marker, staged, prior, reservedNanos } of planned) {
+  for (const { batch, input, requestHash, wav, receipt, marker, staged, prior, priorFile, reservedNanos } of planned) {
     if (prior) {
+      if (priorFile === staged && existsSync(staged)) renameSync(staged, receipt);
       results.push(prior);
       continue;
     }
@@ -341,6 +398,37 @@ export async function executeAssembly(script, quote, authorization, directory, o
   return results;
 }
 
+function assemblyPlan(script, output, rate, key, scriptSha256) {
+  const identity = join(output, 'assemblyai-job.json');
+  const hasIdentity = existsSync(identity);
+  const lock = { entity: script.entity, scriptSha256, credentialSha256: hash(key) };
+  if (hasIdentity && canonical(fileJSON(identity)) !== canonical(lock))
+    throw new Error('AssemblyAI output belongs to a different job or account');
+  const host = hosts[script.region ?? 'us'];
+  return makeBatches(script, 'assemblyai').map((batch, i) => {
+    const input = { model_id: models.assemblyai, voice_id: batch.voice, text: batch.text, sample_rate: 24000,
+      language: script.language ?? 'english', encoding: 'pcm_s16le', container: 'wav', stream: false };
+    const requestHash = hash(canonical({ host, input }));
+    const stem = join(output, String(i + 1).padStart(4, '0') + '-' + requestHash.slice(0, 20));
+    const wav = stem + '.wav', receipt = stem + '.json', marker = stem + '.submitted.json';
+    const staged = receipt + '.staged';
+    const priorFile = existsSync(receipt) ? receipt : existsSync(staged) && existsSync(wav) ? staged : null;
+    const prior = priorFile ? fileJSON(priorFile) : null;
+    let reservedNanos = assemblyNanos(count(batch.text), rate);
+    if (prior) {
+      const submission = fileJSON(marker);
+      const audio = readFileSync(wav);
+      if (!hasIdentity || prior.requestSha256 !== requestHash || prior.outputSha256 !== hash(audio) || !validWav(audio) ||
+          submission.requestSha256 !== requestHash || !Number.isSafeInteger(submission.reservedNanos) || submission.reservedNanos < 0)
+        throw new Error('Cached audio or receipt integrity check failed');
+      reservedNanos = submission.reservedNanos;
+    } else if (existsSync(marker) || existsSync(wav) || existsSync(staged)) {
+      throw new Error('Previously submitted request requires reconciliation');
+    }
+    return { batch, input, requestHash, wav, receipt, marker, staged, prior, priorFile, reservedNanos };
+  });
+}
+
 function validWav(audio) {
   if (audio.length < 46 || audio.length > 64 * 1024 * 1024 ||
       audio.toString('ascii', 0, 4) !== 'RIFF' || audio.toString('ascii', 8, 12) !== 'WAVE' ||
@@ -365,8 +453,10 @@ async function main(args) {
     console.log(JSON.stringify(await inspectElevenLabs(scriptFile), null, 2));
     return;
   }
-  if (action === 'fingerprint' && Object.hasOwn(keys, scriptFile) && process.env[keys[scriptFile]]) {
-    console.log(hash(process.env[keys[scriptFile]])); return;
+  if (action === 'fingerprint' && Object.hasOwn(keys, scriptFile)) {
+    const credential = scriptFile === 'openai' ? resolveOpenAIKey() : process.env[keys[scriptFile]];
+    if (!credential) throw new Error('Credential unavailable');
+    console.log(hash(credential)); return;
   }
   if (action === 'batches' && scriptFile && Object.hasOwn(models, snapshotsFile)) {
     const batches = makeBatches(fileJSON(scriptFile), snapshotsFile);
@@ -375,7 +465,7 @@ async function main(args) {
     return;
   }
   if (!['quote', 'execute'].includes(action) || !scriptFile || (action === 'execute' && (!snapshotsFile || !quoteFile || !approvalFile || !output)))
-    throw new Error('Usage: narration-preflight.mjs quote script.json [funding.json] | execute script.json funding.json quote.json approval.json output-dir | batches script.json provider | fingerprint provider | inspect-elevenlabs model-id');
+    throw new Error('Usage: narration-preflight.mjs quote script.json [funding.json [output-dir]] | execute script.json funding.json quote.json approval.json output-dir | batches script.json provider | fingerprint provider | inspect-elevenlabs model-id');
   const script = fileJSON(scriptFile);
   const snapshots = snapshotsFile ? fileJSON(snapshotsFile) : {};
   if (action === 'execute') {
@@ -383,7 +473,7 @@ async function main(args) {
     console.log(JSON.stringify({ completed: records.length, output: resolve(output) }));
     return;
   }
-  const quote = await preflight(script, { snapshots });
+  const quote = await preflight(script, { snapshots, outputDir: quoteFile });
   console.log(JSON.stringify({ ...quote, quoteSha256: hash(canonical(quote)) }, null, 2));
 }
 
