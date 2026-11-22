@@ -3,8 +3,8 @@ import "./index.css";
 import { CalculateMetadataFunction, Composition } from "remotion";
 import { Briefing, BriefingProps, sampleScenes } from "./Briefing";
 import { MarketingAd, MarketingAdProps, sampleMarketingAd } from "./MarketingAd";
-import { Explainer } from "./explainer/Explainer";
-import type { ExplainerProps } from "./explainer/types";
+import { Explainer } from "../explainer/Explainer";
+import type { ExplainerProps } from "../explainer/types";
 
 const FPS = 30;
 const WIDTH = 1600;

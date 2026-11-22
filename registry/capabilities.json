@@ -701,7 +701,7 @@
         "produce",
         "finish"
       ],
-      "contentHash": "23604A9F16B989BE4B16D384FC44D4AF10EFAD9C738BBBE51030494082C1B603",
+      "contentHash": "FCFCC0CAD466F9B20D844DD260F72B81D59CEBBECCA8C82C0299BCD698811C3E",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
