@@ -25,6 +25,8 @@ No voice generation, image generation, capture or render until the storyboard pa
 
 Write the table as `story/picture-plan.json`: one scene per screenplay scene, each with a `visual` from the kit (`../visuals/references/kit-visuals.md`). Pin a reveal to a spoken word with an anchor in any `at` field: `"at": "@Penske"`, `"@trucks#1"` (second occurrence), `"@November+0.3"`. No hand-written script is needed: `build-picture.mjs` resolves the anchors from the voice clock after the takes exist.
 
+Use the [narration-led explainer workflow](../../produce/references/explainer-shots.md) to replace generic footage with a specific state change, comparison or evidence reveal. Record `sourceAssetId` on the visual when several crops share an original, and `reuseReason` on an intentional return to footage. The variety check reports any repeated source without a reason.
+
 Then, with no voice or image spend yet:
 
 ```text

@@ -111,7 +111,11 @@ export type SvgVisual = {
   caption?: string;
   viewBox?: string;
   /** Each group is a fragment of inline SVG (shapes, paths, text) that arrives at `at` seconds. */
-  groups: { at?: number; svg: string }[];
+  groups: {
+    at?: number;
+    svg: string;
+    trace?: { path: string; durationSeconds?: number; color?: string };
+  }[];
 };
 
 export const SvgScene: FC<{ v: SvgVisual; accent: string; d: number }> = ({ v, accent, d }) => {
@@ -125,6 +129,7 @@ export const SvgScene: FC<{ v: SvgVisual; accent: string; d: number }> = ({ v, a
         {v.groups.map((g, i) => {
           const at = g.at ?? 0.4 + (i * Math.max(0.5, d * 0.8 - 0.4)) / Math.max(1, n);
           const a = at * fps;
+          const traceEnd = a + Math.max(1, (g.trace?.durationSeconds ?? 0.65) * fps);
           return (
             <g
               key={i}
@@ -133,8 +138,21 @@ export const SvgScene: FC<{ v: SvgVisual; accent: string; d: number }> = ({ v, a
                 transform: `translateY(${interpolate(frame, [a, a + 0.45 * fps], [14, 0], ease)}px)`,
                 ["--accent" as string]: accent,
               }}
-              dangerouslySetInnerHTML={{ __html: g.svg }}
-            />
+            >
+              {g.trace && (
+                <path
+                  d={g.trace.path}
+                  pathLength={1}
+                  fill="none"
+                  stroke={g.trace.color ?? accent}
+                  strokeWidth={5}
+                  strokeLinecap="round"
+                  strokeDasharray={1}
+                  strokeDashoffset={interpolate(frame, [a, traceEnd], [1, 0], ease)}
+                />
+              )}
+              <g dangerouslySetInnerHTML={{ __html: g.svg }} />
+            </g>
           );
         })}
       </svg>

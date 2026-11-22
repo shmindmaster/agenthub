@@ -32,7 +32,7 @@ It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-25
 
 ## Words only
 
-`scripts/check_visual_variety.py <briefing-props.json>` exits 1 when fewer than 40% of scenes are pictures (chart, svg, lottie, flow, layers, sequence, timeline, beforeafter, map, still, broll, screen-in-context, code), more than 25% are text cards, three scenes in a row have no picture, or one kind fills over 40% of a run of five or more. It proves variety, not quality; relevance and the contact sheet still apply. Run it with `check_picture_relevance.py` before any voice or render spend.
+`scripts/check_visual_variety.py <briefing-props.json>` checks picture share, consecutive scenes without pictures, overuse of one visual kind and repeated footage or stills without a `reuseReason`. Compare intentional callbacks to their earlier use during the encoded review. Run this check with `check_picture_relevance.py` before any voice or render spend.
 
 ## Pronunciation
 
