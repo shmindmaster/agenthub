@@ -8,9 +8,7 @@
  * `visual` is the kit's own Visual union rather than a copy of it: a picture
  * primitive gains a field once and every explainer shot can use it.
  *
- * The three values at the bottom are this layer's leaf. theme.mjs reads
- * theme.json through node:fs and cannot be pulled into a browser bundle, so the
- * components read the same JSON directly; keeping the alpha rule and the
+ * Components and tooling read the same theme JSON. Keeping the alpha rule and the
  * frame-to-shot lookup here means Stage, Chrome and every shot agree on which
  * shot is live instead of each resolving it slightly differently.
  */
@@ -89,7 +87,7 @@ export type ExplainerProps = {
 /** theme.json, typed once for the render layer. */
 export const T = theme;
 
-/** `#RRGGBB` + alpha 0..1 -> `#RRGGBBAA`, clamped. theme.mjs's helper without node:fs. */
+/** `#RRGGBB` + alpha 0..1 -> `#RRGGBBAA`, clamped. Read the literal colour on the renderer side. */
 export const alpha = (hex: string, a: number): string => {
   const byte = Math.round(Math.min(1, Math.max(0, a)) * 255);
   const part = byte.toString(16);

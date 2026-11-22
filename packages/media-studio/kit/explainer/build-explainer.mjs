@@ -159,7 +159,7 @@ export const buildExplainer = ({ cueSheet, receipts, plan, fps = 30, width = the
     const needsTitle = ['statement', 'number', 'contrast', 'mechanism', 'layers', 'timeline', 'evidence', 'checklist'].includes(family);
     if (needsTitle && !planShot.title) errors.push(`${cue.id}: ${planShot.archetype} needs a title (the line the shot is about)`);
 
-    const structural = validateShot({ ...planShot, durationSeconds }, {});
+    const structural = validateShot({ ...planShot, visual: resolved, durationSeconds, beats }, {});
     for (const problem of structural) errors.push(`${cue.id}: ${problem.rule}: ${problem.message}`);
 
     return {

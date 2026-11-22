@@ -161,3 +161,20 @@ test('a polyglot archetype takes the composition its visual asks for', () => {
   assert.equal(built.family, 'layers');
   assert.equal(built.visual.kind, 'layers');
 });
+
+test('the builder refuses a resolved visual that exceeds its beat budget', () => {
+  const broken = clone(plan);
+  const shot = broken.shots.find((entry) => entry.id === 'b');
+  shot.visual.nodes = Array.from({ length: 11 }, (_, i) => ({ label: String(i), at: 0.2 + i * 0.15 }));
+  assert.match(errorsOf(build({ plan: broken })), /beat-budget/);
+});
+
+test('timeline display dates are labels rather than audio anchors', () => {
+  const chronological = clone(plan);
+  const shot = chronological.shots.find((entry) => entry.id === 'b');
+  shot.archetype = 'timeline';
+  shot.visual = { kind: 'timeline', events: [{ at: 'January 2026', label: 'Revision' }] };
+  const result = build({ plan: chronological });
+  assert.equal(result.ok, true, errorsOf(result));
+  assert.equal(result.props.shots.find(({ id }) => id === 'b').visual.events[0].at, 'January 2026');
+});

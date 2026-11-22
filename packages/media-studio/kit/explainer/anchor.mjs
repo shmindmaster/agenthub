@@ -86,7 +86,7 @@ export const resolveAnchors = (node, resolveOne, errors, path = 'visual') => {
   if (node && typeof node === 'object') {
     const out = {};
     for (const [key, value] of Object.entries(node)) {
-      if (key === 'at' && typeof value === 'string') {
+      if (key === 'at' && typeof value === 'string' && !/\.events\[\d+\]$/.test(path)) {
         try {
           out[key] = resolveOne(value);
         } catch (error) {
