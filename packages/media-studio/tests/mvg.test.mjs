@@ -708,6 +708,10 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   spec.beats[0].voiceTake = 2;
   await assert.rejects(voiceStage(ctx), /Insufficient available OpenAI balance/);
   assert.equal(calls.length, 3, 'a retake cannot reuse the earlier available balance');
+  ctx.flags.narrationEntity = 'personal';
+  writeFileSync(funding, JSON.stringify({ ...snapshot, entity: 'personal', credentialSha256: fingerprint }));
+  await assert.rejects(voiceStage(ctx), /different billing entity/);
+  assert.equal(calls.length, 3, 'the same credential cannot establish another copy of the balance');
 });
 
 test('voice, timing and assets stages run on mock providers, cache on rerun and charge the ledger', async () => {

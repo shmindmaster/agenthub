@@ -33,6 +33,9 @@ const canonical = x => JSON.stringify(x);
 const fileJSON = file => JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 const save = (file, value, flag = 'w') => writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { flag, flush: true });
 const fixedGap = 24 * 60 * 60 * 1000;
+const defaultSpendDir = () => process.platform === 'win32' && process.env.LOCALAPPDATA ?
+  join(process.env.LOCALAPPDATA, 'AgentHub', 'media-studio', '_shared', 'spend') :
+  join(homedir(), '.local', 'share', 'AgentHub', 'media-studio', 'spend');
 
 function speechWordEstimate(text) {
   const words = [...segmenter.segment(text)].filter(segment => segment.isWordLike).length;
@@ -87,9 +90,7 @@ function marketingRealtimeRate(doc) {
 // Marketing keeps beat boundaries for its timing compositor and uses the model and credential of the exact request.
 export async function preflightMarketingOpenAI({ entity, model = models.openai, voice = 'marin', lines, instructions, snapshot },
   { now = Date.now(), fetcher = fetch, key = resolveOpenAIKey(),
-    spendDir = process.platform === 'win32' && process.env.LOCALAPPDATA ?
-      join(process.env.LOCALAPPDATA, 'AgentHub', 'media-studio', '_shared', 'spend') :
-      join(homedir(), '.local', 'share', 'AgentHub', 'media-studio', 'spend') } = {}) {
+    spendDir = defaultSpendDir() } = {}) {
   if (!['abacare', 'mahumtech', 'personal'].includes(entity) || !realtimeModels.has(model) || !lines.length)
     throw new Error('OpenAI narration preflight requires an entity, a supported exact Realtime model, and lines');
   if (!realtimeVoices.has(voice)) throw new Error('OpenAI narration requires a supported built-in Realtime voice');
@@ -117,13 +118,17 @@ export async function preflightMarketingOpenAI({ entity, model = models.openai, 
 
 function marketingWallet(spendDir, entity, funding) {
   const file = join(spendDir, 'openai-narration.sqlite3');
-  const account = `${entity}:${funding.credentialSha256}`;
+  const account = funding.credentialSha256;
   const observedAt = Date.parse(funding.observedAt);
   const budgetMicros = Math.floor(funding.availableUsd * 1e6);
-  const spent = db => db.prepare(`SELECT COALESCE(SUM(micros), 0) AS total FROM voice_spend
-    WHERE account = ? AND (completed_at IS NULL OR completed_at >= ?)`).get(account, observedAt).total;
+  const spent = db => {
+    const mismatch = db.prepare('SELECT 1 FROM voice_spend WHERE account = ? AND entity != ? LIMIT 1').get(account, entity);
+    if (mismatch) throw new Error('OpenAI credential is already tied to a different billing entity');
+    return db.prepare(`SELECT COALESCE(SUM(micros), 0) AS total FROM voice_spend
+      WHERE account = ? AND (completed_at IS NULL OR completed_at >= ?)`).get(account, observedAt).total;
+  };
   const initialize = db => db.exec(`CREATE TABLE IF NOT EXISTS voice_spend (
-    request_id TEXT PRIMARY KEY, account TEXT NOT NULL, micros INTEGER NOT NULL, completed_at INTEGER
+    request_id TEXT PRIMARY KEY, account TEXT NOT NULL, entity TEXT NOT NULL, micros INTEGER NOT NULL, completed_at INTEGER
   ) STRICT; CREATE INDEX IF NOT EXISTS voice_spend_account ON voice_spend(account, completed_at);`);
   return {
     available: () => !existsSync(file) ? budgetMicros :
@@ -137,7 +142,7 @@ function marketingWallet(spendDir, entity, funding) {
         if (db.prepare('SELECT 1 FROM voice_spend WHERE request_id = ?').get(id))
           throw new Error('Previously submitted OpenAI narration line requires reconciliation');
         if (spent(db) + micros > budgetMicros) throw new Error('Insufficient available OpenAI balance for narration');
-        db.prepare('INSERT INTO voice_spend VALUES (?, ?, ?, NULL)').run(id, account, micros);
+        db.prepare('INSERT INTO voice_spend VALUES (?, ?, ?, ?, NULL)').run(id, account, entity, micros);
         db.exec('COMMIT');
       });
       return (billedMicros, completedAt = Date.now()) => withSqliteJournal(file, false, db => {
@@ -458,9 +463,26 @@ function withSqliteJournal(file, readOnly, work) {
     db.exec('PRAGMA busy_timeout=5000');
     if (!readOnly) db.exec('PRAGMA journal_mode=DELETE; PRAGMA synchronous=EXTRA;');
     return work(db);
+  } catch (error) {
+    if (readOnly && error.errcode === 776)
+      throw new Error('Interrupted local ledger requires narration-preflight.mjs recover-ledgers');
+    throw error;
   } finally {
     db.close();
   }
+}
+
+export function recoverLedgers(output, spendDir = defaultSpendDir()) {
+  const targets = [join(spendDir, 'openai-narration.sqlite3')];
+  if (output) targets.push(join(resolve(output), 'assemblyai-submissions.sqlite3'));
+  let checked = 0;
+  for (const file of targets.filter(existsSync)) {
+    // A writable integrity read rolls back any interrupted transaction. Committed rows stay reserved.
+    const rows = withSqliteJournal(file, false, db => db.prepare('PRAGMA quick_check').all());
+    if (rows.length !== 1 || rows[0].quick_check !== 'ok') throw new Error('Narration ledger integrity check failed');
+    checked++;
+  }
+  return { checked };
 }
 
 function reserveSubmission(output, takeId, submission) {
@@ -530,6 +552,10 @@ function validWav(audio) {
 
 async function main(args) {
   const [action, scriptFile, snapshotsFile, quoteFile, approvalFile, output] = args;
+  if (action === 'recover-ledgers' && args.length <= 2) {
+    console.log(JSON.stringify(recoverLedgers(scriptFile)));
+    return;
+  }
   if (action === 'inspect-elevenlabs' && scriptFile) {
     console.log(JSON.stringify(await inspectElevenLabs(scriptFile), null, 2));
     return;
@@ -546,7 +572,7 @@ async function main(args) {
     return;
   }
   if (!['quote', 'execute'].includes(action) || !scriptFile || (action === 'execute' && (!snapshotsFile || !quoteFile || !approvalFile || !output)))
-    throw new Error('Usage: narration-preflight.mjs quote script.json [funding.json [output-dir]] | execute script.json funding.json quote.json approval.json output-dir | batches script.json provider | fingerprint provider | inspect-elevenlabs model-id');
+    throw new Error('Usage: narration-preflight.mjs quote script.json [funding.json [output-dir]] | execute script.json funding.json quote.json approval.json output-dir | batches script.json provider | fingerprint provider | inspect-elevenlabs model-id | recover-ledgers [output-dir]');
   const script = fileJSON(scriptFile);
   const snapshots = snapshotsFile ? fileJSON(snapshotsFile) : {};
   if (action === 'execute') {

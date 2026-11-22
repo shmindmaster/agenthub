@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { executeAssembly, inspectElevenLabs, makeBatches, parseRate, preflight, resolveOpenAIKey } from '../scripts/narration-preflight.mjs';
+import { executeAssembly, inspectElevenLabs, makeBatches, parseRate, preflight, recoverLedgers, resolveOpenAIKey } from '../scripts/narration-preflight.mjs';
 
 const now = Date.parse('2026-11-22T18:30:00Z');
 const env = { ASSEMBLYAI_API_KEY: 'fixture-key', OPENAI_API_KEY: 'openai-fixture', DEEPGRAM_API_KEY: 'dg-fixture' };
@@ -31,6 +31,30 @@ test('standalone commands run through a Media Studio directory link', () => {
       { encoding: 'utf8', env: { ...process.env, ...env } });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout.trim(), hash(env.ASSEMBLYAI_API_KEY));
+  } finally { rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('local recovery rolls back an interrupted sqlite write and keeps committed reservations', () => {
+  const folder = mkdtempSync(join(tmpdir(), 'studio-narration-ledger-'));
+  try {
+    const ledger = join(folder, 'assemblyai-submissions.sqlite3');
+    const database = new DatabaseSync(ledger);
+    database.exec("CREATE TABLE submissions (take_id TEXT PRIMARY KEY, evidence TEXT NOT NULL); INSERT INTO submissions VALUES ('accepted', 'held');");
+    database.close();
+    const crash = spawnSync(process.execPath, ['-e', `
+      const { DatabaseSync } = require('node:sqlite');
+      const db = new DatabaseSync(process.argv[1]);
+      db.exec('PRAGMA cache_size=2; PRAGMA cache_spill=ON; BEGIN IMMEDIATE;');
+      const insert = db.prepare('INSERT INTO submissions VALUES (?, ?)');
+      for (let i = 0; i < 60; i++) insert.run('incomplete:' + i, 'x'.repeat(8192));
+      process.kill(process.pid, 'SIGKILL');
+    `, ledger], { encoding: 'utf8' });
+    assert.notEqual(crash.status, 0);
+    assert.ok(readdirSync(folder).includes('assemblyai-submissions.sqlite3-journal'), crash.stderr);
+    assert.deepEqual(recoverLedgers(folder, folder), { checked: 1 });
+    const recovered = new DatabaseSync(ledger, { readOnly: true });
+    try { assert.deepEqual(recovered.prepare('SELECT take_id FROM submissions').all().map(r => r.take_id), ['accepted']); }
+    finally { recovered.close(); }
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 

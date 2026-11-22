@@ -58,6 +58,10 @@ unknown funding. The command issues read-only requests and quotes AssemblyAI,
 Deepgram Flux and OpenAI Realtime. Keep rate evidence separate from spendable
 funds, and estimated use separate from billed use. Dashboard records are
 point-in-time observations. Recheck shared balances before additional jobs.
+If the CLI reports an interrupted local ledger, run
+`node scripts/narration-preflight.mjs recover-ledgers voice/assemblyai`.
+This checks existing local ledgers and allows SQLite to roll back an unfinished
+write while preserving committed reservations. It does not contact providers.
 On renewal, include the existing AssemblyAI output directory. Only missing
 takes count against current funding (`remainingUsd`). The total (`estimatedUsd`)
 includes prior verified reservations and remains the amount the job cap covers.
