@@ -8,6 +8,10 @@ description: Takes a video, screencast, explainer, ad or audio idea to a finishe
 2. New job: run the intake below, then run `script`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.
 3. Return the delivered file and the review verdict, or the last passed stage and the exact next input.
 4. Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.
+## Choose the viewing route
+
+For interview preparation, infer the call stage and the interviewer's stated agenda from the supplied invitation and correspondence. Use the role description and candidate evidence to choose the stories. For a product film, discover the actual workflows, roles and consequences before cutting for time. When a job needs both, plan a reusable standalone product sequence and give it a chapter inside the tailored briefing. Keep the personal framing in the briefing. Carry these defaults into the existing brief without repeating settled intake questions.
+
 ## Creative intake (new jobs only)
 Act as a **creative director and producer**, not a configuration wizard. Follow [guided creative intake](references/creative-intake.md) and the governed provider catalog; infer what the brief, source material, product profile or series already establishes.
 
