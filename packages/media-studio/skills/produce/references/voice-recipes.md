@@ -1,6 +1,6 @@
 # Voice recipes
 
-Checked 2026-11-06 against Microsoft Learn. One voice per film or series. Reuse a take and regenerate only what changed. Do not generate audio from this page.
+Checked 2026-11-06 against Microsoft Learn. Keep voice continuity within a film or series. Reuse a take and regenerate only what changed. Run the [live narration preflight](narration-preflight.md) before selecting new synthesis. Eligible AssemblyAI is the shared long-form default.
 
 Direct ElevenLabs account and API are excluded from recipe defaults; the governed adapter in `scripts/elevenlabs_cli.py` serves owner-authorized jobs only — speech, multi-voice dialogue on `eleven_v4`, sound effects (`eleven_text_to_sound_v3`) and instrumental music (`music_v2_5`), each under its own manifest kind, epoch ledger and fence. Owner direction 2026-11-03: the Deloitte pursuit films for Revolva, Empowera and CoLedger may use the owner PVC on Eleven v4; every other film keeps the no-clone rule. Owner direction 2026-11-11, Revolva film session: owner-authorized jobs may use ElevenLabs dialogue, sound effects and music. Windows Narrator, SAPI, System.Speech, OneCore (David, Zira, Mark, Eva), edge-tts, espeak, say, and HeyGen stock avatar voices are forbidden, including for a rehearsal, a draft, or an audition. HeyGen Voice 1.0 Turbo is a different, frozen speech model. It is not a stock avatar voice and it is not a recipe narrator.
 
@@ -141,7 +141,7 @@ Presenter portrait, then Fish Laura at normal speed, then PVideo 2 Pro Avatar `p
 
 ## 5. Reusable FAQ, help, and straightforward training
 
-AssemblyAI-TTS-1. One stock US-English voice. Save the returned voice ID for the series. One topic per asset. Cache and regenerate only when the instructions change. $0.015 per 1,000 characters. No emotion tags, SSML, or speed parameter. Not the campaign narrator. Lane `assemblyai-tts` is frozen.
+AssemblyAI-TTS-1 is eligible for long-form stock narration through the [live preflight](narration-preflight.md). Use accepted voices and preserve independent cue-sheet boundaries.
 
 ## 6. Live onboarding and support
 

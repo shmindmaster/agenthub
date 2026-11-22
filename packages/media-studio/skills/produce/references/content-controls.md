@@ -4,6 +4,7 @@ Paid speech runs only through a governed adapter, which reserves the maximum in 
 
 | Provider | Adapter | Bucket | Caps |
 |---|---|---|---|
+| AssemblyAI TTS | `scripts/narration-preflight.mjs` | Per job in the output directory | Current rate, fresh dashboard funding evidence, authorized quote hash and USD cap |
 | Azure TTS | `scripts/governed_azure_speech.py` | `azure-speech/usd-micros`, per workspace under `%LOCALAPPDATA%/AgentHub/runtime/azure-speech-jobs` | `azure-speech-new-provider-job` $1. `azure-speech-bounded-standard-job` at most 150,000 microdollars. Extension at most $0.69 inside the $1 |
 | Deepgram Flux batch TTS | `scripts/deepgram_cli.py` | `deepgram/usd-micros` under `%LOCALAPPDATA%/AgentHub/runtime/content-controls` | No budget row means disabled. Recovery epoch at most $3 |
 | ElevenLabs speech, dialogue, sound effects, music | `scripts/elevenlabs_cli.py` | `elevenlabs/credits`, per job under `<RuntimeRoot>/content-recovery-epochs/<epoch_id>` | Owner-authorized jobs only. With no manifest it refuses before any network call. The manifest sets the ceiling inside the limit below |

@@ -7,8 +7,7 @@ Always honor `skills/produce/references/content-controls.md`.
 
 ## Responsibilities, not a universal generation provider
 
-- **AssemblyAI** is primarily a source-audio and encoded-film *understanding*
-  lane: transcript, word timestamps, speaker diarization, keyterms, code-switching,
+- **AssemblyAI** is the default for eligible long-form stock synthesis after the [live narration preflight](narration-preflight.md). It also supports source-audio and encoded-film understanding: transcript, word timestamps, speaker diarization, keyterms, code-switching,
   checks that the final narration actually says what was scripted. Existing
   integration: `kit/cloud/cloud-ai.mjs align --provider assemblyai`.
   Its separate richer narrative/diarization QA is a **future integration**, not

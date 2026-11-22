@@ -16,7 +16,7 @@ Use official spoken clips and owner recordings as pronunciation guides. Compare 
 
 ## Lanes
 - Real product footage: drive clean takes through `ah-browser` and use `scripts/browser-take.mjs` (start, move, click, point, type, wheel, stop) for a cursor recording and the timed action log the pointer-path gate reads. If a selected signed-in profile requires BrowserSkill, its exported MP4 is supplemental footage. See [recording](references/recording.md) for that handoff. Use synthetic data on the real running product and the authorized remote capture lane. Record the lane, exact product revision and user role shown. Detail: [capture](references/capture.md).
-- Voice and narration: governed voice recipes only. [voice recipes](references/voice-recipes.md), [Azure](references/azure.md), [generate](references/generate.md).
+- Voice and narration: run the [current rates and funding preflight](references/narration-preflight.md) before new synthesis. For new long-form jobs prefer eligible AssemblyAI stock voices. Keep accepted takes and explicitly pinned casts. Use the chosen governed adapter. [voice recipes](references/voice-recipes.md), [Azure](references/azure.md), [generate](references/generate.md).
 - Pictures: charts, diagrams, Lottie, stills and captured screens. [visuals](references/visuals.md), [ladder](references/ladder.md).
 - Replace weak scenes with a [narration-led explainer shot](references/explainer-shots.md). Use the shot clock, existing kit and approved source media.
 - Providers and cost: [provider routing](references/provider-cost-quality-routing.md), [provider plugins](references/provider-plugins.md).

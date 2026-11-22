@@ -14,7 +14,9 @@ Live-product screencasts use Playwright WebM + Recast in this pack (`kit/screenc
 
 **Product picture** (`skills/studio/references/product-picture.md`): when the subject is a running product, the encoded film is Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards. `scripts/validate-product-picture.mjs` fails closed. Host projections must match `plugin.json`.
 
-Version authority: root `plugin.json` (`3.1.14`). Host projections must match.
+New recorded narration starts with [live rate and funding preflight](skills/produce/references/narration-preflight.md). Eligible AssemblyAI stock voices are the default for long-form narration.
+
+Version authority: root `plugin.json` (`3.1.15`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `MEDIA_STUDIO_ROOT`, default `D:\Media-Studio`). Private show bibles and customer recordings stay outside this repository.
 
 Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` compositor tooling). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.

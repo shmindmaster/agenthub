@@ -212,16 +212,14 @@
     {
       "id": "assemblyai-tts",
       "needs": [
-        "voice",
-        "narration",
-        "dialogue",
-        "audio"
+        "long-narration",
+        "recorded-narration"
       ],
-      "status": "frozen",
-      "cost": "AssemblyAI, published $0.015 per 1,000 characters for AssemblyAI-TTS-1 (2026-11-06)",
-      "identity": "abacare",
-      "how": "Do not call it. FAQ and straightforward training use AssemblyAI-TTS-1, one stock US-English voice, and the returned voice ID saved for the series. This package has no governed speech adapter for it. assemblyai-stt stays the transcription lane.",
-      "notes": "Unfreezes only when a governed adapter exists and the owner grants the call in the current task. No emotion tags, SSML or speed parameter. Not the campaign narrator."
+      "status": "conditional",
+      "cost": "Live AssemblyAI TTS-1 character rate; dashboard funding checked separately.",
+      "identity": "any",
+      "how": "node scripts/narration-preflight.mjs quote script.json funding.json; execute only with the pinned quote, current funding and exact job authorization.",
+      "notes": "Preferred for eligible new long-form stock narration. Group adjacent same-speaker text within the HTTP limit; no Batch discount assumed."
     },
     {
       "id": "runware-seed-audio",

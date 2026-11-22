@@ -13,8 +13,7 @@ Hash each input (voice, style, SSML, format) and reuse an accepted take or plate
 
 ## Routing
 
-Begin with verified, reusable assets and a beat-specific quality floor; Azure
-is the funded default where its governed output meets that floor. Then compare
+Begin with verified, reusable assets and a beat-specific quality floor. For new narration run the [live preflight](narration-preflight.md) before a paid call; eligible AssemblyAI is the long-form default. Compare
 eligible specialist providers at the **same** resolution, length and
 capability. Cheapest **acceptable** result wins, not the cheapest provider
 name or account credit. The legacy `route_media.py` sorts lane readiness;
@@ -25,7 +24,7 @@ Use `references/provider-cost-quality-routing.md` for AssemblyAI,
 ElevenLabs and Runware modality and model choices. Escalate only the asset
 that failed. Default, then escape hatch:
 
-- Narration follows `references/voice-recipes.md`. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2.
+- Narration follows the live preflight. For established Azure recipes use the pinned DragonHD voice where its separately governed funding is confirmed.
 - Take ASR: `cloud-ai.mjs align` on Azure fast transcription; `--provider assemblyai` only when a job names it.
 - Stills: existing approved Azure `gpt-image-2.5-flare` remains callable.
   Runware's proven `runware:z-image@0` remains the only model accepted by
