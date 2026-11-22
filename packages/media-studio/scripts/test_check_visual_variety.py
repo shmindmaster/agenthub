@@ -44,6 +44,39 @@ class VarietyTests(unittest.TestCase):
             p.write_text(json.dumps({"scenes": scenes("hero", "cta")}), encoding="utf-8")
             self.assertEqual(gate.main([str(p)]), 1)
 
+    def test_same_source_in_different_picture_kinds_is_flagged(self):
+        pictures = scenes("broll", "flow", "screen-in-context")
+        pictures[0]["visual"]["src"] = "./takes/board.mp4"
+        pictures[2]["visual"]["src"] = "takes/board.mp4?revision=2"
+        r = gate.judge(pictures)
+        self.assertFalse(r["ok"])
+        self.assertIn("scene s2 reuses takes/board.mp4 from s0", r["reasons"][0])
+
+    def test_recrops_need_a_reason_and_deliberate_callbacks_pass(self):
+        pictures = scenes("still", "broll")
+        pictures[0]["visual"].update(src="whole.jpg", sourceAssetId="approved-portrait")
+        pictures[1]["visual"].update(src="crop.jpg", sourceAssetId="approved-portrait", reuseReason="   ")
+        self.assertFalse(gate.judge(pictures)["ok"])
+        pictures[1]["visual"]["reuseReason"] = "Return to the photograph to identify the person introduced earlier."
+        self.assertTrue(gate.judge(pictures)["ok"])
+
+    def test_asset_id_does_not_hide_a_repeated_path(self):
+        pictures = scenes("still", "broll")
+        pictures[0]["visual"].update(src="board.jpg", sourceAssetId="board")
+        pictures[1]["visual"]["src"] = "board.jpg"
+        self.assertIn("reuses board.jpg from s0", gate.judge(pictures)["reasons"][0])
+
+    def test_planned_sources_are_detected_before_files_exist(self):
+        pictures = scenes("still", "broll")
+        for pic in pictures:
+            pic["visual"]["sourceAssetId"] = "planned-portrait"
+        self.assertIn("reuses planned-portrait from s0", gate.judge(pictures)["reasons"][0])
+
+    def test_shared_lottie_marks_can_recur(self):
+        pictures = scenes("lottie", "flow", "lottie")
+        pictures[0]["visual"]["src"] = pictures[2]["visual"]["src"] = "lottie/check.json"
+        self.assertTrue(gate.judge(pictures)["ok"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,7 +11,8 @@ Free and offline. Run it on the storyboard's props BEFORE rendering. Every scene
   text          words on a card: hero, quote, checklist, cta, sidecar, chapter, lower-third (or no visual)
 
 Fails when: fewer than --min-picture of the scenes are pictures; more than --max-text are text cards; three scenes in a
-row are not pictures; or one visual kind fills more than --max-same of a run of five or more scenes.
+row are not pictures; one visual kind fills more than --max-same of a program of five or more scenes;
+or a picture source returns without a documented editorial purpose.
 
 This counts what kind of thing is on screen. check_picture_relevance.py judges whether it is about the line, and the
 review vision pass judges whether it looks good. Passing here proves variety, not quality.
@@ -21,10 +22,37 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import posixpath
 import sys
+from urllib.parse import urlsplit, urlunsplit
 
 PICTURE = {"flow", "layers", "sequence", "timeline", "beforeafter", "map", "chart", "svg", "lottie", "still", "broll", "screen-in-context", "code"}
 TYPOGRAPHIC = {"stat", "table", "split", "proof"}
+SOURCE_KINDS = {"broll", "still", "screen-in-context"}
+
+
+def repeated_sources(scenes):
+    first_use = {}
+    for scene in scenes:
+        visual = scene.get("visual") or {}
+        if visual.get("kind") not in SOURCE_KINDS:
+            continue
+        keys = []
+        asset = visual.get("sourceAssetId")
+        if isinstance(asset, str) and asset.strip():
+            keys.append(("asset", asset.strip()))
+        src = visual.get("src")
+        if isinstance(src, str) and src.strip():
+            # Ignore cache keys and relative-path spellings when identifying source footage.
+            url = urlsplit(src.strip().replace("\\", "/"))
+            source = urlunsplit((url.scheme, url.netloc, posixpath.normpath(url.path or "/"), "", ""))
+            keys.append(("path", source))
+        previous = next((key for key in keys if key in first_use), None)
+        reason = visual.get("reuseReason")
+        if previous and (not isinstance(reason, str) or not reason.strip()):
+            yield f"scene {scene.get('id')} reuses {previous[1]} from {first_use[previous]} without a visual reuseReason"
+        for key in keys:
+            first_use.setdefault(key, scene.get("id"))
 
 
 def classify(scene):
@@ -58,6 +86,7 @@ def judge(scenes, min_picture=0.4, max_text=0.25, max_same=0.4):
         for k in sorted(set(kinds)):
             if kinds.count(k) / n > max_same:
                 reasons.append(f"'{k}' fills {kinds.count(k)} of {n} scenes, limit {max_same:.0%}")
+    reasons.extend(repeated_sources(scenes))
     return {"ok": not reasons, "reasons": reasons, "classes": classes, "kinds": kinds,
             "counts": {c: classes.count(c) for c in ("picture", "typographic", "text")}, "pictureShare": round(pic, 3), "textShare": round(txt, 3)}
 
