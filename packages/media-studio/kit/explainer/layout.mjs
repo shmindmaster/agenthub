@@ -32,13 +32,13 @@ const WIDE = {
     sub: null,
   },
   mechanism: {
-    hero: { x: 0.045, y: 0.2, w: 0.91, h: 0.6, align: 'left', valign: 'top' },
+    hero: { x: 0.045, y: 0.24, w: 0.91, h: 0.56, align: 'left', valign: 'top' },
     kicker: { x: 0.075, y: 0.075, w: 0.85, h: 0.055, align: 'left' },
-    title: { x: 0.075, y: 0.12, w: 0.85, h: 0.09, align: 'left' },
+    title: { x: 0.075, y: 0.13, w: 0.85, h: 0.095, align: 'left' },
     sub: null,
   },
   layers: {
-    hero: { x: 0.18, y: 0.2, w: 0.64, h: 0.6, align: 'left', valign: 'center' },
+    hero: { x: 0.18, y: 0.25, w: 0.64, h: 0.55, align: 'left', valign: 'center' },
     kicker: { x: 0.075, y: 0.085, w: 0.85, h: 0.06, align: 'left' },
     title: { x: 0.075, y: 0.135, w: 0.85, h: 0.09, align: 'left' },
     sub: null,

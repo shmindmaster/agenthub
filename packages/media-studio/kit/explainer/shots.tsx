@@ -274,7 +274,7 @@ const Headline: FC<{
   const { fps } = useVideoConfig();
   const tracking = T.type.tracking.display;
   const fitted = fitHeadline(text, {
-    maxWidth,
+    maxWidth: Math.floor(maxWidth * 0.88),
     maxLines,
     maxSize: maxSize ?? T.type.xl,
     minSize,
@@ -737,7 +737,7 @@ const Contrast: FC<ShotProps> = ({ shot, film, index }) => {
           <div
             style={{
               ...enter('rise', progress('rise', frame, fps, at / fps)),
-              fontSize: T.type.m,
+              fontSize: Math.floor(Math.min(T.type.m, r.title.h / 2.15)),
               fontWeight: 800,
               lineHeight: 1.02,
             }}
@@ -794,7 +794,7 @@ const Mechanism: FC<ShotProps> = ({ shot, film, index }) => {
           <div
             style={{
               ...enter('rise', progress('rise', frame, fps, at / fps)),
-              fontSize: T.type.m,
+              fontSize: Math.floor(Math.min(T.type.m, r.title.h / 2.15)),
               fontWeight: 800,
               lineHeight: 1.02,
             }}
@@ -893,7 +893,7 @@ const LayersShot: FC<ShotProps> = ({ shot, film, index }) => {
           <div
             style={{
               ...enter('rise', progress('rise', frame, fps, at / fps)),
-              fontSize: T.type.m,
+              fontSize: Math.floor(Math.min(T.type.m, r.title.h / 2.15)),
               fontWeight: 800,
               lineHeight: 1.02,
             }}
@@ -984,7 +984,7 @@ const TimelineShot: FC<ShotProps> = ({ shot, film, index }) => {
           <div
             style={{
               ...enter('rise', progress('rise', frame, fps, at / fps)),
-              fontSize: T.type.m,
+              fontSize: Math.floor(Math.min(T.type.m, r.title.h / 2.15)),
               fontWeight: 800,
               lineHeight: 1.02,
             }}
@@ -1263,7 +1263,7 @@ const Checklist: FC<ShotProps> = ({ shot, film, index }) => {
           <div
             style={{
               ...enter('rise', progress('rise', frame, fps, at / fps)),
-              fontSize: 64,
+              fontSize: Math.floor(Math.min(64, r.title.h / 2.15)),
               fontWeight: 800,
               lineHeight: 1.02,
             }}

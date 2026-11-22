@@ -5,11 +5,9 @@
  * (`import theme from "./theme.json"`) and the Node tooling read one source.
  * Nothing here paints; it only resolves names to values.
  */
-import { readFileSync } from 'node:fs';
+import themeData from './theme.json' with { type: 'json' };
 
-export const theme = JSON.parse(
-  readFileSync(new URL('./theme.json', import.meta.url), 'utf8'),
-);
+export const theme = themeData;
 
 /** Resolve a palette name (`accent`) or pass a literal (`#F5C518`) through. */
 export const color = (name) => {
