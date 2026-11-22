@@ -62,7 +62,7 @@ point-in-time observations. Recheck shared balances before additional jobs.
 ## Synthesize
 
 After the owner authorizes the exact job, save an approval JSON with `entity`,
-the printed `quoteSha256`, `maxUsd` and `ownerApproval` (the actual approval).
+the printed `quoteSha256`, `maxUsd`, `outputDir` and `ownerApproval` (the actual approval). Bind the output path to the approved job.
 The runner rechecks the current rate and funding before posting any text.
 
 ```text
@@ -83,7 +83,7 @@ speaker continuity, then align or obtain word timing using the accepted output.
   reservation. Keep the separate governed authorization and receipt checks.
 - **OpenAI Realtime speech** uses the existing speech adapter at the verified
   standard endpoint rates. Its speech requests have no OpenAI Batch API discount.
-- **ElevenLabs** remains an explicit job-specific lane. Reconcile the selected
+- **ElevenLabs** remains an explicit job-specific lane. Use `inspect-elevenlabs model-id` for a read-only check of the live speech multiplier and subscription balance. Reconcile the selected
   model and endpoint against provider history and the actual subscription
   balance. Show an observed estimate separately from the ledger's reservation
   ceiling. Preserve prior approvals and receipts.

@@ -110,7 +110,7 @@ async function account(provider, script, snapshot, voices, now, fetcher, env) {
         (await response(fetcher, region + '/v1/voices/' + encodeURIComponent(voice),
           { headers: { Authorization: key } })).json()));
       const language = script.language || 'english';
-      access = catalog.every(v => v.source === 'assemblyai' && v.visibility === 'public' && v.status === 'active' &&
+      access = catalog.length && catalog.every(v => v.source === 'assemblyai' && v.visibility === 'public' && v.status === 'active' &&
         v.language === language && v.ready_models?.includes(models[provider])) ? 'verified' : 'voice-ineligible';
     } else if (provider === 'openai') {
       await response(fetcher, 'https://api.openai.com/v1/models/' + models[provider],
@@ -163,6 +163,29 @@ function estimate(provider, rate, batches) {
       n + Buffer.byteLength(b.text), 0) * rate.usdPerMillionCharacters / 1e6) } : {}) };
 }
 
+// The account inventory exposes the speech multiplier. Dialogue settlement can differ,
+// so do not apply the speech multiplier to a different endpoint.
+export async function inspectElevenLabs(modelId, { fetcher = fetch, env = process.env } = {}) {
+  const key = env.ELEVENLABS_API_KEY;
+  if (!key) throw new Error('ELEVENLABS_API_KEY unavailable');
+  const headers = { 'xi-api-key': key };
+  const base = 'https://api.elevenlabs.io/v1/';
+  const [subscription, models] = await Promise.all(['user/subscription', 'models'].map(async endpoint =>
+    (await response(fetcher, base + endpoint, { headers })).json()));
+  const model = models.find(m => m.model_id === modelId && m.can_do_text_to_speech);
+  if (!model) throw new Error('ElevenLabs model absent from the account inventory');
+  const { character_cost_multiplier: speechRate, cost_discount_multiplier: discount } = model.model_rates ?? {};
+  const used = subscription.character_count, limit = subscription.character_limit;
+  return {
+    model: modelId, checkedAt: new Date().toISOString(), status: subscription.status ?? 'unknown',
+    availableCredits: Number.isFinite(used) && Number.isFinite(limit) ? Math.max(0, limit - used) : null,
+    overageEnabled: typeof subscription.can_extend_character_limit === 'boolean' ? subscription.can_extend_character_limit : null,
+    speechCreditsPerCharacter: Number.isFinite(speechRate) && speechRate > 0 ? speechRate : null,
+    reportedModelDiscountMultiplier: Number.isFinite(discount) && discount > 0 ? discount : null,
+    dialogueRate: 'verify against dialogue billing history separately',
+  };
+}
+
 export async function preflight(script, { snapshots = {}, fetcher = fetch, now = Date.now(), env = process.env } = {}) {
   validate(script);
   const candidates = await Promise.all(Object.keys(models).map(async provider => {
@@ -212,20 +235,21 @@ export async function executeAssembly(script, quote, authorization, directory, o
   const expected = current.candidates.find(c => c.provider === 'assemblyai');
   const locked = pinned.candidates?.find(c => c.provider === 'assemblyai');
   const key = (options.env ?? process.env).ASSEMBLYAI_API_KEY;
+  const output = resolve(directory);
   if (current.pick !== 'assemblyai' || quote.pick !== 'assemblyai' ||
       current.scriptSha256 !== pinned.scriptSha256 ||
       !Number.isFinite(age) || age < 0 || age > fixedGap ||
       (printedHash !== undefined && printedHash !== digest) || authorization.quoteSha256 !== digest ||
       typeof authorization.ownerApproval !== 'string' || !authorization.ownerApproval.trim() ||
       authorization.entity !== script.entity ||
+      typeof authorization.outputDir !== 'string' || resolve(authorization.outputDir) !== output ||
       typeof authorization.maxUsd !== 'number' || !Number.isFinite(authorization.maxUsd) ||
       authorization.maxUsd < expected.estimatedUsd || expected.estimatedUsd !== locked?.estimatedUsd ||
       canonical(expected.rate) !== canonical(locked.rate))
     throw new Error('Fresh funded quote and exact AssemblyAI job authorization required');
-  const output = resolve(directory);
   mkdirSync(output, { recursive: true });
   const identity = join(output, 'assemblyai-job.json');
-  const lock = { entity: script.entity, quoteSha256: digest, maxUsd: authorization.maxUsd };
+  const lock = { entity: script.entity, scriptSha256: current.scriptSha256, credentialSha256: hash(key) };
   try {
     save(identity, lock, 'wx');
   } catch (error) {
@@ -234,23 +258,35 @@ export async function executeAssembly(script, quote, authorization, directory, o
   const batches = makeBatches(script, 'assemblyai');
   const host = hosts[current.region];
   const fetcher = options.fetcher ?? fetch;
-  const results = [];
-  for (const [i, batch] of batches.entries()) {
+  const planned = batches.map((batch, i) => {
     const input = { model_id: models.assemblyai, voice_id: batch.voice, text: batch.text, sample_rate: 24000,
       language: script.language ?? 'english', encoding: 'pcm_s16le', container: 'wav', stream: false };
     const requestHash = hash(canonical({ host, input }));
     const stem = join(output, String(i + 1).padStart(4, '0') + '-' + requestHash.slice(0, 20));
-    const wav = stem + '.wav', receipt = stem + '.json';
-    if (existsSync(receipt)) {
-      const prior = fileJSON(receipt);
-      if (prior.requestSha256 !== requestHash || prior.outputSha256 !== hash(readFileSync(wav)))
-        throw new Error('Cached audio integrity check failed');
+    const wav = stem + '.wav', receipt = stem + '.json', marker = stem + '.submitted.json';
+    const prior = existsSync(receipt) ? fileJSON(receipt) : null;
+    let reservedUsd = count(batch.text) * expected.rate.usdPerMillionCharacters / 1e6;
+    if (prior) {
+      const submission = fileJSON(marker);
+      if (prior.requestSha256 !== requestHash || prior.outputSha256 !== hash(readFileSync(wav)) ||
+          submission.requestSha256 !== requestHash || !Number.isFinite(submission.reservedUsd) || submission.reservedUsd < 0)
+        throw new Error('Cached audio or receipt integrity check failed');
+      reservedUsd = submission.reservedUsd;
+    } else if (existsSync(marker) || existsSync(wav)) {
+      throw new Error('Previously submitted request requires reconciliation');
+    }
+    return { batch, input, requestHash, wav, receipt, marker, prior, reservedUsd };
+  });
+  if (usd(planned.reduce((sum, part) => sum + part.reservedUsd, 0)) > authorization.maxUsd)
+    throw new Error('Existing reservations plus remaining narration exceed the authorized cap');
+  const results = [];
+  for (const { batch, input, requestHash, wav, receipt, marker, prior, reservedUsd } of planned) {
+    if (prior) {
       results.push(prior);
       continue;
     }
     // Exclusive marker goes before the provider call. A timeout or torn result stays fenced on rerun.
-    save(stem + '.submitted.json', { requestSha256: requestHash, quoteSha256: authorization.quoteSha256,
-      reservedUsd: count(batch.text) * expected.rate.usdPerMillionCharacters / 1e6 }, 'wx');
+    save(marker, { requestSha256: requestHash, quoteSha256: authorization.quoteSha256, reservedUsd }, 'wx');
     const res = await response(fetcher, host + '/v1/speech', {
       method: 'POST', headers: { Authorization: key, 'Content-Type': 'application/json' },
       body: canonical(input), signal: AbortSignal.timeout(240000),
@@ -290,6 +326,10 @@ function validWav(audio) {
 
 async function main(args) {
   const [action, scriptFile, snapshotsFile, quoteFile, approvalFile, output] = args;
+  if (action === 'inspect-elevenlabs' && scriptFile) {
+    console.log(JSON.stringify(await inspectElevenLabs(scriptFile), null, 2));
+    return;
+  }
   if (action === 'fingerprint' && Object.hasOwn(keys, scriptFile) && process.env[keys[scriptFile]]) {
     console.log(hash(process.env[keys[scriptFile]])); return;
   }
@@ -300,7 +340,7 @@ async function main(args) {
     return;
   }
   if (!['quote', 'execute'].includes(action) || !scriptFile || (action === 'execute' && (!snapshotsFile || !quoteFile || !approvalFile || !output)))
-    throw new Error('Usage: narration-preflight.mjs quote script.json [funding.json] | execute script.json funding.json quote.json approval.json output-dir | batches script.json provider | fingerprint provider');
+    throw new Error('Usage: narration-preflight.mjs quote script.json [funding.json] | execute script.json funding.json quote.json approval.json output-dir | batches script.json provider | fingerprint provider | inspect-elevenlabs model-id');
   const script = fileJSON(scriptFile);
   const snapshots = snapshotsFile ? fileJSON(snapshotsFile) : {};
   if (action === 'execute') {

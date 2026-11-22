@@ -4,12 +4,13 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { executeAssembly, makeBatches, parseRate, preflight } from '../scripts/narration-preflight.mjs';
+import { executeAssembly, inspectElevenLabs, makeBatches, parseRate, preflight } from '../scripts/narration-preflight.mjs';
 
 const now = Date.parse('2026-11-22T18:30:00Z');
 const env = { ASSEMBLYAI_API_KEY: 'fixture-key', OPENAI_API_KEY: 'openai-fixture', DEEPGRAM_API_KEY: 'dg-fixture' };
 const hash = value => createHash('sha256').update(value).digest('hex');
-const auth = (quote, maxUsd = 1) => ({ quoteSha256: hash(JSON.stringify(quote)), entity: 'personal', maxUsd, ownerApproval: 'fixture approval' });
+const auth = (quote, outputDir, maxUsd = 1) => ({ quoteSha256: hash(JSON.stringify(quote)), entity: 'personal',
+  maxUsd, outputDir, ownerApproval: 'fixture approval' });
 const snapshot = (key, availableUsd = 20) => ({ entity: 'personal', source: 'dashboard', availableUsd,
   observedAt: new Date(now).toISOString(), credentialSha256: hash(key) });
 const snapshots = { assemblyai: snapshot(env.ASSEMBLYAI_API_KEY), openai: snapshot(env.OPENAI_API_KEY), deepgram: snapshot(env.DEEPGRAM_API_KEY) };
@@ -101,11 +102,12 @@ test('execution requires exact authorization and a current rate, then uses one m
     const provider = fake();
     const options = { ...provider, snapshots, now, env };
     const pinned = await preflight(script, options);
-    const authorization = auth(pinned);
-    await assert.rejects(executeAssembly(script, pinned, auth(pinned, 0), folder, options), /authorization/);
+    const authorization = auth(pinned, folder);
+    await assert.rejects(executeAssembly(script, pinned, auth(pinned, folder, 0), folder, options), /authorization/);
     await assert.rejects(executeAssembly(script, pinned, authorization, folder,
       { ...options, ...fake({ assemblyRateDoc: assemblyRate.replace('$15', '$16') }) }), /authorization/);
     const quote = { ...pinned, quoteSha256: authorization.quoteSha256 };
+    await assert.rejects(executeAssembly(script, quote, authorization, folder + '-different', options), /authorization/);
     const result = await executeAssembly(script, quote, authorization, folder, options);
     assert.equal(result[0].actualUsd, null);
     assert.equal(provider.posts[0].stream, false);
@@ -120,8 +122,25 @@ test('ambiguous provider failure fences the exact request without retrying', asy
     const provider = fake({ postStatus: 503 });
     const options = { ...provider, snapshots, now, env };
     const quote = await preflight(script, options);
-    await assert.rejects(executeAssembly(script, quote, auth(quote), folder, options), /503/);
-    await assert.rejects(executeAssembly(script, quote, auth(quote), folder, options), /EEXIST/);
+    await assert.rejects(executeAssembly(script, quote, auth(quote, folder), folder, options), /503/);
+    await assert.rejects(executeAssembly(script, quote, auth(quote, folder), folder, options), /reconciliation/);
     assert.equal(provider.posts.length, 1);
   } finally { rmSync(folder, { recursive: true, force: true }); }
+});
+
+
+test('manual ElevenLabs check uses live model-specific rates and reports dialogue separately', async () => {
+  const results = await inspectElevenLabs('eleven_v4_turbo', {
+    env: { ELEVENLABS_API_KEY: 'fixture' },
+    fetcher: async (url, init) => {
+      assert.equal(init.method, undefined);
+      if (url.endsWith('/models')) return Response.json([{ model_id: 'eleven_v4_turbo', can_do_text_to_speech: true,
+        model_rates: { character_cost_multiplier: .5, cost_discount_multiplier: 1 } }]);
+      return Response.json({ status: 'active', character_limit: 120, character_count: 19, can_extend_character_limit: false });
+    },
+  });
+  assert.equal(results.availableCredits, 101);
+  assert.equal(results.speechCreditsPerCharacter, .5);
+  assert.equal(results.overageEnabled, false);
+  assert.match(results.dialogueRate, /billing history/);
 });
