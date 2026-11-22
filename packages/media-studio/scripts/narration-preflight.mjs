@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -16,6 +17,10 @@ const keys = { assemblyai: 'ASSEMBLYAI_API_KEY', deepgram: 'DEEPGRAM_API_KEY', o
 const hosts = { us: 'https://tts.us.assemblyai.com', eu: 'https://tts.eu.assemblyai.com' };
 const methods = { assemblyai: 'grouped-http', deepgram: 'native-complete-text-batch', openai: 'realtime-per-request' };
 const realtimeModels = new Set([models.openai, 'gpt-realtime-2.1']);
+// Built-in Realtime voices, per the official audio.output.voice contract.
+const realtimeVoices = new Set(['alloy', 'ash', 'ballad', 'cedar', 'coral', 'echo', 'marin', 'sage', 'shimmer', 'verse']);
+const segmenter = new Intl.Segmenter(undefined, { granularity: 'word' });
+const require = createRequire(import.meta.url);
 const deepgramPolicy = JSON.parse(readFileSync(new URL('./narration-deepgram-policy.json', import.meta.url), 'utf8'));
 const limits = { assemblyai: 5000, deepgram: deepgramPolicy.maxCharacters, openai: 1500 };
 const usd = n => Math.ceil(n * 1e6) / 1e6;
@@ -25,8 +30,14 @@ const nanosToUsd = value => Math.ceil(value / 1000) / 1e6;
 const hash = x => createHash('sha256').update(x).digest('hex');
 const canonical = x => JSON.stringify(x);
 const fileJSON = file => JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
-const save = (file, value, flag = 'w') => writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { flag });
+const save = (file, value, flag = 'w') => writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { flag, flush: true });
 const fixedGap = 24 * 60 * 60 * 1000;
+
+function speechWordEstimate(text) {
+  const words = [...segmenter.segment(text)].filter(segment => segment.isWordLike).length;
+  const unspaced = text.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/gu);
+  return Math.max(1, words, Math.ceil((unspaced?.length ?? 0) / 2));
+}
 
 export function resolveOpenAIKey({ env = process.env, platform = process.platform, run = spawnSync } = {}) {
   if (platform === 'win32' && !env.NODE_TEST_CONTEXT) {
@@ -73,10 +84,11 @@ function marketingRealtimeRate(doc) {
 }
 
 // Marketing keeps beat boundaries for its timing compositor and uses the model and credential of the exact request.
-export async function preflightMarketingOpenAI({ entity, model = models.openai, lines, instructions, snapshot },
+export async function preflightMarketingOpenAI({ entity, model = models.openai, voice = 'marin', lines, instructions, snapshot },
   { now = Date.now(), fetcher = fetch, key = resolveOpenAIKey() } = {}) {
   if (!['abacare', 'mahumtech', 'personal'].includes(entity) || !realtimeModels.has(model) || !lines.length)
     throw new Error('OpenAI narration preflight requires an entity, a supported exact Realtime model, and lines');
+  if (!realtimeVoices.has(voice)) throw new Error('OpenAI narration requires a supported built-in Realtime voice');
   const url = `https://developers.openai.com/api/docs/models/${model}.md`;
   const [doc, funding] = await Promise.all([
     response(fetcher, url).then(r => r.text()),
@@ -86,8 +98,8 @@ export async function preflightMarketingOpenAI({ entity, model = models.openai, 
   if (!rate || funding.access !== 'verified' || funding.balance !== 'dashboard-recorded')
     throw new Error('OpenAI narration needs current model rates, access, and fresh funding evidence for this credential and entity');
   const reservations = lines.map(text => {
-    const words = text.trim().split(/\s+/).length;
-    const maxOutputTokens = Math.min(4096, Math.max(256, 18 * words + 256));
+    const maxOutputTokens = 18 * speechWordEstimate(text) + 256;
+    if (maxOutputTokens > 4096) throw new Error('OpenAI narration beat exceeds the bounded output window. Split it at a natural break.');
     const inputCeiling = Buffer.byteLength(text) + Buffer.byteLength(instructions || '') + 256;
     return { maxOutputTokens, usdMicros: Math.ceil(inputCeiling * rate.textIn + maxOutputTokens * Math.max(rate.out, rate.textOut)) };
   });
@@ -185,7 +197,7 @@ async function account(provider, script, snapshot, voices, now, fetcher, key, mo
     } else if (provider === 'openai') {
       await response(fetcher, 'https://api.openai.com/v1/models/' + model,
         { headers: { Authorization: 'Bearer ' + key } });
-      access = 'verified';
+      access = voices.every(voice => realtimeVoices.has(voice)) ? 'verified' : 'voice-ineligible';
     } else {
       const r = await response(fetcher, 'https://api.deepgram.com/v1/projects', { headers: { Authorization: 'Token ' + key } });
       const data = await r.json();
@@ -223,7 +235,7 @@ function estimate(provider, rate, batches) {
   const chars = batches.reduce((n, b) => n + count(b.text), 0);
   if (!rate) return { characters: chars, estimatedUsd: null };
   if (provider === 'openai') {
-    const words = batches.reduce((sum, b) => sum + b.text.split(/\s+/).filter(Boolean).length, 0);
+    const words = batches.reduce((sum, b) => sum + speechWordEstimate(b.text), 0);
     return { characters: chars, estimatedUsd: usd(((words / 150 * 1200) * rate.usdPerMillionOutputAudioTokens +
       (Math.ceil(chars / 4) + 100 * batches.length) * rate.usdPerMillionInputTextTokens) / 1e6) };
   }
@@ -366,15 +378,17 @@ export async function executeAssembly(script, quote, authorization, directory, o
   const remainingUsd = nanosToUsd(planned.reduce((sum, part) => sum + (part.prior ? 0 : part.reservedNanos), 0));
   if (remainingUsd > expected.funding.availableUsd) throw new Error('Insufficient balance for remaining narration');
   const results = [];
-  for (const { batch, input, requestHash, wav, receipt, marker, staged, prior, priorFile, reservedNanos } of planned) {
+  for (const { batch, input, requestHash, takeId, wav, receipt, marker, staged, prior, priorFile, reservedNanos } of planned) {
     if (prior) {
       if (priorFile === staged && existsSync(staged)) renameSync(staged, receipt);
       results.push(prior);
       continue;
     }
     // Exclusive marker goes before the provider call. A timeout or torn result stays fenced on rerun.
-    save(marker, { requestSha256: requestHash, quoteSha256: authorization.quoteSha256, reservedNanos,
-      submittedAt: new Date().toISOString(), model: input.model_id, voice: input.voice_id, characters: count(batch.text) }, 'wx');
+    const submission = { requestSha256: requestHash, quoteSha256: authorization.quoteSha256, reservedNanos,
+      submittedAt: new Date().toISOString(), model: input.model_id, voice: input.voice_id, characters: count(batch.text) };
+    reserveSubmission(output, takeId, submission);
+    save(marker, submission, 'wx');
     const res = await fetcher(host + '/v1/speech', {
       method: 'POST', redirect: 'error', headers: { Authorization: key, 'Content-Type': 'application/json' },
       body: canonical(input), signal: AbortSignal.timeout(240000),
@@ -390,12 +404,37 @@ export async function executeAssembly(script, quote, authorization, directory, o
       estimatedUsd: nanosToUsd(reservedNanos), actualUsd: null,
       providerRequestId, wav };
     save(staged, record, 'wx');
-    writeFileSync(wav, audio, { flag: 'wx' });
+    writeFileSync(wav, audio, { flag: 'wx', flush: true });
     renameSync(staged, receipt);
     results.push(record);
   }
   save(join(output, 'narration-manifest.json'), { quoteSha256: authorization.quoteSha256, results });
   return results;
+}
+
+function withSubmissionJournal(output, readOnly, work) {
+  const file = join(output, 'assemblyai-submissions.sqlite3');
+  if (readOnly && !existsSync(file)) return new Map();
+  if (output.startsWith('\\\\') || output.startsWith('//')) throw new Error('Use a local AssemblyAI output directory');
+  const { DatabaseSync } = require('node:sqlite');
+  const db = new DatabaseSync(file, { readOnly });
+  try {
+    db.exec('PRAGMA busy_timeout=5000');
+    if (!readOnly) db.exec(`PRAGMA journal_mode=DELETE; PRAGMA synchronous=EXTRA;
+      CREATE TABLE IF NOT EXISTS submissions (take_id TEXT PRIMARY KEY, evidence TEXT NOT NULL) STRICT;`);
+    return work(db);
+  } finally {
+    db.close();
+  }
+}
+
+function reserveSubmission(output, takeId, submission) {
+  // SQLite commits the reservation on local disk before transport. The JSON marker is operator evidence.
+  withSubmissionJournal(output, false, db => {
+    const claim = db.prepare('INSERT INTO submissions VALUES (?, ?) ON CONFLICT DO NOTHING')
+      .run(takeId, canonical(submission));
+    if (claim.changes !== 1) throw new Error('Previously submitted request requires reconciliation');
+  });
 }
 
 function assemblyPlan(script, output, rate, key, scriptSha256) {
@@ -404,28 +443,32 @@ function assemblyPlan(script, output, rate, key, scriptSha256) {
   const lock = { entity: script.entity, scriptSha256, credentialSha256: hash(key) };
   if (hasIdentity && canonical(fileJSON(identity)) !== canonical(lock))
     throw new Error('AssemblyAI output belongs to a different job or account');
+  const journal = withSubmissionJournal(output, true, db => new Map(db.prepare('SELECT take_id, evidence FROM submissions')
+    .all().map(row => [row.take_id, JSON.parse(row.evidence)])));
   const host = hosts[script.region ?? 'us'];
   return makeBatches(script, 'assemblyai').map((batch, i) => {
     const input = { model_id: models.assemblyai, voice_id: batch.voice, text: batch.text, sample_rate: 24000,
       language: script.language ?? 'english', encoding: 'pcm_s16le', container: 'wav', stream: false };
     const requestHash = hash(canonical({ host, input }));
-    const stem = join(output, String(i + 1).padStart(4, '0') + '-' + requestHash.slice(0, 20));
+    const takeNumber = String(i + 1).padStart(4, '0');
+    const takeId = `${takeNumber}:${requestHash}`;
+    const stem = join(output, `${takeNumber}-${requestHash.slice(0, 20)}`);
     const wav = stem + '.wav', receipt = stem + '.json', marker = stem + '.submitted.json';
     const staged = receipt + '.staged';
     const priorFile = existsSync(receipt) ? receipt : existsSync(staged) && existsSync(wav) ? staged : null;
     const prior = priorFile ? fileJSON(priorFile) : null;
     let reservedNanos = assemblyNanos(count(batch.text), rate);
     if (prior) {
-      const submission = fileJSON(marker);
+      const submission = journal.get(takeId) ?? fileJSON(marker);
       const audio = readFileSync(wav);
       if (!hasIdentity || prior.requestSha256 !== requestHash || prior.outputSha256 !== hash(audio) || !validWav(audio) ||
           submission.requestSha256 !== requestHash || !Number.isSafeInteger(submission.reservedNanos) || submission.reservedNanos < 0)
         throw new Error('Cached audio or receipt integrity check failed');
       reservedNanos = submission.reservedNanos;
-    } else if (existsSync(marker) || existsSync(wav) || existsSync(staged)) {
+    } else if (journal.has(takeId) || existsSync(marker) || existsSync(wav) || existsSync(staged)) {
       throw new Error('Previously submitted request requires reconciliation');
     }
-    return { batch, input, requestHash, wav, receipt, marker, staged, prior, priorFile, reservedNanos };
+    return { batch, input, requestHash, takeId, wav, receipt, marker, staged, prior, priorFile, reservedNanos };
   });
 }
 

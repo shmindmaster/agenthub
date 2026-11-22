@@ -74,11 +74,14 @@ The runner rechecks the current rate and funding before posting any text.
 node scripts/narration-preflight.mjs execute job-script.json funding.json narration-quote.json approval.json voice/assemblyai
 ```
 
-Use one output directory per approved script. WAVs and receipts follow the
+Use Node 22.13 or later and one local output directory per approved script.
+Keep the durable `assemblyai-submissions.sqlite3` journal with the job. WAVs and receipts follow the
 spoken order. Output hashes support reuse. A submitted request with missing or
 invalid output stays fenced for billing reconciliation. The submission marker
 records the model, voice, time and character count. The response receipt keeps
-the provider request ID and status when received. Review pronunciation and
+the provider request ID and status when received. Use the request ID or the
+timestamp, model, voice and character count to reconcile with the provider.
+Keep the submission fenced while billing or audio is unresolved. Review pronunciation and
 speaker continuity, then align or obtain word timing using the accepted output.
 
 - **AssemblyAI** groups adjacent text from the same speaker and voice within

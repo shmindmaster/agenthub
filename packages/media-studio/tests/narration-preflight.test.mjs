@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { executeAssembly, inspectElevenLabs, makeBatches, parseRate, preflight, resolveOpenAIKey } from '../scripts/narration-preflight.mjs';
 
@@ -23,7 +24,16 @@ function fake({ assemblyRateDoc = assemblyRate, voice = stock, postStatus = 200 
   const posts = [];
   return { posts, fetcher: async (url, init) => {
     if (init.method === 'POST') {
-      posts.push(JSON.parse(init.body));
+      assert.equal(url, 'https://tts.us.assemblyai.com/v1/speech');
+      assert.equal(init.redirect, 'error');
+      assert.equal(init.headers['Content-Type'], 'application/json');
+      const body = JSON.parse(init.body);
+      const { text, voice_id, ...format } = body;
+      assert.ok(text.trim());
+      assert.equal(voice_id, 'aai-jane');
+      assert.deepEqual(format, { model_id: 'assemblyai-tts-1', sample_rate: 24000, language: 'english',
+        encoding: 'pcm_s16le', container: 'wav', stream: false });
+      posts.push(body);
       const wav = Buffer.alloc(46);
       wav.write('RIFF', 0); wav.writeUInt32LE(38, 4); wav.write('WAVEfmt ', 8);
       wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
@@ -129,9 +139,24 @@ test('ambiguous provider failure fences the exact request without retrying', asy
     await assert.rejects(executeAssembly(script, quote, auth(quote, folder), folder, options), /503/);
     const response = readdirSync(folder).find(name => name.endsWith('.response'));
     assert.equal(JSON.parse(readFileSync(join(folder, response))).providerRequestId, 'fixture-receipt');
+    // Losing the operator-facing marker still leaves the durable claim.
+    unlinkSync(join(folder, readdirSync(folder).find(name => name.endsWith('.submitted.json'))));
     await assert.rejects(executeAssembly(script, quote, auth(quote, folder), folder, options), /reconciliation/);
     assert.equal(provider.posts.length, 1);
   } finally { rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('OpenAI eligibility checks the built-in voice and estimates unspaced speech', async () => {
+  const text = '企業向けの取引処理とシステム改善。'.repeat(40);
+  const options = { ...fake(), now, env, snapshots: { openai: snapshot(env.OPENAI_API_KEY, 0.001) } };
+  const wanted = { entity: 'personal', provider: 'openai', language: 'japanese', turns: [{ text }] };
+  const quote = await preflight(wanted, options);
+  assert.equal(quote.pick, null);
+  assert.ok(quote.candidates[2].estimatedUsd > 0.01);
+  const wrongVoice = { ...wanted, turns: [{ text, voices: { openai: 'nova' } }] };
+  const blocked = await preflight(wrongVoice, { ...options, snapshots });
+  assert.equal(blocked.pick, null);
+  assert.equal(blocked.candidates[2].funding.access, 'voice-ineligible');
 });
 
 test('Deepgram requires adequate remaining budget from the governed local ledger', async () => {
@@ -220,6 +245,9 @@ test('renewal prices only missing wallet spend and preserves the cumulative auth
     // Simulate an interruption before the second request, retaining the verified first take.
     for (const name of readdirSync(folder).filter(name => name.startsWith('0002-')))
       renameSync(join(folder, name), join(parent, name));
+    const journal = new DatabaseSync(join(folder, 'assemblyai-submissions.sqlite3'));
+    journal.prepare("DELETE FROM submissions WHERE take_id LIKE '0002:%'").run();
+    journal.close();
     const later = now + 25 * 60 * 60 * 1000;
     const refreshed = { ...options, now: later,
       snapshots: { assemblyai: { ...snapshot(env.ASSEMBLYAI_API_KEY, 0.015), observedAt: new Date(later).toISOString() } } };

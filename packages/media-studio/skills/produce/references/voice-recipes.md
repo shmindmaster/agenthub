@@ -161,6 +161,6 @@ Music is MiniMax Music 2.6 through Runware, instrumental only, one track reused,
 
 ## OpenAI direct voices (OPENAI_API_KEY)
 - Built-in voices: `marin` and `cedar` first (OpenAI's best TTS quality), then `alloy`, `ash`, `ballad`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, `shimmer`, `verse`. Delivery instructions (tone, pacing, accent, emotion) work on compatible models.
-- Audition `marin` and `cedar` against Azure DragonHD Emma2 and Andrew2 on the same script before switching a production. Azure DragonHD stays the default for pre-recorded narration until a measured OpenAI take passes the voice gates at a comparable cost.
+- Start new prerecorded work with [narration preflight](narration-preflight.md). Eligible AssemblyAI stock voices lead for long-form narration. Audition `marin` and `cedar` against the currently approved directed voice on the same script before switching an existing production.
 - Speech model: `gpt-realtime-2.1-mini` (`gpt-realtime-2.1` for complex direction). Estimate with `scripts/estimate-job-cost.mjs --voice openai`.
 - Prompt-designed voices (described in text) are free to create and work only with GPT-Live. Recording-based custom voices need an eligible organisation, a consent recording and a matching reference (60 seconds or less, 20 voices per organisation). Record voice ID, provider, supported models, approved use, consent evidence and samples before use. The no-owner-clone rule above still applies, and AI speech is disclosed to listeners.
