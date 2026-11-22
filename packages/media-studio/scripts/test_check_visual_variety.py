@@ -72,6 +72,11 @@ class VarietyTests(unittest.TestCase):
             pic["visual"]["sourceAssetId"] = "planned-portrait"
         self.assertIn("reuses planned-portrait from s0", gate.judge(pictures)["reasons"][0])
 
+    def test_shared_lottie_marks_can_recur(self):
+        pictures = scenes("lottie", "flow", "lottie")
+        pictures[0]["visual"]["src"] = pictures[2]["visual"]["src"] = "lottie/check.json"
+        self.assertTrue(gate.judge(pictures)["ok"])
+
 
 if __name__ == "__main__":
     unittest.main()

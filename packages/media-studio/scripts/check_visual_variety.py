@@ -28,7 +28,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 PICTURE = {"flow", "layers", "sequence", "timeline", "beforeafter", "map", "chart", "svg", "lottie", "still", "broll", "screen-in-context", "code"}
 TYPOGRAPHIC = {"stat", "table", "split", "proof"}
-SOURCE_KINDS = {"broll", "still", "screen-in-context", "lottie"}
+SOURCE_KINDS = {"broll", "still", "screen-in-context"}
 
 
 def repeated_sources(scenes):
