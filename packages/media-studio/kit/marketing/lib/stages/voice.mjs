@@ -42,16 +42,16 @@ async function renderLine(ctx, { text, prev, next, out, key, take }, openaiPlan)
     const reservation = openaiPlan?.byLine.get(key);
     if (!reservation) throw new Error('OpenAI narration inputs changed after preflight. Run voice again.');
     const usd = reservation.usdMicros / 1e6;
-    if (reservation.usdMicros > openaiPlan.availableMicros) throw new Error('Insufficient available OpenAI balance for narration');
     ctx.ledger.check('openai', usd, 'OpenAI speech');
     const openai = P.openai || (await import('../providers/openai.mjs'));
+    const settle = openaiPlan.wallet.reserve(out, key, reservation.usdMicros);
     const res = await openai.speech({ text, voice: v.voiceId, instructions: v.instructions, model: openaiPlan.model,
       credential: openaiPlan.key, maxOutputTokens: reservation.maxOutputTokens });
     mkdirSync(join(out, '..'), { recursive: true });
     writeFileSync(out, res.bytes);
     // Charge what the response's usage says it cost; fall back to the estimate only when usage is missing, and say so.
     const billed = realtimeUsdFromUsage(openaiPlan.model, res.usage, openaiPlan.rate);
-    openaiPlan.availableMicros -= Math.max(reservation.usdMicros, Math.ceil((billed ?? 0) * 1e6));
+    settle(Math.ceil((billed ?? 0) * 1e6));
     ctx.ledger.charge({ stage: 'voice', provider: 'openai', service: 'speech', units: billed ?? usd, estimated: billed == null, ref: key.slice(0, 12), note: res.usage ? `usage ${JSON.stringify(res.usage.output_token_details || {})}` : 'no usage returned' });
     return { receipt: { provider: 'openai', model: openaiPlan.model, voice: v.voiceId, aiGenerated: true,
       usage: res.usage ?? null, billedUsd: billed, rateEvidence: openaiPlan.rateEvidence,

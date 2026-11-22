@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { executeAssembly, inspectElevenLabs, makeBatches, parseRate, preflight, resolveOpenAIKey } from '../scripts/narration-preflight.mjs';
 
@@ -19,6 +21,18 @@ const stock = { source: 'assemblyai', visibility: 'public', status: 'active', la
 const script = { entity: 'personal', longForm: true, turns: [{ text: 'The answer opens here.' }, { text: 'The answer continues here.' }] };
 const openaiRate = '### Text tokens\n| Input | $0.6 | 1M tokens |\n### Audio tokens\n| Output | $20 | 1M tokens |\n### Image tokens';
 const assemblyRate = '| AssemblyAI-TTS-1 | \\$15 per 1M input characters | Available |';
+
+test('standalone commands run through a Media Studio directory link', () => {
+  const folder = mkdtempSync(join(tmpdir(), 'studio-narration-cli-'));
+  try {
+    const link = join(folder, 'tools');
+    symlinkSync(fileURLToPath(new URL('../scripts', import.meta.url)), link, process.platform === 'win32' ? 'junction' : 'dir');
+    const result = spawnSync(process.execPath, [join(link, 'narration-preflight.mjs'), 'fingerprint', 'assemblyai'],
+      { encoding: 'utf8', env: { ...process.env, ...env } });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), hash(env.ASSEMBLYAI_API_KEY));
+  } finally { rmSync(folder, { recursive: true, force: true }); }
+});
 
 function fake({ assemblyRateDoc = assemblyRate, voice = stock, postStatus = 200 } = {}) {
   const posts = [];

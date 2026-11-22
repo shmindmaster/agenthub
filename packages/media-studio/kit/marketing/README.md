@@ -25,7 +25,9 @@ and `--narration-funding <file>` to any stage that generates voice. Use a single
 dashboard evidence record with `entity`, `source: "dashboard"`, `observedAt`,
 `availableUsd`, and `credentialSha256` from `narration-preflight.mjs fingerprint openai`.
 The voice stage checks the exact model and the funding for all missing lines
-before synthesis. Existing audio and dry runs can be used without evidence.
+before synthesis. It reserves funds in the shared local narration ledger. Retakes
+using the same dashboard record subtract later charges and outstanding reservations.
+Existing audio and dry runs can be used without evidence.
 
 Compose reserves `compose/candidates/<id>` exclusively, even with `--force`. Recompose means a new ID.
 QA and delivery require that ID and its compose receipt. To gate an existing file without writing source evidence:

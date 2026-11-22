@@ -2,10 +2,11 @@
 // Read-only by default. Execute only a pinned, funded AssemblyAI quote.
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { homedir } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const urls = {
   assemblyai: 'https://www.assemblyai.com/docs/getting-started/models.md',
@@ -85,7 +86,10 @@ function marketingRealtimeRate(doc) {
 
 // Marketing keeps beat boundaries for its timing compositor and uses the model and credential of the exact request.
 export async function preflightMarketingOpenAI({ entity, model = models.openai, voice = 'marin', lines, instructions, snapshot },
-  { now = Date.now(), fetcher = fetch, key = resolveOpenAIKey() } = {}) {
+  { now = Date.now(), fetcher = fetch, key = resolveOpenAIKey(),
+    spendDir = process.platform === 'win32' && process.env.LOCALAPPDATA ?
+      join(process.env.LOCALAPPDATA, 'AgentHub', 'media-studio', '_shared', 'spend') :
+      join(homedir(), '.local', 'share', 'AgentHub', 'media-studio', 'spend') } = {}) {
   if (!['abacare', 'mahumtech', 'personal'].includes(entity) || !realtimeModels.has(model) || !lines.length)
     throw new Error('OpenAI narration preflight requires an entity, a supported exact Realtime model, and lines');
   if (!realtimeVoices.has(voice)) throw new Error('OpenAI narration requires a supported built-in Realtime voice');
@@ -104,10 +108,44 @@ export async function preflightMarketingOpenAI({ entity, model = models.openai, 
     return { maxOutputTokens, usdMicros: Math.ceil(inputCeiling * rate.textIn + maxOutputTokens * Math.max(rate.out, rate.textOut)) };
   });
   const totalMicros = reservations.reduce((sum, part) => sum + part.usdMicros, 0);
-  const availableMicros = Math.floor(funding.availableUsd * 1e6);
+  const wallet = marketingWallet(spendDir, entity, funding);
+  const availableMicros = wallet.available();
   if (totalMicros > availableMicros) throw new Error('Insufficient available OpenAI balance for narration');
-  return { key, model, rate, availableMicros, reservations, totalMicros,
+  return { key, model, rate, availableMicros, reservations, totalMicros, wallet,
     rateEvidence: { url, checkedAt: new Date(now).toISOString(), documentSha256: hash(doc) }, funding };
+}
+
+function marketingWallet(spendDir, entity, funding) {
+  const file = join(spendDir, 'openai-narration.sqlite3');
+  const account = `${entity}:${funding.credentialSha256}`;
+  const observedAt = Date.parse(funding.observedAt);
+  const budgetMicros = Math.floor(funding.availableUsd * 1e6);
+  const spent = db => db.prepare(`SELECT COALESCE(SUM(micros), 0) AS total FROM voice_spend
+    WHERE account = ? AND (completed_at IS NULL OR completed_at >= ?)`).get(account, observedAt).total;
+  const initialize = db => db.exec(`CREATE TABLE IF NOT EXISTS voice_spend (
+    request_id TEXT PRIMARY KEY, account TEXT NOT NULL, micros INTEGER NOT NULL, completed_at INTEGER
+  ) STRICT; CREATE INDEX IF NOT EXISTS voice_spend_account ON voice_spend(account, completed_at);`);
+  return {
+    available: () => !existsSync(file) ? budgetMicros :
+      withSqliteJournal(file, true, db => Math.max(0, budgetMicros - spent(db))),
+    reserve: (output, lineKey, micros) => {
+      mkdirSync(dirname(file), { recursive: true });
+      const id = hash(canonical([realpathSync(dirname(output)), basename(output), lineKey]));
+      withSqliteJournal(file, false, db => {
+        initialize(db);
+        db.exec('BEGIN IMMEDIATE');
+        if (db.prepare('SELECT 1 FROM voice_spend WHERE request_id = ?').get(id))
+          throw new Error('Previously submitted OpenAI narration line requires reconciliation');
+        if (spent(db) + micros > budgetMicros) throw new Error('Insufficient available OpenAI balance for narration');
+        db.prepare('INSERT INTO voice_spend VALUES (?, ?, ?, NULL)').run(id, account, micros);
+        db.exec('COMMIT');
+      });
+      return (billedMicros, completedAt = Date.now()) => withSqliteJournal(file, false, db => {
+        db.prepare('UPDATE voice_spend SET micros = ?, completed_at = ? WHERE request_id = ?')
+          .run(Math.max(micros, billedMicros), completedAt, id);
+      });
+    },
+  };
 }
 
 function validate(script) {
@@ -412,16 +450,13 @@ export async function executeAssembly(script, quote, authorization, directory, o
   return results;
 }
 
-function withSubmissionJournal(output, readOnly, work) {
-  const file = join(output, 'assemblyai-submissions.sqlite3');
-  if (readOnly && !existsSync(file)) return new Map();
-  if (output.startsWith('\\\\') || output.startsWith('//')) throw new Error('Use a local AssemblyAI output directory');
+function withSqliteJournal(file, readOnly, work) {
+  if (file.startsWith('\\\\') || file.startsWith('//')) throw new Error('Use a local narration ledger');
   const { DatabaseSync } = require('node:sqlite');
   const db = new DatabaseSync(file, { readOnly });
   try {
     db.exec('PRAGMA busy_timeout=5000');
-    if (!readOnly) db.exec(`PRAGMA journal_mode=DELETE; PRAGMA synchronous=EXTRA;
-      CREATE TABLE IF NOT EXISTS submissions (take_id TEXT PRIMARY KEY, evidence TEXT NOT NULL) STRICT;`);
+    if (!readOnly) db.exec('PRAGMA journal_mode=DELETE; PRAGMA synchronous=EXTRA;');
     return work(db);
   } finally {
     db.close();
@@ -430,7 +465,8 @@ function withSubmissionJournal(output, readOnly, work) {
 
 function reserveSubmission(output, takeId, submission) {
   // SQLite commits the reservation on local disk before transport. The JSON marker is operator evidence.
-  withSubmissionJournal(output, false, db => {
+  withSqliteJournal(join(output, 'assemblyai-submissions.sqlite3'), false, db => {
+    db.exec('CREATE TABLE IF NOT EXISTS submissions (take_id TEXT PRIMARY KEY, evidence TEXT NOT NULL) STRICT;');
     const claim = db.prepare('INSERT INTO submissions VALUES (?, ?) ON CONFLICT DO NOTHING')
       .run(takeId, canonical(submission));
     if (claim.changes !== 1) throw new Error('Previously submitted request requires reconciliation');
@@ -443,8 +479,10 @@ function assemblyPlan(script, output, rate, key, scriptSha256) {
   const lock = { entity: script.entity, scriptSha256, credentialSha256: hash(key) };
   if (hasIdentity && canonical(fileJSON(identity)) !== canonical(lock))
     throw new Error('AssemblyAI output belongs to a different job or account');
-  const journal = withSubmissionJournal(output, true, db => new Map(db.prepare('SELECT take_id, evidence FROM submissions')
-    .all().map(row => [row.take_id, JSON.parse(row.evidence)])));
+  const journalFile = join(output, 'assemblyai-submissions.sqlite3');
+  const journal = !existsSync(journalFile) ? new Map() : withSqliteJournal(journalFile, true,
+    db => new Map(db.prepare('SELECT take_id, evidence FROM submissions')
+      .all().map(row => [row.take_id, JSON.parse(row.evidence)])));
   const host = hosts[script.region ?? 'us'];
   return makeBatches(script, 'assemblyai').map((batch, i) => {
     const input = { model_id: models.assemblyai, voice_id: batch.voice, text: batch.text, sample_rate: 24000,
@@ -520,7 +558,12 @@ async function main(args) {
   console.log(JSON.stringify({ ...quote, quoteSha256: hash(canonical(quote)) }, null, 2));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+function isMain() {
+  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); }
+  catch { return false; }
+}
+
+if (isMain()) {
   main(process.argv.slice(2)).catch(error => {
     console.error(error.message);
     process.exitCode = 1;

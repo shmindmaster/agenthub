@@ -672,7 +672,7 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
     '### Audio tokens\n| Input | $32 | 1M tokens |\n| Cached input | $0.4 | 1M tokens |\n| Output | $64 | 1M tokens |\n### Image tokens';
   const now = Date.parse('2026-11-22T19:00:00Z');
   const ctx = stageCtx('openai-voice-preflight', spec, {
-    narrationPreflight: { key, now, fetcher: async (url, init) => {
+    narrationPreflight: { key, now, spendDir: join(root, 'openai-wallet'), fetcher: async (url, init) => {
       reads.push(url);
       if (url.includes('api.openai.com')) assert.equal(init.headers.Authorization, `Bearer ${key}`);
       return new Response(url.endsWith('.md') ? doc : '{}');
@@ -689,7 +689,7 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   const funding = join(ctx.jobDir, 'funding.json');
   Object.assign(ctx.flags, parseArgs(['fixture.json', '--narration-entity', 'abacare', '--narration-funding', funding]).flags);
   const fingerprint = createHash('sha256').update(key).digest('hex');
-  const snapshot = { entity: 'abacare', source: 'dashboard', observedAt: new Date(now).toISOString(), availableUsd: 2 };
+  const snapshot = { entity: 'abacare', source: 'dashboard', observedAt: new Date(now).toISOString(), availableUsd: 0.08 };
   writeFileSync(funding, JSON.stringify({ ...snapshot, credentialSha256: 'stale-key' }));
   await assert.rejects(voiceStage(ctx), /fresh funding evidence/);
   writeFileSync(funding, JSON.stringify({ ...snapshot, credentialSha256: fingerprint, availableUsd: 0.001 }));
@@ -704,6 +704,10 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   delete ctx.flags.narrationFunding;
   await voiceStage(ctx);
   assert.equal(calls.length, 3);
+  ctx.flags.narrationFunding = funding;
+  spec.beats[0].voiceTake = 2;
+  await assert.rejects(voiceStage(ctx), /Insufficient available OpenAI balance/);
+  assert.equal(calls.length, 3, 'a retake cannot reuse the earlier available balance');
 });
 
 test('voice, timing and assets stages run on mock providers, cache on rerun and charge the ledger', async () => {
