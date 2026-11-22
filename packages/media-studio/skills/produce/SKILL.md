@@ -8,6 +8,12 @@ description: Produces the accepted pieces a video needs (screen takes, narration
 2. Make each asset with the cheapest authorized lane that passes its gate, and record each take with its evidence.
 3. Hand `finish` the accepted voice, picture and plates.
 4. If a lane is frozen, unpaid or failing, stop that asset and report the exact blocker; keep accepted assets.
+## Record what changes
+
+Capture the state before the action, the actual interaction and its visible result. Keep role, period, record and revision consistent with the spoken claim. In a stable frame, use a readable highlight or an enlarged detail of the actual field as the speaker names it. Show meaningful content changes; a camera drift across an idle screen adds no evidence. Keep sourced portraits steady and advance the relevant role or question on cue. Label illustrative footage and synthetic tenant data where a viewer could mistake them for case evidence.
+
+Use official spoken clips and owner recordings as pronunciation guides. Compare in context, keep an original reading that is close, and repair an uneven reading with the same narrator's natural take or a newly recorded full sentence in the approved voice. Preserve the surrounding cadence and possessive endings. Introduce a different speaker at a deliberate sentence or passage boundary.
+
 ## Lanes
 - Real product footage: drive clean takes through `ah-browser` and use `scripts/browser-take.mjs` (start, move, click, point, type, wheel, stop) for a cursor recording and the timed action log the pointer-path gate reads. If a selected signed-in profile requires BrowserSkill, its exported MP4 is supplemental footage. See [recording](references/recording.md) for that handoff. Use synthetic data on the real running product and the authorized remote capture lane. Record the lane, exact product revision and user role shown. Detail: [capture](references/capture.md).
 - Voice and narration: governed voice recipes only. [voice recipes](references/voice-recipes.md), [Azure](references/azure.md), [generate](references/generate.md).
