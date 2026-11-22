@@ -2,7 +2,7 @@
 // OpenAI speech (instructions) or an injected local voice (Local AI is off: the default refuses). Cached by
 // (text, voice, model, settings, neighbors), so an unchanged line never costs twice. A beat's `voiceTake` (1, 2, …) asks
 // for a fresh take of that one line (a new key and ledger revision) after a listen or review rejects the delivery.
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { recordStage } from '../context.mjs';
 import { checkStage, stageKey, writeStage } from '../cache.mjs';
@@ -53,11 +53,12 @@ async function renderLine(ctx, { text, prev, next, out, key, take }, openaiPlan)
       if (error.definitelyUnsubmitted === true) payment.cancelUnsubmitted();
       throw error;
     }
-    mkdirSync(join(out, '..'), { recursive: true });
-    writeFileSync(out, res.bytes);
     // Charge what the response's usage says it cost; fall back to the estimate only when usage is missing, and say so.
     const billed = realtimeUsdFromUsage(openaiPlan.model, res.usage, openaiPlan.rate);
+    const staged = out + '.staged';
+    writeFileSync(staged, res.bytes, { flag: 'wx', flush: true });
     payment.settle(Math.ceil((billed ?? 0) * 1e6));
+    renameSync(staged, out);
     ctx.ledger.charge({ stage: 'voice', provider: 'openai', service: 'speech', units: billed ?? usd, estimated: billed == null, ref: key.slice(0, 12), note: res.usage ? `usage ${JSON.stringify(res.usage.output_token_details || {})}` : 'no usage returned' });
     return { receipt: { provider: 'openai', model: openaiPlan.model, voice: v.voiceId, aiGenerated: true,
       usage: res.usage ?? null, billedUsd: billed, rateEvidence: openaiPlan.rateEvidence,
