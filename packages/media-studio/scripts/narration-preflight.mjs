@@ -36,6 +36,10 @@ const fixedGap = 24 * 60 * 60 * 1000;
 const defaultSpendDir = () => process.platform === 'win32' && process.env.LOCALAPPDATA ?
   join(process.env.LOCALAPPDATA, 'AgentHub', 'media-studio', '_shared', 'spend') :
   join(homedir(), '.local', 'share', 'AgentHub', 'media-studio', 'spend');
+const submissionSchema = 'CREATE TABLE IF NOT EXISTS submissions (take_id TEXT PRIMARY KEY, evidence TEXT NOT NULL) STRICT;';
+const marketingSchema = `CREATE TABLE IF NOT EXISTS voice_spend (
+  request_id TEXT PRIMARY KEY, account TEXT NOT NULL, entity TEXT NOT NULL, micros INTEGER NOT NULL, completed_at INTEGER
+) STRICT; CREATE INDEX IF NOT EXISTS voice_spend_account ON voice_spend(account, completed_at);`;
 
 function speechWordEstimate(text) {
   const words = [...segmenter.segment(text)].filter(segment => segment.isWordLike).length;
@@ -127,9 +131,6 @@ function marketingWallet(spendDir, entity, funding) {
     return db.prepare(`SELECT COALESCE(SUM(micros), 0) AS total FROM voice_spend
       WHERE account = ? AND (completed_at IS NULL OR completed_at >= ?)`).get(account, observedAt).total;
   };
-  const initialize = db => db.exec(`CREATE TABLE IF NOT EXISTS voice_spend (
-    request_id TEXT PRIMARY KEY, account TEXT NOT NULL, entity TEXT NOT NULL, micros INTEGER NOT NULL, completed_at INTEGER
-  ) STRICT; CREATE INDEX IF NOT EXISTS voice_spend_account ON voice_spend(account, completed_at);`);
   return {
     available: () => !existsSync(file) ? budgetMicros :
       withSqliteJournal(file, true, db => Math.max(0, budgetMicros - spent(db))),
@@ -137,7 +138,7 @@ function marketingWallet(spendDir, entity, funding) {
       mkdirSync(dirname(file), { recursive: true });
       const id = hash(canonical([realpathSync(dirname(output)), basename(output), lineKey]));
       withSqliteJournal(file, false, db => {
-        initialize(db);
+        db.exec(marketingSchema);
         db.exec('BEGIN IMMEDIATE');
         if (db.prepare('SELECT 1 FROM voice_spend WHERE request_id = ?').get(id))
           throw new Error('Previously submitted OpenAI narration line requires reconciliation');
@@ -478,13 +479,18 @@ function withSqliteJournal(file, readOnly, work) {
 }
 
 export function recoverLedgers(output, spendDir = defaultSpendDir()) {
-  const targets = [join(spendDir, 'openai-narration.sqlite3')];
-  if (output) targets.push(join(resolve(output), 'assemblyai-submissions.sqlite3'));
+  const targets = [[join(spendDir, 'openai-narration.sqlite3'), 'voice_spend', marketingSchema]];
+  if (output) targets.push([join(resolve(output), 'assemblyai-submissions.sqlite3'), 'submissions', submissionSchema]);
   let checked = 0;
-  for (const file of targets.filter(existsSync)) {
+  for (const [file, table, schema] of targets.filter(([candidate]) => existsSync(candidate))) {
     // A writable integrity read rolls back any interrupted transaction. Committed rows stay reserved.
-    const rows = withSqliteJournal(file, false, db => db.prepare('PRAGMA quick_check').all());
-    if (rows.length !== 1 || rows[0].quick_check !== 'ok') throw new Error('Narration ledger integrity check failed');
+    withSqliteJournal(file, false, db => {
+      const rows = db.prepare('PRAGMA quick_check').all();
+      if (rows.length !== 1 || rows[0].quick_check !== 'ok') throw new Error('Narration ledger integrity check failed');
+      const tables = db.prepare("SELECT name FROM sqlite_schema WHERE type = 'table'").all();
+      if (tables.length === 0) db.exec(schema);
+      else if (tables.length !== 1 || tables[0].name !== table) throw new Error('Unexpected narration ledger schema');
+    });
     checked++;
   }
   return { checked };
@@ -493,7 +499,7 @@ export function recoverLedgers(output, spendDir = defaultSpendDir()) {
 function reserveSubmission(output, takeId, submission) {
   // SQLite commits the reservation on local disk before transport. The JSON marker is operator evidence.
   withSqliteJournal(join(output, 'assemblyai-submissions.sqlite3'), false, db => {
-    db.exec('CREATE TABLE IF NOT EXISTS submissions (take_id TEXT PRIMARY KEY, evidence TEXT NOT NULL) STRICT;');
+    db.exec(submissionSchema);
     const claim = db.prepare('INSERT INTO submissions VALUES (?, ?) ON CONFLICT DO NOTHING')
       .run(takeId, canonical(submission));
     if (claim.changes !== 1) throw new Error('Previously submitted request requires reconciliation');

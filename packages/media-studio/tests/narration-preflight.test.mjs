@@ -28,7 +28,7 @@ test('standalone commands run through a Media Studio directory link', () => {
     const link = join(folder, 'tools');
     symlinkSync(fileURLToPath(new URL('../scripts', import.meta.url)), link, process.platform === 'win32' ? 'junction' : 'dir');
     const result = spawnSync(process.execPath, [join(link, 'narration-preflight.mjs'), 'fingerprint', 'assemblyai'],
-      { encoding: 'utf8', env: { ...process.env, ...env } });
+      { encoding: 'utf8', windowsHide: true, env: { ...process.env, ...env } });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout.trim(), hash(env.ASSEMBLYAI_API_KEY));
   } finally { rmSync(folder, { recursive: true, force: true }); }
@@ -48,13 +48,27 @@ test('local recovery rolls back an interrupted sqlite write and keeps committed 
       const insert = db.prepare('INSERT INTO submissions VALUES (?, ?)');
       for (let i = 0; i < 60; i++) insert.run('incomplete:' + i, 'x'.repeat(8192));
       process.kill(process.pid, 'SIGKILL');
-    `, ledger], { encoding: 'utf8' });
+    `, ledger], { encoding: 'utf8', windowsHide: true });
     assert.notEqual(crash.status, 0);
     assert.ok(readdirSync(folder).includes('assemblyai-submissions.sqlite3-journal'), crash.stderr);
     assert.deepEqual(recoverLedgers(folder, folder), { checked: 1 });
     const recovered = new DatabaseSync(ledger, { readOnly: true });
     try { assert.deepEqual(recovered.prepare('SELECT take_id FROM submissions').all().map(r => r.take_id), ['accepted']); }
     finally { recovered.close(); }
+  } finally { rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('local recovery initializes a ledger left empty before its first reservation', () => {
+  const folder = mkdtempSync(join(tmpdir(), 'studio-narration-empty-'));
+  try {
+    const files = [['openai-narration.sqlite3', 'voice_spend'], ['assemblyai-submissions.sqlite3', 'submissions']];
+    for (const [name] of files) new DatabaseSync(join(folder, name)).close();
+    assert.deepEqual(recoverLedgers(folder, folder), { checked: 2 });
+    for (const [name, table] of files) {
+      const db = new DatabaseSync(join(folder, name), { readOnly: true });
+      try { assert.ok(db.prepare('SELECT name FROM sqlite_schema WHERE name = ?').get(table)); }
+      finally { db.close(); }
+    }
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 
