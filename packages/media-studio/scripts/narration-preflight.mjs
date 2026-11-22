@@ -38,8 +38,10 @@ const defaultSpendDir = () => process.platform === 'win32' && process.env.LOCALA
   join(homedir(), '.local', 'share', 'AgentHub', 'media-studio', 'spend');
 const submissionSchema = 'CREATE TABLE IF NOT EXISTS submissions (take_id TEXT PRIMARY KEY, evidence TEXT NOT NULL) STRICT;';
 const marketingSchema = `CREATE TABLE IF NOT EXISTS voice_spend (
-  request_id TEXT PRIMARY KEY, account TEXT NOT NULL, entity TEXT NOT NULL, micros INTEGER NOT NULL, completed_at INTEGER
+  request_id TEXT PRIMARY KEY, account TEXT NOT NULL, entity TEXT NOT NULL, micros INTEGER NOT NULL,
+  completed_at INTEGER, audio_sha256 TEXT
 ) STRICT; CREATE INDEX IF NOT EXISTS voice_spend_account ON voice_spend(account, completed_at);`;
+const marketingRequestId = (output, lineKey) => hash(canonical([realpathSync(dirname(output)), basename(output), lineKey]));
 
 function speechWordEstimate(text) {
   const words = [...segmenter.segment(text)].filter(segment => segment.isWordLike).length;
@@ -133,33 +135,27 @@ function marketingWallet(spendDir, entity, funding, recoverInterrupted) {
   };
   const available = () => {
     if (!existsSync(file)) return budgetMicros;
-    const read = () => withSqliteJournal(file, true, db => Math.max(0, budgetMicros - spent(db)));
-    try { return read(); }
-    catch (error) {
-      const interrupted = error.cause?.errcode === 776 || (error.errcode === 1 && error.message === 'no such table: voice_spend');
-      if (!recoverInterrupted || !interrupted) throw error;
-      recoverLedgers(undefined, spendDir);
-      return read();
-    }
+    return readMarketingWallet(spendDir, recoverInterrupted, db => Math.max(0, budgetMicros - spent(db)));
   };
   return {
     available,
     reserve: (output, lineKey, micros) => {
       mkdirSync(dirname(file), { recursive: true });
-      const id = hash(canonical([realpathSync(dirname(output)), basename(output), lineKey]));
+      const id = marketingRequestId(output, lineKey);
       withSqliteJournal(file, false, db => {
         db.exec(marketingSchema);
         db.exec('BEGIN IMMEDIATE');
         if (db.prepare('SELECT 1 FROM voice_spend WHERE request_id = ?').get(id))
           throw new Error('Previously submitted OpenAI narration line requires reconciliation');
         if (spent(db) + micros > budgetMicros) throw new Error('Insufficient available OpenAI balance for narration');
-        db.prepare('INSERT INTO voice_spend VALUES (?, ?, ?, ?, NULL)').run(id, account, entity, micros);
+        db.prepare('INSERT INTO voice_spend (request_id, account, entity, micros) VALUES (?, ?, ?, ?)')
+          .run(id, account, entity, micros);
         db.exec('COMMIT');
       });
       return {
-        settle: billedMicros => withSqliteJournal(file, false, db => {
-          db.prepare('UPDATE voice_spend SET micros = ?, completed_at = ? WHERE request_id = ?')
-            .run(Math.max(micros, billedMicros), Date.now(), id);
+        settle: (billedMicros, bytes) => withSqliteJournal(file, false, db => {
+          db.prepare('UPDATE voice_spend SET micros = ?, completed_at = ?, audio_sha256 = ? WHERE request_id = ?')
+            .run(Math.max(micros, billedMicros), Date.now(), hash(bytes), id);
         }),
         cancelUnsubmitted: () => withSqliteJournal(file, false, db => {
           db.prepare('DELETE FROM voice_spend WHERE request_id = ? AND completed_at IS NULL').run(id);
@@ -167,6 +163,30 @@ function marketingWallet(spendDir, entity, funding, recoverInterrupted) {
       };
     },
   };
+}
+
+function readMarketingWallet(spendDir, recoverInterrupted, work) {
+  const file = join(spendDir, 'openai-narration.sqlite3');
+  const read = () => withSqliteJournal(file, true, work);
+  try { return read(); }
+  catch (error) {
+    const interrupted = error.cause?.errcode === 776 || (error.errcode === 1 && error.message === 'no such table: voice_spend');
+    if (!recoverInterrupted || !interrupted) throw error;
+    recoverLedgers(undefined, spendDir);
+    return read();
+  }
+}
+
+export function recoverMarketingAudio(output, lineKey, { spendDir = defaultSpendDir() } = {}) {
+  const staged = output + '.staged';
+  if (!existsSync(staged) || existsSync(output)) return false;
+  const id = marketingRequestId(output, lineKey);
+  const row = readMarketingWallet(spendDir, true, db => db.prepare(`SELECT audio_sha256 FROM voice_spend
+    WHERE request_id = ? AND completed_at IS NOT NULL`).get(id));
+  if (!row?.audio_sha256 || hash(readFileSync(staged)) !== row.audio_sha256)
+    throw new Error('Staged OpenAI narration requires reconciliation before it can be reused');
+  renameSync(staged, output);
+  return true;
 }
 
 function validate(script) {

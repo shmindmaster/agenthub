@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -712,7 +712,15 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   assert.equal(reads.filter(url => url.endsWith('/gpt-realtime-2.1.md')).length, 4);
   assert.ok(!JSON.stringify(voice).includes(key));
   delete ctx.flags.narrationFunding;
+  const firstOutput = join(ctx.jobDir, voice.main.lines[0].file);
+  const completedAudio = readFileSync(firstOutput);
+  renameSync(firstOutput, firstOutput + '.staged');
+  writeFileSync(firstOutput + '.staged', 'wrong bytes');
+  await assert.rejects(voiceStage(ctx), /Staged OpenAI narration requires reconciliation/);
+  assert.equal(existsSync(firstOutput), false);
+  writeFileSync(firstOutput + '.staged', completedAudio);
   await voiceStage(ctx);
+  assert.deepEqual(readFileSync(firstOutput), completedAudio);
   assert.equal(calls.length, 3);
   ctx.flags.narrationFunding = funding;
   spec.beats[0].voiceTake = 2;

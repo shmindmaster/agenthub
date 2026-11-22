@@ -57,7 +57,7 @@ async function renderLine(ctx, { text, prev, next, out, key, take }, openaiPlan)
     const billed = realtimeUsdFromUsage(openaiPlan.model, res.usage, openaiPlan.rate);
     const staged = out + '.staged';
     writeFileSync(staged, res.bytes, { flag: 'wx', flush: true });
-    payment.settle(Math.ceil((billed ?? 0) * 1e6));
+    payment.settle(Math.ceil((billed ?? 0) * 1e6), res.bytes);
     renameSync(staged, out);
     ctx.ledger.charge({ stage: 'voice', provider: 'openai', service: 'speech', units: billed ?? usd, estimated: billed == null, ref: key.slice(0, 12), note: res.usage ? `usage ${JSON.stringify(res.usage.output_token_details || {})}` : 'no usage returned' });
     return { receipt: { provider: 'openai', model: openaiPlan.model, voice: v.voiceId, aiGenerated: true,
@@ -83,12 +83,17 @@ async function planOpenAI(ctx, plans, linePath) {
   if (ctx.flags.dryRun || ctx.spec.voice.provider !== 'openai') return null;
   const pending = new Map(plans.flatMap(({ plan }) => plan).filter(l => !existsSync(linePath(l.key))).map(l => [l.key, l.text]));
   if (!pending.size) return null;
-  const { narrationEntity: entity, narrationFunding } = ctx.flags;
-  if (!entity || !narrationFunding) throw new Error('New OpenAI narration requires --narration-entity and --narration-funding with current dashboard evidence');
   const source = [new URL('../../../../scripts/narration-preflight.mjs', import.meta.url),
     new URL('../../../../_shared/tools/narration-preflight.mjs', import.meta.url)].find(url => existsSync(url));
   if (!source) throw new Error('Media Studio narration preflight missing. Sync the runtime kit before generating voice.');
-  const { preflightMarketingOpenAI } = await import(source.href);
+  const { preflightMarketingOpenAI, recoverMarketingAudio } = await import(source.href);
+  for (const key of pending.keys()) {
+    const output = linePath(key);
+    if (recoverMarketingAudio(output, key, ctx.providers.narrationPreflight) || existsSync(output)) pending.delete(key);
+  }
+  if (!pending.size) return null;
+  const { narrationEntity: entity, narrationFunding } = ctx.flags;
+  if (!entity || !narrationFunding) throw new Error('New OpenAI narration requires --narration-entity and --narration-funding with current dashboard evidence');
   const voice = ctx.spec.voice;
   const quote = await preflightMarketingOpenAI({ entity, model: voice.model, voice: voice.voiceId, lines: [...pending.values()],
     instructions: voice.instructions, snapshot: readJson(narrationFunding) }, { ...ctx.providers.narrationPreflight, recoverInterrupted: true });
