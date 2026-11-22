@@ -154,3 +154,28 @@ test('the metrics reader tolerates the receipt shapes a render host can produce'
   const empty = metricsFacts({ film: { longestEmptyRunFrames: 60 }, fps: 30 });
   assert.equal(empty.emptySeconds, 2);
 });
+
+test('release refuses failed metrics, sparse coverage and evidence from another encode', () => {
+  const picture = props();
+  const encoded = { sha256: 'CANDIDATE', bytes: 1024, probed: true, seconds: picture.totalSeconds };
+  const frameReport = {
+    propsSha256: 'PROPS',
+    encoded,
+    frames: 780,
+    complete: true,
+    ok: true,
+    perShot: picture.shots.map(({ id }) => ({ id, sampled: 1 })),
+  };
+  const check = (patch) => judge({
+    props: picture,
+    propsSha256: 'PROPS',
+    requireMetrics: true,
+    metrics: { ...frameReport, ...patch },
+    encoded,
+  });
+  assert.equal(check({}).ok, true);
+  assert.ok(rules(check({ ok: false })).includes('metrics-failed'));
+  assert.ok(rules(check({ complete: false })).includes('metrics-coverage'));
+  assert.ok(rules(check({ perShot: frameReport.perShot.slice(1) })).includes('metrics-coverage'));
+  assert.ok(rules(check({ encoded: { ...encoded, sha256: 'OTHER' } })).includes('metrics-encoded-binding'));
+});

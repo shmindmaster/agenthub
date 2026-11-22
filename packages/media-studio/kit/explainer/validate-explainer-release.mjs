@@ -147,6 +147,21 @@ export const judge = ({ props, propsSha256, cueSheet, metrics, encoded, requireM
   }
 
   if (metrics) {
+    if (metrics.ok === false || metrics.film?.ok === false) {
+      fail('metrics-failed', 'the frame measurement detected a high-severity visual defect');
+    }
+    if ((requireMetrics || encoded) &&
+      (metrics.complete !== true || metrics.frames !== expectedFrames ||
+       !Array.isArray(metrics.perShot) || shots.some((shot) => !metrics.perShot.some((measured) => measured.id === shot.id && measured.sampled > 0)))) {
+      fail('metrics-coverage', 'the frame measurement does not cover the complete candidate and every shot');
+    }
+    if (requireMetrics && !encoded) fail('metrics-candidate', 'supply the encoded candidate for measured release');
+    if (encoded && (metrics.encoded?.sha256 !== encoded.sha256 || metrics.encoded?.bytes !== encoded.bytes)) {
+      fail('metrics-encoded-binding', 'the frame measurement belongs to a different encoded candidate');
+    }
+    if ((requireMetrics || encoded) && (!propsSha256 || !metrics.propsSha256)) {
+      fail('metrics-binding', 'the frame measurement must identify its exact props');
+    }
     if (propsSha256 && metrics.propsSha256 && String(metrics.propsSha256).toUpperCase() !== String(propsSha256).toUpperCase()) {
       fail('metrics-binding', 'the metrics receipt was measured against different props');
     }

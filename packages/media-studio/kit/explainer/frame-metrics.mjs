@@ -818,7 +818,7 @@ export const scoreFilm = (report, rules = {}) => {
   }
 
   for (const run of Array.isArray(report.emptyRuns) ? report.emptyRuns : []) {
-    if (!(run.frames > merged.emptyRunFrames)) continue;
+    if (!(run.seconds >= merged.emptyRunFrames / 30)) continue;
     flags.push({
       rule: 'empty-run',
       level: 'high',

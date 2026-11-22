@@ -274,7 +274,11 @@ export const buildFromJob = (jobRoot, options = {}) => {
   const fps = Number(options.fps ?? 30);
   const planPath = resolve(jobRoot, options.plan ?? 'story/explainer-plan.json');
   const outPath = resolve(jobRoot, options.out ?? 'picture/explainer-props.json');
-  const cueSheet = readJson(join(jobRoot, 'story/cue-sheet.json'));
+  const cueSheetPath = resolve(jobRoot, options.cueSheet ?? 'story/cue-sheet.json');
+  const cueSheet = readJson(cueSheetPath);
+  if (!Array.isArray(cueSheet.cues) || !Number.isFinite(cueSheet.totalSeconds)) {
+    throw new Error(`Expected a narration cue sheet with cues[] and totalSeconds at ${cueSheetPath}; the product action EDL is a different clock`);
+  }
   const plan = readJson(planPath);
   const receipts = {};
   for (const cue of cueSheet.cues) {
@@ -302,10 +306,11 @@ if (isMain) {
   const argv = process.argv.slice(2);
   const jobRoot = argv.find((arg) => !arg.startsWith('--'));
   if (!jobRoot) {
-    console.error('Usage: node build-explainer.mjs <jobRoot> [--plan P] [--out P] [--fps N] [--width N] [--height N] [--voice P]');
+    console.error('Usage: node build-explainer.mjs <jobRoot> [--plan P] [--cue-sheet P] [--out P] [--fps N] [--width N] [--height N] [--voice P]');
     process.exit(1);
   }
   const result = buildFromJob(resolve(jobRoot), {
+    cueSheet: flag(argv, '--cue-sheet', 'story/cue-sheet.json'),
     plan: flag(argv, '--plan', 'story/explainer-plan.json'),
     out: flag(argv, '--out', 'picture/explainer-props.json'),
     fps: flag(argv, '--fps', 30),

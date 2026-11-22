@@ -6,7 +6,7 @@
 // film on, bound to the props it measured.
 //
 // Usage: node scripts/measure-explainer-frames.mjs --props <explainer-props.json> --frames <dir>
-//          [--out <report.json>] [--step 4] [--fps 30] [--strict]
+//          [--encoded <candidate.mp4>] [--out <report.json>] [--step 4] [--fps 30] [--strict]
 //
 // Frames are read natively: PNG through kit/explainer/png.mjs and binary PPM
 // (P6) here. Nothing shells out to ffmpeg, nothing spends, nothing fetches.
@@ -17,7 +17,7 @@
 // over-long static run is found; 0 otherwise, leaving the verdict to the
 // release gate.
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { PngError, decodePng } from './png.mjs';
 import {
@@ -31,7 +31,7 @@ import {
 } from './frame-metrics.mjs';
 
 const USAGE =
-  'Usage: node measure-explainer-frames.mjs --props <explainer-props.json> --frames <dir> [--out <report.json>] [--step 4] [--fps 30] [--strict]';
+  'Usage: node measure-explainer-frames.mjs --props <explainer-props.json> --frames <dir> [--encoded <candidate.mp4>] [--out <report.json>] [--step 4] [--fps 30] [--strict]';
 
 const argv = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -97,7 +97,7 @@ if (!Array.isArray(props.shots) || props.shots.length === 0) {
 
 // The props may sit in a job's story/ or plan/ folder; the report belongs at
 // the job root's qa/, where every other gate looks for its evidence.
-const JOB_SUBDIRS = new Set(['story', 'plan', 'props', 'films', 'kit']);
+const JOB_SUBDIRS = new Set(['story', 'plan', 'props', 'films', 'kit', 'picture']);
 const jobRootFor = (file) => {
   const dir = dirname(file);
   return JOB_SUBDIRS.has(basename(dir).toLowerCase()) ? dirname(dir) : dir;
@@ -130,6 +130,17 @@ if (found.size === 0) {
   );
 }
 const frameFiles = [...found.values()].sort((a, b) => a.index - b.index);
+const expectedFrames = Math.round(props.totalSeconds * fps);
+const complete = frameFiles.length === expectedFrames && frameFiles.every((frame, i) => frame.index === i + 1);
+const encodedArg = flag('--encoded');
+let encoded = null;
+if (encodedArg) {
+  if (!complete) die('an encoded release measurement requires the complete 1-based frame export');
+  const candidate = resolve(encodedArg);
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(candidate)) hash.update(chunk);
+  encoded = { sha256: hash.digest('hex').toUpperCase(), bytes: statSync(candidate).size };
+}
 const sampled = frameFiles.filter((frame) => (frame.index - 1) % step === 0);
 
 /* PPM (P6) is read here rather than in the pure module because it is frame
@@ -316,6 +327,8 @@ const report = {
   schemaVersion: '1.0.0',
   props: rel(propsFile),
   propsSha256,
+  encoded,
+  complete,
   framesDir: rel(framesRoot),
   frames: frameFiles.length,
   sampled: entries.length,

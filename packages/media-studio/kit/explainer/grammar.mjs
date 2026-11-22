@@ -17,7 +17,7 @@ export const FAMILIES = {
     maxBeats: 3,
     cap: 0.4,
     visual: 'optional',
-    kinds: ['hero', 'lower-third', 'lottie'],
+    kinds: ['hero', 'lower-third'],
     note: 'Type is the picture. No card, no rule, no scene number.',
   },
   number: {
