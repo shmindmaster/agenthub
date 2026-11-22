@@ -79,7 +79,7 @@ export function makeBatches(script, provider) {
   const groups = [];
   for (const [index, turn] of script.turns.entries()) {
     const speaker = turn.speaker || 'narrator';
-    const voice = turn.voices?.[provider] ?? (speakers.size === 1 && !script.explicitCast ? defaults[provider] : null);
+    const voice = turn.voices?.[provider] ?? (speakers.size === 1 && !script.explicitCast && !turn.voices ? defaults[provider] : null);
     if (!voice) return null;
     const previous = groups.at(-1);
     if (!turn.keepSeparate && previous && !previous.keepSeparate &&

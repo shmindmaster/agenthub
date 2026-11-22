@@ -12,8 +12,8 @@
     "AssemblyAI analyzes speech and can act as a second transcript or timestamp opinion when explicitly requested; it does not generate images/video. ElevenLabs offers premium voice and music/effects/ASR candidates, but frozen direct-account lanes remain frozen until governed adapter and owner authorization in that task.",
     "For every creative asset choose the approved film mode and storyboard goal first, then compare accepted media and available generation on equal quality and cost. Fully synthetic image/video/3D/UI and human scenes may be the whole movie in vision, fiction, abstract or conceptual modes. Only factual demonstrations of current functionality require real capture.",
     "Cheapest lane that passes QA wins for a picture. A free picture lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid picture lane. Voice has no free lane.",
-    "Narration, dialogue, rehearsal, draft and audition speech follow skills/produce/references/voice-recipes.md. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2. Deepgram Haley batch synthesis serves prepared support prompts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
-    "Azure first (MahumTech resource mt-foundary-resource). Other providers are fallbacks or specialist lanes.",
+    "For new narration, use scripts/narration-preflight.mjs to check current rates and available funding. Eligible AssemblyAI is the long-form default. Preserve accepted takes and explicitly pinned casts. Deepgram Haley batch synthesis serves prepared support prompts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
+    "Azure first for its funded image and established speech recipes on the MahumTech resource mt-foundary-resource. New long-form narration follows the live narration preflight.",
     "The direct ElevenLabs account and API are excluded from recipe defaults. The governed adapter remains in the package and is not a film voice. No voice clone of the owner, except the manifest-named Deloitte pursuit films for Revolva, Empowera and CoLedger (owner direction 2026-11-03).",
     "Higgsfield, Runway and Google Vertex spend stays frozen until the owner approves it in the current task. The funded generative-video lane is IrukaDark (approved hero shots only).",
     "Local AI is off on this PC: no local models, TTS, STT or embedders. Self-hosted models on cloud GPUs are allowed inside the compute caps.",
@@ -213,7 +213,9 @@
       "id": "assemblyai-tts",
       "needs": [
         "long-narration",
-        "recorded-narration"
+        "recorded-narration",
+        "narration",
+        "voice"
       ],
       "status": "conditional",
       "cost": "Live AssemblyAI TTS-1 character rate; dashboard funding checked separately.",
@@ -581,7 +583,7 @@
       "cost": "gpt-realtime-2.1-mini about $0.024 per minute of speech (measured); gpt-realtime-2.1 about 3.2x",
       "identity": "any",
       "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. speech() opens a Realtime session and returns WAV. Built-in voices marin and cedar first.",
-      "notes": "Verified 2026-11-13: Realtime API, gpt-realtime-2.1-mini, marin, 3.95 s for 79 audio tokens (about 1,200 tokens a minute). Azure DragonHD stays the default for pre-recorded narration until an audition and measured cost pass. Prompt-designed voices work only with GPT-Live; recording-based custom voices need eligibility and consent records."
+      "notes": "Verified 2026-11-13: Realtime API, gpt-realtime-2.1-mini, marin, 3.95 s for 79 audio tokens (about 1,200 tokens a minute). Use the live narration preflight for new recorded narration; the Realtime speech endpoint is billed at its standard rate. Prompt-designed voices work only with GPT-Live; recording-based custom voices need eligibility and consent records."
     },
     {
       "id": "openai-transcribe",

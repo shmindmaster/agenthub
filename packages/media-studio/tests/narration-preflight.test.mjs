@@ -88,6 +88,9 @@ test('unavailable price, private clone or direction requirements select another 
     const q = await preflight(script, { ...fake(option), snapshots, now, env });
     assert.notEqual(q.pick, 'assemblyai');
   }
+  const pinned = { ...script, turns: [{ text: 'Keep this voice.', voices: { assemblyai: 'private-fixture' } }] };
+  const incompatible = await preflight(pinned, { ...fake({ voice: { ...stock, visibility: 'private' } }), snapshots, now, env });
+  assert.equal(incompatible.pick, null);
   const priced = await preflight({ ...script, requiresDirection: true }, { ...fake(), snapshots, now, env });
   assert.equal(priced.pick, 'openai');
 });

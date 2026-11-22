@@ -27,7 +27,7 @@ account and entity approved for the job.
 
 Multiple speakers need an explicit cast for each eligible provider, such as
 `"voices": {"assemblyai": "aai-jane"}` on each turn. Set `explicitCast`
-when a single-speaker job also has a pinned cast, `keepSeparate` on turns with
+to require a cast for all turns in a single-speaker job. A turn with `voices` is limited to its listed choices. Set `keepSeparate` on turns with
 independent timing, and `requiresDirection` or `requiresLinkedDialogue` when
 the performance depends on it. The AssemblyAI runner verifies an active
 first-party stock voice in the requested data zone. Custom voices require their
