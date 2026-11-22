@@ -17,16 +17,20 @@ Use this external-workspace contract for every viewer-facing product screencast.
 - `node --test packages/media-studio/tests/explainer-grammar.test.mjs packages/media-studio/tests/explainer-layout.test.mjs` — 19 pass.
 - `node --test packages/media-studio/tests/explainer-builder.test.mjs` — 10 pass, including the CLI writing props and refusing to write them on a broken plan.
 - `node --test packages/media-studio/tests/explainer-gate.test.mjs` — 14 pass; every rule fires on a one-thing mutation of a passing film.
-- `node --test packages/media-studio/tests/explainer-metrics.test.mjs` — 20 pass, including PNG round-trip, component labelling, static-run and landing-hold detection.
+- `node --test packages/media-studio/tests/explainer-metrics.test.mjs` — 21 pass, including PNG round-trip, component labelling, static-run and landing-hold detection, and the measurement CLI writing a report.
+- The whole package suite, all 28 test files in one run: 851 tests, 849 pass, 2 fail. Both failures are in `elevenlabs-provider.test.mjs`, which needs a Python module (`governed_elevenlabs`) this machine does not have; they fail the same way on the tree before this change.
+- `pwsh -NoProfile -File scripts/Validate-AgentHub.ps1` run from a clean worktree at the merge commit: `PASS: 9 capability packages, 8 installable plugins, 16 MCP servers, 18 active agents, 3 inventory-only agents.` In the working checkout the same script fails only on the pre-existing `coding-agent-dispatch` hash drift, which is another session's uncommitted change.
+- Deployed, then exercised from the deploy destination rather than the source tree: `_shared\tools\explainer\build-explainer.mjs` built the test fixture through the real job layout (6 shots, 2 chapters, 780 frames, 26 s) and `validate-explainer-release.mjs` accepted it (0 failed, 1 warning).
 - `node --test packages/media-studio/tests/build-picture.test.mjs` — 6 pass after the word-anchor logic moved to `kit/explainer/anchor.mjs` and `build-picture.mjs` re-exported it.
 
 **Not run, therefore unestablished:**
 
 - **Typecheck.** `kit/node_modules` is absent on this checkout, so `tsc` cannot resolve `react`, `remotion` or their types. A parse-only pass with `tsc --ignoreConfig` reported no syntax errors, nothing more.
 - **Any render.** The `Explainer` composition has never produced a frame. Layout boxes and entrance timings are tested as data; they have not been seen on screen. A 30-second pilot on sh-forge is the next step, not a completed check.
-- **Deployment.** `Sync-MediaStudioKit.ps1` was not run. Installed hosts remain on `plugin.json` 3.1.14 until it is, and the new `_shared\tools\explainer` folder does not exist yet.
+- **Deployment to hosts is partial.** The kit and _shared\tools\explainer are deployed. Eleven of thirteen host mappings read back 4.0.0 (claude, codex, cursor, devin, factory, amp, antigravity, grok, cline, kilo, opencode); Copilot and VS Code Insiders cannot, because the copilot CLI on this machine is a shim with no installed runtime (exit 9009).
 - **Threshold calibration.** Hero / empty-run / debris / static thresholds are the reference method's measurements expressed as fractions of frame height. The first delivered film measured with `measure-explainer-frames.mjs` is the calibration record; until then the numbers are a starting point, not a proven line.
-- **PR #215 interaction.** Codex owns narration pricing and spend controls on `media/narration-preflight`. The agreed order is #215 first, then this branch refresh of package manifests, deploy list and content hash from published `main`.
+- **PR #215 interaction.** Codex owns narration pricing and spend controls on `media/narration-preflight`. When this branch was finished #215 was still open with one unresolved review finding, so this branch was cut from `main` as it stood and does not contain those changes; #215 rebases onto this work, not the other way round.
+- **Repository promotion.** `main` is protected: a direct push is rejected with `Changes must be made through a pull request.` The work sits on branch `media/explainer-engine` (merge commit `cdbb1a03`) awaiting a pull request. `gh` is unauthenticated here and the browser session is not signed in to GitHub, so the pull request could not be opened from this machine.
 ## Fleet deployment
 
 Native Claude/Codex installation alone does not update Cursor, Grok, Hermes, or
