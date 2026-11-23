@@ -1,6 +1,6 @@
 ---
 name: assemblyai
-description: "Builds AssemblyAI calls and code for speech-to-text and audio analysis. Use when a task calls AssemblyAI directly: transcription, streaming, speaker labels, PII redaction, transcript analysis, or its API or MCP servers."
+description: "Builds AssemblyAI calls and code for speech-to-text, text-to-speech, voice cloning and audio analysis. Use when a task calls AssemblyAI directly: transcription, streaming, speaker labels, PII redaction, transcript analysis, or its API or MCP servers."
 ---
 
 # AssemblyAI
@@ -44,4 +44,4 @@ Read `ASSEMBLYAI_API_KEY` from the server environment. Never put a key in client
 
 ## Routing
 
-Video, audio and narration work goes through `media-studio`, which picks the provider. Azure is its default; AssemblyAI runs there only when a job names it.
+Video, audio and narration work goes through `media-studio`, which picks the provider. Deepgram is its default for stock voices, then Azure. AssemblyAI also does TTS: ABACare films use its stock voices, and personal or ABACare films use its cloned voices (consented reference recording, 60 day validity, renewable). `media-studio` picks it for those.
