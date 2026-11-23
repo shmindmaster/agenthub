@@ -1,6 +1,6 @@
 # Azure AI Services
 
-Azure is the default provider. Take the cheapest tier that passes QA and escalate only the item that failed. Prices are eastus2 retail list rates unless marked measured, not a bill. Report tier, rate, quantity and price source. Re-check before a large job.
+Azure is the fallback speech route after Deepgram (stock voices) and the default image provider for every entity except ABACare. Before any generation, name the owning entity, read its live balance and use the provider with the most usable credit for that entity; credits fund only their own entity, and the routing table and ledger are kept privately. Take the cheapest tier that passes QA and escalate only the item that failed. Prices are eastus2 retail list rates unless marked measured, not a bill. Report tier, rate, quantity and price source. Re-check before a large job.
 
 ## Resource
 
@@ -56,12 +56,12 @@ The recipe reference records the gated Microsoft options and their lifecycle. MA
 
 ## Voice craft
 
-1. One distinct voice per character. No Sarosh clone.
+1. One distinct voice per character. Voice clones run only for personal or ABACare films, made with AssemblyAI cloned voices (consented reference recording, 60 day validity, renewable) for the owner and for ABACare's co-founder, who records her own consent. Deepgram has no self-serve cloning. ElevenLabs needs a written reason in the job; the Deloitte pursuit films (Revolva, Empowera, CoLedger) stay on ElevenLabs. Azure never makes a clone.
 2. Governed DragonHD voices take no style argument. Keep the existing allowlisted styles for already authorized standard Jenny, Guy and Aria jobs.
 3. Let the model infer prosody. Use SSML only for pronunciation, breaks and rate. Pronunciation comes from `scripts/pronunciation_lexicon.json` through `quote(..., pronunciations=[...])` (standard voices only; the adapter writes the `<phoneme>` markup, never the caller). Run `scripts/check_script_terms.py` on the locked script first and pass its `pin` list. HD has no `prosody`, `emphasis`, `bookmark` or `viseme`.
 4. Use HD speaking styles only on voices with English as the primary language.
 5. Check `StyleList` first. An unsupported style silently renders the whole element neutral.
-6. Use the recipe in `voice-recipes.md`. Do not audition another provider for the same line. Do not raw-call a frozen lane.
+6. Use the recipe in `voice-recipes.md`. Do not audition another provider for the same line once the route is chosen. Do not raw-call a frozen lane.
 7. Respell names and brand terms in the synthesis input only, under a versioned `dictionary_revision`. The locked script stays the ASR reference.
 8. Public-preview MAI is not in the adapter. If a preview take drops an opening word, re-render that line on GA DragonHD.
 
@@ -77,7 +77,7 @@ Re-render only the failing line, on the next tier.
 
 ## Images
 
-`POST {AZURE_AI_SERVICES_ENDPOINT}openai/v1/images/generations`, header `api-key`, body `{model, prompt, size, quality, n}`, result `data[0].b64_json`. Limit 2 requests/min per deployment, so queue small batches. The owner files the quota form (https://aka.ms/oai/stuquotarequest); until then Gemini Batch ($0.0195) covers volume.
+`POST {AZURE_AI_SERVICES_ENDPOINT}openai/v1/images/generations`, header `api-key`, body `{model, prompt, size, quality, n}`, result `data[0].b64_json`. Limit 2 requests/min per deployment, so queue small batches. The owner files the quota form (https://aka.ms/oai/stuquotarequest); until then Gemini Batch covers volume once the Gemini API pause ends (2026-12-01). Vertex only in project `sh-docs-search-9863`.
 
 ## Avatar clips
 

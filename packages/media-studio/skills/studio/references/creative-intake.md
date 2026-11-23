@@ -39,11 +39,11 @@ Use the existing `script` stage to write the formal treatment, screenplay, beat 
 
 Cast by **delivery quality** (clear instructional, warm conversational, confident authoritative, expressive cinematic, character dialogue), then choose eligible providers from the actual catalog:
 
-- **Azure Speech DragonHD:** approved voices such as Emma2/Andrew2 for conversational walkthroughs; Ava/Andrew where suitable.
+- **Deepgram:** the default for stock (non-cloned) voices: Flux TTS batch, or Aura-2 when cheaper suffices, according to the governed adapter. ABACare films use AssemblyAI stock voices instead.
+- **Azure Speech DragonHD:** the next route after Deepgram. Approved voices such as Emma2/Andrew2 for conversational walkthroughs; Ava/Andrew where suitable.
 - **Azure OpenAI / OpenAI speech:** directed narration including Marin/Cedar **only when the specific governed route is enabled for this task**.
-- **Deepgram Flux:** suitable for supported prepared/synthetic support narration, according to the governed adapter.
-- **ElevenLabs:** premium speech, dialogue and effects are candidates **only under the applicable authorization and frozen-lane policy**, including the narrow owner-voice exception.
-- **AssemblyAI:** transcription, timing, alignment or independent quality checks; never present it as an executable TTS engine without a verified speech-generation route.
+- **ElevenLabs:** premium speech, dialogue and effects are candidates **only under the applicable authorization and frozen-lane policy**, including the Deloitte pursuit films (Revolva, Empowera, CoLedger), and only with a written reason in the job.
+- **AssemblyAI:** TTS for ABACare films and the only clone route (personal and ABACare films), plus transcription, timing, alignment and independent quality checks. Clones use a consented reference recording with 60 day validity, renewable.
 - Other providers: candidates only after checking `route_media.py --catalog`, actual model/voice compatibility, authorization, and pricing.
 
 Do not promise that any named voice is currently callable merely because its documentation exists. Never generate fake audio previews or describe an unplayed sample as heard.
@@ -57,7 +57,7 @@ When a real audition is useful and authorized:
 5. Present actual playable previews with meaningful names; if audio cannot be played or audition approval is unavailable, present an explicit limitation, not a fabricated opinion of the voices.
 6. Save the approved choice for the current film/series and regenerate only changed or rejected segments.
 
-A requested cloned voice does not bypass existing private consent, account, spend or scope rules. Do not automatically audition a full provider roster on every film.
+A requested cloned voice does not bypass existing private consent, account, spend or scope rules. Clones are for personal or ABACare films only, through AssemblyAI. Before any generation, name the owning entity and read its live balance; use the provider with the most usable credit for that entity. Do not automatically audition a full provider roster on every film.
 
 ## Picture and capture choice
 
