@@ -7,6 +7,7 @@ import pathlib
 import struct
 import tempfile
 import threading
+import types
 import unittest
 import wave
 from unittest.mock import patch
@@ -100,10 +101,19 @@ class AdapterTests(unittest.TestCase):
                 plan(expressivity=value)
 
     def test_price_policy_lapse_fails_closed(self):
-        today = adapter.datetime.datetime.now(adapter.datetime.timezone.utc).date()
-        with patch.object(adapter, "PRICE_VALID_THROUGH", today):
+        real = adapter.datetime
+        last_day = adapter.PRICE_VALID_THROUGH
+
+        def frozen_on(day):
+            class Clock(real.datetime):
+                @classmethod
+                def now(cls, tz=None):
+                    return real.datetime.combine(day, real.time(23, 59, 59), tz)
+            return types.SimpleNamespace(datetime=Clock, timezone=real.timezone, date=real.date)
+
+        with patch.object(adapter, "datetime", frozen_on(last_day)):
             self.assertEqual(plan()["request"]["price_policy"], adapter.PRICE_POLICY)
-        with patch.object(adapter, "PRICE_VALID_THROUGH", today - adapter.datetime.timedelta(days=1)):
+        with patch.object(adapter, "datetime", frozen_on(last_day + real.timedelta(days=1))):
             with self.assertRaisesRegex(RuntimeError, "price policy expired"):
                 plan()
 
