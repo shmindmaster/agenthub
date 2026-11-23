@@ -20,7 +20,8 @@ from functools import lru_cache
 
 BUCKET = "deepgram/usd-micros"
 PRICE_POLICY = "flux-payg-2026-10-24-45-microusd-per-utf8-byte"
-PRICE_VALID_THROUGH = datetime.date(2026, 11, 24)
+# Flux TTS pay-as-you-go $0.045 per 1,000 characters, re-verified on deepgram.com/pricing 2026-11-23.
+PRICE_VALID_THROUGH = datetime.date(2026, 12, 23)
 ENDPOINT = "https://api.deepgram.com/v2/speak"
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 DEFAULT_VOICE = "flux-sienna-en"

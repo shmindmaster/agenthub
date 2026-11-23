@@ -99,6 +99,14 @@ class AdapterTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 plan(expressivity=value)
 
+    def test_price_policy_lapse_fails_closed(self):
+        today = adapter.datetime.datetime.now(adapter.datetime.timezone.utc).date()
+        with patch.object(adapter, "PRICE_VALID_THROUGH", today):
+            self.assertEqual(plan()["request"]["price_policy"], adapter.PRICE_POLICY)
+        with patch.object(adapter, "PRICE_VALID_THROUGH", today - adapter.datetime.timedelta(days=1)):
+            with self.assertRaisesRegex(RuntimeError, "price policy expired"):
+                plan()
+
     def test_sienna_keeps_the_existing_request_key(self):
         expected = "cb0969c840bdeec2df12449fa59c100d67dc2905093a5bc798be7f0611eb7dae"
         self.assertEqual(plan()["cache_key"], expected)
