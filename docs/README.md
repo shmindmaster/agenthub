@@ -100,8 +100,6 @@ stranger-safe first run. For this private fleet checkout, also use
 
 ## Proposals
 
-- [proposals/consolidation-and-naming.md](./proposals/consolidation-and-naming.md) —
-  plugin consolidation and `ah-` naming proposal (SH-4636/SH-4637).
 - [proposals/media-studio-2.1-sync-and-build.md](./proposals/media-studio-2.1-sync-and-build.md) —
   proposed media-studio 2.1: word-synced text, diagrams that build on narration
   beats, emphasis role tokens, and the word-sync gate (review only).
