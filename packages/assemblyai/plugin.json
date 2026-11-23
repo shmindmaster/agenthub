@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-assemblyai",
-  "version": "1.2.3",
-  "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools.",
+  "version": "1.2.4",
+  "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools. Also text-to-speech and voice clones for ABACare and personal films.",
   "author": {
     "name": "Sarosh Hussain"
   },

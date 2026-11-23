@@ -65,4 +65,4 @@ Run one in a fresh session on that host. A pass prints the marker and the two UR
 
 ## Keys
 
-The MCP entries carry no key. Sign-in is OAuth. Code that calls the REST API reads `ASSEMBLYAI_API_KEY` from the environment. Media work goes through `media-studio`, not this plugin.
+The MCP entries carry no key. Sign-in is OAuth. Code that calls the REST API reads `ASSEMBLYAI_API_KEY` from the environment. Media work goes through `media-studio`, not this plugin. AssemblyAI also does TTS: stock voices for ABACare films, and cloned voices for personal and ABACare films only (consented reference, 60 day validity, renewable). `media-studio` picks it for those.

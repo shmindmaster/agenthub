@@ -7,6 +7,7 @@ import pathlib
 import struct
 import tempfile
 import threading
+import types
 import unittest
 import wave
 from unittest.mock import patch
@@ -98,6 +99,23 @@ class AdapterTests(unittest.TestCase):
         for value in (float("nan"), float("inf"), True, -1, 2):
             with self.assertRaises(ValueError):
                 plan(expressivity=value)
+
+    def test_price_policy_lapse_fails_closed(self):
+        real = adapter.datetime
+        last_day = adapter.PRICE_VALID_THROUGH
+
+        def frozen_on(day):
+            class Clock(real.datetime):
+                @classmethod
+                def now(cls, tz=None):
+                    return real.datetime.combine(day, real.time(23, 59, 59), tz)
+            return types.SimpleNamespace(datetime=Clock, timezone=real.timezone, date=real.date)
+
+        with patch.object(adapter, "datetime", frozen_on(last_day)):
+            self.assertEqual(plan()["request"]["price_policy"], adapter.PRICE_POLICY)
+        with patch.object(adapter, "datetime", frozen_on(last_day + real.timedelta(days=1))):
+            with self.assertRaisesRegex(RuntimeError, "price policy expired"):
+                plan()
 
     def test_sienna_keeps_the_existing_request_key(self):
         expected = "cb0969c840bdeec2df12449fa59c100d67dc2905093a5bc798be7f0611eb7dae"

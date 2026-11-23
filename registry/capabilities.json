@@ -701,7 +701,7 @@
         "produce",
         "finish"
       ],
-      "contentHash": "84DAB3BF9EBBADDDCA313A4FA097994510AE95458F3C636A7DCC09E213B4F324",
+      "contentHash": "4FF4D027C9E9A0F6C17F47745E31DF701AB16ADC30C525612F33FDB9CF4CFD62",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -972,7 +972,7 @@
       "managedSkillNames": [
         "assemblyai"
       ],
-      "contentHash": "BD7CFDD8377E787F3B033B9A72219D137587BF17B64BF6215F54FD5EA600C4AE",
+      "contentHash": "64C5123E12D44B72A1E1FC3DF6968DE40B1C1FAB7FCB34C3C4DE1D7ED51A2521",
       "hashBasis": "packages/assemblyai",
       "status": "active-canonical",
       "hostMappings": [

@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-assemblyai",
   "displayName": "AH-AssemblyAI",
-  "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools.",
+  "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools. Also text-to-speech and voice clones for ABACare and personal films.",
   "disabled": true,
   "suggestedPrompts": [
     "Look up the current AssemblyAI transcript parameters",
@@ -19,6 +19,6 @@
     "asr",
     "mcp"
   ],
-  "version": "1.2.3",
+  "version": "1.2.4",
   "logo": "assets/icon.svg"
 }

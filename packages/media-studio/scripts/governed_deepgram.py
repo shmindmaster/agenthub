@@ -20,6 +20,7 @@ from functools import lru_cache
 
 BUCKET = "deepgram/usd-micros"
 PRICE_POLICY = "flux-payg-2026-10-24-45-microusd-per-utf8-byte"
+# Flux TTS pay-as-you-go $0.045 per 1,000 characters, re-verified on deepgram.com/pricing 2026-11-23.
 NARRATION_POLICY = json.loads(pathlib.Path(__file__).with_name("narration-deepgram-policy.json").read_text(encoding="utf-8"))
 PRICE_VALID_THROUGH = datetime.date.fromisoformat(NARRATION_POLICY["validThrough"])
 ENDPOINT = "https://api.deepgram.com/v2/speak"

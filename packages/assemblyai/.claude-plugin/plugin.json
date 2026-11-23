@@ -1,7 +1,7 @@
 {
   "name": "ah-assemblyai",
   "displayName": "AH-AssemblyAI",
-  "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools.",
+  "description": "Transcribe audio, identify speakers, and analyze transcripts with the hosted AssemblyAI tools. Also text-to-speech and voice clones for ABACare and personal films.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -15,6 +15,6 @@
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "icon": "./assets/icon.svg"
 }
