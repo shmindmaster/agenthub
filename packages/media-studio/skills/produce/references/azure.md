@@ -77,7 +77,7 @@ Re-render only the failing line, on the next tier.
 
 ## Images
 
-`POST {AZURE_AI_SERVICES_ENDPOINT}openai/v1/images/generations`, header `api-key`, body `{model, prompt, size, quality, n}`, result `data[0].b64_json`. Limit 2 requests/min per deployment, so queue small batches. The owner files the quota form (https://aka.ms/oai/stuquotarequest); until then Gemini Batch covers volume once the Gemini API pause ends (2026-12-01). Vertex only in project `sh-docs-search-9863`.
+`POST {AZURE_AI_SERVICES_ENDPOINT}openai/v1/images/generations`, header `api-key`, body `{model, prompt, size, quality, n}`, result `data[0].b64_json`. Limit 2 requests/min per deployment, so queue small batches. The owner files the quota form (https://aka.ms/oai/stuquotarequest); until then check the private routing table for whether Gemini Batch is available; Vertex runs only in the owner's designated project.
 
 ## Avatar clips
 

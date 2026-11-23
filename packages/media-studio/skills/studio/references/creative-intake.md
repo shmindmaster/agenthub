@@ -39,11 +39,11 @@ Use the existing `script` stage to write the formal treatment, screenplay, beat 
 
 Cast by **delivery quality** (clear instructional, warm conversational, confident authoritative, expressive cinematic, character dialogue), then choose eligible providers from the actual catalog:
 
-- **Deepgram:** the default for stock (non-cloned) voices: Flux TTS batch, or Aura-2 when cheaper suffices, according to the governed adapter. ABACare films use AssemblyAI stock voices instead.
+- **Deepgram:** the default for stock (non-cloned) voices: Flux TTS batch through the governed adapter (Flux Sienna and Haley; Aura-2 is not governed yet). ABACare films use AssemblyAI stock voices instead.
 - **Azure Speech DragonHD:** the next route after Deepgram. Approved voices such as Emma2/Andrew2 for conversational walkthroughs; Ava/Andrew where suitable.
 - **Azure OpenAI / OpenAI speech:** directed narration including Marin/Cedar **only when the specific governed route is enabled for this task**.
 - **ElevenLabs:** premium speech, dialogue and effects are candidates **only under the applicable authorization and frozen-lane policy**, including the Deloitte pursuit films (Revolva, Empowera, CoLedger), and only with a written reason in the job.
-- **AssemblyAI:** TTS for ABACare films and the only clone route (personal and ABACare films), plus transcription, timing, alignment and independent quality checks. Clones use a consented reference recording with 60 day validity, renewable.
+- **AssemblyAI:** TTS for ABACare films and the only clone route (personal and ABACare films), callable only once `assemblyai-tts` is not frozen in `policy/provider-routing.json` and a governed adapter runs it; until then deliver the ABACare cut with the next eligible stock route and note the gap, plus transcription, timing, alignment and independent quality checks. Clones use a consented reference recording with 60 day validity, renewable.
 - Other providers: candidates only after checking `route_media.py --catalog`, actual model/voice compatibility, authorization, and pricing.
 
 Do not promise that any named voice is currently callable merely because its documentation exists. Never generate fake audio previews or describe an unplayed sample as heard.

@@ -20,8 +20,8 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 **Hard repository boundary.** Treat every product repository as read-only. Before the first write, record `repositoryWritePolicy: read-only` and an absolute external workspace in `job.json`. Never create or change video code, Playwright specs, Remotion compositions, dependencies, configuration, fixtures, assets, evidence, media or Git state there, not even "one small helper". Product changes return as readiness feedback. No external workspace possible: stop with `PIPELINE_BLOCKED`.
 
 - Real user data on a live product: stop with `PIPELINE_BLOCKED`.
-- Stock film speech uses Deepgram first (Flux batch, or Aura-2), then governed GA Azure DragonHD; ABACare films use AssemblyAI stock voices. Desktop speech, HeyGen stock avatar voices and Local AI are forbidden for delivery, rehearsal and drafts.
-- Voice clones only for personal or ABACare films, made with AssemblyAI cloned voices. Speaker similarity is advisory; never fail or re-voice on it.
+- Stock film speech uses Deepgram first (governed Flux batch), then governed GA Azure DragonHD; ABACare films use AssemblyAI stock voices. Desktop speech, HeyGen stock avatar voices and Local AI are forbidden for delivery, rehearsal and drafts.
+- Voice clones only for personal or ABACare films, made with AssemblyAI cloned voices once a governed adapter exists; the one ElevenLabs clone exception is the manifest-named Deloitte pursuit films (`content-controls.md`). Speaker similarity is advisory; never fail or re-voice on it.
 - Reuse accepted assets. Repair order: recut, recapture, rewrite.
 - **Verified current-product screencasts** use real captured WebM plus Recast for factual functionality. **Vision, fictional and concept films** may render wholly synthetic UI, realistic human characters and animated scenes via their supported image/video/Remotion workflow. Do not mislabel concept UI as verified current behavior.
 - Captions are a sidecar `.srt` only, never embedded or burned in.
