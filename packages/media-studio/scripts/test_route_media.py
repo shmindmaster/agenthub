@@ -112,15 +112,17 @@ class Routing(unittest.TestCase):
         rules = " ".join(POLICY["rules"])
         self.assertIn("Voice has no free lane", rules)
         self.assertIn("Windows Narrator", rules)
-        self.assertIn("excluded", rules)
+        self.assertIn("written reason", rules)
         self.assertIn("public preview", rules)
         self.assertIn("Marin", rules)
         self.assertIn("silent", rules)
 
-    def test_assemblyai_is_the_conditional_long_narration_entry_for_each_entity(self):
-        for identity in ("any", "mahumtech", "abacare"):
+    def test_long_narration_is_deepgram_except_abacare_which_adds_assemblyai(self):
+        for identity, expected in (("mahumtech", ["deepgram-flux"]), ("personal", ["deepgram-flux"]),
+                                   ("abacare", ["assemblyai-tts", "deepgram-flux"])):
             lanes = r.route(POLICY, ["long-narration"], identity=identity)
-            self.assertEqual([(lane["id"], lane["status"]) for lane in lanes], [("assemblyai-tts", "conditional")])
+            self.assertEqual([lane["id"] for lane in lanes], expected)
+            self.assertTrue(all(lane["status"] == "conditional" for lane in lanes))
 
     def test_image_generation_video_lanes_stay_frozen(self):
         for lane_id in ("higgsfield", "runway", "runware-pvideo-avatar", "runware-minimax-music"):

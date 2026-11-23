@@ -1,23 +1,23 @@
 {
   "schema": "media-studio/provider-routing/1",
-  "revision": "provider-routing-2026-11-11-1",
-  "asOf": "2026-11-13",
-  "basis": "Provider capabilities and public pricing docs reviewed 2026-11-10; balances and plans remain as recorded in the Linear credits ledger 2026-11-04 to 2026-11-06 and were not reverified in any vendor console. Re-check a balance before a paid run that depends on it.",
+  "revision": "provider-routing-2026-11-23-1",
+  "asOf": "2026-11-23",
+  "basis": "Provider capabilities and public pricing docs reviewed 2026-11-10; owner credit routing updated 2026-11-23 and the Deepgram Flux rate re-checked that day. Balances named on lanes below date from 2026-11-03 to 2026-11-06 and are stale: a balance older than a week, or missing, is unknown. Read the live balance where each lane says and record it in the private credits ledger before a paid run.",
   "rules": [
-    "Credits are a temporary subsidy, not permission to raise spending caps.",
+    "Before any paid generation, name the owning entity, read its live balance, and use the provider with the most usable credit for it. Credits fund only their own entity and are used before pay-as-you-go spend; a credit is not permission to raise a spending cap.",
     "Live Runware catalogue (2026-11-10): Seedream 5.5 is coming-soon; do not route or infer production availability from its public model page. MiniMax H3 Image promotion covers 4K only until November 17. MiniMax H3 Lite/Highspeed video pricing is promotional until December 31; P-Video-2-Pro-Replace discount until November 19 is for person replacement, not general text-to-video; Kling 4.0 Flash 15% discount expires November 10. Always re-quote live schemas and never hardcode promotions as evergreen defaults.",
     "Allow photorealistic synthetic people of any age, fictional patients, families, clinicians, unblurred synthetic data and fully designed speculative UIs where the story calls for them. No automatic blur or age restriction. Label proposed functionality rather than treating it as verified current behavior; live-product proof uses source-hashed capture.",
     "Do not interpret route_media.py sorting by status/free as an actual numerical lowest-cost model ranking. It discovers usable lanes; model selection also requires current per-model price, actual task/configuration, truth/quality verification and consent. Read skills/produce/references/provider-cost-quality-routing.md.",
     "For Runware model research, use scripts/quote-runware-models.mjs against the canonical live model index and schemas with no key/spend; if pricing needs configuration or GPU-time measurements, report manual-quote instead of guessing. A quote does not authorize generation.",
-    "AssemblyAI analyzes speech and can act as a second transcript or timestamp opinion when explicitly requested; it does not generate images/video. ElevenLabs offers premium voice and music/effects/ASR candidates, but frozen direct-account lanes remain frozen until governed adapter and owner authorization in that task.",
+    "AssemblyAI generates speech (TTS-1 stock voices and consented cloned voices) and analyzes speech, including a second transcript or timestamp opinion when explicitly requested; it does not generate images or video. ElevenLabs offers premium voice and music/effects/ASR candidates; use it only with a written reason in the job, through the governed adapter and the owner's authorization.",
     "For every creative asset choose the approved film mode and storyboard goal first, then compare accepted media and available generation on equal quality and cost. Fully synthetic image/video/3D/UI and human scenes may be the whole movie in vision, fiction, abstract or conceptual modes. Only factual demonstrations of current functionality require real capture.",
     "Cheapest lane that passes QA wins for a picture. A free picture lane (Remotion kit, Lottie, hand-drawn SVG, Playwright capture) beats any paid picture lane. Voice has no free lane.",
-    "For new narration, use scripts/narration-preflight.mjs to check current rates and available funding. Eligible AssemblyAI is the long-form default. Preserve accepted takes and explicitly pinned casts. Deepgram Haley batch synthesis serves prepared support prompts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
-    "Azure first for its funded image and established speech recipes on the MahumTech resource mt-foundary-resource. New long-form narration follows the live narration preflight.",
-    "The direct ElevenLabs account and API are excluded from recipe defaults. The governed adapter remains in the package and is not a film voice. No voice clone of the owner, except the manifest-named Deloitte pursuit films for Revolva, Empowera and CoLedger (owner direction 2026-11-03).",
+    "For new narration, use scripts/narration-preflight.mjs to check current rates and available funding. Stock (non-cloned) voices come from Deepgram Flux (flux-sienna-en or flux-haley-en, MahumTech project) for every film except ABACare, then MahumTech Azure Speech, then OpenAI. ABACare films use AssemblyAI stock voices on ABACare credit. Voice clones of Sarosh, or of Syeda F. Abidi from her own recorded consent, are for personal or ABACare films only and use AssemblyAI cloned voices (owner direction 2026-11-23). Preserve accepted takes and explicitly pinned casts. Marin on Azure OpenAI is gated for directed narration. MAI remains in public preview. It and the other documented Azure candidates stay gated. Windows Narrator, SAPI, System.Speech, OneCore, edge-tts, espeak, say and HeyGen stock avatar voices are forbidden. If the governed route cannot run, deliver the cut silent with the lines on screen.",
+    "MahumTech Azure (mt-foundary-resource) is the image default for every entity except ABACare and the speech fallback after Deepgram. ABACare images use the OpenAI ABACare org grant until it expires on 2026-11-26, then Runware API credit. New narration follows the live narration preflight.",
+    "ElevenLabs is never a recipe default; use it only with a written reason in the job, through the governed adapter. Clones: Sarosh, and Syeda F. Abidi from her own recorded consent, for personal or ABACare films only, through AssemblyAI cloned voices. An ElevenLabs clone of the same two people for those films needs a written reason. The only other clone is the owner PVC on Eleven v4 for the manifest-named Deloitte pursuit films for Revolva, Empowera and CoLedger (owner direction 2026-11-03). Deepgram has no self-serve cloning, so it is not a clone route.",
     "Higgsfield, Runway and Google Vertex spend stays frozen until the owner approves it in the current task. The funded generative-video lane is IrukaDark (approved hero shots only).",
     "Local AI is off on this PC: no local models, TTS, STT or embedders. Self-hosted models on cloud GPUs are allowed inside the compute caps.",
-    "The owner picks the entity each film is made for and uses whatever credit fits. Name the identity in the quote; never stop on ownership.",
+    "The owner picks the entity each film is made for; name it in the quote and never stop on ownership. Credits pay only for their own entity. Personal films have no credit pool of their own: they use the AssemblyAI clone (ABACare account) and Deepgram stock voices (MahumTech project), and that spend is logged as personal.",
     "Do not introduce a provider merely because a key or a startup credit exists for it.",
     "Every lane is exposed to the agent, including by-hand ones: run route_media.py --catalog to see all of them with their mode (script, api, connector or browser) and status. A browser lane is driven through Claude in Chrome on the owner's already signed-in session; never enter credentials or card details, ask before each download, and judge the file before it is accepted.",
     "A frozen lane is listed with what would unfreeze it. Frozen means the owner has not approved that spend in this task, not that the capability is hidden.",
@@ -119,10 +119,10 @@
         "audio"
       ],
       "status": "ready",
-      "cost": "Azure credit ($673.77 of $700 left on 2026-11-03, expires 2027-10-17; a separate $281 legacy credit expires 2026-11-12)",
+      "cost": "MahumTech Azure credit (expires 2027-10-17); read the live balance before a paid run",
       "identity": "mahumtech",
       "how": "scripts/governed_azure_speech.py with an authorization manifest and ledger. Pin names through pronunciation_lexicon.json first.",
-      "notes": "Governed GA DragonHD voices are Ava, Andrew, Emma2 and Andrew2. Choose Emma2 or Andrew2 for new conversational walkthroughs, with Ava as fallback. No style argument. See the voice recipes for gated options."
+      "notes": "Stock narration fallback after Deepgram for every entity except ABACare, and the voice of established Azure recipes. Governed GA DragonHD voices are Ava, Andrew, Emma2 and Andrew2; Emma2 or Andrew2 for conversational walkthroughs, with Ava as fallback. No style argument. See the voice recipes for gated options."
     },
     {
       "id": "windows-narrator",
@@ -162,14 +162,15 @@
         "dialogue"
       ],
       "status": "frozen",
-      "cost": "Creator plan, about 116,400 characters left, resets 2026-11-13",
+      "cost": "Creator plan; read GET /v1/user/subscription before a run",
       "identity": "mahumtech",
-      "how": "Do not call it. The direct ElevenLabs account and API are excluded from recipe defaults. Owner-authorized jobs run scripts/elevenlabs_cli.py: `tts` for single-voice speech and `dialogue` for multi-voice text-to-dialogue on eleven_v4, each with its own immutable manifest kind and epoch ledger.",
-      "notes": "Excluded 2026-11-06. Model eleven_v4 and scripts/governed_elevenlabs.py stay in the package for already authorized jobs; they are not a film default. Owner direction 2026-11-03 (overlays/personal/guidance/media.md): the Deloitte pursuit films for Revolva, Empowera and CoLedger may use the owner PVC on Eleven v4; every other film keeps the no-clone rule. Owner direction 2026-11-11 (Revolva film session): owner-authorized jobs may use ElevenLabs dialogue, sound effects and music under the same manifest, ledger, fence and acceptance controls as speech."
+      "how": "Only with a written reason in the job and the owner's authorization; never a recipe default. Authorized jobs run scripts/elevenlabs_cli.py: `tts` for single-voice speech and `dialogue` for multi-voice text-to-dialogue on eleven_v4, each with its own immutable manifest kind and epoch ledger.",
+      "notes": "Owner direction 2026-11-23: ElevenLabs only with a written reason, because it burns credit fast; clones of Sarosh and Syeda F. Abidi go through AssemblyAI first. Owner direction 2026-11-03: the Deloitte pursuit films for Revolva, Empowera and CoLedger may use the owner PVC on Eleven v4. Owner direction 2026-11-11 (Revolva film session): owner-authorized jobs may use ElevenLabs dialogue, sound effects and music under the same manifest, ledger, fence and acceptance controls as speech."
     },
     {
       "id": "deepgram-flux",
       "needs": [
+        "long-narration",
         "voice",
         "narration",
         "dialogue",
@@ -178,8 +179,8 @@
       "status": "conditional",
       "cost": "Deepgram, published $0.045 per 1,000 characters for Flux TTS (2026-11-23)",
       "identity": "any",
-      "how": "Use scripts/deepgram_cli.py --voice flux-haley-en --expressivity 0 at normal speed for prepared support prompts. The CLI defaults to flux-sienna-en for existing callers.",
-      "notes": "The governed Flux route synthesizes batch audio for support prompts. Streaming and interruption require a separate integration."
+      "how": "New narration: node scripts/narration-preflight.mjs quote, then the governed scripts/deepgram_cli.py batch endpoint (POST /v2/speak) with flux-sienna-en or flux-haley-en. Prepared support prompts: --voice flux-haley-en --expressivity 0 at normal speed. The CLI defaults to flux-sienna-en for existing callers.",
+      "notes": "Default stock narration for every film except ABACare (owner direction 2026-11-23), on the MahumTech project, whose credit does not expire; Flux TTS spend is matched $1 for $1 in credit up to $500 through 2026-12-31. Read funding in the Deepgram console: the API key lacks billing:read. Streaming and interruption require a separate integration."
     },
     {
       "id": "runware-fish-s2",
@@ -218,10 +219,10 @@
         "voice"
       ],
       "status": "conditional",
-      "cost": "Live AssemblyAI TTS-1 character rate; dashboard funding checked separately.",
-      "identity": "any",
+      "cost": "ABACare AssemblyAI credit at the live TTS-1 character rate; read the balance in the dashboard (Settings > Billing, no balance API).",
+      "identity": "abacare",
       "how": "node scripts/narration-preflight.mjs quote script.json funding.json; execute only with the pinned quote, current funding and exact job authorization.",
-      "notes": "Preferred for eligible new long-form stock narration. Group adjacent same-speaker text within the HTTP limit; no Batch discount assumed."
+      "notes": "ABACare stock narration, and the clone route for Sarosh and for Syeda F. Abidi with her own recorded consent (personal or ABACare films only, each clone from that person's own reference recording). Other entities use Deepgram for stock voices. Group adjacent same-speaker text within the HTTP limit; no Batch discount assumed."
     },
     {
       "id": "runware-seed-audio",
@@ -304,10 +305,10 @@
         "background"
       ],
       "status": "ready",
-      "cost": "Runware credit, $252.00 on 2026-11-04; $0.0062 per 1536x1024 picture (reported by the provider, 2026-11-06)",
+      "cost": "Runware Startup Program API credit (ABACare, no expiry; read it with the accountManagement getDetails task, the 2026-11-04 reading is stale); $0.0062 per 1536x1024 picture (reported by the provider, 2026-11-06)",
       "identity": "any",
       "how": "scripts/generate_stills.py <jobRoot> --lane runware-image. Default and ONLY validated model in this fixed-payload adapter is runware:z-image@0. Other image models require a schema-specific governed adapter and matching price quote; MEDIA_STUDIO_RUNWARE_IMAGE_MODEL override is intentionally refused before paid calls. RUNWARE_API_KEY from the environment.",
-      "notes": "The cheap draft and iteration lane. Verified by a real call on 2026-11-06. The owner chooses which entity a film is made for; the credit belongs to ABACare, so name that in the quote and never treat it as a blocker. The SOP-bound training adapter (kit/cloud/runware-image.mjs) is separate and stays for Empowera training stills."
+      "notes": "The cheap draft and iteration lane. Verified by a real call on 2026-11-06. The API credit and Runware Serverless (a separate dedicated-GPU product whose daily low-balance email does not affect API calls) are two separate pools; never report one as the other. The credit belongs to ABACare: ABACare images move here after the OpenAI grant expires on 2026-11-26. The SOP-bound training adapter (kit/cloud/runware-image.mjs) is separate and stays for Empowera training stills."
     },
     {
       "id": "irukadark",
@@ -341,7 +342,7 @@
       ],
       "status": "conditional",
       "mode": "api",
-      "cost": "Runware credit, the same $252.00 balance as runware-image (2026-11-04). Models are billed per second; the provider's price schema for alibaba-wan3-0 lists $0.05, $0.10 and $0.20 per second at 480p, 720p and 1080p (read from runware.ai/docs/models/<model>/schema.json, free to read).",
+      "cost": "Runware API credit, the same pool as runware-image (read it live with getDetails). Models are billed per second; the provider's price schema for alibaba-wan3-0 lists $0.05, $0.10 and $0.20 per second at 480p, 720p and 1080p (read from runware.ai/docs/models/<model>/schema.json, free to read).",
       "identity": "any",
       "how": "Runware inference API, taskType videoInference, with RUNWARE_API_KEY from the environment, the same key generate_stills.py uses. Read the model's schema JSON for its price and inputs first, request includeCost, and cap the spend at the quote. There is no wrapper script yet, so write one on the generate_stills.py pattern (quote by default, cache by content hash, ledger line per clip) before a run.",
       "notes": "UNTESTED: no video request has been made to Runware. Approved hero shots only. Runware credits are separate from the frozen Higgsfield and Runway balances. Image-to-video from an accepted still is the safest first test, because it keeps the look the film already has."
@@ -570,7 +571,7 @@
       "cost": "OpenAI direct gpt-image-2.6: $5 text in, $8 image in, $30 image out per 1M tokens; about $0.04 low to $0.37 max per 1536x1024 picture (planning estimate); Batch halves it",
       "identity": "any",
       "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. generateImage({model}) with gpt-image-2.6-flare (default) or gpt-image-2.6-sunburst (hero, precise edits).",
-      "notes": "Verified 2026-11-13: gpt-image-2.6-flare low 1024x1024 (824 output tokens). Flare first, Sunburst as the precision escalation; azure-image and runware-image stay available. Not for exact product UI, charts or text: use capture and the kit."
+      "notes": "Verified 2026-11-13: gpt-image-2.6-flare low 1024x1024 (824 output tokens). Flare first, Sunburst as the precision escalation; azure-image and runware-image stay available. Not for exact product UI, charts or text: use capture and the kit. ABACare images use the ABACare org grant until it expires on 2026-11-26, then runware-image."
     },
     {
       "id": "openai-speech",

@@ -2,9 +2,12 @@
 
 Begin here for new recorded narration in any Media Studio project. Reuse accepted
 audio. Keep explicitly approved voices and provider restrictions on existing
-jobs. Eligible AssemblyAI stock voices are the first choice for long-form
-narration, including a script marked long-form or one with 1,200 or more words.
-For short scripts, use the least expensive eligible quoted option. Keep voice,
+jobs. Stock (non-cloned) voices default to eligible Deepgram Flux (`flux-sienna-en`
+or `flux-haley-en`) for every entity except ABACare. ABACare scripts
+(`"entity": "abacare"`) default to eligible AssemblyAI stock voices on ABACare
+credit. Outside ABACare, AssemblyAI is chosen only when the script names it
+(`"provider": "assemblyai"`), for example a consented clone. When the default
+is ineligible, the least expensive eligible quoted option wins. Keep voice,
 region, performance and timing requirements ahead of list price.
 
 ## Check and quote before submitting

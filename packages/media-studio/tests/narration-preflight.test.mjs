@@ -12,15 +12,16 @@ import { executeAssembly, inspectElevenLabs, makeBatches, parseRate, preflight, 
 const now = Date.parse('2026-11-22T18:30:00Z');
 const env = { ASSEMBLYAI_API_KEY: 'fixture-key', OPENAI_API_KEY: 'openai-fixture', DEEPGRAM_API_KEY: 'dg-fixture' };
 const hash = value => createHash('sha256').update(value).digest('hex');
-const auth = (quote, outputDir, maxUsd = 1) => ({ quoteSha256: hash(JSON.stringify(quote)), entity: 'personal',
+const auth = (quote, outputDir, maxUsd = 1) => ({ quoteSha256: hash(JSON.stringify(quote)), entity: 'abacare',
   maxUsd, outputDir, ownerApproval: 'fixture approval' });
-const snapshot = (key, availableUsd = 20) => ({ entity: 'personal', source: 'dashboard', availableUsd,
+const snapshot = (key, availableUsd = 20) => ({ entity: 'abacare', source: 'dashboard', availableUsd,
   observedAt: new Date(now).toISOString(), credentialSha256: hash(key) });
 const snapshots = { assemblyai: snapshot(env.ASSEMBLYAI_API_KEY), openai: snapshot(env.OPENAI_API_KEY), deepgram: snapshot(env.DEEPGRAM_API_KEY) };
 const stock = { source: 'assemblyai', visibility: 'public', status: 'active', language: 'english', ready_models: ['assemblyai-tts-1'] };
-const script = { entity: 'personal', longForm: true, turns: [{ text: 'The answer opens here.' }, { text: 'The answer continues here.' }] };
+const script = { entity: 'abacare', longForm: true, turns: [{ text: 'The answer opens here.' }, { text: 'The answer continues here.' }] };
 const openaiRate = '### Text tokens\n| Input | $0.6 | 1M tokens |\n### Audio tokens\n| Output | $20 | 1M tokens |\n### Image tokens';
 const assemblyRate = '| AssemblyAI-TTS-1 | \\$15 per 1M input characters | Available |';
+const deepgramPolicy = JSON.parse(readFileSync(new URL('../scripts/narration-deepgram-policy.json', import.meta.url), 'utf8'));
 
 test('standalone commands run through a Media Studio directory link', () => {
   const folder = mkdtempSync(join(tmpdir(), 'studio-narration-cli-'));
@@ -126,7 +127,17 @@ test('group adjacent same-speaker turns and preserve order, exact Unicode and cu
   assert.equal(makeBatches({ entity: 'personal', turns: [{ text: 'A', speaker: 'A' }, { text: 'B', speaker: 'B' }] }, 'assemblyai'), null);
 });
 
-test('long-form defaults to funded AssemblyAI; quote only performs reads', async () => {
+test('stock narration defaults to Deepgram, and to AssemblyAI only for ABACare or when named', async () => {
+  const budget = { readDeepgramBudget: () => 1_000_000 };
+  const personal = Object.fromEntries(Object.entries(snapshots).map(([k, v]) => [k, { ...v, entity: 'personal' }]));
+  const film = { ...script, entity: 'personal' };
+  assert.equal((await preflight(film, { ...fake(), snapshots: personal, now, env, ...budget })).pick, 'deepgram');
+  assert.equal((await preflight(film, { ...fake(), snapshots: personal, now, env })).pick, 'openai');
+  assert.equal((await preflight({ ...film, provider: 'assemblyai' }, { ...fake(), snapshots: personal, now, env })).pick, 'assemblyai');
+  assert.equal((await preflight(script, { ...fake(), snapshots, now, env, ...budget })).pick, 'assemblyai');
+});
+
+test('ABACare narration uses funded AssemblyAI; quote only performs reads', async () => {
   const provider = fake();
   const quote = await preflight(script, { ...provider, snapshots, now, env });
   assert.equal(quote.pick, 'assemblyai');
@@ -140,7 +151,7 @@ test('long-form defaults to funded AssemblyAI; quote only performs reads', async
 test('unknown, stale, low, and mismatched funding never become available credit', async () => {
   const provider = fake();
   for (const bad of [undefined, { ...snapshots.assemblyai, observedAt: '2026-11-19' },
-    { ...snapshots.assemblyai, entity: 'abacare' }, { ...snapshots.assemblyai, credentialSha256: 'wrong' },
+    { ...snapshots.assemblyai, entity: 'personal' }, { ...snapshots.assemblyai, credentialSha256: 'wrong' },
     snapshot(env.ASSEMBLYAI_API_KEY, 0)]) {
     const quote = await preflight(script, { ...provider, snapshots: { assemblyai: bad }, now, env });
     assert.equal(quote.pick, null);
@@ -201,7 +212,7 @@ test('ambiguous provider failure fences the exact request without retrying', asy
 test('OpenAI eligibility checks the built-in voice and estimates unspaced speech', async () => {
   const text = '企業向けの取引処理とシステム改善。'.repeat(40);
   const options = { ...fake(), now, env, snapshots: { openai: snapshot(env.OPENAI_API_KEY, 0.001) } };
-  const wanted = { entity: 'personal', provider: 'openai', language: 'japanese', turns: [{ text }] };
+  const wanted = { entity: 'abacare', provider: 'openai', language: 'japanese', turns: [{ text }] };
   const quote = await preflight(wanted, options);
   assert.equal(quote.pick, null);
   assert.ok(quote.candidates[2].estimatedUsd > 0.01);
@@ -258,7 +269,7 @@ test('Deepgram rejects unsupported language and an expired or changed adapter ra
   const wanted = { ...script, provider: 'deepgram' };
   for (const field of [
     { script: { ...wanted, language: 'french' }, now },
-    { script: wanted, now: Date.parse('2026-11-25T00:00:00Z') },
+    { script: wanted, now: Date.parse(deepgramPolicy.validThrough + 'T00:00:00Z') + 86_400_000 },
   ]) {
     const funds = { deepgram: { ...dg.deepgram, observedAt: new Date(field.now).toISOString() } };
     const quote = await preflight(field.script, { ...provider, snapshots: funds, now: field.now, env });

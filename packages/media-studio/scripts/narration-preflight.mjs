@@ -432,10 +432,14 @@ export async function preflight(script, { snapshots = {}, fetcher = fetch, now =
       requests: batches?.length ?? null, reasons };
   }));
   const eligible = candidates.filter(c => !c.reasons.length && !c.cacheError);
-  const assembly = eligible.find(c => c.provider === 'assemblyai');
+  // Owner direction 2026-11-23: stock voices for ABACare films use AssemblyAI on ABACare credit;
+  // every other film defaults to Deepgram, and AssemblyAI is only chosen there when the job names it.
+  const abacare = script.entity === 'abacare';
+  const routed = abacare ? eligible : eligible.filter(c => c.provider !== 'assemblyai');
+  const stockDefault = routed.find(c => c.provider === (abacare ? 'assemblyai' : 'deepgram'));
   const longForm = script.longForm ?? script.turns.reduce((n, t) => n + t.text.trim().split(/\s+/).length, 0) >= 1200;
   const pick = script.provider ? eligible.find(c => c.provider === script.provider) :
-    (longForm && assembly) || eligible.sort((a, b) => a.estimatedUsd - b.estimatedUsd)[0];
+    stockDefault || routed.sort((a, b) => a.estimatedUsd - b.estimatedUsd)[0];
   return { schema: 1, checkedAt: new Date(now).toISOString(), scriptSha256: hash(canonical(script)),
     entity: script.entity, region: script.region ?? 'us', outputDir: output, longForm, candidates, pick: pick?.provider ?? null,
     assemblyExecution: pick?.provider === 'assemblyai' ? 'available after exact job authorization' : 'use selected governed adapter',

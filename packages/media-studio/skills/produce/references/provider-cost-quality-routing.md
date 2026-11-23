@@ -7,7 +7,7 @@ Always honor `skills/produce/references/content-controls.md`.
 
 ## Responsibilities, not a universal generation provider
 
-- **AssemblyAI** is the default for eligible long-form stock synthesis after the [live narration preflight](narration-preflight.md). It also supports source-audio and encoded-film understanding: transcript, word timestamps, speaker diarization, keyterms, code-switching,
+- **AssemblyAI** generates speech: stock voices for ABACare films and consented cloned voices of Sarosh and Syeda F. Abidi for personal or ABACare films, after the [live narration preflight](narration-preflight.md). **Deepgram Flux** is the stock-voice default for every other film. AssemblyAI also supports source-audio and encoded-film understanding: transcript, word timestamps, speaker diarization, keyterms, code-switching,
   checks that the final narration actually says what was scripted. Existing
   integration: `kit/cloud/cloud-ai.mjs align --provider assemblyai`.
   Its separate richer narrative/diarization QA is a **future integration**, not
@@ -49,8 +49,8 @@ Always honor `skills/produce/references/content-controls.md`.
 4. **Compare like-for-like:** task type, input images/references, ratio,
    resolution, output count, requested length, audio, privacy/retention,
    commercial license, source-identity requirements, latency, total expected
-   price and credit expiry. Paid account credits are a subsidy, not a permission
-   or a substitute for the quote.
+   price and credit expiry. Credits fund only their own entity and are used before
+   pay-as-you-go spend; they are not a permission or a substitute for the quote.
 5. **Quality floor beats price:** prefer the *cheapest capable* live model
    whose accepted samples meet the beat's goals: legible composition,
    continuity, visual truth, voice naturalness, timing, accessibility and no
@@ -152,7 +152,7 @@ These models support optional voice cloning; **do not clone any real
 person without explicit rights and consent**. Keep the same approved
 narrator across episodes. All these new Runware voice lanes remain
 frozen pending a governed, budgeted adapter and a voice audition.
-The existing approved Azure narration route remains the safe default.
+Stock narration stays on Deepgram Flux (AssemblyAI for ABACare), with Azure DragonHD as the fallback.
 
 ### Audience-specific composition and creative scope
 
@@ -214,6 +214,8 @@ PR guidance only: **no inference or paid generation performed**.
 
 Preferred first pass for source audio: current Azure/Deepgram facilities if
 they are already approved, then AssemblyAI when the purpose warrants it.
+AssemblyAI is also a generation route (ABACare stock voices and consented
+clones); this section covers only its review use.
 As of 2026-11-10, Universal-2 is listed at $0.15/hr, Universal-3.5 Pro
 at $0.21/hr pre-recorded. The enhanced 3.5 Pro supports keyterms (paid
 add-on), natural language prompting, diarization and language features.
@@ -255,7 +257,7 @@ Candidate model guidance from official 2026-11-10 docs:
   have separate model, regional and paid API requirements; not a fallback to
   synthesized product UI.
 
-The direct ElevenLabs spend restrictions remain in force. New model
+ElevenLabs runs only with a written reason in the job (owner direction 2026-11-23). New model
 availability in their docs is **not** proof a governed adapter or owner
 authorization exists.
 
