@@ -1,0 +1,41 @@
+{
+  "version": "4.0.1",
+  "canvas": { "width": 1600, "height": 1000, "fps": 30 },
+  "color": {
+    "void": "#070707",
+    "base": "#0B0B0B",
+    "raise": "#121212",
+    "line": "#2A2A2A",
+    "ink": "#E8E4D9",
+    "inkSoft": "#C4BFAF",
+    "muted": "#9A9588",
+    "accent": "#F5C518",
+    "accentAlt": "#7A8CFF",
+    "good": "#3DDC84",
+    "risk": "#E85D5D",
+    "warm": "#FF6B4A"
+  },
+  "type": {
+    "family": "Inter, \"Segoe UI\", system-ui, sans-serif",
+    "mono": "\"JetBrains Mono\", \"Cascadia Code\", Consolas, ui-monospace, monospace",
+    "xl": 168,
+    "l": 112,
+    "m": 76,
+    "s": 52,
+    "body": 34,
+    "label": 22,
+    "caption": 40,
+    "number": 360,
+    "lineHeight": { "display": 0.95, "title": 1.02, "body": 1.35 },
+    "tracking": { "label": 0.28, "display": -0.02 }
+  },
+  "space": { "safeX": 120, "safeTop": 96, "safeBottom": 110, "gutter": 24, "columns": 12 },
+  "radius": { "card": 18, "pill": 999 },
+  "stroke": { "hair": 1, "line": 2, "heavy": 4 },
+  "tone": {
+    "default": "ink",
+    "emphasis": "accent",
+    "good": "good",
+    "risk": "risk"
+  }
+}

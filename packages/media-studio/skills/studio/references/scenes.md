@@ -33,6 +33,15 @@ Needs `story/screenplay.json` and `qa/narration-check.json` with `ok: true`; a m
 
 **`scripts/validate-storyboard.mjs`** reads the episode form only (`episodeId`, `segments[]`). A `beats` file fails it; check `beats` against the schema. On episodes it requires exactly one each of first-segment `coldOpen` (no "welcome to" or login opening), `heroMoment`, `payoff` at an outcome or identity rung, `endCard`, `guardrail`; `beforeState` of 3 to 5 s; order before, hero, payoff; `attentionReset` on a gap over 15 s; two annotations at most; `cursorLeadSeconds` up to 1.5; result visible before it is spoken; `cursorMoveMs` 400 to 600; clicks with 250 ms settle, 500 ms hold, 300 to 400 ms `radial-pulse`; `snap-to-region` 300 to 500 ms, no zoom drift; waits cut or ramped 4x to 8x; text entry chunked or ramped 3x to 4x.
 
+## Composition (explainer films)
+
+A viewer-facing explainer does not render through `Briefing`. `Briefing` is a document layout — kicker, title, subtitle, body — and using it for every scene is the "every beat a type-on-dark slide" failure this file already forbids. Route the film to the `Explainer` composition instead.
+
+- Archetype to family, size tiers, light, set pieces and the diagnostic ladder: [explainer grammar](explainer-grammar.md).
+- The plan (`story/explainer-plan.json`) names one archetype per cue and carries the visual payload; `kit/explainer/build-explainer.mjs` resolves the word anchors and writes the props.
+- A shot's `title` is the line it is about, not the narration repeated. The viewer must be able to watch on mute.
+- Every shot has one hero, one light, one verb action and at least a 1.0 s landing hold. A beat that cannot be placed on a spoken word fails the build; it is never guessed.
+- `validate-explainer-release.mjs --require-metrics` is the release gate. A film that passes every other gate but has no measured hero is still unverified.
 ## Visual bible
 
 Write `visual-bible.json` per `schemas/visual-bible.schema.json`: `jobTitle`, `motif`, `lighting`, `typography`, `compositionRules`, `graphicalLanguage`, `motionTreatment`, `texture`, `continuity`, `brollPlan`.

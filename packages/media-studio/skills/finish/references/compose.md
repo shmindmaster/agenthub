@@ -14,7 +14,7 @@ Check the runtime first; repair a stale one from `MEDIA_STUDIO_PACKAGE_ROOT`; ne
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/briefing-kit'
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '3.1.15') { throw "Stale runtime: $m" } }
+foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '4.0.2') { throw "Stale runtime: $m" } }
 ```
 
 ## Pick the tool
@@ -22,6 +22,7 @@ foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m 
 One renderer per job:
 
 - Archetype kit, parametrised templates: Remotion via the official `remotion-dev/skills` (board 1600×1000, 30 fps). Render only after `validate-picture-inputs.mjs` passes.
+- Viewer-facing explainer or training film: the `Explainer` composition in `kit/explainer/`. Props come from `build-explainer.mjs` (never hand-written), the picture is measured by `measure-explainer-frames.mjs`, and `validate-explainer-release.mjs --require-metrics` must pass. `Briefing` is for decks and legacy jobs, not for a new film.
 - Paused GSAP timeline HTML: HyperFrames, when the job names it.
 - Captured product: Recast, then `compose-screencast.mjs`.
 - Concat, mux, format: FFmpeg, finished by `Finish-Media.ps1`.
