@@ -41,6 +41,11 @@ const marketingSchema = `CREATE TABLE IF NOT EXISTS voice_spend (
   request_id TEXT PRIMARY KEY, account TEXT NOT NULL, entity TEXT NOT NULL, micros INTEGER NOT NULL,
   completed_at INTEGER, audio_sha256 TEXT
 ) STRICT; CREATE INDEX IF NOT EXISTS voice_spend_account ON voice_spend(account, completed_at);`;
+function migrateMarketingWallet(db) {
+  db.exec(marketingSchema);
+  if (!db.prepare('PRAGMA table_info(voice_spend)').all().some(column => column.name === 'audio_sha256'))
+    db.exec('ALTER TABLE voice_spend ADD COLUMN audio_sha256 TEXT');
+}
 const marketingRequestId = (output, lineKey) => hash(canonical([realpathSync(dirname(output)), basename(output), lineKey]));
 
 function speechWordEstimate(text) {
@@ -143,7 +148,7 @@ function marketingWallet(spendDir, entity, funding, recoverInterrupted) {
       mkdirSync(dirname(file), { recursive: true });
       const id = marketingRequestId(output, lineKey);
       withSqliteJournal(file, false, db => {
-        db.exec(marketingSchema);
+        migrateMarketingWallet(db);
         db.exec('BEGIN IMMEDIATE');
         if (db.prepare('SELECT 1 FROM voice_spend WHERE request_id = ?').get(id))
           throw new Error('Previously submitted OpenAI narration line requires reconciliation');
@@ -196,6 +201,7 @@ export function recoverMarketingAudio(output, lineKey, { spendDir = defaultSpend
     if (!row || (row.completed_at !== null && row.audio_sha256 !== actualHash))
       throw new Error('Staged OpenAI narration settlement does not match the saved audio');
   };
+  withSqliteJournal(file, false, migrateMarketingWallet);
   verify(readMarketingWallet(spendDir, true, lookup));
   withSqliteJournal(file, false, db => {
     db.exec('BEGIN IMMEDIATE');
@@ -205,7 +211,7 @@ export function recoverMarketingAudio(output, lineKey, { spendDir = defaultSpend
     db.exec('COMMIT');
   });
   renameSync(staged, output);
-  return true;
+  return { billedMicros: receipt.billedMicros };
 }
 
 function validate(script) {
@@ -496,7 +502,10 @@ export async function executeAssembly(script, quote, authorization, directory, o
       receivedAt: new Date().toISOString() }, 'wx');
     if (!res.ok) throw new Error('AssemblyAI HTTP ' + res.status);
     const audio = Buffer.from(await res.arrayBuffer());
-    if (!validWav(audio)) throw new Error('AssemblyAI response failed WAV verification');
+    if (!validWav(audio)) {
+      writeFileSync(receipt + '.rejected', audio, { flag: 'wx', flush: true });
+      throw new Error('AssemblyAI response failed WAV verification; the billed bytes are kept beside the receipt for reconciliation');
+    }
     const record = { provider: 'assemblyai', model: models.assemblyai, voice: batch.voice, speaker: batch.speaker,
       turns: batch.turns, requestSha256: requestHash, outputSha256: hash(audio), characters: count(batch.text),
       estimatedUsd: nanosToUsd(reservedNanos), actualUsd: null,
@@ -512,7 +521,9 @@ export async function executeAssembly(script, quote, authorization, directory, o
 
 function withSqliteJournal(file, readOnly, work) {
   if (file.startsWith('\\\\') || file.startsWith('//')) throw new Error('Use a local narration ledger');
-  const { DatabaseSync } = require('node:sqlite');
+  let DatabaseSync;
+  try { ({ DatabaseSync } = require('node:sqlite')); }
+  catch (error) { throw new Error('Narration ledgers need Node 22.13 or later (built-in node:sqlite)', { cause: error }); }
   const db = new DatabaseSync(file, { readOnly });
   try {
     db.exec('PRAGMA busy_timeout=5000');

@@ -722,11 +722,14 @@ test('standalone OpenAI voice checks the exact account and model before paid wor
   await voiceStage(ctx);
   assert.deepEqual(readFileSync(firstOutput), completedAudio);
   assert.equal(calls.length, 3);
+  assert.equal(ctx.ledger.entries.filter(e => e.note === 'recovered settled take' && e.units === 0.0128).length, 1,
+    'a recovered settled take is charged to the workspace budget');
   renameSync(firstOutput, firstOutput + '.staged');
   const stagedReceipt = readJson(firstOutput + '.staged.json');
   const spend = new DatabaseSync(join(spendDir, 'openai-narration.sqlite3'));
   try {
     spend.prepare('UPDATE voice_spend SET completed_at = NULL, audio_sha256 = NULL WHERE request_id = ?').run(stagedReceipt.requestId);
+    spend.exec('ALTER TABLE voice_spend DROP COLUMN audio_sha256');
     await voiceStage(ctx);
     assert.equal(spend.prepare('SELECT audio_sha256 FROM voice_spend WHERE request_id = ?').get(stagedReceipt.requestId).audio_sha256,
       stagedReceipt.audioSha256);

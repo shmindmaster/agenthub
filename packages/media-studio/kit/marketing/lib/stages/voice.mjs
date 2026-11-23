@@ -86,7 +86,11 @@ async function planOpenAI(ctx, plans, linePath) {
   const { preflightMarketingOpenAI, recoverMarketingAudio } = await import(source.href);
   for (const key of pending.keys()) {
     const output = linePath(key);
-    if (recoverMarketingAudio(output, key, ctx.providers.narrationPreflight) || existsSync(output)) pending.delete(key);
+    const recovered = recoverMarketingAudio(output, key, ctx.providers.narrationPreflight);
+    // A take settled before an interruption still counts against the workspace budget.
+    if (recovered) ctx.ledger.charge({ stage: 'voice', provider: 'openai', service: 'speech', units: recovered.billedMicros / 1e6,
+      estimated: false, ref: key.slice(0, 12), note: 'recovered settled take' });
+    if (recovered || existsSync(output)) pending.delete(key);
   }
   if (!pending.size) return null;
   const { narrationEntity: entity, narrationFunding } = ctx.flags;
