@@ -13,8 +13,7 @@ Hash each input (voice, style, SSML, format) and reuse an accepted take or plate
 
 ## Routing
 
-Begin with verified, reusable assets and a beat-specific quality floor; Azure
-is the funded default where its governed output meets that floor. Then compare
+Begin with verified, reusable assets and a beat-specific quality floor. For new narration run the [live preflight](narration-preflight.md) before a paid call; Stock (non-cloned) voices come from Deepgram Flux (Sienna or Haley) for every film except ABACare, then Azure DragonHD, then OpenAI; ABACare films use AssemblyAI stock voices on ABACare credit (owner direction 2026-11-23). Compare
 eligible specialist providers at the **same** resolution, length and
 capability. Cheapest **acceptable** result wins, not the cheapest provider
 name or account credit. The legacy `route_media.py` sorts lane readiness;
@@ -25,7 +24,7 @@ Use `references/provider-cost-quality-routing.md` for AssemblyAI,
 ElevenLabs and Runware modality and model choices. Escalate only the asset
 that failed. Default, then escape hatch:
 
-- Narration follows `references/voice-recipes.md`. Governed film voices are GA DragonHD Ava, Andrew, Emma2 and Andrew2.
+- Narration follows the live preflight. Established Azure recipes keep their pinned DragonHD voice. Clones of Sarosh, or of Syeda F. Abidi with her own recorded consent, are for personal or ABACare films only, through AssemblyAI.
 - Take ASR: `cloud-ai.mjs align` on Azure fast transcription; `--provider assemblyai` only when a job names it.
 - Stills: existing approved Azure `gpt-image-2.5-flare` remains callable.
   Runware's proven `runware:z-image@0` remains the only model accepted by
@@ -51,14 +50,14 @@ that failed. Default, then escape hatch:
 
 Paid speech runs only through a governed adapter. A connector, SDK
 sample or raw REST call is ungoverned, even for one line. AssemblyAI
-can independently check source audio, transcript and word timing when a
-job explicitly names that authorized route; it does not generate
-video. Runware can quote image, video, audio/music and 3D from its
+generates stock and consented cloned voices, and can independently check
+source audio, transcript and word timing when a job explicitly names that
+authorized route; it does not generate images or video. Runware can quote image, video, audio/music and 3D from its
 current live catalogue; only individually governed and authorized lanes
 can generate. ElevenLabs offers high-quality expressive voice, Scribe
 transcription, Music v2.5, SFX v3 and specialist editing/dubbing, but
-the direct ElevenLabs account and API remain excluded from new
-recipes until authorization. The governed adapter covers speech,
+ElevenLabs is used only with a written reason in the job and the
+owner's authorization. The governed adapter covers speech,
 dialogue, sound effects and music for owner-authorized jobs;
 ElevenLabs STT stays disabled. An available model, accessible API key or reported
 credit is not an authorization. Higgsfield and Runway credits are frozen until the owner approves. Local AI is off. Use `AZURE_OPENAI_*` and `FOUNDRY_*` only while the endpoint host is `mt-foundary-resource` (MahumTech); never use `AZURE_OPENAI_PNDH_*`, `aif-pndh-*` or any `pndh` host (Pendoah client infrastructure).
@@ -67,7 +66,7 @@ credit is not an authorization. Higgsfield and Runway credits are frozen until t
 
 Use each beat's `direction.register` to guide the performance. Pass style controls only where the governed voice supports them, and shape the rest with script phrasing and edit silence.
 
-Use `references/voice-recipes.md` to select one voice per film or series. For new walkthroughs choose DragonHD Emma2 or Andrew2, with Ava as fallback. The Azure Speech adapter takes no style argument for these voices. Use governed Deepgram batch synthesis with Haley for prepared support prompts. The reference distinguishes callable choices from gated candidates, including Azure OpenAI Marin for directed narration. Reuse accepted takes. If the governed route cannot run, deliver the cut silent with the lines on screen. Desktop speech and HeyGen stock avatar voices are forbidden at every stage. No Sarosh voice clone. Each new line passes the take loop. Speaker similarity is advisory. Add pauses in the edit and use measured word timing.
+Use `references/voice-recipes.md` to select one voice per film or series. Stock narration uses governed Deepgram Flux batch synthesis (Sienna or Haley) except for ABACare films, which use AssemblyAI stock voices. When Azure is the fallback, choose DragonHD Emma2 or Andrew2, with Ava as fallback; the Azure Speech adapter takes no style argument for these voices. Haley also serves prepared support prompts. The reference distinguishes callable choices from gated candidates, including Azure OpenAI Marin for directed narration. Reuse accepted takes. If the governed route cannot run, deliver the cut silent with the lines on screen. Desktop speech and HeyGen stock avatar voices are forbidden at every stage. No Sarosh voice clone. Each new line passes the take loop. Speaker similarity is advisory. Add pauses in the edit and use measured word timing.
 
 ## References
 

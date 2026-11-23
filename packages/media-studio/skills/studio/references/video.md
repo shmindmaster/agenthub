@@ -11,7 +11,7 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 
 - **Kind and reality:** classify the *requested film*, not only the existence of a product. Use `references/creative-formats.md` for verified demos, fictional stories, future visions, day-in-the-life films, documentaries, education, animation and hybrids. Choose `product-screencast` with real captured UI when the movie promises to prove current functionality. Imagined or future-state UI is allowed in a clearly identified concept/vision film and is not forced through the current-product proof gate. A verified product change told as a story may be `programForm: technical-story`; otherwise use `references/forms.md`.
 - **Intent:** `intent: viewer-facing`, `craftScoreMin` 85. `intent: draft` only for scratch or proxy cuts.
-- **Voice:** Follow `generate/references/voice-recipes.md`. Choose governed DragonHD Emma2 or Andrew2 for new conversational walkthroughs, with Ava as fallback. Keep the selected voice and accepted takes for existing films. OpenAI Marin (`openai-speech`) is the option for directed narration. Direct ElevenLabs is excluded from new recipes. If the governed route cannot run, the cut stays silent and the lines go on screen.
+- **Voice:** Follow `generate/references/voice-recipes.md`. Stock voices come from governed Deepgram Flux (Sienna or Haley) for every film except ABACare, which uses AssemblyAI stock voices; Azure DragonHD Emma2 or Andrew2 (Ava as fallback) is the fallback. Keep the selected voice and accepted takes for existing films. OpenAI Marin (`openai-speech`) is the option for directed narration. Direct ElevenLabs is excluded from new recipes. If the governed route cannot run, the cut stays silent and the lines go on screen.
 - **Picture:** a viewer-facing R kind (`references/forms.md`) requires Remotion; without it, stop; static slides are no fallback. `intent: draft` is exempt from the render only, never from the picture work: show the topics, figures, dates and documents the lines name, run `scripts/check_picture_relevance.py` before rendering, and look at the contact sheet before calling a picture good or filing it. A film about someone's own call or meeting is judged on exactly this.
 - **Style:** cinematic storytelling: hook, stakes, characters, tension, payoff.
 
@@ -26,7 +26,7 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 - **Verified current-product screencasts** use real captured WebM plus Recast for factual functionality. **Vision, fictional and concept films** may render wholly synthetic UI, realistic human characters and animated scenes via their supported image/video/Remotion workflow. Do not mislabel concept UI as verified current behavior.
 - Captions are a sidecar `.srt` only, never embedded or burned in.
 - Never invent factual metrics or present fictional customers or proposed behavior as verified current facts. Intentionally invent characters, scenes, interfaces and speculative technologies when the approved film calls for them; identify the representation appropriately. Recut the master instead of shipping an addendum.
-- Higgsfield and Runway credits stay frozen until the owner approves spend. The direct ElevenLabs account is excluded. Generative video: approved hero shots only.
+- Higgsfield and Runway credits stay frozen until the owner approves spend. ElevenLabs only with a written reason in the job. Generative video: approved hero shots only.
 
 ## References
 

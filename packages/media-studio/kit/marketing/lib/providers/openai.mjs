@@ -60,25 +60,47 @@ export async function generateImage({ prompt, model = OPENAI_MODELS.imageDefault
  * Narration through the Realtime API (gpt-realtime-2.1-mini; gpt-realtime-2.1 for complex direction). The session reads the
  * line verbatim with the chosen voice and delivery instructions; audio comes back as 24 kHz mono PCM, returned as WAV.
  */
-export async function speech({ text, voice = 'marin', instructions, model = OPENAI_MODELS.realtimeSpeech, timeoutMs = 60000, WebSocketImpl = globalThis.WebSocket }) {
-  if (!WebSocketImpl) throw new OpenAiError('This Node has no WebSocket; use Node 22 or later');
-  const ws = new WebSocketImpl(`wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`, { headers: { Authorization: `Bearer ${apiKey()}` } });
+export async function speech({ text, voice = 'marin', instructions, model = OPENAI_MODELS.realtimeSpeech,
+  credential = apiKey(), maxOutputTokens, timeoutMs = 60000, WebSocketImpl = globalThis.WebSocket }) {
+  let attempted = false;
+  const failure = message => Object.assign(new OpenAiError(message), { definitelyUnsubmitted: !attempted });
+  if (!WebSocketImpl) throw failure('This Node has no WebSocket; use Node 22 or later');
+  let ws;
+  try {
+    ws = new WebSocketImpl(`wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`, { headers: { Authorization: `Bearer ${credential}` } });
+  } catch {
+    throw failure('OpenAI realtime connection could not start');
+  }
   const chunks = [];
   const usage = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { try { ws.close(); } catch { /* closing */ } reject(new OpenAiError('OpenAI realtime speech timed out')); }, timeoutMs);
+    const close = () => { try { ws.close(); } catch { /* closing */ } };
+    const fail = message => { clearTimeout(timer); reject(failure(message)); close(); };
+    const timer = setTimeout(() => fail('OpenAI realtime speech timed out'), timeoutMs);
     ws.onopen = () => {
       const rule = 'Read the user text aloud exactly as written. Do not add, answer or comment.';
-      ws.send(JSON.stringify({ type: 'session.update', session: { type: 'realtime', output_modalities: ['audio'], instructions: instructions ? `${rule} Delivery: ${instructions}` : rule, audio: { output: { voice, format: { type: 'audio/pcm', rate: 24000 } } } } }));
-      ws.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] } }));
-      ws.send(JSON.stringify({ type: 'response.create' }));
+      try {
+        ws.send(JSON.stringify({ type: 'session.update', session: { type: 'realtime', output_modalities: ['audio'], instructions: instructions ? `${rule} Delivery: ${instructions}` : rule, audio: { output: { voice, format: { type: 'audio/pcm', rate: 24000 } } } } }));
+        ws.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] } }));
+        attempted = true;
+        ws.send(JSON.stringify({ type: 'response.create',
+          ...(maxOutputTokens === undefined ? {} : { response: { max_output_tokens: maxOutputTokens } }) }));
+      } catch { fail('OpenAI realtime request could not be sent'); }
     };
     ws.onmessage = (e) => {
-      const m = JSON.parse(typeof e.data === 'string' ? e.data : Buffer.from(e.data).toString());
+      let m;
+      try { m = JSON.parse(typeof e.data === 'string' ? e.data : Buffer.from(e.data).toString()); }
+      catch { return fail('OpenAI realtime returned an invalid event'); }
       if (m.type === 'response.output_audio.delta') chunks.push(Buffer.from(m.delta, 'base64'));
-      else if (m.type === 'error') { clearTimeout(timer); ws.close(); reject(new OpenAiError(`OpenAI realtime error${m.error?.code ? ` (${String(m.error.code).slice(0, 60)})` : ''}`)); }
-      else if (m.type === 'response.done') { clearTimeout(timer); ws.close(); if (m.response?.status !== 'completed') reject(new OpenAiError(`OpenAI realtime response ${m.response?.status}`)); else resolve(m.response?.usage || null); }
+      else if (m.type === 'error') fail(`OpenAI realtime error${m.error?.code ? ` (${String(m.error.code).slice(0, 60)})` : ''}`);
+      else if (m.type === 'response.done') {
+        if (m.response?.status !== 'completed') return fail(`OpenAI realtime response ${m.response?.status}`);
+        clearTimeout(timer);
+        resolve(m.response?.usage || null);
+        close();
+      }
     };
-    ws.onerror = () => { clearTimeout(timer); reject(new OpenAiError('OpenAI realtime connection failed')); };
+    ws.onerror = () => fail('OpenAI realtime connection failed');
+    ws.onclose = () => { clearTimeout(timer); reject(failure('OpenAI realtime connection closed')); };
   });
   return { bytes: pcmToWav(Buffer.concat(chunks), 24000), usage, model, voice, format: 'wav' };
 }

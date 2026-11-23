@@ -2,11 +2,13 @@
 // no GPU, no render. Run: node --test packages/media-studio/tests/mvg.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, symlinkSync } from 'node:fs';
 import { validate } from '../kit/marketing/lib/schema.mjs';
 import { bannedHits, HEALTHCARE_BANNED, estimateCutSeconds, lintSpec, normalizeCuts } from '../kit/marketing/lib/lint.mjs';
@@ -25,6 +27,7 @@ import { applyArbitration, buildInstructions, evaluate, parseVerdict, sampleTime
 import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/picture-gate.mjs';
 import { estimateImageUsd, estimateSttUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
 import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
+import { speech as realtimeSpeech } from '../kit/marketing/lib/providers/openai.mjs';
 import { readmeSection } from '../kit/marketing/lib/stages/deliver.mjs';
 import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
 import { assetsStage, musicKey, musicLengthMs, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
@@ -661,6 +664,108 @@ function stageCtx(name, spec = baseSpec(), providers = {}) {
   const ledger = new CostLedger({ jobDir, runId: name, perRun: { elevenlabsCredits: 5000, openaiUsd: 5 }, cumulative: {}, cumulativePath: join(workspace, '_spend', 'ledger.jsonl') });
   return { spec, brand, specDir: root, workspace, jobDir, ledger, flags: { quiet: true }, providers, log: () => {}, workspaceId: 'mvg:test', adSchema, brandSchema };
 }
+
+test('standalone OpenAI voice checks the exact account and model before paid work and preserves cached takes', async () => {
+  const spec = baseSpec();
+  spec.voice = { provider: 'openai', voiceId: 'marin', model: 'gpt-realtime-2.1' };
+  const reads = [], calls = [];
+  let handshakeFailed = false;
+  const key = 'fixture-user-credential';
+  const spendDir = join(root, 'openai-wallet');
+  mkdirSync(spendDir);
+  new DatabaseSync(join(spendDir, 'openai-narration.sqlite3')).close();
+  const doc = '### Text tokens\n| Input | $4 | 1M tokens |\n| Cached input | $0.4 | 1M tokens |\n| Output | $24 | 1M tokens |\n' +
+    '### Audio tokens\n| Input | $32 | 1M tokens |\n| Cached input | $0.4 | 1M tokens |\n| Output | $64 | 1M tokens |\n### Image tokens';
+  const now = Date.parse('2026-11-22T19:00:00Z');
+  const ctx = stageCtx('openai-voice-preflight', spec, {
+    narrationPreflight: { key, now, spendDir, fetcher: async (url, init) => {
+      reads.push(url);
+      if (url.includes('api.openai.com')) assert.equal(init.headers.Authorization, `Bearer ${key}`);
+      return new Response(url.endsWith('.md') ? doc : '{}');
+    } },
+    openai: { speech: async request => {
+      if (handshakeFailed) throw Object.assign(new Error('test handshake failed'), { definitelyUnsubmitted: true });
+      calls.push(request);
+      assert.equal(request.credential, key);
+      assert.equal(request.model, spec.voice.model);
+      assert.ok(request.maxOutputTokens > 0);
+      return { bytes: Buffer.from('synthetic audio'), usage: { output_token_details: { audio_tokens: 200 } } };
+    } },
+  });
+  await assert.rejects(voiceStage(ctx), /narration-funding/);
+  const funding = join(ctx.jobDir, 'funding.json');
+  Object.assign(ctx.flags, parseArgs(['fixture.json', '--narration-entity', 'abacare', '--narration-funding', funding]).flags);
+  const fingerprint = createHash('sha256').update(key).digest('hex');
+  const snapshot = { entity: 'abacare', source: 'dashboard', observedAt: new Date(now).toISOString(), availableUsd: 0.08 };
+  writeFileSync(funding, JSON.stringify({ ...snapshot, credentialSha256: 'stale-key' }));
+  await assert.rejects(voiceStage(ctx), /fresh funding evidence/);
+  writeFileSync(funding, JSON.stringify({ ...snapshot, credentialSha256: fingerprint, availableUsd: 0.001 }));
+  await assert.rejects(voiceStage(ctx), /Insufficient available OpenAI balance/);
+  assert.equal(calls.length, 0);
+  writeFileSync(funding, JSON.stringify({ ...snapshot, credentialSha256: fingerprint }));
+  handshakeFailed = true;
+  await assert.rejects(voiceStage(ctx), /test handshake failed/);
+  handshakeFailed = false;
+  const voice = await voiceStage(ctx);
+  assert.equal(calls.length, 3);
+  assert.equal(voice.main.lines[0].receipt.billedUsd, 0.0128);
+  assert.equal(reads.filter(url => url.endsWith('/gpt-realtime-2.1.md')).length, 4);
+  assert.ok(!JSON.stringify(voice).includes(key));
+  delete ctx.flags.narrationFunding;
+  const firstOutput = join(ctx.jobDir, voice.main.lines[0].file);
+  const completedAudio = readFileSync(firstOutput);
+  renameSync(firstOutput, firstOutput + '.staged');
+  writeFileSync(firstOutput + '.staged', 'wrong bytes');
+  await assert.rejects(voiceStage(ctx), /Staged OpenAI narration requires reconciliation/);
+  assert.equal(existsSync(firstOutput), false);
+  writeFileSync(firstOutput + '.staged', completedAudio);
+  await voiceStage(ctx);
+  assert.deepEqual(readFileSync(firstOutput), completedAudio);
+  assert.equal(calls.length, 3);
+  assert.equal(ctx.ledger.entries.filter(e => e.note === 'recovered settled take' && e.units === 0.0128).length, 1,
+    'a recovered settled take is charged to the workspace budget');
+  renameSync(firstOutput, firstOutput + '.staged');
+  const stagedReceipt = readJson(firstOutput + '.staged.json');
+  const spend = new DatabaseSync(join(spendDir, 'openai-narration.sqlite3'));
+  try {
+    spend.prepare('UPDATE voice_spend SET completed_at = NULL, audio_sha256 = NULL WHERE request_id = ?').run(stagedReceipt.requestId);
+    spend.exec('ALTER TABLE voice_spend DROP COLUMN audio_sha256');
+    await voiceStage(ctx);
+    assert.equal(spend.prepare('SELECT audio_sha256 FROM voice_spend WHERE request_id = ?').get(stagedReceipt.requestId).audio_sha256,
+      stagedReceipt.audioSha256);
+  } finally { spend.close(); }
+  assert.deepEqual(readFileSync(firstOutput), completedAudio);
+  assert.equal(calls.length, 3, 'recovery settles staged audio without another request');
+  ctx.flags.narrationFunding = funding;
+  spec.beats[0].voiceTake = 2;
+  await assert.rejects(voiceStage(ctx), /Insufficient available OpenAI balance/);
+  assert.equal(calls.length, 3, 'a retake cannot reuse the earlier available balance');
+  ctx.flags.narrationEntity = 'personal';
+  writeFileSync(funding, JSON.stringify({ ...snapshot, entity: 'personal', credentialSha256: fingerprint }));
+  await assert.rejects(voiceStage(ctx), /different billing entity/);
+  assert.equal(calls.length, 3, 'the same credential cannot establish another copy of the balance');
+});
+
+test('Realtime only releases a hold if no response.create was attempted', async () => {
+  class HandshakeFailure {
+    constructor() { queueMicrotask(() => this.onerror()); }
+    close() {}
+  }
+  class SubmissionFailure {
+    constructor() { queueMicrotask(() => this.onopen()); }
+    send(payload) {
+      const message = JSON.parse(payload);
+      if (message.type === 'response.create') {
+        assert.equal(message.response.max_output_tokens, 500);
+        queueMicrotask(() => this.onerror());
+      }
+    }
+    close() {}
+  }
+  const request = { text: 'This is a fixture.', credential: 'fixture', maxOutputTokens: 500 };
+  await assert.rejects(realtimeSpeech({ ...request, WebSocketImpl: HandshakeFailure }), { definitelyUnsubmitted: true });
+  await assert.rejects(realtimeSpeech({ ...request, WebSocketImpl: SubmissionFailure }), { definitelyUnsubmitted: false });
+});
 
 test('voice, timing and assets stages run on mock providers, cache on rerun and charge the ledger', async () => {
   const seen = [];

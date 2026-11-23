@@ -53,7 +53,7 @@ The sync tools (`build-cue-sheet.mjs`, `validate-word-sync.mjs`, `validate-sync.
 
 Loose-skill hosts execute gates from
 `%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools`. The briefing kit also has
-the gates under its `screencast` directory. Never treat a missing gate or a
+the gates under its `screencast` directory. Verify that the deployed shared tools also include `narration-preflight.mjs` from the same package version. Never treat a missing gate or a
 successful host-configuration sync as a release check.
 
 ## Before capture

@@ -100,22 +100,29 @@ class Routing(unittest.TestCase):
 
     def test_voice_has_no_desktop_or_free_lane(self):
         usable = [l["id"] for l in r.route(POLICY, ["voice"])]
-        self.assertEqual(usable, ["azure-speech", "openai-speech", "deepgram-flux"])
+        self.assertEqual(usable, ["azure-speech", "openai-speech", "assemblyai-tts", "deepgram-flux"])
         self.assertTrue(all(not r.is_free(l) for l in r.route(POLICY, ["narration"])))
         blocked = {l["id"]: l["status"] for l in r.route(POLICY, ["voice"], include_blocked=True)}
         self.assertEqual(blocked["windows-narrator"], "disabled")
         self.assertNotIn("windows-narrator", usable)
         for frozen_id in ("elevenlabs-speech", "runware-fish-s2", "runware-heygen-voice",
-                          "assemblyai-tts", "runware-seed-audio"):
+                          "runware-seed-audio"):
             self.assertEqual(blocked[frozen_id], "frozen")
             self.assertNotIn(frozen_id, usable)
         rules = " ".join(POLICY["rules"])
         self.assertIn("Voice has no free lane", rules)
         self.assertIn("Windows Narrator", rules)
-        self.assertIn("excluded", rules)
+        self.assertIn("written reason", rules)
         self.assertIn("public preview", rules)
         self.assertIn("Marin", rules)
         self.assertIn("silent", rules)
+
+    def test_long_narration_is_deepgram_except_abacare_which_adds_assemblyai(self):
+        for identity, expected in (("mahumtech", ["deepgram-flux"]), ("personal", ["deepgram-flux"]),
+                                   ("abacare", ["assemblyai-tts", "deepgram-flux"])):
+            lanes = r.route(POLICY, ["long-narration"], identity=identity)
+            self.assertEqual([lane["id"] for lane in lanes], expected)
+            self.assertTrue(all(lane["status"] == "conditional" for lane in lanes))
 
     def test_image_generation_video_lanes_stay_frozen(self):
         for lane_id in ("higgsfield", "runway", "runware-pvideo-avatar", "runware-minimax-music"):

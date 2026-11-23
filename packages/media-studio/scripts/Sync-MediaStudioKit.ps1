@@ -205,7 +205,7 @@ foreach ($item in @(Get-ChildItem -LiteralPath $explainerSource -File | Where-Ob
 Copy-Item -LiteralPath (Join-Path $packageKit 'screencast\campaign-contract.mjs') -Destination (Join-Path $sharedTools 'campaign-contract.mjs') -Force
 # Finishing helpers and the ffmpeg speech-integrity gate. Narration is hosted (governed Azure/ElevenLabs adapters); the
 # retired local owner-voice generator, re-gate and take-reuse scripts are no longer deployed.
-$mediaHelpers = @('Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Test-SpeechIntegrity.ps1')
+$mediaHelpers = @('narration-preflight.mjs', 'narration-deepgram-policy.json', 'governed_deepgram.py', 'content_runtime.py', 'Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Test-SpeechIntegrity.ps1')
 foreach ($name in $mediaHelpers) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $sharedTools $name) -Force
 }

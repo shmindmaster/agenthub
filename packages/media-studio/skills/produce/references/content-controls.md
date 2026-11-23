@@ -4,6 +4,7 @@ Paid speech runs only through a governed adapter, which reserves the maximum in 
 
 | Provider | Adapter | Bucket | Caps |
 |---|---|---|---|
+| AssemblyAI TTS | `scripts/narration-preflight.mjs` | Per job in the output directory | Current rate, fresh dashboard funding evidence, authorized quote hash and USD cap |
 | Azure TTS | `scripts/governed_azure_speech.py` | `azure-speech/usd-micros`, per workspace under `%LOCALAPPDATA%/AgentHub/runtime/azure-speech-jobs` | `azure-speech-new-provider-job` $1. `azure-speech-bounded-standard-job` at most 150,000 microdollars. Extension at most $0.69 inside the $1 |
 | Deepgram Flux batch TTS | `scripts/deepgram_cli.py` | `deepgram/usd-micros` under `%LOCALAPPDATA%/AgentHub/runtime/content-controls` | No budget row means disabled. Recovery epoch at most $3 |
 | ElevenLabs speech, dialogue, sound effects, music | `scripts/elevenlabs_cli.py` | `elevenlabs/credits`, per job under `<RuntimeRoot>/content-recovery-epochs/<epoch_id>` | Owner-authorized jobs only. With no manifest it refuses before any network call. The manifest sets the ceiling inside the limit below |
@@ -26,7 +27,7 @@ Azure: `quote()` returns `cache_key` and `maximum_usd_micros`. The owner's immut
 
 ## ElevenLabs job
 
-Owner-authorized only. No Sarosh voice clone stays the rule; a clone runs only for a job whose private manifest names it. There is no default voice, model or budget, and a ceiling in the default ledger authorizes nothing. Never put a real voice ID in this repository.
+Owner-authorized only, with a written reason in the job. Clones of Sarosh and Syeda F. Abidi for personal or ABACare films go through AssemblyAI first; an ElevenLabs clone runs only for a job whose private manifest names it (the Deloitte pursuit films, or one of those two people with a written reason). There is no default voice, model or budget, and a ceiling in the default ledger authorizes nothing. Never put a real voice ID in this repository.
 
 The manifest is a procedural control, not a security boundary. It keeps a cooperating agent on the approved request, and it stops nothing else: any process running as this user with the key could write a manifest or call the API directly.
 

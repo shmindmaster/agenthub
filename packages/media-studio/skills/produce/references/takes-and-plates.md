@@ -2,22 +2,22 @@
 
 ## Routing table
 
-Azure first, cheapest option that passes QA. Escalate only the item that failed.
+Use verified rates and eligible funding. Escalate only the item that failed.
 
 | Need | Default | Escape hatch |
 | --- | --- | --- |
-| Narration | Azure standard neural | Neural HD or Dragon HD Omni for principals, then Deepgram for a line that failed a gate |
+| Narration | [Live preflight](narration-preflight.md): Deepgram Flux stock voices; AssemblyAI stock voices for ABACare films | Azure DragonHD, then OpenAI. Preserve pinned casts. |
 | Take ASR | `cloud-ai.mjs align` on Azure fast transcription | `--provider assemblyai` only when a job names it |
 | Backlog transcription | Azure batch | `gpt-transcribe` |
 | Real-time STT | Deepgram Nova-3 | None; Azure costs twice as much |
-| Stills | `gpt-image-2.5-flare`, low then medium | `gpt-image-2.5-sunburst` for premium; Gemini Batch for volume |
+| Stills | MahumTech Azure `gpt-image-2.5-flare`, low then medium; ABACare: OpenAI ABACare grant until 2026-11-26, then Runware | `gpt-image-2.5-sunburst` for premium. Gemini API spend is paused until 2026-12-01 |
 | Presenter clip | Azure TTS avatar, batch, prebuilt | Remotion composition |
 | Chat, script review | Anthropic Haiku for bulk | `gpt-6-luna` on grounded input, then `gpt-6.1-sol` |
 | Hero video | Approved shots only | Remotion or Recast composition |
 
 ## Take loop
 
-Run this loop for every line:
+Run this loop for each synthesis take. When the route supports grouped text, align the returned audio back to the individual lines before editing.
 
 ```text
 - [ ] Quote, then synthesize through the governed adapter
@@ -34,7 +34,7 @@ Run the integrity check with this exact command; do not change it:
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '4.0.2') { throw 'Speech tools are stale. Deploy the current media-studio package first.' }
+if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '4.0.3') { throw 'Speech tools are stale. Deploy the current media-studio package first.' }
 pwsh -NoProfile -File "$tools/Test-SpeechIntegrity.ps1" -Path <take.wav> -Text '<locked line>' -JsonOut qa/integrity/<id>.json
 ```
 

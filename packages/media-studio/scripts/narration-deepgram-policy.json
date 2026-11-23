@@ -1,0 +1,7 @@
+{
+  "validThrough": "2026-12-23",
+  "usdMicrosPerUtf8Byte": 45,
+  "maxCharacters": 2000,
+  "language": "english",
+  "voices": ["flux-sienna-en", "flux-haley-en"]
+}

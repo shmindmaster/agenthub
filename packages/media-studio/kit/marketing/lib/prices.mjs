@@ -93,9 +93,9 @@ export const OPENAI_REALTIME_USD_PER_M = {
   'gpt-realtime-2.1': { in: 32, out: 64, textIn: 4, textOut: 24, cachedIn: 0.4, cachedTextIn: 0.4 },
 };
 /** Billed USD from a realtime response.done usage block, every dimension priced. Null when usage is missing. */
-export function realtimeUsdFromUsage(model, usage) {
+export function realtimeUsdFromUsage(model, usage, rate) {
   if (!usage) return null;
-  const r = OPENAI_REALTIME_USD_PER_M[model] || OPENAI_REALTIME_USD_PER_M['gpt-realtime-2.1'];
+  const r = rate ?? (OPENAI_REALTIME_USD_PER_M[model] || OPENAI_REALTIME_USD_PER_M['gpt-realtime-2.1']);
   const i = usage.input_token_details || {};
   const o = usage.output_token_details || {};
   const cached = i.cached_tokens_details || {};

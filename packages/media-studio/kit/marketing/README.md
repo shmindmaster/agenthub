@@ -20,6 +20,15 @@ node mvg.mjs <spec> --stage deliver --candidate-id cut-01
 Exit 0 = ok, 1 = a stage failed closed (lint, budget, gate), 2 = usage. Every run writes `jobs\<spec id>\manifest.json`
 (stage status, hashes, cost) and `cost-ledger.json`, except external read-only QA, which writes only under `--qa-dir`.
 
+For new OpenAI narration, pass `--narration-entity abacare|mahumtech|personal`
+and `--narration-funding <file>` to any stage that generates voice. Use a single
+dashboard evidence record with `entity`, `source: "dashboard"`, `observedAt`,
+`availableUsd`, and `credentialSha256` from `narration-preflight.mjs fingerprint openai`.
+The voice stage checks the exact model and the funding for all missing lines
+before synthesis. It reserves funds in the shared local narration ledger. Retakes
+using the same dashboard record subtract later charges and outstanding reservations.
+Existing audio and dry runs can be used without evidence.
+
 Compose reserves `compose/candidates/<id>` exclusively, even with `--force`. Recompose means a new ID.
 QA and delivery require that ID and its compose receipt. To gate an existing file without writing source evidence:
 
@@ -172,7 +181,7 @@ loudness targets, the vision and image models, the timing provider, the demo URL
 | # | Stage | What it does | Spend |
 | --- | --- | --- | --- |
 | 1 | `lint` | Schema, claims and evidence, narration/on-screen coverage, figures, banned phrases, forbidden names, people/children b-roll, voice and music policy, label, clip validity, length estimate, planned spend vs caps. Fails closed before any paid call. | none |
-| 2 | `voice` | One line per narrated beat. ElevenLabs REST through the governed adapter for an owner-authorized job (request stitching, versioned pronunciation dictionary, text normalization) or OpenAI `gpt-realtime-2.1-mini` with `instructions` (the retired `local` provider refuses). Keyed by (text, voice, model, settings, neighbors). | ElevenLabs credits / OpenAI USD |
+| 2 | `voice` | One line per narrated beat. ElevenLabs REST through the governed adapter for an owner-authorized job (request stitching, versioned pronunciation dictionary, text normalization) or OpenAI Realtime with `instructions` and live narration preflight. Keyed by (text, voice, model, settings, neighbors). | ElevenLabs credits / OpenAI USD |
 | 3 | `timing` | Forced alignment of each accepted take and authored line, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. No current hosted model returns word timestamps, so timing always uses the forced aligner. Fails if a cut runs more than 1.5 s over target. | aligner provider |
 | 4 | `assets` | Sound effects and a music bed go through the governed adapter's `sfx` and `music` lanes for an owner-authorized job, and fail closed without its manifest. OpenAI `gpt-image` abstract stills, ElevenLabs video only if the API exposes it (it does not: recorded as skipped with the reason). Every generated asset is `aiGenerated: true` in `assets\manifest.json`. | credits / USD |
 | 5 | `capture` | Reuses a receipt-bound clip (sha256 re-checked against its capture receipt) or records it with `record-job.mjs` (`ui.record` plus `--allow-capture`). | none |
@@ -210,7 +219,7 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 
 | Provider | Used for | Cost basis |
 | --- | --- | --- |
-| ElevenLabs `eleven_v4` (default) | Narration, request stitching works; `dialogue` lane for multi-voice scenes | 1 credit/char, reserved at 1.2x |
+| ElevenLabs `eleven_v4` (explicitly authorized) | Narration, request stitching works; `dialogue` lane for multi-voice scenes | Speech reserves 1.2x characters and checks the account's current rate and credits |
 | ElevenLabs sound effects (`eleven_text_to_sound_v3`), ElevenLabs Music (`music_v2_5`, instrumental) | Owner-authorized jobs only through the governed adapter, each with its own manifest and epoch | 200 credits/generation; 900 credits/minute |
 | OpenAI `gpt-transcribe` | Transcript check (text) | ~$0.27/hr |
 | OpenAI `gpt-image-2.6-flare` (default; `gpt-image-2.6-sunburst` for hero and precise edits) | Abstract stills only (default quality medium) | ~$0.07 per 1536x1024 (padded estimate, unverified; token-priced) |

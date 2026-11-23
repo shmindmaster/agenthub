@@ -19,6 +19,7 @@
 //   --no-vision       skip vision QA (it stays `pending`, so deliver refuses)
 //   --force           ignore stage caches
 //   --workspace DIR   media workspace root (default: the parent of the spec folder)
+//   --narration-entity NAME --narration-funding FILE  entity and current OpenAI dashboard evidence for uncached voice
 // Local AI is off (owner direction 2026-10-29): no stage starts a local model, TTS or ASR runtime. The forced aligner,
 // encoded transcript, local voice and local vision are injected providers whose defaults refuse and name the hosted route
 // (kit/cloud/cloud-ai.mjs align, Azure TTS/STT). Sync, word-sync and transcript stay pending without an injected aligner;
@@ -55,7 +56,7 @@ export function parseArgs(argv) {
     if (!a.startsWith('--')) { pos.push(a); continue; }
     const name = a.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     if (name === 'localGates') throw new Error(`--local-gates was removed: ${LOCAL_AI_OFF}`);
-    if (['stage', 'only', 'workspace', 'kit', 'candidateId', 'candidate', 'candidateSha256', 'composeDir', 'qaDir', 'ratio', 'visionProvider'].includes(name)) {
+    if (['stage', 'only', 'workspace', 'kit', 'candidateId', 'candidate', 'candidateSha256', 'composeDir', 'qaDir', 'ratio', 'visionProvider', 'narrationEntity', 'narrationFunding'].includes(name)) {
       if (!argv[i + 1] || argv[i + 1].startsWith('--')) throw new Error(`--${a.slice(2)} needs a value`);
       flags[name] = argv[++i];
     }
