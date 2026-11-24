@@ -95,6 +95,9 @@ try {
     [IO.File]::WriteAllText((Join-Path $local 'plugin.json'), $manifest)
     [IO.File]::WriteAllText((Join-Path $local '.cursor-plugin/plugin.json'), $manifest)
     $settings = Join-Path $claudeHome 'settings.json'
+    $claudeRegistry = Join-Path $claudeHome 'plugins/installed_plugins.json'
+    [void][IO.Directory]::CreateDirectory((Split-Path -Parent $claudeRegistry))
+    [IO.File]::WriteAllText($claudeRegistry, '{"plugins":{"ah-media-studio@agenthub":[{"scope":"user"}]}}')
     $row = [pscustomobject]@{host='cursor';nativeOwnerHost='claude';plugin='ah-media-studio';marketplace='agenthub';expected='2.0.0';status='current';source=$pkg}
     [IO.File]::WriteAllText($settings, '{"enabledPlugins":{"ah-media-studio@agenthub":false}}')
     if ((Get-PluginCleanupPlan @($row)).status -ne 'unmanaged') { throw 'Cursor cleanup missed the disabled import.' }
@@ -103,6 +106,8 @@ try {
     if ((Get-PluginCleanupPlan @($row) -Execute).status -ne 'deferred' -or $script:calls -ne 1) { throw 'An open Cursor did not defer cleanup.' }
     $script:busy = $false
     if ((Get-PluginCleanupPlan @($row)).status -ne 'pending') { throw 'Owned older Cursor copy was not identified.' }
+    [IO.File]::WriteAllText($settings, '{invalid json')
+    if ((Get-PluginCleanupPlan @($row) -Execute).status -ne 'unmanaged') { throw 'Corrupt Cursor import settings did not fail safely.' }
     Write-Output 'RESULT: plugin cleanup ownership, audit, readback, deduplication and rollback passed'
 } finally {
     [IO.Directory]::Delete($fixture, $true)

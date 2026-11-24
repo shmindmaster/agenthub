@@ -591,7 +591,12 @@ function Get-PluginCleanup($Row) {
     if ($version -notmatch '^\d+\.\d+\.\d+$') { return }
 
     if ($owner -eq 'claude') {
-        $registry = Read-Document (Join-Path $UserProfile '.claude/plugins/installed_plugins.json')
+        $registryPath = Join-Path $UserProfile '.claude/plugins/installed_plugins.json'
+        $registry = Read-AgentHubCleanupJson $registryPath
+        if (-not $registry.plugins) {
+            New-AgentHubPluginCleanup claude $name 'cleanup-inventory' $registryPath 'unmanaged' 'Claude registry could not be read.'
+            return
+        }
         $refs = @($registry.plugins.PSObject.Properties.Value | ForEach-Object { $_ } | ForEach-Object { $_.installPath })
         if (-not $HostId -or $HostId -eq 'claude') {
             foreach ($key in $registry.plugins.PSObject.Properties.Name) {
@@ -608,10 +613,10 @@ function Get-PluginCleanup($Row) {
             $cursorBase = Join-Path $UserProfile '.cursor/plugins/local'
             $path = Join-Path $cursorBase $name
             if (Test-Path -LiteralPath $path -PathType Container) {
-                $settings = Read-Document (Join-Path $UserProfile '.claude/settings.json')
-                $source = Read-Document (Join-Path $Row.source 'plugin.json')
-                $copy = if (Test-AgentHubPluginTree $cursorBase $path) { Read-AgentHubCleanupManifest (Join-Path $path 'plugin.json') }
-                $projection = if ($copy) { Read-AgentHubCleanupManifest (Join-Path $path '.cursor-plugin/plugin.json') }
+                $settings = Read-AgentHubCleanupJson (Join-Path $UserProfile '.claude/settings.json')
+                $source = Read-AgentHubCleanupJson (Join-Path $Row.source 'plugin.json')
+                $copy = if (Test-AgentHubPluginTree $cursorBase $path) { Read-AgentHubCleanupJson (Join-Path $path 'plugin.json') }
+                $projection = if ($copy) { Read-AgentHubCleanupJson (Join-Path $path '.cursor-plugin/plugin.json') }
                 if ($settings.enabledPlugins."$name@$market" -eq $true -and $copy.name -eq $name -and
                     $copy.author.name -and $copy.author.name -ceq $source.author.name -and $projection.name -eq $name -and
                     $copy.version -eq $projection.version -and $copy.version -match '^\d+\.\d+\.\d+$' -and [version]$copy.version -le [version]$version) {
@@ -637,7 +642,7 @@ function Get-PluginCleanup($Row) {
                 if ($exists -and (Test-AgentHubPluginTree $legacyMarket $legacyPath)) {
                     $copies = @(Get-ChildItem -LiteralPath $legacyPath -Force)
                     $invalid = @($copies | Where-Object {
-                        $manifest = if ($_.PSIsContainer) { Read-AgentHubCleanupManifest (Join-Path $_.FullName 'plugin.json') }
+                        $manifest = if ($_.PSIsContainer) { Read-AgentHubCleanupJson (Join-Path $_.FullName 'plugin.json') }
                         -not $_.PSIsContainer -or $_.Name -notmatch '^\d+\.\d+\.\d+$' -or
                             $manifest.name -ne $name -or $manifest.version -ne $_.Name -or [version]$_.Name -gt [version]$version
                     })
@@ -659,7 +664,11 @@ function Get-PluginCleanup($Row) {
     if ($owner -eq 'copilot' -and $market -eq 'agenthub' -and $live) {
         $config = Join-Path $UserProfile '.copilot/config.json'
         if (Test-Path -LiteralPath $config -PathType Leaf) {
-            $document = Get-Content -LiteralPath $config -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
+            $document = Read-AgentHubCleanupJson $config -AsHashtable
+            if ($document -isnot [System.Collections.IDictionary]) {
+                New-AgentHubPluginCleanup copilot $name 'cleanup-inventory' $config 'unmanaged' 'Copilot configuration could not be read.'
+                return
+            }
             $owned = @(Get-AgentHubCopilotDirectEntries $document $name $Row.relative)
             $entries = @(Get-PluginClientList copilot | Where-Object { $_.name -eq $name -and $_.marketplace -ne $market })
             if ($owned.Count -eq 1 -and $entries.Count -eq 1 -and $entries[0].source -eq 'installed' -and -not $entries[0].marketplace) {
@@ -671,7 +680,7 @@ function Get-PluginCleanup($Row) {
                 $base = Join-Path $UserProfile '.copilot/installed-plugins/_direct'
                 $pattern = '^shmindmaster--agenthub--' + [regex]::Escape($Row.relative.Replace('/','-')) + '-[0-9a-f]{8}$'
                 foreach ($cache in Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue | Where-Object Name -match $pattern) {
-                    $copy = if (Test-AgentHubPluginTree $base $cache.FullName) { Read-AgentHubCleanupManifest (Join-Path $cache.FullName 'plugin.json') }
+                    $copy = if (Test-AgentHubPluginTree $base $cache.FullName) { Read-AgentHubCleanupJson (Join-Path $cache.FullName 'plugin.json') }
                     if ($copy.name -eq $name -and $copy.version -match '^\d+\.\d+\.\d+$' -and [version]$copy.version -le [version]$version) {
                         New-AgentHubPluginCleanup copilot $name 'copilot-direct-cache' $cache.FullName
                     }

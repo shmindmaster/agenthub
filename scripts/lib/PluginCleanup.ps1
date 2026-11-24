@@ -23,8 +23,12 @@ function Test-AgentHubPluginTree([string]$Root, [string]$Path) {
     } catch { return $false }
 }
 
-function Read-AgentHubCleanupManifest([string]$Path) {
-    try { Read-Document $Path } catch { return $null }
+function Read-AgentHubCleanupJson([string]$Path, [switch]$AsHashtable) {
+    try {
+        if (Test-Path -LiteralPath $Path -PathType Leaf) {
+            Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable:$AsHashtable
+        }
+    } catch { return $null }
 }
 
 function Get-AgentHubOldPluginVersions {
@@ -45,7 +49,7 @@ function Get-AgentHubOldPluginVersions {
             New-AgentHubPluginCleanup $HostId $Plugin 'old-cache' $item.FullName 'unmanaged' 'Cache ownership could not be verified.'
             continue
         }
-        $old = Read-AgentHubCleanupManifest (Join-Path $item.FullName $Manifest)
+        $old = Read-AgentHubCleanupJson (Join-Path $item.FullName $Manifest)
         if ($old.name -eq $Plugin -and $old.version -eq $item.Name) {
             New-AgentHubPluginCleanup $HostId $Plugin 'old-cache' $item.FullName
         } else {
@@ -57,6 +61,7 @@ function Get-AgentHubOldPluginVersions {
 function Remove-AgentHubPluginTree([string]$Root, [string]$Path) {
     if (-not (Test-AgentHubPluginTree $Root $Path)) { throw 'Plugin cleanup path could not be verified.' }
     if ($IsWindows) {
+        Add-Type -AssemblyName Microsoft.VisualBasic
         [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory(
             $Path, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,
             [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin)
