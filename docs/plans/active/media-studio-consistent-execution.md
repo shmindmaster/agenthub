@@ -49,7 +49,7 @@ Two screencast treatments cover most product clips, so variety is a treatment-se
 
 1. **Ledger:** one unit and cap per provider; unknown provider refuses; uncapped new providers refuse spend.
 2. **`voice.provider: import` and `broll.provider: import`:** hash-bound files with the receipt of whichever governed script made them.
-3. **`deliverable`** in `job.json`: `narrated-video`, `silent-video`, `audio`, `stills`, `storyboard`. Undeclared jobs behave as before.
+3. **`deliverable`** in `job.json`: `narrated-video`, `silent-video`, `audio`, `stills`, `storyboard`. An undeclared job is `narrated-video` with the checks it had before, except `kind: audio-only`, which is now judged as `audio`: it could never pass checks that demand a picture and an MP4.
 4. **`story/requirements.json`:** features, language states, CTA, duration, framing and final hold, each mapped to scenes. Unmeasured items are `unverified`, never a pass. Opt-in by file presence.
 5. **`qa/finished-film.json`:** opening, ending, silence and blank checks on the exact encoded file.
 

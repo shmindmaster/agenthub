@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { lintSpec } from '../kit/marketing/lib/lint.mjs';
+import { lintSpec, OWNER_CLONE_VOICES } from '../kit/marketing/lib/lint.mjs';
 import { validate } from '../kit/marketing/lib/schema.mjs';
 import { CostLedger } from '../kit/marketing/lib/ledger.mjs';
 import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
@@ -294,6 +294,24 @@ test('a clone or private voice in a receipt requires ownerVoice', async () => {
   await assert.rejects(voiceStage(ctxFor(clone)), /clone or private voice.*ownerVoice/);
   const priv = fixture({ mutate: setLines((l) => ({ ...l, receipt: { ...l.receipt, visibility: 'private' } })) });
   await assert.rejects(voiceStage(ctxFor(priv)), /ownerVoice/);
+});
+
+test('a governed owner clone is known by its voice slug, which is all the AssemblyAI script records', async () => {
+  for (const slug of OWNER_CLONE_VOICES) {
+    const f = fixture({ voice: { voiceId: 'fixture-voice' }, mutate: setLines((l) => ({ ...l, receipt: { ...l.receipt, voice: slug } })) });
+    assert.ok(codes(lint(f.spec, f.dir)).includes('owner-voice'), `${slug} in a receipt`);
+    await assert.rejects(voiceStage(ctxFor(f)), /ownerVoice/);
+  }
+  const named = fixture({ voice: { voiceId: [...OWNER_CLONE_VOICES][0] }, mutate: setLines((l) => ({ ...l, receipt: { ...l.receipt, voice: undefined } })) });
+  assert.ok(codes(lint(named.spec, named.dir)).includes('owner-voice'), 'voiceId alone');
+  assert.ok(!codes(lint(fixture().spec, fixture().dir)).includes('owner-voice'), 'a stock voice is unaffected');
+});
+
+test('the clone slugs are exactly the private voices narration-preflight.mjs will generate', () => {
+  const source = readFileSync(join(here, '..', 'scripts', 'narration-preflight.mjs'), 'utf8');
+  const list = /approvedOwners = new Set\(\[([^\]]*)\]\)/.exec(source);
+  assert.ok(list, 'approvedOwners not found in narration-preflight.mjs');
+  assert.deepEqual([...list[1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort(), [...OWNER_CLONE_VOICES].sort());
 });
 
 test('entity: brand and manifest must agree unless an exception is recorded, and the ledger row names the entity', async () => {

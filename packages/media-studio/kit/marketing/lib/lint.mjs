@@ -86,7 +86,11 @@ export function consentProblem(consent, { now = Date.now(), voiceName } = {}) {
   return null;
 }
 
-const isCloneReceipt = (r) => Boolean(r) && (r.clone === true || r.visibility === 'private');
+// The governed AssemblyAI script records only the voice slug, so a clone is known by slug. Same set as approvedOwners in
+// narration-preflight.mjs (the only private voices it will generate); tests/import-provider.test.mjs fails when they differ.
+export const OWNER_CLONE_VOICES = new Set(['sarosh-hussain', 'syeda-fatima-abidi']);
+const isCloneVoice = (id) => OWNER_CLONE_VOICES.has(String(id ?? '').trim().toLowerCase());
+const isCloneReceipt = (r) => Boolean(r) && (r.clone === true || r.visibility === 'private' || isCloneVoice(r.voice));
 const exceptionOk = (e) => Boolean(e) && String(e.reason || '').trim() && String(e.approvedBy || '').trim();
 /** Message when two entities disagree and no exception is recorded, else null. */
 export function entityProblem(brandEntity, recordEntity, exception, what, recordName = 'record') {
@@ -114,7 +118,7 @@ export function importPolicyProblems(spec, manifest, brand, now = Date.now()) {
     if (!String(manifest.recordedBy || '').trim()) add('voice-import', 'a recording needs recordedBy (who recorded it) on the manifest');
     if (lines.some((l) => l.receipt?.provider)) add('voice-import', 'a recording line must not carry receipt.provider; only synthetic audio has a provider receipt');
   }
-  if (lines.some((l) => isCloneReceipt(l.receipt)) && v.ownerVoice !== true) add('owner-voice', 'a clone or private voice is marked in the receipt, so voice.ownerVoice must be true under the owner consent route');
+  if ((lines.some((l) => isCloneReceipt(l.receipt)) || isCloneVoice(v.voiceId)) && v.ownerVoice !== true) add('owner-voice', 'a clone or private voice is marked in the receipt or named by voice id, so voice.ownerVoice must be true under the owner consent route');
   if (v.ownerVoice === true) {
     if (v.source !== 'assemblyai') add('owner-voice', `only an assemblyai import may be an owner voice clone (this import is ${v.source})`);
     else {

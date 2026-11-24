@@ -179,6 +179,9 @@ class Hardening(unittest.TestCase):
     def test_unhashable_ids_give_clean_errors(self):
         self.req["requirements"][0]["id"] = ["a"]
         self.assertTrue(self.errs())
+        match = self.req["requirements"][0].pop("match")
+        self.assertTrue(any("has no id" in e for e in self.errs()))
+        self.req["requirements"][0]["match"] = match
         self.req["requirements"][0].update(id="r1", scenes=[["s1"], {"a": 1}])
         self.assertTrue(self.errs())
         self.req["requirements"][0]["scenes"] = ["s1"]

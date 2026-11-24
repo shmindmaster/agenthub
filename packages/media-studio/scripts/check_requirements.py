@@ -230,10 +230,10 @@ def check(root, candidate=None):
             continue
         if not isinstance(rid, str) or not rid.strip():
             errors.append(f"{label} has no id")
-        elif rid in seen:
+            continue
+        if rid in seen:
             errors.append(f"duplicate requirement id '{rid}'")
-        if isinstance(rid, str):
-            seen.add(rid)
+        seen.add(rid)
         if r.get("type") not in TYPES:
             errors.append(f"{label}: type must be one of {', '.join(TYPES)}")
         for f in ("text", "check"):
