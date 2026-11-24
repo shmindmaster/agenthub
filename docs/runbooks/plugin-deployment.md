@@ -137,6 +137,11 @@ The command records version and source-hash evidence under the local AgentHub ru
 
 An absent native registration stays blocked until its approved ownership and activation are established. The audit reports direct Claude MCP entries and loose shared skills as unmanaged conflicts. It preserves them. Unsupported legacy mappings stay blocked.
 
+The plugin audit includes a `cleanup` list. Apply runs cleanup after native readback and content verification, even when the selected package is already current. It removes older managed Claude and Codex cache versions, the retired Codex Media Studio registration, redundant AgentHub Cursor-local copies when the Claude import is enabled, and direct Copilot copies from the AgentHub repository when its marketplace copy is active. Cursor and VS Code aliases share their native owner's installation. Windows cache removals go to the Recycle Bin.
+
+A version referenced by any Claude scope stays in use. Linked paths, unrelated marketplaces, and registrations whose ownership is ambiguous are reported and preserved. Disk cache and Copilot registration cleanup defer while their host may be using them and retry on the next apply. Native AutoClaw and ZCode installations use their own updater and refuse ambiguous duplicate IDs. Copied hosts outside these cleanup routes retain their native updater's cache behavior. No scheduled job or app shutdown is added.
+
+
 ## Forge operator sessions
 
 From a terminal with the existing `forge` SSH alias, run

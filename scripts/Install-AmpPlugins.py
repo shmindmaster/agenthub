@@ -62,9 +62,7 @@ def _package_paths():
         folder = name[len("ah-"):]
         canonical = f"overlays/personal/packages/{folder}"
         if overlay:
-            read_path = os.path.relpath(
-                os.path.join(overlay, "packages", folder), REPO
-            ).replace("\\", "/")
+            read_path = os.path.join(overlay, "packages", folder)
             packages[name] = (read_path, canonical)
         # Absent overlay: omit the private plugin rather than crash the public build.
     return packages

@@ -17,6 +17,8 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/PathBinding.ps1')
 . (Join-Path $PSScriptRoot 'lib/HostCatalog.ps1')
 . (Join-Path $PSScriptRoot 'lib/PluginTransaction.ps1')
+. (Join-Path $PSScriptRoot 'lib/PluginPaths.ps1')
+. (Join-Path $PSScriptRoot 'lib/PluginCleanup.ps1')
 . (Join-Path $PSScriptRoot 'lib/SharedSkillOwnership.ps1')
 $liveProfile = [IO.Path]::GetFullPath((Get-AgentHubDefaultHome))
 $live = $UserProfile.TrimEnd('\', '/') -eq $liveProfile.TrimEnd('\', '/')
@@ -80,12 +82,20 @@ function Get-LinkedObservation([string]$Path, [string]$Source) {
 }
 
 $clientLists = @{}
-function Get-ListedPlugin([string]$Command, [string]$Name, [switch]$Fresh) {
+function Get-PluginClientList([string]$Command, [switch]$Fresh) {
     if (-not $live) { return }
     if ($Fresh -or -not $clientLists.ContainsKey($Command)) {
-        $clientLists[$Command] = @(Invoke-Client $Command @('plugin','list','--json') | ConvertFrom-Json)
+        $inventory = Invoke-Client $Command @('plugin','list','--json') | ConvertFrom-Json
+        $clientLists[$Command] = if ($Command -eq 'codex') { @($inventory.installed) } else { @($inventory) }
     }
-    return $clientLists[$Command] | Where-Object name -eq $Name | Select-Object -First 1
+    return $clientLists[$Command]
+}
+
+function Get-ListedPlugin([string]$Command, [string]$Name, [string]$Marketplace, [switch]$Fresh) {
+    $entries = @(Get-PluginClientList $Command -Fresh:$Fresh | Where-Object name -eq $Name)
+    if ($Marketplace) { $entries = @($entries | Where-Object marketplace -eq $Marketplace) }
+    if ($entries.Count -gt 1) { throw "Multiple registrations for $Name; cannot choose an owner." }
+    return $entries | Select-Object -First 1
 }
 
 function Get-PluginSnapshotHash([string]$Path) {
@@ -140,7 +150,18 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
             $entry = @($reg.plugins."$name@$market") | Where-Object scope -EQ 'user' | Select-Object -Last 1
             if ($entry.version) { return New-Observation $entry.version $entry.installPath }
         }
-        'codex' { return Get-VersionedObservation (Join-Path $UserProfile ".codex/plugins/cache/$market/$name") }
+        'codex' {
+            $base = Join-Path $UserProfile ".codex/plugins/cache/$market/$name"
+            if (-not $live) { return Get-VersionedObservation $base }
+            $entries = @(Get-PluginClientList codex -Fresh:$Fresh | Where-Object pluginId -eq "$name@$market")
+            if ($entries.Count -gt 1) { return New-Observation '' '' 'unmanaged' 'Duplicate canonical Codex registration.' }
+            if ($entries.Count -eq 1 -and $entries[0].version -match '^\d+\.\d+\.\d+$') {
+                $installed = Join-Path $base $entries[0].version
+                $copy = Get-ManifestObservation $installed 'plugin.json' $name
+                if (-not $copy) { return New-Observation $entries[0].version '' 'drift' 'Registered Codex cache is missing.' }
+                return $copy
+            }
+        }
         'cursor' { return Get-ManifestObservation (Join-Path $UserProfile ".cursor/plugins/local/$name") 'plugin.json' $name }
         'amp' {
             $path = Join-Path $UserProfile ".config/amp/plugins/$name"
@@ -167,7 +188,7 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
             }
         }
         'copilot' {
-            $entry = Get-ListedPlugin copilot $name -Fresh:$Fresh
+            $entry = Get-ListedPlugin copilot $name -Marketplace $market -Fresh:$Fresh
             if ($entry.marketplace -eq $market) {
                 if ($entry.enabled -eq $false) { return New-Observation $entry.version $source 'blocked' 'Native Copilot plugin is installed but disabled; explicit host activation is required.' }
                 return New-Observation $entry.version $source
@@ -555,6 +576,185 @@ function Test-PluginRowPending($Row) {
     return ($Row.status -in 'missing','drift')
 }
 
+function Get-PluginCleanup($Row) {
+    if ($Row.status -ne 'current' -or $Row.plugin -notmatch '^ah-[a-z0-9-]+$') { return }
+    $name = $Row.plugin
+    $market = $Row.marketplace
+    $owner = Get-RowNativeHost $Row
+    $version = $Row.expected
+    if ($version -notmatch '^\d+\.\d+\.\d+$') { return }
+
+    if ($owner -eq 'claude') {
+        $registry = Read-Document (Join-Path $UserProfile '.claude/plugins/installed_plugins.json')
+        $refs = @($registry.plugins.PSObject.Properties.Value | ForEach-Object { $_ } | ForEach-Object { $_.installPath })
+        if (-not $HostId -or $HostId -eq 'claude') {
+            foreach ($key in $registry.plugins.PSObject.Properties.Name) {
+                if ($key -like "$name@*" -and $key -ne "$name@$market") {
+                    New-AgentHubPluginCleanup claude $name 'alternate-registration' $key 'unmanaged' 'Another marketplace owns this registration.'
+                }
+            }
+        }
+        $base = Join-Path $UserProfile ".claude/plugins/cache/$market/$name"
+        if (-not $HostId -or $HostId -eq 'claude') {
+            Get-AgentHubOldPluginVersions -HostId claude -Plugin $name -Root $base -ActivePath $Row.previousPath -Version $version -RegisteredPaths $refs -Manifest '.claude-plugin/plugin.json'
+        }
+        if ($Row.host -in 'cursor','cursor-agent') {
+            $cursorBase = Join-Path $UserProfile '.cursor/plugins/local'
+            $path = Join-Path $cursorBase $name
+            if (Test-Path -LiteralPath $path -PathType Container) {
+                $settings = Read-Document (Join-Path $UserProfile '.claude/settings.json')
+                $source = Read-Document (Join-Path $Row.source 'plugin.json')
+                $copy = if (Test-AgentHubPluginTree $cursorBase $path) { Read-AgentHubCleanupManifest (Join-Path $path 'plugin.json') }
+                $projection = if ($copy) { Read-AgentHubCleanupManifest (Join-Path $path '.cursor-plugin/plugin.json') }
+                if ($settings.enabledPlugins."$name@$market" -eq $true -and $copy.name -eq $name -and
+                    $copy.author.name -and $copy.author.name -ceq $source.author.name -and $projection.name -eq $name -and
+                    $copy.version -eq $projection.version -and $copy.version -match '^\d+\.\d+\.\d+$' -and [version]$copy.version -le [version]$version) {
+                    New-AgentHubPluginCleanup cursor $name 'cursor-import-duplicate' $path
+                } else {
+                    New-AgentHubPluginCleanup cursor $name 'cursor-import-duplicate' $path 'unmanaged' 'Local copy or enabled Claude import could not be verified.'
+                }
+            }
+        }
+    }
+
+    if ($owner -eq 'codex') {
+        $base = Join-Path $UserProfile ".codex/plugins/cache/$market/$name"
+        Get-AgentHubOldPluginVersions -HostId codex -Plugin $name -Root $base -ActivePath $Row.previousPath -Version $version
+        $entries = @(Get-PluginClientList codex | Where-Object { $_.name -eq $name -and $_.pluginId -ne "$name@$market" })
+        if ($market -eq 'agenthub' -and $name -eq 'ah-media-studio') {
+            $legacyId = 'ah-media-studio@created-by-me-remote'
+            $legacyMarket = Join-Path $UserProfile '.codex/plugins/cache/created-by-me-remote'
+            $legacyPath = Join-Path $legacyMarket $name
+            $exists = Test-Path -LiteralPath $legacyPath
+            if ($exists -or $legacyId -in $entries.pluginId) {
+                $cacheSafe = -not $exists
+                if ($exists -and (Test-AgentHubPluginTree $legacyMarket $legacyPath)) {
+                    $copies = @(Get-ChildItem -LiteralPath $legacyPath -Force)
+                    $invalid = @($copies | Where-Object {
+                        $manifest = if ($_.PSIsContainer) { Read-AgentHubCleanupManifest (Join-Path $_.FullName 'plugin.json') }
+                        -not $_.PSIsContainer -or $_.Name -notmatch '^\d+\.\d+\.\d+$' -or
+                            $manifest.name -ne $name -or $manifest.version -ne $_.Name -or [version]$_.Name -gt [version]$version
+                    })
+                    $cacheSafe = $copies.Count -gt 0 -and -not $invalid.Count
+                }
+                if ($cacheSafe) {
+                    New-AgentHubPluginCleanup codex $name 'codex-retired-registration' $legacyId
+                } else {
+                    New-AgentHubPluginCleanup codex $name 'codex-retired-registration' $legacyId 'unmanaged' 'Legacy cache ownership could not be verified.'
+                }
+                $entries = @($entries | Where-Object pluginId -ne $legacyId)
+            }
+        }
+        foreach ($other in $entries) {
+            New-AgentHubPluginCleanup codex $name 'alternate-registration' $other.pluginId 'unmanaged' 'Another marketplace owns this registration.'
+        }
+    }
+
+    if ($owner -eq 'copilot' -and $market -eq 'agenthub' -and $live) {
+        $config = Join-Path $UserProfile '.copilot/config.json'
+        if (Test-Path -LiteralPath $config -PathType Leaf) {
+            $document = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json -AsHashtable
+            $owned = @(Get-AgentHubCopilotDirectEntries $document $name $Row.relative)
+            $entries = @(Get-PluginClientList copilot | Where-Object { $_.name -eq $name -and $_.marketplace -ne $market })
+            if ($owned.Count -eq 1 -and $entries.Count -eq 1 -and $entries[0].source -eq 'installed' -and -not $entries[0].marketplace) {
+                New-AgentHubPluginCleanup copilot $name 'copilot-direct-registration' $config
+            } elseif ($owned.Count -or $entries.Count) {
+                New-AgentHubPluginCleanup copilot $name 'alternate-registration' $name 'unmanaged' 'Direct registration ownership is ambiguous.'
+            }
+            if (-not $owned.Count -and -not $entries.Count) {
+                $base = Join-Path $UserProfile '.copilot/installed-plugins/_direct'
+                $pattern = '^shmindmaster--agenthub--' + [regex]::Escape($Row.relative.Replace('/','-')) + '-[0-9a-f]{8}$'
+                foreach ($cache in Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue | Where-Object Name -match $pattern) {
+                    $copy = if (Test-AgentHubPluginTree $base $cache.FullName) { Read-AgentHubCleanupManifest (Join-Path $cache.FullName 'plugin.json') }
+                    if ($copy.name -eq $name -and $copy.version -match '^\d+\.\d+\.\d+$' -and [version]$copy.version -le [version]$version) {
+                        New-AgentHubPluginCleanup copilot $name 'copilot-direct-cache' $cache.FullName
+                    }
+                }
+            }
+        }
+    }
+}
+
+function Invoke-PluginCleanup($Row, $Candidate) {
+    $owner = Get-RowNativeHost $Row
+    switch ($Candidate.kind) {
+        'codex-retired-registration' {
+            Invoke-Client codex @('plugin','remove',$Candidate.target) | Out-Null
+            $remaining = @(Get-PluginClientList codex -Fresh | Where-Object pluginId -eq $Candidate.target)
+            $legacy = Join-Path $UserProfile '.codex/plugins/cache/created-by-me-remote/ah-media-studio'
+            if ($remaining.Count -or (Test-Path -LiteralPath $legacy)) { throw 'Retired Codex registration or cache is still present.' }
+            Set-PluginStatus $Row
+            if ($Row.status -ne 'current') { throw 'Canonical Codex registration did not verify after removing the retired registration.' }
+        }
+        'copilot-direct-registration' {
+            Remove-AgentHubCopilotDirectRegistration $Candidate.target $Row.plugin $Row.relative {
+                $installed = @(Get-PluginClientList copilot -Fresh | Where-Object name -eq $Row.plugin)
+                $installed.Count -eq 1 -and $installed[0].marketplace -eq $Row.marketplace -and
+                    $installed[0].version -eq $Row.expected -and $installed[0].enabled
+            }
+        }
+        'old-cache' {
+            Remove-AgentHubPluginTree (Join-Path $UserProfile ".$owner/plugins/cache/$($Row.marketplace)/$($Row.plugin)") $Candidate.target
+        }
+        'cursor-import-duplicate' {
+            Remove-AgentHubPluginTree (Join-Path $UserProfile '.cursor/plugins/local') $Candidate.target
+        }
+        'copilot-direct-cache' {
+            Remove-AgentHubPluginTree (Join-Path $UserProfile '.copilot/installed-plugins/_direct') $Candidate.target
+        }
+        default { throw 'No verified cleanup route.' }
+    }
+}
+
+function Get-PluginCleanupPlan($Rows, [switch]$Execute) {
+    $seen = @{}
+    $refreshed = @{}
+    foreach ($row in $Rows) {
+        $planned = @(Get-PluginCleanup $row)
+        if ($Execute -and $planned.Count) {
+            $ownerKey = "$(Get-RowNativeHost $row)/$($row.plugin)"
+            $fresh = -not $refreshed.ContainsKey($ownerKey)
+            if ($fresh) { $refreshed[$ownerKey] = $true }
+            Set-PluginStatus $row -Fresh:$fresh
+            $planned = @(Get-PluginCleanup $row)
+        }
+        # Repeat once after direct registration removal to pick up its orphaned cache.
+        for ($pass = 0; $pass -lt 2 -and $planned.Count; $pass++) {
+            $removedRegistration = $false
+            foreach ($candidate in $planned) {
+                $key = "$($candidate.host)/$($candidate.kind)/$($candidate.target)/$($candidate.plugin)"
+                if ($seen.ContainsKey($key)) { continue }
+                $seen[$key] = $true
+                if ($candidate.status -eq 'pending' -and $candidate.kind -ne 'codex-retired-registration' -and
+                    (Test-AgentHubPluginHostBusy $candidate.host)) {
+                    $candidate.status = 'deferred'
+                    $candidate.detail = 'Close the host before cleanup. The next apply will retry.'
+                }
+                if ($Execute -and $candidate.status -eq 'pending') {
+                    try {
+                        if (-not (Get-PluginCleanup $row | Where-Object {
+                            $_.kind -eq $candidate.kind -and $_.target -eq $candidate.target -and $_.status -eq 'pending'
+                        })) {
+                            $candidate.status = 'deferred'
+                            $candidate.detail = 'Cleanup ownership changed. Recheck on the next apply.'
+                            $candidate
+                            continue
+                        }
+                        Invoke-PluginCleanup $row $candidate
+                        $candidate.status = 'removed'
+                        $removedRegistration = $removedRegistration -or $candidate.kind -eq 'copilot-direct-registration'
+                    } catch {
+                        $candidate.status = 'failed'
+                        $candidate.detail = $_.Exception.Message
+                    }
+                }
+                $candidate
+            }
+            $planned = if ($removedRegistration) { @(Get-PluginCleanup $row) } else { @() }
+        }
+    }
+}
+
 $conflicts = @()
 if (-not $HostId -or $HostId -eq 'claude') {
     $allowed = @($mcpRegistry.activationPolicy.pluginOnly.hosts.claude.PSObject.Properties.Name)
@@ -575,6 +775,7 @@ if (-not $HostId) {
 $changes = [Collections.Generic.List[object]]::new()
 $release = $null
 $failed = $false
+$cleanup = @()
 if ($Apply) {
     $release = Assert-PublishedPluginSource
     $receiptRoot = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub/runtime/plugin-deployment'
@@ -636,9 +837,18 @@ if ($Apply) {
         }
         if ($failed) { break }
     }
+    if (-not $failed) {
+        $cleanup = @(Get-PluginCleanupPlan $rows -Execute)
+        if ($cleanup.status -contains 'failed') {
+            $failed = $true
+            [IO.File]::WriteAllText($receiptPath, (@{ release=$release; changes=@($changes.ToArray()); cleanup=$cleanup } | ConvertTo-Json -Depth 6))
+        }
+    }
     # A run whose every change verified leaves no receipt; a failed run keeps it for recovery.
     if (-not $failed -and (Test-Path -LiteralPath $receiptPath)) { [IO.File]::Delete($receiptPath) }
     } finally { $deploymentLock.Dispose() }
+} else {
+    $cleanup = @(Get-PluginCleanupPlan $rows)
 }
 $report = [ordered]@{
     mode = if ($Apply) { 'apply' } else { 'audit' }
@@ -646,11 +856,13 @@ $report = [ordered]@{
     mappings = @($rows | Select-Object host,plugin,route,nativeOwnerHost,expected,observed,status,detail)
     conflicts = @($conflicts)
     changes = @($changes.ToArray())
+    cleanup = $cleanup
 }
 if ($Json) { $report | ConvertTo-Json -Depth 6 }
 else {
     $report.mappings | Format-Table host,plugin,route,expected,observed,status,detail -AutoSize
     if ($conflicts.Count) { $conflicts | Format-Table -AutoSize }
+    if ($cleanup.Count) { $cleanup | Format-Table host,plugin,kind,status,detail -AutoSize }
     Write-Output "Plugin mappings: $($rows.Count); applied and verified: $(@($changes | Where-Object status -EQ 'verified').Count)"
 }
 if ($failed) { exit 1 }

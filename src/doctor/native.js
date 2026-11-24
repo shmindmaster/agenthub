@@ -85,11 +85,14 @@ export async function inspectDevin(ctx, env) {
  */
 export function openAutoClawRuntime(ctx, env, accountEmail) {
   if (ctx.platform !== 'windows' || process.platform !== 'win32') return { status: /** @type {const} */ ('unavailable') };
-  const runtime = join(ctx.localData, 'Programs', 'AutoClaw2', 'resources', 'vendor', 'zcode', 'zcode.cjs');
+  const programs = join(ctx.localData, 'Programs');
   const accounts = join(ctx.roamingConfig, 'AutoClaw-oversea-official', 'accounts');
 
   try {
-    if (!statSync(runtime, { throwIfNoEntry: false })?.isFile()) return { status: /** @type {const} */ ('unavailable') };
+    const runtime = [join(programs, 'AutoClaw', 'AutoClaw2'), join(programs, 'AutoClaw2')]
+      .map(directory => join(directory, 'resources', 'vendor', 'zcode', 'zcode.cjs'))
+      .find(path => statSync(path, { throwIfNoEntry: false })?.isFile());
+    if (!runtime) return { status: /** @type {const} */ ('unavailable') };
     const profiles = statSync(accounts, { throwIfNoEntry: false })?.isDirectory()
       ? readdirSync(accounts, { withFileTypes: true })
         .filter((entry) => entry.isDirectory())
