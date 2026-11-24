@@ -46,15 +46,16 @@ try {
     $raw = (@{installedPlugins=@($direct,$fork);theme='test'} | ConvertTo-Json -Depth 7)
     [IO.File]::WriteAllText($cfg,$raw)
     if (-not $IsWindows) {
-        $privateMode = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite
-        [IO.File]::SetUnixFileMode($cfg, $privateMode)
+        & chmod 600 $cfg
+        if ($LASTEXITCODE) { throw 'Could not set fixture permissions.' }
+        $privateMode = (Get-Item -LiteralPath $cfg).UnixMode
     }
     try { Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $false }; throw 'Expected rollback.' }
     catch { if ($_.Exception.Message -notmatch 'did not verify') { throw } }
     if ([IO.File]::ReadAllText($cfg) -cne $raw) { throw 'Copilot did not roll back failed readback.' }
     Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $true }
     $result = Get-Content -LiteralPath $cfg -Raw -Encoding UTF8 | ConvertFrom-Json
-    if (-not $IsWindows -and [IO.File]::GetUnixFileMode($cfg) -ne $privateMode) { throw 'Copilot configuration mode changed.' }
+    if (-not $IsWindows -and (Get-Item -LiteralPath $cfg).UnixMode -ne $privateMode) { throw 'Copilot configuration mode changed.' }
     if ($result.theme -ne 'test' -or @($result.installedPlugins).Count -ne 1 -or $result.installedPlugins[0].source.repo -ne 'someone/agenthub') {
         throw 'Copilot changed an unrelated registration or setting.'
     }
@@ -81,9 +82,9 @@ try {
         }
         @(
             @{pluginId='ah-media-studio@agenthub'; name='ah-media-studio'; enabled=$script:canonicalEnabled},
-            @{pluginId='ah-media-studio@created-by-me-remote'; name='ah-media-studio'},
+            $(if (-not $script:legacyRemoved) { @{pluginId='ah-media-studio@created-by-me-remote'; name='ah-media-studio'} }),
             @{pluginId='ah-media-studio@independent'; name='ah-media-studio'}
-        ) | ForEach-Object { [pscustomobject]$_ }
+        ) | Where-Object { $_ } | ForEach-Object { [pscustomobject]$_ }
     }
     function Set-PluginStatus($Row, [switch]$Fresh) { $Row.status = $script:freshStatus }
     function Invoke-PluginCleanup($Row, $Candidate) {
@@ -142,6 +143,17 @@ try {
     }
     [IO.File]::WriteAllText($claudeRegistry, '{invalid json')
     if ((Get-PluginCleanupPlan @($row) -Execute).status -ne 'unmanaged') { throw 'Corrupt Claude registry did not fail safely.' }
+    $node = $ast.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Invoke-PluginCleanup' }, $true)
+    . ([scriptblock]::Create($node.Extent.Text))
+    function Invoke-Client($Command, $Arguments) {
+        if ($Command -ne 'codex' -or $Arguments[-1] -ne 'ah-media-studio@created-by-me-remote') { throw 'Unexpected native plugin mutation.' }
+        $script:canonicalEnabled = $false
+        $script:legacyRemoved = $true
+    }
+    $row = [pscustomobject]@{host='codex';plugin='ah-media-studio';marketplace='agenthub';expected='2.0.0';status='current'}
+    $candidate = New-AgentHubPluginCleanup codex ah-media-studio 'codex-retired-registration' 'ah-media-studio@created-by-me-remote'
+    try { Invoke-PluginCleanup $row $candidate; throw 'Expected post-removal verification to fail.' }
+    catch { if ($_.Exception.Message -notmatch 'Canonical Codex registration did not verify') { throw } }
     Write-Output 'RESULT: plugin cleanup ownership, audit, readback, deduplication and rollback passed'
 } finally {
     [IO.Directory]::Delete($fixture, $true)

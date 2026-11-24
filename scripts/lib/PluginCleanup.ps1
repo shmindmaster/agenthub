@@ -108,17 +108,18 @@ function Get-AgentHubCopilotDirectEntries($Document, [string]$Plugin, [string]$R
 }
 
 function Write-AgentHubCopilotConfigTemp([string]$Path, [string]$Temp, [string]$Content) {
-    # Create the replacement with restricted access before writing any bytes.
-    $options = [IO.FileStreamOptions]::new()
-    $options.Mode = [IO.FileMode]::CreateNew
-    $options.Access = [IO.FileAccess]::Write
-    if (-not $IsWindows) {
-        $options.UnixCreateMode = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite
+    # Create an empty file and secure it before writing any configuration.
+    [IO.File]::Open($Temp, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write).Dispose()
+    if ($IsWindows) {
+        Set-Acl -LiteralPath $Temp -AclObject (Get-Acl -LiteralPath $Path)
+    } else {
+        # chmod and cp -p work on PowerShell 7.2 / .NET 6 without UnixFileMode.
+        & chmod 600 $Temp
+        if ($LASTEXITCODE) { throw 'Could not protect the temporary Copilot configuration.' }
+        & cp -p $Path $Temp
+        if ($LASTEXITCODE) { throw 'Could not preserve Copilot configuration permissions.' }
     }
-    [IO.File]::Open($Temp, $options).Dispose()
-    if ($IsWindows) { Set-Acl -LiteralPath $Temp -AclObject (Get-Acl -LiteralPath $Path) }
     [IO.File]::WriteAllText($Temp, $Content)
-    if (-not $IsWindows) { [IO.File]::SetUnixFileMode($Temp, [IO.File]::GetUnixFileMode($Path)) }
 }
 
 function Remove-AgentHubCopilotDirectRegistration([string]$Path, [string]$Plugin, [string]$RelativePath, [scriptblock]$Verify) {
