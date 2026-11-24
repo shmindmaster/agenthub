@@ -18,8 +18,6 @@ stranger-safe first run. For this private fleet checkout, also use
 
 - [architecture/control-plane-modules.md](./architecture/control-plane-modules.md) —
   PathBinding, host catalog, capability overlay, and the public/personal split.
-- [architecture/mobile-lab-remote-android.md](./architecture/mobile-lab-remote-android.md) —
-  superseded record of the remote Android lane (retired 2026-11-24).
 - [architecture/overview.md](./architecture/overview.md) — registry model and
   validation layers (fleet checkout).
 - [architecture/portfolio-policy.md](./architecture/portfolio-policy.md) —
