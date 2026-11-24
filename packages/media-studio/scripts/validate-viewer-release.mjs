@@ -316,7 +316,7 @@ if (evidence) {
   } else if (titles && standardStoryReview && titles.titleCount > 1) {
     errors.push("exact encoded title review must confirm no more than one opening title treatment.");
   }
-  const illustrative = job.kind !== 'product-screencast' && !communicationProfile && !job.campaign
+  const illustrative = job.kind !== 'product-screencast' && !communicationProfile && !job.campaign && !marketing
     && ['educational', 'explainer', 'fictional-story', 'abstract'].includes(job.creativeMode)
     && job.noEnactedActions === true && job.noCompletedResultClaims === true;
   const actions = !illustrative || evidence.actionResultReview ? requireBoundPass("actionResultReview") : null;

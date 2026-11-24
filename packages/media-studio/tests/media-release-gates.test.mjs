@@ -145,6 +145,19 @@ test('an educational explanation can finish without a CTA or invented product ac
   assert.notEqual(result.code, 0);
   assert.match(result.output, /actionResultReview/);
 
+  // A marketing cut never takes the illustrative exemption, whatever creative mode it declares.
+  writeFileSync(join(root, 'qa', 'marketing-readiness-check.json'), JSON.stringify({
+    generator: 'media-studio/validate-marketing-readiness', ok: true, errors: [], applies: true,
+    thresholds: { hookMaxSeconds: 2, endCardWindowSeconds: 8, beatToleranceMs: 80, beatHitRatio: 0.9, referencesRequired: 3 },
+    candidate: { sha256: sha(candidate), bytes: statSync(candidate).size },
+  }));
+  for (const marketingJob of [{ ...lesson, marketing: true }, { ...lesson, kind: 'teaser' }]) {
+    writeFileSync(jobPath, JSON.stringify(marketingJob));
+    result = run(releaseValidator, [root, candidate]);
+    assert.notEqual(result.code, 0, JSON.stringify(marketingJob));
+    assert.match(result.output, /actionResultReview/);
+  }
+
   // A communication profile declared only in a BOM-prefixed screenplay removes the illustrative exemption too.
   writeFileSync(jobPath, JSON.stringify(lesson));
   const screenplayPath = join(root, 'story', 'screenplay.json');
