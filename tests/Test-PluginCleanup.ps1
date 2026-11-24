@@ -4,10 +4,10 @@ $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $root 'scripts/lib/PluginPaths.ps1')
 . (Join-Path $root 'scripts/lib/PluginCleanup.ps1')
 function Read-Document([string]$Path) {
-    if (Test-Path -LiteralPath $Path -PathType Leaf) { Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json }
+    if (Test-Path -LiteralPath $Path -PathType Leaf) { Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json }
 }
 
-$fixture = [IO.Directory]::CreateTempSubdirectory('agenthub-cleanup-test-').FullName
+$fixture = Resolve-AgentHubPhysicalPath ([IO.Directory]::CreateTempSubdirectory('agenthub-cleanup-test-').FullName)
 try {
     $base = Join-Path $fixture 'cache'
     foreach ($v in '1.0.0','1.1.0','1.2.0','2.0.0','9.0.0') {
@@ -41,7 +41,7 @@ try {
     catch { if ($_.Exception.Message -notmatch 'did not verify') { throw } }
     if ([IO.File]::ReadAllText($cfg) -cne $raw) { throw 'Copilot did not roll back failed readback.' }
     Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $true }
-    $result = Get-Content -LiteralPath $cfg -Raw | ConvertFrom-Json
+    $result = Get-Content -LiteralPath $cfg -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($result.theme -ne 'test' -or @($result.installedPlugins).Count -ne 1 -or $result.installedPlugins[0].source.repo -ne 'someone/agenthub') {
         throw 'Copilot changed an unrelated registration or setting.'
     }

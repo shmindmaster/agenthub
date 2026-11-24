@@ -21,6 +21,9 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/PluginCleanup.ps1')
 . (Join-Path $PSScriptRoot 'lib/SharedSkillOwnership.ps1')
 $liveProfile = [IO.Path]::GetFullPath((Get-AgentHubDefaultHome))
+# Normalize only profile roots. Cache paths beneath them must be actual directories.
+if (Test-Path -LiteralPath $liveProfile -PathType Container) { $liveProfile = Resolve-AgentHubPhysicalPath $liveProfile }
+if (Test-Path -LiteralPath $UserProfile -PathType Container) { $UserProfile = Resolve-AgentHubPhysicalPath $UserProfile }
 $live = $UserProfile.TrimEnd('\', '/') -eq $liveProfile.TrimEnd('\', '/')
 $root = $RepositoryRoot.Replace('\', '/')
 $overlay = Get-AgentHubOverlayRoot -RepositoryRoot $root
@@ -159,6 +162,9 @@ function Get-PluginObservation($Row, [switch]$Fresh) {
                 $installed = Join-Path $base $entries[0].version
                 $copy = Get-ManifestObservation $installed 'plugin.json' $name
                 if (-not $copy) { return New-Observation $entries[0].version '' 'drift' 'Registered Codex cache is missing.' }
+                if ($copy.version -and $copy.version -ne $entries[0].version) {
+                    return New-Observation $entries[0].version $installed 'drift' 'Codex registration and cache versions differ.'
+                }
                 return $copy
             }
         }
@@ -653,7 +659,7 @@ function Get-PluginCleanup($Row) {
     if ($owner -eq 'copilot' -and $market -eq 'agenthub' -and $live) {
         $config = Join-Path $UserProfile '.copilot/config.json'
         if (Test-Path -LiteralPath $config -PathType Leaf) {
-            $document = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json -AsHashtable
+            $document = Get-Content -LiteralPath $config -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
             $owned = @(Get-AgentHubCopilotDirectEntries $document $name $Row.relative)
             $entries = @(Get-PluginClientList copilot | Where-Object { $_.name -eq $name -and $_.marketplace -ne $market })
             if ($owned.Count -eq 1 -and $entries.Count -eq 1 -and $entries[0].source -eq 'installed' -and -not $entries[0].marketplace) {
