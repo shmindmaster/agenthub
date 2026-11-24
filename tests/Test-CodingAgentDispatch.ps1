@@ -45,34 +45,9 @@ $env:MIMO_API_KEY = 'tp-synthetic-dispatch-fixture'
 $env:MIMO_BASE_URL = 'https://token-plan-sgp.xiaomimimo.com/v1'
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('cad fixture ' + [guid]::NewGuid().ToString('n'))
 try {
-    $forgeWorktree = '/srv/work/agenthub-runner/worktrees/SH-4409'
-    $r = Run @('-Forge','-HostId','opencode','-Cwd',$forgeWorktree,'-ShowCommand')
-    Check 'Forge preview uses fixed SSH target and unprivileged identity' ($r.Exit -eq 0 -and $r.Out -match 'forge runuser -u agenthub-runner -- env -i' -and $r.Out -match '/\.local/bin/opencode') $r.Err
-    $r = Run @('-Forge','-HostId','opencode','-Cwd',"$forgeWorktree/../outside",'-ShowCommand')
-    Check 'Forge refuses paths outside the worktree root' ($r.Exit -eq 3 -and $r.Err -match 'Forge worktree path')
-    $r = Run @('-Forge','-HostId','opencode','-Cwd',"$forgeWorktree`n",'-ShowCommand')
-    Check 'Forge refuses shell control characters in the worktree path' ($r.Exit -eq 3)
-    $r = Run @('-Forge','-HostId','opencode','-Cwd',$forgeWorktree,'-Prompt','ok')
-    Check 'Forge refuses unattended prompts' ($r.Exit -eq 3 -and $r.Err -match 'interactive sessions only')
-    $r = Run @('-Forge','-HostId','grok-browser','-Cwd',$forgeWorktree,'-ShowCommand')
-    Check 'Forge browser route uses the isolated browser launcher' ($r.Exit -eq 0 -and $r.Out -match '/\.local/bin/grok-browser')
-    $r = Run @('-Forge','-HostId','opencode-zai','-Cwd',$forgeWorktree,'-ShowCommand')
-    Check 'Forge Z.ai uses the isolated launcher' ($r.Exit -eq 0 -and $r.Out -match '/\.local/bin/opencode-zai\b')
-    $r = Run @('-Forge','-HostId','opencode-go','-Cwd',$forgeWorktree,'-ShowCommand')
-    Check 'Forge OpenCode Go uses the subscription launcher' ($r.Exit -eq 0 -and $r.Out -match '/\.local/bin/opencode-go\b')
-    foreach ($client in @('claude', 'codex')) {
-        foreach ($plan in @('qwen', 'zai', 'mimo', 'go')) {
-            $route = "$client-$plan"
-            $r = Run @('-Forge','-HostId',$route,'-Cwd',$forgeWorktree,'-ShowCommand')
-            Check "Forge $route selects an explicit provider launcher" ($r.Exit -eq 0 -and $r.Out -match "/\.local/bin/$route\b") $r.Err
-            $r = Run @('-Forge','-Auth','-HostId',$route)
-            Check "Forge $route identifies its runtime credential" ($r.Exit -eq 0 -and $r.Out -match 'runtime credential' -and $r.Out -notmatch 'device-auth') $r.Err
-        }
-        $r = Run @('-Forge','-HostId',$client,'-Cwd',$forgeWorktree,'-ShowCommand')
-        Check "Forge refuses an unqualified $client route" ($r.Exit -eq 3 -and $r.Err -match 'Select a Forge provider explicitly') $r.Err
-    }
-    $r = Run @('-Forge','-Auth','-HostId','grok')
-    Check 'Forge auth shows the browser device login command' ($r.Exit -eq 0 -and $r.Out -match 'grok login --device-auth' -and $r.Out -notmatch 'codex login')
+    # The remote operator route is retired (heavy work runs on Daytona), so the switch must not be accepted.
+    $r = Run @('-Forge','-HostId','opencode','-Cwd','/srv/work/agenthub-runner/worktrees/demo','-ShowCommand')
+    Check 'the retired -Forge switch is refused as an unknown parameter' ($r.Exit -ne 0 -and $r.Out -notmatch 'ssh' -and ($r.Err + $r.Out) -match 'Forge') ($r.Err + $r.Out)
     $r = Run @('-Auth','-HostId','codex')
     Check 'Local auth shows a status command' ($r.Exit -eq 0 -and $r.Out -match 'codex login status')
     $r = Run @('-Auth','-Prompt','ok')
@@ -173,8 +148,6 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $r = Run @('-HostId','codex','-Prompt','ok','-ZCodeBrowser')
     Check 'Other hosts refuse the ZCode browser option' ($r.Exit -eq 3 -and $r.Err -match 'applies only to -HostId zcode')
-    $r = Run @('-Forge','-HostId','codex-zai','-Cwd','/srv/work/agenthub-runner/worktrees/demo','-ZCodeBrowser','-ShowCommand')
-    Check 'Forge refuses the ZCode browser option before resolving a remote host' ($r.Exit -eq 3 -and $r.Err -match 'local dispatcher')
     $r = Run @('-List')
     Check 'list succeeds' ($r.Exit -eq 0) $r.Err
     $fleet.dispatchPolicy['codex'] = @{ enabled = $false; reason = 'response capture is not verified'; ownerAction = 'run a bounded smoke after the output fix' }; Save-Fixture

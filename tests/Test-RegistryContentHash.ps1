@@ -121,7 +121,7 @@ function Test-PowerShellModuleLineEndingsAreStable {
     }
 }
 
-# systemd units (forge-intake.service/.timer) were once hashed as binary, so Windows and Linux checkouts disagreed.
+# systemd units (.service/.timer) were once hashed as binary, so Windows and Linux checkouts disagreed.
 function Test-SystemdUnitLineEndingsAreStable {
     $fixture = New-HashFixtureRepo
     try {
