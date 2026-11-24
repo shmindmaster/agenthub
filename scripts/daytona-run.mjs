@@ -100,7 +100,7 @@ export async function main(argv) {
     await box.process.run('mkdir -p /work');
     await box.fs.uploadFile(join(tmp, 'src.bundle'), '/work/src.bundle');
     for (const [from, to] of o.put) await box.fs.uploadFile(resolve(from), to);
-    const setup = await box.process.run(`git config --global user.email ci@example.invalid && git config --global user.name ci && git config --global init.defaultBranch main && git clone -q /work/src.bundle /work/repo 2>/dev/null && git -C /work/repo checkout -q -B run ${revision} && git -C /work/repo rev-parse HEAD`);
+    const setup = await box.process.run(`git config --global user.email ci@example.invalid && git config --global user.name ci && git config --global init.defaultBranch main && git config --global init.templateDir /usr/share/git-core/templates && git clone -q /work/src.bundle /work/repo 2>/dev/null && git -C /work/repo checkout -q -B run ${revision} && git -C /work/repo rev-parse HEAD`);
     if (setup.exitCode !== 0 || setup.stdout.trim().split('\n').pop() !== revision) throw new Error(`checkout failed: ${setup.stderr || setup.stdout}`);
     // The box sets TERM=linux, which makes PowerShell drop table output when there is no terminal.
     writeFileSync(join(tmp, 'cmd.sh'), `export TERM=dumb\ncd /work/repo\n${command}\n`);
