@@ -301,7 +301,7 @@ if (evidence) {
   const screenplayFile = join(root, 'story', 'screenplay.json');
   let screenplayProfile = null;
   if (existsSync(screenplayFile)) {
-    try { screenplayProfile = json(screenplayFile)?.communicationProfile ?? null; }
+    try { screenplayProfile = JSON.parse(readFileSync(screenplayFile, 'utf8').replace(/^﻿/, ''))?.communicationProfile ?? null; }
     catch { errors.push('story/screenplay.json is not valid JSON; the release gate cannot read its communication profile.'); }
   }
   const communicationProfile = screenplayProfile || job.communicationProfile;

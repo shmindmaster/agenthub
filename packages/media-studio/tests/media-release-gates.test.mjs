@@ -144,6 +144,20 @@ test('an educational explanation can finish without a CTA or invented product ac
   result = run(releaseValidator, [root, candidate]);
   assert.notEqual(result.code, 0);
   assert.match(result.output, /actionResultReview/);
+
+  // A communication profile declared only in a BOM-prefixed screenplay removes the illustrative exemption too.
+  writeFileSync(jobPath, JSON.stringify(lesson));
+  const screenplayPath = join(root, 'story', 'screenplay.json');
+  const screenplay = JSON.parse(readFileSync(screenplayPath, 'utf8'));
+  writeFileSync(screenplayPath, '﻿' + JSON.stringify({ ...screenplay, communicationProfile: 'consulting-demo' }));
+  const narrationPath = join(root, 'qa', 'narration-check.json');
+  const narration = JSON.parse(readFileSync(narrationPath, 'utf8'));
+  narration.inputs.screenplay.sha256 = sha(screenplayPath);
+  writeFileSync(narrationPath, JSON.stringify(narration));
+  result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /actionResultReview/);
+  assert.doesNotMatch(result.output, /screenplay.json is not valid JSON/);
 });
 test('a legacy verified screencast keeps the opening-title cap and CTA review', () => {
   const root = join(scratch, 'legacy-story-review'); job(root);
