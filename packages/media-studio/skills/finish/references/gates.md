@@ -32,7 +32,7 @@ It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-25
 
 ## Words only
 
-`scripts/check_visual_variety.py <briefing-props.json>` checks picture share, consecutive scenes without pictures, overuse of one visual kind and repeated footage or stills without a `reuseReason`. Compare intentional callbacks to their earlier use during the encoded review. Run this check with `check_picture_relevance.py` before any voice or render spend.
+`scripts/check_visual_variety.py <briefing-props.json>` checks picture share, consecutive scenes without pictures, overuse of one visual kind and repeated footage or stills without a `reuseReason`. Compare intentional callbacks to their earlier use during the encoded review. Run this check with `check_picture_relevance.py` before any voice or render spend. Use `--advisory` for deliberate visual formats that the default picture mix and wording overlap do not describe.
 
 ## Pronunciation
 

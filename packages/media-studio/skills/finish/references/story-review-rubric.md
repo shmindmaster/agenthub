@@ -96,7 +96,7 @@ A fast ad hook is a technique, not a mandate for a reflective
 documentary or visual poem. The same applies to mid-film reversals,
 music cues and CTAs.
 
-## Creative experience check: evidence on the finished movie
+## Creative experience check on the finished movie
 
 On the encoded candidate, the reviewer must explicitly assess the following
 with timestamps (do not accept `hookPlan`, `narrative` or `storyRole` labels
@@ -115,7 +115,7 @@ as proof that the movie actually works):
 4. **Open-loop closure:** identify the first viewer question and cite where
    the film answers it. An unexplained cliffhanger or sudden exit is a
    failure, not a retention tactic.
-5. **Value and evidence:** does the film deliver its original useful insight
+5. **Value:** does the film deliver its intended experience or useful insight
    before asking for a click? Is the named product shown causing a
    source-verified response/result, with human review and limits for AI?
 6. **Editing for meaning:** do transitions, text, music and silence follow

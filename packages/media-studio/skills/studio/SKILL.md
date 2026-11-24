@@ -1,6 +1,6 @@
 ---
 name: studio
-description: Takes a video, screencast, explainer, ad or audio idea to a finished, reviewed piece, asking a few quick questions first to pick the approach. Use when someone wants any video or audio made, or brings an idea, topic or rough ask. Not for one step of a running job.
+description: Takes a video, screencast, explainer, ad or audio idea to a finished, reviewed piece, following the requested form and making routine production choices. Use when someone wants any video or audio made, or brings an idea, topic or rough ask. Not for one step of a running job.
 ---
 # Studio
 ## Workflow contract
@@ -8,6 +8,12 @@ description: Takes a video, screencast, explainer, ad or audio idea to a finishe
 2. New job: run the intake below, then run `script`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.
 3. Return the delivered file and the review verdict, or the last passed stage and the exact next input.
 4. Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.
+## Make the requested piece
+
+Use the user's brief as the creative direction. Preserve its format, audience, tone, structure and deliverables. A request for narrated answer slides, a sample lesson, a storyboard, a music-led montage or a fictional scene should produce that artifact. A source is material to work from. Follow the user's requested level of research and citations. Handle uncertainty in a line or production note where it affects the audience's understanding.
+
+Make routine creative choices and start useful work in the same turn. Use a template, brainstorming pass, research phase or specialist plugin when the brief calls for it or it directly advances the requested artifact. Apply checks for an actual published-product claim or a requested verified demonstration to the affected claim and scene.
+
 ## Choose the viewing route
 
 For interview preparation, infer the call stage and the interviewer's stated agenda from the supplied invitation and correspondence. Use the role description and candidate evidence to choose the stories. For a product film, discover the actual workflows, roles and consequences before cutting for time. When a job needs both, plan a reusable standalone product sequence and give it a chapter inside the tailored briefing. Keep the personal framing in the briefing. Carry these defaults into the existing brief without repeating settled intake questions.
@@ -15,12 +21,12 @@ For interview preparation, infer the call stage and the interviewer's stated age
 ## Creative intake (new jobs only)
 Act as a **creative director and producer**, not a configuration wizard. Follow [guided creative intake](references/creative-intake.md) and the governed provider catalog; infer what the brief, source material, product profile or series already establishes.
 
-1. **Recommend a treatment first.** In a few lines give the viewer promise, film form, director's visual approach, screenplay spine, proposed narration style, authentic/source media plan and likely delivery. The writer uses this recommendation to develop the existing brief, screenplay and storyboard; it is not an extra approval stage.
+1. **Use the specified treatment.** If the brief leaves the treatment open, choose one that serves the audience and deliverable. Put it in the brief and begin drafting.
 2. **Ask only consequential missing decisions.** A normal invocation needs zero to three concise choices: creative direction, narrator/voice or silence, and picture/capture approach. Ask about audience, runtime, destination, aspect ratio, language or tier **only if** the request cannot establish them and the difference changes the result. Provide a recommended answer and an **accept recommended** option; do not show a six-question form by default.
 3. **Adjust interaction depth to intent.** Quick Create (infer and recommend), Creative Studio (compare up to three treatments or voice styles), and Advanced Production (explicit providers, models, capture methods and render settings) are presentation depths for the **same** `script → produce → finish` pipeline, not new pipelines or plugins. Do not make the user choose a mode before interpreting the request.
 4. **Cast voices by sound and suitability, not vendor branding.** Where narration is valuable and unresolved, recommend two or three *currently governed, authorized* voices and offer a short same-passage audition. Generate playable auditions only after the exact provider, estimated spend and approval gates pass. Do not imply a catalog listing, credits or a generated label is a playable sample. AssemblyAI also remains a transcription and alignment option. Honor the no-clone, frozen-lane and per-film approval policies.
 5. **Choose capture/compute by task fit.** For verified running products, default to true source-hashed application capture with authorized synthetic data, `ah-browser` and the approved remote execution lane; offer manual/signed-in browser/footage options only where appropriate. Ask about Daytona, forge, aspect ratio and render infrastructure only when a material tradeoff needs the owner's decision. Never imply a simulated interaction is proof of a live capability.
-6. **Show one compact production recommendation** (treatment, voice, source picture, format/tier, verifiable claims, estimated cost and approval needed). Estimate with `scripts/estimate-job-cost.mjs --scenes <n> --words <n> --stills <n> --hero <n> [--voice openai]`; re-estimate if the storyboard changes. Use actual governed routing and price eligibility; estimates are not spend authorization.
+6. **Show one compact production recommendation** (treatment, voice, picture, format, estimated cost and any approval needed). Estimate with `scripts/estimate-job-cost.mjs --scenes <n> --words <n> --stills <n> --hero <n> [--voice openai]`; re-estimate if the storyboard changes. Use actual governed routing and price eligibility; estimates are not spend authorization.
 
 Pass accepted choices into the existing brief and job manifest. Reuse an existing job's accepted choices; never restart its intake or redo an approved audition unless a material requirement changes. Classify films using [video](references/video.md), [creative formats](references/creative-formats.md) and [forms](references/forms.md).
 ## Uses other plugins
@@ -31,7 +37,7 @@ Pass accepted choices into the existing brief and job manifest. Reuse an existin
 <HARD-GATE>
 No stage starts until the previous one shows PASS in `production_status.py`. Record an approval with `production_status.py <jobRoot> --approve <name>` only after the owner said yes to that exact item in this conversation.
 </HARD-GATE>
-- Picture first: every line has something to look at; words in boxes fail the picture gates.
+- Design the viewing and listening experience to fit the requested format. Slides, titles, worked examples, deliberately held frames, dialogue and silence are legitimate choices.
 - Cheapest authorized lane that passes QA; show the budget before any paid step.
 - Never present concept or synthetic UI as verified current product behaviour.
 - Product repositories are read-only; all work lives in an external job workspace.

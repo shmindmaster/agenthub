@@ -194,7 +194,7 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
     and keep the same score/evidence/report contract.
     """
     profile = screenplay.get("communicationProfile") or job.get("communicationProfile")
-    mode = profile or job.get("creativeMode")
+    mode = profile or job.get("creativeMode") or job.get("kind") or "general"
     judgment_names = COMMUNICATION_JUDGMENTS if profile else FLEXIBLE_JUDGMENTS
     script_path = root / "story" / "screenplay.json"
     board_path = root / "story" / "storyboard.json"
@@ -291,7 +291,9 @@ def main() -> int:
         return 1
 
     sp, sb = load(sp_p), load(sb_p)
-    if sp.get("communicationProfile") or job.get("communicationProfile") or job.get("creativeMode") in FLEXIBLE_MODES:
+    creative_mode = job.get("creativeMode")
+    general_job = not creative_mode and job.get("kind") not in (None, "product-screencast")
+    if sp.get("communicationProfile") or job.get("communicationProfile") or creative_mode in FLEXIBLE_MODES or general_job:
         return flexible_form_review(root, job, sp, sb, jd_p, out_p, craft_min, args.print)
     scenes = sp.get("scenes") or []
     ids = [s["id"] for s in scenes]

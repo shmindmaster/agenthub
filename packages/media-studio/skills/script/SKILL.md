@@ -11,7 +11,9 @@ description: Turns an approved idea into a brief, story, script and storyboard w
 <HARD-GATE>
 No narration, provider call, capture or render until `brief.md` is approved in this task and the storyboard passes `check_picture_relevance.py` and `check_visual_variety.py`.
 </HARD-GATE>
-## Write for the decision the viewer will face
+## Write for the requested form
+
+Carry the specified structure and level of detail into the script and storyboard. For a narrated slide deck, write the slides and narration. For a course or answer review, follow the supplied order unless the user delegates sequencing. Use the approaches below when the deliverable calls for them.
 
 - **Interview preparation.** Open with a real decision the role owns. Rehearse the candidate's opening answer early. For each career story, write the likely question, the decision the candidate personally owned, an evidenced result and a probing follow-up. For example, after a system cutover ask who owned the requirements, who could stop the release and how they verified recovery. Separate individual responsibility from whole-program results. Give the viewer a cue to pause and answer aloud. Mark a short rehearsal route that fits the actual call.
 - **Product film.** Start with the user's stakes and follow one case through the people who act on it. Select the strongest revealing moments across the discovered workflows, including exceptions, refused actions and downstream consequences where supported. Specify which signed-in state proves each spoken verb. Opening a queue supports “open”; showing resolution also requires the changed record. For a competitive claim, identify comparable evidence for the alternative.

@@ -8,11 +8,8 @@
 4. If a beat lacks a defensible picture or approval, revise the beat before planning.
 
 Turn the case into the form that the viewer actually requested. Read
-`../video/references/creative-formats.md` before choosing a structure.
-A current-product demo uses a factual problem/action/result sequence;
-a fictional day-in-the-life may follow characters, a documentary can
-build from sourced evidence, and a future vision may begin with an
-invented full-resolution UI, family or patient scene. Abstract and
+`../../studio/references/creative-formats.md` before choosing a structure.
+Use the sequence the brief names or choose a form suited to the material. A worked lesson can follow the question order, a walkthrough can follow the actual user flow, and a future vision can open with a scene from its imagined world. Abstract and
 music-led works do not require one hero scene, a linear obstacle or
 a strictly timed spoken hook. All people and synthetic screens may
 look fully realistic; no default blurring or adult-only requirement.
@@ -33,7 +30,7 @@ free to be imaginative.
 ## 5 Gates
 
 ```text
-node scripts/check-story.mjs story/brief.json                  # the story has the parts its film type needs
+node scripts/check-story.mjs story/brief.json                  # only for a chosen marketing, verified demo or consulting profile
 py -3 scripts/check_script_terms.py story/locked-script.txt     # every name, acronym and brand decided
 node scripts/validate-narration.mjs <jobRoot>                   # fluff, repeats, hook inside five seconds
 ```

@@ -48,6 +48,17 @@ class CreativeFormReviewTest(unittest.TestCase):
             self.assertNotIn("one-hero", r["checks"])
             self.assertIn("encoded candidate still requires critic", r["reason"].lower())
 
+    def test_training_without_a_creative_mode_uses_form_aware_review(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root, disclose=False)
+            (root / "job.json").write_text(json.dumps({"kind": "training"}), encoding="utf-8")
+            proc, report = self.invoke(root)
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertIn("training", report["reason"])
+            self.assertNotIn("one-hero", report["checks"])
+            self.assertNotIn("trust", report["checks"])
+
     def test_missing_concept_status_fails_without_pretending_current_feature(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

@@ -125,7 +125,8 @@ const job = existsSync(jobPath) ? loadJson(jobPath, 'job') : null;
 const communicationProfile = screenplay?.communicationProfile || job?.communicationProfile;
 const knownCommunicationProfile = ['consulting-demo', 'technical-walkthrough', 'product-update'].includes(communicationProfile);
 if (communicationProfile && !knownCommunicationProfile) errors.push(`unknown communicationProfile: ${communicationProfile}`);
-const flexibleCreativeForm = !communicationProfile && !!job?.creativeMode && job.creativeMode !== 'verified-demo';
+const creativeMode = job?.creativeMode || (job?.kind && job.kind !== 'product-screencast' ? job.kind : 'verified-demo');
+const flexibleCreativeForm = !communicationProfile && creativeMode !== 'verified-demo';
 let lines = [];
 let source = null;
 // The locked timeline is what the voice actually speaks, so it is the text checked whenever it exists; the screenplay
@@ -281,7 +282,7 @@ const storyboard = existsSync(storyboardPath) ? loadJson(storyboardPath, 'storyb
 if (storyboard?.syntheticDisclosure) inputs.storyboard = ref(storyboardPath);
 const disclosure = screenplay?.syntheticDisclosure ?? storyboard?.syntheticDisclosure ?? job?.syntheticDisclosure ?? null;
 const declaredSynthetic = job?.syntheticData === true || /synthetic/i.test(String(job?.dataClass ?? ''));
-const disclosureRequired = (!flexibleCreativeForm && declaredSynthetic) || !!disclosure;
+const disclosureRequired = (declaredSynthetic && (!job?.creativeMode || !flexibleCreativeForm)) || !!disclosure;
 const mode = disclosure?.mode ?? null;
 const disclosureText = flat(disclosure?.text);
 const disclosureOk = !disclosureRequired || ((mode === 'caption' || mode === 'end-card') && !!disclosureText);
@@ -331,7 +332,7 @@ const report = {
   warnings,
   inputs,
   thresholds: { wpm, hookSeconds: HOOK_SECONDS, hookMaxWords, redundantOverlap: REDUNDANT_OVERLAP, redundantMinContentWords: REDUNDANT_MIN_WORDS, noNewInformationMinContentWords: NO_NEW_INFO_MIN_WORDS },
-  creativeMode: job?.creativeMode || 'verified-demo',
+  creativeMode,
   source,
   wpm,
   runtimeSeconds,

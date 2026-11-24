@@ -10,7 +10,7 @@ description: Assembles accepted voice, picture and plates into a mastered video,
 4. If a gate fails, recut first, then recapture, then rewrite; never ship a failing candidate.
 ## Check the experience in the delivered editions
 
-Review the exported picture against the spoken lines. At each consequential claim, verify the visible person, number, record, action and outcome. Flag extended low-motion intervals for inspection; resolve idle passages with the actual action, a timed point of focus or a tighter edit. Keep useful reading time. A motion score alone cannot distinguish a useful explanation from a camera pan.
+Review the export against the brief and storyboard. Check whether the picture, slides and sound deliver the requested experience. For a verified product action or factual assertion, check the relevant detail in context. Flag extended low-motion intervals for inspection; resolve idle passages with the actual action, a timed point of focus or a tighter edit. Keep useful reading time. A motion score alone cannot distinguish a useful explanation from a camera pan.
 
 Review each complete sentence affected by a name repair in the final video and any listen-first mix. Check speaker continuity, word endings, pauses and caption alignment at the join. Report whether review used direct listening or automated analysis. For interview preparation, verify the short rehearsal route, chapter jumps and closing questions. For a reused product film, check the standalone and embedded clocks separately and carry the final seek points into the viewing guide.
 
