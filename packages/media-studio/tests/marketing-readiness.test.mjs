@@ -23,11 +23,11 @@ test('managed runtime gate list ships the speech helper beside both validator co
   const block = sync.match(/\$gateScripts\s*=\s*@\(([\s\S]*?)\)\s*\$sharedTools/);
   assert.ok(block, 'native managed gate list must be discoverable');
   const names = [...block[1].matchAll(/'([^']+\.mjs)'/g)].map(m => m[1]);
-  for (const name of ['validate-marketing-readiness.mjs', 'speech-only-readiness.mjs']) assert.ok(names.includes(name), `${name} must travel through the native gate-copy loop`);
+  for (const name of ['validate-marketing-readiness.mjs', 'speech-only-readiness.mjs', 'marketing-cut.mjs']) assert.ok(names.includes(name), `${name} must travel through the native gate-copy loop`);
   // Exercise adjacent resolution in both deployment layouts. The PowerShell deployment suite separately runs the actual sync and checks destination hashes.
   for (const target of ['briefing-kit/screencast', '_shared/tools']) {
     const destination = join(scratch, 'packaged', target); mkdirSync(destination, { recursive: true });
-    for (const name of names.filter(n => ['validate-marketing-readiness.mjs', 'speech-only-readiness.mjs'].includes(n))) copyFileSync(join(pkg, 'scripts', name), join(destination, name));
+    for (const name of names.filter(n => ['validate-marketing-readiness.mjs', 'speech-only-readiness.mjs', 'marketing-cut.mjs'].includes(n))) copyFileSync(join(pkg, 'scripts', name), join(destination, name));
     const deployedGate = join(destination, 'validate-marketing-readiness.mjs');
     let result = spawnSync(process.execPath, [deployedGate], { encoding: 'utf8', windowsHide: true });
     assert.equal(result.status, 1); assert.match(result.stderr, /Usage: node validate-marketing-readiness/); assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND/);

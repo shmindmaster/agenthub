@@ -59,6 +59,18 @@ class CreativeFormReviewTest(unittest.TestCase):
             self.assertNotIn("one-hero", report["checks"])
             self.assertNotIn("trust", report["checks"])
 
+    def test_default_marketing_jobs_keep_the_marketing_review(self):
+        for job in ({"kind": "teaser"}, {"kind": "explainer", "marketing": True},
+                    {"kind": "explainer", "programForm": "campaign-short"}):
+            with self.subTest(job=job), tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                fixture(root, disclose=False)
+                (root / "job.json").write_text(json.dumps(job), encoding="utf-8")
+                proc, report = self.invoke(root)
+                self.assertNotEqual(proc.returncode, 0)
+                self.assertIn("hook", report["checks"])
+                self.assertIn("no-fluff", report["checks"])
+
     def test_training_keeps_independent_blocking_findings(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
