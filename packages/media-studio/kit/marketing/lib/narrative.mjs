@@ -40,7 +40,10 @@ const overrideFor = (overrides, rule) => overrides.find((o) => o.rule === rule |
  * @param {{brand?: object}} [options] The product's brand file, for its name variants.
  * @returns {Array<{code:string,rule:string,message:string,where:string,waived?:string}>}
  */
-export function inspectNarrativeArc(spec, cut, estimateBeatSeconds, options = {}) {
+export function inspectNarrativeArc(rawSpec, cut, estimateBeatSeconds, options = {}) {
+  // A product supplied only by the brand file is the brief's product: resolve it once so the creative mode, the
+  // representation rules and the film type treat it exactly like a brief that names the product inline.
+  const spec = withBrandProduct(rawSpec, options.brand);
   const findings = inspectRepresentation(spec, cut, productNames(spec, options.brand)).map((f) => ({ rule: `truth.${f.code}`, ...f }));
   findings.push(...inspectCommunication(spec, cut, estimateBeatSeconds));
   const mode = creativeMode(spec, cut);
@@ -245,4 +248,9 @@ export function describeFilmType(id) {
   const t = FILM_TYPES[id];
   if (!t) return null;
   return { id, summary: t.summary, slots: t.slots, opensWith: t.first || null, endsWith: t.last || t.endsWith || null, briefFields: t.narrative, hookPlan: t.hookPlan, firstSentenceWords: t.hookWords, productNamed: t.named, compactBelowSeconds: t.compactBelow || null };
+}
+
+/** The brief with the brand file's product filled in when the brief names none; an explicit brief product wins. */
+export function withBrandProduct(spec, brand) {
+  return spec && !spec.product && typeof brand?.product === 'string' && brand.product.trim() ? { ...spec, product: brand.product } : spec;
 }

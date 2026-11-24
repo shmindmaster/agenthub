@@ -73,6 +73,29 @@ test('an unbranded cut can select explainer truth rules and disclose its specula
   assert.equal(report.ok, true, JSON.stringify(report.cuts[0].failures));
 });
 
+test('a product from the brand file keeps the same truth rules as a product named in the brief', () => {
+  const brief = (extra = {}) => ({
+    conceptDisclosure: 'Illustrative scenario', ...extra,
+    cuts: [{ id: 'lesson', filmType: 'explainer', targetSeconds: 36,
+      narrative: { question: 'What changes when outcomes are replaced?', viewerValue: 'Compare the two distributions' },
+      beats: [
+        { kind: 'broll', role: 'explanation', truthStatus: 'proposed', line: 'Imagine a second projection.' },
+        { role: 'takeaway', line: 'Replacing the draw resets the distribution.' },
+      ],
+    }],
+  });
+  const representation = (report) => report.cuts[0].failures.some((f) => f.rule === 'truth.representation');
+  const inline = checkStory(brief({ product: 'Rexa' }));
+  const viaBrand = checkStory(brief(), { product: 'Rexa' });
+  const unbranded = checkStory(brief());
+  assert.equal(representation(inline), true, 'a named product keeps verified-demo truth rules');
+  assert.equal(representation(viaBrand), representation(inline), JSON.stringify(viaBrand.cuts[0].failures));
+  assert.equal(viaBrand.creativeMode, inline.creativeMode);
+  assert.equal(representation(unbranded), false, JSON.stringify(unbranded.cuts[0].failures));
+  assert.equal(checkStory(brief({ creativeMode: 'concept-film' }), { product: 'Rexa' }).cuts[0].failures.some((f) => f.rule === 'truth.representation'), false,
+    'an explicit creative mode stays authoritative');
+});
+
 test('the closed job schema allows explicit illustrative release declarations', () => {
   const schema = JSON.parse(readFileSync(new URL('../schemas/job.schema.json', import.meta.url), 'utf8'));
   const job = { kind: 'explainer', title: 'Independent draws', workspace: '/job', repositoryWritePolicy: 'read-only',

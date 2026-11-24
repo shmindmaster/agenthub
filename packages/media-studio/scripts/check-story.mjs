@@ -27,7 +27,7 @@ const libRoot = [['..', 'kit', 'marketing', 'lib'], ['..', 'marketing', 'lib'], 
   .map((parts) => resolve(here, ...parts)).find((dir) => existsSync(resolve(dir, 'narrative.mjs')));
 if (!libRoot) { console.error('check-story: the marketing kit library was not found beside this script; run Sync-MediaStudioKit.ps1.'); process.exit(2); }
 const lib = (name) => pathToFileURL(resolve(libRoot, name)).href;
-const { inspectNarrativeArc, describeFilmType } = await import(lib('narrative.mjs'));
+const { inspectNarrativeArc, describeFilmType, withBrandProduct } = await import(lib('narrative.mjs'));
 const { FILM_TYPES, resolveFilmType } = await import(lib('story-profiles.mjs'));
 const { creativeMode, conceptBeat } = await import(lib('creative-modes.mjs'));
 const { withProductProfile, productProfile } = await import(lib('product-profile.mjs'));
@@ -80,8 +80,8 @@ export function checkStory(brief, brand = {}) {
   if (!brief || typeof brief !== 'object' || Array.isArray(brief)) throw new TypeError('the brief must be a JSON object');
   for (const key of ['beats', 'spine', 'cuts']) if (brief[key] !== undefined && !Array.isArray(brief[key])) throw new TypeError(`${key} must be an array`);
   for (const cut of brief.cuts || []) for (const key of ['beats', 'spine']) if (cut && cut[key] !== undefined && !Array.isArray(cut[key])) throw new TypeError(`cuts[].${key} must be an array`);
-  const spec = { ...brief };
-  const merged = withProductProfile(brand, spec);
+  const merged = withProductProfile(brand, { ...brief });
+  const spec = withBrandProduct({ ...brief }, merged);
   const mode = creativeMode(spec);
   const cuts = normalizeCuts(spec);
   const report = { product: spec.product || merged?.product || null, creativeMode: mode, productProfile: productProfile(spec.product || merged?.product, merged?.id)?.id || null, cuts: [], ok: true };

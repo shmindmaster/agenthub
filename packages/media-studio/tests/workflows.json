@@ -16,7 +16,7 @@
       "input": "The owner explicitly reserved final-cut review and has not approved the candidate.",
       "expected": "Pause for an explicitly reserved review",
       "evidence": [
-        "**Recommend a treatment first.** In a few lines give the viewer promise, film form, director's visual approach, screenplay spine, proposed narration style, authentic/source media plan and likely delivery. The writer uses this recommendation to develop the existing brief, screenplay and storyboard; it is not an extra approval stage.",
+        "Pause for an explicitly reserved review, a material unresolved choice, paid work outside authorization or external publication.",
         "**Cast voices by sound and suitability, not vendor branding.** Where narration is valuable and unresolved, recommend two or three *currently governed, authorized* voices and offer a short same-passage audition. Generate playable auditions only after the exact provider, estimated spend and approval gates pass. Do not imply a catalog listing, credits or a generated label is a playable sample. AssemblyAI also remains a transcription and alignment option. Honor the no-clone, frozen-lane and per-film approval policies."
       ]
     },

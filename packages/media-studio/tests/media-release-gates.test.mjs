@@ -158,6 +158,25 @@ test('a legacy verified screencast keeps the opening-title cap and CTA review', 
   assert.match(result.output, /no more than one opening title/);
   assert.match(result.output, /concrete CTA/);
 });
+test('a training job reviewed for its own form releases without the legacy CTA and title rules', () => {
+  const root = join(scratch, 'training-form'); job(root);
+  const candidate = release(root);
+  const jobPath = join(root, 'job.json');
+  const evidencePath = join(root, 'qa', 'viewer-release-evidence.json');
+  const evidence = JSON.parse(readFileSync(evidencePath, 'utf8'));
+  evidence.titleReview.titleCount = 2;
+  delete evidence.storyReview.cta;
+  writeFileSync(evidencePath, JSON.stringify(evidence));
+  writeFileSync(jobPath, JSON.stringify({ kind: 'training' }));
+  let result = run(releaseValidator, [root, candidate]);
+  assert.equal(result.code, 0, result.output);
+  for (const legacy of [{ kind: 'product-screencast' }, { kind: 'training', communicationProfile: 'consulting-demo' }]) {
+    writeFileSync(jobPath, JSON.stringify(legacy));
+    result = run(releaseValidator, [root, candidate]);
+    assert.notEqual(result.code, 0, JSON.stringify(legacy));
+    assert.match(result.output, /concrete CTA/);
+  }
+});
 test('a social teaser still requires the marketing report after selecting a story form', () => {
   const root = join(scratch, 'typed-social-teaser'); job(root);
   const candidate = release(root);

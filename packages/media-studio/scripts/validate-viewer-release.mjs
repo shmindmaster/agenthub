@@ -294,8 +294,12 @@ if (evidence) {
     if (pronunciation.releaseEligible !== true) errors.push("pronunciation review is not release eligible.");
   }
   requireBoundPass("encodedVisualReview");
+  // Same classification as write-story-review.py: a general job (a declared kind other than a verified screencast,
+  // no creativeMode, not a marketing cut) is reviewed for its own form before capture, so release does not impose
+  // the legacy CTA and single-title rules on it either.
+  const generalJob = !job.creativeMode && !marketing && typeof job.kind === 'string' && job.kind !== 'product-screencast';
   const creativeStory = job.kind !== 'product-screencast' && !job.communicationProfile
-    && (['tutorial', 'explainer', 'story', 'non-narrative'].includes(job.filmType)
+    && (generalJob || ['tutorial', 'explainer', 'story', 'non-narrative'].includes(job.filmType)
       || ['educational', 'explainer', 'fictional-story', 'abstract', 'concept-film', 'future-vision', 'documentary'].includes(job.creativeMode));
   const standardStoryReview = !creativeStory || marketing || job.filmType === 'founder-pitch';
   const titles = requireBoundPass("titleReview");
