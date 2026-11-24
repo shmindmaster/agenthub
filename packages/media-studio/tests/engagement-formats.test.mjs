@@ -15,6 +15,9 @@ const load = (name) => JSON.parse(readFileSync(join(fixtureDir, `${name}.json`),
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const NEW = ['pitch', 'proposal', 'status-update', 'kickoff', 'final-readout', 'value-review'];
 const OLD = ['consulting-demo', 'technical-walkthrough', 'product-update'];
+// Recommended ceilings live in the guide only; the brief's maxDurationSeconds governs.
+const CEILINGS = { pitch: 180, proposal: 300, 'status-update': 120, kickoff: 240, 'final-readout': 480, 'value-review': 180 };
+const WEEKLY_CEILING = 90;
 
 const findings = (spec) => inspectCommunication(spec, { id: 'main', targetSeconds: spec.targetSeconds, beats: spec.beats }, (b) => b.minSeconds || 5);
 const rules = (spec) => findings(spec).map((f) => f.rule);
@@ -24,7 +27,7 @@ const claimOf = (b) => b.evidenceClaims[0];
 
 // ---- the table ---------------------------------------------------------------------------------------------------
 
-test('six engagement profiles map to existing film types with the declared ceilings and sections', () => {
+test('six engagement profiles map to existing film types with the declared sections', () => {
   const expected = {
     pitch: ['founder-pitch', 180, ['recommendation', 'why-change', 'cost-of-inaction', 'new-way', 'why-us', 'options', 'ask']],
     proposal: ['explainer', 300, ['recommendation', 'understanding', 'approach', 'team', 'timeline', 'options', 'investment', 'next-step']],
@@ -33,17 +36,26 @@ test('six engagement profiles map to existing film types with the declared ceili
     'final-readout': ['explainer', 480, ['recommendation', 'findings', 'roadmap', 'business-case', 'next-step']],
     'value-review': ['explainer', 180, ['baseline', 'realized', 'evidence', 'next-step']],
   };
-  for (const [id, [filmType, ceiling, sections]] of Object.entries(expected)) {
+  for (const [id, [filmType, , sections]] of Object.entries(expected)) {
     const p = COMMUNICATION_PROFILES[id];
     assert.ok(p, `${id} is declared`);
     assert.equal(p.filmType, filmType, id);
-    assert.equal(p.ceilingSeconds, ceiling, id);
     assert.equal(p.proofMoments, 0, `${id} does not force a product UI proof`);
     assert.deepEqual(p.sections, sections, id);
     assert.equal(resolveFilmType({ communicationProfile: id }, {}, 'fictional-story').id, filmType, id);
   }
-  assert.equal(COMMUNICATION_PROFILES['status-update'].cadences.weekly.ceilingSeconds, 90);
   assert.deepEqual(COMMUNICATION_PROFILES['status-update'].cadences.steering.sections, ['plan-vs-actual', 'risks', 'decisions', 'next']);
+});
+
+test('ceilings are documented, not carried as unread data', () => {
+  for (const id of NEW) assert.ok(!('ceilingSeconds' in COMMUNICATION_PROFILES[id]), `${id} has no ceilingSeconds`);
+  assert.deepEqual(Object.keys(COMMUNICATION_PROFILES['status-update'].cadences.weekly), [], 'weekly changes nothing the code reads');
+  for (const [id, ceiling] of Object.entries(CEILINGS)) {
+    const spec = load(id);
+    assert.equal(spec.maxDurationSeconds, id === 'status-update' ? WEEKLY_CEILING : ceiling, `${id} fixture matches the guide`);
+  }
+  assert.equal(load('status-update').cadence, 'weekly');
+  assert.equal(load('status-update-steering').maxDurationSeconds, CEILINGS['status-update']);
 });
 
 test('the three existing profiles are unchanged, and ignore the new section field', () => {
@@ -63,15 +75,16 @@ test('the three existing profiles are unchanged, and ignore the new section fiel
 
 test('every fixture is a complete brief that passes the existing story gate and the profile checks', () => {
   const files = readdirSync(fixtureDir).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')).sort();
-  assert.deepEqual(files, [...NEW].sort());
-  for (const id of NEW) {
-    const spec = load(id);
+  assert.deepEqual(files, [...NEW, 'status-update-steering'].sort());
+  for (const name of [...NEW, 'status-update-steering']) {
+    const id = name.replace('-steering', '');
+    const spec = load(name);
     assert.equal(spec.communicationProfile, id);
-    assert.deepEqual(findings(spec), [], id);
+    assert.deepEqual(findings(spec), [], name);
     const report = checkStory(spec);
-    assert.equal(report.ok, true, `${id}: ${JSON.stringify(report.cuts[0].failures)}`);
+    assert.equal(report.ok, true, `${name}: ${JSON.stringify(report.cuts[0].failures)}`);
     assert.equal(report.cuts[0].filmType, COMMUNICATION_PROFILES[id].filmType);
-    assert.ok(Math.max(report.cuts[0].seconds, 0) <= spec.maxDurationSeconds, id);
+    assert.ok(Math.max(report.cuts[0].seconds, 0) <= spec.maxDurationSeconds, name);
   }
 });
 
@@ -126,12 +139,9 @@ test('the opening beat declares the first section, so a final readout leads with
 
 test('a steering status cut needs only plan-vs-actual, risks, decisions and next, in that order', () => {
   const full = load('status-update');
-  const steering = clone(full);
-  steering.cadence = 'steering';
-  steering.beats = ['plan-vs-actual', 'risks', 'decisions', 'next'].map((s) => clone(beatOf(full, s)));
-  steering.beats[3].storyRole = 'next-step';
-  steering.beats[0].storyRole = 'context';
-  steering.beats[1].storyRole = 'demonstration';
+  const steering = load('status-update-steering');
+  assert.equal(steering.cadence, 'steering');
+  assert.deepEqual(steering.beats.map((b) => b.section), ['plan-vs-actual', 'risks', 'decisions', 'next']);
   assert.deepEqual(rules(steering), []);
   assert.equal(checkStory(steering).ok, true, JSON.stringify(checkStory(steering).cuts[0].failures));
   const full90 = clone(full);
@@ -299,7 +309,7 @@ test('one ask per video for pitch, proposal, final readout and value review', ()
 test('ceilings are advisory: a brief above the recommended ceiling is not a finding, the approved ceiling governs', () => {
   for (const id of NEW) {
     const spec = load(id);
-    spec.maxDurationSeconds = COMMUNICATION_PROFILES[id].ceilingSeconds * 2;
+    spec.maxDurationSeconds = CEILINGS[id] * 2;
     assert.deepEqual(rules(spec), [], id);
   }
   const spec = load('pitch');
@@ -400,7 +410,7 @@ test('the engagement guide lists every profile with its sections and ceiling, an
     const p = COMMUNICATION_PROFILES[id];
     const row = guide.split('\n').find((line) => line.startsWith(`| ${id} |`));
     assert.ok(row, `${id} row`);
-    assert.ok(row.includes(`${p.ceilingSeconds} s`), `${id} ceiling`);
+    assert.ok(row.includes(`${CEILINGS[id]} s`), `${id} ceiling`);
     assert.ok(row.includes(p.filmType), `${id} film type`);
     assert.ok(row.includes(p.sections.map((s) => s + ((p.optional || []).includes(s) ? '?' : '')).join(' > ')), `${id} sections`);
     assert.ok(guide.includes(`tests/fixtures/engagement/${id}.json`), `${id} fixture link`);
@@ -422,4 +432,125 @@ test('request wording for each format reaches its profile through the routing do
     assert.ok([intake, formats, forms].some((t) => t.toLowerCase().includes(phrase)), phrase);
   }
   for (const id of NEW) assert.match(treatments, new RegExp(`^- ${id}:`, 'm'), `${id} treatment`);
+});
+
+// ---- review fixes ------------------------------------------------------------------------------------------------
+
+test('a measured number is checked whatever role its beat plays', () => {
+  for (const [id, section] of [['pitch', 'cost-of-inaction'], ['value-review', 'baseline'], ['value-review', 'realized']]) {
+    for (const role of ['hook', 'cta', 'next-step']) {
+      const spec = load(id);
+      const beat = beatOf(spec, section);
+      beat.storyRole = role;
+      beat.narration = 'It costs 12 hours every close.';
+      assert.deepEqual(findings(spec).filter((f) => f.where === `main/${beat.id}` && !f.rule.includes('one-ask')), [], `${id}/${section}/${role} starts clean`);
+      claimOf(beat).sourceRefs = [];
+      assert.ok(rules(spec).includes('communication.claim-source'), `${id}/${section}/${role} unsourced`);
+      Object.assign(claimOf(beat), { sourceRefs: ['fictional/x.md'], dataType: 'synthetic' });
+      assert.ok(rules(spec).includes('communication.measurement'), `${id}/${section}/${role} synthetic`);
+      Object.assign(claimOf(beat), { dataType: 'customer' }); delete claimOf(beat).measurement.method;
+      assert.ok(rules(spec).includes('communication.measurement'), `${id}/${section}/${role} thin`);
+    }
+  }
+  // On a substantive beat each problem is still reported once, not twice.
+  const spec = load('value-review'); claimOf(beatOf(spec, 'baseline')).sourceRefs = [];
+  assert.equal(findings(spec).filter((f) => f.rule === 'communication.claim-source').length, 1);
+});
+
+test('number words are found as a heuristic, without matching near-misses', () => {
+  const spec = load('pitch');
+  const beat = beatOf(spec, 'cost-of-inaction');
+  Object.assign(claimOf(beat), { scope: 'illustrative-scenario', visibleLabel: 'Illustrative example', businessValidation: 'unvalidated', dataType: 'synthetic' });
+  delete claimOf(beat).measurement;
+  const stated = (line) => { beat.narration = line; beat.actionTitle = 'A late close keeps reviewers from their own work.'; return rules(spec).includes('communication.measured-number'); };
+  for (const line of ['Zero reviewers are free.', 'It costs thirteen hours.', 'It costs nineteen hours.', 'It costs twenty hours.', 'It costs twenty-five hours.', 'Ninety reviewers wait.', 'It takes thirty-two days.', 'It costs twice the time.', 'Half of the time is lost.', 'The cost doubled.', 'Dozens of sheets disagree.', 'Hundreds of rows differ.', 'A quarter of the time is lost.', 'Ten percent is lost.', 'It costs 12 hours.']) assert.equal(stated(line), true, line);
+  for (const line of ['Third-party tools do not help.', 'Every quarter the close slips.', 'Teams double-check every sheet.', 'A half-day is lost.', 'They triple-check the totals.', 'One ledger keeps reviewers free.']) assert.equal(stated(line), false, line);
+});
+
+test('profile and cadence names are looked up as own properties only', () => {
+  for (const name of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+    const spec = load('pitch'); spec.communicationProfile = name;
+    assert.deepEqual(rules(spec), ['communication.profile'], name);
+    const status = load('status-update'); status.cadence = name;
+    assert.ok(rules(status).includes('communication.cadence'), `cadence ${name}`);
+  }
+  assert.equal(resolveFilmType({ communicationProfile: 'constructor' }, {}, 'verified-demo').id, 'product-marketing');
+});
+
+test('malformed evidence claims are findings, not crashes', () => {
+  for (const claims of [[null], [], ['text'], 'oops', {}, [[]]]) {
+    for (const id of ['pitch', 'value-review', 'consulting-demo']) {
+      const spec = load(id === 'consulting-demo' ? 'pitch' : id);
+      spec.communicationProfile = id;
+      for (const b of spec.beats) b.evidenceClaims = claims;
+      let got;
+      assert.doesNotThrow(() => { got = rules(spec); }, `${id} ${JSON.stringify(claims)}`);
+      if (!Array.isArray(claims) || claims.length) assert.ok(got.some((r) => ['communication.claim-source', 'communication.claim-scope'].includes(r)), `${id} ${JSON.stringify(claims)}`);
+    }
+  }
+});
+
+// A real job layout: every fixture's narration is judged by validate-narration.mjs as a job would be.
+const fixtureJob = (root, name) => {
+  const spec = load(name);
+  const jobRoot = join(root, name);
+  mkdirSync(join(jobRoot, 'story'), { recursive: true });
+  mkdirSync(join(jobRoot, 'qa'), { recursive: true });
+  writeFileSync(join(jobRoot, 'job.json'), JSON.stringify({ kind: 'explainer', communicationProfile: spec.communicationProfile, primaryTakeaway: spec.primaryTakeaway }));
+  writeFileSync(join(jobRoot, 'story/screenplay.json'), JSON.stringify({ title: spec.product, communicationProfile: spec.communicationProfile, primaryTakeaway: spec.primaryTakeaway, scenes: spec.beats.map((b) => ({ id: b.id, narration: b.narration })) }));
+  return jobRoot;
+};
+
+test('every fixture narration passes validate-narration with no errors, and the check can fail', () => {
+  const root = mkdtempSync(join(tmpdir(), 'engagement-narration-'));
+  const script = join(pkg, 'scripts', 'validate-narration.mjs');
+  try {
+    for (const name of [...NEW, 'status-update-steering']) {
+      const run = runNarration(script, fixtureJob(root, name));
+      assert.ok(run.report, `${name}: ${run.output}`);
+      assert.deepEqual(run.report.errors, [], name);
+      assert.equal(run.status, 0, name);
+    }
+    // The same job with a banned phrase must fail, so the assertion above is not vacuous.
+    const jobRoot = fixtureJob(root, 'kickoff');
+    const screenplay = JSON.parse(readFileSync(join(jobRoot, 'story/screenplay.json'), 'utf8'));
+    screenplay.scenes[1].narration = 'This scene shows the scope of the programme.';
+    writeFileSync(join(jobRoot, 'story/screenplay.json'), JSON.stringify(screenplay));
+    assert.equal(runNarration(script, jobRoot).status, 1);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('status updates may say what changed, with the same narrow exemption as product updates', () => {
+  const root = mkdtempSync(join(tmpdir(), 'engagement-exempt-'));
+  const script = join(pkg, 'scripts', 'validate-narration.mjs');
+  let count = 0;
+  const withLine = (profile, line) => {
+    const jobRoot = fixtureJob(root, 'status-update');
+    const moved = `${jobRoot}-${++count}`;
+    mkdirSync(join(moved, 'story'), { recursive: true });
+    mkdirSync(join(moved, 'qa'), { recursive: true });
+    const sp = JSON.parse(readFileSync(join(jobRoot, 'story/screenplay.json'), 'utf8'));
+    sp.communicationProfile = profile;
+    sp.scenes[1].narration = line;
+    writeFileSync(join(moved, 'story/screenplay.json'), JSON.stringify(sp));
+    writeFileSync(join(moved, 'job.json'), JSON.stringify({ kind: 'explainer', communicationProfile: profile, primaryTakeaway: sp.primaryTakeaway }));
+    return runNarration(script, moved);
+  };
+  try {
+    for (const line of ['What changed this week is the data load.', 'Previously the vendor file arrived on Monday.']) {
+      assert.deepEqual(withLine('status-update', line).report.errors, [], line);
+      assert.ok(withLine('pitch', line).report.errors.some((e) => e.includes('version')), `${line} stays banned in a pitch`);
+    }
+    assert.ok(withLine('status-update', 'Since last time the data load slipped.').report.errors.some((e) => e.includes('version')), 'only the product-update list is exempt');
+    assert.ok(withLine('status-update', 'What changed in this video is the data load.').report.errors.some((e) => e.includes('version')), 'film-production commentary is still refused');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the guide states the steering roles, the opening-beat rule and that number detection is a heuristic', () => {
+  const guide = readFileSync(join(pkg, 'skills/studio/references/engagement-formats.md'), 'utf8');
+  assert.match(guide, /steering[^\n]*plan-vs-actual context[^\n]*risks demonstration[^\n]*decisions explanation[^\n]*next next-step/i);
+  assert.match(guide, /status-update-steering\.json/);
+  assert.match(guide, /opening beat must declare the first section/i);
+  assert.ok(!/is left alone/.test(guide), 'the old wording is gone');
+  assert.match(guide, /heuristic/i);
 });

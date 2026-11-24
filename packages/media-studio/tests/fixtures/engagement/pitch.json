@@ -110,7 +110,7 @@
       "storyRole": "solution",
       "kind": "card",
       "minSeconds": 20,
-      "narration": "Larkspur Close keeps one ledger. Teams post once, and reviewers see one version.",
+      "narration": "Larkspur Close keeps one ledger. Teams post once, and reviewers read the same entries.",
       "onScreenText": "One ledger. One version.",
       "actionTitle": "Larkspur Close gives every team one ledger to post to.",
       "supportingArgument": "One ledger removes the matching step.",

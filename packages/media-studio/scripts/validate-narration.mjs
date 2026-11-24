@@ -217,7 +217,7 @@ for (const { sceneId, line } of lines) {
     if (reason) allowlisted.push({ sceneId, class: h.class, match: h.match, line, reason });
     else if (knownCommunicationProfile && h.class === 'version'
       && !/\b(?:video|film|render|narration|footage|take|cut)\b/i.test(line)
-      && (/^revis(?:ion|ions|ed)$/i.test(h.match) || (communicationProfile === 'product-update' && /^(?:what changed|what's new|release notes|changelog|previously)$/i.test(h.match)))) {
+      && (/^revis(?:ion|ions|ed)$/i.test(h.match) || (['product-update', 'status-update'].includes(communicationProfile) && /^(?:what changed|what's new|release notes|changelog|previously)$/i.test(h.match)))) {
       allowlisted.push({ sceneId, class: h.class, match: h.match, line, reason: 'Profile-specific domain or release explanation; no film-production commentary.' });
     } else if (knownCommunicationProfile && h.class === 'recap') {
       warnings.push(`${sceneId}: review whether this conclusion adds meaning: ${line}`);

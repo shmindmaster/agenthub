@@ -184,7 +184,8 @@ export const DEFAULT_TYPE_BY_MODE = Object.freeze({
  * judged as a social cut.
  */
 export function resolveFilmType(spec, cut, mode) {
-  const profile = COMMUNICATION_PROFILES[cut?.communicationProfile || spec?.communicationProfile];
+  const wanted = cut?.communicationProfile || spec?.communicationProfile;
+  const profile = Object.hasOwn(COMMUNICATION_PROFILES, wanted) ? COMMUNICATION_PROFILES[wanted] : undefined;
   const requested = cut?.filmType || spec?.filmType || profile?.filmType;
   const id = requested || DEFAULT_TYPE_BY_MODE[mode] || 'product-marketing';
   const base = FILM_TYPES[id];
@@ -199,29 +200,30 @@ export function resolveFilmType(spec, cut, mode) {
 //
 // The first three profiles prove product behaviour. The six engagement profiles
 // below them are forms with their own ordered sections, so a brief declares each
-// beat's `section` and the checks run against the profile's list. Fields:
-//   ceilingSeconds   recommended runtime. Advisory: the brief's maxDurationSeconds governs.
+// beat's `section` and the checks run against the profile's list. Recommended
+// runtimes are advice and live in engagement-formats.md; the brief's
+// maxDurationSeconds governs, so no code reads them. Fields:
 //   sections         ordered; `optional` ones may be left out.
-//   cadences         status-update only: a cut may narrow the list or the ceiling.
+//   cadences         status-update only: a cut may name its own section list (steering).
 //   measuredNumbers  sections that always need a measured-benefit claim.
 //   measuredIfNumber sections that need one only when they state a number.
 //   sectionFields    fields a beat of that section must state.
 //   oneAsk           at most one beat fills the cta or next-step role.
-const engagement = (filmType, ceilingSeconds, sections, extra = {}) => ({ filmType, proofMoments: 0, ceilingSeconds, sections, ...extra });
+const engagement = (filmType, sections, extra = {}) => ({ filmType, proofMoments: 0, sections, ...extra });
 
 export const COMMUNICATION_PROFILES = Object.freeze({
   'consulting-demo': { filmType: 'feature-demo', proofMoments: 3 },
   'technical-walkthrough': { filmType: 'tutorial', proofMoments: 1 },
   'product-update': { filmType: 'internal-update', proofMoments: 1 },
-  pitch: engagement('founder-pitch', 180, ['recommendation', 'why-change', 'cost-of-inaction', 'new-way', 'why-us', 'options', 'ask'],
+  pitch: engagement('founder-pitch', ['recommendation', 'why-change', 'cost-of-inaction', 'new-way', 'why-us', 'options', 'ask'],
     { optional: ['options'], measuredIfNumber: ['cost-of-inaction'], oneAsk: true }),
-  proposal: engagement('explainer', 300, ['recommendation', 'understanding', 'approach', 'team', 'timeline', 'options', 'investment', 'next-step'],
+  proposal: engagement('explainer', ['recommendation', 'understanding', 'approach', 'team', 'timeline', 'options', 'investment', 'next-step'],
     { optional: ['options'], sectionFields: { investment: ['assumptions', 'exclusions'] }, oneAsk: true }),
-  'status-update': engagement('internal-update', 120, ['status', 'done', 'next', 'risks', 'decisions', 'plan-vs-actual'],
-    { cadences: { weekly: { ceilingSeconds: 90 }, steering: { sections: ['plan-vs-actual', 'risks', 'decisions', 'next'] } } }),
-  kickoff: engagement('explainer', 240, ['objectives', 'scope', 'governance', 'team', 'timeline', 'risks', 'first-30-days']),
-  'final-readout': engagement('explainer', 480, ['recommendation', 'findings', 'roadmap', 'business-case', 'next-step'], { oneAsk: true }),
-  'value-review': engagement('explainer', 180, ['baseline', 'realized', 'evidence', 'next-step'],
+  'status-update': engagement('internal-update', ['status', 'done', 'next', 'risks', 'decisions', 'plan-vs-actual'],
+    { cadences: { weekly: {}, steering: { sections: ['plan-vs-actual', 'risks', 'decisions', 'next'] } } }),
+  kickoff: engagement('explainer', ['objectives', 'scope', 'governance', 'team', 'timeline', 'risks', 'first-30-days']),
+  'final-readout': engagement('explainer', ['recommendation', 'findings', 'roadmap', 'business-case', 'next-step'], { oneAsk: true }),
+  'value-review': engagement('explainer', ['baseline', 'realized', 'evidence', 'next-step'],
     { measuredNumbers: ['baseline', 'realized'], oneAsk: true }),
 });
 
@@ -244,6 +246,7 @@ function inspectDecisionBrief(brief, cut, estimateSeconds, add) {
 }
 
 function inspectEvidenceClaim(claim, b, context, add) {
+  if (!claim || typeof claim !== 'object') { add('claim-source', 'Each claim must be an object with text and sourceRefs.', b); return; }
   if (!text(claim.text) || !refs(claim.sourceRefs)) add('claim-source', 'Each claim needs text and sourceRefs.', b);
   if (!['product-behavior', 'measured-benefit', 'proposed-interface', 'customer-priority', 'illustrative-scenario'].includes(claim.scope)) add('claim-scope', 'Unknown claim evidence scope.', b);
   for (const [key, allowed] of Object.entries({ implementationState: ['implemented', 'proposed'], dataType: ['synthetic', 'customer', 'public'], aiExecutionMode: ['live', 'recorded', 'stubbed', 'none'], businessValidation: ['unvalidated', 'measured', 'discovery-confirmed'] })) {
@@ -258,6 +261,11 @@ function inspectEvidenceClaim(claim, b, context, add) {
   }
 }
 
+/** The beat's claims when they are a list; anything else is reported by the caller. */
+const claimsOf = (b) => (Array.isArray(b.evidenceClaims) ? b.evidenceClaims : []);
+/** Hook, cta and next-step beats carry no takeaway; every other beat does. */
+const isSubstantive = (b) => !rolesOf(b).some((r) => ['hook', 'cta', 'next-step'].includes(r));
+
 function inspectTakeaway(b, titles, context, add) {
   const title = String(b.actionTitle || '').trim();
   if (title.split(/\s+/).length < 4 || title.split(/\s+/).length > 18 || !/[.!?]$/.test(title)) add('action-title', 'Use a 4–18 word full-sentence takeaway title, separate from onScreen text.', b);
@@ -265,7 +273,7 @@ function inspectTakeaway(b, titles, context, add) {
   titles.add(title.toLowerCase());
   if (!text(b.supportingArgument) || !refs(b.proofRefs)) add('argument-proof', 'Bind the supportingArgument and proofRefs to this takeaway.', b);
   if (!Array.isArray(b.evidenceClaims) || !b.evidenceClaims.length) add('claim-scope', 'Declare claims and their evidence scopes for each substantive scene.', b);
-  for (const claim of b.evidenceClaims || []) inspectEvidenceClaim(claim, b, context, add);
+  for (const claim of claimsOf(b)) inspectEvidenceClaim(claim, b, context, add);
 }
 
 function inspectIntegration(id, brief, add) {
@@ -303,14 +311,16 @@ function inspectStatus(brief, add) {
   if (unowned || overdue) add('status.green-with-open-issues', `Status is green, but ${unowned ? 'a risk has no owner' : 'a decision is overdue'}. Show amber or red, or fix the record.`);
 }
 
-const NUMBER = /[0-9]|\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|millions?|billions?|twice|double[sd]?|triple[sd]?|half|halve[sd]?|quarter|third|percent)\b/i;
+// A heuristic, not a parser: any digit, or a word from this short list. Hyphenated tens (twenty-five) match on their first word.
+// "one" is left out because it is too common, and so are bare half, quarter, third and double (half-day, every quarter, third-party, double-check).
+const NUMBER = /[0-9]|\b(?:zero|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|dozens?|hundreds?|thousands?|millions?|billions?|twice|doubled|doubles|doubling|tripled|triples|tripling|halved|halves|halving|half of|quarter of|percent|per cent)\b/i;
 const statesNumber = (b) => NUMBER.test(['narration', 'voice', 'actionTitle', 'supportingArgument', 'onScreen', 'onScreenText', 'title', 'text'].map((key) => (typeof b[key] === 'string' ? b[key] : '')).join(' '));
 
 /** Sections, options and the one-ask rule for the engagement profiles. */
 function inspectEngagement(id, profile, brief, cut, add) {
   let sections = profile.sections;
   if (profile.cadences && brief.cadence !== undefined) {
-    const cadence = profile.cadences[brief.cadence];
+    const cadence = Object.hasOwn(profile.cadences, brief.cadence) ? profile.cadences[brief.cadence] : undefined;
     if (cadence) sections = cadence.sections || sections;
     else add('cadence', `Unknown cadence: ${brief.cadence}. Use ${Object.keys(profile.cadences).join(' or ')}.`);
   }
@@ -343,8 +353,11 @@ function inspectEngagement(id, profile, brief, cut, add) {
   }
   for (const section of [...(profile.measuredNumbers || []), ...(profile.measuredIfNumber || [])]) {
     const always = profile.measuredNumbers?.includes(section);
-    for (const b of beats.filter((beat) => beat.section === section && (always || statesNumber(beat)))) {
-      if (!b.evidenceClaims?.some((c) => c.scope === 'measured-benefit')) add('measured-number', `The ${section} scene shows a number, so it needs a measured-benefit claim with its source and measurement.`, b);
+    for (const b of beats.filter((beat) => beat.section === section)) {
+      // A hook, cta or next-step beat skips the takeaway checks, so its claims get the same claim checks here.
+      if (!isSubstantive(b)) for (const claim of claimsOf(b)) inspectEvidenceClaim(claim, b, brief.audienceContext, add);
+      if (!(always || statesNumber(b))) continue;
+      if (!claimsOf(b).some((c) => c?.scope === 'measured-benefit')) add('measured-number', `The ${section} scene shows a number, so it needs a measured-benefit claim with its source and measurement.`, b);
     }
   }
   const asks = beats.filter((b) => rolesOf(b).some((r) => ['cta', 'next-step'].includes(r)));
@@ -357,14 +370,14 @@ export function inspectCommunication(spec, cut, estimateSeconds) {
   if (!id) return [];
   const findings = [];
   const add = (rule, message, beat) => findings.push({ code: 'communication', rule: `communication.${rule}`, message, where: beat ? `${cut.id}/${beat.id}` : cut.id });
-  const profile = COMMUNICATION_PROFILES[id];
+  const profile = Object.hasOwn(COMMUNICATION_PROFILES, id) ? COMMUNICATION_PROFILES[id] : undefined;
   if (!profile) { add('profile', `Unknown communicationProfile: ${id}`); return findings; }
   const brief = { ...spec, ...cut };
   inspectDecisionBrief(brief, cut, estimateSeconds, add);
-  const substantive = cut.beats.filter((b) => !rolesOf(b).some((r) => ['hook', 'cta', 'next-step'].includes(r)));
+  const substantive = cut.beats.filter(isSubstantive);
   const titles = new Set();
   for (const b of substantive) inspectTakeaway(b, titles, brief.audienceContext, add);
-  const moments = substantive.filter((b) => b.evidenceClaims?.some((c) => c.scope === 'product-behavior'));
+  const moments = substantive.filter((b) => claimsOf(b).some((c) => c?.scope === 'product-behavior'));
   if (new Set(moments.map((b) => (b.proofRefs || []).join('|'))).size < profile.proofMoments) add('proof-moments', `This profile needs ${profile.proofMoments} distinct product proof moment(s).`);
   if (!refs(brief.limitations)) add('limitations', 'Retain explicit limitations in every cut, including short variants.');
   inspectIntegration(id, brief, add);

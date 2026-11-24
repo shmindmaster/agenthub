@@ -20,8 +20,9 @@ A "steering committee update" is `status-update` with `cadence: "steering"`. It 
 plan-vs-actual > risks > decisions > next. The weekly cut (`cadence: "weekly"`) keeps the full list and a 90 s ceiling.
 Complete fictional briefs that pass the gate, one per profile (check yours with `node scripts/check-story.mjs <brief.json>`):
 `tests/fixtures/engagement/pitch.json`, `tests/fixtures/engagement/proposal.json`,
-`tests/fixtures/engagement/status-update.json`, `tests/fixtures/engagement/kickoff.json`,
-`tests/fixtures/engagement/final-readout.json`, `tests/fixtures/engagement/value-review.json`.
+`tests/fixtures/engagement/status-update.json` (weekly, 90 s), `tests/fixtures/engagement/status-update-steering.json`,
+`tests/fixtures/engagement/kickoff.json`, `tests/fixtures/engagement/final-readout.json`,
+`tests/fixtures/engagement/value-review.json`.
 
 ## Declaring sections
 
@@ -33,6 +34,7 @@ because the film type's own slots still apply. Use these roles so the type's slo
 | pitch | recommendation hook; why-change and cost-of-inaction problem; new-way solution (name the product here); why-us proof; options explanation; ask cta |
 | proposal | recommendation to timeline and options explanation; investment takeaway; next-step next-step |
 | status-update | status context; done demonstration; next next-step; risks and decisions explanation; plan-vs-actual proof |
+| status-update, steering cut | plan-vs-actual context; risks demonstration; decisions explanation; next next-step (internal-update needs a context beat, then a demonstration, then a next-step) |
 | kickoff | objectives to risks explanation; first-30-days takeaway |
 | final-readout | recommendation, findings, roadmap explanation; business-case payoff; next-step next-step |
 | value-review | baseline explanation; realized payoff; evidence proof; next-step next-step |
@@ -40,7 +42,7 @@ because the film type's own slots still apply. Use these roles so the type's slo
 The gate checks in code, not in the schema: the opening beat declares the first section,
 every required section appears, sections keep the profile order, and a section may span
 consecutive beats but not come back. An unknown section is reported with the allowed values.
-A beat with no `section` is left alone. The three older profiles ignore the field.
+The opening beat must declare the first section. A later beat with no `section` is tolerated. The three older profiles ignore the field.
 
 ## What each format needs
 
@@ -52,6 +54,9 @@ A beat with no `section` is left alone. The three older profiles ignore the fiel
 - **Numbers.** The baseline and realized scenes (value review) each carry a `measured-benefit` claim, and so does the
   cost-of-inaction scene (pitch) when it states a number, in digits or in words. It needs a source and a baseline, comparison, population, method and time window.
   Synthetic data never proves a customer number. If you have no measurement, state the cost in plain words without a number.
+  "States a number" is a word-list heuristic: any digit, or words such as zero, two to twelve, thirteen to ninety, twice, doubled,
+  dozens, half of, a quarter of, percent. A claim in these scenes is checked for source, measurement and real data on any beat,
+  even a hook, an ask or a next step.
 - **Options (pitch, proposal).** When present: `options: [{ label, recommended }]` with two or three entries and exactly one recommended.
 - **Investment (proposal).** The scene lists `assumptions` and `exclusions`, each a list of short statements.
 - **Status.** Brief fields: `rag` (red, amber, green), `ragSince`, `statusDate`, `risks` and `decisions`.
@@ -59,6 +64,7 @@ A beat with no `section` is left alone. The three older profiles ignore the fiel
   `dueDate`. Use null only when no date is agreed. An agreed date needs YYYY-MM-DD and `sourceRefs`.
   Green with an unowned risk or an overdue decision is a finding. Show amber as soon as it is true.
   Record an empty list when there are no risks or decisions. Link the risk log and decision log beside the video.
+  Status narration may say what changed or previously (the same narrow exemption as product-update); "since last time" stays refused.
 
 ## Habits that apply inside one profile
 

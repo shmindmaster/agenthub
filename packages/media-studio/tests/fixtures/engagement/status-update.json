@@ -2,7 +2,7 @@
   "product": "Ledger Close Programme",
   "communicationProfile": "status-update",
   "targetSeconds": 90,
-  "maxDurationSeconds": 120,
+  "maxDurationSeconds": 90,
   "primaryAudience": "programme sponsor and project leads",
   "viewerDecision": "whether to approve the vendor swap this week",
   "primaryTakeaway": "The programme is amber because the data load slipped a week.",
