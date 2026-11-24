@@ -8,7 +8,7 @@
 // The key is read from DAYTONA_API_KEY and never printed. The SDK is installed on first use outside the repository.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -47,7 +47,10 @@ export function parseArgs(argv) {
 export const imageName = (dockerfile) => `agenthub-work-${createHash('sha256').update(dockerfile.replace(/\r\n/g, '\n')).digest('hex').slice(0, 12)}`;
 
 function loadSdk() {
-  const root = join(process.env.LOCALAPPDATA || tmpdir(), 'AgentHub', 'daytona', `sdk-${SDK}`);
+  let home = join(process.env.LOCALAPPDATA || tmpdir(), 'AgentHub');
+  // The folder is a junction on the owner's PC, and a recursive mkdir through a junction fails there.
+  if (existsSync(home)) home = realpathSync(home);
+  const root = join(home, 'daytona', `sdk-${SDK}`);
   if (!existsSync(join(root, 'node_modules', '@daytona', 'sdk', 'package.json'))) {
     mkdirSync(root, { recursive: true });
     writeFileSync(join(root, 'package.json'), '{"private":true}\n');
