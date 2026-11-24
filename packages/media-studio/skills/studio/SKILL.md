@@ -10,7 +10,7 @@ description: Takes a video, screencast, explainer, ad or audio idea to a finishe
 4. Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.
 ## Make the requested piece
 
-Use the user's brief as the creative direction. Preserve its format, audience, tone, structure and deliverables. A request for narrated answer slides, a sample lesson, a storyboard, a music-led montage or a fictional scene should produce that artifact. A source is material to work from. Follow the user's requested level of research and citations. Handle uncertainty in a line or production note where it affects the audience's understanding.
+Use the user's brief as the creative direction. Preserve its format, audience, tone, structure and deliverables. A request for narrated answer slides, a sample lesson, a storyboard, a visual treatment or a fictional scene should produce that artifact. A source is material to work from. Follow the user's requested level of research and citations. Handle uncertainty in a line or production note where it affects the audience's understanding.
 
 Make routine creative choices and start useful work in the same turn. Use a template, brainstorming pass, research phase or specialist plugin when the brief calls for it or it directly advances the requested artifact. Apply checks for an actual published-product claim or a requested verified demonstration to the affected claim and scene.
 

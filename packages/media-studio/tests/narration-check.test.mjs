@@ -59,6 +59,12 @@ test("requested answer slides pass without a demo hook or ban on repeated instru
   assert.equal(report(root).creativeMode, "training");
 });
 
+test("default marketing teasers still run their narration checks", () => {
+  const root = makeJob("marketing-teaser", { lines: ["Welcome back. Let me show you today's new release notes."], job: { kind: "teaser" } });
+  assert.equal(run([root]).code, 1);
+  assert.ok(report(root).errors.some((error) => error.includes("greeting")));
+});
+
 // Replace one scene's narration in the clean script.
 const withLine = (index, text) => CLEAN.map((l, i) => (i === index ? text : l));
 

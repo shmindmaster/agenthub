@@ -235,7 +235,21 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
                 "evidence": item.get("evidence", "Creative form review failed"),
                 "fix": item.get("fix", "Revise the pictured scene or script for its declared format."),
                 "owner": item.get("owner", "media-writer")})
-    score = max(0, 100 - 15 * len(findings))
+    failed_judgment = bool(findings)
+    deductions = 15 * len(findings)
+    for finding in verdicts.get("findings") or []:
+        severity = finding.get("severity", "minor")
+        deductions += int(finding.get("points", {"minor": 5, "major": 15, "block": 0}.get(severity, 5)))
+        findings.append({
+            "id": finding.get("id", "FLEX-" + str(len(findings) + 1)),
+            "severity": severity,
+            "location": finding.get("location", "story"),
+            "evidence": finding.get("evidence", ""),
+            "fix": finding.get("fix", ""),
+            "owner": finding.get("owner", "media-storyboard"),
+        })
+    score = max(0, 100 - deductions)
+    blocked = any(finding["severity"] == "block" for finding in findings)
     if missing:
         result = {"status": "MALFORMED_INPUT", "candidateId": candidate, "pass": False,
                   "missingEvidence": missing,
@@ -243,7 +257,7 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
                   "checks": checks, "findings": findings, "reviseSceneIds": []}
     else:
         result = {"status": "COMPLETE", "candidateId": candidate,
-                  "score": score, "pass": score >= craft_min and not findings,
+                  "score": score, "pass": score >= craft_min and not failed_judgment and not blocked,
                   "reason": ("Pre-capture communication-profile review for " + profile + "; story, evidence and narration checks remain mandatory. Encoded candidate still requires critic.") if profile else "Pre-capture creative-form lint for " + mode
                             + "; no mandatory product UI, adult-only actors, six-beat template,"
                               " or fixed hero position. Encoded candidate still requires critic.",

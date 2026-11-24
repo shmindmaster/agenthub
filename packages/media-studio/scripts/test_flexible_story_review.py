@@ -59,6 +59,23 @@ class CreativeFormReviewTest(unittest.TestCase):
             self.assertNotIn("one-hero", report["checks"])
             self.assertNotIn("trust", report["checks"])
 
+    def test_training_keeps_independent_blocking_findings(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root, disclose=False)
+            (root / "job.json").write_text(json.dumps({"kind": "training"}), encoding="utf-8")
+            judgments = root / "qa" / "story-judgments.json"
+            data = json.loads(judgments.read_text(encoding="utf-8"))
+            data["findings"] = [{
+                "id": "J-1", "severity": "block", "location": "F01",
+                "evidence": "The answer key conflicts with the slide.", "fix": "Correct the answer.",
+            }]
+            judgments.write_text(json.dumps(data), encoding="utf-8")
+            proc, report = self.invoke(root)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertFalse(report["pass"])
+            self.assertEqual(report["findings"][0]["id"], "J-1")
+
     def test_missing_concept_status_fails_without_pretending_current_feature(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
