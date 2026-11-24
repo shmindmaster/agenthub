@@ -5,7 +5,7 @@
 // One argument after -- is shell text; several arguments are passed through as given. Use --script for anything longer.
 // The repository is sent as a git bundle of HEAD and checked out at /work/repo; uncommitted changes are not sent.
 // The box has a hard lifetime and is deleted when the command ends, whatever the outcome. Exit code is the command's.
-// Linux only. macOS needs Daytona v2 and a paid 24-hour Mac reservation, so this script never creates one.
+// Linux only. macOS runs on the owner's Daytona v2 Mac boxes (scripts/daytona_mac.py), which are paid; this script never creates one.
 // The key is read from DAYTONA_API_KEY and never printed. The SDK is installed on first use outside the repository.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -178,6 +178,7 @@ export async function main(argv) {
   return code;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Both sides are resolved: the checkout may be reached through a junction or link, and a mismatch would exit 0 without running.
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   main(process.argv.slice(2)).then((c) => { process.exitCode = c; }, (e) => { process.stderr.write(`${e.message}\n`); process.exitCode = 2; });
 }

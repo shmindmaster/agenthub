@@ -58,9 +58,9 @@
     "macos": {
       "route": "packages/mobile-development/skills/mobile-device-lab/references/daytona-mac.md",
       "platform": "Daytona v2 only, region us-east-bos-1, image base-macos (documented: macOS 26.6.2, Xcode 26.6, iPhone simulator, Homebrew, Python).",
-      "purchase": "A 24-hour reservation, bought explicitly with owner approval of its price. Auto-reserve is on for the organization and renews by itself, so a sandbox created without a reservation buys one: always create an explicit reservation and turn renewal off.",
+      "purchase": "Paid 24-hour reservations. The owner directed one standing reservation on 2026-11-21 and decides its renewal. Any other reservation needs owner approval of its price. Auto-reserve is on for the organization, so always name the reservation; scripts/daytona_mac.py manages the standing boxes.",
       "verified": false,
-      "note": "Not yet run by us. USB devices and signing are undocumented."
+      "note": "Toolchain checked on 2026-11-21 (macOS 26.6.2, Xcode 26.6). No iOS build, signed install or USB device has been proven on it, and its current state was not visible on 2026-11-24."
     }
   },
   "agentSurface": {
@@ -356,7 +356,7 @@
       { "id": "android-studio", "name": "Android Studio", "reason": "CLI SDK and AVD tooling is sufficient and avoids a second bundled JDK." },
       { "id": "nested-virtualization", "name": "Nested virtualization", "reason": "The macOS guest does not need nested VMs and the working VM configuration keeps vhv.enable false." },
       { "id": "second-vm-nic", "name": "Second VM NIC", "reason": "VMnet8 NAT already provides host-private reachability and a second NIC adds address ambiguity." },
-      { "id": "routine-cloud-builds", "name": "Routine paid cloud builds (EAS Build)", "reason": "Android APKs compile with Gradle on a Daytona v2 Linux box (not yet run) and iOS builds compile in a Daytona v2 Mac reservation (not yet run); a paid build service is a gated fallback, not the routine path." },
+      { "id": "routine-cloud-builds", "name": "Routine paid cloud builds (EAS Build)", "reason": "Android APKs compile with Gradle on a Daytona v2 Linux box (not yet run) and iOS builds compile on a Daytona v2 Mac box (not yet run); a paid build service is a gated fallback, not the routine path." },
       { "id": "cloud-device-farms", "name": "Cloud device farms", "reason": "The canonical lab uses local virtual devices; paid external device farms are outside this capability." }
     ]
   }
