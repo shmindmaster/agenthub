@@ -34,7 +34,7 @@ function estimate(name) { const t = TIERS[name]; const rows = [];
   else rows.push([`narration ${words} words`, 'Azure DragonHD (governed default)', null]);
   rows.push(['caption and alignment check', 'gpt-transcribe', P.estimateOpenAiTranscribeUsd(Math.ceil(words / 150 * 60))]);
   rows.push([`frame review x${t.reviewPasses}`, t.review, t.reviewPasses * P.estimateVisionUsd(t.review, frames)]);
-  rows.push(['render', 'Remotion on sh-forge', 0]);
+  rows.push(['render', 'Remotion on Daytona (compute, not AI spend)', 0]);
   const usd = rows.reduce((s, r) => s + (r[2] || 0), 0); return { tier: name, rows, usd }; }
 const tiers = tierArg === 'all' ? Object.keys(TIERS) : [tierArg]; const out = tiers.map(estimate);
 if (opt('json', false) === true) { console.log(JSON.stringify({ pricesRevision: P.OPENAI_PRICES_REVISION, inputs: { scenes, words, stills, hero, frames, voice, batch }, tiers: out }, null, 2)); process.exit(0); }
