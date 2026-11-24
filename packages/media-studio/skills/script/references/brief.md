@@ -3,14 +3,14 @@
 ## Workflow contract
 
 1. Use the requested audience, intended outcome and available source material.
-2. Resolve the planned screen and eligible lanes, then seek approval on the exact brief before downstream work.
-3. Hand `develop` the approved case or brief and its recorded approval.
-4. If approval is absent, leave the brief in draft and pause downstream work.
+2. Resolve the picture approach and eligible lanes, and record the internal review authority.
+3. Hand `develop` the internally accepted case or brief, after any reserved review.
+4. Pause downstream work for an outstanding required review. Carry a complete delegated brief directly into development.
 
-A rough ask is the normal case. Your job is to turn it into a short written brief the owner has agreed to, and to know what the film will SHOW, before a word is scripted or a cent is spent.
+Turn a rough ask into a short written brief. Reuse a complete brief and use the requested form to plan what the film shows and sounds like.
 
 <HARD-GATE>
-Do not write narration, call a voice or image provider, capture, or render until `brief.md` exists in the job folder and the owner has said yes to it in this task. A previous approval for another film does not carry over. The only exception is a scratch draft the owner asked for by name, and it still gets a brief of three lines.
+Record the brief before scripting. Honor delegated authority and any review reserved for this film. Before paid generation, verify the provider lane, cost and separate spend authorization. Before external publication, obtain separate approval for the candidate and destination.
 </HARD-GATE>
 
 ## Next
@@ -19,4 +19,4 @@ In a whole-film job the brief is `case/case.md` (the `studio` skill scaffolds it
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](brief-detail.md)
 
-For consulting communication, load [consulting communication](../../studio/references/consulting-communication.md). Extend the existing brief with the decision, primary takeaway, problem status and sources, next step (unagreed date null), duration ceiling, caption policy and audio direction before its existing approval.
+For consulting communication, load [consulting communication](../../studio/references/consulting-communication.md). Extend the existing brief with the decision, primary takeaway, problem status and sources, next step (unagreed date null), duration ceiling, caption policy and audio direction before any reserved review.

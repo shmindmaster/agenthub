@@ -72,6 +72,13 @@ test('the clock must add up, and a gap between shots is a failure', () => {
   assert.ok(rules(judge({ props: gap, cueSheet })).includes('shot-contiguous'));
 });
 
+test('release rejects a reveal rounded outside the shot', () => {
+  const picture = props();
+  const shot = picture.shots[1];
+  shot.beats.at(-1).atSeconds = shot.durationSeconds - 0.01;
+  assert.ok(rules(judge({ props: picture, cueSheet })).includes('beat-after-end'));
+});
+
 test('chapters must tile the film', () => {
   const film = clone(props());
   film.film.chapters[1].startFrame += 1;

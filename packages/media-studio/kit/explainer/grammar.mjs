@@ -230,6 +230,10 @@ export const allowedArchetypes = () => Object.keys(ARCHETYPE_FAMILY);
  *
  * @returns {{rule: string, message: string}[]}
  */
+// The renderer activates a beat at its nearest local frame.
+export const beatFitsShot = (seconds, fps, durationFrames) =>
+  Number.isFinite(seconds) && seconds >= 0 && Math.round(seconds * fps) < durationFrames;
+
 export const validateShot = (shot, context = {}) => {
   const problems = [];
   const fail = (rule, message) => problems.push({ rule, message, shotId: shot?.id });

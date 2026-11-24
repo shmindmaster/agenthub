@@ -7,6 +7,7 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { isMarketingCut } from "./marketing-cut.mjs";
 import { validateActionResultReview } from "./action-result-review.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -191,10 +192,8 @@ if (existsSync(modelSpecsDir)) {
     else boundToInput(specs, specsRel, [key], `model-written ${file} file`);
   }
 }
-// The feed test: marketing cuts fail closed below the marketing floor (validate-marketing-readiness.mjs owns the list).
-const MARKETING_FORMS = ['campaign-flagship', 'campaign-comparison', 'campaign-short', 'campaign-outreach', 'marketing-cutdown', 'social-clip', 'hero'];
-const marketing = job.marketing === true || job.filmType === 'product-marketing'
-  || (!job.filmType && (job.kind === 'teaser' || MARKETING_FORMS.includes(job.programForm)));
+// Marketing cuts need the candidate-bound readiness report from the marketing validator.
+const marketing = isMarketingCut(job);
 if (marketing) {
   const mk = canonical(boundReport('qa/marketing-readiness-check.json', 'media-studio/validate-marketing-readiness', 'a marketing cut releases only at or above the marketing floor (validate-marketing-readiness.mjs)'), 'qa/marketing-readiness-check.json',
     [['hookMaxSeconds', 'max', 2], ['endCardWindowSeconds', 'max', 8], ['beatToleranceMs', 'max', 80], ['beatHitRatio', 'min', 0.9], ['referencesRequired', 'min', 3]]);

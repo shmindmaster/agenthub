@@ -19,7 +19,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { anchorSeconds, resolveAnchors, sceneEdges, wordsOf } from './anchor.mjs';
-import { familyOf, FAMILIES, RULES, validateShot } from './grammar.mjs';
+import { familyOf, FAMILIES, RULES, validateShot, beatFitsShot } from './grammar.mjs';
 import { theme } from './theme.mjs';
 
 export const PLAN_SCHEMA = 'media-studio/explainer-plan/1';
@@ -141,7 +141,7 @@ export const buildExplainer = ({ cueSheet, receipts, plan, fps = 30, width = the
     const lastBeat = beats.length ? Math.max(...beats.map((beat) => beat.atSeconds)) : titleAt;
     const holdSeconds = Math.max(0, +(durationSeconds - lastBeat).toFixed(3));
 
-    if (beats.some((beat) => beat.atSeconds < 0 || beat.atSeconds >= durationSeconds)) {
+    if (beats.some((beat) => !beatFitsShot(beat.atSeconds, fps, durationFrames))) {
       errors.push(`${cue.id}: a beat lands at or after the end of a ${durationSeconds.toFixed(2)}s shot`);
     }
     const firstMotion = planShot.title || planShot.kicker || planShot.sub ? titleAt : heroAtSeconds;

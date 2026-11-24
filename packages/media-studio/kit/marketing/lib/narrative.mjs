@@ -43,7 +43,7 @@ const overrideFor = (overrides, rule) => overrides.find((o) => o.rule === rule |
 export function inspectNarrativeArc(spec, cut, estimateBeatSeconds, options = {}) {
   const findings = inspectRepresentation(spec, cut, productNames(spec, options.brand)).map((f) => ({ rule: `truth.${f.code}`, ...f }));
   findings.push(...inspectCommunication(spec, cut, estimateBeatSeconds));
-  const mode = creativeMode(spec);
+  const mode = creativeMode(spec, cut);
   const overrides = storyOverrides(spec, cut);
   const add = (rule, message, where = cut.id) => findings.push({ code: 'narrative-arc', rule: `story.${rule}`, message, where });
   const finish = () => {

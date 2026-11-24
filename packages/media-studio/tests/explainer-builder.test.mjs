@@ -107,6 +107,13 @@ test('an unknown archetype or a visual its family cannot compose is refused', ()
   assert.match(errorsOf(buildExplainer({ cueSheet, receipts, plan: wrong })), /visual-kind/);
 });
 
+test('a reveal that rounds to the first frame after its shot fails', () => {
+  const clipped = clone(plan);
+  const duration = buildExplainer({ cueSheet, receipts, plan }).props.shots.find(({ id }) => id === 'b').durationSeconds;
+  clipped.shots.find(({ id }) => id === 'b').visual.nodes[2].at = duration - 0.01;
+  assert.match(errorsOf(buildExplainer({ cueSheet, receipts, plan: clipped })), /at or after the end/);
+});
+
 test('a film of type-only frames reports the cap instead of shipping quietly', () => {
   const typed = clone(plan);
   const typedShot = typed.shots.find((shot) => shot.id === 'c');

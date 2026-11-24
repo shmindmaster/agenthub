@@ -145,6 +145,14 @@ test('an educational explanation can finish without a CTA or invented product ac
   assert.notEqual(result.code, 0);
   assert.match(result.output, /actionResultReview/);
 });
+test('a social teaser still requires the marketing report after selecting a story form', () => {
+  const root = join(scratch, 'typed-social-teaser'); job(root);
+  const candidate = release(root);
+  writeFileSync(join(root, 'job.json'), JSON.stringify({ kind: 'teaser', filmType: 'social-cut' }));
+  const result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /marketing-readiness-check/);
+});
 test('release gate consumes exact encoded-picture evidence and rejects lax thresholds', () => {
   const root = join(scratch, 'picture-report'); job(root); const candidate = release(root);
   const picturePath = join(root, 'qa', 'encoded-picture.json');

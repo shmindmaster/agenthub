@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { checkStory } from '../scripts/check-story.mjs';
+import { validate } from '../kit/marketing/lib/schema.mjs';
 import { judge } from '../kit/explainer/validate-explainer-release.mjs';
 import { build, cueSheet } from './fixtures/explainer/fixture.mjs';
 
@@ -55,4 +57,26 @@ test('fabricated capture cannot be presented as deployed success inside an expla
     storyOverrides: [{ rule: 'truth.representation', reason: 'The made-up evidence looks plausible.' }],
   });
   assert.ok(report.cuts[0].failures.some(({ rule }) => rule === 'truth.representation'));
+});
+
+test('an unbranded cut can select explainer truth rules and disclose its speculation', () => {
+  const report = checkStory({
+    conceptDisclosure: 'Illustrative scenario',
+    cuts: [{ id: 'lesson', filmType: 'explainer', targetSeconds: 36,
+      narrative: { question: 'What changes when outcomes are replaced?', viewerValue: 'Compare the two distributions' },
+      beats: [
+        { kind: 'broll', role: 'explanation', truthStatus: 'proposed', line: 'Imagine a second projection.' },
+        { role: 'takeaway', line: 'Replacing the draw resets the distribution.' },
+      ],
+    }],
+  });
+  assert.equal(report.ok, true, JSON.stringify(report.cuts[0].failures));
+});
+
+test('the closed job schema allows explicit illustrative release declarations', () => {
+  const schema = JSON.parse(readFileSync(new URL('../schemas/job.schema.json', import.meta.url), 'utf8'));
+  const job = { kind: 'explainer', title: 'Independent draws', workspace: '/job', repositoryWritePolicy: 'read-only',
+    noEnactedActions: true, noCompletedResultClaims: true };
+  assert.deepEqual(validate(schema, job), []);
+  assert.notDeepEqual(validate(schema, { ...job, noCompletedResultClaims: 'true' }), []);
 });

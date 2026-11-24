@@ -58,12 +58,13 @@ export function beatIsFactual(beat = {}, mode = 'verified-demo', names = []) {
   return named;
 }
 
-export function creativeMode(spec = {}) {
+export function creativeMode(spec = {}, cut = {}) {
   if (CREATIVE_MODES.includes(spec.creativeMode)) return spec.creativeMode;
   if (!spec.creativeMode && !spec.product) {
-    if (spec.filmType === 'explainer') return 'explainer';
-    if (spec.filmType === 'story') return 'fictional-story';
-    if (spec.filmType === 'non-narrative') return 'abstract';
+    const filmType = cut.filmType ?? spec.filmType;
+    if (filmType === 'explainer') return 'explainer';
+    if (filmType === 'story') return 'fictional-story';
+    if (filmType === 'non-narrative') return 'abstract';
   }
   return 'verified-demo';
 }
@@ -73,7 +74,7 @@ export function conceptBeat(beat = {}) {
 }
 
 export function isConceptPresentation(spec = {}, cut = {}) {
-  const mode = creativeMode(spec);
+  const mode = creativeMode(spec, cut);
   // Any film that shows proposed capability is presenting a concept, whatever mode it declares.
   return VISION_MODES.has(mode) || (mode === 'hybrid' && (cut.beats || []).some(conceptBeat))
     || (cut.beats || []).some((b) => b.truthStatus === 'proposed');
@@ -84,7 +85,7 @@ export function isConceptPresentation(spec = {}, cut = {}) {
 export function inspectRepresentation(spec, cut, names = []) {
   const errors = [];
   const add = (code, message, where = cut.id) => errors.push({ code, message, where });
-  const mode = creativeMode(spec);
+  const mode = creativeMode(spec, cut);
   if (spec.creativeMode && !CREATIVE_MODES.includes(spec.creativeMode)) {
     add('creative-mode', `unknown creativeMode: ${spec.creativeMode}`);
   }

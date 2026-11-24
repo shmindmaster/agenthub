@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { familyOf, FAMILIES, RULES, validateShot } from './grammar.mjs';
+import { familyOf, FAMILIES, RULES, validateShot, beatFitsShot } from './grammar.mjs';
 import { isWide } from './layout.mjs';
 
 const flag = (argv, name, fallback = null) => {
@@ -100,7 +100,7 @@ export const judge = ({ props, propsSha256, cueSheet, metrics, encoded, requireM
     if (firstBeat > RULES.heroMaxSeconds) {
       advise('hero-late', `${shot.id} brings its hero at ${firstBeat.toFixed(2)}s, later than ${RULES.heroMaxSeconds}s`, shot.id);
     }
-    if ((shot.beats ?? []).some((beat) => !Number.isFinite(beat.atSeconds) || beat.atSeconds < 0 || beat.atSeconds >= durationSeconds)) {
+    if ((shot.beats ?? []).some((beat) => !beatFitsShot(beat.atSeconds, fps, shot.durationFrames))) {
       fail('beat-after-end', `${shot.id} has a beat at or after its end`, shot.id);
     }
   }

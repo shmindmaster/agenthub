@@ -87,7 +87,7 @@ export function checkStory(brief, brand = {}) {
   const report = { product: spec.product || merged?.product || null, creativeMode: mode, productProfile: productProfile(spec.product || merged?.product, merged?.id)?.id || null, cuts: [], ok: true };
   for (const cut of cuts) {
     const estimated = cut.beats.reduce((sum, b) => sum + seconds(b), 0);
-    const type = resolveFilmType(spec, { ...cut, targetSeconds: Math.max(cut.targetSeconds, estimated) || cut.targetSeconds }, mode);
+    const type = resolveFilmType(spec, { ...cut, targetSeconds: Math.max(cut.targetSeconds, estimated) || cut.targetSeconds }, creativeMode(spec, cut));
     const findings = inspectNarrativeArc(spec, cut, seconds, { brand: merged });
     const failures = findings.filter((f) => !f.waived).map(({ rule, message, where }) => ({ rule, message, where }));
     const waived = findings.filter((f) => f.waived).map(({ rule, message, where, waived: reason }) => ({ rule, reason, message, where }));
