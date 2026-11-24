@@ -672,7 +672,9 @@ function Get-PluginCleanup($Row) {
             $owned = @(Get-AgentHubCopilotDirectEntries $document $name $Row.relative)
             $entries = @(Get-PluginClientList copilot | Where-Object { $_.name -eq $name -and $_.marketplace -ne $market })
             if ($owned.Count -eq 1 -and $entries.Count -eq 1 -and $entries[0].source -eq 'installed' -and -not $entries[0].marketplace) {
-                if (-not $catalogVerified -or (Resolve-AgentHubPhysicalPath $config) -ne [IO.Path]::GetFullPath($config)) {
+                if (-not $IsWindows) {
+                    New-AgentHubPluginCleanup copilot $name 'copilot-direct-registration' $config 'unmanaged' 'Direct configuration cleanup is supported on Windows only.'
+                } elseif (-not $catalogVerified -or (Resolve-AgentHubPhysicalPath $config) -ne [IO.Path]::GetFullPath($config)) {
                     New-AgentHubPluginCleanup copilot $name 'copilot-direct-registration' $config 'unmanaged' 'The marketplace source or configuration path could not be verified.'
                 } else {
                     New-AgentHubPluginCleanup copilot $name 'copilot-direct-registration' $config

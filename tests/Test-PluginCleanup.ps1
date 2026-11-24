@@ -40,24 +40,22 @@ try {
     if ($referenced.status -contains 'pending') { throw 'A project registration through a link did not protect its physical cache.' }
     [IO.Directory]::Delete($scopeAlias, $false)
 
-    $cfg = Join-Path $fixture 'config.json'
     $direct = @{name='ah-research';source=@{source='github';repo='shmindmaster/agenthub';path='packages/research'}}
-    $fork = @{name='ah-research';source=@{source='github';repo='someone/agenthub';path='packages/research'}}
-    $raw = (@{installedPlugins=@($direct,$fork);theme='test'} | ConvertTo-Json -Depth 7)
-    [IO.File]::WriteAllText($cfg,$raw)
-    if (-not $IsWindows) {
-        & chmod 400 $cfg
-        if ($LASTEXITCODE) { throw 'Could not set fixture permissions.' }
-        $privateMode = (Get-Item -LiteralPath $cfg).UnixMode
-    }
-    try { Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $false }; throw 'Expected rollback.' }
-    catch { if ($_.Exception.Message -notmatch 'did not verify') { throw } }
-    if ([IO.File]::ReadAllText($cfg) -cne $raw) { throw 'Copilot did not roll back failed readback.' }
-    Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $true }
-    $result = Get-Content -LiteralPath $cfg -Raw -Encoding UTF8 | ConvertFrom-Json
-    if (-not $IsWindows -and (Get-Item -LiteralPath $cfg).UnixMode -ne $privateMode) { throw 'Copilot configuration mode changed.' }
-    if ($result.theme -ne 'test' -or @($result.installedPlugins).Count -ne 1 -or $result.installedPlugins[0].source.repo -ne 'someone/agenthub') {
-        throw 'Copilot changed an unrelated registration or setting.'
+    if ($IsWindows) {
+        $cfg = Join-Path $fixture 'config.json'
+        $fork = @{name='ah-research';source=@{source='github';repo='someone/agenthub';path='packages/research'}}
+        $raw = (@{installedPlugins=@($direct,$fork);theme='test'} | ConvertTo-Json -Depth 7)
+        [IO.File]::WriteAllText($cfg,$raw)
+        $originalAcl = (Get-Acl -LiteralPath $cfg).Sddl
+        try { Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $false }; throw 'Expected rollback.' }
+        catch { if ($_.Exception.Message -notmatch 'did not verify') { throw } }
+        if ([IO.File]::ReadAllText($cfg) -cne $raw) { throw 'Copilot did not roll back failed readback.' }
+        Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $true }
+        $result = Get-Content -LiteralPath $cfg -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ((Get-Acl -LiteralPath $cfg).Sddl -ne $originalAcl) { throw 'Copilot configuration ACL changed.' }
+        if ($result.theme -ne 'test' -or @($result.installedPlugins).Count -ne 1 -or $result.installedPlugins[0].source.repo -ne 'someone/agenthub') {
+            throw 'Copilot changed an unrelated registration or setting.'
+        }
     }
 
     $tokens = $null; $errors = $null
@@ -130,7 +128,8 @@ try {
     [IO.Directory]::Delete($copilotDir, $false)
     [void][IO.Directory]::CreateDirectory($copilotDir)
     [IO.File]::WriteAllText((Join-Path $copilotDir 'config.json'), $managedConfig)
-    if ((Get-PluginCleanupPlan @($copilotRow)).status -ne 'pending') { throw 'Verified Copilot direct duplicate was not detected.' }
+    $expectedCopilot = if ($IsWindows) { 'pending' } else { 'unmanaged' }
+    if ((Get-PluginCleanupPlan @($copilotRow)).status -ne $expectedCopilot) { throw 'Copilot direct duplicate was not handled for this platform.' }
 
     $local = Join-Path $fixture '.cursor/plugins/local/ah-media-studio'
     $claudeRegistry = Join-Path $fixture '.claude/plugins/installed_plugins.json'

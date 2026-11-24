@@ -108,36 +108,23 @@ function Get-AgentHubCopilotDirectEntries($Document, [string]$Plugin, [string]$R
 }
 
 function New-AgentHubCopilotConfigTemp([string]$Path, [string]$Content) {
-    $parent = Split-Path -Parent $Path
-    $temp = $null
+    $temp = Join-Path (Split-Path -Parent $Path) ('.agenthub-plugin-' + [guid]::NewGuid().ToString('N') + '.tmp')
     try {
-        if ($IsWindows) {
-            $temp = Join-Path $parent ('.agenthub-plugin-' + [guid]::NewGuid().ToString('N') + '.tmp')
-            $stream = [IO.FileSystemAclExtensions]::Create(
-                [IO.FileInfo]::new($temp), [IO.FileMode]::CreateNew,
-                [Security.AccessControl.FileSystemRights]::Write, [IO.FileShare]::None,
-                4096, [IO.FileOptions]::None, (Get-Acl -LiteralPath $Path))
-            $writer = [IO.StreamWriter]::new($stream)
-            try { $writer.Write($Content) } finally { $writer.Dispose() }
-        } else {
-            # mktemp creates mode 0600 atomically. Restore the exact source mode
-            # after writing, so even an owner-read-only configuration works.
-            $mode = if ($IsMacOS) { & stat -f '%Lp' $Path } else { & stat -c '%a' $Path }
-            if ($LASTEXITCODE -or $mode -notmatch '^[0-7]{3,4}$') { throw 'Could not read Copilot configuration permissions.' }
-            $temp = & mktemp (Join-Path $parent '.agenthub-plugin-XXXXXXXX')
-            if ($LASTEXITCODE -or -not $temp) { throw 'Could not create a private Copilot configuration.' }
-            [IO.File]::WriteAllText($temp, $Content)
-            & chmod $mode $temp
-            if ($LASTEXITCODE) { throw 'Could not preserve Copilot configuration permissions.' }
-        }
+        $stream = [IO.FileSystemAclExtensions]::Create(
+            [IO.FileInfo]::new($temp), [IO.FileMode]::CreateNew,
+            [Security.AccessControl.FileSystemRights]::Write, [IO.FileShare]::None,
+            4096, [IO.FileOptions]::None, (Get-Acl -LiteralPath $Path))
+        $writer = [IO.StreamWriter]::new($stream)
+        try { $writer.Write($Content) } finally { $writer.Dispose() }
         return $temp
     } catch {
-        if ($temp -and [IO.File]::Exists($temp)) { [IO.File]::Delete($temp) }
+        if ([IO.File]::Exists($temp)) { [IO.File]::Delete($temp) }
         throw
     }
 }
 
 function Remove-AgentHubCopilotDirectRegistration([string]$Path, [string]$Plugin, [string]$RelativePath, [scriptblock]$Verify) {
+    if (-not $IsWindows) { throw 'Direct Copilot configuration cleanup requires the Windows ACL-preserving implementation.' }
     if ((Resolve-AgentHubPhysicalPath $Path) -ne [IO.Path]::GetFullPath($Path)) { throw 'Copilot configuration path is linked.' }
     $original = [IO.File]::ReadAllText($Path)
     $data = ConvertFrom-Json -InputObject $original -AsHashtable
@@ -153,13 +140,13 @@ function Remove-AgentHubCopilotDirectRegistration([string]$Path, [string]$Plugin
     try {
         $temp = New-AgentHubCopilotConfigTemp $Path $next
         if ([IO.File]::ReadAllText($Path) -cne $original) { throw 'Copilot configuration changed during cleanup.' }
-        [IO.File]::Move($temp, $Path, $true)
+        [IO.File]::Replace($temp, $Path, [NullString]::Value)
         try {
             if (-not (& $Verify)) { throw 'Copilot registration cleanup did not verify.' }
         } catch {
             if ([IO.File]::ReadAllText($Path) -ceq $next) {
                 $temp = New-AgentHubCopilotConfigTemp $Path $original
-                [IO.File]::Move($temp, $Path, $true)
+                [IO.File]::Replace($temp, $Path, [NullString]::Value)
             }
             throw
         }
