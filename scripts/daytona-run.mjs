@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // Run one command on a disposable Daytona v2 Linux sandbox, on the exact committed revision of a repository.
 //   node scripts/daytona-run.mjs --owner <project> [--repo <path>] [--cpu 8] [--memory 16] [--disk 40] [--minutes 60]
-//                                [--put <local>=<remote>]... [--get <remote>=<local>]... [--script <file>] [-- <command>]
+//                                [--put <local>=<remote>]... [--get <remote>=<local>]... [--image <name>] [--script <file>] [-- <command>]
+// One argument after -- is shell text; several arguments are passed through as given. Use --script for anything longer.
 // The repository is sent as a git bundle of HEAD and checked out at /work/repo; uncommitted changes are not sent.
 // The box has a hard lifetime and is deleted when the command ends, whatever the outcome. Exit code is the command's.
 // Linux only. macOS needs Daytona v2 and a paid 24-hour Mac reservation, so this script never creates one.
 // The key is read from DAYTONA_API_KEY and never printed. The SDK is installed on first use outside the repository.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -18,10 +19,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const SDK = '2.2.0';
 export const MAX = { cpu: 32, memory: 128, disk: 512, minutes: 720 };
 
+const quote = (s) => `'${s.split("'").join("'\"'\"'")}'`;
+
 export function parseArgs(argv) {
   const cut = argv.indexOf('--');
   const head = cut < 0 ? argv : argv.slice(0, cut);
-  const o = { repo: '.', cpu: 8, memory: 16, disk: 40, minutes: 60, put: [], get: [], command: cut < 0 ? '' : argv.slice(cut + 1).join(' ') };
+  const o = { repo: '.', cpu: 8, memory: 16, disk: 40, minutes: 60, put: [], get: [], command: '' };
+  const words = cut < 0 ? [] : argv.slice(cut + 1);
+  o.command = words.length === 1 ? words[0] : words.map((w) => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(w) ? w : quote(w))).join(' ');
   for (let i = 0; i < head.length; i += 2) {
     const key = head[i].replace(/^--/, '');
     const value = head[i + 1];
@@ -67,22 +72,55 @@ async function ensureImage(v2, ImageBuilder, say) {
   let image = null;
   try { image = await v2.images.get(name); } catch (e) { if (e?.statusCode !== 404 && !/not.?found/i.test(`${e?.name} ${e?.message}`)) throw e; }
   if (!image) { say(`building image ${name}`); image = await v2.images.build(ImageBuilder.fromDockerfile(dockerfile), { name }); }
-  while (image.status !== 'ready' && image.status !== 'failed') { await new Promise((r) => setTimeout(r, 5000)); image = await v2.images.get(image.id); }
+  const deadline = Date.now() + 30 * 60000;
+  while (image.status !== 'ready' && image.status !== 'failed') {
+    if (Date.now() > deadline) throw new Error(`image ${name} is still ${image.status} after 30 minutes`);
+    await new Promise((r) => setTimeout(r, 5000)); image = await v2.images.get(image.id);
+  }
   if (image.status === 'failed') throw new Error(`image ${name} failed: ${image.error ?? 'no reason given'}`);
   return name;
 }
-
-const quote = (s) => `'${s.split("'").join("'\"'\"'")}'`;
 
 /** Repeat a step that is safe to repeat when the connection drops. A fresh box sometimes answers "fetch failed" for a few seconds. */
 export async function retry(step, { tries = 5, pause = 2000, say = () => {} } = {}) {
   for (let n = 1; ; n++) {
     try { return await step(); } catch (e) {
-      if (n >= tries || !/fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket|terminated/i.test(`${e?.message} ${e?.cause?.code} ${e?.cause?.message}`)) throw e;
+      if (n >= tries || !/ConnectionError|fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket|terminated/i.test(`${e?.name} ${e?.message} ${e?.cause?.code} ${e?.cause?.message}`)) throw e;
       say(`${e.message} (${e.cause?.code ?? e.cause?.message ?? 'no cause given'}); trying again`);
       await new Promise((done) => setTimeout(done, pause));
     }
   }
+}
+
+/** Print the log as it is written and return the command's exit code. A cut stream resumes after the last event seen. */
+export async function follow(handle, { again = (step) => step(), out = process.stdout, err = process.stderr } = {}) {
+  let cursor;
+  let code = null;
+  await again(async () => {
+    for await (const event of handle.streamLogs(cursor === undefined ? {} : { cursor })) {
+      if (event.type === 'log') (event.frame.channel === 'stderr' ? err : out).write(event.frame.data);
+      if (event.type === 'state' && Number.isInteger(event.result?.exitCode)) code = event.result.exitCode;
+      if (event.cursor !== undefined) cursor = event.cursor;
+    }
+  });
+  if (code === null) { code = 1; err.write('the log ended without an exit code; treating the run as failed\n'); }
+  return code;
+}
+
+/** Download to a side file and move it into place only when its hash and size match the box's own record. */
+export async function fetchVerified(box, from, local, again = (step) => step()) {
+  const record = await again(() => box.process.run(`sha256sum ${quote(from)} && stat -c %s ${quote(from)}`));
+  const [sum, size] = (record.stdout || '').trim().split('\n');
+  if (record.exitCode !== 0 || !size) throw new Error('not found on the box');
+  mkdirSync(dirname(local), { recursive: true });
+  const part = `${local}.part`;
+  try {
+    await again(() => box.fs.downloadFile(from, part));
+    const sha = createHash('sha256').update(readFileSync(part)).digest('hex');
+    if (sha !== sum.replace(/^\\/, '').split(' ')[0] || statSync(part).size !== Number(size)) throw new Error('the download does not match the hash and size on the box; nothing was written');
+    renameSync(part, local);
+    return { sha, size: Number(size) };
+  } finally { rmSync(part, { force: true }); }
 }
 
 export async function main(argv) {
@@ -99,6 +137,13 @@ export async function main(argv) {
   let daytona;
   let box;
   let code = null;
+  let stopping = false;
+  const cleanup = async () => {
+    if (box) { const b = box; box = null; try { await daytona.v2.delete(b); say('box deleted'); } catch (e) { say(`box ${b.id} was not deleted (${e.message}); its hard limit removes it`); } }
+    rmSync(tmp, { recursive: true, force: true });
+  };
+  const onSignal = async () => { if (stopping) return; stopping = true; say('stopped; deleting the box'); await cleanup(); process.exit(130); };
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, onSignal);
   try {
     git('bundle', 'create', '-q', join(tmp, 'src.bundle'), 'HEAD');
     const { Daytona, ImageBuilder } = loadSdk();
@@ -118,23 +163,17 @@ export async function main(argv) {
     writeFileSync(join(tmp, 'cmd.sh'), `export TERM=dumb\ncd /work/repo\n${command}\n`);
     await again(() => box.fs.uploadFile(join(tmp, 'cmd.sh'), '/work/cmd.sh'));
     const handle = await box.process.start('bash /work/cmd.sh', { tag: 'run' });
-    for await (const event of handle.streamLogs()) {
-      if (event.type === 'log') (event.frame.channel === 'stderr' ? process.stderr : process.stdout).write(event.frame.data);
-      if (event.type === 'state' && Number.isInteger(event.result?.exitCode)) code = event.result.exitCode;
-    }
-    if (code === null) { code = 1; say('the log stream ended without an exit code; treating the run as failed'); }
+    code = await follow(handle, { again: (step) => retry(step, { say, tries: 60 }) }); // a long run may be cut more than once
     for (const [from, to] of o.get) {
-      const want = (await again(() => box.process.run(`sha256sum ${quote(from)}`))).stdout.split(' ')[0];
-      const local = resolve(to);
-      mkdirSync(dirname(local), { recursive: true });
-      await again(() => box.fs.downloadFile(from, local));
-      const got = createHash('sha256').update(readFileSync(local)).digest('hex');
-      if (!want || got !== want) { code ||= 1; say(`${from}: the download does not match the box's hash`); } else say(`${local} ${got.slice(0, 12)}`);
+      try {
+        const local = await fetchVerified(box, from, resolve(to), again);
+        say(`${to} ${local.sha.slice(0, 12)} ${local.size} bytes`);
+      } catch (e) { code ||= 1; say(`${from}: ${e.message}`); }
     }
   } finally {
-    if (box) { try { await daytona.v2.delete(box); say('box deleted'); } catch (e) { say(`box ${box.id} was not deleted (${e.message}); its hard limit removes it`); } }
+    if (!stopping) await cleanup();
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.off(signal, onSignal);
     if (daytona) await daytona.close?.();
-    rmSync(tmp, { recursive: true, force: true });
   }
   return code;
 }
