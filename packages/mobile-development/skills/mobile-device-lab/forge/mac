@@ -20,11 +20,7 @@ ready(){ "${SSH[@]}" true 2>/dev/null; }
 # Docker's port forwarder accepts on 2222 before the guest's sshd is up, so wait for its banner.
 port_open(){ timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/2222; head -c 4 <&3' 2>/dev/null | grep -q '^SSH-'; }
 # A keep nobody ended held 22 GB of forge for six days (2026-11-18 to 24), so it expires.
-keep_active(){
-  [ -e "$L/keep" ] || return 1
-  if (( $(date +%s) - $(stat -c %Y "$L/keep") < KEEP_MIN * 60 )); then return 0; fi
-  rm -f "$L/keep"; return 1
-}
+keep_active(){ [ -e "$L/keep" ] && (( $(date +%s) - $(stat -c %Y "$L/keep") < KEEP_MIN * 60 )); }
 leases(){ local n=0; for f in "$L"/*; do [ -e "$f" ] || continue; p=${f##*/}; if [ "$p" = keep ]; then if keep_active; then n=$((n+1)); fi; continue; fi; if kill -0 "$p" 2>/dev/null; then n=$((n+1)); else rm -f "$f"; fi; done; echo $n; }
 # Stop later, not now: a series of runs reuses the booted VM. Each reaper rechecks before stopping.
 reap_later(){ setsid nohup "$0" "${1:-_reap}" >/dev/null 2>&1 < /dev/null & }
@@ -79,6 +75,7 @@ case "${1:-status}" in
   run|shell) cmd=$1; shift; touch "$L/$$"; trap release EXIT; up; if [ "$cmd" = shell ]; then ssh -t -p 2222 -o StrictHostKeyChecking=accept-new maclab@127.0.0.1; else "${SSH[@]}" "$@"; fi;;
   proxy) touch "$L/$$"; trap release EXIT; up_port; nc 127.0.0.1 2222;;
   _reap) sleep $((IDLE_MIN * 60)); [ "$(leases)" -gt 0 ] || down;;
-  _reap_keep) sleep $((KEEP_MIN * 60 + 1)); [ "$(leases)" -gt 0 ] || down;;
+  # No keep file: that keep already ended, and this VM is someone else's.
+  _reap_keep) sleep $((KEEP_MIN * 60 + 1)); [ ! -e "$L/keep" ] || [ "$(leases)" -gt 0 ] || down;;
   *) sed -n "2,11p" "$0"; exit 2;;
 esac
