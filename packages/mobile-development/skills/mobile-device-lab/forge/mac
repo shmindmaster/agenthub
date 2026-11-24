@@ -1,7 +1,7 @@
 #!/bin/bash
 # mac: on-demand macOS VM (container "macos", /opt/macos/compose.yml) on sh-forge.
 #   mac status            show container state, leases and SSH readiness
-#   mac up [--keep]       start the VM and wait for SSH (--keep: stay up until "mac down")
+#   mac up [--keep]       start the VM and wait for SSH (--keep: stay up MAC_KEEP_MIN minutes, default 720, or until "mac down")
 #   mac run <cmd...>      start if needed, run <cmd> in the guest over SSH, hold a lease while it runs
 #   mac shell             interactive guest shell (holds a lease while open)
 #   mac proxy             ProxyCommand for the PC's "ssh forge-mac": start if needed, hold a lease for the connection
@@ -11,16 +11,23 @@
 # Leases live in /run/mac-leases, one file per holding PID; stale ones (dead PID) are ignored.
 # Canonical copy: AgentHub packages/mobile-development/skills/mobile-device-lab/forge/mac.
 set -euo pipefail
-L=/run/mac-leases; mkdir -p "$L"
+L=${MAC_LEASES:-/run/mac-leases}; mkdir -p "$L"
 IDLE_MIN=${MAC_IDLE_MIN:-15}
+KEEP_MIN=${MAC_KEEP_MIN:-720}
 SSH=(ssh -p 2222 -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 maclab@127.0.0.1)
 running(){ [ "$(docker inspect -f "{{.State.Running}}" macos 2>/dev/null)" = true ]; }
 ready(){ "${SSH[@]}" true 2>/dev/null; }
 # Docker's port forwarder accepts on 2222 before the guest's sshd is up, so wait for its banner.
 port_open(){ timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/2222; head -c 4 <&3' 2>/dev/null | grep -q '^SSH-'; }
-leases(){ local n=0; for f in "$L"/*; do [ -e "$f" ] || continue; p=${f##*/}; [ "$p" = keep ] && { n=$((n+1)); continue; }; if kill -0 "$p" 2>/dev/null; then n=$((n+1)); else rm -f "$f"; fi; done; echo $n; }
+# A keep nobody ended held 22 GB of forge for six days (2026-11-18 to 24), so it expires.
+keep_active(){
+  [ -e "$L/keep" ] || return 1
+  if (( $(date +%s) - $(stat -c %Y "$L/keep") < KEEP_MIN * 60 )); then return 0; fi
+  rm -f "$L/keep"; return 1
+}
+leases(){ local n=0; for f in "$L"/*; do [ -e "$f" ] || continue; p=${f##*/}; if [ "$p" = keep ]; then if keep_active; then n=$((n+1)); fi; continue; fi; if kill -0 "$p" 2>/dev/null; then n=$((n+1)); else rm -f "$f"; fi; done; echo $n; }
 # Stop later, not now: a series of runs reuses the booted VM. Each reaper rechecks before stopping.
-reap_later(){ setsid nohup "$0" _reap >/dev/null 2>&1 < /dev/null & }
+reap_later(){ setsid nohup "$0" "${1:-_reap}" >/dev/null 2>&1 < /dev/null & }
 start_vm() (
   # Concurrent callers share the boot and check headroom only for a cold start.
   exec 9>/run/lock/forge-mac-start.lock
@@ -49,6 +56,7 @@ up(){
   start_vm || return
   if [[ ${1:-} == --keep ]]; then
     touch "$L/keep"
+    reap_later _reap_keep
   fi
   for i in $(seq 1 60); do ready && return 0; sleep 5; done
   echo "mac: VM is running but SSH (maclab@127.0.0.1:2222) did not answer in 5 min." >&2
@@ -65,11 +73,12 @@ up_port(){
 down(){ running && { echo "mac: stopping VM" >&2; docker stop -t 120 macos >/dev/null; }; rm -f "$L/keep"; }
 release(){ rm -f "$L/$$"; [ "$(leases)" -eq 0 ] && reap_later || true; }
 case "${1:-status}" in
-  status) echo "container: $(docker inspect -f "{{.State.Status}}" macos)"; echo "leases: $(leases)"; [ -e "$L/keep" ] && echo "keep: yes"; echo "idle stop: ${IDLE_MIN} min after the last lease"; running && { ready && echo "ssh: ready" || echo "ssh: not ready"; }; echo "storage: $(du -sh /opt/macos/storage | cut -f1)";;
+  status) echo "container: $(docker inspect -f "{{.State.Status}}" macos)"; echo "leases: $(leases)"; if keep_active; then echo "keep: $(( KEEP_MIN - ($(date +%s) - $(stat -c %Y "$L/keep")) / 60 )) min left"; fi; echo "idle stop: ${IDLE_MIN} min after the last lease"; running && { ready && echo "ssh: ready" || echo "ssh: not ready"; }; echo "storage: $(du -sh /opt/macos/storage | cut -f1)";;
   up) shift; if [ "${1:-}" != --keep ]; then reap_later; fi; up "$@";;
   down) shift; if [ "${1:-}" != --force ] && [ "$(rm -f "$L/keep"; leases)" -gt 0 ]; then echo "mac: $(leases) active lease(s); not stopping (use --force)" >&2; exit 1; fi; down;;
   run|shell) cmd=$1; shift; touch "$L/$$"; trap release EXIT; up; if [ "$cmd" = shell ]; then ssh -t -p 2222 -o StrictHostKeyChecking=accept-new maclab@127.0.0.1; else "${SSH[@]}" "$@"; fi;;
   proxy) touch "$L/$$"; trap release EXIT; up_port; nc 127.0.0.1 2222;;
-  _reap) sleep $((IDLE_MIN * 60)); [ -e "$L/keep" ] || [ "$(leases)" -gt 0 ] || down;;
+  _reap) sleep $((IDLE_MIN * 60)); [ "$(leases)" -gt 0 ] || down;;
+  _reap_keep) sleep $((KEEP_MIN * 60 + 1)); [ "$(leases)" -gt 0 ] || down;;
   *) sed -n "2,11p" "$0"; exit 2;;
 esac

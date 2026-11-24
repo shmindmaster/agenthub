@@ -15,7 +15,7 @@ ssh forge mac status                       # container state, leases, SSH readin
 
 - Each `run`, `shell` or `forge-mac` connection holds a lease while it is open. The VM stops 15 minutes after the last lease ends (`MAC_IDLE_MIN` on forge changes this). A series of commands therefore reuses one boot, which takes about 2 minutes.
 - Keep the connection open for the length of the job. A job detached inside the guest (`nohup`, `launchctl`) holds no lease, and the VM can stop under it. Run long builds through `mac run` in the foreground.
-- `mac up --keep` keeps the VM up with no lease, for example while the owner installs macOS in the web viewer. Always end it with `ssh forge mac down`.
+- `mac up --keep` keeps the VM up with no lease, for example while the owner installs macOS in the web viewer. It ends by itself after 12 hours (`MAC_KEEP_MIN` minutes); end it sooner with `ssh forge mac down`.
 - Never `docker start macos`, `docker compose up` or `docker restart` it directly: those bypass the leases and nothing stops the VM.
 - `mac down` refuses while another lease is active. Never `--force` over someone else's run.
 
