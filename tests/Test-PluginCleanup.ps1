@@ -84,30 +84,27 @@ try {
     if ($script:calls -ne 1 -or $apply.status -notcontains 'removed' -or $apply.status -notcontains 'unmanaged') {
         throw 'Apply did not remove only the known retired registration once.'
     }
-    $pkg = Join-Path $fixture 'package'
-    $local = Join-Path $fixture '.cursor/plugins/local/ah-media-studio'
-    $claudeHome = Join-Path $fixture '.claude'
-    foreach ($directory in @($pkg, (Join-Path $local '.cursor-plugin'), $claudeHome)) {
-        [void][IO.Directory]::CreateDirectory($directory)
+    $codexCache = Join-Path $fixture '.codex/plugins/cache/agenthub/ah-browser'
+    [void][IO.Directory]::CreateDirectory((Split-Path -Parent $codexCache))
+    [IO.Directory]::Move($base, $codexCache)
+    $row = [pscustomobject]@{host='codex';plugin='ah-browser';marketplace='agenthub';expected='2.0.0';status='current';previousPath=(Join-Path $codexCache '2.0.0')}
+    $script:busy = $true
+    if ((Get-PluginCleanupPlan @($row) -Execute).status -notcontains 'deferred' -or $script:calls -ne 1) {
+        throw 'An open host did not defer old cache cleanup.'
     }
-    $manifest = '{"name":"ah-media-studio","author":{"name":"fixture"},"version":"1.0.0"}'
-    [IO.File]::WriteAllText((Join-Path $pkg 'plugin.json'), $manifest)
-    [IO.File]::WriteAllText((Join-Path $local 'plugin.json'), $manifest)
-    [IO.File]::WriteAllText((Join-Path $local '.cursor-plugin/plugin.json'), $manifest)
-    $settings = Join-Path $claudeHome 'settings.json'
-    $claudeRegistry = Join-Path $claudeHome 'plugins/installed_plugins.json'
+    $script:busy = $false
+
+    $local = Join-Path $fixture '.cursor/plugins/local/ah-media-studio'
+    $claudeRegistry = Join-Path $fixture '.claude/plugins/installed_plugins.json'
+    [void][IO.Directory]::CreateDirectory($local)
     [void][IO.Directory]::CreateDirectory((Split-Path -Parent $claudeRegistry))
     [IO.File]::WriteAllText($claudeRegistry, '{"plugins":{"ah-media-studio@agenthub":[{"scope":"user"}]}}')
-    $row = [pscustomobject]@{host='cursor';nativeOwnerHost='claude';plugin='ah-media-studio';marketplace='agenthub';expected='2.0.0';status='current';source=$pkg}
-    [IO.File]::WriteAllText($settings, '{"enabledPlugins":{"ah-media-studio@agenthub":false}}')
-    if ((Get-PluginCleanupPlan @($row)).status -ne 'unmanaged') { throw 'Cursor cleanup missed the disabled import.' }
-    [IO.File]::WriteAllText($settings, '{"enabledPlugins":{"ah-media-studio@agenthub":true}}')
-    $script:busy = $true
-    if ((Get-PluginCleanupPlan @($row) -Execute).status -ne 'deferred' -or $script:calls -ne 1) { throw 'An open Cursor did not defer cleanup.' }
-    $script:busy = $false
-    if ((Get-PluginCleanupPlan @($row)).status -ne 'pending') { throw 'Owned older Cursor copy was not identified.' }
-    [IO.File]::WriteAllText($settings, '{invalid json')
-    if ((Get-PluginCleanupPlan @($row) -Execute).status -ne 'unmanaged') { throw 'Corrupt Cursor import settings did not fail safely.' }
+    $row = [pscustomobject]@{host='cursor';nativeOwnerHost='claude';plugin='ah-media-studio';marketplace='agenthub';expected='2.0.0';status='current'}
+    if ((Get-PluginCleanupPlan @($row) -Execute).status -ne 'unmanaged' -or $script:calls -ne 1) {
+        throw 'An unverified Cursor import should preserve the local copy.'
+    }
+    [IO.File]::WriteAllText($claudeRegistry, '{invalid json')
+    if ((Get-PluginCleanupPlan @($row) -Execute).status -ne 'unmanaged') { throw 'Corrupt Claude registry did not fail safely.' }
     Write-Output 'RESULT: plugin cleanup ownership, audit, readback, deduplication and rollback passed'
 } finally {
     [IO.Directory]::Delete($fixture, $true)

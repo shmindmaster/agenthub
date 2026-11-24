@@ -74,7 +74,6 @@ function Remove-AgentHubPluginTree([string]$Root, [string]$Path) {
 function Test-AgentHubPluginHostBusy([string]$HostId) {
     $processNames = switch ($HostId) {
         'claude' { 'claude'; 'cursor'; 'cursor-agent' }
-        'cursor' { 'cursor'; 'cursor-agent' }
         'codex' { 'codex'; 'ChatGPT' }
         'copilot' { 'copilot'; 'Code'; 'Code - Insiders' }
         'factory' { 'droid' }
@@ -90,6 +89,7 @@ function Get-AgentHubCopilotDirectEntries($Document, [string]$Plugin, [string]$R
 }
 
 function Remove-AgentHubCopilotDirectRegistration([string]$Path, [string]$Plugin, [string]$RelativePath, [scriptblock]$Verify) {
+    if ((Resolve-AgentHubPhysicalPath $Path) -ne [IO.Path]::GetFullPath($Path)) { throw 'Copilot configuration path is linked.' }
     $original = [IO.File]::ReadAllText($Path)
     $data = ConvertFrom-Json -InputObject $original -AsHashtable
     $duplicate = @(Get-AgentHubCopilotDirectEntries $data $Plugin $RelativePath)

@@ -610,20 +610,9 @@ function Get-PluginCleanup($Row) {
             Get-AgentHubOldPluginVersions -HostId claude -Plugin $name -Root $base -ActivePath $Row.previousPath -Version $version -RegisteredPaths $refs -Manifest '.claude-plugin/plugin.json'
         }
         if ($Row.host -in 'cursor','cursor-agent') {
-            $cursorBase = Join-Path $UserProfile '.cursor/plugins/local'
-            $path = Join-Path $cursorBase $name
-            if (Test-Path -LiteralPath $path -PathType Container) {
-                $settings = Read-AgentHubCleanupJson (Join-Path $UserProfile '.claude/settings.json')
-                $source = Read-AgentHubCleanupJson (Join-Path $Row.source 'plugin.json')
-                $copy = if (Test-AgentHubPluginTree $cursorBase $path) { Read-AgentHubCleanupJson (Join-Path $path 'plugin.json') }
-                $projection = if ($copy) { Read-AgentHubCleanupJson (Join-Path $path '.cursor-plugin/plugin.json') }
-                if ($settings.enabledPlugins."$name@$market" -eq $true -and $copy.name -eq $name -and
-                    $copy.author.name -and $copy.author.name -ceq $source.author.name -and $projection.name -eq $name -and
-                    $copy.version -eq $projection.version -and $copy.version -match '^\d+\.\d+\.\d+$' -and [version]$copy.version -le [version]$version) {
-                    New-AgentHubPluginCleanup cursor $name 'cursor-import-duplicate' $path
-                } else {
-                    New-AgentHubPluginCleanup cursor $name 'cursor-import-duplicate' $path 'unmanaged' 'Local copy or enabled Claude import could not be verified.'
-                }
+            $path = Join-Path $UserProfile ".cursor/plugins/local/$name"
+            if (Test-Path -LiteralPath $path) {
+                New-AgentHubPluginCleanup cursor $name 'cursor-import-duplicate' $path 'unmanaged' 'Verify that Cursor actually imported the Claude plugin before removing its local copy.'
             }
         }
     }
@@ -662,6 +651,11 @@ function Get-PluginCleanup($Row) {
     }
 
     if ($owner -eq 'copilot' -and $market -eq 'agenthub' -and $live) {
+        $canonical = Get-ListedPlugin copilot $name -Marketplace $market
+        $catalog = if ($canonical.installedFrom -and (Test-Path -LiteralPath $canonical.installedFrom -PathType Container)) {
+            Resolve-AgentHubPhysicalPath $canonical.installedFrom
+        }
+        if ($canonical.source -ne 'live' -or $catalog -ne (Resolve-AgentHubPhysicalPath $root)) { return }
         $config = Join-Path $UserProfile '.copilot/config.json'
         if (Test-Path -LiteralPath $config -PathType Leaf) {
             $document = Read-AgentHubCleanupJson $config -AsHashtable
@@ -710,9 +704,6 @@ function Invoke-PluginCleanup($Row, $Candidate) {
         }
         'old-cache' {
             Remove-AgentHubPluginTree (Join-Path $UserProfile ".$owner/plugins/cache/$($Row.marketplace)/$($Row.plugin)") $Candidate.target
-        }
-        'cursor-import-duplicate' {
-            Remove-AgentHubPluginTree (Join-Path $UserProfile '.cursor/plugins/local') $Candidate.target
         }
         'copilot-direct-cache' {
             Remove-AgentHubPluginTree (Join-Path $UserProfile '.copilot/installed-plugins/_direct') $Candidate.target
