@@ -46,7 +46,7 @@ try {
     $raw = (@{installedPlugins=@($direct,$fork);theme='test'} | ConvertTo-Json -Depth 7)
     [IO.File]::WriteAllText($cfg,$raw)
     if (-not $IsWindows) {
-        & chmod 600 $cfg
+        & chmod 400 $cfg
         if ($LASTEXITCODE) { throw 'Could not set fixture permissions.' }
         $privateMode = (Get-Item -LiteralPath $cfg).UnixMode
     }

@@ -107,19 +107,34 @@ function Get-AgentHubCopilotDirectEntries($Document, [string]$Plugin, [string]$R
     })
 }
 
-function Write-AgentHubCopilotConfigTemp([string]$Path, [string]$Temp, [string]$Content) {
-    # Create an empty file and secure it before writing any configuration.
-    [IO.File]::Open($Temp, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write).Dispose()
-    if ($IsWindows) {
-        Set-Acl -LiteralPath $Temp -AclObject (Get-Acl -LiteralPath $Path)
-    } else {
-        # chmod and cp -p work on PowerShell 7.2 / .NET 6 without UnixFileMode.
-        & chmod 600 $Temp
-        if ($LASTEXITCODE) { throw 'Could not protect the temporary Copilot configuration.' }
-        & cp -p $Path $Temp
-        if ($LASTEXITCODE) { throw 'Could not preserve Copilot configuration permissions.' }
+function New-AgentHubCopilotConfigTemp([string]$Path, [string]$Content) {
+    $parent = Split-Path -Parent $Path
+    $temp = $null
+    try {
+        if ($IsWindows) {
+            $temp = Join-Path $parent ('.agenthub-plugin-' + [guid]::NewGuid().ToString('N') + '.tmp')
+            $stream = [IO.FileSystemAclExtensions]::Create(
+                [IO.FileInfo]::new($temp), [IO.FileMode]::CreateNew,
+                [Security.AccessControl.FileSystemRights]::Write, [IO.FileShare]::None,
+                4096, [IO.FileOptions]::None, (Get-Acl -LiteralPath $Path))
+            $writer = [IO.StreamWriter]::new($stream)
+            try { $writer.Write($Content) } finally { $writer.Dispose() }
+        } else {
+            # mktemp creates mode 0600 atomically. Restore the exact source mode
+            # after writing, so even an owner-read-only configuration works.
+            $mode = if ($IsMacOS) { & stat -f '%Lp' $Path } else { & stat -c '%a' $Path }
+            if ($LASTEXITCODE -or $mode -notmatch '^[0-7]{3,4}$') { throw 'Could not read Copilot configuration permissions.' }
+            $temp = & mktemp (Join-Path $parent '.agenthub-plugin-XXXXXXXX')
+            if ($LASTEXITCODE -or -not $temp) { throw 'Could not create a private Copilot configuration.' }
+            [IO.File]::WriteAllText($temp, $Content)
+            & chmod $mode $temp
+            if ($LASTEXITCODE) { throw 'Could not preserve Copilot configuration permissions.' }
+        }
+        return $temp
+    } catch {
+        if ($temp -and [IO.File]::Exists($temp)) { [IO.File]::Delete($temp) }
+        throw
     }
-    [IO.File]::WriteAllText($Temp, $Content)
 }
 
 function Remove-AgentHubCopilotDirectRegistration([string]$Path, [string]$Plugin, [string]$RelativePath, [scriptblock]$Verify) {
@@ -134,21 +149,21 @@ function Remove-AgentHubCopilotDirectRegistration([string]$Path, [string]$Plugin
     $next = (ConvertTo-Json -InputObject $data -Depth 100 -WarningAction Stop) + [Environment]::NewLine
     # Copilot uninstall by bare name selects the live marketplace entry instead.
     # Replace the single owned direct record and restore it if CLI readback fails.
-    $temp = Join-Path (Split-Path -Parent $Path) ('.agenthub-plugin-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    $temp = $null
     try {
-        Write-AgentHubCopilotConfigTemp $Path $temp $next
+        $temp = New-AgentHubCopilotConfigTemp $Path $next
         if ([IO.File]::ReadAllText($Path) -cne $original) { throw 'Copilot configuration changed during cleanup.' }
         [IO.File]::Move($temp, $Path, $true)
         try {
             if (-not (& $Verify)) { throw 'Copilot registration cleanup did not verify.' }
         } catch {
             if ([IO.File]::ReadAllText($Path) -ceq $next) {
-                Write-AgentHubCopilotConfigTemp $Path $temp $original
+                $temp = New-AgentHubCopilotConfigTemp $Path $original
                 [IO.File]::Move($temp, $Path, $true)
             }
             throw
         }
     } finally {
-        if ([IO.File]::Exists($temp)) { [IO.File]::Delete($temp) }
+        if ($temp -and [IO.File]::Exists($temp)) { [IO.File]::Delete($temp) }
     }
 }
