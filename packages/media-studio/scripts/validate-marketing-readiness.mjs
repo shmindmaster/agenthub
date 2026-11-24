@@ -14,6 +14,7 @@
 // campaign-outreach | marketing-cutdown | social-clip | hero, kind teaser, or marketing: true. Otherwise the report
 // says applies: false and exits 0; explainers and technical stories keep the story rubric and inherit the no-fluff and
 // cursor rules through validate-narration.mjs and validate-pointer-path.mjs.
+import { isMarketingCut } from './marketing-cut.mjs';
 import { validateSpeechOnly } from './speech-only-readiness.mjs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -38,8 +39,6 @@ const outPath = resolve(root, typeof opt['--out'] === 'string' ? opt['--out'] : 
 const readinessPath = resolve(root, typeof opt['--readiness'] === 'string' ? opt['--readiness'] : 'qa/marketing-readiness.json');
 const cuePath = resolve(root, typeof opt['--cue-sheet'] === 'string' ? opt['--cue-sheet'] : 'plan/cue-sheet.json');
 
-export const MARKETING_FORMS = Object.freeze(['campaign-flagship', 'campaign-comparison', 'campaign-short', 'campaign-outreach', 'marketing-cutdown', 'social-clip', 'hero']);
-export const isMarketingCut = (job) => job?.marketing === true || job?.kind === 'teaser' || MARKETING_FORMS.includes(job?.programForm);
 
 const errors = []; const warnings = []; const checks = {};
 const fail = (check, message) => { checks[check] = 'fail'; errors.push(`${check}: ${message}`); };

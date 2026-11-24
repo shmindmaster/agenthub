@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Words-only gate: a film must show things, not just present words well.
+"""Measure picture mix, consecutive cards and repeated sources.
 
     check_visual_variety.py <briefing-props.json> [--min-picture 0.4] [--max-text 0.25] [--max-same 0.4] [--out PATH]
 
@@ -97,17 +97,22 @@ def main(argv=None):
     ap.add_argument("--min-picture", type=float, default=0.4)
     ap.add_argument("--max-text", type=float, default=0.25)
     ap.add_argument("--max-same", type=float, default=0.4)
+    ap.add_argument("--advisory", action="store_true", help="Report style observations without blocking a planned sequence.")
     ap.add_argument("--out")
     args = ap.parse_args(argv)
     scenes = json.loads(Path(args.props).read_text(encoding="utf-8")).get("scenes") or []
     rep = judge(scenes, args.min_picture, args.max_text, args.max_same)
     rep = {"schema": "media-studio/visual-variety/1", **rep}
+    if args.advisory and scenes:
+        rep.update(ok=True, advisory=True, observations=rep["reasons"], reasons=[])
     if args.out:
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(rep, indent=2) + "\n", encoding="utf-8")
     print("scenes:", ", ".join(f"{s.get('id')}={k}/{c}" for s, k, c in zip(scenes, rep.get("kinds", []), rep["classes"])))
     print("counts:", rep["counts"])
+    for note in rep.get("observations", []):
+        print("NOTE:", note)
     for r in rep["reasons"]:
         print("FAIL:", r)
     print("RESULT:", "ok" if rep["ok"] else "FAILED")

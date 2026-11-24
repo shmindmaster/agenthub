@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Fail closed on evidence bound to the exact encoded product-demo candidate.
 // Usage: node validate-viewer-release.mjs <jobRoot> <candidate.mp4>
+import { isMarketingCut } from './marketing-cut.mjs';
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { isAbsolute, join, relative, resolve } from "node:path";
@@ -192,8 +193,7 @@ if (existsSync(modelSpecsDir)) {
   }
 }
 // The feed test: marketing cuts fail closed below the marketing floor (validate-marketing-readiness.mjs owns the list).
-const MARKETING_FORMS = ['campaign-flagship', 'campaign-comparison', 'campaign-short', 'campaign-outreach', 'marketing-cutdown', 'social-clip', 'hero'];
-if (job.marketing === true || job.kind === 'teaser' || MARKETING_FORMS.includes(job.programForm)) {
+if (isMarketingCut(job)) {
   const mk = canonical(boundReport('qa/marketing-readiness-check.json', 'media-studio/validate-marketing-readiness', 'a marketing cut releases only at or above the marketing floor (validate-marketing-readiness.mjs)'), 'qa/marketing-readiness-check.json',
     [['hookMaxSeconds', 'max', 2], ['endCardWindowSeconds', 'max', 8], ['beatToleranceMs', 'max', 80], ['beatHitRatio', 'min', 0.9], ['referencesRequired', 'min', 3]]);
   if (mk && mk.applies !== true) errors.push('qa/marketing-readiness-check.json did not apply the marketing floor to this job; rerun it with the job.json that declares the marketing cut.');

@@ -87,27 +87,33 @@ def main(argv=None):
     ap.add_argument("props")
     ap.add_argument("cues")
     ap.add_argument("--min-overlap", type=int, default=2)
+    ap.add_argument("--advisory", action="store_true", help="Report wording overlap without blocking intentional visual or audio choices.")
     ap.add_argument("--out")
     args = ap.parse_args(argv)
     scenes = json.loads(Path(args.props).read_text(encoding="utf-8")).get("scenes") or []
     cues = load_lines(Path(args.cues))
     results = []
+    scene_ids = {scene.get("id") for scene in scenes}
     for sc in scenes:
         if sc.get("id") not in cues:
             results.append({"id": sc.get("id"), "ok": False, "overlap": [], "reasons": ["no narration line with this id"]})
         else:
             results.append(judge_scene(sc, cues[sc["id"]], args.min_overlap))
-    missing = [i for i in cues if i not in {s.get("id") for s in scenes}]
+    missing = [i for i in cues if i not in scene_ids]
     for i in missing:
         results.append({"id": i, "ok": False, "overlap": [], "reasons": ["narration line has no scene"]})
+    paired = bool(scenes) and scene_ids == cues.keys()
     report = {"schema": "media-studio/picture-relevance/1", "minOverlap": args.min_overlap,
-              "ok": bool(results) and all(r["ok"] for r in results), "scenes": results}
+              "ok": paired and (args.advisory or all(r["ok"] for r in results)), "scenes": results}
+    if args.advisory:
+        report["advisory"] = True
     if args.out:
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     for r in results:
-        print(f"{'PASS' if r['ok'] else 'FAIL'} {r['id']}: {', '.join(r['overlap'][:6]) or '-'}" + ("" if r["ok"] else "  <- " + "; ".join(r["reasons"])))
+        level = "PASS" if r["ok"] else "NOTE" if args.advisory and r["id"] in scene_ids and r["id"] in cues else "FAIL"
+        print(f"{level} {r['id']}: {', '.join(r['overlap'][:6]) or '-'}" + ("" if r["ok"] else "  <- " + "; ".join(r["reasons"])))
     print("RESULT:", "ok" if report["ok"] else "FAILED")
     return 0 if report["ok"] else 1
 

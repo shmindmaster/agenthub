@@ -29,7 +29,7 @@ py -3 scripts/route_media.py diagram motion
 
 ## Check
 
-Before any render, `check_picture_relevance.py` and `check_visual_variety.py`. After a render, build the contact sheet and look at it; a gate passing is variety and relevance, never taste.
+Before render, run `check_picture_relevance.py` and `check_visual_variety.py`, with `--advisory` for intentional formats such as slides or a sparse visual track. After a render, build the contact sheet and look at it; a gate passing is variety and relevance, never taste.
 
 ## Rules that do not bend
 

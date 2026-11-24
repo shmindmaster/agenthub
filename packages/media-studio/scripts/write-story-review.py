@@ -152,6 +152,10 @@ def visual_text(visual) -> tuple[list[str], int]:
 
 FLEXIBLE_MODES = {"hybrid", "future-vision", "concept-film", "fictional-story", "explainer",
                   "documentary", "educational", "abstract"}
+MARKETING_FORMS = {
+    "campaign-flagship", "campaign-comparison", "campaign-short", "campaign-outreach",
+    "marketing-cutdown", "social-clip", "hero",
+}
 FLEXIBLE_JUDGMENTS = ("audience", "form-fit", "visual-story", "representation")
 COMMUNICATION_JUDGMENTS = FLEXIBLE_JUDGMENTS + ("ghost-storyboard", "proof-scope", "answer-first")
 
@@ -194,7 +198,7 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
     and keep the same score/evidence/report contract.
     """
     profile = screenplay.get("communicationProfile") or job.get("communicationProfile")
-    mode = profile or job.get("creativeMode")
+    mode = profile or job.get("creativeMode") or job.get("kind") or "general"
     judgment_names = COMMUNICATION_JUDGMENTS if profile else FLEXIBLE_JUDGMENTS
     script_path = root / "story" / "screenplay.json"
     board_path = root / "story" / "storyboard.json"
@@ -235,7 +239,21 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
                 "evidence": item.get("evidence", "Creative form review failed"),
                 "fix": item.get("fix", "Revise the pictured scene or script for its declared format."),
                 "owner": item.get("owner", "media-writer")})
-    score = max(0, 100 - 15 * len(findings))
+    failed_judgment = bool(findings)
+    deductions = 15 * len(findings)
+    for finding in verdicts.get("findings") or []:
+        severity = finding.get("severity", "minor")
+        deductions += int(finding.get("points", {"minor": 5, "major": 15, "block": 0}.get(severity, 5)))
+        findings.append({
+            "id": finding.get("id", "FLEX-" + str(len(findings) + 1)),
+            "severity": severity,
+            "location": finding.get("location", "story"),
+            "evidence": finding.get("evidence", ""),
+            "fix": finding.get("fix", ""),
+            "owner": finding.get("owner", "media-storyboard"),
+        })
+    score = max(0, 100 - deductions)
+    blocked = any(finding["severity"] == "block" for finding in findings)
     if missing:
         result = {"status": "MALFORMED_INPUT", "candidateId": candidate, "pass": False,
                   "missingEvidence": missing,
@@ -243,7 +261,7 @@ def flexible_form_review(root, job, screenplay, storyboard, judgments_path, out_
                   "checks": checks, "findings": findings, "reviseSceneIds": []}
     else:
         result = {"status": "COMPLETE", "candidateId": candidate,
-                  "score": score, "pass": score >= craft_min and not findings,
+                  "score": score, "pass": score >= craft_min and not failed_judgment and not blocked,
                   "reason": ("Pre-capture communication-profile review for " + profile + "; story, evidence and narration checks remain mandatory. Encoded candidate still requires critic.") if profile else "Pre-capture creative-form lint for " + mode
                             + "; no mandatory product UI, adult-only actors, six-beat template,"
                               " or fixed hero position. Encoded candidate still requires critic.",
@@ -291,7 +309,11 @@ def main() -> int:
         return 1
 
     sp, sb = load(sp_p), load(sb_p)
-    if sp.get("communicationProfile") or job.get("communicationProfile") or job.get("creativeMode") in FLEXIBLE_MODES:
+    creative_mode = job.get("creativeMode")
+    kind = job.get("kind")
+    marketing = job.get("marketing") is True or kind == "teaser" or job.get("programForm") in MARKETING_FORMS
+    general_job = not creative_mode and not marketing and kind not in (None, "product-screencast")
+    if sp.get("communicationProfile") or job.get("communicationProfile") or creative_mode in FLEXIBLE_MODES or general_job:
         return flexible_form_review(root, job, sp, sb, jd_p, out_p, craft_min, args.print)
     scenes = sp.get("scenes") or []
     ids = [s["id"] for s in scenes]

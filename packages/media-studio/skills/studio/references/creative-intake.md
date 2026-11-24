@@ -4,9 +4,9 @@ This reference expands the `studio` entry point. It **does not** add a workflow,
 
 ## Priorities
 
-1. **User's outcome:** identify the viewer, desired change in understanding/behavior, factual claims and delivery channel from the task and project.
-2. **Creative treatment:** recommend one credible direction with the strongest hook, visual thesis, story tension, central proof/hero moment and satisfying payoff. For a tutorial, clarity wins over cinematic ceremony.
-3. **Evidence and source picture:** for a current-product film use the actual running application and approved synthetic fixtures. A fictional or future film may use invented scenes when its concept status is explicit.
+1. **User's outcome:** identify the viewer, requested deliverable and delivery channel from the task and project.
+2. **Creative treatment:** carry forward the requested direction. When the brief delegates treatment, choose one suited to the viewer and form, then begin the work.
+3. **Picture:** choose the media the brief calls for. Use the running application and approved fixtures for scenes demonstrating current behavior. Use designed or invented scenes when suited to the requested treatment.
 4. **Voice:** infer narration/no narration and cast for the audience; do not choose a vendor just because it has credits.
 5. **Technical production:** choose supported browser, capture, aspect and remote render lanes automatically unless a visible tradeoff remains.
 6. **Budget and approvals:** present the priced, executable choice before spending. No extra gates or silent approvals.
@@ -27,8 +27,8 @@ Use a compact, user-facing recommendation, typically one paragraph plus only the
 
 - **Viewer promise:** one sentence describing what the viewer should understand or do afterward.
 - **Treatment:** e.g. authentic product-led walkthrough, premium commercial, documentary, guided tutorial, technical story, creative concept or an appropriate hybrid.
-- **Screenplay:** a plausible hook, relevant obstacle, causal sequence, real proof/central moment, resolution and one next action (when useful).
-- **Picture:** what is actually shown, and which current product claims have source-hashed proof versus conceptual footage.
+- **Screenplay:** the sequence best suited to this piece. For example, work through each question in order when the brief asks for annotated answer slides.
+- **Picture:** what the viewer sees. For verified demonstrations, specify the application state and interaction to capture.
 - **Sound:** no narration / one narrator / cast dialogue; desired delivery qualities.
 - **Production:** suitable run length, destination/ratio and quality tier inferred from the request.
 - **Quote:** estimated authorized spend, assumptions and required approvals. Recalculate after the storyboard and asset counts are known.

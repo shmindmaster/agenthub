@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// Narration check: fail a script that spends the viewer's seconds on anything but information. It enforces the
-// owner's standing rules: no fluff, the feed test (the hook wins in five seconds), nothing redundant, no talk of
-// versions or how the film was made, and synthetic data disclosed on screen, never in narration.
+// Check the locked narration and disclosure. Advertising, product demos and consulting profiles also apply their
+// opening and wording rules. For general creative work, review the spoken treatment against the brief.
 //
 // Usage: node validate-narration.mjs <jobRoot> [--before story/screenplay.draft.json] [--out qa/narration-check.json] [--wpm 150]
 //
@@ -17,6 +16,7 @@
 // Lines are sentences. Each banned phrase is a hit (class, match, line, scene); each hit is an error. The report
 // (qa/narration-check.json) is bound to the exact files it read by sha256, so write-story-review.py can tell when it is
 // stale. Exit 1 on any error. Allowlisted phrases suppress only jargon, filler and version hits and need a reason.
+import { isMarketingCut } from './marketing-cut.mjs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
@@ -125,7 +125,8 @@ const job = existsSync(jobPath) ? loadJson(jobPath, 'job') : null;
 const communicationProfile = screenplay?.communicationProfile || job?.communicationProfile;
 const knownCommunicationProfile = ['consulting-demo', 'technical-walkthrough', 'product-update'].includes(communicationProfile);
 if (communicationProfile && !knownCommunicationProfile) errors.push(`unknown communicationProfile: ${communicationProfile}`);
-const flexibleCreativeForm = !communicationProfile && !!job?.creativeMode && job.creativeMode !== 'verified-demo';
+const creativeMode = job?.creativeMode || (job?.kind && job.kind !== 'product-screencast' && !isMarketingCut(job) ? job.kind : 'verified-demo');
+const flexibleCreativeForm = !communicationProfile && creativeMode !== 'verified-demo';
 let lines = [];
 let source = null;
 // The locked timeline is what the voice actually speaks, so it is the text checked whenever it exists; the screenplay
@@ -281,7 +282,7 @@ const storyboard = existsSync(storyboardPath) ? loadJson(storyboardPath, 'storyb
 if (storyboard?.syntheticDisclosure) inputs.storyboard = ref(storyboardPath);
 const disclosure = screenplay?.syntheticDisclosure ?? storyboard?.syntheticDisclosure ?? job?.syntheticDisclosure ?? null;
 const declaredSynthetic = job?.syntheticData === true || /synthetic/i.test(String(job?.dataClass ?? ''));
-const disclosureRequired = (!flexibleCreativeForm && declaredSynthetic) || !!disclosure;
+const disclosureRequired = (declaredSynthetic && (!job?.creativeMode || !flexibleCreativeForm)) || !!disclosure;
 const mode = disclosure?.mode ?? null;
 const disclosureText = flat(disclosure?.text);
 const disclosureOk = !disclosureRequired || ((mode === 'caption' || mode === 'end-card') && !!disclosureText);
@@ -331,7 +332,7 @@ const report = {
   warnings,
   inputs,
   thresholds: { wpm, hookSeconds: HOOK_SECONDS, hookMaxWords, redundantOverlap: REDUNDANT_OVERLAP, redundantMinContentWords: REDUNDANT_MIN_WORDS, noNewInformationMinContentWords: NO_NEW_INFO_MIN_WORDS },
-  creativeMode: job?.creativeMode || 'verified-demo',
+  creativeMode,
   source,
   wpm,
   runtimeSeconds,
