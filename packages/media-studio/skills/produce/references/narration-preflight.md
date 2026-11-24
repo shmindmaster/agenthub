@@ -33,8 +33,7 @@ Multiple speakers need an explicit cast for each eligible provider, such as
 to require a cast for all turns in a single-speaker job. A turn with `voices` is limited to its listed choices. Set `keepSeparate` on turns with
 independent timing, and `requiresDirection` or `requiresLinkedDialogue` when
 the performance depends on it. The AssemblyAI runner verifies an active
-first-party stock voice in the requested data zone. Custom voices require their
-own consent and approved adapter.
+first-party stock voice in the requested data zone. Private AssemblyAI owner voices require an explicit job `privateVoiceApprovals` entry with `voice`, matching `entity`, and `ownerApproval`, plus a matching explicit cast on each turn. Only the named owner-approved voices are eligible for ABACare or personal films. The adapter rechecks the provider voice is private, active, in the requested zone, and has current attested consent and unexpired retention before quote and execution.
 
 Use the provider's dashboard to check spendable funds for **this TTS workload**
 when its API does not expose that balance. Free transcription credits and
