@@ -156,14 +156,14 @@ people, scenes or future product screens.
 | --- | --- |
 | `id`, `title`, `product`, `audience`, `objective`, `concept` | Identity. `title` becomes the delivered file name. |
 | `ratios`, `targetSeconds`, `beats` **or** `cuts[]` | One cut, or several cuts of the same ad with their own length and script (e.g. a 20 s `main` for 16x9 + 4x5 and a 12 s `vertical` for 9x16). A ratio belongs to exactly one cut. |
-| `voice` | `provider` `elevenlabs` / `openai` (`local` is retired: Local AI is off and it refuses), `voiceId`, `model`, `settings` (ElevenLabs `voice_settings` + `apply_text_normalization`; `eleven_v4` takes only `stability` and `similarity_boost`), `instructions` (OpenAI), `stitching` (previous_text / next_text), `pronunciationDictionaries`, `disclosure`. |
+| `voice` | `provider` `elevenlabs` / `openai` / `import` (narration made elsewhere, see Imported narration below; `local` is retired: Local AI is off and it refuses), `voiceId`, `model`, `settings` (ElevenLabs `voice_settings` + `apply_text_normalization`; `eleven_v4` takes only `stability` and `similarity_boost`), `instructions` (OpenAI), `stitching` (previous_text / next_text), `pronunciationDictionaries`, `disclosure`. |
 | `music` | `provider` `elevenlabs` / `none`, `prompt` (instrumental, never naming artists), `licenseBasis` (required), `bedDb` (default -24), `lengthSeconds` (optional, >= 3). By default the bed is the longest cut plus 2 s, so every job of a different length buys a new track; `lengthSeconds` fixes it, so jobs with the same prompt, model and length make an identical request and reuse one track in the governed adapter. It must be at least the longest cut plus 2 s (lint checks it against the target, the assets stage against the measured timeline); the mix trims the bed to the program (`atrim`) and fades it out inside it, so a longer bed never lengthens the film. |
 | `beats[]` | `id`, `kind` `ui` / `broll` / `card` / `title`, `narration`, `onScreenText`, `emphasis[]`, `claims[]`, `minSeconds`, `ui {sourceJob, clipId, trimStart, trimEnd, focus[], actions[], freshness, record}`, `broll {provider, prompt}`, `sfx[] {cue, prompt, durationSeconds}`. A final `card` beat is the CTA end card. |
 | `claims[]` | `id`, `text`, `phrases[]` (exact substrings of narration/on-screen text it substantiates), `kind`, `evidence`: `file:<path>[:line]`, `clip:<sourceJob>#<clipId>@<t0>-<t1>` (checked against the capture receipt) or `approved:<source>`. |
-| `cta` | `text`, `url` (https), `displayUrl`, `claim`. |
+| `cta` | `text`, `url` (https), `displayUrl`, `claim`. Required unless the spec declares a `filmType` with no cta slot (not `product-marketing` or `founder-pitch`); an undeclared `filmType` still requires it, and a beat with the `cta` role always does. |
 | `labels` | The film's disclosure line, shown on the end card. What it must contain is the product's rule: `brand.disclosure.mustInclude`, or the product's entry in `product-profiles.json` (ABACare: SYNTHETIC and NO PHI). A spec that sets `syntheticData` must say "synthetic". |
 | `edit.beatGrid` | Optional `{ bpm, offsetSeconds }`: the music bed's tempo, so the marketing-readiness floor (>= 90% of cuts within 80 ms of the beat) can be met. The bed plays from program time 0, so beats fall at `offsetSeconds + n * 60/bpm` for any whole `n` (the offset is the bed's phase). After the voice-first timeline is built, every scene boundary except the program start is moved to the next beat at or after its natural end by lengthening that scene's tail hold only (never shortening, each extension under one beat); narration keeps its place inside its scene and everything after shifts with it (`startSeconds`, `lineStartSeconds`, word and caption times), so the film grows by the added holds. Each boundary is then moved to a whole frame (30 fps: the nearest frame to the beat, never earlier than the scene's natural end, so a cut sits within one frame of the beat), so the edit list, the captions and the gates name the frames the picture cuts on; MarketingAd lays consecutive beats out from one shared rounded boundary, so no frame belongs to no beat (no black frame at a cut). Keep it out of `music` (the bed's cache key is its prompt, length and model) and put the tempo in the music prompt yourself. It keys the `timing` stage (a change re-times with the cached ASR, no new spend), is written to `timeline.json` and to `compose-map.json` as `beatGrid`, and a UI beat's longer hold must still be covered by its clip (compose refuses a hold over the limit). |
-| `budget`, `qa` | Per-run caps; `qa.storyMin`, `qa.visionEverySeconds`, `qa.loudness`, `qa.required`. |
+| `budget`, `qa` | Per-run caps (`elevenlabsCredits`, `openaiUsd`, `assemblyaiUsd`, `deepgramUsd`, `runwareUsd`, `azureUsd`; brand `budgets` takes the same keys as cumulative caps, and a USD provider with no cap configured refuses new spend); `qa.storyMin`, `qa.visionEverySeconds`, `qa.loudness`, `qa.required`. |
 
 `ui.focus[]` gives explicit focus windows in clip seconds with the target's normalized position in the clip frame
 (`x`, `y`), an optional `zoom`, `sourceZoom` (Recast punch-in already in the clip) and `declaredZoom` (the cue sheet
@@ -357,6 +357,32 @@ node scripts/check-story.mjs --types                               # what each f
 
 The brief may be a full spec or only `product`, `filmType`, `targetSeconds`, `narrative` and `beats`.
 
-**Not film-type aware yet.** The `mvg` renderer always draws an end card from `cta`, so a spec still carries `cta` even
-when its film type needs no call-to-action beat. Ratios are 16x9, 4x5 and 9x16; `voice.provider` is elevenlabs, openai or
-local.
+**Optional cta.** A film type with no cta slot may omit `cta` (the lint requires it only for `product-marketing`, `founder-pitch`, an undeclared `filmType`, or a beat with the `cta` role). Ratios are 16x9, 4x5 and 9x16; `voice.provider` is elevenlabs, openai or import (`local` is retired).
+
+## Imported narration and stills
+
+`voice.provider: "import"` reads narration that a governed script already made, so no provider is called and nothing is charged
+here. `voice` carries `source` (`assemblyai`, `deepgram`, `azure`, `openai`, `elevenlabs` or `recording`), `manifest` (a path
+relative to the spec folder) and, for every AI source, a `disclosure`. The manifest is `media-studio/narration-import/1`:
+`{schema, source, entity, lines: [{beatId, cut?, textSha256, file, sha256, receipt: {provider, requestId, outputSha256, usdMicros|null, estimated}}]}`.
+The voice stage checks that each file sits inside the manifest folder, the audio hash, that the receipt hash equals the audio hash
+(AI sources), and that `textSha256` is the beat narration; any miss stops with one message naming the beat. The audio hash is part
+of the line key, so swapped audio re-times. Each line is a zero-cost cached ledger row under the true source; a `recording` is not
+AI-generated and needs no request id. An imported AssemblyAI owner clone (`ownerVoice: true`) also needs
+`consent {subject, approvedBy, validUntil}` (unexpired) on the manifest or every line receipt, plus the disclosure.
+`scripts/import-narration.mjs --spec --source assemblyai|deepgram --from --out [--entity] [--region]` builds the manifest from an
+AssemblyAI `narration-manifest.json` (every batch must be one beat) or a folder of Deepgram CLI receipts, offline.
+
+B-roll `provider: "import"` (`file`, `sha256`, `source`, `aiGenerated`, optional `receipt`) takes a still (png, jpg or webp) made by Runware,
+Azure, OpenAI or licensed; a video fails the lint because compose is image-only. `elevenlabs-video` (no governed adapter) and `stock` without a
+file fail the lint, and the assets stage throws before any paid call if a required b-roll cannot be produced. There is no skip.
+
+Imports are capped by their own governed ledger (the script that made them), not here: their rows stay zero-cost in this ledger and record
+`paidElsewhere {usdMicros, estimated}` (also summed in `summary().paidElsewhere`), with the entity in the row note. Rules applied by the lint
+and again by the voice stage: each synthetic line receipt must carry the declared `voiceId` and `model`; an owner clone needs consent on the
+manifest or on every narrated line (`subject` equal to `voice.name`, `approvedAt` or `recordedAt`, `validUntil` within 60 days of it; a date
+alone ends that day in US Central, a date-time needs an offset); a receipt marked `clone: true` or `visibility: "private"` needs `ownerVoice`;
+a `recording` needs `recordedBy` and no receipt provider; `brand.entity` and the manifest (or b-roll receipt) entity must agree unless
+`voice.entityException` / `broll.entityException {reason, approvedBy}` is recorded. A cut with `voice.disclosure` or `brand.disclosure.required`
+must end on a `card`, the only place the label and disclosure are drawn. Imported stills must lie inside the spec folder or workspace.
+A planned provider with unknown cost fails the lint unless it is `local`. `finalHoldSeconds` counts toward the planned cut length.

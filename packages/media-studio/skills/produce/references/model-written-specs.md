@@ -6,7 +6,7 @@ The lane is `claude-haiku-specs` in `policy/provider-routing.json`. It is option
 
 ## It adds to the recording; it never replaces it
 
-A film about a product is built on the real thing: the captured screens (`../../capture/SKILL.md`), the actual narration, and the word clock and cue sheet that tie them together. Those are the product. Model-written visuals are added layers that make them easier to follow.
+A film about a product is built on the real thing: the captured screens (`../SKILL.md`), the actual narration, and the word clock and cue sheet that tie them together. Those are the product. Model-written visuals are added layers that make them easier to follow.
 
 1. **The recording is the master timeline.** Every generated item is anchored to a timestamp in the real footage or audio and names the script line it supports. An item that matches neither is dropped. The recording is never retimed, trimmed, sped up or re-voiced to fit a visual; shorten or split the visual instead.
 2. **Real footage stays visible.** Default to overlays (captions, callouts, zooms, lower-thirds, chapter cards) and side or picture-in-picture panels. A full-screen diagram is the exception, placed at a natural pause, with the real audio continuing underneath.
@@ -42,7 +42,7 @@ Text stays real text, so it is legible and checkable. A bad result is fixed by e
 | Visual style, templates, three to five worked examples | The producing agent, once, approved by the owner | Design quality is set here. A thin prompt with no examples gets generic pictures. |
 | Filling those templates for many beats | Claude Haiku 5.5 | Cheap, fast, good at a pattern it has been shown. |
 | Geometry, layout, frame maths | Kit code | Models are unreliable at arithmetic layout. |
-| Word timing | The aligner (`../../review/references/word-clocks.md`) | The model cannot hear audio. It returns word indexes, never times. |
+| Word timing | The aligner (`../../finish/references/word-clocks.md`) | The model cannot hear audio. It returns word indexes, never times. |
 | Does it look right | A person on a sample, then the gates | Taste first, scale second. |
 
 ## Run the adapter

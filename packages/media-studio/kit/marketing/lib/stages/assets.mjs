@@ -1,11 +1,12 @@
-// Stage 4: assets. Sound effects and one music bed (ElevenLabs, governed ledger), abstract b-roll stills (OpenAI
-// gpt-image) and, where the API exposes it, ElevenLabs video for abstract non-claim b-roll. Every generated asset is
-// tagged AI-generated in assets/manifest.json with its prompt, provider, hash and cost.
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+// Stage 4: assets. Sound effects and one music bed (ElevenLabs, governed ledger), b-roll stills (OpenAI gpt-image, or a
+// still imported by hash from a governed script or a licence). Every generated asset is tagged AI-generated in
+// assets/manifest.json with its prompt, provider, hash and cost. A required b-roll that cannot be produced stops the stage:
+// it is never skipped.
+import { copyFileSync, existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { recordStage } from '../context.mjs';
 import { checkStage, stageKey, writeStage } from '../cache.mjs';
-import { estimateCutSeconds, normalizeCuts } from '../lint.mjs';
+import { entityProblem, estimateCutSeconds, insideAny, normalizeCuts } from '../lint.mjs';
 import { estimateImageUsd, estimateMusicCredits, estimateSfxCredits } from '../prices.mjs';
 import { fileSha, hashOf, readJson, writeJson } from '../util.mjs';
 
@@ -27,6 +28,24 @@ export function musicLengthMs(music, longestSeconds, { measured = true } = {}) {
   return Math.round(Number(fixed) * 1000);
 }
 
+/** Why a b-roll can never be produced by this stage, or null. Checked before any paid call. */
+export function brollBlocker(b) {
+  if (b.provider === 'elevenlabs-video') return 'elevenlabs-video has no governed adapter';
+  if (b.provider === 'stock' && !b.file) return 'stock b-roll has no file (broll.file)';
+  if (b.provider === 'import' && (!b.file || !b.sha256)) return 'imported b-roll needs broll.file and broll.sha256';
+  return null;
+}
+
+/** Read a supplied still, checking its hash when one is declared. */
+function readStill(ctx, b, where) {
+  const abs = isAbsolute(b.file) ? b.file : resolve(ctx.specDir || process.cwd(), b.file);
+  if (!existsSync(abs)) throw new Error(`assets: b-roll file for ${where} not found: ${abs}`);
+  if (!insideAny(realpathSync(abs), [ctx.specDir, ctx.workspace])) throw new Error(`assets: b-roll file for ${where} lies outside the spec folder and the workspace: ${abs}`);
+  const sha = fileSha(abs);
+  if (b.sha256 && sha !== b.sha256) throw new Error(`assets: b-roll file for ${where} changed since its sha256 was recorded (${abs})`);
+  return { abs, sha };
+}
+
 export function collectSfx(spec) {
   const map = new Map();
   for (const cut of normalizeCuts(spec)) for (const b of cut.beats) for (const s of b.sfx || []) {
@@ -40,7 +59,7 @@ export function collectSfx(spec) {
 
 function cutDuration(ctx, cut) {
   const p = join(ctx.jobDir, 'timing', cut.id, 'timeline.json');
-  return existsSync(p) ? readJson(p).durationSeconds : estimateCutSeconds(cut);
+  return existsSync(p) ? readJson(p).durationSeconds : estimateCutSeconds(cut, ctx.spec);
 }
 const hasTimeline = (ctx, cut) => existsSync(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
 
@@ -53,11 +72,18 @@ export async function assetsStage(ctx) {
   const lengthMs = musicOn ? musicLengthMs(ctx.spec.music, longest, { measured: cuts.every((c) => hasTimeline(ctx, c)) }) : Math.max(3000, Math.ceil(longest + 2) * 1000);
   const model = ctx.spec.music?.model || 'music_v2_5';
   const brolls = cuts.flatMap((cut) => cut.beats.filter((b) => b.broll).map((b) => ({ cut, beat: b })));
+  for (const { cut, beat } of brolls) {
+    const blocked = brollBlocker(beat.broll);
+    if (blocked) throw new Error(`assets: b-roll ${cut.id}/${beat.id} cannot be produced (${blocked}); fix the spec before any asset is generated`);
+    // Read every supplied still, and check its entity, before anything is bought.
+    if (beat.broll.file && ['stock', 'import'].includes(beat.broll.provider)) readStill(ctx, beat.broll, `${cut.id}/${beat.id}`);
+    const clash = beat.broll.provider === 'import' ? entityProblem(ctx.brand?.entity, beat.broll.receipt?.entity, beat.broll.entityException, 'this still') : null;
+    if (clash) throw new Error(`assets: b-roll ${cut.id}/${beat.id}: ${clash}`);
+  }
   const k = stageKey('assets', { sfx: sfx.map((s) => s.key), music: musicOn ? musicKey(ctx.spec.music.prompt, lengthMs, model) : null, broll: brolls.map(({ beat }) => [beat.id, beat.broll]) });
   const cached = checkStage(ctx.jobDir, 'assets', 'all', k);
   if (cached.hit && !ctx.flags.force) { ctx.log('assets: cached'); return cached.manifest; }
   const items = [];
-  const skipped = [];
   const cli = ctx.providers.elevenCli || (sfx.length || musicOn ? eleven.resolveCli(ctx.brand) : null);
 
   for (const s of sfx) {
@@ -101,13 +127,23 @@ export async function assetsStage(ctx) {
     const b = beat.broll;
     const portraitOnly = cut.ratios.every((r) => r === '9x16' || r === '4x5');
     const size = portraitOnly ? '1024x1536' : '1536x1024';
-    if (b.provider === 'elevenlabs-video') {
-      skipped.push({ beat: `${cut.id}/${beat.id}`, provider: b.provider, reason: 'ElevenLabs image/video are not exposed by the governed REST adapter (Creative platform / full-connector only; REST endpoints unverified as of 2026-10-20). No video was generated.' });
+    const where = `${cut.id}/${beat.id}`;
+    if (b.provider === 'stock') {
+      if (ctx.flags.dryRun) { items.push({ kind: 'broll', beat: where, planned: 0 }); continue; }
+      const still = readStill(ctx, b, where);
+      ctx.ledger.charge({ stage: 'assets', provider: 'licensed', service: 'image', units: 0, cached: true, ref: still.sha.slice(0, 12), note: 'licensed still supplied' });
+      items.push({ kind: 'broll', beat: where, path: still.abs, sha256: still.sha, provider: 'stock', aiGenerated: false });
       continue;
     }
-    if (b.provider === 'stock') {
-      if (!b.file) { skipped.push({ beat: `${cut.id}/${beat.id}`, provider: 'stock', reason: 'no licensed stock file supplied (broll.file)' }); continue; }
-      items.push({ kind: 'broll', beat: `${cut.id}/${beat.id}`, path: b.file, provider: 'stock', aiGenerated: false });
+    if (b.provider === 'import') {
+      if (ctx.flags.dryRun) { items.push({ kind: 'broll', beat: where, planned: 0 }); continue; }
+      const still = readStill(ctx, b, where);
+      const rel = join('assets', 'broll', `${beat.id}-${still.sha.slice(0, 12)}${extname(b.file).toLowerCase()}`);
+      const out = join(ctx.jobDir, rel);
+      mkdirSync(join(ctx.jobDir, 'assets', 'broll'), { recursive: true });
+      if (!existsSync(out) || fileSha(out) !== still.sha) copyFileSync(still.abs, out);
+      ctx.ledger.charge({ stage: 'assets', provider: b.source, service: 'image', units: 0, cached: true, ref: still.sha.slice(0, 12), note: `imported still (${b.source}); paid outside this run${b.receipt?.requestId ? `, request ${b.receipt.requestId}` : ''}` });
+      items.push({ kind: 'broll', key: still.sha, beat: where, path: rel.replace(/\\/g, '/'), sha256: still.sha, provider: 'import', source: b.source, model: b.model || null, prompt: b.prompt, aiGenerated: b.aiGenerated, receipt: b.receipt || null });
       continue;
     }
     const model = ctx.brand.images?.model || 'gpt-image-2.6-flare';
@@ -128,10 +164,12 @@ export async function assetsStage(ctx) {
     items.push({ kind: 'broll', key, beat: `${cut.id}/${beat.id}`, path: rel.replace(/\\/g, '/'), sha256: fileSha(out), provider: 'openai', model, size, quality, prompt: b.prompt, aiGenerated: true });
   }
 
-  if (ctx.flags.dryRun) { recordStage(ctx, 'assets', 'dry-run', { planned: items }); return { dryRun: true, items, skipped }; }
+  if (ctx.flags.dryRun) { recordStage(ctx, 'assets', 'dry-run', { planned: items }); return { dryRun: true, items }; }
+  const missing = brolls.filter(({ cut, beat }) => !items.some((i) => i.kind === 'broll' && i.beat === `${cut.id}/${beat.id}` && i.path));
+  if (missing.length) throw new Error(`assets: b-roll was not produced for ${missing.map(({ cut, beat }) => `${cut.id}/${beat.id}`).join(', ')}`);
   const manifestPath = join(ctx.jobDir, 'assets', 'manifest.json');
-  writeJson(manifestPath, { items, skipped, note: 'Every generated asset is AI-generated and asserts nothing; real product UI carries every claim.' });
-  const manifest = writeStage(ctx.jobDir, 'assets', 'all', k, { items, skipped, outputs: [relative(ctx.jobDir, manifestPath), ...items.filter((i) => i.path && i.provider !== 'stock').map((i) => i.path)] });
-  recordStage(ctx, 'assets', 'done', { items: items.length, skipped: skipped.length });
+  writeJson(manifestPath, { items, note: 'Every generated asset is AI-generated and asserts nothing; real product UI carries every claim.' });
+  const manifest = writeStage(ctx.jobDir, 'assets', 'all', k, { items, outputs: [relative(ctx.jobDir, manifestPath), ...items.filter((i) => i.path && i.provider !== 'stock').map((i) => i.path)] });
+  recordStage(ctx, 'assets', 'done', { items: items.length });
   return manifest;
 }

@@ -12,9 +12,12 @@ The filmmaking phases, each with deliverables a file proves:
   post            the finished file, word sync, frame integrity, the review verdict
   delivery        captions sidecar and the owner's delivered record
 
-A phase is PASS, FAIL (its own checks fail) or BLOCKED (an earlier phase has not passed). Files are evidence, not claims: a
+A phase is PASS, FAIL (its own checks fail), BLOCKED (an earlier phase has not passed) or NOT_REQUIRED (nothing in it applies to the deliverable). Files are evidence, not claims: a
 placeholder (TODO) is a fail, a report older than the thing it checks is stale, a missing required approval is a fail. --approve records
-`approvals.<name>` with today's date; run it only after the owner has said yes in the conversation. Free and offline; never calls
+`approvals.<name>` with today's date; run it only after the owner has said yes in the conversation. A job may declare `deliverable` (narrated-video, silent-video, audio, stills, storyboard) in job.json; each form requires only
+what it produces (references/phases.md), and a phase none of whose checks apply is NOT_REQUIRED and counts as complete. Undeclared
+jobs derive narrated-video, or audio for kind audio-only. When story/requirements.json exists, develop needs a passing, fresh
+qa/requirements-check.json and post needs it run on the current finished file plus a passing qa/finished-film.json. Free and offline; never calls
 a provider. Record explicit internal delegation with reviewAuthority "delegated" in production.json. Keep owner
 review for any named requiredReviews. This status does not authorize spend or external publication. Exit 0 always, 1 with --strict when any phase is not PASS.
 """
@@ -28,6 +31,8 @@ from pathlib import Path
 import re
 import sys
 
+import check_requirements as creq
+
 INTERNAL_REVIEWS = ("case", "screenplay", "plan", "delivered")
 PHASES = ["develop", "preproduction", "production", "post", "delivery"]
 REVIEW_STAGES = {"develop": "Go/No-Go", "preproduction": "Pink", "production": "Red", "post": "Gold", "delivery": "Gold"}
@@ -40,8 +45,50 @@ NEXT = {
 }
 
 
+FORMS = ("narrated-video", "silent-video", "audio", "stills", "storyboard")
+PICTURE_FORMS = ("narrated-video", "silent-video", "stills", "storyboard")
+FINISHED_EXT = {"narrated-video": ("mp4",), "silent-video": ("mp4",), "audio": ("wav", "mp3", "m4a"), "stills": ("png", "jpg", "jpeg", "pdf", "pptx")}
+# What a form does not require, per phase. A phase in WHOLE has no applicable check: it is NOT_REQUIRED and never blocks.
+NOT_REQUIRED = {
+    "narrated-video": {},
+    "silent-video": {"develop": ["narration text", "narration check"], "production": ["voice takes", "cue sheet"],
+                     "post": ["word sync"], "delivery": ["captions sidecar"]},
+    "audio": {"preproduction": ["picture plan", "picture relevance", "visual variety"], "production": ["cue sheet", "props report", "picture video"],
+              "post": ["word sync", "frame integrity"], "delivery": ["captions sidecar"]},
+    "stills": {"develop": ["narration text", "narration check"], "production": ["voice takes", "cue sheet", "props report", "picture video"],
+               "post": ["word sync", "frame integrity", "story experience review"], "delivery": ["captions sidecar"]},
+    "storyboard": {"develop": ["narration text", "narration check"], "production": ["voice takes", "cue sheet", "props report", "picture video"],
+                   "post": ["finished file", "word sync", "frame integrity"], "delivery": ["captions sidecar", "owner delivery record"]},
+}
+PHASE_REVIEWS = {"develop": ("case", "screenplay"), "preproduction": ("plan",), "delivery": ("delivered",)}
+WHOLE = {"stills": {"production"}, "storyboard": {"production", "post", "delivery"}}
+
+
 def jload(p):
     return json.loads(Path(p).read_text(encoding="utf-8-sig"))
+
+
+def deliverable(root):
+    """(form, error): job.deliverable, else audio for kind audio-only, else narrated-video."""
+    p = Path(root) / "job.json"
+    job = jload(p) if p.exists() else {}
+    declared = job.get("deliverable")
+    if declared is None:
+        return ("audio" if job.get("kind") == "audio-only" else "narrated-video"), None
+    if declared not in FORMS:
+        return None, f"job.json deliverable '{declared}' is not one of {', '.join(FORMS)}"
+    if job.get("kind") == "audio-only" and declared in PICTURE_FORMS:
+        return None, f"job.json kind audio-only cannot deliver '{declared}', which needs a picture"
+    return declared, None
+
+
+def err_value(root):
+    p = Path(root) / "job.json"
+    return jload(p).get("deliverable") if p.exists() else None
+
+
+def form_of(root, form):
+    return form or deliverable(root)[0] or "narrated-video"
 
 
 def ok_report(p):
@@ -78,7 +125,87 @@ def review_missing(prod, name):
     return not delegated and not prod.get("approvals", {}).get(name)
 
 
-def check_develop(root, prod):
+def requirements_reasons(root, phase):
+    """story/requirements.json is a contract. Develop needs a passing, fresh check (the picture plan is not part of that
+    freshness), preproduction needs it run on the current picture plan, post needs it run on the current finished file and,
+    except for stills, that file's own qa/finished-film.json for this form and these requirements."""
+    rp = root / creq.REPORT
+    if not (root / creq.REQ).exists():
+        return [f"{creq.REQ} removed after {creq.REPORT} was written"] if rp.exists() else []
+    if not rp.exists():
+        return [f"missing {creq.REPORT}: run check_requirements.py"]
+    try:
+        rep = jload(rp)
+    except Exception:
+        return [f"{creq.REPORT} is not valid JSON"]
+    if rep.get("ok") is not True:
+        return [f"{creq.REPORT} did not pass"]
+    recorded = dict(rep.get("inputs") or {})
+    review = recorded.pop(creq.REVIEW, None)
+    plan = recorded.pop(creq.PLAN, None)
+    current = creq.input_hashes(root)
+    current_plan = current.pop(creq.PLAN, None)
+    if recorded != current or (review is not None and (not (root / creq.REVIEW).is_file() or review != creq.sha256(root / creq.REVIEW))):
+        return [f"{creq.REPORT} is stale: the requirements, script or job changed since it ran"]
+    if phase == "develop":
+        return []
+    if current_plan is not None and plan != current_plan:
+        return [f"{creq.REPORT} was not run on the current picture plan: rerun check_requirements.py"]
+    if phase != "post":
+        return []
+    r = []
+    form = deliverable(root)[0] or "narrated-video"
+    done, err = finished_files(root, form)
+    if err:
+        return [err]
+    digest = creq.sha256(done[-1]) if done else None
+    if (rep.get("candidate") or {}).get("sha256") != digest or not digest:
+        r.append(f"{creq.REPORT} was not run on the current finished file: rerun check_requirements.py --candidate")
+    if form == "stills":
+        return r
+    try:
+        fin = jload(root / creq.FINISHED)
+    except Exception:
+        fin = {}
+    if fin.get("ok") is not True or fin.get("sha256") != digest:
+        r.append(f"{creq.FINISHED} is missing, failed or describes a different file than the current finished file")
+    elif fin.get("deliverable") != form:
+        r.append(f"{creq.FINISHED} deliverable '{fin.get('deliverable')}' is not this job's '{form}'")
+    elif fin.get("requirementsSha256") != creq.sha256(root / creq.REQ):
+        r.append(f"{creq.FINISHED} was written for other requirements than the current story/requirements.json")
+    return r
+
+
+def finished_files(root, form):
+    """([files oldest first], error). production.json `finishedFile` (inside out/) pins the file; otherwise every file of the form."""
+    out = root / "out"
+    pinned = None
+    pp = root / "production.json"
+    if pp.exists():
+        try:
+            pinned = jload(pp).get("finishedFile")
+        except Exception:
+            pinned = None
+    if pinned is not None:
+        target = (root / str(pinned)).resolve()
+        if not isinstance(pinned, str) or not target.is_relative_to(out.resolve()):
+            return [], "production.json finishedFile must be a path inside out/"
+        if not target.is_file():
+            return [], f"production.json finishedFile {pinned} does not exist"
+        if target.suffix.lower().lstrip(".") not in FINISHED_EXT.get(form, ()):
+            return [], f"production.json finishedFile {pinned} is not a {'/'.join(FINISHED_EXT.get(form, ()))} file"
+        return [root / str(pinned)], None
+    exts = FINISHED_EXT.get(form, ())
+    files = [p for p in out.iterdir() if p.is_file() and p.suffix.lower().lstrip(".") in exts] if out.exists() else []
+    return sorted(files, key=lambda p: p.stat().st_mtime), None
+
+
+def check_develop(root, prod, form=None):
+    if form is None:
+        form, err = deliverable(root)
+        if err:
+            return [err]
+    narrated = form in ("narrated-video", "audio")
     r = []
     case = root / "case/case.md"
     if not case.exists():
@@ -108,22 +235,26 @@ def check_develop(root, prod):
     else:
         sc = jload(sp).get("scenes") or []
         ids = [s.get("id") for s in sc]
-        if not sc or any(not (s.get("narration") or "").strip() for s in sc) or "TODO" in sp.read_text(encoding="utf-8"):
-            r.append("story/screenplay.json has no scenes, an empty line or a TODO")
+        silent = lambda s: bool((s.get("action") or s.get("picture") or "").strip())
+        if not sc or any(not (s.get("narration") or "").strip() and (narrated or not silent(s)) for s in sc) or "TODO" in sp.read_text(encoding="utf-8"):
+            r.append("story/screenplay.json has no scenes, an empty line or a TODO" if narrated else
+                     "story/screenplay.json has no scenes, a scene with neither narration nor an action, or a TODO")
         if len(ids) != len(set(ids)):
             r.append("story/screenplay.json has duplicate scene ids")
-        if sp.exists() and newer(root / "qa/narration-check.json", sp):
+        if narrated and newer(root / "qa/narration-check.json", sp):
             r.append("qa/narration-check.json is older than the screenplay: rerun validate-narration.mjs")
-    e = ok_report(root / "qa/narration-check.json")
+    e = ok_report(root / "qa/narration-check.json") if narrated else None
     if e:
         r.append(e)
+    r.extend(requirements_reasons(root, "develop"))
     for a in ("case", "screenplay"):
         if review_missing(prod, a):
             r.append(f"owner has not approved the {a}")
     return r
 
 
-def check_pre(root, prod):
+def check_pre(root, prod, form=None):
+    form = form_of(root, form)
     r = []
     bd = root / "plan/breakdown.json"
     e = ok_report(bd)
@@ -132,65 +263,78 @@ def check_pre(root, prod):
     elif newer(bd, root / "story/screenplay.json") or newer(bd, root / "story/picture-plan.json"):
         r.append("plan/breakdown.json is older than the screenplay or picture plan: rerun screenplay_breakdown.py")
     pp = root / "story/picture-plan.json"
-    if not pp.exists() or "TODO" in pp.read_text(encoding="utf-8"):
-        r.append("story/picture-plan.json is missing or a placeholder")
-    for rep in ("qa/picture-relevance.json", "qa/visual-variety.json"):
-        e = ok_report(root / rep)
-        if e:
-            r.append(e)
-        elif newer(root / rep, pp):
-            r.append(f"{rep} is older than the picture plan: rerun the gate")
     job = jload(root / "job.json") if (root / "job.json").exists() else {}
-    if job.get("intent") == "viewer-facing":
-        for need in ("story/storyboard.json", "story/visual-bible.json"):
+    if form != "audio":
+        if not pp.exists() or "TODO" in pp.read_text(encoding="utf-8"):
+            r.append("story/picture-plan.json is missing or a placeholder")
+        for rep in ("qa/picture-relevance.json", "qa/visual-variety.json"):
+            e = ok_report(root / rep)
+            if e:
+                r.append(e)
+            elif newer(root / rep, pp):
+                r.append(f"{rep} is older than the picture plan: rerun the gate")
+        viewer = job.get("intent") == "viewer-facing"
+        needs = ["story/storyboard.json", "story/visual-bible.json"] if viewer else (["story/storyboard.json"] if form == "storyboard" else [])
+        for need in needs:
             if not (root / need).exists():
-                r.append(f"viewer-facing job needs {need}")
+                r.append(f"{'viewer-facing job' if viewer else 'storyboard deliverable'} needs {need}")
+    r.extend(requirements_reasons(root, "preproduction"))
     if review_missing(prod, "plan"):
         r.append("owner has not approved the plan (picture table and cost)")
     return r
 
 
-def check_prod(root, prod):
+def check_prod(root, prod, form=None):
+    form = form_of(root, form)
     r = []
     sp = root / "story/screenplay.json"
     ids = [s["id"] for s in jload(sp).get("scenes", [])] if sp.exists() else []
     gone = [i for i in ids if not (root / "takes" / f"{i}.receipt.json").exists()]
-    if gone:
+    if form in ("narrated-video", "audio") and gone:
         r.append(f"no voice take for scene(s): {', '.join(gone[:6])}")
-    if not (root / "story/cue-sheet.json").exists():
+    if form == "narrated-video" and not (root / "story/cue-sheet.json").exists():
         r.append("missing story/cue-sheet.json")
-    e = ok_report(root / "picture/briefing-props.report.json")
-    if e:
-        r.append(e)
-    if not (root / "picture/video.mp4").exists():
-        r.append("missing picture/video.mp4")
+    if form in ("narrated-video", "silent-video"):
+        e = ok_report(root / "picture/briefing-props.report.json")
+        if e:
+            r.append(e)
+        if not (root / "picture/video.mp4").exists():
+            r.append("missing picture/video.mp4")
     return r
 
 
-def check_post(root, prod):
+def check_post(root, prod, form=None):
+    form = form_of(root, form)
     r = []
-    mp4s = sorted((root / "out").glob("*.mp4"), key=lambda p: p.stat().st_mtime) if (root / "out").exists() else []
-    if not mp4s:
-        r.append("no finished file in out/")
-    for rep in ("qa/word-sync.json", "qa/frame-integrity.json"):
+    mp4s, pin_err = finished_files(root, form)
+    if pin_err:
+        r.append(pin_err)
+    elif not mp4s:
+        r.append("no finished file in out/" + ("" if form in ("narrated-video", "silent-video") else f" ({'/'.join(FINISHED_EXT[form])})"))
+    gates = {"narrated-video": ("qa/word-sync.json", "qa/frame-integrity.json"), "silent-video": ("qa/frame-integrity.json",)}.get(form, ())
+    for rep in gates:
         e = ok_report(root / rep)
         if e:
             r.append(e)
         elif mp4s and newer(root / rep, mp4s[-1]):
             r.append(f"{rep} is older than the finished file: rerun the gate on it")
     job = jload(root / "job.json") if (root / "job.json").exists() else {}
-    if job.get("intent") == "viewer-facing":
+    if job.get("intent") == "viewer-facing" and form != "stills":
         e = ok_report(root / "qa/story-experience-review.json")
         if e:
             r.append(e)
+    r.extend(requirements_reasons(root, "post"))
     return r
 
 
-def check_delivery(root, prod):
+def check_delivery(root, prod, form=None):
+    form = form_of(root, form)
     r = []
     job = jload(root / "job.json") if (root / "job.json").exists() else {}
     policy = job.get("captionPolicy", {}).get("mode", "sidecar")
-    if policy == "sidecar" and not list((root / "out").glob("*.srt")):
+    if form != "narrated-video":
+        pass
+    elif policy == "sidecar" and not list((root / "out").glob("*.srt")):
         r.append("no captions sidecar (.srt) in out/")
     elif policy not in ("sidecar", "selectable", "open"):
         r.append("unknown captionPolicy mode")
@@ -217,18 +361,25 @@ def status(root):
     root = Path(root)
     prod = jload(root / "production.json")
     prod.setdefault("approvals", {})
+    form, err = deliverable(root)
+    na = NOT_REQUIRED.get(form, {})
     out, blocked = [], False
     for ph in PHASES:
         if blocked:
-            out.append({"phase": ph, "state": "BLOCKED", "reasons": ["an earlier phase has not passed"]})
+            out.append({"phase": ph, "state": "BLOCKED", "reasons": ["an earlier phase has not passed"], "notRequired": na.get(ph, [])})
             continue
-        reasons = CHECKS[ph](root, prod)
-        out.append({"phase": ph, "state": "PASS" if not reasons else "FAIL", "reasons": reasons})
+        if ph in WHOLE.get(form, ()):
+            held = [f"owner review '{name}' is required and not recorded" for name in PHASE_REVIEWS.get(ph, ()) if review_missing(prod, name)]
+            out.append({"phase": ph, "state": "FAIL" if held else "NOT_REQUIRED", "reasons": held, "notRequired": na.get(ph, [])})
+            blocked = bool(held)
+            continue
+        reasons = CHECKS[ph](root, prod, form) if form else ([err] if ph == "develop" else [])
+        out.append({"phase": ph, "state": "PASS" if not reasons else "FAIL", "reasons": reasons, "notRequired": na.get(ph, [])})
         blocked = bool(reasons)
-    cur = next((p for p in out if p["state"] != "PASS"), None)
+    cur = next((p for p in out if p["state"] not in ("PASS", "NOT_REQUIRED")), None)
     for phase in out:
         phase["reviewStage"] = REVIEW_STAGES[phase["phase"]]
-    return {"title": prod.get("title"), "phases": out, "current": cur["phase"] if cur else None,
+    return {"title": prod.get("title"), "deliverable": form or err_value(root), "phases": out, "current": cur["phase"] if cur else None,
             "next": NEXT[cur["phase"]] if cur else "All phases pass.", "complete": cur is None}
 
 
@@ -258,7 +409,7 @@ def main(argv=None):
     else:
         print(f"{s['title']}")
         for p in s["phases"]:
-            print(f"  {p['state']:7} {p['phase']}")
+            print(f"  {p['state']:12} {p['phase']}")
             for r in p["reasons"][:6]:
                 print(f"            - {r}")
         print("next:", s["next"])

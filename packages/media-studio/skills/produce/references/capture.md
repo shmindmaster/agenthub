@@ -7,7 +7,7 @@
 3. Hand `compose` the clips, per-beat evidence, recordings manifest and hash-bound receipt.
 4. If preflight or evidence fails, keep the previous accepted take and record a new candidate only for the failed beat.
 
-Read the contract `../video/references/product-picture.md` first. Screen beats are real WebM plus Recast. PNGs are posters only, never the picture of a `screen` beat, even when a take is late.
+Read the contract `../../studio/references/product-picture.md` first. Screen beats are real WebM plus Recast. PNGs are posters only, never the picture of a `screen` beat, even when a take is late.
 
 Work only in the external job workspace, because the product repository is read-only. Scripts, traces, recordings, manifests, auth state and reset evidence all stay there. Never add a capture test, helper or file to the product repo. A needed product or seed change is readiness feedback for a separate task.
 

@@ -2,18 +2,77 @@
 // OpenAI speech (instructions) or an injected local voice (Local AI is off: the default refuses). Cached by
 // (text, voice, model, settings, neighbors), so an unchanged line never costs twice. A beat's `voiceTake` (1, 2, …) asks
 // for a fresh take of that one line (a new key and ledger revision) after a listen or review rejects the delivery.
-import { existsSync, mkdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { recordStage } from '../context.mjs';
 import { checkStage, stageKey, writeStage } from '../cache.mjs';
-import { normalizeCuts } from '../lint.mjs';
+import { NARRATION_IMPORT_SCHEMA, importLineFor, importPolicyProblems, normalizeCuts } from '../lint.mjs';
 import { estimateTtsCredits, realtimeUsdFromUsage } from '../prices.mjs';
-import { fileSha, hashOf, localAiOff, readJson, writeJson } from '../util.mjs';
+import { fileSha, hashOf, localAiOff, readJson, sha256, writeJson } from '../util.mjs';
 
-export function lineKey(spec, text, prev, next, take = 0) {
+const AUDIO_EXT = new Set(['.wav', '.mp3', '.m4a']);
+
+/** The cost-ledger provider a voice line is recorded under, or null when the voice has none (a retired local voice). */
+export function ledgerProvider(v) {
+  if (v.provider === 'import') return v.source;
+  return v.provider === 'elevenlabs' || v.provider === 'openai' ? v.provider : null;
+}
+
+/**
+ * Read and verify an import manifest against the spec narration. Nothing is called and nothing is paid. Every narrated beat
+ * needs a line whose text, audio file and (for AI sources) provider receipt still agree; the first disagreement throws one
+ * message that names the beat. Returns Map<'cut/beat', {entry, abs, ext, sha256}>.
+ */
+export function verifyNarrationImport(ctx, cuts = normalizeCuts(ctx.spec)) {
+  const v = ctx.spec.voice;
+  if (v.provider !== 'import') return new Map();
+  if (!v.manifest || isAbsolute(v.manifest)) throw new Error('import narration: voice.manifest must be a path relative to the spec folder');
+  const manifestPath = resolve(ctx.specDir, v.manifest);
+  if (!existsSync(manifestPath)) throw new Error(`import narration: manifest not found: ${manifestPath}`);
+  const manifest = readJson(manifestPath);
+  if (manifest.schema !== NARRATION_IMPORT_SCHEMA) throw new Error(`import narration: ${manifestPath} is not a ${NARRATION_IMPORT_SCHEMA} manifest`);
+  if (manifest.source !== v.source) throw new Error(`import narration: manifest source "${manifest.source}" is not the declared voice.source "${v.source}"`);
+  if (!Array.isArray(manifest.lines)) throw new Error('import narration: manifest lines must be an array');
+  const policy = importPolicyProblems(ctx.spec, manifest, ctx.brand, ctx.now ?? Date.now());
+  if (policy.length) throw new Error(`import narration: ${policy[0].message}`);
+  const root = realpathSync(dirname(manifestPath));
+  const out = new Map();
+  for (const cut of cuts) for (const beat of cut.beats) {
+    if (!beat.narration) continue;
+    const where = `${cut.id}/${beat.id}`;
+    const fail = (why) => { throw new Error(`import narration ${where}: ${why}`); };
+    const entry = importLineFor(manifest, cut.id, beat.id);
+    if (!entry) fail(`the manifest has no line for this beat (${manifestPath})`);
+    if (entry.textSha256 !== sha256(beat.narration)) fail('the narration text changed since this audio was made; make the line again');
+    if (typeof entry.file !== 'string' || !entry.file || isAbsolute(entry.file)) fail('the line file must be a relative path inside the manifest folder');
+    const abs = resolve(root, entry.file);
+    if (!existsSync(abs)) fail(`audio file missing: ${entry.file}`);
+    const real = realpathSync(abs);
+    if (real !== root && !real.startsWith(root + sep)) fail(`audio file ${entry.file} lies outside the manifest folder`);
+    const ext = extname(real).toLowerCase();
+    if (!AUDIO_EXT.has(ext)) fail(`audio file ${entry.file} must be wav, mp3 or m4a`);
+    const actual = fileSha(real);
+    if (!/^[0-9a-f]{64}$/.test(entry.sha256 || '') || actual !== entry.sha256) fail('the audio changed since it was recorded in the manifest (sha256 differs)');
+    if (v.source !== 'recording') {
+      const r = entry.receipt;
+      if (!r || typeof r !== 'object') fail('an AI-generated line needs a provider receipt');
+      if (r.provider !== v.source) fail(`receipt provider "${r.provider}" is not the declared source "${v.source}"`);
+      if (!String(r.requestId || '').trim()) fail('receipt has no provider request id');
+      if (r.outputSha256 !== entry.sha256) fail('receipt outputSha256 differs from the audio sha256: the audio is not what the provider returned');
+      if (!(r.usdMicros === null || Number.isInteger(r.usdMicros))) fail('receipt usdMicros must be an integer or null');
+      if (r.voice !== v.voiceId) fail(`receipt voice "${r.voice}" is not the declared voice.voiceId "${v.voiceId}"`);
+      if (r.model !== v.model) fail(`receipt model "${r.model}" is not the declared voice.model "${v.model}"`);
+    }
+    out.set(where, { entry, abs: real, ext: ext.slice(1), sha256: actual, manifestEntity: manifest.entity });
+  }
+  return out;
+}
+
+export function lineKey(spec, text, prev, next, take = 0, audioSha256 = null) {
   const v = spec.voice;
   return hashOf({
     ...(take ? { take } : {}),
+    ...(v.provider === 'import' ? { source: v.source, audioSha256 } : {}),
     provider: v.provider, voiceId: v.voiceId, model: v.model, settings: v.settings || null, instructions: v.instructions || null,
     dictionaries: v.pronunciationDictionaries || null, stitching: !!v.stitching, text, prev: v.stitching ? prev || null : null, next: v.stitching ? next || null : null,
   });
@@ -69,11 +128,25 @@ async function renderLine(ctx, { text, prev, next, out, key, take }, openaiPlan)
   throw new Error(`unsupported voice provider ${v.provider}`);
 }
 
-function planCut(ctx, cut) {
+function planCut(ctx, cut, imports) {
   const narrated = cut.beats.filter(b => b.narration);
   return narrated.map((b, i) => ({
       beat: b.id, text: b.narration, prev: narrated[i - 1]?.narration, next: narrated[i + 1]?.narration, take: Number(b.voiceTake || 0),
-    })).map(l => ({ ...l, key: lineKey(ctx.spec, l.text, l.prev, l.next, l.take) }));
+      imported: imports.get(`${cut.id}/${b.id}`) || null,
+    })).map(l => ({ ...l, key: lineKey(ctx.spec, l.text, l.prev, l.next, l.take, l.imported?.sha256 ?? null), ext: l.imported?.ext }));
+}
+
+/** Copy one verified imported line into the job. No provider is called; the ledger row is zero-cost, cached and labelled with the true source. */
+function importLine(ctx, l, out) {
+  const v = ctx.spec.voice;
+  if (!existsSync(out) || fileSha(out) !== l.imported.sha256) copyFileSync(l.imported.abs, out);
+  if (fileSha(out) !== l.imported.sha256) throw new Error(`import narration ${l.beat}: the copied audio does not match its manifest hash`);
+  const r = l.imported.entry.receipt || null;
+  const exception = v.entityException ? `; entity exception: ${v.entityException.reason} (approved by ${v.entityException.approvedBy})` : '';
+  ctx.ledger.charge({ stage: 'voice', provider: v.source, service: 'tts', units: 0, cached: true, ref: l.key.slice(0, 12),
+    ...(r ? { paidElsewhere: { usdMicros: r.usdMicros ?? null, estimated: r.estimated ?? null } } : {}),
+    note: `imported narration (${v.source}); entity ${l.imported.manifestEntity || 'unstated'}; paid outside this run (settled by the governed script's own ledger)${r?.requestId ? `, request ${r.requestId}` : ''}${exception}` });
+  return { provider: v.source, source: v.source, imported: true, paidElsewhere: true, requestId: r?.requestId ?? null, outputSha256: r?.outputSha256 ?? null, usdMicros: r?.usdMicros ?? null, estimated: r?.estimated ?? null, aiGenerated: v.source !== 'recording' };
 }
 
 async function planOpenAI(ctx, plans, linePath) {
@@ -104,9 +177,11 @@ async function planOpenAI(ctx, plans, linePath) {
 
 export async function voiceStage(ctx) {
   const results = {};
+  const cuts = normalizeCuts(ctx.spec);
+  const imports = verifyNarrationImport(ctx, cuts);
   const ext = lineExt(ctx.spec.voice.provider);
-  const lineFile = key => join('voice', 'lines', `${key.slice(0, 16)}.${ext}`);
-  const plans = normalizeCuts(ctx.spec).map(cut => ({ cut, plan: planCut(ctx, cut) }));
+  const lineFile = (key, e = ext) => join('voice', 'lines', `${key.slice(0, 16)}.${e}`);
+  const plans = cuts.map(cut => ({ cut, plan: planCut(ctx, cut, imports) }));
   const openaiPlan = await planOpenAI(ctx, plans, key => join(ctx.jobDir, lineFile(key)));
   for (const { cut, plan } of plans) {
     const stageK = stageKey('voice', { lines: plan.map((l) => l.key) });
@@ -114,12 +189,17 @@ export async function voiceStage(ctx) {
     if (cached.hit && !ctx.flags.force) { ctx.log(`voice/${cut.id}: cached`); results[cut.id] = cached.manifest; continue; }
     const lines = [];
     for (const l of plan) {
-      const rel = lineFile(l.key);
+      const rel = lineFile(l.key, l.ext);
       const out = join(ctx.jobDir, rel);
       mkdirSync(join(ctx.jobDir, 'voice', 'lines'), { recursive: true });
       let receipt = null;
-      if (existsSync(out)) {
-        ctx.ledger.charge({ stage: 'voice', provider: ctx.spec.voice.provider === 'openai' ? 'openai' : 'elevenlabs', service: 'tts', units: 0, cached: true, ref: l.key.slice(0, 12), note: 'line file already present' });
+      if (l.imported) {
+        if (ctx.flags.dryRun) { ctx.log(`voice/${cut.id}/${l.beat}: would import ${l.imported.entry.file}`); continue; }
+        ctx.log(`voice/${cut.id}/${l.beat}: importing (${ctx.spec.voice.source})`);
+        receipt = importLine(ctx, l, out);
+      } else if (existsSync(out)) {
+        const provider = ledgerProvider(ctx.spec.voice);
+        if (provider) ctx.ledger.charge({ stage: 'voice', provider, service: 'tts', units: 0, cached: true, ref: l.key.slice(0, 12), note: 'line file already present' });
       } else if (ctx.flags.dryRun) {
         ctx.log(`voice/${cut.id}/${l.beat}: would render ${l.text.length} chars`);
         continue;
@@ -131,7 +211,7 @@ export async function voiceStage(ctx) {
     }
     if (ctx.flags.dryRun) { results[cut.id] = { dryRun: true, lines: plan.map((l) => ({ beatId: l.beat, key: l.key })) }; continue; }
     const manifestPath = join(ctx.jobDir, 'voice', `${cut.id}.lines.json`);
-    writeJson(manifestPath, { cut: cut.id, voice: { provider: ctx.spec.voice.provider, voiceId: ctx.spec.voice.voiceId, model: ctx.spec.voice.model, name: ctx.spec.voice.name || null, aiGenerated: true }, lines });
+    writeJson(manifestPath, { cut: cut.id, voice: { provider: ctx.spec.voice.provider, voiceId: ctx.spec.voice.voiceId, model: ctx.spec.voice.model, name: ctx.spec.voice.name || null, aiGenerated: ctx.spec.voice.provider === 'import' ? ctx.spec.voice.source !== 'recording' : true, ...(ctx.spec.voice.provider === 'import' ? { source: ctx.spec.voice.source, manifest: ctx.spec.voice.manifest } : {}) }, lines });
     results[cut.id] = writeStage(ctx.jobDir, 'voice', cut.id, stageK, { lines, outputs: [relative(ctx.jobDir, manifestPath), ...lines.map((l) => l.file)] });
   }
   recordStage(ctx, 'voice', ctx.flags.dryRun ? 'dry-run' : 'done', { cost: ctx.ledger.summary() });

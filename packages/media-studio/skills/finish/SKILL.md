@@ -14,5 +14,7 @@ Review the export against the brief, storyboard and spoken lines. Check whether 
 
 Review each complete sentence affected by a name repair in the final video and any listen-first mix. Check speaker continuity, word endings, pauses and caption alignment at the join. Report whether review used direct listening or automated analysis. For interview preparation, verify the short rehearsal route, chapter jumps and closing questions. For a reused product film, check the standalone and embedded clocks separately and carry the final seek points into the viewing guide.
 
+Run `scripts/validate-finished-film.mjs` on every encoded candidate (open, gaps, silence, ending, aspect) and walk the human checklist in [gates](references/gates.md) for what it cannot read. When `story/requirements.json` exists, then run `check_requirements.py <jobRoot> --candidate out/<file>`; a requirement with no `match` term needs a timecoded item in `qa/requirements-review.json`.
+
 Read when assembling: [compose](references/compose.md), [render lanes](references/render-lanes.md), [loudness](references/loudness.md), [library](references/library.md), [compose detail](references/compose-detail.md).
 Read when reviewing: [review](references/review.md), [gates](references/gates.md), [story review rubric](references/story-review-rubric.md), [review detail](references/review-detail.md).

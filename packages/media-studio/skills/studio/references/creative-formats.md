@@ -133,3 +133,7 @@ prices, add a governed adapter, check receipts and review output
 before claiming the route is production-ready. Realistic unblurred
 generated images can be authored by an eligible image model; generated
 video requires a real video integration or accepted external source.
+
+## Treatments
+
+For concrete openings, picture grammar, closings, vertical and localization rules per format, and series rotation, see [treatments](treatments.md).

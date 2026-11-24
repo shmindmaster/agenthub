@@ -69,3 +69,25 @@ export function safeZoneErrors(layout) {
   if (band.x !== 0 || band.y !== 0 || band.w !== layout.frame.width || band.h !== layout.frame.height) errors.push(`${layout.ratio}: the product picture must fill the frame (no bars)`);
   return errors;
 }
+
+/** Caption plate colour used when the brand names none (the original navy). */
+export const DEFAULT_CAPTION_PLATE = '#0f172a';
+
+/** "r, g, b" for an rgba() caption plate from a #rrggbb brand colour; anything else falls back to the default plate. */
+export function plateRgb(hex) {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(hex ?? ''));
+  const n = parseInt((m ? m[1] : DEFAULT_CAPTION_PLATE.slice(1)), 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
+
+/**
+ * Entrance of a title word or end-card block at `frame` of its beat: { opacity, rise } (rise in px, counting down to 0).
+ * Every beat but the first fades up from transparent. The first beat of a program is on screen at full opacity from frame 0
+ * (a film never opens on an empty gradient); only its small rise motion continues.
+ */
+export function entrance(frame, fps, { first = false, at = 0, fadeSec = 0.2, riseSec = 0.28, risePx = 0 } = {}) {
+  const ramp = (sec) => Math.min(1, Math.max(0, (frame - at) / Math.max(1, sec * fps)));
+  const eased = 1 - (1 - ramp(riseSec)) ** 3;
+  const opacity = first ? 1 : ramp(fadeSec);
+  return { opacity, rise: (first ? risePx * 0.25 : risePx) * (1 - eased) };
+}

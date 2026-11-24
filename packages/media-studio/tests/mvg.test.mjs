@@ -816,17 +816,20 @@ test('voice, timing and assets stages run on mock providers, cache on rerun and 
   assert.equal(assets.items.filter((i) => i.kind === 'sfx').length, 1);
   assert.ok(assets.items[0].aiGenerated);
   assert.equal(assets.items[0].key, sfxKey('soft interface click', 1));
-  assert.deepEqual(assets.skipped, []);
 });
 
-test('assets stage records why ElevenLabs video and unlicensed stock are skipped, and refuses people prompts at lint', async () => {
+test('b-roll that no governed adapter can produce fails the lint and the assets stage before any paid call', async () => {
   const spec = baseSpec();
   spec.beats.splice(1, 0, { id: 'V1', kind: 'broll', broll: { provider: 'elevenlabs-video', prompt: 'abstract light trails, no text' } }, { id: 'V2', kind: 'broll', broll: { provider: 'stock', prompt: 'abstract gradient background, no text' } });
-  const ctx = stageCtx('assets-skip', spec, { elevenCli: {}, elevenlabs: { soundEffect: async (_c, o) => { writeFileSync(o.output, 's'); return { receipt: { request_id: 'x', reused: false, actual_credits: 40 } }; } } });
-  const out = await assetsStage(ctx);
-  assert.equal(out.skipped.length, 2);
-  assert.match(out.skipped[0].reason, /not exposed/);
-  assert.match(out.skipped[1].reason, /no licensed stock/);
+  const r = lint(spec);
+  assert.equal(r.errors.filter((e) => e.code === 'broll-unproducible').length, 2, 'both fail the lint, with no optional flag');
+  assert.match(r.errors.find((e) => e.where === 'main/V1').message, /no governed adapter/);
+  assert.match(r.errors.find((e) => e.where === 'main/V2').message, /needs broll\.file/);
+  let paid = 0;
+  const ctx = stageCtx('assets-skip', spec, { elevenCli: {}, elevenlabs: { soundEffect: async () => { paid += 1; throw new Error('must not be reached'); } } });
+  await assert.rejects(assetsStage(ctx), /main\/V1 cannot be produced.*no governed adapter/);
+  assert.equal(paid, 0, 'refused before the sound effect was bought');
+  assert.equal(existsSync(join(ctx.jobDir, 'assets', 'manifest.json')), false, 'no silently done stage');
 });
 
 test('sfx cue timing resolves start, end, at and receipt action labels', () => {
@@ -1785,4 +1788,98 @@ test('qa hands viewer-release the current candidate picture report, never a copy
   const qa = readFileSync(new URL('../kit/marketing/lib/stages/qa.mjs', import.meta.url), 'utf8');
   assert.match(qa, /copyFileSync\(join\(qdir, 'picture\.json'\), join\(ws, 'qa', 'encoded-picture\.json'\)\)/);
   assert.ok(!/existsSync\(join\(ws, 'qa', name\)\)/.test(qa), 'no copy-if-missing guard');
+});
+
+// ---- providers, cta
+test('ledger: every provider has its own unit and cap, and an unknown provider throws', () => {
+  const jobDir = join(root, 'ledger-providers');
+  const ledger = new CostLedger({ jobDir, runId: 'p1', perRun: { openaiUsd: 1, deepgramUsd: 0.5 }, cumulative: {}, cumulativePath: join(root, '_spend-p', 'ledger.jsonl') });
+  assert.equal(CostLedger.capKey('assemblyai'), 'assemblyaiUsd');
+  assert.equal(CostLedger.capKey('deepgram'), 'deepgramUsd');
+  assert.equal(CostLedger.capKey('runware'), 'runwareUsd');
+  assert.equal(CostLedger.capKey('azure'), 'azureUsd');
+  assert.equal(CostLedger.capKey('elevenlabs'), 'elevenlabsCredits');
+  assert.throws(() => ledger.check('nonesuch', 1), /unknown cost provider/);
+  assert.throws(() => ledger.charge({ stage: 'x', provider: 'nonesuch', service: 's', units: 1 }), /unknown cost provider/);
+  ledger.check('deepgram', 0.4);
+  ledger.charge({ stage: 'voice', provider: 'deepgram', service: 'tts', units: 0.4 });
+  assert.throws(() => ledger.check('deepgram', 0.2), (e) => e instanceof BudgetError && /per-run deepgram/.test(e.message), 'Deepgram has its own per-run cap');
+  ledger.check('openai', 1);
+  const s = ledger.summary();
+  assert.equal(s.openaiUsd, 0, 'a Deepgram charge never counts against the OpenAI cap');
+  assert.equal(s.byProvider.deepgram.units, 0.4);
+  assert.equal(s.byProvider.deepgram.unit, 'usd');
+  assert.equal(s.byProvider.elevenlabs.unit, 'credits');
+  assert.ok('elevenlabsCredits' in s && 'byService' in s && 'perRunCap' in s, 'existing summary keys stay');
+});
+
+test('ledger: a USD provider with no cap refuses new spend; elevenlabs and openai keep their old behaviour; recordings never spend', () => {
+  const ledger = new CostLedger({ jobDir: join(root, 'ledger-nocap'), runId: 'p2', perRun: {}, cumulative: {} });
+  for (const p of ['assemblyai', 'deepgram', 'runware', 'azure']) {
+    assert.throws(() => ledger.check(p, 0.01), (e) => e instanceof BudgetError && new RegExp(`no ${p}Usd budget`).test(e.message), p);
+    ledger.check(p, 0); // zero spend (an import) is always fine
+  }
+  ledger.check('openai', 3);
+  ledger.check('elevenlabs', 300);
+  assert.throws(() => ledger.check('recording', 0.01), BudgetError);
+  assert.throws(() => ledger.charge({ stage: 'voice', provider: 'recording', service: 'tts', units: 1 }), BudgetError);
+  ledger.charge({ stage: 'voice', provider: 'recording', service: 'tts', units: 0, cached: true });
+  const capped = new CostLedger({ jobDir: join(root, 'ledger-cap'), runId: 'p3', perRun: {}, cumulative: { runwareUsd: 1 } });
+  capped.check('runware', 0.9);
+});
+
+test('context passes every provider cap from the brand budgets to the ledger, and the schemas accept them', async () => {
+  const { loadContext } = await import('../kit/marketing/lib/context.mjs');
+  const dir = join(root, 'ctx-caps');
+  mkdirSync(join(dir, 'specs'), { recursive: true });
+  mkdirSync(join(dir, 'brand'), { recursive: true });
+  const b = { ...brand, budgets: { ...brand.budgets, assemblyaiUsd: 3, runwareUsd: 4, perRun: { ...brand.budgets.perRun, deepgramUsd: 1 } } };
+  assert.deepEqual(validate(brandSchema, b), []);
+  writeFileSync(join(dir, 'brand', 'brand.json'), JSON.stringify(b));
+  const spec = baseSpec();
+  spec.budget = { azureUsd: 2 };
+  assert.deepEqual(validate(adSchema, spec), []);
+  writeFileSync(join(dir, 'specs', 'a.json'), JSON.stringify(spec));
+  const ctx = loadContext({ specPath: join(dir, 'specs', 'a.json'), flags: { quiet: true } });
+  assert.equal(ctx.ledger.cumulative.assemblyaiUsd, 3);
+  assert.equal(ctx.ledger.cumulative.runwareUsd, 4);
+  assert.equal(ctx.ledger.perRun.deepgramUsd, 1);
+  assert.equal(ctx.ledger.perRun.azureUsd, 2);
+  ctx.ledger.check('runware', 3.5);
+});
+
+test('cta: undeclared filmType still requires it; a declared non-selling type may omit it; a selling type needs it', () => {
+  const noCta = (extra = {}) => { const s = baseSpec(); delete s.cta; s.claims = s.claims.filter((c) => c.id !== 'c-cta'); s.beats[2].claims = []; return { ...s, ...extra }; };
+  assert.ok(codes(lint(noCta())).includes('cta-required'), 'undeclared filmType: cta required as before');
+  assert.equal(validate(adSchema, noCta()).some((e) => /cta/.test(e)), false, 'the schema no longer requires it at the top level');
+  for (const filmType of ['product-marketing', 'founder-pitch']) assert.ok(codes(lint(noCta({ filmType }))).includes('cta-required'), filmType);
+  const social = noCta({ filmType: 'social-cut' });
+  social.beats[2].storyRole = 'payoff';
+  assert.equal(codes(lint(social)).includes('cta-required'), false, 'social-cut has no cta slot');
+  assert.ok(validate(adSchema, noCta({ filmType: 'not-a-type' })).length > 0, 'an unknown filmType is a schema error');
+  const cutsSpec = noCta();
+  cutsSpec.cuts = [{ id: 'main', ratios: cutsSpec.ratios, targetSeconds: cutsSpec.targetSeconds, beats: cutsSpec.beats, filmType: 'explainer' }];
+  delete cutsSpec.ratios; delete cutsSpec.targetSeconds; delete cutsSpec.beats;
+  cutsSpec.filmType = 'explainer';
+  cutsSpec.cuts[0].beats[2].storyRole = 'takeaway';
+  assert.equal(codes(lint(cutsSpec)).includes('cta-required'), false);
+  const withCta = baseSpec();
+  assert.equal(codes(lint(withCta)).includes('cta-required'), false);
+  const ctaBeat = noCta({ filmType: 'explainer' });
+  assert.ok(codes(lint(ctaBeat)).includes('cta-required'), 'a beat with the cta role still needs the ask for the end card');
+});
+
+test('planCost: unknown provider cost is reported as unknown, an import reports 0 with paidElsewhere', () => {
+  const s = baseSpec();
+  s.voice = { provider: 'import', voiceId: 'v', model: 'm', source: 'deepgram', manifest: 'x.json', disclosure: 'AI voice' };
+  const plan = planCost(s, brand);
+  assert.equal(plan.elevenlabsCredits >= 0, true);
+  assert.ok(plan.paidElsewhere.some((m) => /imported from deepgram/.test(m)));
+  assert.equal(plan.costKnown, true);
+  const local = baseSpec();
+  local.voice = { provider: 'local', voiceId: 'v', model: 'm' };
+  const unknown = planCost(local, brand);
+  assert.equal(unknown.costKnown, false);
+  assert.match(unknown.unknown[0], /unknown/);
+  assert.equal(planCost(baseSpec(), brand).costKnown, true);
 });

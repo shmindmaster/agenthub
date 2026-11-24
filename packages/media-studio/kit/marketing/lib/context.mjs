@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CostLedger } from './ledger.mjs';
+import { CAP_KEYS, CostLedger } from './ledger.mjs';
 import { withProductProfile } from './product-profile.mjs';
 import { fileSha, readJson, writeJson } from './util.mjs';
 
@@ -24,7 +24,7 @@ export function loadContext({ specPath, flags = {}, providers = {}, now = new Da
   const perRun = { ...(brand.budgets?.perRun || {}), ...(spec.budget || {}) };
   const ledger = new CostLedger({
     jobDir: flags.qaDir ? resolve(flags.qaDir) : jobDir, runId, perRun,
-    cumulative: { elevenlabsCredits: brand.budgets?.elevenlabsCredits, openaiUsd: brand.budgets?.openaiUsd },
+    cumulative: Object.fromEntries(CAP_KEYS.map((k) => [k, brand.budgets?.[k]])),
     cumulativePath: join(workspace, '_spend', 'ledger.jsonl'),
   });
   return {

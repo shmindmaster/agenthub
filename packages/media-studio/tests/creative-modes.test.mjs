@@ -96,6 +96,7 @@ test('fictional scenes are allowed around genuine verified-product footage', () 
     broll('A fictional family speaks to a realistic doctor in a busy clinic, no blur needed.', 'fictional'),
     { id: 'screen', kind: 'ui', truthStatus: 'verified', narration: 'The operator can review the current result.',
       claims: ['proof'], ui: { sourceJob: '/test/product', clipId: 'C1' } },
+    { id: 'close', kind: 'card' }, // the disclosure is drawn on a closing card, so a cut must end on one
   ];
   s.claims = [truth];
   const r = validateSpec(s);

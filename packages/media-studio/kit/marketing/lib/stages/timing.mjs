@@ -93,6 +93,24 @@ export async function wordsFor(ctx, options) {
   return { ...result, words: alignScriptToAsr(options.script, parseAsrWords(result.payload), options.duration) };
 }
 
+/** Seconds the closing picture must hold after the last spoken word of the program: cut.finalHoldSeconds, else spec.finalHoldSeconds. */
+export const finalHoldOf = (spec, cut) => { const n = Number(cut.finalHoldSeconds ?? spec.finalHoldSeconds); return n > 0 ? n : 0; };
+
+/**
+ * Grow the last beat so the timeline ends at least `finalHoldSeconds` after the last spoken word anywhere in the program (a silent
+ * final beat counts from the speech before it). The end is rounded up to a whole frame. With no hold, or when the timeline already
+ * ends that late, the same timeline object comes back, so a spec without the field keeps byte-identical timelines.
+ */
+export function holdFinalBeat(timeline, finalHoldSeconds, fps = FPS) {
+  const hold = Number(finalHoldSeconds);
+  if (!(hold > 0) || !timeline.segments.length) return timeline;
+  const speechEnd = Math.max(0, ...timeline.segments.map((s) => Math.max(s.words?.length ? s.words[s.words.length - 1].end : 0, s.lineStartSeconds === null || s.lineStartSeconds === undefined ? 0 : s.lineStartSeconds + s.speechSeconds)));
+  const end = Math.ceil(((speechEnd + hold) * fps) - 1e-6) / fps;
+  if (end <= timeline.durationSeconds) return timeline;
+  const segments = timeline.segments.map((s, i, all) => (i === all.length - 1 ? { ...s, durationSeconds: round(end - s.startSeconds) } : s));
+  return { ...timeline, durationSeconds: round(end), segments };
+}
+
 export async function timingStage(ctx) {
   const out = {};
   const source = timingWordSource(ctx.flags, ctx.brand);
@@ -109,7 +127,7 @@ export async function timingStage(ctx) {
       return [line.key, sha256];
     });
     const clipShas = cut.beats.filter((b) => b.ui).map((b) => { const r = resolveClip(ctx, b).entry; return [b.id, r.sha256, b.ui.trimStart, b.ui.actions, b.ui.align]; });
-    const k = stageKey('timing', { lines: acceptedLines, beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), clips: clipShas, clock: source.clock, provider: source.provider, ...(grid ? { beatGrid: grid, frameSnap: FPS } : {}) });
+    const k = stageKey('timing', { lines: acceptedLines, beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), clips: clipShas, clock: source.clock, provider: source.provider, ...(grid ? { beatGrid: grid, frameSnap: FPS } : {}), ...(finalHoldOf(ctx.spec, cut) ? { finalHold: finalHoldOf(ctx.spec, cut) } : {}) });
     const cached = checkStage(ctx.jobDir, 'timing', cut.id, k);
     if (cached.hit && !ctx.flags.force) { ctx.log(`timing/${cut.id}: cached`); out[cut.id] = cached.manifest; continue; }
     const byBeat = new Map(voice.lines.map((l) => [l.beatId, l]));
@@ -146,7 +164,9 @@ export async function timingStage(ctx) {
       lines.push({ beat: sized, audio: { durationSeconds: round(duration, 3), words, asr: asrRel } });
     }
     // Beat-grid boundaries are snapped to whole frames too (FPS): a boundary between frames would leave the picture a gap frame.
-    const timeline = grid ? snapToBeatGrid(buildTimeline(lines), grid, { fps: FPS }) : buildTimeline(lines);
+    const spoken = grid ? snapToBeatGrid(buildTimeline(lines), grid, { fps: FPS }) : buildTimeline(lines);
+    // The authored closing hold is part of the one timeline every later stage and gate reads.
+    const timeline = holdFinalBeat(spoken, finalHoldOf(ctx.spec, cut));
     const chunks = [];
     for (const seg of timeline.segments) {
       if (!seg.words.length) continue;
@@ -167,7 +187,7 @@ export async function timingStage(ctx) {
     });
     writeJson(join(ctx.jobDir, files.captions), { cut: cut.id, chunks });
     writeFileSync(join(ctx.jobDir, files.srt), toSrt(chunks), 'utf8');
-    const over = timeline.durationSeconds - cut.targetSeconds;
+    const over = spoken.durationSeconds - cut.targetSeconds;
     const detail = { durationSeconds: timeline.durationSeconds, targetSeconds: cut.targetSeconds, overSeconds: round(over, 2), captionChunks: chunks.length, wordClock: source.clock, ...(timeline.beatGrid ? { beatGrid: timeline.beatGrid } : {}) };
     out[cut.id] = writeStage(ctx.jobDir, 'timing', cut.id, k, { ...detail, outputs: [...Object.values(files), ...timingFiles] });
     if (over > Math.max(2, cut.targetSeconds * 0.1)) throw new Error(`cut ${cut.id} runs ${timeline.durationSeconds}s against a ${cut.targetSeconds}s target (+${over.toFixed(1)}s; allowed ${Math.max(2, cut.targetSeconds * 0.1).toFixed(1)}s, the longer of 2 s and 10%): trim the narration or beat minimums`);

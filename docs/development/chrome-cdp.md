@@ -14,13 +14,13 @@
 | ~~**Catalog** `use-playwright-mcp`~~ | Retired 2026-10-29 with the Playwright MCP server; no browser MCP is registered |
 | **Catalog** `use-playwright-cli` | Playwright CLI for coding agents, including session video and traces |
 | **Catalog** `use-playwright-test` | Playwright Test regressions |
-| **Catalog** `desktop-evidence` | Windows desktop/window capture via `packages/browser-toolkit/scripts/Capture-Screen.ps1` |
+| **Retired** `desktop-evidence` | Windows desktop/window capture; retired with browser-toolkit on 2026-10-30, no replacement registered |
 | **This doc** | Owner / migration notes |
 | **Upstream** Playwright MCP README | Full tool schemas (do not fork) |
 
 Evidence files (browser and desktop) go to `%LOCALAPPDATA%\AgentHub\evidence\<task-slug>\`. Never commit them.
 
-Plugin package: `packages/browser-toolkit`. Codex, Cursor and Claude use their
+Plugin package: `ah-browser` (`packages/browser`; browser-toolkit was retired 2026-10-30). Codex, Cursor and Claude use their
 native browser pane. Hosts without one use Playwright. Chrome DevTools MCP
 is retired; do not install or register it.
 
@@ -32,12 +32,11 @@ is retired; do not install or register it.
 | Exploratory persistent reasoning (stills, console, network) | MCP id `playwright` (plugin, `--extension`) | Owner Chrome/Edge tabs |
 | Committed regression | Playwright Test | Repo `@playwright/test` suite |
 | Host already has a browser | Surface-native | Whatever `hostSurfaces` records |
-| Native Windows window or whole desktop | `desktop-evidence` | `Capture-Screen.ps1` (FFmpeg `gdigrab`) |
+| Native Windows window or whole desktop | none registered (`desktop-evidence` retired 2026-10-30) | none |
 
 ## MCP config (plugin only, never host `mcpServers`)
 
-Shipped in `packages/browser-toolkit/.mcp.json`. Enable `browser-toolkit` when
-needed; disable when done. Do not write these into host MCP config.
+The browser-toolkit `.mcp.json` was retired with its package on 2026-10-30. `ah-browser` (`packages/browser`) ships skills only, so this repo ships no Playwright MCP config; add one as a plugin and verify it before relying on it. Do not write these into host MCP config.
 
 ```json
 {

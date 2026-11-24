@@ -14,6 +14,12 @@ fleet = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fleet)
 
 
+def inactive_hosts():
+    """Ids the registry lists under inactiveAgents; read directly so the tests do not depend on installer internals."""
+    registry = json.loads((ROOT / "registry/agents.json").read_text(encoding="utf-8-sig"))
+    return {agent["id"] for agent in registry.get("inactiveAgents", [])}
+
+
 class ClerkFleetTests(unittest.TestCase):
     def test_plan_has_no_subprocess_or_filesystem_side_effect(self):
         with patch("sys.argv", ["installer", "--host", "cursor-agent"]), patch.object(fleet, "run") as run:
@@ -213,6 +219,36 @@ class ClerkFleetTests(unittest.TestCase):
                 fleet.main()
             self.assertEqual(caught.exception.code, 2)
 
+    def test_default_selection_excludes_every_inactive_agent(self):
+        inactive = set(inactive_hosts())
+        self.assertTrue(inactive, "registry/agents.json lists no inactive agents, so this check would be vacuous")
+        with patch("sys.argv", ["installer"]), patch.object(fleet, "run") as run:
+            with contextlib.redirect_stdout(io.StringIO()) as output, contextlib.redirect_stderr(io.StringIO()) as errors:
+                fleet.main()
+        plan = json.loads(output.getvalue())
+        selected = set(plan["hosts"]) | set(plan["blocked"])
+        self.assertFalse(selected & inactive, f"inactive agents in the default selection: {sorted(selected & inactive)}")
+        self.assertIn("claude", plan["hosts"])
+        known_default = (set(fleet.NATIVE) | fleet.BRIDGES | set(fleet.BLOCKED)) & inactive
+        self.assertTrue(known_default, "no inactive host overlaps the default target list, so the skip was not exercised")
+        for host in sorted(known_default):
+            self.assertIn(f"skipped {host}: listed under inactiveAgents", errors.getvalue())
+        run.assert_not_called()
+
+    def test_naming_an_inactive_agent_refuses_in_plan_and_apply(self):
+        for host in sorted(inactive_hosts()):
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as temp:
+                runtime = Path(temp) / "runtime"
+                for mode in ([], ["--apply"]):
+                    argv = ["installer", "--host", host, "--runtime", str(runtime), *mode]
+                    with patch("sys.argv", argv), patch.object(fleet, "run") as run:
+                        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as errors:
+                            with self.assertRaises(SystemExit) as caught:
+                                fleet.main()
+                    self.assertEqual(caught.exception.code, 2, mode)
+                    self.assertIn("inactive in registry/agents.json", errors.getvalue(), mode)
+                    run.assert_not_called()
+                    self.assertFalse(runtime.exists())
 
 if __name__ == "__main__":
     unittest.main()
