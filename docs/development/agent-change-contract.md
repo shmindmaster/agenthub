@@ -9,7 +9,7 @@ Before changing a capability, identify its single registry owner. Then:
 1. Update the canonical package content and every applicable host manifest.
 2. Bump package versions.
 3. Recompute the registry content hash with `scripts/RegistryContentHash.ps1`.
-   Where PowerShell is absent (a Forge runner, a plain Linux host), the Node port
+   Where PowerShell is absent (a Daytona sandbox, a plain Linux host), the Node port
    `scripts/registry-content-hash.mjs` gives byte-identical hashes: `node
    scripts/registry-content-hash.mjs --check` recomputes every `hashBasis` in
    `registry/capabilities.json` and exits non-zero on drift; `node

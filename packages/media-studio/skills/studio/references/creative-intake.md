@@ -73,7 +73,7 @@ A requested cloned voice does not bypass existing private consent, account, spen
 - **Concept/brand/documentary:** use the existing supported animation, Remotion, still, human-world and licensed-media routes appropriate to the creative treatment. Mark proposed capabilities as proposed.
 - **Signed-in/manual capture:** only when approved access or unique workflow makes automation insufficient; preserve privacy and do not impersonate unavailable roles.
 
-Infer the appropriate remote worker from current private compute guidance: warm forge, authorized Daytona, established CI, or another approved lane. Do not surface cloud-provider names as ordinary creative choices. Never run heavy capture/render locally when private rules prohibit it. Record the chosen lane and actual source revision in the capture receipt.
+Infer the appropriate remote worker from current private compute guidance: Daytona, established CI, or another approved lane. Do not surface cloud-provider names as ordinary creative choices. Never run heavy capture/render locally when private rules prohibit it. Record the chosen lane and actual source revision in the capture receipt.
 
 ## Quality tiers
 

@@ -29,7 +29,7 @@ One renderer per job:
 
 ## Placement
 
-Capture stays local. Renders run on sh-forge; report lane and cost.
+Capture stays local. Renders run on Daytona (`render-lanes.md`); report lane and cost.
 
 ## Delivery
 
