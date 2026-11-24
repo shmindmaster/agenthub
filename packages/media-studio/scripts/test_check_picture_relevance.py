@@ -27,12 +27,12 @@ class RelevanceTests(unittest.TestCase):
         self.assertIn("19", r["overlap"])
 
     def test_a_title_card_fails_even_when_the_title_names_the_topic(self):
-        r = gate.judge_scene(CARD_ONLY, LINE)
+        r = gate.judge_scene(CARD_ONLY, LINE, enforce_overlap=True)
         self.assertFalse(r["ok"])
         self.assertTrue(any("no visual body" in x for x in r["reasons"]))
 
     def test_a_generic_visual_with_no_shared_content_fails(self):
-        self.assertFalse(gate.judge_scene(GENERIC, LINE)["ok"])
+        self.assertFalse(gate.judge_scene(GENERIC, LINE, enforce_overlap=True)["ok"])
 
     def test_numbers_and_percent_signs_count(self):
         scene = {"id": "x", "visual": {"kind": "stat", "value": "37%", "label": "of the heavy bulk volume"}}
@@ -44,7 +44,7 @@ class RelevanceTests(unittest.TestCase):
         r = gate.judge_scene(scene, "Penske declined our request, then drew a line and a rect.")
         self.assertEqual(r["overlap"], ["declined", "penske"])
         only_shapes = {"id": "x", "visual": {"kind": "svg", "groups": [{"svg": '<rect width="10"/><line x1="0"/>'}]}}
-        self.assertFalse(gate.judge_scene(only_shapes, "A rect and a line.")["ok"])
+        self.assertFalse(gate.judge_scene(only_shapes, "A rect and a line.", enforce_overlap=True)["ok"])
 
     def test_chart_labels_and_values_count(self):
         scene = {"id": "x", "visual": {"kind": "chart", "form": "bars", "unit": "%", "items": [{"label": "Heavy bulk volume", "value": 37}]}}
@@ -86,7 +86,7 @@ class RelevanceTests(unittest.TestCase):
         self.assertIn("trucks", r["overlap"])
 
     def test_a_photo_prompt_about_something_else_fails(self):
-        self.assertFalse(gate.judge_scene(PHOTO_OFF_TOPIC, LINE)["ok"])
+        self.assertFalse(gate.judge_scene(PHOTO_OFF_TOPIC, LINE, enforce_overlap=True)["ok"])
 
     def test_layout_and_lane_words_do_not_count_as_content(self):
         scene = {"id": "s1", "title": "t", "bullets": [], "visual": {"kind": "still", "layout": "bleed", "focus": "center", "lane": "azure-image",

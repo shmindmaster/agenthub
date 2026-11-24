@@ -311,7 +311,9 @@ def main() -> int:
     sp, sb = load(sp_p), load(sb_p)
     creative_mode = job.get("creativeMode")
     kind = job.get("kind")
-    marketing = job.get("marketing") is True or kind == "teaser" or job.get("programForm") in MARKETING_FORMS
+    # Same classifier as scripts/marketing-cut.mjs (narration, readiness and release gates).
+    marketing = (job.get("marketing") is True or job.get("filmType") == "product-marketing"
+                 or kind == "teaser" or job.get("programForm") in MARKETING_FORMS)
     general_job = not creative_mode and not marketing and kind not in (None, "product-screencast")
     if sp.get("communicationProfile") or job.get("communicationProfile") or creative_mode in FLEXIBLE_MODES or general_job:
         return flexible_form_review(root, job, sp, sb, jd_p, out_p, craft_min, args.print)

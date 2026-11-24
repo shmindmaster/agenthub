@@ -124,6 +124,107 @@ test("release gate accepts a fast intact cue only when the rate-bound report lis
   evidence.captions.rateBoundReport.sha256 = sha(reportPath); writeFileSync(evidencePath, JSON.stringify(evidence));
   result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /paragraph/);
 });test("release gate passes only with candidate-bound analyzer and reviews", () => { const root = join(scratch, "pass"); job(root); const candidate = release(root); const result = run(releaseValidator, [root, candidate]); assert.equal(result.code, 0, result.output); });
+test('an educational explanation can finish without a CTA or invented product actions', () => {
+  const root = join(scratch, 'probability-lesson'); job(root);
+  const candidate = release(root);
+  const jobPath = join(root, 'job.json');
+  const lesson = { kind: 'explainer', filmType: 'explainer', creativeMode: 'educational', noEnactedActions: true, noCompletedResultClaims: true };
+  writeFileSync(jobPath, JSON.stringify(lesson));
+  const evidencePath = join(root, 'qa', 'viewer-release-evidence.json');
+  const evidence = JSON.parse(readFileSync(evidencePath, 'utf8'));
+  evidence.titleReview.titleCount = 2;
+  delete evidence.actionResultReview;
+  delete evidence.storyReview.cta;
+  evidence.storyReview.representation = 'The outcome grid shows fictional draws and makes no claim about a deployed product.';
+  writeFileSync(evidencePath, JSON.stringify(evidence));
+  let result = run(releaseValidator, [root, candidate]);
+  assert.equal(result.code, 0, result.output);
+
+  writeFileSync(jobPath, JSON.stringify({ ...lesson, kind: 'product-screencast' }));
+  result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /actionResultReview/);
+
+  // A marketing cut never takes the illustrative exemption, whatever creative mode it declares.
+  writeFileSync(join(root, 'qa', 'marketing-readiness-check.json'), JSON.stringify({
+    generator: 'media-studio/validate-marketing-readiness', ok: true, errors: [], applies: true,
+    thresholds: { hookMaxSeconds: 2, endCardWindowSeconds: 8, beatToleranceMs: 80, beatHitRatio: 0.9, referencesRequired: 3 },
+    candidate: { sha256: sha(candidate), bytes: statSync(candidate).size },
+  }));
+  for (const marketingJob of [{ ...lesson, marketing: true }, { ...lesson, kind: 'teaser' }]) {
+    writeFileSync(jobPath, JSON.stringify(marketingJob));
+    result = run(releaseValidator, [root, candidate]);
+    assert.notEqual(result.code, 0, JSON.stringify(marketingJob));
+    assert.match(result.output, /actionResultReview/);
+  }
+
+  // A communication profile declared only in a BOM-prefixed screenplay removes the illustrative exemption too.
+  writeFileSync(jobPath, JSON.stringify(lesson));
+  const screenplayPath = join(root, 'story', 'screenplay.json');
+  const screenplay = JSON.parse(readFileSync(screenplayPath, 'utf8'));
+  writeFileSync(screenplayPath, '﻿' + JSON.stringify({ ...screenplay, communicationProfile: 'consulting-demo' }));
+  const narrationPath = join(root, 'qa', 'narration-check.json');
+  const narration = JSON.parse(readFileSync(narrationPath, 'utf8'));
+  narration.inputs.screenplay.sha256 = sha(screenplayPath);
+  writeFileSync(narrationPath, JSON.stringify(narration));
+  result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /actionResultReview/);
+  assert.doesNotMatch(result.output, /screenplay.json is not valid JSON/);
+});
+test('a legacy verified screencast keeps the opening-title cap and CTA review', () => {
+  const root = join(scratch, 'legacy-story-review'); job(root);
+  const candidate = release(root);
+  const evidencePath = join(root, 'qa', 'viewer-release-evidence.json');
+  const evidence = JSON.parse(readFileSync(evidencePath, 'utf8'));
+  evidence.titleReview.titleCount = 2;
+  delete evidence.storyReview.cta;
+  writeFileSync(evidencePath, JSON.stringify(evidence));
+  const result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /no more than one opening title/);
+  assert.match(result.output, /concrete CTA/);
+});
+test('a training job reviewed for its own form releases without the legacy CTA and title rules', () => {
+  const root = join(scratch, 'training-form'); job(root);
+  const candidate = release(root);
+  const jobPath = join(root, 'job.json');
+  const evidencePath = join(root, 'qa', 'viewer-release-evidence.json');
+  const evidence = JSON.parse(readFileSync(evidencePath, 'utf8'));
+  evidence.titleReview.titleCount = 2;
+  delete evidence.storyReview.cta;
+  writeFileSync(evidencePath, JSON.stringify(evidence));
+  writeFileSync(jobPath, JSON.stringify({ kind: 'training' }));
+  let result = run(releaseValidator, [root, candidate]);
+  assert.equal(result.code, 0, result.output);
+  for (const legacy of [{ kind: 'product-screencast' }, { kind: 'training', communicationProfile: 'consulting-demo' }]) {
+    writeFileSync(jobPath, JSON.stringify(legacy));
+    result = run(releaseValidator, [root, candidate]);
+    assert.notEqual(result.code, 0, JSON.stringify(legacy));
+    assert.match(result.output, /concrete CTA/);
+  }
+  // A profile declared only in the screenplay keeps the same release rules as one declared in the job.
+  writeFileSync(jobPath, JSON.stringify({ kind: 'training' }));
+  const screenplayPath = join(root, 'story', 'screenplay.json');
+  const screenplay = existsSync(screenplayPath) ? JSON.parse(readFileSync(screenplayPath, 'utf8')) : {};
+  writeFileSync(screenplayPath, JSON.stringify({ ...screenplay, communicationProfile: 'consulting-demo' }));
+  const narrationPath = join(root, 'qa', 'narration-check.json');
+  const narration = JSON.parse(readFileSync(narrationPath, 'utf8'));
+  narration.inputs.screenplay.sha256 = sha(screenplayPath);
+  writeFileSync(narrationPath, JSON.stringify(narration));
+  result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /concrete CTA/);
+  assert.match(result.output, /no more than one opening title/);
+});
+test('a social teaser still requires the marketing report after selecting a story form', () => {
+  const root = join(scratch, 'typed-social-teaser'); job(root);
+  const candidate = release(root);
+  writeFileSync(join(root, 'job.json'), JSON.stringify({ kind: 'teaser', filmType: 'social-cut' }));
+  const result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /marketing-readiness-check/);
+});
 test('release gate consumes exact encoded-picture evidence and rejects lax thresholds', () => {
   const root = join(scratch, 'picture-report'); job(root); const candidate = release(root);
   const picturePath = join(root, 'qa', 'encoded-picture.json');

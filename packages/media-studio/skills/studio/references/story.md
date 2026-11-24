@@ -1,5 +1,7 @@
 # Story
 
+Select the story structure from the brief. The hook, hero, reversal and proof templates below are options for forms that benefit from them. For education, fiction and conceptual animation, use the requested organizing idea and judge the result against the intended viewer experience. Keep factual claims and illustrative examples clearly distinguishable.
+
 Write the brief, thesis and script from the source in context, in this turn. Infer structure, tone and length. Do not generate TTS.
 
 Contents: Brief and thesis · Spine · Writing for the ear · No fluff · Explainer path · Dramatised incidents · Technical story beat map · Diagnose first · Tools
@@ -12,7 +14,7 @@ The thesis is one sentence: what the viewer can do or stop doing afterwards. It 
 
 - Film: `hook`, `emotionalTarget`, `audience`, `viewerPromise`, `wpm` (default 150; slower for `documentary` and `ai-trust`).
 - Scene: `id`, `narration`, `sceneRole`, `viewerQuestion`, `wiifm` (outcome or identity, never a feature name), one `emphasis`, `truth`, `pauseBeforeSeconds`, `holdAfterSeconds`, `musicCue`, and `story.beforeState`, `.tension`, `.openLoop`, `.payoff` as they apply.
-- Exactly one `heroMoment: true`.
+- Mark `heroMoment: true` when the chosen form has a central reveal.
 - `product-screencast`: default `visualMode: screen`, `uiProof` on every product claim, scenes as a causal chain.
 
 `truth` defaults to `FACT` when the source is given; `DRAMATIZED` or `COMPOSITE` only where you heighten or merge. Omit unsourced numbers. Do not invent metrics, customer names or product behaviour. Pronunciation goes in a lexicon or SSML layer at synthesis; never respell the script. Run `scripts/check_script_terms.py` on the locked script before any speech spend: it blocks on any undecided acronym, brand or name.
@@ -25,9 +27,9 @@ Run in order:
 4. `node scripts/validate-narration.mjs <jobRoot>` writes `qa/narration-check.json`. It must pass.
 5. With `story/storyboard.json` in place: `python scripts/write-story-review.py <jobRoot> --judgments qa/story-judgments.json` writes `qa/story-review.json`. Missing judgments give `MALFORMED_INPUT`.
 
-## Spine
+## Spine for a dramatic or verified product arc
 
-Hook, stakes, characters, tension, payoff:
+One option uses hook, stakes, characters, tension and payoff:
 
 ```text
 Question → Stakes → Wrong intuition → Complication → Reveal → Demonstration → Implication → Takeaway
@@ -53,7 +55,7 @@ A single-beat clip runs question → reveal → takeaway.
 - Turn around the midpoint: what the viewer believed stops being true.
 - Joins: start the next scene's voice over the old picture (J-cut) or run the voice into the new picture (L-cut). Not on `screen` beats: `validate-sync.mjs` fails a screen more than 40 ms after the first content word.
 
-`write-story-review.py` requires: first scene `hook`; a `before` scene ahead of the hero; hero outside the first 3 scenes, `holdAfterSeconds` ≥ 1.0, and `silenceOnReveal` or `musicCue` `silence` or `sting`; `trust` or `proof` within 3 scenes after it, or a recorded judgment.
+The legacy product rubric in `write-story-review.py` expects first scene `hook`; a `before` scene ahead of the hero; hero outside the first 3 scenes, `holdAfterSeconds` ≥ 1.0, and `silenceOnReveal` or `musicCue` `silence` or `sting`; `trust` or `proof` within 3 scenes after it, or a recorded judgment.
 
 ## Story structure follows the chosen form
 

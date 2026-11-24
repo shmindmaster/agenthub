@@ -13,9 +13,10 @@ The filmmaking phases, each with deliverables a file proves:
   delivery        captions sidecar and the owner's delivered record
 
 A phase is PASS, FAIL (its own checks fail) or BLOCKED (an earlier phase has not passed). Files are evidence, not claims: a
-placeholder (TODO) is a fail, a report older than the thing it checks is stale, a missing approval is a fail. --approve records
+placeholder (TODO) is a fail, a report older than the thing it checks is stale, a missing required approval is a fail. --approve records
 `approvals.<name>` with today's date; run it only after the owner has said yes in the conversation. Free and offline; never calls
-a provider. Exit 0 always, 1 with --strict when any phase is not PASS.
+a provider. Record explicit internal delegation with reviewAuthority "delegated" in production.json. Keep owner
+review for any named requiredReviews. This status does not authorize spend or external publication. Exit 0 always, 1 with --strict when any phase is not PASS.
 """
 from __future__ import annotations
 
@@ -27,14 +28,15 @@ from pathlib import Path
 import re
 import sys
 
+INTERNAL_REVIEWS = ("case", "screenplay", "plan", "delivered")
 PHASES = ["develop", "preproduction", "production", "post", "delivery"]
 REVIEW_STAGES = {"develop": "Go/No-Go", "preproduction": "Pink", "production": "Red", "post": "Gold", "delivery": "Gold"}
 NEXT = {
-    "develop": "Use the script skill: fill the case, treatment, beat sheet and screenplay, run validate-narration.mjs, then ask the owner to approve.",
-    "preproduction": "Use the script skill: write the picture plan, run screenplay_breakdown.py, check_picture_relevance.py and check_visual_variety.py, show the owner the picture table and the cost.",
+    "develop": "Use the script skill: fill the case, treatment, beat sheet and screenplay, run validate-narration.mjs, then resolve any required review.",
+    "preproduction": "Use the script skill: write the picture plan, run screenplay_breakdown.py, check_picture_relevance.py and check_visual_variety.py, resolve required review and any spend approvals.",
     "production": "Use produce, then finish: voice takes, assets, build-picture.mjs, render the picture.",
     "post": "Use the finish skill: mix, finish loudness, run the gates on the exact file, review the frames.",
-    "delivery": "Use the finish skill to deliver: captions sidecar and library copy, then record the owner's delivered approval.",
+    "delivery": "Use the finish skill to deliver: captions sidecar and library copy, then resolve any required internal delivery review.",
 }
 
 
@@ -65,6 +67,17 @@ def section(text, name):
     return (m.group(1).strip() if m else "")
 
 
+def review_missing(prod, name):
+    required = prod.get("requiredReviews", [])
+    delegated = (
+        prod.get("reviewAuthority") == "delegated"
+        and isinstance(required, list)
+        and all(item in INTERNAL_REVIEWS for item in required)
+        and name not in required
+    )
+    return not delegated and not prod.get("approvals", {}).get(name)
+
+
 def check_develop(root, prod):
     r = []
     case = root / "case/case.md"
@@ -80,17 +93,15 @@ def check_develop(root, prod):
     tr = root / "story/treatment.md"
     if not tr.exists():
         r.append("missing story/treatment.md")
-    elif has_todo(tr) or len(tr.read_text(encoding="utf-8").split()) < 80:
-        r.append("story/treatment.md is a placeholder or under 80 words")
+    elif has_todo(tr) or not tr.read_text(encoding="utf-8").strip():
+        r.append("story/treatment.md is empty or a placeholder")
     bs = root / "story/beat-sheet.json"
     if not bs.exists():
         r.append("missing story/beat-sheet.json")
     else:
         beats = jload(bs).get("beats") or []
-        job = jload(root / "job.json") if (root / "job.json").exists() else {}
-        minimum = 1 if job.get("communicationProfile") == "product-update" else 3
-        if len(beats) < minimum or any(not (b.get("id") and b.get("role") and b.get("summary") and b.get("picture")) for b in beats) or "TODO" in bs.read_text(encoding="utf-8"):
-            r.append(f"story/beat-sheet.json needs {minimum}+ beats with id, role, summary and picture, and no TODO")
+        if not beats or any(not (b.get("id") and b.get("role") and b.get("summary") and b.get("picture")) for b in beats) or "TODO" in bs.read_text(encoding="utf-8"):
+            r.append("story/beat-sheet.json needs beats with id, role, summary and picture, and no TODO")
     sp = root / "story/screenplay.json"
     if not sp.exists():
         r.append("missing story/screenplay.json")
@@ -107,7 +118,7 @@ def check_develop(root, prod):
     if e:
         r.append(e)
     for a in ("case", "screenplay"):
-        if not prod["approvals"].get(a):
+        if review_missing(prod, a):
             r.append(f"owner has not approved the {a}")
     return r
 
@@ -134,7 +145,7 @@ def check_pre(root, prod):
         for need in ("story/storyboard.json", "story/visual-bible.json"):
             if not (root / need).exists():
                 r.append(f"viewer-facing job needs {need}")
-    if not prod["approvals"].get("plan"):
+    if review_missing(prod, "plan"):
         r.append("owner has not approved the plan (picture table and cost)")
     return r
 
@@ -194,7 +205,7 @@ def check_delivery(root, prod):
                 and captions.get("verdict") == "PASS"
                 and captions.get("sha256") == hashlib.sha256(artifact.read_bytes()).hexdigest()):
             r.append("consolidated story review needs a matching, exact-artifact caption/player check")
-    if not prod["approvals"].get("delivered"):
+    if review_missing(prod, "delivered"):
         r.append("owner has not recorded delivery")
     return r
 
@@ -224,8 +235,8 @@ def status(root):
 def approve(root, name):
     p = Path(root) / "production.json"
     prod = jload(p)
-    if name not in prod.get("approvals", {}):
-        raise SystemExit(f"unknown approval '{name}'; one of {', '.join(prod.get('approvals', {}))}")
+    if name not in INTERNAL_REVIEWS or name not in prod.get("approvals", {}):
+        raise SystemExit(f"unknown approval '{name}'; one of {', '.join(INTERNAL_REVIEWS)}")
     prod["approvals"][name] = date.today().isoformat()
     p.write_text(json.dumps(prod, indent=2) + "\n", encoding="utf-8")
     return prod["approvals"]

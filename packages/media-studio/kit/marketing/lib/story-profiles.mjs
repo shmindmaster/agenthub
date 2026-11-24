@@ -112,10 +112,9 @@ export const FILM_TYPES = Object.freeze({
   },
   explainer: {
     summary: 'Explains an idea, change or rule; may show no product interface at all.',
-    slots: ['hook', 'explanation', 'takeaway'],
-    first: 'hook',
+    slots: ['explanation', 'takeaway'],
     narrative: ['question', 'viewerValue'],
-    hookPlan: false, hookWords: 16, named: null, proofSlot: null, contextBy: null,
+    hookPlan: false, hookWords: null, named: null, proofSlot: null, contextBy: null,
   },
   'social-cut': {
     summary: 'Short feed cut: a hook, one piece of proof, and a result or an ask.',
@@ -138,9 +137,9 @@ export const FILM_TYPES = Object.freeze({
     hookPlan: false, hookWords: 24, named: null, proofSlot: null, contextBy: null,
   },
   story: {
-    summary: 'Fiction, day-in-the-life or future vision: a person, a situation and a change. Scene order is free.',
+    summary: 'Fiction, day-in-the-life or future vision. The brief determines the story and scene order.',
     slots: [],
-    narrative: ['persona', 'situation', 'emotionalBefore', 'emotionalAfter'],
+    narrative: [],
     hookPlan: false, hookWords: null, named: null, proofSlot: null, contextBy: null,
   },
   'non-narrative': {
@@ -186,7 +185,7 @@ export const DEFAULT_TYPE_BY_MODE = Object.freeze({
  */
 export function resolveFilmType(spec, cut, mode) {
   const profile = COMMUNICATION_PROFILES[cut?.communicationProfile || spec?.communicationProfile];
-  const requested = profile?.filmType || cut?.filmType || spec?.filmType;
+  const requested = cut?.filmType || spec?.filmType || profile?.filmType;
   const id = requested || DEFAULT_TYPE_BY_MODE[mode] || 'product-marketing';
   const base = FILM_TYPES[id];
   if (!base) return { id, unknown: true, rules: null };

@@ -61,7 +61,8 @@ class CreativeFormReviewTest(unittest.TestCase):
 
     def test_default_marketing_jobs_keep_the_marketing_review(self):
         for job in ({"kind": "teaser"}, {"kind": "explainer", "marketing": True},
-                    {"kind": "explainer", "programForm": "campaign-short"}):
+                    {"kind": "explainer", "programForm": "campaign-short"},
+                    {"kind": "explainer", "filmType": "product-marketing"}):
             with self.subTest(job=job), tempfile.TemporaryDirectory() as d:
                 root = Path(d)
                 fixture(root, disclose=False)

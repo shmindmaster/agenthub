@@ -24,7 +24,7 @@ free to be imaginative.
 - [ ] 3. Beat sheet with a picture per beat (story/beat-sheet.json)
 - [ ] 4. Screenplay: locked lines per scene (story/screenplay.json)
 - [ ] 5. Names pinned, narration check passes
-- [ ] 6. Owner approves the case and the screenplay
+- [ ] 6. Case and screenplay accepted: owner approval only for a reserved review, otherwise the delegated decision is recorded
 ```
 
 ## 5 Gates
@@ -39,7 +39,7 @@ Pin each name in `scripts/pronunciation_lexicon.json` before any voice is genera
 
 ## 6 Approval
 
-Show the owner the logline, the beat sheet table (beat, role, picture) and the first and last lines. When they say yes, record it: `py -3 scripts/production_status.py <jobRoot> --approve case` and `--approve screenplay`. Then `plan`.
+Review the logline, beat sheet and opening and closing against the brief. With delegation, record the internal decision and continue. If the owner reserved review, show them the requested material and record their actual approval: `py -3 scripts/production_status.py <jobRoot> --approve case` and `--approve screenplay`. Then `plan`.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](develop-detail.md)
 

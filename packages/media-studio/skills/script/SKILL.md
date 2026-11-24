@@ -1,15 +1,15 @@
 ---
 name: script
-description: Turns an approved idea into a brief, story, script and storyboard with a picture for every line, gated before any spend. Use when a video needs its brief, logline, treatment, screenplay, beat sheet or storyboard. Not for recording, voices or rendering; use produce or finish.
+description: Use when a film needs a brief, treatment, screenplay, beat sheet, storyboard or picture plan.
 ---
 # Script
 ## Workflow contract
 1. Use the studio intake answers, the request and any source material.
-2. Write the brief and get the owner's yes; then the story and locked script; then the storyboard and picture plan with priced lanes.
-3. Hand `produce` the approved storyboard, picture plan and work list.
-4. If an approval or a passing picture gate is missing, stop and keep the draft.
+2. Write the brief, story, locked script and picture plan with priced lanes. Use the requested form, and carry a complete delegated brief directly into production planning.
+3. Hand `produce` the internally accepted storyboard, picture plan and work list.
+4. Resolve reserved reviews and material defects. Record delegated decisions in the job.
 <HARD-GATE>
-No narration, provider call, capture or render until `brief.md` is approved in this task and the storyboard passes `check_picture_relevance.py` and `check_visual_variety.py`.
+Check picture coverage and review picture diagnostics against the brief before production. Obtain any required paid authorization separately. Require actual evidence for current-product claims, including those inside lessons or fictional framing.
 </HARD-GATE>
 ## Write for the requested form
 

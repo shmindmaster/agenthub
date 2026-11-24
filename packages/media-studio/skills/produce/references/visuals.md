@@ -29,7 +29,7 @@ py -3 scripts/route_media.py diagram motion
 
 ## Check
 
-Before render, run `check_picture_relevance.py` and `check_visual_variety.py`, with `--advisory` for intentional formats such as slides or a sparse visual track. After a render, build the contact sheet and look at it; a gate passing is variety and relevance, never taste.
+Before render, run `check_picture_relevance.py` and `check_visual_variety.py`. Their overlap and style findings are advisory by default, which suits intentional formats such as slides or a sparse visual track; add `--enforce-overlap` and `--enforce-style` when the brief requires the briefing picture mix. After a render, build the contact sheet and look at it; a gate passing is variety and relevance, never taste.
 
 ## Rules that do not bend
 

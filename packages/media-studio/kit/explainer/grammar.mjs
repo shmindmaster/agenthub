@@ -230,6 +230,10 @@ export const allowedArchetypes = () => Object.keys(ARCHETYPE_FAMILY);
  *
  * @returns {{rule: string, message: string}[]}
  */
+// The renderer activates a beat at its nearest local frame.
+export const beatFitsShot = (seconds, fps, durationFrames) =>
+  Number.isFinite(seconds) && seconds >= 0 && Math.round(seconds * fps) < durationFrames;
+
 export const validateShot = (shot, context = {}) => {
   const problems = [];
   const fail = (rule, message) => problems.push({ rule, message, shotId: shot?.id });
@@ -265,17 +269,18 @@ export const validateShot = (shot, context = {}) => {
   if (beats > spec.maxBeats) {
     fail('beat-budget', `${shot.archetype} allows ${spec.maxBeats} beats, got ${beats}`);
   }
+  const style = context.advisory ?? fail;
   if (typeof shot.durationSeconds === 'number') {
     if (shot.durationSeconds < RULES.minShotSeconds) {
-      fail('shot-min', `${shot.durationSeconds.toFixed(2)}s is under the ${RULES.minShotSeconds}s floor`);
+      style('shot-min', `${shot.durationSeconds.toFixed(2)}s is under the ${RULES.minShotSeconds}s floor`);
     }
     if (shot.durationSeconds > RULES.maxShotSeconds && !shot.longShotReason) {
-      fail('shot-max', `${shot.durationSeconds.toFixed(2)}s is over the ${RULES.maxShotSeconds}s ceiling with no longShotReason`);
+      style('shot-max', `${shot.durationSeconds.toFixed(2)}s is over the ${RULES.maxShotSeconds}s ceiling with no longShotReason`);
     }
   }
   const previousFamily = context.previousFamily;
   if (previousFamily === family && !shot.repeatIsPoint) {
-    fail('no-consecutive-repeat', `${shot.archetype} repeats ${family} with no repeatIsPoint`);
+    style('no-consecutive-repeat', `${shot.archetype} repeats ${family} with no repeatIsPoint`);
   }
   return problems;
 };

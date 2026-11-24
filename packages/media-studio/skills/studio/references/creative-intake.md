@@ -19,7 +19,7 @@ This reference expands the `studio` entry point. It **does not** add a workflow,
 | Creative Studio | Optionally contrast up to three *meaningfully different* director treatments or narrator styles. | When the user asks for choices or multiple defensible directions exist. |
 | Advanced Production | Show eligible provider/model, voice, capture, viewport, aspect, cost and remote-execution options. | When the user requests technical control or a genuine tradeoff blocks production. |
 
-An existing job always begins with `production_status.py <jobRoot>`; resume at the earliest missing/failed stage and preserve accepted assets. Do not ask previously answered questions. A choice never overrides the screenplay, picture, spending or final-cut approvals required elsewhere in Media Studio.
+An existing job always begins with `production_status.py <jobRoot>`; resume at the earliest missing/failed stage and preserve accepted assets. Do not ask previously answered questions. Carry explicit creative delegation through screenplay, picture, pilot and internal delivery. Keep any reserved reviews and independent spend and publication authorization.
 
 ## What to recommend (the director's brief)
 

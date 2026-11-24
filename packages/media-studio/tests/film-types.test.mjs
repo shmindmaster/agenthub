@@ -371,7 +371,7 @@ test('each film type rejects a film that lacks its own spine', () => {
     'social-cut': [[beat('demonstration', 'Revolva: three commitments on one screen.')], 'story.hook'],
     'founder-pitch': [[beat('hook', 'Plans change overnight.'), beat('cta', 'Talk to us.')], 'story.problem'],
     'internal-update': [[beat('demonstration', 'A scan becomes rows.')], 'story.context'],
-    explainer: [[beat('explanation', 'Timing moves a total.')], 'story.hook'],
+    explainer: [[beat('explanation', 'Timing moves a total.')], 'story.takeaway'],
   };
   for (const [filmType, [beats, rule]] of Object.entries(missing)) {
     const report = checkStory({ product: 'Revolva', filmType, targetSeconds: 40, beats });

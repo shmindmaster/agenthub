@@ -37,10 +37,13 @@
         "teaser"
       ]
     },
+    "filmType": {"enum": ["product-marketing", "feature-demo", "tutorial", "explainer", "social-cut", "founder-pitch", "internal-update", "story", "non-narrative"]},
     "creativeMode": {
       "enum": ["verified-demo", "hybrid", "future-vision", "concept-film", "fictional-story", "explainer", "documentary", "educational", "abstract"],
       "description": "Independent from kind/programForm. Non-verified modes permit fully generated humans of any age, fictional patients, unblurred envisioned UI and non-linear creative forms. Verified current-product proof still needs real capture."
     },
+    "noEnactedActions": {"type": "boolean", "description": "True when the film depicts no enacted product actions."},
+    "noCompletedResultClaims": {"type": "boolean", "description": "True when the film makes no claims of completed product results."},
     "conceptDisclosure": {
       "type": "string",
       "description": "Film-level indication that a technological capability is conceptual/proposed, not a current shipped feature; no repeated watermark or blur requirement."

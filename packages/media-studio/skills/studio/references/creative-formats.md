@@ -1,5 +1,7 @@
 # Creative freedom and representation: film modes
 
+Use the brief to select form, story, image language and pace. A complete delegated brief can proceed through internal creative review and production. Reserve separate approval for spending outside existing authority and external publication.
+
 Media Studio is a **general-purpose filmmaker**. It is not a product-tour
 generator or an ABACare-specific advertising system. Infer the desired format
 from the request, not from the product's industry or a prior client film.

@@ -6,10 +6,10 @@ Read this when deciding how much of each phase a piece needs. The phases follow 
 
 Concept refinement, the screenplay, and the package that lets it move forward.
 
-- **Concept:** is the idea clear, does the audience want it, is there a hook? Written as the case (`case/case.md`): audience, promise, logline, stakes, tone, facts, names, constraints, success check.
+- **Concept:** is the idea clear, does the audience want it, does its opening suit the form? Written as the case (`case/case.md`): audience, promise, logline, stakes, tone, facts, names, constraints, success check.
 - **Story:** the treatment and beat sheet decide what happens and in what order, with the picture for each beat.
 - **Screenplay:** the locked lines, one scene per beat or turn, written for the ear (`skills/studio/references/story.md`).
-- **Package:** the case and beat sheet are what the owner approves, the way a pitch package is.
+- **Package:** record the case and beat sheet and resolve any reserved review.
 
 Light for a 60-second explainer: the case is half a page, the treatment 100 words, three to five beats.
 
@@ -34,7 +34,7 @@ Picture edit, sound mix, visual effects, review. Render, mux, finish loudness, r
 
 ## 5 Delivery
 
-Captions as a sidecar, the library copy in the right folder, and the owner's recorded yes.
+Write the caption sidecar and place the candidate in the authorized internal library after QA. Complete reserved delivery review when applicable. Get separate external publication approval.
 
 ## By kind
 
@@ -44,5 +44,5 @@ Captions as a sidecar, the library copy in the right folder, and the owner's rec
 | documentary, series episode | longer treatment, act structure | mix of drawn, stills, captures | narrator plus interview-style voices | more beats, a hero moment |
 | simulated call, dialogue | scene per turn, speaker in the kicker | the discussed thing, not the speakers | one voice per character | `scenes.md` dialogue section |
 | product screencast | readiness check first | captured and finished with Recast | narrator | `product-picture.md`; never a drawn stand-in for the product |
-| animation, teaser | short, punchy beats | motion, lottie, hero generative shots only if approved | optional | frozen video lanes need owner approval |
+| animation, teaser | short, punchy beats | motion, Lottie, generated or source footage as appropriate | optional | frozen video lanes need owner approval |
 | audio only | same case and screenplay | none | the whole thing | skip the picture gates |

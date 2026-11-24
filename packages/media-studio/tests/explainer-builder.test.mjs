@@ -75,24 +75,26 @@ test('an anchor with no spoken word fails the build and names the word', () => {
   assert.equal(result.props, null);
 });
 
-test('a shot that lands and cuts is refused', () => {
+test('a short landing hold is reported for editorial review', () => {
   const broken = clone(plan);
   broken.shots.find((shot) => shot.id === 'b').visual.nodes[2].at = 4.0;
   const result = buildExplainer({ cueSheet, receipts, plan: broken });
-  assert.equal(result.ok, false);
-  assert.match(errorsOf(result), /lands and cuts/);
+  assert.equal(result.ok, true);
+  assert.match(result.report.warnings.join('\n'), /lands and cuts/);
 });
 
-test('a beat after the end of its shot, and a first beat that is too late, are refused', () => {
+test('out-of-range beats fail and late entrances are advisory', () => {
   const after = clone(plan);
-  after.shots.find((shot) => shot.id === 'b').visual.nodes[2].at = 4.45;
+  after.shots.find((shot) => shot.id === 'b').visual.nodes[2].at = 4.65;
   assert.match(errorsOf(buildExplainer({ cueSheet, receipts, plan: after })), /at or after the end/);
 
   const late = clone(plan);
   late.shots.find((shot) => shot.id === 'b').visual.nodes[1].at = 2.1;
   late.shots.find((shot) => shot.id === 'b').visual.nodes[0].at = 2.4;
   late.shots.find((shot) => shot.id === 'b').visual.nodes[2].at = 2.9;
-  assert.match(errorsOf(buildExplainer({ cueSheet, receipts, plan: late })), /hero does not appear/);
+  const result = buildExplainer({ cueSheet, receipts, plan: late });
+  assert.equal(result.ok, true);
+  assert.match(result.report.warnings.join('\n'), /hero does not appear/);
 });
 
 test('an unknown archetype or a visual its family cannot compose is refused', () => {
@@ -103,6 +105,13 @@ test('an unknown archetype or a visual its family cannot compose is refused', ()
   const wrong = clone(plan);
   wrong.shots.find((shot) => shot.id === 'c').visual = { kind: 'flow', nodes: [{ label: 'x' }] };
   assert.match(errorsOf(buildExplainer({ cueSheet, receipts, plan: wrong })), /visual-kind/);
+});
+
+test('a reveal that rounds to the first frame after its shot fails', () => {
+  const clipped = clone(plan);
+  const duration = buildExplainer({ cueSheet, receipts, plan }).props.shots.find(({ id }) => id === 'b').durationSeconds;
+  clipped.shots.find(({ id }) => id === 'b').visual.nodes[2].at = duration - 0.01;
+  assert.match(errorsOf(buildExplainer({ cueSheet, receipts, plan: clipped })), /at or after the end/);
 });
 
 test('a film of type-only frames reports the cap instead of shipping quietly', () => {

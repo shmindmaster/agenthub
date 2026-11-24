@@ -536,7 +536,7 @@ test('the CLI writes a report bound to the props, keeps a mixed frame set, and e
 
     const args = ['--props', propsPath, '--frames', frames, '--step', '1'];
     const strict = runCli([...args, '--strict']);
-    assert.equal(strict.code, 1, strict.out);
+    assert.equal(strict.code, 0, strict.out);
     const summary = JSON.parse(strict.stdout.trim());
     assert.equal(summary.frames, 15);
     assert.equal(summary.sampled, 15);

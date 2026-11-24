@@ -47,8 +47,9 @@ def scene_rows(screenplay, plan, wpm, hd_voices, identity):
         text = sc.get("narration", "")
         words = len(text.split())
         speaker = sc.get("speaker") or "narrator"
-        visual = (plan_by_id.get(sc["id"]) or {}).get("visual") or {}
-        kind = visual.get("kind")
+        picture = plan_by_id.get(sc["id"]) or {}
+        visual = picture.get("visual") or {}
+        kind = visual.get("kind") or ("title" if picture.get("title") else None)
         row = {"id": sc["id"], "speaker": speaker, "words": words, "seconds": round(words / wpm * 60, 1) if words else 0.0,
                "bytes": len(text.encode("utf-8")), "visualKind": kind, "lane": None, "asset": visual.get("src")}
         if plan is not None and sc["id"] not in plan_by_id:

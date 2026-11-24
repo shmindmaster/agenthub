@@ -78,6 +78,14 @@ function job(root, over = {}) {
   return candidate;
 }
 
+test('selecting the social-cut story form does not exempt a teaser from marketing readiness', { skip: !hasFfmpeg }, () => {
+  const root = join(scratch, 'typed-social');
+  const candidate = job(root, { kind: 'teaser', programForm: 'social-clip', filmType: 'social-cut' });
+  run([root, candidate]);
+  const report = JSON.parse(readFileSync(join(root, 'qa', 'marketing-readiness-check.json'), 'utf8'));
+  assert.equal(report.applies, true);
+});
+
 test('a non-marketing job is not held to the marketing floor', { skip: !hasFfmpeg }, () => {
   const root = join(scratch, 'explainer'); const candidate = job(root, { programForm: 'technical-story' });
   const r = run([root, candidate]); assert.equal(r.code, 0, r.out);

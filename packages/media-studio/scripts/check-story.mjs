@@ -27,9 +27,9 @@ const libRoot = [['..', 'kit', 'marketing', 'lib'], ['..', 'marketing', 'lib'], 
   .map((parts) => resolve(here, ...parts)).find((dir) => existsSync(resolve(dir, 'narrative.mjs')));
 if (!libRoot) { console.error('check-story: the marketing kit library was not found beside this script; run Sync-MediaStudioKit.ps1.'); process.exit(2); }
 const lib = (name) => pathToFileURL(resolve(libRoot, name)).href;
-const { inspectNarrativeArc, describeFilmType } = await import(lib('narrative.mjs'));
+const { inspectNarrativeArc, describeFilmType, withBrandProduct } = await import(lib('narrative.mjs'));
 const { FILM_TYPES, resolveFilmType } = await import(lib('story-profiles.mjs'));
-const { creativeMode } = await import(lib('creative-modes.mjs'));
+const { creativeMode, conceptBeat } = await import(lib('creative-modes.mjs'));
 const { withProductProfile, productProfile } = await import(lib('product-profile.mjs'));
 const { estimateBeatSeconds } = await import(lib('lint.mjs'));
 
@@ -50,7 +50,7 @@ export function normalizeBeat(raw, index) {
     narration,
     // A plan has no capture yet, so kind is the declared intent: the product is shown where the role shows it.
     // A shot classified as proposed, fictional or illustrative is a generated shot, never a capture.
-    kind: raw.kind || (raw.visualMode === 'screen' || (SHOWS_PRODUCT.has(role) && !['proposed', 'fictional', 'illustrative'].includes(raw.truthStatus)) ? 'ui' : 'card'),
+    kind: raw.kind || (!conceptBeat(raw) && (raw.visualMode === 'screen' || SHOWS_PRODUCT.has(role)) ? 'ui' : 'card'),
   };
   if (onScreenText) beat.onScreenText = onScreenText;
   if (raw.truthStatus) beat.truthStatus = raw.truthStatus;
@@ -80,14 +80,14 @@ export function checkStory(brief, brand = {}) {
   if (!brief || typeof brief !== 'object' || Array.isArray(brief)) throw new TypeError('the brief must be a JSON object');
   for (const key of ['beats', 'spine', 'cuts']) if (brief[key] !== undefined && !Array.isArray(brief[key])) throw new TypeError(`${key} must be an array`);
   for (const cut of brief.cuts || []) for (const key of ['beats', 'spine']) if (cut && cut[key] !== undefined && !Array.isArray(cut[key])) throw new TypeError(`cuts[].${key} must be an array`);
-  const spec = { ...brief };
-  const merged = withProductProfile(brand, spec);
+  const merged = withProductProfile(brand, { ...brief });
+  const spec = withBrandProduct({ ...brief }, merged);
   const mode = creativeMode(spec);
   const cuts = normalizeCuts(spec);
   const report = { product: spec.product || merged?.product || null, creativeMode: mode, productProfile: productProfile(spec.product || merged?.product, merged?.id)?.id || null, cuts: [], ok: true };
   for (const cut of cuts) {
     const estimated = cut.beats.reduce((sum, b) => sum + seconds(b), 0);
-    const type = resolveFilmType(spec, { ...cut, targetSeconds: Math.max(cut.targetSeconds, estimated) || cut.targetSeconds }, mode);
+    const type = resolveFilmType(spec, { ...cut, targetSeconds: Math.max(cut.targetSeconds, estimated) || cut.targetSeconds }, creativeMode(spec, cut));
     const findings = inspectNarrativeArc(spec, cut, seconds, { brand: merged });
     const failures = findings.filter((f) => !f.waived).map(({ rule, message, where }) => ({ rule, message, where }));
     const waived = findings.filter((f) => f.waived).map(({ rule, message, where, waived: reason }) => ({ rule, reason, message, where }));

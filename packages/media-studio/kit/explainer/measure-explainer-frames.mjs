@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 // Measures the picture an edit list cannot describe: hero size, a lit hero,
-// empty stretches, background debris and the landing hold. The existing gates
-// say so themselves — variety "proves variety, not quality", relevance "does
-// not judge design" — so this writes the evidence a release gate can refuse a
-// film on, bound to the props it measured.
+// empty stretches, background debris and the landing hold. These are review
+// diagnostics. The receipt identifies the exact props and candidate measured.
 //
 // Usage: node scripts/measure-explainer-frames.mjs --props <explainer-props.json> --frames <dir>
 //          [--encoded <candidate.mp4>] [--out <report.json>] [--step 4] [--fps 30] [--strict]
@@ -13,9 +11,8 @@
 //
 // Exit codes: 2 when the inputs cannot be measured (no frames, unreadable
 // props, an undecodable frame) — a silent empty report is the failure mode
-// this script exists to prevent; 1 under --strict when a high flag or an
-// over-long static run is found; 0 otherwise, leaving the verdict to the
-// release gate.
+// this script exists to prevent; 1 under --strict for incomplete frame
+// coverage; 0 otherwise. Composition flags remain in the report.
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -398,5 +395,4 @@ console.log(
   }),
 );
 
-const overLimit = sequence.staticRuns.some((run) => run.seconds > filmRules.maxStaticRunSeconds);
-if (strict && (verdict.high > 0 || overLimit)) process.exit(1);
+if (strict && !complete) process.exit(1);

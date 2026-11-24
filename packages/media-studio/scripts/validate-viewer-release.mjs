@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Fail closed on evidence bound to the exact encoded product-demo candidate.
 // Usage: node validate-viewer-release.mjs <jobRoot> <candidate.mp4>
-import { isMarketingCut } from './marketing-cut.mjs';
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { isMarketingCut } from "./marketing-cut.mjs";
 import { validateActionResultReview } from "./action-result-review.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -192,8 +192,9 @@ if (existsSync(modelSpecsDir)) {
     else boundToInput(specs, specsRel, [key], `model-written ${file} file`);
   }
 }
-// The feed test: marketing cuts fail closed below the marketing floor (validate-marketing-readiness.mjs owns the list).
-if (isMarketingCut(job)) {
+// Marketing cuts need the candidate-bound readiness report from the marketing validator.
+const marketing = isMarketingCut(job);
+if (marketing) {
   const mk = canonical(boundReport('qa/marketing-readiness-check.json', 'media-studio/validate-marketing-readiness', 'a marketing cut releases only at or above the marketing floor (validate-marketing-readiness.mjs)'), 'qa/marketing-readiness-check.json',
     [['hookMaxSeconds', 'max', 2], ['endCardWindowSeconds', 'max', 8], ['beatToleranceMs', 'max', 80], ['beatHitRatio', 'min', 0.9], ['referencesRequired', 'min', 3]]);
   if (mk && mk.applies !== true) errors.push('qa/marketing-readiness-check.json did not apply the marketing floor to this job; rerun it with the job.json that declares the marketing cut.');
@@ -293,9 +294,32 @@ if (evidence) {
     if (pronunciation.releaseEligible !== true) errors.push("pronunciation review is not release eligible.");
   }
   requireBoundPass("encodedVisualReview");
+  // Same classification as write-story-review.py: a general job (a declared kind other than a verified screencast,
+  // no creativeMode, not a marketing cut) is reviewed for its own form before capture, so release does not impose
+  // the legacy CTA and single-title rules on it either.
+  // A communication profile may be declared in the screenplay or the job; write-story-review.py honours either.
+  const screenplayFile = join(root, 'story', 'screenplay.json');
+  let screenplayProfile = null;
+  if (existsSync(screenplayFile)) {
+    try { screenplayProfile = JSON.parse(readFileSync(screenplayFile, 'utf8').replace(/^﻿/, ''))?.communicationProfile ?? null; }
+    catch { errors.push('story/screenplay.json is not valid JSON; the release gate cannot read its communication profile.'); }
+  }
+  const communicationProfile = screenplayProfile || job.communicationProfile;
+  const generalJob = !job.creativeMode && !marketing && typeof job.kind === 'string' && job.kind !== 'product-screencast';
+  const creativeStory = job.kind !== 'product-screencast' && !communicationProfile
+    && (generalJob || ['tutorial', 'explainer', 'story', 'non-narrative'].includes(job.filmType)
+      || ['educational', 'explainer', 'fictional-story', 'abstract', 'concept-film', 'future-vision', 'documentary'].includes(job.creativeMode));
+  const standardStoryReview = !creativeStory || marketing || job.filmType === 'founder-pitch';
   const titles = requireBoundPass("titleReview");
-  if (titles && (!Number.isInteger(titles.titleCount) || titles.titleCount < 0 || titles.titleCount > 1)) errors.push("exact encoded title review must confirm no more than one opening title treatment.");
-  const actions = requireBoundPass("actionResultReview");
+  if (titles && (!Number.isInteger(titles.titleCount) || titles.titleCount < 0)) {
+    errors.push("exact encoded title review must record the opening title count.");
+  } else if (titles && standardStoryReview && titles.titleCount > 1) {
+    errors.push("exact encoded title review must confirm no more than one opening title treatment.");
+  }
+  const illustrative = job.kind !== 'product-screencast' && !communicationProfile && !job.campaign && !marketing
+    && ['educational', 'explainer', 'fictional-story', 'abstract'].includes(job.creativeMode)
+    && job.noEnactedActions === true && job.noCompletedResultClaims === true;
+  const actions = !illustrative || evidence.actionResultReview ? requireBoundPass("actionResultReview") : null;
   if (actions) {
     const storyboardPath = join(root, 'story', 'storyboard.json');
     const stateReview = ['settled-state', 'conceptual-animation'].includes(actions.mode);
@@ -308,7 +332,10 @@ if (evidence) {
     errors.push(...validateActionResultReview({job, storyboard, timeline, review: actions, candidateSha256: candidateSha, candidateDurationSeconds}));
   }
   const story = requireBoundPass("storyReview");
-  if (story && !story.cta) errors.push("story review must confirm a concrete CTA.");
+  if (illustrative && !actions && (typeof story?.representation !== 'string' || !story.representation.trim())) {
+    errors.push('story review must record the candidate-specific illustrative representation assessment.');
+  }
+  if (story && standardStoryReview && !story.cta) errors.push("story review must confirm a concrete CTA.");
   if (story?.sequence && (!story.sequence.seriesId || !Number.isInteger(story.sequence.chapter))) errors.push("when a series sequence is declared, story review must provide seriesId and integer chapter.");
   if (graphics?.length) {
     const review = requireBoundPass('timedGraphicReview');

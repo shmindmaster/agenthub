@@ -1,14 +1,18 @@
 ---
 name: produce
-description: Produces the accepted pieces a video needs (screen takes, narration, voices, stills, diagrams, animation and music) under spend controls. Use when a storyboard is approved and needs footage, voice, images or visuals made. Not for assembly or review; use finish.
+description: Use when a ready storyboard needs footage, narration, stills, diagrams, animation or music.
 ---
 # Produce
 ## Workflow contract
-1. Use the approved storyboard, picture plan and work list from `script`.
+1. Use the internally accepted storyboard, picture plan and work list from `script`.
 2. Make each asset with the cheapest authorized lane that passes its gate, and record each take with its evidence.
 3. Hand `finish` the accepted voice, picture and plates.
 4. If a lane is frozen, unpaid or failing, stop that asset and report the exact blocker; keep accepted assets.
-## Record product interactions
+## Make the pictures the brief calls for
+
+Build code views, designed diagrams, simulations, synthetic UI, generated scenes, text or captures as the brief requires. A slow or static shot can give the viewer time to read or think. Keep provider eligibility, rights, privacy, credentials and spend checks in force.
+
+## Record product interactions in verified footage
 
 Capture the state before the action, the actual interaction and its visible result. Keep role, period, record and revision consistent with the spoken claim. In a stable frame, use a readable highlight or an enlarged detail of the actual field as the speaker names it. Show meaningful content changes; a camera drift across an idle screen adds no evidence. Keep sourced portraits steady and advance the relevant role or question on cue. Label illustrative footage and synthetic tenant data where a viewer could mistake them for case evidence.
 

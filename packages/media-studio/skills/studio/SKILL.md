@@ -1,16 +1,18 @@
 ---
 name: studio
-description: Takes a video, screencast, explainer, ad or audio idea to a finished, reviewed piece, following the requested form and making routine production choices. Use when someone wants any video or audio made, or brings an idea, topic or rough ask. Not for one step of a running job.
+description: Takes a video, screencast, lesson, explainer, fiction, ad or audio idea to a finished, reviewed piece in the requested form, making routine choices within delegated authority. Use when someone wants any video or audio made, or brings an idea or rough ask. Not for one step of a running job.
 ---
 # Studio
 ## Workflow contract
 1. Use the request and the job root if one exists. Read `production_status.py <jobRoot>` first and resume at the earliest missing or failed stage; reuse accepted assets.
 2. New job: run the intake below, then run `script`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.
 3. Return the delivered file and the review verdict, or the last passed stage and the exact next input.
-4. Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.
+4. Continue through internal creative, script, pilot and final candidate decisions within delegated authority, keeping accepted assets. Pause for an explicitly reserved review, a material unresolved choice, paid work outside authorization or external publication.
 ## Make the requested piece
 
 Use the user's brief as the creative direction. Preserve its format, audience, tone, structure and deliverables. A request for narrated answer slides, a sample lesson, a storyboard, a visual treatment or a fictional scene should produce that artifact. A source is material to work from. Follow the user's requested level of research and citations. Handle uncertainty in a line or production note where it affects the audience's understanding.
+
+Follow the requested form, storyline, picture, pace and production method. Use evidence-led treatment for a documentary or verified product proof when the brief calls for it. Education can use code, diagrams, simulations and synthetic math pictures. Fiction can use generated scenes and invented worlds. A conceptual explanation can hold a frame for reading or thinking. Use text or synthetic UI where it serves the experience and disclose its status where it might be taken for real product behavior.
 
 Make routine creative choices and start useful work in the same turn. Use a template, brainstorming pass, research phase or specialist plugin when the brief calls for it or it directly advances the requested artifact. Apply checks for an actual published-product claim or a requested verified demonstration to the affected claim and scene.
 
@@ -35,9 +37,9 @@ Pass accepted choices into the existing brief and job manifest. Reuse an existin
 - Transcription: `ah-assemblyai`. Optional edit hand-off: Descript.
 ## Rules
 <HARD-GATE>
-No stage starts until the previous one shows PASS in `production_status.py`. Record an approval with `production_status.py <jobRoot> --approve <name>` only after the owner said yes to that exact item in this conversation.
+Record actual internal delegation in `production.json` as `"reviewAuthority": "delegated"`. List any explicitly reserved checkpoints under `requiredReviews` (`case`, `screenplay`, `plan`, `delivered`). For a required review, use `production_status.py <jobRoot> --approve <name>` only for actual owner approval. Delegation never authorizes purchases, raises spend caps, unlocks providers, or authorizes external publication. Preserve privacy, rights and credential controls.
 </HARD-GATE>
-- Design the viewing and listening experience to fit the requested format. Slides, titles, worked examples, deliberately held frames, dialogue and silence are legitimate choices.
+- Design the viewing and listening experience to fit the requested format. Slides, titles, worked examples, deliberately held frames, dialogue and silence are legitimate choices. Plan the picture or intentional stillness for each beat and use automated style signals to direct review against the brief.
 - Cheapest authorized lane that passes QA; show the budget before any paid step.
 - Never present concept or synthetic UI as verified current product behaviour.
 - Product repositories are read-only; all work lives in an external job workspace.
