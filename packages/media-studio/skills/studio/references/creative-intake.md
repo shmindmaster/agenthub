@@ -11,6 +11,13 @@ This reference expands the `studio` entry point. It **does not** add a workflow,
 5. **Technical production:** choose supported browser, capture, aspect and remote render lanes automatically unless a visible tradeoff remains.
 6. **Budget and approvals:** present the priced, executable choice before spending. No extra gates or silent approvals.
 
+## Business engagement requests
+
+A request such as "make a steering committee update video", "proposal video", "pitch video", "kickoff video",
+"final readout" or "value review" names a `communicationProfile`. Pick it from [forms](forms.md), load
+[engagement formats](engagement-formats.md), and ask only what the profile needs and the request omits:
+the audience, the decision, the one ask with its owner and date, and for a status update the RAG and its date.
+
 ## Decision depth — adaptive, not three separate pipelines
 
 | Intent | Interaction | When to ask |

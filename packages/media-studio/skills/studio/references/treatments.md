@@ -34,6 +34,17 @@ Opening is the first 3 s. Close is the final state and hold: the brief's `finalH
 | VH2 | Vertical highlight | Needs the how | Cropped control, one overlay | Two panels in sequence, never stacked | Outcome line | Two beats, one panel each |
 | VH3 | Teaser, 15-30 s | Drive to the full film | A question line, 1.5 s | Three captured moments, 4-6 s each | `cta-end-frame` naming the full film | A teaser, not a highlight |
 
+## Engagement films
+
+One suggestion each. Form and checks: `engagement-formats.md`.
+
+- pitch: `kinetic-statement` recommendation; `kinetic-number` cost of waiting; close on `comparison` of options, then `cta-end-frame`.
+- proposal: `quote-problem` of their words; `process-flow` phases; `timeline` with gates; `comparison` with assumptions shown.
+- status-update: status word as a chip in `kinetic-statement`, never colour alone; real tracker in `screen-in-context`; `data-chart` plan against actual.
+- kickoff: `kinetic-statement` objective; `timeline` with gates; `lower-third` per owner; close `checklist-build` of the first 30 days.
+- final-readout: `hero-reveal` recommendation; `evidence-proof` per finding; `timeline` roadmap with owners.
+- value-review: open on `before-after` of baseline and realized; `kinetic-number` per measure with its source.
+
 ## Pacing and sound
 
 | Format group | Pacing | Sound |

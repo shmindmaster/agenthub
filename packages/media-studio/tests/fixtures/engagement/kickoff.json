@@ -1,0 +1,228 @@
+{
+  "product": "Ledger Close Programme",
+  "communicationProfile": "kickoff",
+  "targetSeconds": 150,
+  "maxDurationSeconds": 240,
+  "primaryAudience": "programme team and project leads",
+  "viewerDecision": "whether the owners and dates are right",
+  "primaryTakeaway": "Confirm who owns each deliverable and by when.",
+  "audienceContext": {
+    "problemStatus": "fictional-scenario",
+    "sourceRefs": []
+  },
+  "nextStep": {
+    "action": "Confirm owners and dates",
+    "owner": "programme lead",
+    "agreedDate": null
+  },
+  "captionPolicy": {
+    "mode": "sidecar",
+    "deliverySurface": "web player"
+  },
+  "audioDirection": {
+    "narratorIdentity": "approved narrator",
+    "pronunciationRefs": [],
+    "delivery": "calm and direct",
+    "emphasis": [],
+    "pauses": "hold each number for a beat",
+    "musicTreatment": "none"
+  },
+  "limitations": [
+    "Fictional example for planning. Every name and figure is invented."
+  ],
+  "narrative": {
+    "question": "who does what, by when, and how will we decide",
+    "viewerValue": "every person leaves knowing their first task"
+  },
+  "beats": [
+    {
+      "id": "b1",
+      "section": "objectives",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "By March we halve the monthly close. We also record the baseline we will measure against.",
+      "actionTitle": "The programme halves the monthly close by March.",
+      "supportingArgument": "One measurable objective anchors the team.",
+      "proofRefs": [
+        "fictional/b1.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Objective: close in two days by March.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/k1-objective.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "section": "scope",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "In scope: the five close sheets. Out of scope: payroll.",
+      "actionTitle": "The five close sheets are in scope and payroll is not.",
+      "supportingArgument": "Naming what is out prevents drift.",
+      "proofRefs": [
+        "fictional/b2.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "In scope and out of scope lists.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/k2-scope.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "section": "governance",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "The sponsor decides. Leads meet weekly. Steering meets monthly.",
+      "actionTitle": "One sponsor decides and two meetings keep us honest.",
+      "supportingArgument": "Clear decision rights and a cadence.",
+      "proofRefs": [
+        "fictional/b3.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Decision rights and meeting cadence.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/k3-governance.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b4",
+      "section": "team",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "Mira leads. Dev owns the data. Ana owns the review.",
+      "actionTitle": "Each person on the team owns one named area.",
+      "supportingArgument": "Names and roles on screen.",
+      "proofRefs": [
+        "fictional/b4.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Team roster with roles.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/k4-team.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b5",
+      "section": "timeline",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "Four milestones across twenty weeks, each with a gate.",
+      "actionTitle": "Four milestones with gates span twenty weeks.",
+      "supportingArgument": "Dates make the plan checkable.",
+      "proofRefs": [
+        "fictional/b5.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Timeline with four milestones.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/k5-timeline.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b6",
+      "section": "risks",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "The top risk is late data. Dev owns it.",
+      "actionTitle": "Late source data is the top risk and Dev owns it.",
+      "supportingArgument": "Top risks with owners.",
+      "proofRefs": [
+        "fictional/b6.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Top three risks with owners.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/k6-risks.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b7",
+      "section": "first-30-days",
+      "storyRole": "takeaway",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "In the first thirty days we map the close and agree the baseline. Please confirm your dates.",
+      "actionTitle": "The first thirty days map the close and set the baseline.",
+      "supportingArgument": "The immediate plan ends in a confirmed baseline.",
+      "proofRefs": [
+        "fictional/b7.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Thirty-day plan with owners and dates.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/k7-first30.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    }
+  ]
+}

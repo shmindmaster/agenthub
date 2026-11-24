@@ -196,10 +196,33 @@ export function resolveFilmType(spec, cut, mode) {
 
 // Communication profiles select existing film types; they do not select a
 // creative mode or relax factual representation and capture requirements.
+//
+// The first three profiles prove product behaviour. The six engagement profiles
+// below them are forms with their own ordered sections, so a brief declares each
+// beat's `section` and the checks run against the profile's list. Fields:
+//   ceilingSeconds   recommended runtime. Advisory: the brief's maxDurationSeconds governs.
+//   sections         ordered; `optional` ones may be left out.
+//   cadences         status-update only: a cut may narrow the list or the ceiling.
+//   measuredNumbers  sections that always need a measured-benefit claim.
+//   measuredIfNumber sections that need one only when they state a number.
+//   sectionFields    fields a beat of that section must state.
+//   oneAsk           at most one beat fills the cta or next-step role.
+const engagement = (filmType, ceilingSeconds, sections, extra = {}) => ({ filmType, proofMoments: 0, ceilingSeconds, sections, ...extra });
+
 export const COMMUNICATION_PROFILES = Object.freeze({
   'consulting-demo': { filmType: 'feature-demo', proofMoments: 3 },
   'technical-walkthrough': { filmType: 'tutorial', proofMoments: 1 },
   'product-update': { filmType: 'internal-update', proofMoments: 1 },
+  pitch: engagement('founder-pitch', 180, ['recommendation', 'why-change', 'cost-of-inaction', 'new-way', 'why-us', 'options', 'ask'],
+    { optional: ['options'], measuredIfNumber: ['cost-of-inaction'], oneAsk: true }),
+  proposal: engagement('explainer', 300, ['recommendation', 'understanding', 'approach', 'team', 'timeline', 'options', 'investment', 'next-step'],
+    { optional: ['options'], sectionFields: { investment: ['assumptions', 'exclusions'] }, oneAsk: true }),
+  'status-update': engagement('internal-update', 120, ['status', 'done', 'next', 'risks', 'decisions', 'plan-vs-actual'],
+    { cadences: { weekly: { ceilingSeconds: 90 }, steering: { sections: ['plan-vs-actual', 'risks', 'decisions', 'next'] } } }),
+  kickoff: engagement('explainer', 240, ['objectives', 'scope', 'governance', 'team', 'timeline', 'risks', 'first-30-days']),
+  'final-readout': engagement('explainer', 480, ['recommendation', 'findings', 'roadmap', 'business-case', 'next-step'], { oneAsk: true }),
+  'value-review': engagement('explainer', 180, ['baseline', 'realized', 'evidence', 'next-step'],
+    { measuredNumbers: ['baseline', 'realized'], oneAsk: true }),
 });
 
 const text = (value) => typeof value === 'string' && Boolean(value.trim());
@@ -252,6 +275,82 @@ function inspectIntegration(id, brief, add) {
   }
 }
 
+const realDate = (value) => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
+
+/** The overall status chip, its risks and its decisions. A green chip over an open problem is the case to catch. */
+function inspectStatus(brief, add) {
+  if (!['red', 'amber', 'green'].includes(brief.rag)) add('status.rag', 'Declare the overall rag as red, amber or green.');
+  if (!realDate(brief.ragSince)) add('status.rag-since', 'Declare ragSince (YYYY-MM-DD): the date the status last changed.');
+  if (!realDate(brief.statusDate)) add('status.status-date', 'Declare statusDate (YYYY-MM-DD): the day this update reports on.');
+  const risks = Array.isArray(brief.risks) ? brief.risks : null;
+  const decisions = Array.isArray(brief.decisions) ? brief.decisions : null;
+  if (!risks) add('status.risks', 'Declare risks as a list; an empty list says there are none.');
+  if (!decisions) add('status.decisions', 'Declare decisions as a list; an empty list says none are needed.');
+  for (const [i, risk] of (risks || []).entries()) {
+    if (!['description', 'owner', 'impact', 'mitigation'].every((key) => text(risk?.[key]))) add('status.risk-fields', `Risk ${i + 1} needs a description, owner, impact and mitigation.`);
+  }
+  for (const [i, decision] of (decisions || []).entries()) {
+    if (!text(decision?.decision) || !text(decision?.owner) || !decision || !Object.hasOwn(decision, 'dueDate')) add('status.decision-fields', `Decision ${i + 1} needs the decision, an owner and a dueDate (null when none is agreed).`);
+    else if (decision.dueDate !== null && decision.dueDate !== undefined && (!realDate(decision.dueDate) || !refs(decision.sourceRefs))) add('status.decision-date', `Decision ${i + 1}: an agreed dueDate needs YYYY-MM-DD and sourceRefs; otherwise use null.`);
+  }
+  if (brief.rag !== 'green') return;
+  const unowned = (risks || []).some((risk) => !text(risk?.owner));
+  const overdue = realDate(brief.statusDate) && (decisions || []).some((d) => realDate(d?.dueDate) && d.dueDate < brief.statusDate);
+  if (unowned || overdue) add('status.green-with-open-issues', `Status is green, but ${unowned ? 'a risk has no owner' : 'a decision is overdue'}. Show amber or red, or fix the record.`);
+}
+
+const NUMBER = /[0-9]|(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|millions?|billions?|twice|double[sd]?|triple[sd]?|half|halve[sd]?|quarter|third|percent)/i;
+const statesNumber = (b) => NUMBER.test(['narration', 'voice', 'actionTitle', 'supportingArgument', 'onScreen', 'onScreenText', 'title', 'text'].map((key) => (typeof b[key] === 'string' ? b[key] : '')).join(' '));
+
+/** Sections, options and the one-ask rule for the engagement profiles. */
+function inspectEngagement(id, profile, brief, cut, add) {
+  let sections = profile.sections;
+  if (profile.cadences && brief.cadence !== undefined) {
+    const cadence = profile.cadences[brief.cadence];
+    if (cadence) sections = cadence.sections || sections;
+    else add('cadence', `Unknown cadence: ${brief.cadence}. Use ${Object.keys(profile.cadences).join(' or ')}.`);
+  }
+  const optional = new Set(profile.optional || []);
+  const beats = cut.beats;
+  if (beats.length && beats[0].section !== sections[0]) add('section.first', `Open on the ${sections[0]} section: the first beat declares section "${sections[0]}".`, beats[0]);
+  let at = -1;
+  for (const b of beats) {
+    if (b.section === undefined) continue;
+    const index = sections.indexOf(b.section);
+    if (index < 0) add('section.unknown', `Unknown section "${b.section}" for ${id}. Use one of: ${sections.join(', ')}.`, b);
+    else if (index < at) add('section.order', `Section "${b.section}" comes after "${sections[at]}". Order for ${id}: ${sections.join(' > ')}.`, b);
+    else at = index;
+  }
+  for (const section of sections) {
+    if (!optional.has(section) && !beats.some((b) => b.section === section)) add('section.missing', `Add the "${section}" section: a beat with section "${section}".`);
+  }
+  for (const b of beats.filter((beat) => beat.section === 'options')) {
+    const options = b.options;
+    if (!Array.isArray(options) || options.length < 2 || options.length > 3) add('options.count', 'Show two or three options.', b);
+    else {
+      if (options.filter((o) => o?.recommended === true).length !== 1) add('options.recommended', 'Mark exactly one option as recommended.', b);
+      if (!options.every((o) => text(o?.label))) add('options.label', 'Give every option a label.', b);
+    }
+  }
+  for (const [section, fields] of Object.entries(profile.sectionFields || {})) {
+    for (const b of beats.filter((beat) => beat.section === section)) {
+      for (const field of fields) if (!refs(b[field])) add('section-fields', `The ${section} scene must state ${field} as a list of short statements.`, b);
+    }
+  }
+  for (const section of [...(profile.measuredNumbers || []), ...(profile.measuredIfNumber || [])]) {
+    const always = profile.measuredNumbers?.includes(section);
+    for (const b of beats.filter((beat) => beat.section === section && (always || statesNumber(beat)))) {
+      if (!b.evidenceClaims?.some((c) => c.scope === 'measured-benefit')) add('measured-number', `The ${section} scene shows a number, so it needs a measured-benefit claim with its source and measurement.`, b);
+    }
+  }
+  const asks = beats.filter((b) => rolesOf(b).some((r) => ['cta', 'next-step'].includes(r)));
+  if (profile.oneAsk && asks.length > 1) add('one-ask', 'One ask per video: keep one cta or next-step beat. A second ask belongs in a second video.', asks[1]);
+}
+
 /** Planning checks shared by the pre-capture gate and marketing lint. */
 export function inspectCommunication(spec, cut, estimateSeconds) {
   const id = cut.communicationProfile || spec.communicationProfile;
@@ -269,5 +368,7 @@ export function inspectCommunication(spec, cut, estimateSeconds) {
   if (new Set(moments.map((b) => (b.proofRefs || []).join('|'))).size < profile.proofMoments) add('proof-moments', `This profile needs ${profile.proofMoments} distinct product proof moment(s).`);
   if (!refs(brief.limitations)) add('limitations', 'Retain explicit limitations in every cut, including short variants.');
   inspectIntegration(id, brief, add);
+  if (profile.sections) inspectEngagement(id, profile, brief, cut, add);
+  if (id === 'status-update') inspectStatus(brief, add);
   return findings;
 }

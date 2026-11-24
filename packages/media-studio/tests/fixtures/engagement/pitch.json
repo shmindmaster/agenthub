@@ -1,0 +1,218 @@
+{
+  "product": "Larkspur Close",
+  "communicationProfile": "pitch",
+  "targetSeconds": 112,
+  "maxDurationSeconds": 180,
+  "primaryAudience": "finance director at a regional cooperative",
+  "viewerDecision": "whether to run a four-week pilot of one shared ledger",
+  "primaryTakeaway": "Move the monthly close onto one shared ledger.",
+  "audienceContext": {
+    "problemStatus": "fictional-scenario",
+    "sourceRefs": []
+  },
+  "nextStep": {
+    "action": "Agree a four-week pilot with two teams",
+    "owner": "finance director",
+    "agreedDate": null
+  },
+  "captionPolicy": {
+    "mode": "sidecar",
+    "deliverySurface": "web player"
+  },
+  "audioDirection": {
+    "narratorIdentity": "approved narrator",
+    "pronunciationRefs": [],
+    "delivery": "calm and direct",
+    "emphasis": [],
+    "pauses": "hold each number for a beat",
+    "musicTreatment": "none"
+  },
+  "limitations": [
+    "Fictional example for planning. Every name and figure is invented."
+  ],
+  "narrative": {
+    "problem": "the monthly close runs on five spreadsheets that disagree",
+    "solution": "Larkspur Close keeps one ledger every team posts to",
+    "ask": "agree a four-week pilot with two teams"
+  },
+  "beats": [
+    {
+      "id": "b1",
+      "section": "recommendation",
+      "storyRole": "hook",
+      "kind": "card",
+      "minSeconds": 12,
+      "narration": "Move the monthly close onto one shared ledger."
+    },
+    {
+      "id": "b2",
+      "section": "why-change",
+      "storyRole": "problem",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "Five spreadsheets feed the close, and they rarely agree. Reviewers spend the last days reconciling, not reviewing.",
+      "actionTitle": "Disagreeing spreadsheets push the close into its last days.",
+      "supportingArgument": "The reviewers spend their time on matching numbers.",
+      "proofRefs": [
+        "fictional/b2.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "The close draws on five spreadsheets that must be matched by hand.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/b2-scenario.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "section": "cost-of-inaction",
+      "storyRole": "problem",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "A four-day close ties up reviewers for twice as long as a two-day close.",
+      "actionTitle": "Every late close day costs reviewer time we can measure.",
+      "supportingArgument": "The cost grows each month the close stays manual.",
+      "proofRefs": [
+        "fictional/b3.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Reviewer time per close day.",
+          "scope": "measured-benefit",
+          "sourceRefs": [
+            "fictional/b3-time-study.md"
+          ],
+          "implementationState": "implemented",
+          "dataType": "customer",
+          "aiExecutionMode": "none",
+          "businessValidation": "measured",
+          "measurement": {
+            "baseline": "4 days to close",
+            "comparison": "2 days to close after one team moved to a shared ledger",
+            "population": "12 reviewers across 3 closes",
+            "method": "time sheets compared before and after",
+            "timeWindow": "Q2 to Q3"
+          }
+        }
+      ]
+    },
+    {
+      "id": "b4",
+      "section": "new-way",
+      "storyRole": "solution",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "Larkspur Close keeps one ledger. Teams post once, and reviewers see one version.",
+      "onScreenText": "One ledger. One version.",
+      "actionTitle": "Larkspur Close gives every team one ledger to post to.",
+      "supportingArgument": "One ledger removes the matching step.",
+      "proofRefs": [
+        "fictional/b4.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Teams post to one shared ledger and reviewers read the same entries.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/b4-concept.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b5",
+      "section": "why-us",
+      "storyRole": "proof",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "A similar cooperative cut its close from four days to two in one quarter.",
+      "actionTitle": "A comparable cooperative halved its close time in a quarter.",
+      "supportingArgument": "A like-for-like case shows the result is reachable.",
+      "proofRefs": [
+        "fictional/b5.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Close time fell from four days to two.",
+          "scope": "measured-benefit",
+          "sourceRefs": [
+            "fictional/b5-case-study.md"
+          ],
+          "implementationState": "implemented",
+          "dataType": "customer",
+          "aiExecutionMode": "none",
+          "businessValidation": "measured",
+          "measurement": {
+            "baseline": "4 days to close",
+            "comparison": "2 days to close",
+            "population": "1 cooperative, 3 closes",
+            "method": "close calendar compared before and after",
+            "timeWindow": "one quarter"
+          }
+        }
+      ]
+    },
+    {
+      "id": "b6",
+      "section": "options",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "Start with one team, two teams, or the whole group. We suggest two teams.",
+      "actionTitle": "Starting with two teams balances speed and risk.",
+      "supportingArgument": "Three starting points let you pick your own pace.",
+      "proofRefs": [
+        "fictional/b6.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Three pilot sizes, one recommended.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/b6-options.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ],
+      "options": [
+        {
+          "label": "One team",
+          "recommended": false
+        },
+        {
+          "label": "Two teams",
+          "recommended": true
+        },
+        {
+          "label": "Whole group",
+          "recommended": false
+        }
+      ]
+    },
+    {
+      "id": "b7",
+      "section": "ask",
+      "storyRole": "cta",
+      "kind": "card",
+      "minSeconds": 10,
+      "narration": "Agree a four-week pilot with two teams by the first of next month."
+    }
+  ]
+}

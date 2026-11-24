@@ -1,0 +1,204 @@
+{
+  "product": "Ledger Close Programme",
+  "communicationProfile": "status-update",
+  "targetSeconds": 90,
+  "maxDurationSeconds": 120,
+  "primaryAudience": "programme sponsor and project leads",
+  "viewerDecision": "whether to approve the vendor swap this week",
+  "primaryTakeaway": "The programme is amber because the data load slipped a week.",
+  "audienceContext": {
+    "problemStatus": "fictional-scenario",
+    "sourceRefs": []
+  },
+  "nextStep": {
+    "action": "Approve the vendor swap",
+    "owner": "programme sponsor",
+    "agreedDate": null
+  },
+  "captionPolicy": {
+    "mode": "sidecar",
+    "deliverySurface": "web player"
+  },
+  "audioDirection": {
+    "narratorIdentity": "approved narrator",
+    "pronunciationRefs": [],
+    "delivery": "calm and direct",
+    "emphasis": [],
+    "pauses": "hold each number for a beat",
+    "musicTreatment": "none"
+  },
+  "limitations": [
+    "Fictional example for planning. Every name and figure is invented."
+  ],
+  "narrative": {
+    "change": "the data load slipped a week and one decision is open"
+  },
+  "beats": [
+    {
+      "id": "b1",
+      "section": "status",
+      "storyRole": "context",
+      "kind": "card",
+      "minSeconds": 10,
+      "narration": "The programme is amber because the data load slipped a week. One decision is needed.",
+      "onScreenText": "AMBER since 2 Nov",
+      "actionTitle": "The programme is amber because the data load slipped a week.",
+      "supportingArgument": "Status and ask come first.",
+      "proofRefs": [
+        "fictional/b1.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Overall status: amber since 2026-11-02.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/s1-status.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "section": "done",
+      "storyRole": "demonstration",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "We finished the process map and the first two interviews.",
+      "actionTitle": "The process map and two interviews are complete.",
+      "supportingArgument": "Completed work shown against the plan.",
+      "proofRefs": [
+        "fictional/b2.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Two milestones complete on plan.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/s2-done.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "section": "next",
+      "storyRole": "next-step",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "Next week we load the data and start the build."
+    },
+    {
+      "id": "b4",
+      "section": "risks",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "One risk is open. A late vendor file could slip the build again.",
+      "actionTitle": "A late vendor file is the one open risk, with an owner.",
+      "supportingArgument": "Each risk has an owner and a mitigation.",
+      "proofRefs": [
+        "fictional/b4.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "One risk with an owner, an impact and a mitigation.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/s4-risks.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b5",
+      "section": "decisions",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "We need a decision on the vendor swap by the twenty-seventh.",
+      "actionTitle": "The vendor swap needs a decision by the twenty-seventh.",
+      "supportingArgument": "A dated decision keeps the plan on track.",
+      "proofRefs": [
+        "fictional/b5.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "One decision with an owner and a due date.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/s5-decisions.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b6",
+      "section": "plan-vs-actual",
+      "storyRole": "proof",
+      "kind": "card",
+      "minSeconds": 10,
+      "narration": "We are five days behind plan and on budget.",
+      "actionTitle": "The plan is five days behind and the budget is on target.",
+      "supportingArgument": "One chart shows the gap.",
+      "proofRefs": [
+        "fictional/b6.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Plan against actual: five days behind, on budget.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/s6-variance.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    }
+  ],
+  "rag": "amber",
+  "ragSince": "2026-11-02",
+  "statusDate": "2026-11-23",
+  "cadence": "weekly",
+  "risks": [
+    {
+      "description": "A late vendor file could slip the build again.",
+      "owner": "Mira Voss",
+      "impact": "One more week of delay",
+      "mitigation": "Request a sample file by Friday"
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Swap the data vendor",
+      "owner": "programme sponsor",
+      "dueDate": "2026-11-27",
+      "sourceRefs": [
+        "fictional/steering-minutes.md"
+      ]
+    }
+  ]
+}

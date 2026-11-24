@@ -1,6 +1,8 @@
 # Consulting communication
 
-Load for `consulting-demo`, `technical-walkthrough` or `product-update`.
+Load for `consulting-demo`, `technical-walkthrough` or `product-update`. For `pitch`,
+`proposal`, `status-update`, `kickoff`, `final-readout` or `value-review`, also load
+[engagement formats](engagement-formats.md).
 These profiles reuse the film types and existing gates. They do not authorize
 spend, product changes, capture, or delivery. Private recipients, discovery
 sources and media stay in the external job workspace; public examples are fictional.
@@ -21,11 +23,26 @@ This extends the existing exact-brief approval, with no second approval process.
 | consulting-demo | feature-demo | Answer first; compact situation/complication/question/answer; three complementary proof moments in one workflow; demonstrated scope and limitations; one next step. Use Tell–Show–Tell and feature/advantage/benefit without claiming unmeasured customer benefit. Roughly two minutes is a recommendation; the approved ceiling governs. |
 | technical-walkthrough | tutorial | Follow one real record/business event: source → intake → transformation → rules/AI → human decision → output → acknowledgment or exception. Start with system context; add container/component views only for the viewer's question. Explain the relevant decision and tradeoff. Keep this a separate technical cut. |
 | product-update | internal-update | What changed → interaction → result → where to use it. Usually 20–45 seconds or an approved shorter silent capture. No three-moment requirement or commercial ask. |
+| pitch | founder-pitch | Recommendation first, then why change, cost of inaction, the new way, why us, one ask. |
+| proposal | explainer | Recommendation, their problem played back, approach, team, timeline, investment with assumptions and exclusions, one next step. |
+| status-update | internal-update | Status chip and ask first; done, next, risks, decisions, plan against actual. A steering cut keeps four sections. |
+| kickoff | explainer | Objectives, scope, governance, team, timeline, risks, the first 30 days. |
+| final-readout | explainer | Recommendation first, findings, roadmap, business case, one next step. |
+| value-review | explainer | Baseline, realized result and evidence, measured against the business case; one next step. |
+
+The six engagement profiles declare each beat's `section` and need no product UI proof
+(`proofMoments` is 0). Sections, ceilings, fixtures and checks are in [engagement formats](engagement-formats.md).
 
 For a technical cut declare `scenarioRecord`, `integrationStatus` (`file-import`,
 `demonstrated-adapter`, `proposed`) and `integrationFlow` with the seven machine
 values in the screenplay schema. A CSV upload is never evidence of live sync.
 Follow one case across explicit role handoffs; do not collapse distinct authorities.
+
+Optional `walkthroughType` guidance for a technical cut. It is a planning note in the brief, not a schema field, and nothing checks it.
+- `solution`: current state, future state, transition. Walk one real scenario through both.
+- `architecture`: one C4 level per scene (context, then containers, then components). Zoom in only after the level above has landed. Add a decision card per key choice: options considered, the one chosen, the reason.
+- `requirements-playback`: read each requirement back and ask for sign-off. Keep it short.
+- `handover`: I do, we do, you do, one task per video. Link the runbook beside it. Name who owns what at the end.
 
 Write scene conclusions before narration. Every substantive scene has an
 `actionTitle` (a full sentence), `supportingArgument`, `proofRefs` and `evidenceClaims`.
@@ -92,8 +109,8 @@ open captions, or a sidecar supported by the delivery surface. Gold checks the
 actual player/file combination, spelling, timing, readability and key UI occlusion.
 Do not override existing film-specific delivery instructions implicitly.
 
-Proposal, executive status, handover and value-review profiles remain future work.
-Do not apply Shipley, RAID/RACI, ADKAR or sales CTAs to every film.
+Do not apply Shipley, RAID/RACI, ADKAR or sales CTAs to every film. Each belongs only to
+the profile that names it (see [engagement formats](engagement-formats.md)).
 
 For selectable/open caption delivery, record `captions` in the existing
 `qa/story-experience-review.json`: mode, deliverySurface, verdict PASS,

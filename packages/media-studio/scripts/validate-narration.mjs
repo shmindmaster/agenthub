@@ -26,6 +26,11 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
 if (!libPath) { console.error('sync-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
 const L = await import(pathToFileURL(libPath).href);
+// The communication profiles are listed once, in the kit library: beside the package scripts, in the runtime kit's screencast folder, or in _shared/tools (same lookup as check-story.mjs).
+const profilesPath = [['..', 'kit', 'marketing', 'lib'], ['..', 'marketing', 'lib'], ['..', '..', 'briefing-kit', 'marketing', 'lib']]
+  .map((parts) => join(scriptDir, ...parts, 'story-profiles.mjs')).find(existsSync);
+if (!profilesPath) { console.error('story-profiles.mjs not found: run Sync-MediaStudioKit.ps1 so the marketing kit library sits beside this script'); process.exit(2); }
+const { COMMUNICATION_PROFILES } = await import(pathToFileURL(profilesPath).href);
 
 const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
@@ -123,7 +128,7 @@ const screenplay = existsSync(screenplayPath) ? loadJson(screenplayPath, 'screen
 const timeline = existsSync(timelinePath) ? loadJson(timelinePath, 'timeline') : null;
 const job = existsSync(jobPath) ? loadJson(jobPath, 'job') : null;
 const communicationProfile = screenplay?.communicationProfile || job?.communicationProfile;
-const knownCommunicationProfile = ['consulting-demo', 'technical-walkthrough', 'product-update'].includes(communicationProfile);
+const knownCommunicationProfile = Object.hasOwn(COMMUNICATION_PROFILES, communicationProfile);
 if (communicationProfile && !knownCommunicationProfile) errors.push(`unknown communicationProfile: ${communicationProfile}`);
 const creativeMode = job?.creativeMode || (job?.kind && job.kind !== 'product-screencast' && !isMarketingCut(job) ? job.kind : 'verified-demo');
 const flexibleCreativeForm = !communicationProfile && creativeMode !== 'verified-demo';

@@ -1,0 +1,146 @@
+{
+  "product": "Ledger Close Programme",
+  "communicationProfile": "value-review",
+  "targetSeconds": 110,
+  "maxDurationSeconds": 180,
+  "primaryAudience": "executive sponsor",
+  "viewerDecision": "whether to extend the programme to a second division",
+  "primaryTakeaway": "The close halved, as the business case said it would.",
+  "audienceContext": {
+    "problemStatus": "fictional-scenario",
+    "sourceRefs": []
+  },
+  "nextStep": {
+    "action": "Agree to extend to the second division",
+    "owner": "executive sponsor",
+    "agreedDate": null
+  },
+  "captionPolicy": {
+    "mode": "sidecar",
+    "deliverySurface": "web player"
+  },
+  "audioDirection": {
+    "narratorIdentity": "approved narrator",
+    "pronunciationRefs": [],
+    "delivery": "calm and direct",
+    "emphasis": [],
+    "pauses": "hold each number for a beat",
+    "musicTreatment": "none"
+  },
+  "limitations": [
+    "Fictional example for planning. Every name and figure is invented."
+  ],
+  "narrative": {
+    "question": "did the programme deliver what the business case promised",
+    "viewerValue": "the sponsor sees measured results against the starting baseline"
+  },
+  "beats": [
+    {
+      "id": "b1",
+      "section": "baseline",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "Before the programme the close took four days. That was the baseline we agreed.",
+      "actionTitle": "The agreed baseline was a four-day close.",
+      "supportingArgument": "The starting number comes from the kickoff record.",
+      "proofRefs": [
+        "fictional/b1.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Close time before the programme.",
+          "scope": "measured-benefit",
+          "sourceRefs": [
+            "fictional/v1-baseline.md"
+          ],
+          "implementationState": "implemented",
+          "dataType": "customer",
+          "aiExecutionMode": "none",
+          "businessValidation": "measured",
+          "measurement": {
+            "baseline": "4 days to close",
+            "comparison": "the same close measured again after launch (next scene)",
+            "population": "3 closes before the programme",
+            "method": "close calendar",
+            "timeWindow": "Q1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "section": "realized",
+      "storyRole": "payoff",
+      "kind": "card",
+      "minSeconds": 25,
+      "narration": "Ninety days on, the close takes two days. That matches the business case.",
+      "actionTitle": "Ninety days later the close takes two days.",
+      "supportingArgument": "The realized number sits beside the baseline.",
+      "proofRefs": [
+        "fictional/b2.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Close time ninety days after launch.",
+          "scope": "measured-benefit",
+          "sourceRefs": [
+            "fictional/v2-realized.md"
+          ],
+          "implementationState": "implemented",
+          "dataType": "customer",
+          "aiExecutionMode": "none",
+          "businessValidation": "measured",
+          "measurement": {
+            "baseline": "4 days to close",
+            "comparison": "2 days to close",
+            "population": "3 closes after launch",
+            "method": "close calendar compared with the baseline",
+            "timeWindow": "ninety days after launch"
+          }
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "section": "evidence",
+      "storyRole": "proof",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "Reviewer time on matching fell by half. The time sheets are on screen.",
+      "actionTitle": "Reviewer time on matching fell by half.",
+      "supportingArgument": "A second measure confirms the first.",
+      "proofRefs": [
+        "fictional/b3.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Reviewer matching time fell by half.",
+          "scope": "measured-benefit",
+          "sourceRefs": [
+            "fictional/v3-evidence.md"
+          ],
+          "implementationState": "implemented",
+          "dataType": "customer",
+          "aiExecutionMode": "none",
+          "businessValidation": "measured",
+          "measurement": {
+            "baseline": "16 hours per close",
+            "comparison": "8 hours per close",
+            "population": "6 reviewers",
+            "method": "time sheets",
+            "timeWindow": "ninety days after launch"
+          }
+        }
+      ]
+    },
+    {
+      "id": "b4",
+      "section": "next-step",
+      "storyRole": "next-step",
+      "kind": "card",
+      "minSeconds": 10,
+      "narration": "Agree to extend the programme to the second division by the end of the quarter."
+    }
+  ]
+}

@@ -18,7 +18,7 @@ Make routine creative choices and start useful work in the same turn. Use a temp
 
 ## Choose the viewing route
 
-For interview preparation, infer the call stage and the interviewer's stated agenda from the supplied invitation and correspondence. Use the role description and candidate evidence to choose the stories. For a product film, discover the actual workflows, roles and consequences before cutting for time. When a job needs both, plan a reusable standalone product sequence and give it a chapter inside the tailored briefing. Keep the personal framing in the briefing. Carry these defaults into the existing brief without repeating settled intake questions.
+For interview preparation, infer the call stage and the interviewer's stated agenda from the supplied invitation and correspondence. Use the role description and candidate evidence to choose the stories. For a product film, discover the actual workflows, roles and consequences before cutting for time. When a job needs both, plan a reusable standalone product sequence and give it a chapter inside the tailored briefing. Keep the personal framing in the briefing. Carry these defaults into the existing brief without repeating settled intake questions. A pitch, proposal, status or steering update, kickoff, final readout or value review video takes an engagement profile: load [engagement formats](references/engagement-formats.md).
 
 ## Creative intake (new jobs only)
 Act as a **creative director and producer**, not a configuration wizard. Follow [guided creative intake](references/creative-intake.md) and the governed provider catalog; infer what the brief, source material, product profile or series already establishes.
@@ -43,4 +43,4 @@ Record actual internal delegation in `production.json` as `"reviewAuthority": "d
 - Cheapest authorized lane that passes QA; show the budget before any paid step.
 - Never present concept or synthetic UI as verified current product behaviour.
 - Product repositories are read-only; all work lives in an external job workspace.
-Read when running a whole film: [conductor](references/conductor.md) and [phases](references/phases.md). Detail: [studio](references/studio-detail.md), [video](references/video-detail.md), [story](references/story.md), [scenes](references/scenes.md), [product picture](references/product-picture.md), [operations](references/operations.md), [consulting communication](references/consulting-communication.md).
+Read when running a whole film: [conductor](references/conductor.md) and [phases](references/phases.md). Detail: [studio](references/studio-detail.md), [video](references/video-detail.md), [story](references/story.md), [scenes](references/scenes.md), [product picture](references/product-picture.md), [operations](references/operations.md), [consulting communication](references/consulting-communication.md), [engagement formats](references/engagement-formats.md).
