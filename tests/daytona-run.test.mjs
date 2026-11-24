@@ -1,7 +1,7 @@
 // Offline: argument rules and image naming of scripts/daytona-run.mjs. No provider is called.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { imageName, parseArgs } from '../scripts/daytona-run.mjs';
+import { imageName, parseArgs, retry } from '../scripts/daytona-run.mjs';
 
 test('a run names its owner and exactly one command', () => {
   assert.throws(() => parseArgs(['--', 'ls']), /--owner/);
@@ -20,4 +20,17 @@ test('size and lifetime are bounded, and an unknown option refuses', () => {
 test('an edited Dockerfile gets a new image name; line endings do not change it', () => {
   assert.equal(imageName('FROM a\n'), imageName('FROM a\r\n'));
   assert.notEqual(imageName('FROM a\n'), imageName('FROM b\n'));
+});
+
+test('a dropped connection is retried a bounded number of times; any other error is not', async () => {
+  let calls = 0;
+  const drop = (until) => async () => { if (++calls < until) throw new TypeError('fetch failed'); return 'ok'; };
+  assert.equal(await retry(drop(3), { pause: 0 }), 'ok');
+  assert.equal(calls, 3);
+  calls = 0;
+  await assert.rejects(retry(drop(99), { tries: 4, pause: 0 }), /fetch failed/);
+  assert.equal(calls, 4);
+  calls = 0;
+  await assert.rejects(retry(async () => { calls++; throw new Error('quota exceeded'); }, { pause: 0 }), /quota/);
+  assert.equal(calls, 1);
 });

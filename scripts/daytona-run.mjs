@@ -74,6 +74,17 @@ async function ensureImage(v2, ImageBuilder, say) {
 
 const quote = (s) => `'${s.split("'").join("'\"'\"'")}'`;
 
+/** Repeat a step that is safe to repeat when the connection drops. A fresh box sometimes answers "fetch failed" for a few seconds. */
+export async function retry(step, { tries = 5, pause = 2000, say = () => {} } = {}) {
+  for (let n = 1; ; n++) {
+    try { return await step(); } catch (e) {
+      if (n >= tries || !/fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket|terminated/i.test(`${e?.message} ${e?.cause?.code} ${e?.cause?.message}`)) throw e;
+      say(`${e.message} (${e.cause?.code ?? e.cause?.message ?? 'no cause given'}); trying again`);
+      await new Promise((done) => setTimeout(done, pause));
+    }
+  }
+}
+
 export async function main(argv) {
   const o = parseArgs(argv);
   if (!process.env.DAYTONA_API_KEY) throw new Error('DAYTONA_API_KEY is not set');
@@ -97,14 +108,15 @@ export async function main(argv) {
     box = await daytona.v2.create(image, { resources: { cpu: o.cpu, memory: o.memory, disk: o.disk }, lifecyclePolicy: { timeoutSeconds: Math.round(o.minutes * 60), onTimeout: 'delete' }, labels: { owner: o.owner, run }, waitSeconds: 300 });
     if (box.state !== 'started') await box.wait();
     say(`box ${box.id}, run ${run}, ${o.cpu} cores, ${o.memory} GiB, hard limit ${o.minutes} min, revision ${revision.slice(0, 12)}`);
-    await box.process.run('mkdir -p /work');
-    await box.fs.uploadFile(join(tmp, 'src.bundle'), '/work/src.bundle');
-    for (const [from, to] of o.put) await box.fs.uploadFile(resolve(from), to);
-    const setup = await box.process.run(`git config --global user.email ci@example.invalid && git config --global user.name ci && git config --global init.defaultBranch main && git config --global init.templateDir /usr/share/git-core/templates && git clone -q /work/src.bundle /work/repo 2>/dev/null && git -C /work/repo checkout -q -B run ${revision} && git -C /work/repo rev-parse HEAD`);
+    const again = (step) => retry(step, { say });
+    await again(() => box.process.run('mkdir -p /work'));
+    await again(() => box.fs.uploadFile(join(tmp, 'src.bundle'), '/work/src.bundle'));
+    for (const [from, to] of o.put) await again(() => box.fs.uploadFile(resolve(from), to));
+    const setup = await again(() => box.process.run(`rm -rf /work/repo; git config --global user.email ci@example.invalid && git config --global user.name ci && git config --global init.defaultBranch main && git config --global init.templateDir /usr/share/git-core/templates && git clone -q /work/src.bundle /work/repo 2>/dev/null && git -C /work/repo checkout -q -B run ${revision} && git -C /work/repo rev-parse HEAD`));
     if (setup.exitCode !== 0 || setup.stdout.trim().split('\n').pop() !== revision) throw new Error(`checkout failed: ${setup.stderr || setup.stdout}`);
     // The box sets TERM=linux, which makes PowerShell drop table output when there is no terminal.
     writeFileSync(join(tmp, 'cmd.sh'), `export TERM=dumb\ncd /work/repo\n${command}\n`);
-    await box.fs.uploadFile(join(tmp, 'cmd.sh'), '/work/cmd.sh');
+    await again(() => box.fs.uploadFile(join(tmp, 'cmd.sh'), '/work/cmd.sh'));
     const handle = await box.process.start('bash /work/cmd.sh', { tag: 'run' });
     for await (const event of handle.streamLogs()) {
       if (event.type === 'log') (event.frame.channel === 'stderr' ? process.stderr : process.stdout).write(event.frame.data);
@@ -112,10 +124,10 @@ export async function main(argv) {
     }
     if (code === null) { code = 1; say('the log stream ended without an exit code; treating the run as failed'); }
     for (const [from, to] of o.get) {
-      const want = (await box.process.run(`sha256sum ${quote(from)}`)).stdout.split(' ')[0];
+      const want = (await again(() => box.process.run(`sha256sum ${quote(from)}`))).stdout.split(' ')[0];
       const local = resolve(to);
       mkdirSync(dirname(local), { recursive: true });
-      await box.fs.downloadFile(from, local);
+      await again(() => box.fs.downloadFile(from, local));
       const got = createHash('sha256').update(readFileSync(local)).digest('hex');
       if (!want || got !== want) { code ||= 1; say(`${from}: the download does not match the box's hash`); } else say(`${local} ${got.slice(0, 12)}`);
     }
