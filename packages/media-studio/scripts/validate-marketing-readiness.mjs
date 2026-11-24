@@ -14,6 +14,7 @@
 // campaign-outreach | marketing-cutdown | social-clip | hero, kind teaser, or marketing: true. Otherwise the report
 // says applies: false and exits 0; explainers and technical stories keep the story rubric and inherit the no-fluff and
 // cursor rules through validate-narration.mjs and validate-pointer-path.mjs.
+import { isMarketingCut } from './marketing-cut.mjs';
 import { validateSpeechOnly } from './speech-only-readiness.mjs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { isMarketingCut } from './marketing-cut.mjs';

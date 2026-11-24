@@ -1,5 +1,5 @@
 {
-  "version": "4.0.4",
+  "version": "4.0.5",
   "composition": "Briefing",
   "compositions": { "deck": "Briefing", "film": "Explainer" },
   "explainerGrammar": "explainer/grammar.mjs",

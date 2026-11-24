@@ -69,6 +69,17 @@ class RelevanceTests(unittest.TestCase):
             cues.write_text(json.dumps({"cues": [{"id": "s4", "text": LINE}]}), encoding="utf-8")
             self.assertEqual(gate.main([str(props), str(cues)]), 0)
 
+    def test_advisory_relaxes_visual_style_but_requires_matching_scene_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            props = Path(tmp) / "props.json"
+            cues = Path(tmp) / "cues.json"
+            props.write_text(json.dumps({"scenes": [CARD_ONLY]}), encoding="utf-8")
+            args = [str(props), str(cues), "--advisory"]
+            cues.write_text(json.dumps({"cues": [{"id": CARD_ONLY["id"], "text": LINE}]}), encoding="utf-8")
+            self.assertEqual(gate.main(args), 0)
+            cues.write_text(json.dumps({"cues": [{"id": "other", "text": LINE}]}), encoding="utf-8")
+            self.assertEqual(gate.main(args), 1)
+
     def test_a_photo_is_judged_by_its_prompt_against_the_line(self):
         r = gate.judge_scene(PHOTO, LINE)
         self.assertTrue(r["ok"], r)

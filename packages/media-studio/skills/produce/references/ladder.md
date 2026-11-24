@@ -49,4 +49,4 @@ The rows above say what to show. Who writes each kit spec is a separate choice.
 
 ## Mix
 
-Aim for a run that alternates: a picture, a number, a mechanism, a state change. The variety check flags a run of text cards. Keep the run when it serves the brief, for example a sequence of exercises.
+Alternate picture types when the treatment benefits from variety: a picture, a number, a mechanism, a state change. The variety check reports a run of text cards as an editorial signal. Keep the run when it serves the brief, for example a slide-led sequence of exercises.

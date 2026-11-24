@@ -244,11 +244,15 @@ try {
 
     # --- A Copilot plugin installed but disabled is reported blocked, never
     # current; wrong-marketplace handling is preserved. ---
-    foreach ($name in 'Get-RowNativeHost','New-Observation','Get-PluginObservation') {
+    foreach ($name in 'Get-RowNativeHost','New-Observation','Get-PluginObservation','Get-ListedPlugin') {
         $function = $ast.FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name }, $true) | Select-Object -First 1
         Invoke-Expression $function.Extent.Text
     }
-    function Get-ListedPlugin([string]$Command, [string]$Name, [switch]$Fresh) { return $script:listedEntry }
+    function Get-PluginClientList([string]$Command, [switch]$Fresh) {
+        foreach ($entry in @($script:listedEntry)) {
+            if ($entry) { [pscustomobject]@{ name='ah-x'; version=$entry.version; marketplace=$entry.marketplace; enabled=$entry.enabled } }
+        }
+    }
     $copilotRow = [pscustomobject]@{ host = 'vscode-insiders'; nativeOwnerHost = 'copilot'; plugin = 'ah-x'; capability = 'x'
                                     route = 'managed-loose-skills'; expected = '1.0.0'; source = 'x'; marketplace = 'agenthub' }
     $script:listedEntry = [pscustomobject]@{ version = '1.0.0'; marketplace = 'agenthub'; enabled = $false }

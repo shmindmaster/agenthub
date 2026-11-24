@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -119,15 +119,17 @@ export async function syncAutoClawPlugins(runtime, markets, base, { apply, plugi
   };
   const readRows = ({ installed, available }) => selected.flatMap((market, index) => market.plugins.map((plugin) => {
     const id = `${plugin.name}@${market.name}`;
-    const observed = installed.find((entry) => entry.id === id);
+    const matches = installed.filter((entry) => entry.id === id);
+    const observed = matches.length === 1 ? matches[0] : null;
     const expected = plugin.version ?? available.find((entry) => entry.id === id)?.version ?? null;
     let status = 'current';
-    if (!expected || marketplaces[index].status === 'blocked') status = 'blocked';
+    if (!expected || marketplaces[index].status === 'blocked' || matches.length > 1) status = 'blocked';
     else if (!observed) status = 'missing';
     else if (observed.version !== expected || (plugin.disabled && observed.enabled !== false)) status = 'drift';
     return {
       host, plugin: id, expected, observed: observed?.version ?? null,
       enabled: observed?.enabled ?? null, expectedEnabled: plugin.disabled ? false : null, status,
+      ...(matches.length > 1 ? { detail: 'Multiple native registrations share this plugin ID.' } : {}),
     };
   }));
   let mappings = readRows(await inventory());
@@ -188,7 +190,7 @@ async function main() {
   if (values.apply && result.mappings.some((row) => row.status !== 'current')) process.exitCode = 1;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   main().catch((error) => {
     console.error(error instanceof SyntaxError ? 'Invalid AutoClaw marketplace data.' : error.message);
     process.exitCode = 1;

@@ -44,6 +44,19 @@ class VarietyTests(unittest.TestCase):
             p.write_text(json.dumps({"scenes": scenes("hero", "cta")}), encoding="utf-8")
             self.assertEqual(gate.main([str(p), '--enforce-style']), 1)
 
+    def test_advisory_flag_records_observations_and_excludes_enforcement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "p.json"
+            out = Path(tmp) / "r.json"
+            p.write_text(json.dumps({"scenes": scenes("hero", "cta", "quote")}), encoding="utf-8")
+            self.assertEqual(gate.main([str(p), "--advisory", "--out", str(out)]), 0)
+            report = json.loads(out.read_text(encoding="utf-8"))
+            self.assertTrue(report["advisory"])
+            self.assertTrue(report["observations"])
+            self.assertEqual(report["reasons"], [])
+            with self.assertRaises(SystemExit):
+                gate.main([str(p), "--advisory", "--enforce-style"])
+
     def test_same_source_in_different_picture_kinds_is_flagged(self):
         pictures = scenes("broll", "flow", "screen-in-context")
         pictures[0]["visual"]["src"] = "./takes/board.mp4"

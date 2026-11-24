@@ -12,7 +12,7 @@ description: Use when a ready storyboard needs footage, narration, stills, diagr
 
 Build code views, designed diagrams, simulations, synthetic UI, generated scenes, text or captures as the brief requires. A slow or static shot can give the viewer time to read or think. Keep provider eligibility, rights, privacy, credentials and spend checks in force.
 
-## Record what changes in verified product footage
+## Record product interactions in verified footage
 
 Capture the state before the action, the actual interaction and its visible result. Keep role, period, record and revision consistent with the spoken claim. In a stable frame, use a readable highlight or an enlarged detail of the actual field as the speaker names it. Show meaningful content changes; a camera drift across an idle screen adds no evidence. Keep sourced portraits steady and advance the relevant role or question on cue. Label illustrative footage and synthetic tenant data where a viewer could mistake them for case evidence.
 
@@ -22,6 +22,6 @@ Use official spoken clips and owner recordings as pronunciation guides. Compare 
 - Real product footage: drive clean takes through `ah-browser` and use `scripts/browser-take.mjs` (start, move, click, point, type, wheel, stop) for a cursor recording and the timed action log the pointer-path gate reads. If a selected signed-in profile requires BrowserSkill, its exported MP4 is supplemental footage. See [recording](references/recording.md) for that handoff. Use synthetic data on the real running product and the authorized remote capture lane. Record the lane, exact product revision and user role shown. Detail: [capture](references/capture.md).
 - Voice and narration: run the [current rates and funding preflight](references/narration-preflight.md) before new synthesis. For new long-form jobs prefer eligible AssemblyAI stock voices. Keep accepted takes and explicitly pinned casts. Use the chosen governed adapter. [voice recipes](references/voice-recipes.md), [Azure](references/azure.md), [generate](references/generate.md).
 - Pictures: charts, diagrams, Lottie, stills and captured screens. [visuals](references/visuals.md), [ladder](references/ladder.md).
-- When it fits the brief, replace weak scenes with a [narration-led explainer shot](references/explainer-shots.md). Use the shot clock, existing kit and approved source media.
+- For animation that serves the brief, use a [narration-led explainer shot](references/explainer-shots.md), the shot clock, the existing kit and the accepted assets.
 - Providers and cost: [provider routing](references/provider-cost-quality-routing.md), [provider plugins](references/provider-plugins.md).
 Read when executing a lane for its commands and gates: [capture detail](references/capture-detail.md), [generate detail](references/generate-detail.md).

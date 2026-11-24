@@ -39,8 +39,7 @@ a presentation from confusing *what exists now* with *what could exist*.
 
 The `mvg` marketing spec accepts `creativeMode`:
 - `verified-demo`: default to preserve older ads. Film demonstrates
-  current features with genuine capture and an appropriate evidence-backed
-  workflow. It may also contain labeled `fictional` or `illustrative`
+  current features with genuine capture. It may also contain labeled `fictional` or `illustrative`
   surrounding scenes.
 - `hybrid`: mixes sourced current-product footage with proposed/fictional
   visualizations. Mark any generated UI in `broll` using
@@ -54,9 +53,7 @@ The `mvg` marketing spec accepts `creativeMode`:
   documentary-style fiction, kids/family/patient scenarios. No obligatory
   software recording or forced six-beat plot.
 - `explainer`: a conceptual explanation with real or synthetic graphics.
-- `documentary`: evidence-led reporting with permissible recreations.
-  Actual factual assertions remain sourced; invented dialogue/reenactments
-  are marked fictional.
+- `documentary`: a documentary treatment chosen for the subject, such as observation, interviews, archive, narration or dramatized reconstruction. Identify a reconstruction where its status matters to the viewer.
 - `educational`: training, instruction, practical or technical education.
 - `abstract`: experimental film, non-linear sequences, visual poetry,
   purely conceptual animation.

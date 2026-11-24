@@ -11,11 +11,11 @@
 
 ## Pace
 
-Do the free phases fast and in one go: develop and pre-production need no spend. Pause for the two approvals (screenplay, plan), then run production and post without stopping unless a gate fails or spend would exceed the plan. Report at the end with the file, the gates that ran, the gates that did not, and the cost against the estimate.
+Do the free phases fast and in one go: develop and pre-production need no spend. Pause only for reviews the owner reserved under `requiredReviews` (for example screenplay or plan) and for spend or publication outside authorization, then run production and post without stopping unless a gate fails or spend would exceed the plan. Report at the end with the file, the gates that ran, the gates that did not, and the cost against the estimate.
 
 ## The phases
 
-| Phase | Deliverables | Skill | Owner approves |
+| Phase | Deliverables | Skill | Owner approves (when reserved) |
 | --- | --- | --- | --- |
 | 1 Develop: idea to script | `case/case.md`, `story/treatment.md`, `story/beat-sheet.json`, `story/screenplay.json`, narration check | `brief`, `develop` | the case, then the screenplay |
 | 2 Pre-production: plan and design | `story/picture-plan.json`, `story/storyboard.json`, `story/visual-bible.json`, `plan/breakdown.json` (cast, assets, budget, schedule), relevance and variety gates | `plan`, `visuals` | the plan: picture table and cost |

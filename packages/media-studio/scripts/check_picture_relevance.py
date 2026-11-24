@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Match picture scenes to script scenes and flag low word overlap for editorial review.
 
-    check_picture_relevance.py <props-or-picture-plan.json> <cue-sheet-or-screenplay.json> [--min-overlap 2] [--out PATH]
+    check_picture_relevance.py <props-or-picture-plan.json> <cue-sheet-or-screenplay.json> [--min-overlap 2] [--enforce-overlap | --advisory] [--out PATH]
 
 Free and offline. Run it on the picture plan and the screenplay BEFORE any voice or image spend (a cue sheet and built props work too). For each scene it takes the
 words of the scene's visual body and bullets (the title and kicker do not count: a label is not content) and the words of
@@ -87,22 +87,28 @@ def main(argv=None):
     ap.add_argument("props")
     ap.add_argument("cues")
     ap.add_argument("--min-overlap", type=int, default=2)
-    ap.add_argument("--enforce-overlap", action="store_true")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--enforce-overlap", action="store_true", help="Fail scenes below --min-overlap when the brief requires the briefing picture mix.")
+    mode.add_argument("--advisory", action="store_true", help="Report wording overlap without blocking intentional visual or audio choices (the default; recorded in the report).")
     ap.add_argument("--out")
     args = ap.parse_args(argv)
     scenes = json.loads(Path(args.props).read_text(encoding="utf-8")).get("scenes") or []
     cues = load_lines(Path(args.cues))
     results = []
+    scene_ids = {scene.get("id") for scene in scenes}
     for sc in scenes:
         if sc.get("id") not in cues:
             results.append({"id": sc.get("id"), "ok": False, "overlap": [], "reasons": ["no narration line with this id"]})
         else:
             results.append(judge_scene(sc, cues[sc["id"]], args.min_overlap, enforce_overlap=args.enforce_overlap))
-    missing = [i for i in cues if i not in {s.get("id") for s in scenes}]
+    missing = [i for i in cues if i not in scene_ids]
     for i in missing:
         results.append({"id": i, "ok": False, "overlap": [], "reasons": ["narration line has no scene"]})
+    paired = bool(scenes) and scene_ids == cues.keys()
     report = {"schema": "media-studio/picture-relevance/1", "minOverlap": args.min_overlap,
-              "ok": bool(results) and all(r["ok"] for r in results), "scenes": results}
+              "ok": paired and all(r["ok"] for r in results), "scenes": results}
+    if args.advisory:
+        report["advisory"] = True
     if args.out:
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)

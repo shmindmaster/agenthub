@@ -1,14 +1,7 @@
 # Workflow detail
 
 Choose the film's creative form *before* deciding its beat structure.
-Read `../../video/references/creative-formats.md`. Current-product
-demos follow an evidence-led problem/action/result. A fictional, future
-vision, conceptual, documentary, educational or abstract film may use a
-different structure, fully imagined interfaces and people of any age.
-For non-verified forms, `schemas/creative-storyboard.schema.json`
-accepts free-form roles and rich visual shots without requiring a
-hero/CTA/cold-open. The classic structure below applies when making
-verified-product or deliberately classic narrative pieces.
+Read `../../studio/references/creative-formats.md`. Build the requested structure. Use `schemas/creative-storyboard.schema.json` for free-form scenes. Use the classic structure below when the brief chooses it or the job calls for a verified product demonstration.
 
 ## Red flags
 
@@ -30,7 +23,7 @@ Write the logline: who, wants what, against what, with what at stake. Then test 
 
 ## 2 Treatment
 
-150 to 400 words, present tense: the opening image, what changes, the proof, the close. A treatment reads like a trailer in prose. It names the turn, because a piece with no turn is a list.
+150 to 400 words, present tense: the opening, how the piece progresses, and the intended close. A short lesson or simple slide sequence can use a brief treatment.
 
 ## 3 Beat sheet
 
@@ -44,7 +37,7 @@ Write the logline: who, wants what, against what, with what at stake. Then test 
   storytelling or montage as the project needs. Judge the intended visual
   experience, not a universal checklist.
 
-Shapes that work: problem, stakes, mechanism, proof, call to action (explainer); before, turn, after (story); question, evidence, answer (briefing); setup, escalation, reversal, payoff (documentary or drama).
+Possible shapes include a worked example for a lesson, question-and-answer chapters for a briefing, and chronological, character-driven or thematic scenes for a documentary or drama.
 
 ## 4 Screenplay
 
@@ -52,4 +45,4 @@ Shapes that work: problem, stakes, mechanism, proof, call to action (explainer);
 
 Write for the ear (`../../video/references/story.md`): short sentences, concrete nouns, one idea per line, numbers said once. No fluff: no greeting, no recap, no talk about how the film was made. For a dialogue or simulated call, one scene per turn, one voice per character, the spoken thing in the picture and not the speakers (`../../video/references/scenes.md`).
 
-Facts are locked: each number, date and name traces to the case's sources. Never invent a metric, a customer or a product behaviour.
+Represent real people, reported results and current product behavior accurately. Invent characters, dialogue and events when the brief calls for fiction or illustration.

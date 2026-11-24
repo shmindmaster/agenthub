@@ -106,7 +106,7 @@
     },
     "claims": {
       "type": "array", "minItems": 0,
-      "description": "Evidence-backed current factual assertions; empty for a wholly fictional or conceptual film without real claims.",
+      "description": "Current factual assertions made by the ad. Leave empty when the ad makes none.",
       "items": {
         "type": "object", "additionalProperties": false,
         "required": ["id", "text", "evidence"],

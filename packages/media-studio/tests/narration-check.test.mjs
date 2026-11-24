@@ -39,7 +39,7 @@ function screenplay(lines = CLEAN, extra = {}) {
     ...extra,
   };
 }
-function makeJob(name, { lines, sp, job = { kind: "explainer", syntheticData: true }, timeline = null, draft = null } = {}) {
+function makeJob(name, { lines, sp, job = { kind: "product-screencast", syntheticData: true }, timeline = null, draft = null } = {}) {
   const root = join(scratch, `${name}-${++counter}`);
   mkdirSync(join(root, "story"), { recursive: true });
   mkdirSync(join(root, "qa"), { recursive: true });
@@ -49,6 +49,22 @@ function makeJob(name, { lines, sp, job = { kind: "explainer", syntheticData: tr
   if (draft) writeJson(root, "story/screenplay.draft.json", draft);
   return root;
 }
+test("requested answer slides pass without a demo hook or ban on repeated instructional text", () => {
+  const answer = "Welcome back. Before we look at the choices on this slide, read the whole question and underline the two conditions that the answer needs to satisfy.";
+  const root = makeJob("answer-slides", {
+    lines: [answer, answer],
+    job: { kind: "training" },
+  });
+  assert.equal(run([root]).code, 0, JSON.stringify(report(root).errors));
+  assert.equal(report(root).creativeMode, "training");
+});
+
+test("default marketing teasers still run their narration checks", () => {
+  const root = makeJob("marketing-teaser", { lines: ["Welcome back. Let me show you today's new release notes."], job: { kind: "teaser" } });
+  assert.equal(run([root]).code, 1);
+  assert.ok(report(root).errors.some((error) => error.includes("greeting")));
+});
+
 // Replace one scene's narration in the clean script.
 const withLine = (index, text) => CLEAN.map((l, i) => (i === index ? text : l));
 
@@ -469,7 +485,7 @@ const reviewJob = (name, lines = CLEAN) => {
         ...(i === 5 ? { holdAfterSeconds: 1.5 } : {}),
       })),
     },
-    job: { kind: "explainer", syntheticData: true, deliveryProfile: "briefing-board", craftScoreMin: 85 },
+    job: { kind: "product-screencast", syntheticData: true, deliveryProfile: "briefing-board", craftScoreMin: 85 },
   });
   writeJson(root, "story/storyboard.json", { title: "Clear stalled approvals", protectedHeroBeatId: "S04", beats: [] });
   const verdict = (ev) => ({ verdict: "pass", evidence: ev });

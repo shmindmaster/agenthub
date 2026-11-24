@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Report picture variety and repeated sources for editorial review.
+"""Measure picture mix, consecutive cards and repeated sources for editorial review.
 
-    check_visual_variety.py <briefing-props.json> [--min-picture 0.4] [--max-text 0.25] [--max-same 0.4] [--out PATH]
+    check_visual_variety.py <briefing-props.json> [--min-picture 0.4] [--max-text 0.25] [--max-same 0.4] [--enforce-style | --advisory] [--out PATH]
 
 Free and offline. Run it on the storyboard's props BEFORE rendering. Every scene's visual kind falls in one class:
 
@@ -98,12 +98,16 @@ def main(argv=None):
     ap.add_argument("--min-picture", type=float, default=0.4)
     ap.add_argument("--max-text", type=float, default=0.25)
     ap.add_argument("--max-same", type=float, default=0.4)
-    ap.add_argument("--enforce-style", action="store_true")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--enforce-style", action="store_true", help="Fail on the thresholds when the brief requires the briefing picture mix.")
+    mode.add_argument("--advisory", action="store_true", help="Report style observations without blocking a planned sequence (the default; recorded in the report).")
     ap.add_argument("--out")
     args = ap.parse_args(argv)
     scenes = json.loads(Path(args.props).read_text(encoding="utf-8")).get("scenes") or []
     rep = judge(scenes, args.min_picture, args.max_text, args.max_same, enforce_style=args.enforce_style)
     rep = {"schema": "media-studio/visual-variety/1", **rep}
+    if args.advisory and scenes:
+        rep.update(advisory=True, observations=rep["advisories"])
     if args.out:
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
