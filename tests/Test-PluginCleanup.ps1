@@ -46,6 +46,9 @@ try {
         $fork = @{name='ah-research';source=@{source='github';repo='someone/agenthub';path='packages/research'}}
         $raw = (@{installedPlugins=@($direct,$fork);theme='test'} | ConvertTo-Json -Depth 7)
         [IO.File]::WriteAllText($cfg,$raw)
+        $acl = Get-Acl -LiteralPath $cfg
+        $acl.SetAccessRuleProtection($true, $true)
+        Set-Acl -LiteralPath $cfg -AclObject $acl
         $originalAcl = (Get-Acl -LiteralPath $cfg).Sddl
         try { Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $false }; throw 'Expected rollback.' }
         catch { if ($_.Exception.Message -notmatch 'did not verify') { throw } }
@@ -153,6 +156,19 @@ try {
     $candidate = New-AgentHubPluginCleanup codex ah-media-studio 'codex-retired-registration' 'ah-media-studio@created-by-me-remote'
     try { Invoke-PluginCleanup $row $candidate; throw 'Expected post-removal verification to fail.' }
     catch { if ($_.Exception.Message -notmatch 'Canonical Codex registration did not verify') { throw } }
+    if ($IsWindows) {
+        [IO.File]::WriteAllText($cfg, $raw)
+        function Invoke-AgentHubCopilotReplace($Source, $Destination, $Backup) {
+            [IO.File]::Move($Destination, $Backup)
+            throw 'Simulated partial ReplaceFile failure.'
+        }
+        try { Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $true }; throw 'Expected a partial failure.' }
+        catch { if ($_.Exception.Message -ne 'Simulated partial ReplaceFile failure.') { throw } }
+        if ([IO.File]::ReadAllText($cfg) -cne $raw -or (Get-Acl -LiteralPath $cfg).Sddl -ne $originalAcl) {
+            throw 'Partial replacement did not restore the original configuration and ACL.'
+        }
+    }
+
     Write-Output 'RESULT: plugin cleanup ownership, audit, readback, deduplication and rollback passed'
 } finally {
     [IO.Directory]::Delete($fixture, $true)

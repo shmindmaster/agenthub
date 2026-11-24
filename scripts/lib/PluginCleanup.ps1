@@ -136,21 +136,41 @@ function Remove-AgentHubCopilotDirectRegistration([string]$Path, [string]$Plugin
     $next = (ConvertTo-Json -InputObject $data -Depth 100 -WarningAction Stop) + [Environment]::NewLine
     # Copilot uninstall by bare name selects the live marketplace entry instead.
     # Replace the single owned direct record and restore it if CLI readback fails.
+    $parent = Split-Path -Parent $Path
+    $backup = Join-Path $parent ('.agenthub-original-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    $rejected = Join-Path $parent ('.agenthub-rejected-' + [guid]::NewGuid().ToString('N') + '.tmp')
     $temp = $null
+    $verified = $false
     try {
         $temp = New-AgentHubCopilotConfigTemp $Path $next
         if ([IO.File]::ReadAllText($Path) -cne $original) { throw 'Copilot configuration changed during cleanup.' }
-        [IO.File]::Replace($temp, $Path, [NullString]::Value)
+        Invoke-AgentHubCopilotReplace $temp $Path $backup
         try {
             if (-not (& $Verify)) { throw 'Copilot registration cleanup did not verify.' }
+            $verified = $true
         } catch {
-            if ([IO.File]::ReadAllText($Path) -ceq $next) {
-                $temp = New-AgentHubCopilotConfigTemp $Path $original
-                [IO.File]::Replace($temp, $Path, [NullString]::Value)
+            if ([IO.File]::Exists($Path) -and [IO.File]::ReadAllText($Path) -ceq $next) {
+                Invoke-AgentHubCopilotReplace $backup $Path $rejected
             }
             throw
         }
     } finally {
-        if ($temp -and [IO.File]::Exists($temp)) { [IO.File]::Delete($temp) }
+        # ReplaceFile can save the original to its backup and then fail before
+        # installing the new file. Restore that exact original when absent.
+        if (-not [IO.File]::Exists($Path) -and [IO.File]::Exists($backup)) {
+            [IO.File]::Move($backup, $Path)
+        }
+        if ([IO.File]::Exists($Path)) {
+            if ($temp -and [IO.File]::Exists($temp)) { [IO.File]::Delete($temp) }
+            if ($verified -or [IO.File]::ReadAllText($Path) -ceq $original) {
+                foreach ($artifact in @($backup, $rejected)) {
+                    if ([IO.File]::Exists($artifact)) { [IO.File]::Delete($artifact) }
+                }
+            }
+        }
     }
+}
+
+function Invoke-AgentHubCopilotReplace([string]$Source, [string]$Destination, [string]$Backup) {
+    [IO.File]::Replace($Source, $Destination, $Backup)
 }
