@@ -1,6 +1,6 @@
 ---
 name: studio
-description: Takes a video, screencast, lesson, explainer, fictional film, ad or audio idea to a finished, reviewed piece, following the requested form and making routine production choices within delegated authority. Use when someone wants any video or audio made, or brings an idea, topic or rough ask. Not for one step of a running job.
+description: Takes a video, screencast, lesson, explainer, fiction, ad or audio idea to a finished, reviewed piece in the requested form, making routine choices within delegated authority. Use when someone wants any video or audio made, or brings an idea or rough ask. Not for one step of a running job.
 ---
 # Studio
 ## Workflow contract
