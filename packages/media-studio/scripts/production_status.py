@@ -58,7 +58,7 @@ NOT_REQUIRED = {
     "stills": {"develop": ["narration text", "narration check"], "production": ["voice takes", "cue sheet", "props report", "picture video"],
                "post": ["word sync", "frame integrity", "story experience review"], "delivery": ["captions sidecar"]},
     "storyboard": {"develop": ["narration text", "narration check"], "production": ["voice takes", "cue sheet", "props report", "picture video"],
-                   "post": ["finished file", "word sync", "frame integrity"], "delivery": ["captions sidecar", "owner delivery record"]},
+                   "post": ["finished file", "word sync", "frame integrity"], "delivery": ["captions sidecar"]},
 }
 PHASE_REVIEWS = {"develop": ("case", "screenplay"), "preproduction": ("plan",), "delivery": ("delivered",)}
 WHOLE = {"stills": {"production"}, "storyboard": {"production", "post", "delivery"}}

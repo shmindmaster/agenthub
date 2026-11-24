@@ -17,7 +17,7 @@ Timing and easing for moments a film keeps getting wrong. Frames are at 30 fps; 
 | Node-on-word | Node pops 12 f exactly on its spoken word; focus ring follows the voice | `back` | Mechanisms and flows | Words the voice never says | `Mechanism` (`diagram-build`, `process-flow`) with `at` anchors |
 | Path trace | Path draws over 30 f or more from the anchor word | `inOut` | Cause leading to effect | Decorative lines | SVG `trace.path` in `kit/src/Visuals.tsx` |
 | Checklist land | One item every 20-30 f on its word, drawn check 10 f | `out` | Steps to copy | More than five visible | `Checklist` (`checklist-build`) |
-| Outcome hold | Last element lands, then 60 f or the brief's final hold of nothing: no camera, no chrome change | none | Every film ending | Never skip | grammar rule in `explainer-grammar.md`, enforced by `build-explainer.mjs` |
+| Outcome hold | Last element lands, then at least 1.0 s (`RULES.minHoldSeconds`, `kit/explainer/grammar.mjs`) of nothing: no camera, no chrome change. A shorter hold is a warning in `build-explainer.mjs` and an advisory in `validate-explainer-release.mjs`, not an error. The brief's `finalHoldSeconds` is not read there: build a longer hold into the last shot's length, and `validate-finished-film.mjs` measures it on the encoded file | none | Every film ending | Never skip | grammar rule in `explainer-grammar.md`, enforced by `build-explainer.mjs` |
 
 ## Choosing
 

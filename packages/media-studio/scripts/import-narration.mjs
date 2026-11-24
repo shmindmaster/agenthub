@@ -2,6 +2,8 @@
 // Turn narration already made by a governed script into the manifest the mvg `import` voice provider reads
 // (media-studio/narration-import/1). Pure and offline: it reads files, recomputes hashes, copies audio next to the
 // manifest and writes the manifest. It never calls a provider and refuses on any hash or text mismatch.
+// It does not write consent: for an owner voice clone, add `consent {subject, approvedBy, approvedAt or recordedAt, validUntil}`
+// to the manifest by hand (kit/marketing/README.md, Imported narration and stills); the lint and the voice stage refuse without it.
 //
 //   node import-narration.mjs --spec <spec.json> --source assemblyai --from <narration-manifest.json | its folder> --out <manifest.json> [--entity E] [--region us|eu]
 //   node import-narration.mjs --spec <spec.json> --source deepgram   --from <folder of deepgram_cli receipts>      --out <manifest.json> --entity E

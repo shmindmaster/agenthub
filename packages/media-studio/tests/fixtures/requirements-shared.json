@@ -1,0 +1,8 @@
+{
+  "schema": "media-studio/requirements/1",
+  "durationSeconds": { "min": 5, "max": 12 },
+  "aspect": "16x9",
+  "requirements": [
+    { "id": "r1", "type": "feature", "text": "shows the export", "scenes": ["s1"], "match": ["export"], "evidence": "narration", "check": "script" }
+  ]
+}

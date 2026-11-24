@@ -22,7 +22,7 @@ import { FPS, alignScriptToAsr, buildTimeline, parseAsrWords, sequenceFrames, sn
 import { buildMixArgs, loudnessTarget, parseLoudnorm } from '../kit/marketing/lib/mix.mjs';
 import { deliverFiles, nextFreeNumber, updateReadme, usedNumbers, deliveredName } from '../kit/marketing/lib/deliver.mjs';
 import { DEFAULT_REQUIRED, captionsCheck, readReviews, releasable, requiredGates } from '../kit/marketing/lib/gates.mjs';
-import { CHAIN_GATES, captureViewportsFor, chainGateResult, readMarketingReadiness, readinessPending, declaredCutsSheet, runFrameIntegrityGate, runMarketingGate, runPointerGate } from '../kit/marketing/lib/chain-gates.mjs';
+import { CHAIN_GATES, captureViewportsFor, chainGateResult, finishedFilmResult, readMarketingReadiness, readinessPending, declaredCutsSheet, runFinishedFilmGate, runFrameIntegrityGate, runMarketingGate, runPointerGate } from '../kit/marketing/lib/chain-gates.mjs';
 import { applyArbitration, buildInstructions, evaluate, parseVerdict, sampleTimes, runVisionQa, VerdictError } from '../kit/marketing/vision-qa.mjs';
 import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/picture-gate.mjs';
 import { estimateImageUsd, estimateSttUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
@@ -32,6 +32,7 @@ import { readmeSection } from '../kit/marketing/lib/stages/deliver.mjs';
 import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
 import { assetsStage, musicKey, musicLengthMs, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
+import { qaStage } from '../kit/marketing/lib/stages/qa.mjs';
 import { cueTime, placeCaptions, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
 import { parseArgs, selectedStages } from '../kit/marketing/mvg.mjs';
 import { alignBeat, chooseResult, expandKeywords, findWord, shiftAsr, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
@@ -351,6 +352,21 @@ test('cost ledger enforces the per-run and the cumulative cap before the call', 
   assert.equal(s.openaiUsd, 1.5);
   assert.ok(existsSync(join(jobDir, 'cost-ledger.json')));
   assert.throws(() => ledger.check('openai', -1));
+});
+
+test('cost ledger refuses a non-finite or negative charge, estimated or actual, before anything is written', () => {
+  const jobDir = join(root, 'ledger-bad-units');
+  const ledger = new CostLedger({ jobDir, runId: 'r1', perRun: { elevenlabsCredits: 600 }, cumulative: {} });
+  for (const units of [NaN, Infinity, -Infinity, -1, undefined, 'abc']) {
+    for (const estimated of [true, false]) {
+      assert.throws(() => ledger.charge({ stage: 'voice', provider: 'elevenlabs', service: 'tts', units, estimated }), (e) => e instanceof BudgetError && /invalid units/.test(e.message), `units ${String(units)} estimated ${estimated}`);
+    }
+  }
+  assert.equal(ledger.entries.length, 0, 'nothing recorded');
+  assert.equal(existsSync(join(jobDir, 'cost-ledger.json')), false, 'nothing persisted');
+  assert.equal(ledger.charge({ stage: 'voice', provider: 'elevenlabs', service: 'tts', units: 0 }).units, 0, 'zero is a valid charge');
+  assert.equal(ledger.charge({ stage: 'voice', provider: 'elevenlabs', service: 'tts', units: 7 }).units, 7);
+  assert.equal(ledger.charge({ stage: 'voice', provider: 'elevenlabs', service: 'tts', units: NaN, cached: true }).units, 0, 'cached work is recorded as zero whatever it carries');
 });
 
 test('planCost sums voice, sfx, music, stills and vision and is checked against the per-run cap by lint', () => {
@@ -816,6 +832,33 @@ test('voice, timing and assets stages run on mock providers, cache on rerun and 
   assert.equal(assets.items.filter((i) => i.kind === 'sfx').length, 1);
   assert.ok(assets.items[0].aiGenerated);
   assert.equal(assets.items[0].key, sfxKey('soft interface click', 1));
+});
+
+test('timing 1: the overrun check compares the delivered length (spoken plus final hold) with the target, as lint does', async () => {
+  const elevenlabs = {
+    resolveCli: () => ({}),
+    speech: async (_cli, o) => { writeFileSync(o.output, `audio:${o.text}`); const receipt = { request_id: 'r', reused: false, actual_credits: null }; writeFileSync(`${o.output}.provenance.json`, JSON.stringify(receipt)); return { receipt }; },
+  };
+  const providers = { elevenlabs, elevenCli: {}, probeDuration: async (f) => (readFileSync(f, 'utf8').length > 40 ? 4 : 2.5), transcribeWords: async () => ({ words: [{ word: 'hello', start: 0.05, end: 0.4 }] }) };
+  let n = 0;
+  const run = async (targetSeconds, finalHoldSeconds) => {
+    const spec = { ...baseSpec(), targetSeconds, ...(finalHoldSeconds ? { finalHoldSeconds } : {}) };
+    const ctx = stageCtx(`timing-hold-${++n}`, spec, providers);
+    ctx.flags.whisperTiming = true;
+    await voiceStage(ctx);
+    const error = await timingStage(ctx).then(() => null, (e) => e);
+    return { error, timeline: readJson(join(ctx.jobDir, 'timing', 'main', 'timeline.json')) };
+  };
+  const spoken = (await run(100)).timeline.durationSeconds;
+  const delivered = (await run(100, 6)).timeline.durationSeconds;
+  assert.ok(delivered > spoken + 2, `the hold lengthens the film (${spoken} -> ${delivered})`);
+  // no hold: the boundary is the 2 s allowance
+  assert.equal((await run(spoken - 1.9)).error, null);
+  assert.match((await run(spoken - 2.1)).error?.message ?? '', /runs .* against a .* target/);
+  // with a hold the delivered length is what counts: the spoken length alone would fit, the delivered one does not
+  assert.ok(spoken - (delivered - 2.1) < 2, 'the spoken length alone is inside the allowance at this target');
+  assert.match((await run(delivered - 2.1, 6)).error?.message ?? '', /runs .* against a .* target/);
+  assert.equal((await run(delivered - 1.9, 6)).error, null);
 });
 
 test('b-roll that no governed adapter can produce fails the lint and the assets stage before any paid call', async () => {
@@ -1593,6 +1636,114 @@ test('music length 2: lint refuses a fixed bed shorter than the cut plus 2 s; th
   }
   assert.deepEqual(per, [22000, 29000], 'without lengthSeconds each job length asks for its own bed');
   await assert.rejects(() => assetsStage(job('music-job-e', 39.5, 40)), /music\.lengthSeconds is 40 s but the longest cut is 39\.50 s/);
+});
+
+test('music length 3: lint counts the final hold in the program the bed must outlast, as the assets stage does', () => {
+  const music = (lengthSeconds) => ({ provider: 'elevenlabs', prompt: 'warm instrumental pulse, 120 bpm', licenseBasis: 'owner-approved test basis', lengthSeconds });
+  const has = (spec) => codes(lint(spec)).includes('music-length');
+  assert.equal(has({ ...baseSpec(), music: music(22) }), false, '20 s target + 2 s = 22 s: enough without a hold');
+  assert.equal(has({ ...baseSpec(), finalHoldSeconds: 3, music: music(22) }), true, 'with a 3 s hold the program is 23 s, so 22 s is short');
+  assert.equal(has({ ...baseSpec(), finalHoldSeconds: 3, music: music(25) }), false, '20 + 3 + 2 = 25 s is exactly enough');
+  assert.equal(has({ ...baseSpec(), finalHoldSeconds: 3, music: music(24.9) }), true);
+  const base = baseSpec();
+  const spec = { ...base, music: music(23), cuts: [{ id: 'main', ratios: ['16x9', '9x16'], targetSeconds: 20, finalHoldSeconds: 4, beats: base.beats }] };
+  delete spec.ratios; delete spec.targetSeconds; delete spec.beats;
+  assert.equal(has(spec), true, 'a cut hold counts too');
+});
+
+test('finished film 1: the gate is required when the spec or a cut declares a final hold, else opt-in via qa.required', () => {
+  assert.ok(!requiredGates({}).includes('finishedFilm'), 'no hold: not required');
+  assert.ok(!requiredGates({ finalHoldSeconds: 0 }).includes('finishedFilm'));
+  assert.ok(requiredGates({ finalHoldSeconds: 3 }).includes('finishedFilm'), 'a spec hold requires it');
+  assert.ok(requiredGates({ finalHoldSeconds: 3, creativeMode: 'abstract' }, '16x9').includes('finishedFilm'), 'in every creative mode');
+  const cuts = { cuts: [{ id: 'a', ratios: ['16x9'], finalHoldSeconds: 2, beats: [] }, { id: 'b', ratios: ['9x16'], beats: [] }] };
+  assert.ok(requiredGates(cuts, '16x9').includes('finishedFilm'), 'a cut hold requires it for that cut');
+  assert.ok(!requiredGates(cuts, '9x16').includes('finishedFilm'), 'the other cut declares none');
+  assert.ok(!requiredGates({ finalHoldSeconds: 3, cuts: [{ id: 'a', ratios: ['16x9'], finalHoldSeconds: 0, beats: [] }] }, '16x9').includes('finishedFilm'), 'a cut can say no hold');
+  assert.ok(requiredGates({ qa: { required: ['captions', 'finishedFilm'] } }).includes('finishedFilm'), 'opt in with no hold');
+  assert.deepEqual(validate(adSchema.properties.qa, { required: ['finishedFilm'] }), [], 'the schema knows the gate');
+  assert.ok(!DEFAULT_REQUIRED.includes('finishedFilm'));
+});
+
+test('finished film 2: a result is a pass only for the exact candidate, with exit 0, ok true and no errors', () => {
+  const sha = 'a'.repeat(64);
+  const report = (over = {}) => ({ schema: 'media-studio/finished-film/1', ok: true, sha256: sha, errors: [], advisories: [], ...over });
+  assert.equal(finishedFilmResult({ code: 0, report: report() }, sha).status, 'pass');
+  assert.equal(finishedFilmResult({ code: 0, report: null }, sha).status, 'fail', 'a missing report is not a pass');
+  assert.match(finishedFilmResult({ code: 0, report: null, stderr: 'boom' }, sha).detail, /boom|no finished-film report/);
+  assert.equal(finishedFilmResult({ code: 0, report: report({ sha256: 'b'.repeat(64) }) }, sha).status, 'fail', 'a report of another file');
+  assert.equal(finishedFilmResult({ code: 0, report: report({ sha256: null }) }, sha).status, 'fail');
+  assert.equal(finishedFilmResult({ code: 0, report: report({ schema: 'other/1' }) }, sha).status, 'fail', 'not a finished-film report');
+  assert.equal(finishedFilmResult({ code: 1, report: report() }, sha).status, 'fail', 'exit code counts');
+  assert.equal(finishedFilmResult({ code: 0, report: report({ ok: false }) }, sha).status, 'fail');
+  const withErrors = finishedFilmResult({ code: 0, report: report({ errors: [{ code: 'final-hold-unmet', at: 7, message: 'held 1 s' }] }) }, sha);
+  assert.equal(withErrors.status, 'fail', 'ok:true with an error listed is still a fail');
+  assert.match(withErrors.detail, /final-hold-unmet/);
+  assert.equal(finishedFilmResult({ code: 0, report: report() }, undefined).status, 'fail', 'no candidate hash to bind to');
+});
+
+test('finished film 3: the runner passes the declared hold to the shared script and binds the report to the candidate', async () => {
+  const kit = join(root, 'fake-kit');
+  mkdirSync(join(kit, 'marketing'), { recursive: true });
+  mkdirSync(join(kit, 'screencast'), { recursive: true });
+  writeFileSync(join(kit, 'screencast', 'validate-finished-film.mjs'), [
+    "import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';",
+    "import { createHash } from 'node:crypto';",
+    "import { dirname } from 'node:path';",
+    'const a = process.argv.slice(2);',
+    'const flag = (f) => a[a.indexOf(f) + 1];',
+    "const mode = JSON.parse(readFileSync(new URL('./mode.json', import.meta.url), 'utf8'));",
+    'if (mode.noReport) process.exit(0);',
+    "const sha = mode.sha256 ?? createHash('sha256').update(readFileSync(a[0])).digest('hex');",
+    "const requirements = flag('--requirements') ? JSON.parse(readFileSync(flag('--requirements'), 'utf8')) : null;",
+    "mkdirSync(dirname(flag('--out')), { recursive: true });",
+    "writeFileSync(flag('--out'), JSON.stringify({ schema: 'media-studio/finished-film/1', ok: !(mode.errors || []).length, sha256: sha, errors: mode.errors || [], advisories: [], requirementsSeen: requirements }));",
+    'process.exit((mode.errors || []).length ? 1 : 0);',
+  ].join('\n'));
+  const setMode = (m) => writeFileSync(join(kit, 'screencast', 'mode.json'), JSON.stringify(m));
+  const ws = join(root, 'ws-finished');
+  mkdirSync(join(ws, 'output'), { recursive: true });
+  const candidate = join(ws, 'output', 'x.mp4');
+  writeFileSync(candidate, 'candidate bytes');
+  const sha = createHash('sha256').update('candidate bytes').digest('hex');
+  const go = (hold) => runFinishedFilmGate({ ws, candidate, sha, hold, moduleRoot: join(kit, 'marketing') });
+
+  setMode({});
+  const ok = await go(4);
+  assert.equal(ok.status, 'pass', JSON.stringify(ok));
+  const seen = readJson(join(ws, 'qa', 'finished-film.json'));
+  assert.equal(seen.requirementsSeen.finalHoldSeconds, 4, 'the declared hold reaches the script');
+  assert.equal(seen.sha256, sha);
+  await go(0);
+  assert.equal(readJson(join(ws, 'qa', 'finished-film.json')).requirementsSeen.finalHoldSeconds, undefined, 'no hold declared: none asked for');
+
+  setMode({ sha256: 'c'.repeat(64) });
+  assert.equal((await go(4)).status, 'fail', 'a report for another file never passes');
+  setMode({ errors: [{ code: 'final-hold-unmet', at: 5, message: 'still for 1 s' }] });
+  const failed = await go(4);
+  assert.equal(failed.status, 'fail');
+  assert.match(failed.detail, /final-hold-unmet/);
+  setMode({});
+  await go(4);
+  setMode({ noReport: true });
+  assert.equal((await go(4)).status, 'fail', 'a script that wrote nothing: an earlier report is not read');
+  assert.equal(existsSync(join(ws, 'qa', 'finished-film.json')), false);
+
+  const real = await runFinishedFilmGate({ ws, candidate: join(ws, 'output', 'none.mp4'), sha, hold: 3, moduleRoot: mod });
+  assert.equal(real.status, 'fail', 'the shared script itself refuses a missing candidate');
+});
+
+test('finished film 4: QA lists the gate as pending for a spec that declares a hold, and publishes it as required', async () => {
+  const job = join(root, 'finished-qa');
+  mkdirSync(join(job, 'timing', 'main'), { recursive: true });
+  writeFileSync(join(job, 'timing', 'main', 'timeline.json'), JSON.stringify({ durationSeconds: 1 }));
+  const qaDir = join(root, 'finished-qa-out');
+  const run = async (spec) => { await qaStage({ jobDir: job, spec, flags: { candidateId: 'one', qaDir } }); return readJson(join(qaDir, '9x16', 'gates.json')); };
+  const held = await run({ ratios: ['9x16'], beats: [], finalHoldSeconds: 3 });
+  assert.equal(held.gates.finishedFilm.status, 'pending');
+  assert.equal(held.ok, false);
+  assert.ok(held.failing.some((f) => /^finishedFilm: pending/.test(f)));
+  assert.equal((await run({ ratios: ['9x16'], beats: [] })).gates.finishedFilm, undefined);
 });
 
 test('chain gates 7: the frame-integrity gate runs the shared script on the candidate and leaves its report where viewer-release reads it', async () => {

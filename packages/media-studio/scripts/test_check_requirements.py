@@ -116,6 +116,38 @@ class Script(unittest.TestCase):
         w(self.root, "job.json", {"narrationLanguage": "en", "uiLanguage": "ja"})
         self.assertEqual(self.run_check()["errors"], [])
 
+    def unverified(self):
+        return " | ".join(self.run_check()["unverified"])
+
+    def test_a_cta_with_a_scene_but_no_text_is_unverified_not_passed(self):
+        self.req["cta"] = {"required": True, "scene": "s2"}
+        self.assertIn("cta", self.unverified())
+        self.req["cta"] = {"required": True, "scene": "s2", "text": "Start free"}
+        self.assertNotIn("cta", self.unverified())
+        self.req["cta"] = {"required": False}
+        self.assertNotIn("cta", self.unverified())
+
+    def test_a_language_with_no_counterpart_anywhere_is_unverified_not_passed(self):
+        self.assertIn("narrationLanguage", self.unverified())
+        self.assertIn("uiLanguage", self.unverified())
+        w(self.root, "job.json", {"narrationLanguage": "en"})
+        text = self.unverified()
+        self.assertNotIn("narrationLanguage", text)
+        self.assertIn("uiLanguage", text)
+        w(self.root, "plan/capture-plan.json", {"locale": "es_MX"})
+        self.assertNotIn("uiLanguage", self.unverified())
+
+    def test_a_blank_counterpart_does_not_verify_a_language(self):
+        w(self.root, "job.json", {"narrationLanguage": "  ", "uiLanguage": 7})
+        text = self.unverified()
+        self.assertIn("narrationLanguage", text)
+        self.assertIn("uiLanguage", text)
+
+    def test_duration_and_aspect_are_listed_unverified_without_a_candidate(self):
+        text = self.unverified()
+        self.assertIn("durationSeconds", text)
+        self.assertIn("aspect", text)
+
     def test_the_input_hashes_change_when_the_script_changes(self):
         first = self.run_check()["inputs"]
         w(self.root, "story/screenplay.json", {"scenes": [{"id": "s1", "narration": "Export it."}, {"id": "s2", "narration": "Start free today."}]})
@@ -274,6 +306,13 @@ class Candidate(unittest.TestCase):
         self.req.update(durationSeconds={"min": 5, "max": 7}, aspect="9x16")
         self.assertTrue(any("aspect" in e for e in self.run_check()["errors"]))
 
+    def test_the_requirements_file_validate_finished_film_reads_is_accepted_here_too(self):
+        shared = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "requirements-shared.json"
+        self.req = json.loads(shared.read_text(encoding="utf-8"))
+        res = self.run_check()
+        self.assertEqual(res["errors"], [], res)
+        self.assertTrue(res["ok"], res)
+
     def test_a_declared_hold_with_no_finished_film_record_is_unverified_and_blocks_ok(self):
         self.req["finalHoldSeconds"] = 2
         res = self.run_check()
@@ -308,6 +347,20 @@ class Candidate(unittest.TestCase):
         self.assertTrue(res["ok"], res)
         self.assertIn(cr.REVIEW, res["inputs"])
         self.assertNotIn(cr.REVIEW, cr.input_hashes(self.root))
+
+    def test_an_unmeasured_language_or_cta_claim_needs_a_passing_review_item(self):
+        self.req.update(narrationLanguage="en", uiLanguage="en", cta={"required": True, "scene": "s1"})
+        res = self.run_check()
+        self.assertFalse(res["ok"], res)
+        text = " | ".join(res["unverified"])
+        for claim in ("narrationLanguage", "uiLanguage", "cta"):
+            self.assertIn(claim, text)
+        digest = hashlib.sha256(self.mp4.read_bytes()).hexdigest()
+        w(self.root, cr.REVIEW, {"schema": cr.REVIEW_SCHEMA, "candidateSha256": digest, "reviewer": "qa",
+                                 "items": [{"id": i, "verdict": "pass", "at": 2, "note": "seen"} for i in ("narrationLanguage", "uiLanguage", "cta")]})
+        res = self.run_check()
+        self.assertEqual((res["errors"], res["unverified"]), ([], []), res)
+        self.assertTrue(res["ok"])
 
     def test_a_failed_stale_or_out_of_range_review_does_not_count(self):
         self.visual_req()

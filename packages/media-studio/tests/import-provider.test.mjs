@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lintSpec } from '../kit/marketing/lib/lint.mjs';
+import { validate } from '../kit/marketing/lib/schema.mjs';
 import { CostLedger } from '../kit/marketing/lib/ledger.mjs';
 import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
 import { assetsStage } from '../kit/marketing/lib/stages/assets.mjs';
@@ -23,7 +24,7 @@ test.after(() => rmSync(root, { recursive: true, force: true }));
 
 const sha = (data) => createHash('sha256').update(data).digest('hex');
 const TEXTS = { B1: 'A first line of narration.', B2: 'A second line of narration.' };
-const brand = { id: 'fixture', product: 'Fixture', colors: { primary: '#112233', foreground: '#000000', background: '#ffffff', accent: '#445566' }, fonts: { display: 'A', body: 'B' }, safeZones: {}, forbiddenNames: [], budgets: { elevenlabsCredits: 100, openaiUsd: 1 }, deliver: { dir: join(root, 'deliver') }, loudness: { social: -14, web: -16 } };
+const brand = { id: 'fixture', entity: 'personal', product: 'Fixture', colors: { primary: '#112233', foreground: '#000000', background: '#ffffff', accent: '#445566' }, fonts: { display: 'A', body: 'B' }, safeZones: {}, forbiddenNames: [], budgets: { elevenlabsCredits: 100, openaiUsd: 1 }, deliver: { dir: join(root, 'deliver') }, loudness: { social: -14, web: -16 } };
 const png = (n = 0) => Buffer.concat([Buffer.from([0x89]), Buffer.from('PNG\r\n\x1a\n'), Buffer.alloc(16, n)]);
 
 let counter = 0;
@@ -179,7 +180,7 @@ test('lint and assets: a b-roll still can be imported by hash; a video, a change
   writeFileSync(join(f.dir, 'clip.mp4'), Buffer.from('not a still'));
   writeFileSync(join(f.dir, 'fake.png'), Buffer.from('this is text'));
   const withBroll = (broll) => { const s = structuredClone(f.spec); s.beats.push({ id: 'B3', kind: 'broll', broll: JSON.parse(JSON.stringify(broll)) }); return s; };
-  const good = { provider: 'import', file: 'still.png', sha256: sha(still), source: 'runware', model: 'fixture-image', aiGenerated: true, prompt: 'an abstract field of soft light', receipt: { provider: 'runware', requestId: 'r-1', outputSha256: sha(still), usdMicros: 5000, estimated: false } };
+  const good = { provider: 'import', file: 'still.png', sha256: sha(still), source: 'runware', model: 'fixture-image', aiGenerated: true, prompt: 'an abstract field of soft light', receipt: { provider: 'runware', requestId: 'r-1', outputSha256: sha(still), usdMicros: 5000, estimated: false, entity: 'personal' } };
   const brollCodes = (b) => lint(withBroll(b), f.dir).errors.filter((e) => /^(broll-|schema)/.test(e.code));
   assert.deepEqual(brollCodes(good), []);
   assert.match(brollCodes({ ...good, file: 'clip.mp4', sha256: sha('not a still'), receipt: undefined, source: 'licensed', aiGenerated: false })[0].message, /is a video; compose is image-only/);
@@ -264,6 +265,20 @@ test('consent: needs approvedAt within 60 days, the voice name as subject, and c
   assert.match(ownerMsg(fixture({ voice: OWNER, mutate: setLines((l, i) => (i ? l : { ...l, receipt: { ...l.receipt, consent: consentOf() } })) })), /every narrated line/);
 });
 
+test('consent: the 60-day window compares calendar days when both dates are date-only', () => {
+  const span = (approvedAt, validUntil, now = Date.parse('2026-09-26T00:00:00Z')) => ownerMsg(ownerCase(consentOf({ approvedAt, validUntil })), now);
+  assert.equal(span('2026-09-25', '2026-11-24'), '', 'exactly 60 days after: accepted');
+  assert.match(span('2026-09-25', '2026-11-25'), /60 days/, '61 days after: refused');
+  assert.equal(span('2026-09-25', '2026-11-23'), '');
+  const march = Date.parse('2026-03-02T00:00:00Z');
+  assert.equal(span('2026-03-01', '2026-04-30', march), '', 'across a month end and DST change');
+  assert.match(span('2026-03-01', '2026-05-01', march), /60 days/);
+  // instants keep their exact comparison
+  assert.equal(span('2026-09-25T00:00:00Z', '2026-11-24T00:00:00Z'), '', 'exactly 60 x 24 h');
+  assert.match(span('2026-09-25T00:00:00Z', '2026-11-24T00:00:01Z'), /60 days/);
+  assert.match(span('2026-09-25', '2026-11-24T23:00:00-06:00'), /60 days/, 'a date-time against a date is still compared as instants');
+});
+
 test('the voice stage enforces the same consent, so --only voice cannot skip the lint', async () => {
   const stale = ownerCase(consentOf({ validUntil: '2026-11-10' }));
   await assert.rejects(voiceStage(ctxFor(stale, {}, { now: NOW })), /import narration.*consent.*expired/);
@@ -299,6 +314,54 @@ test('entity: brand and manifest must agree unless an exception is recorded, and
   const sameCtx = ctxFor(same, {}, { brand: { ...brand, entity: 'personal' } });
   await voiceStage(sameCtx);
   assert.match(sameCtx.ledger.entries[0].note, /entity personal/);
+});
+
+test('entity: a missing brand entity or a missing record entity is a refusal in lint, voice and assets, unless an exception is recorded', async () => {
+  const f = fixture();
+  const { entity: _gone, ...noBrandEntity } = brand;
+  const entityErrors = (b, spec = f.spec, dir = f.dir) => lintSpec(spec, b, { adSchema, brandSchema, specDir: dir }).errors.filter((e) => e.code === 'entity');
+  assert.deepEqual(entityErrors(brand), [], 'both present and equal');
+  const noBrand = entityErrors(noBrandEntity);
+  assert.equal(noBrand.length, 1);
+  assert.match(noBrand[0].message, /brand\.entity is missing/);
+  await assert.rejects(voiceStage(ctxFor(f, {}, { brand: noBrandEntity })), /brand\.entity is missing/);
+  const noRecord = fixture({ mutate: (m) => { const { entity, ...rest } = m; return rest; } });
+  const missingRecord = entityErrors(brand, noRecord.spec, noRecord.dir);
+  assert.equal(missingRecord.length, 1);
+  assert.match(missingRecord[0].message, /manifest has no entity/);
+  await assert.rejects(voiceStage(ctxFor(noRecord)), /manifest has no entity/);
+  const excepted = structuredClone(f.spec);
+  excepted.voice.entityException = { reason: 'Owner approved cross-entity use', approvedBy: 'Fixture Owner' };
+  assert.deepEqual(entityErrors(noBrandEntity, excepted), [], 'a recorded exception covers a missing brand entity');
+  await voiceStage(ctxFor({ ...f, spec: excepted }, {}, { brand: noBrandEntity }));
+  const exceptedNoRecord = structuredClone(noRecord.spec);
+  exceptedNoRecord.voice.entityException = excepted.voice.entityException;
+  assert.deepEqual(entityErrors(brand, exceptedNoRecord, noRecord.dir), []);
+  // the schema does not require brand.entity globally: a brand without it still validates, and a film with no import is not touched
+  assert.deepEqual(validate(brandSchema, noBrandEntity), []);
+  const eleven = { ...f.spec, voice: { provider: 'elevenlabs', voiceId: 'v', model: 'eleven_v4', settings: { apply_text_normalization: 'on' } } };
+  assert.deepEqual(entityErrors(noBrandEntity, eleven), []);
+});
+
+test('entity: an imported still receipt with no entity, or a brand with none, is refused by lint and the assets stage', async () => {
+  const f = fixture();
+  const still = png(3);
+  writeFileSync(join(f.dir, 'n.png'), still);
+  const withReceipt = (receiptEntity) => {
+    const s = structuredClone(f.spec);
+    s.beats.push({ id: 'B3', kind: 'broll', broll: { provider: 'import', file: 'n.png', sha256: sha(still), source: 'runware', aiGenerated: true, prompt: 'an abstract field of soft light', receipt: { provider: 'runware', requestId: 'r', outputSha256: sha(still), ...(receiptEntity ? { entity: receiptEntity } : {}) } } });
+    return s;
+  };
+  const { entity: _gone, ...noBrandEntity } = brand;
+  const stillErrors = (b, s) => lintSpec(s, b, { adSchema, brandSchema, specDir: f.dir }).errors.filter((e) => e.code === 'entity' && e.where === 'main/B3');
+  assert.deepEqual(stillErrors(brand, withReceipt('personal')), []);
+  assert.match(stillErrors(brand, withReceipt(undefined))[0].message, /receipt has no entity/);
+  assert.match(stillErrors(noBrandEntity, withReceipt('personal'))[0].message, /brand\.entity is missing/);
+  await assert.rejects(assetsStage({ ...ctxFor({ dir: f.dir, spec: withReceipt(undefined) }), providers: {} }), /receipt has no entity/);
+  await assert.rejects(assetsStage({ ...ctxFor({ dir: f.dir, spec: withReceipt('personal') }, {}, { brand: noBrandEntity }), providers: {} }), /brand\.entity is missing/);
+  const excepted = withReceipt(undefined);
+  excepted.beats[2].broll.entityException = { reason: 'Owner approved cross-entity use', approvedBy: 'Fixture Owner' };
+  assert.deepEqual(stillErrors(brand, excepted), []);
 });
 
 test('b-roll receipt entity follows the same rule', () => {

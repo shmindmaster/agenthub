@@ -95,10 +95,13 @@ export class CostLedger {
   /** Record a charge (estimated or actual). Cached/reused work is recorded with units 0 and cached: true. */
   charge(entry) {
     const info = providerInfo(entry.provider);
-    if (!entry.cached && Number(entry.units) > 0 && !info.cap) throw new BudgetError(`${entry.provider} is not a spending provider; it cannot be charged`);
+    // Estimated or actual, a charge must be a finite, non-negative number; cached rows are recorded as zero whatever they carry.
+    const units = entry.units == null || entry.units === '' ? NaN : Number(entry.units);
+    if (!entry.cached && !(Number.isFinite(units) && units >= 0)) throw new BudgetError(`invalid units ${String(entry.units)} for ${entry.provider}/${entry.service}: a charge must be a finite number of at least 0`);
+    if (!entry.cached && units > 0 && !info.cap) throw new BudgetError(`${entry.provider} is not a spending provider; it cannot be charged`);
     const row = {
       at: new Date().toISOString(), run: this.runId, stage: entry.stage, provider: entry.provider, service: entry.service,
-      unit: info.unit, units: entry.cached ? 0 : Number(entry.units), estimated: entry.estimated !== false,
+      unit: info.unit, units: entry.cached ? 0 : units, estimated: entry.estimated !== false,
       cached: !!entry.cached, ref: entry.ref || null, note: entry.note || null,
       ...(entry.paidElsewhere ? { paidElsewhere: { usdMicros: entry.paidElsewhere.usdMicros ?? null, estimated: entry.paidElsewhere.estimated ?? null } } : {}),
     };

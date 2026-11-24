@@ -101,6 +101,15 @@ def init(title, root, kind="briefing", identity="mahumtech", force=False, today=
     work = Path(root) / f"{slugify(title)}-{stamp}"
     if work.exists() and any(work.iterdir()) and not force:
         raise SystemExit(f"{work} already exists and is not empty; pass --force only to add missing files")
+    existing = None
+    if force and deliverable and (work / "job.json").is_file():
+        try:
+            existing = json.loads((work / "job.json").read_text(encoding="utf-8-sig"))
+            declared = existing.get("deliverable")
+        except (ValueError, AttributeError):
+            raise SystemExit(f"{work / 'job.json'} is not a readable job, so --deliverable {deliverable} cannot be applied")
+        if declared and declared != deliverable:
+            raise SystemExit(f"{work.name} already declares deliverable '{declared}'; --force will not change it to '{deliverable}'")
     for d in DIRS:
         (work / d).mkdir(parents=True, exist_ok=True)
 
@@ -109,7 +118,16 @@ def init(title, root, kind="briefing", identity="mahumtech", force=False, today=
         if not p.exists():
             p.write_text(text, encoding="utf-8")
 
-    fmt = lambda o: json.loads(json.dumps(o).replace("{title}", title).replace("{kind}", kind))
+    def fmt(o):
+        """Fill {title} and {kind} in the values, so a quote or a backslash in the title cannot break the JSON."""
+        if isinstance(o, str):
+            return o.replace("{title}", title).replace("{kind}", kind)
+        if isinstance(o, list):
+            return [fmt(v) for v in o]
+        if isinstance(o, dict):
+            return {k: fmt(v) for k, v in o.items()}
+        return o
+
     put("case/case.md", CASE.format(title=title))
     put("story/treatment.md", TREATMENT.format(title=title))
     put("story/beat-sheet.json", json.dumps(BEATS, indent=2) + "\n")
@@ -122,6 +140,9 @@ def init(title, root, kind="briefing", identity="mahumtech", force=False, today=
     if deliverable:
         job["deliverable"] = deliverable
     put("job.json", json.dumps(job, indent=2) + "\n")
+    if existing is not None and not existing.get("deliverable"):
+        existing["deliverable"] = deliverable
+        (work / "job.json").write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
     if requirements:
         put("story/requirements.json", json.dumps(requirements_scaffold(deliverable), indent=2) + "\n")
     return work

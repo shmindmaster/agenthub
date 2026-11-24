@@ -141,6 +141,25 @@ class Forms(unittest.TestCase):
         ps.approve(self.root, "delivered")
         self.assertTrue(ps.status(self.root)["complete"])
 
+    def test_a_storyboard_does_not_list_the_delivery_record_as_not_required_because_it_is_still_asked_for(self):
+        self.declare("storyboard", intent="internal")
+        self.develop_files([{"id": "a", "action": "A frame."}])
+        self.plan_files()
+        delivery = self.state("delivery")
+        self.assertEqual(delivery["state"], "FAIL")
+        self.assertIn("owner review 'delivered' is required and not recorded", delivery["reasons"])
+        self.assertNotIn("owner delivery record", delivery["notRequired"])
+        self.assertEqual(delivery["notRequired"], ["captions sidecar"])
+
+    def test_viewer_facing_stills_skip_the_story_experience_review_and_say_so(self):
+        self.declare("stills", intent="viewer-facing")
+        self.develop_files([{"id": "a", "action": "A poster."}])
+        self.plan_files()
+        w(self.root, "out/poster.png", "x")
+        post = self.state("post")
+        self.assertEqual(post["state"], "PASS", post)
+        self.assertIn("story experience review", post["notRequired"])
+
     def delegate(self, reserved=()):
         prod = json.loads((self.root / "production.json").read_text(encoding="utf-8"))
         prod.update(reviewAuthority="delegated", requiredReviews=list(reserved))
@@ -320,6 +339,28 @@ class Scaffold(unittest.TestCase):
             self.assertFalse(cr.check(both)["ok"])  # the TODO scaffold cannot pass
             with self.assertRaises(SystemExit):
                 si.init("Bad", tmp, today=date(2026, 11, 6), deliverable="hologram")
+
+    def test_a_title_with_quotes_or_backslashes_still_creates_valid_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for title in ('The "Quick" Fix', r"C:\ops\run", r'Both " and \ and {braces}'):
+                work = si.init(title, tmp, today=date(2026, 11, 6))
+                screenplay = json.loads((work / "story/screenplay.json").read_text(encoding="utf-8"))
+                self.assertEqual(screenplay["title"], title)
+                self.assertEqual(json.loads((work / "job.json").read_text(encoding="utf-8"))["title"], title)
+                self.assertEqual(json.loads((work / "production.json").read_text(encoding="utf-8"))["title"], title)
+                self.assertIn(title, (work / "case/case.md").read_text(encoding="utf-8"))
+
+    def test_force_applies_a_deliverable_the_job_does_not_declare_and_refuses_a_different_one(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = si.init("Redo", tmp, today=date(2026, 11, 6))
+            self.assertNotIn("deliverable", json.loads((work / "job.json").read_text(encoding="utf-8")))
+            si.init("Redo", tmp, today=date(2026, 11, 6), force=True, deliverable="silent-video")
+            self.assertEqual(json.loads((work / "job.json").read_text(encoding="utf-8"))["deliverable"], "silent-video")
+            si.init("Redo", tmp, today=date(2026, 11, 6), force=True, deliverable="silent-video")  # the same one is fine
+            with self.assertRaises(SystemExit) as refused:
+                si.init("Redo", tmp, today=date(2026, 11, 6), force=True, deliverable="stills")
+            self.assertIn("silent-video", str(refused.exception))
+            self.assertEqual(json.loads((work / "job.json").read_text(encoding="utf-8"))["deliverable"], "silent-video")
 
 
 if __name__ == "__main__":

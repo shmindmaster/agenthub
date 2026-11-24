@@ -265,10 +265,30 @@ test('requirements reviewedSilences need a reason', { skip: !ok }, () => {
   assert.ok(codes(r.j.errors).includes('silence'), r.out);
 });
 
-test('declared durationSeconds must match', { skip: !ok }, () => {
+test('declared durationSeconds is the schema {min,max} range', { skip: !ok }, () => {
   const f = make('', { dur: 8 });
-  assert.equal(run(f, ['--requirements', reqFile({ durationSeconds: 8 })]).code, 0);
-  assert.ok(codes(run(f, ['--requirements', reqFile({ durationSeconds: 20 })]).j.errors).includes('duration-mismatch'));
+  assert.equal(run(f, ['--requirements', reqFile({ durationSeconds: { min: 6, max: 10 } })]).code, 0);
+  assert.equal(run(f, ['--requirements', reqFile({ durationSeconds: { min: 8, max: 8 } })]).code, 0);
+  assert.ok(codes(run(f, ['--requirements', reqFile({ durationSeconds: { min: 20, max: 30 } })]).j.errors).includes('duration-mismatch'));
+  assert.ok(codes(run(f, ['--requirements', reqFile({ durationSeconds: { min: 1, max: 4 } })]).j.errors).includes('duration-mismatch'));
+});
+
+test('a malformed durationSeconds is an error, not a skipped check', { skip: !ok }, () => {
+  const f = make('', { dur: 8 });
+  for (const bad of [8, '8', { min: 'a', max: 9 }, { min: 10, max: 5 }, { min: 6 }, { min: -1, max: 9 }, [6, 10]]) {
+    const r = run(f, ['--requirements', reqFile({ durationSeconds: bad })]);
+    assert.notEqual(r.code, 0, JSON.stringify(bad));
+    assert.ok(codes(r.j.errors).includes('duration-invalid'), JSON.stringify(bad) + ' ' + r.out);
+  }
+});
+
+test('the requirements file check_requirements.py accepts is accepted here too', { skip: !ok }, () => {
+  const shared = join(here, 'fixtures', 'requirements-shared.json');
+  const r = run(make('', { dur: 8 }), ['--requirements', shared]);
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(r.j.errors, []);
+  // and the same range is enforced, not skipped
+  assert.ok(codes(run(make('', { dur: 2 }), ['--requirements', shared]).j.errors).includes('duration-mismatch'));
 });
 
 test('an ffmpeg call that exceeds its timeout reports a clear error', { skip: !ok }, () => {

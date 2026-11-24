@@ -51,7 +51,7 @@ test('an AssemblyAI manifest becomes an import manifest the voice stage accepts,
   assert.equal(a.receipt.outputSha256, a.sha256);
   assert.ok(existsSync(join(out, '..', a.file)));
   const jobDir = join(root, 'job');
-  const ctx = { spec: { ...spec, voice: { provider: 'import', voiceId: 'aai-fixture', model: 'assemblyai-tts-1', source: 'assemblyai', manifest: 'manifest.json' } }, specDir: join(out, '..'), jobDir, brand: {}, flags: { quiet: true }, providers: {}, log: () => {}, workspaceId: 'w', ledger: new CostLedger({ jobDir, runId: 'r', perRun: {}, cumulative: {} }) };
+  const ctx = { spec: { ...spec, voice: { provider: 'import', voiceId: 'aai-fixture', model: 'assemblyai-tts-1', source: 'assemblyai', manifest: 'manifest.json' } }, specDir: join(out, '..'), jobDir, brand: { entity: 'personal' }, flags: { quiet: true }, providers: {}, log: () => {}, workspaceId: 'w', ledger: new CostLedger({ jobDir, runId: 'r', perRun: {}, cumulative: {} }) };
   const done = await voiceStage(ctx);
   assert.equal(done.main.lines.length, 2);
 });

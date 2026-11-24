@@ -12,7 +12,9 @@ contradict a language declared in job.json, the screenplay or the capture plan.
 
 With --candidate it also measures the file with ffprobe (duration range, aspect ratio) and reads qa/finished-film.json for the
 final hold. ffprobe missing is an error, not a pass. Anything declared but not measured is listed in `unverified` and, with
---candidate, makes ok false: an unmeasured claim is never counted as a pass. Stdlib only, free and offline.
+--candidate, makes ok false: an unmeasured claim is never counted as a pass. That covers a duration, aspect or final hold before a
+candidate exists, a narrationLanguage or uiLanguage that nothing else in the job declares, a required CTA scene with no text, and a
+requirement with no `match`; a passing item with that id in qa/requirements-review.json (ids narrationLanguage, uiLanguage, cta) clears it. Stdlib only, free and offline.
 """
 from __future__ import annotations
 
@@ -118,8 +120,9 @@ def contradicts(want, have):
 
 
 def language_errors(root, req):
-    """A declared language that contradicts one declared elsewhere in the job."""
-    root, errs = Path(root), []
+    """(errors, compared): a declared language that contradicts one declared elsewhere in the job, and the declared fields that have at
+    least one counterpart to compare with. A field with none is a claim nothing measures."""
+    root, errs, compared = Path(root), [], set()
 
     def load(rel):
         try:
@@ -133,9 +136,11 @@ def language_errors(root, req):
     pairs += [("uiLanguage", rel, key) for rel in CAPTURE_PLANS for key in ("uiLanguage", "locale")]
     for field, rel, key in pairs:
         want, have = req.get(field), load(rel).get(key)
-        if isinstance(want, str) and isinstance(have, str) and have.strip() and contradicts(want, have):
-            errs.append(f"{field} '{want}' contradicts {rel} {key} '{have}'")
-    return errs
+        if isinstance(want, str) and isinstance(have, str) and have.strip():
+            compared.add(field)
+            if contradicts(want, have):
+                errs.append(f"{field} '{want}' contradicts {rel} {key} '{have}'")
+    return errs, compared
 
 
 def check(root, candidate=None):
@@ -275,7 +280,15 @@ def check(root, candidate=None):
         elif cta.get("text") and sp is not None and not (has_term(text([cid], "narration"), cta["text"])
                                                            or (plan_ok and has_term(text([cid], "picture"), cta["text"]))):
             errors.append(f"cta text '{cta['text']}' not found in scene {cid}")
-    errors.extend(language_errors(root, req))
+        elif not cta.get("text"):
+            visual["cta"] = (f"cta: scene {cid} is named but no text, so nothing checks it against the script",
+                             f"cta: no text to match and no passing 'cta' item in {REVIEW} for this file")
+    lang_errors, compared = language_errors(root, req)
+    errors.extend(lang_errors)
+    for f in ("narrationLanguage", "uiLanguage"):
+        if isinstance(req.get(f), str) and req[f] != "TODO" and f not in compared:
+            visual[f] = (f"{f}: nothing in the job, screenplay or capture plan declares one to compare with, so it is not checked",
+                         f"{f}: nothing else declares one and there is no passing '{f}' item in {REVIEW} for this file")
 
     job = load_opt("job.json") or {}
     suffix = Path(candidate).suffix.lower().lstrip(".") if candidate is not None else ""
@@ -286,13 +299,14 @@ def check(root, candidate=None):
         unverified.extend(v[0] for v in visual.values())
     if candidate is not None:
         length = measure(root, Path(candidate), out, dur, asp, hold, still)
-        ids = set(seen)
+        ids = set(seen) | set(visual)
         if still and asp and suffix not in PROBE_STILL_EXT:
             visual["framing"] = ("", "framing: the aspect of a pdf or pptx cannot be measured; it needs a passing `framing` item in " + REVIEW)
             ids.add("framing")
         review(root, out, visual, ids, length)
-    elif hold is not None:
-        unverified.append("finalHoldSeconds is measured only with --candidate")
+    else:
+        unverified.extend(f"{name} is measured only with --candidate"
+                          for name, v in (("durationSeconds", dur), ("aspect", asp), ("finalHoldSeconds", hold)) if v is not None)
     return finish(out, candidate is not None)
 
 

@@ -250,5 +250,56 @@ class ClerkFleetTests(unittest.TestCase):
                     run.assert_not_called()
                     self.assertFalse(runtime.exists())
 
+    def good_row(self):
+        return {"matchingOfficialSkills": 20, "remoteConfigured": True}
+
+    def test_audit_reads_back_only_the_selected_hosts_never_inactive_or_blocked_ones(self):
+        with tempfile.TemporaryDirectory() as temp, patch.dict(fleet.os.environ, {"APPDATA": temp}):
+            home, upstream = Path(temp) / "home", Path(temp) / "upstream"
+            (upstream / "skills/clerk").mkdir(parents=True)
+            (upstream / "skills/clerk/SKILL.md").write_text("---\nname: clerk\n---\n", encoding="utf-8")
+            wanted = {"claude", "cline", "warp", "mimo-code", "zcode", "qwen"}
+            rows = fleet.audit(upstream, home, wanted)
+            self.assertEqual(set(rows), {"claude", "cline", "warp", "mimo-code"})  # blocked hosts are never audited rows
+            rows = fleet.audit(upstream, home, wanted - inactive_hosts())
+            self.assertEqual(set(rows), {"claude", "cline"})
+
+    def test_an_empty_audit_does_not_pass_and_blocked_hosts_are_not_rows_that_can_fail_it(self):
+        self.assertFalse(fleet.audit_ok({}))
+        self.assertTrue(fleet.audit_ok({"claude": self.good_row()}))
+        self.assertFalse(fleet.audit_ok({"claude": {**self.good_row(), "matchingOfficialSkills": 0}}))
+
+    @unittest.skipUnless(fleet.os.name == "nt", "Windows fleet audit")
+    def test_audit_passes_with_blocked_hosts_reported_separately_and_skips_inactive_ones(self):
+        rows = {"claude": self.good_row()}
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(patch("sys.argv", ["installer", "--audit"]))
+            audit = stack.enter_context(patch.object(fleet, "audit", return_value=rows))
+            output = stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+            stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+            with patch.dict(fleet.BLOCKED, {"pending-host": "discovery-required: no approved route"}), self.assertRaises(SystemExit) as result:
+                fleet.main()
+        self.assertEqual(result.exception.code, 0)
+        self.assertFalse(set(audit.call_args.args[2]) & (inactive_hosts() | set(fleet.BLOCKED)))
+        report = json.loads(output.getvalue())
+        self.assertEqual(set(report["hosts"]), {"claude"})
+        self.assertIn("pending-host", report["blocked"])
+
+    def test_a_blocked_host_that_the_registry_retired_says_so(self):
+        for host in set(fleet.BLOCKED) & inactive_hosts():
+            self.assertIn("retired", fleet.BLOCKED[host], host)
+        self.assertNotIn("became a dispatch host", fleet.BLOCKED["qwen"])
+
+    def test_every_recorded_update_command_names_a_host_the_installer_will_accept(self):
+        registry = json.loads((ROOT / "registry/native-connectors.json").read_text(encoding="utf-8-sig"))
+        clerk = next(e for e in registry["thirdPartyExtensions"]["extensions"] if e["extensionId"] == "clerk-skills")
+        accepted = (set(fleet.NATIVE) | fleet.BRIDGES | set(fleet.ALIASES)) - inactive_hosts()
+        for entry in clerk["hostChannels"]:
+            words = entry["updateCommand"].split()
+            self.assertIn("Install-ClerkFleet.py", entry["updateCommand"])
+            if "--host" in words:
+                self.assertIn(words[words.index("--host") + 1], accepted, entry["hostId"])
+
+
 if __name__ == "__main__":
     unittest.main()

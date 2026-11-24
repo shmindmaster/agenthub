@@ -56,7 +56,7 @@ Write the caption sidecar and place the candidate in the authorized internal lib
 | `narrated-video` | everything above | none |
 | `silent-video` | picture plan, relevance and variety reports, picture video, finished `.mp4`, frame integrity; scenes with an `action` or `picture` and no narration | narration text, narration check, voice takes, cue sheet, word sync, captions sidecar |
 | `audio` | narration, narration check, voice takes, finished `.wav`, `.mp3` or `.m4a` | picture plan, relevance, variety, picture video, cue sheet, word sync, frame integrity, captions sidecar |
-| `stills` | picture plan and its gates, finished `.png`, `.jpg`, `.pdf` or `.pptx` | narration, voice takes, video, word sync, frame integrity, captions sidecar; the production phase |
+| `stills` | picture plan and its gates, finished `.png`, `.jpg`, `.pdf` or `.pptx` | narration, voice takes, video, word sync, frame integrity, story experience review (a viewer-facing still has no film to watch or hear; it is listed in post's `notRequired`), captions sidecar; the production phase |
 | `storyboard` | develop and pre-production, including `story/storyboard.json` | production, post and delivery phases |
 
 `validate-narration.mjs` stops with "no narration lines" on a screenplay with none, so the narration check is not required for `silent-video`, `stills` and `storyboard`. `screenplay_breakdown.py` runs on scenes without narration (zero seconds), so `plan/breakdown.json` stays required for every form.

@@ -57,7 +57,7 @@ const OFFSET_END = /(Z|[+-]\d{2}:?\d{2})$/i;
 /** Parse a consent date: a date alone is the end of that day in US Central; a date-time must carry an offset. */
 function consentInstant(value, name) {
   const s = String(value ?? '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) { const at = name === 'validUntil' ? endOfDayCentral(s) : Date.parse(s); return Number.isFinite(at) ? { at } : { problem: `consent.${name} is not a date` }; }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) { const at = name === 'validUntil' ? endOfDayCentral(s) : Date.parse(s); return Number.isFinite(at) ? { at, dateOnly: Date.parse(s) } : { problem: `consent.${name} is not a date` }; }
   if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
     if (!OFFSET_END.test(s)) return { problem: `consent.${name} is a date-time without an explicit offset (Z or +hh:mm)` };
     const at = Date.parse(s);
@@ -79,7 +79,9 @@ export function consentProblem(consent, { now = Date.now(), voiceName } = {}) {
   if (approved.problem) return approved.problem;
   const until = consentInstant(consent.validUntil, 'validUntil');
   if (until.problem) return until.problem;
-  if (until.at - approved.at > 60 * DAY_MS) return 'consent.validUntil is more than 60 days after approvedAt';
+  // Two bare dates are compared as calendar days; the end-of-day rule applies only to the expiry check below.
+  const span = approved.dateOnly !== undefined && until.dateOnly !== undefined ? until.dateOnly - approved.dateOnly : until.at - approved.at;
+  if (span > 60 * DAY_MS) return 'consent.validUntil is more than 60 days after approvedAt';
   if (until.at < now) return `consent expired on ${consent.validUntil}`;
   return null;
 }
@@ -87,8 +89,12 @@ export function consentProblem(consent, { now = Date.now(), voiceName } = {}) {
 const isCloneReceipt = (r) => Boolean(r) && (r.clone === true || r.visibility === 'private');
 const exceptionOk = (e) => Boolean(e) && String(e.reason || '').trim() && String(e.approvedBy || '').trim();
 /** Message when two entities disagree and no exception is recorded, else null. */
-export function entityProblem(brandEntity, recordEntity, exception, what) {
-  if (!brandEntity || !recordEntity || brandEntity === recordEntity || exceptionOk(exception)) return null;
+export function entityProblem(brandEntity, recordEntity, exception, what, recordName = 'record') {
+  if (exceptionOk(exception)) return null;
+  const anyway = 'record an entityException {reason, approvedBy} to use it anyway';
+  if (!brandEntity) return `${what} is imported but brand.entity is missing; set brand.entity (abacare, mahumtech or personal) or ${anyway}`;
+  if (!recordEntity) return `${what} cannot be attributed: the ${recordName} has no entity; add it or ${anyway}`;
+  if (brandEntity === recordEntity) return null;
   return `${what} is for entity "${recordEntity}" but the brand is "${brandEntity}"; record an entityException {reason, approvedBy} to use it anyway`;
 }
 
@@ -119,7 +125,7 @@ export function importPolicyProblems(spec, manifest, brand, now = Date.now()) {
       if (problem) add('owner-voice', `an imported AssemblyAI owner clone needs valid consent: ${problem}`);
     }
   }
-  const entity = entityProblem(brand?.entity, manifest.entity, v.entityException, 'this narration');
+  const entity = entityProblem(brand?.entity, manifest.entity, v.entityException, 'this narration', 'manifest');
   if (entity) add('entity', entity);
   return out;
 }
@@ -204,9 +210,14 @@ export function estimateBeatSeconds(beat) {
   return Math.max(Number(beat.minSeconds || 0), LEAD_SECONDS + n / WORDS_PER_SECOND + TAIL_SECONDS);
 }
 
+/** The closing hold a cut declares after its last spoken word: cut.finalHoldSeconds, else spec.finalHoldSeconds, else 0. */
+export function holdSeconds(cut, spec) {
+  const hold = Number(cut?.finalHoldSeconds ?? spec?.finalHoldSeconds ?? 0);
+  return hold > 0 ? hold : 0;
+}
+
 export function estimateCutSeconds(cut, spec) {
-  const hold = Number(cut.finalHoldSeconds ?? spec?.finalHoldSeconds ?? 0);
-  return cut.beats.reduce((sum, beat) => sum + estimateBeatSeconds(beat), 0) + (hold > 0 ? hold : 0);
+  return cut.beats.reduce((sum, beat) => sum + estimateBeatSeconds(beat), 0) + holdSeconds(cut, spec);
 }
 
 function resolveBannedPatterns(brand, factual) {
@@ -473,7 +484,8 @@ function lintBrollProducer(beat, where, err, io, brand) {
       if (b.receipt && b.receipt.provider !== b.source) err('broll-import', `broll.receipt.provider must be "${b.source}", the declared source`, where);
       if (b.receipt && !b.receipt.outputSha256) err('broll-import', 'broll.receipt.outputSha256 is required and must equal broll.sha256', where);
     }
-    const entity = entityProblem(brand?.entity, b.receipt?.entity, b.entityException, 'this still');
+    // A provider receipt is the record that names an entity; a licensed still with no receipt has none to check.
+    const entity = b.receipt ? entityProblem(brand?.entity, b.receipt.entity, b.entityException, 'this still', 'receipt') : null;
     if (entity) err('entity', entity, where);
     if (b.file && b.sha256) { const problem = stillProblem(b.file, io.specDir, io, b.sha256); if (problem) err('broll-file', problem, where); }
   }
@@ -567,7 +579,8 @@ function lintCut(cut, state) {
   if (estimate > cut.targetSeconds + 4) state.err('too-long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target; trim the script before spending on voice`, cut.id);
   else if (estimate > cut.targetSeconds + 1.5) state.warn('long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
   else if (estimate < cut.targetSeconds * 0.6) state.warn('short', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
-  if (state.music?.provider === 'elevenlabs' && state.music.lengthSeconds !== undefined && state.music.lengthSeconds < cut.targetSeconds + 2) state.err('music-length', `music.lengthSeconds ${state.music.lengthSeconds} s is shorter than cut ${cut.id} (${cut.targetSeconds} s target) plus 2 s; the bed must outlast the program (the assets stage re-checks against the measured length)`, 'music');
+  const hold = holdSeconds(cut, state.spec);
+  if (state.music?.provider === 'elevenlabs' && state.music.lengthSeconds !== undefined && state.music.lengthSeconds < cut.targetSeconds + hold + 2) state.err('music-length', `music.lengthSeconds ${state.music.lengthSeconds} s is shorter than cut ${cut.id} (${cut.targetSeconds} s target${hold ? ` plus a ${hold} s final hold` : ''}) plus 2 s; the bed must outlast the program (the assets stage re-checks against the measured length)`, 'music');
   if (state.mode === 'verified-demo' && !cut.beats.some((b) => b.kind === 'ui')) state.err('no-ui', `verified demo ${cut.id} has no captured UI proof. Other film modes can use fully generated visuals.`, cut.id);
 }
 

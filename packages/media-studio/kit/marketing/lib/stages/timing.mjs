@@ -187,7 +187,8 @@ export async function timingStage(ctx) {
     });
     writeJson(join(ctx.jobDir, files.captions), { cut: cut.id, chunks });
     writeFileSync(join(ctx.jobDir, files.srt), toSrt(chunks), 'utf8');
-    const over = spoken.durationSeconds - cut.targetSeconds;
+    // The delivered length (spoken plus the closing hold) is what the target bounds, as in lint's estimate.
+    const over = timeline.durationSeconds - cut.targetSeconds;
     const detail = { durationSeconds: timeline.durationSeconds, targetSeconds: cut.targetSeconds, overSeconds: round(over, 2), captionChunks: chunks.length, wordClock: source.clock, ...(timeline.beatGrid ? { beatGrid: timeline.beatGrid } : {}) };
     out[cut.id] = writeStage(ctx.jobDir, 'timing', cut.id, k, { ...detail, outputs: [...Object.values(files), ...timingFiles] });
     if (over > Math.max(2, cut.targetSeconds * 0.1)) throw new Error(`cut ${cut.id} runs ${timeline.durationSeconds}s against a ${cut.targetSeconds}s target (+${over.toFixed(1)}s; allowed ${Math.max(2, cut.targetSeconds * 0.1).toFixed(1)}s, the longer of 2 s and 10%): trim the narration or beat minimums`);

@@ -284,6 +284,7 @@ narration that spends words on the demo data or on the film itself (`synthetic`,
 | `vision` | `vision-qa.mjs`: a frame every 1.5 s to the vision model, with a rubric (overlay typos, unreadable text at phone size, banned claims, prospect names, missing label, captions over the focal point, people/children, fabricated UI); any high finding or a missing label fails. Explicit paid OpenAI requires the governed ledger through `mvg --stage qa`; standalone paid CLI calls are refused. The `local` default fails closed (Local AI is off) | paid OpenAI, explicit opt-in |
 | `story` | `review` skill story-experience review score >= `qa.storyMin` (85) recorded in `qa/<ratio>/reviews.json` `storyReview` with a reviewer and `cta: true` | an agent review |
 | `viewerRelease` | `validate-viewer-release.mjs` on the gate workspace in `qa/<ratio>/ws`, from `reviews.json` PASS entries (`encodedVisualReview`, `titleReview`, `actionResultReview`, `storyReview`, `pronunciation`) bound to the candidate | the reviews above |
+| `finishedFilm` | `validate-finished-film.mjs <candidate> --out <ws>/qa/finished-film.json --requirements <ws>/qa/finished-film-requirements.json`, run by the QA stage with the declared `finalHoldSeconds` (the cut's, else the spec's) in the requirements file. Reads the report `media-studio/finished-film/1` and passes only when the exit code is 0, `ok` is true, `errors` is empty and the report's `sha256` is the exact candidate's; a missing report, or one for another file, is a `fail`, never a pass. **Required automatically** for a ratio whose cut (or the spec) declares `finalHoldSeconds` > 0; otherwise opt in by listing `finishedFilm` in `qa.required`. | ffmpeg |
 
 ## Deviations from the design brief (with reasons)
 
@@ -369,7 +370,7 @@ The voice stage checks that each file sits inside the manifest folder, the audio
 (AI sources), and that `textSha256` is the beat narration; any miss stops with one message naming the beat. The audio hash is part
 of the line key, so swapped audio re-times. Each line is a zero-cost cached ledger row under the true source; a `recording` is not
 AI-generated and needs no request id. An imported AssemblyAI owner clone (`ownerVoice: true`) also needs
-`consent {subject, approvedBy, validUntil}` (unexpired) on the manifest or every line receipt, plus the disclosure.
+`consent {subject, approvedBy, approvedAt or recordedAt, validUntil}` (unexpired; `subject` equal to `voice.name`; `validUntil` within 60 days of `approvedAt`/`recordedAt`) on the manifest or every line receipt, plus the disclosure. `scripts/import-narration.mjs` never writes consent: add it to the manifest by hand after it builds the manifest.
 `scripts/import-narration.mjs --spec --source assemblyai|deepgram --from --out [--entity] [--region]` builds the manifest from an
 AssemblyAI `narration-manifest.json` (every batch must be one beat) or a folder of Deepgram CLI receipts, offline.
 
@@ -382,7 +383,7 @@ Imports are capped by their own governed ledger (the script that made them), not
 and again by the voice stage: each synthetic line receipt must carry the declared `voiceId` and `model`; an owner clone needs consent on the
 manifest or on every narrated line (`subject` equal to `voice.name`, `approvedAt` or `recordedAt`, `validUntil` within 60 days of it; a date
 alone ends that day in US Central, a date-time needs an offset); a receipt marked `clone: true` or `visibility: "private"` needs `ownerVoice`;
-a `recording` needs `recordedBy` and no receipt provider; `brand.entity` and the manifest (or b-roll receipt) entity must agree unless
-`voice.entityException` / `broll.entityException {reason, approvedBy}` is recorded. A cut with `voice.disclosure` or `brand.disclosure.required`
+a `recording` needs `recordedBy` and no receipt provider; `brand.entity` and the manifest (or b-roll receipt) entity must both be present and agree unless
+`voice.entityException` / `broll.entityException {reason, approvedBy}` is recorded. `brand.entity` is optional in the brand schema but required once an import provider is used: the lint and the voice and assets stages refuse a missing `brand.entity`, a manifest with no `entity`, or a b-roll `receipt` with no `entity`, naming which one is missing (a licensed still with no receipt has no record to check). A date-only `approvedAt` and `validUntil` are compared as calendar days (2026-09-25 to 2026-11-24 is 60 days and accepted; 2026-11-25 is refused); with a date-time on either side the exact instants are compared. A cut with `voice.disclosure` or `brand.disclosure.required`
 must end on a `card`, the only place the label and disclosure are drawn. Imported stills must lie inside the spec folder or workspace.
-A planned provider with unknown cost fails the lint unless it is `local`. `finalHoldSeconds` counts toward the planned cut length.
+A planned provider with unknown cost fails the lint unless it is `local`. `finalHoldSeconds` counts toward the planned cut length, the music bed (`music.lengthSeconds` must cover the target plus the hold plus 2 s) and the timing stage's overrun check, which compares the delivered length (spoken plus hold) with the target; it also makes the `finishedFilm` gate required.

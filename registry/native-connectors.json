@@ -1093,8 +1093,8 @@
             "channel": "upstream-skills-and-remote-mcp",
             "installedVersion": "1.0.0",
             "current": true,
-            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host warp",
-            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified. Warp was retired 2026-11-19 (inactiveAgents), so the installer now refuses --host warp; the plain --apply updates the active hosts and skips it."
           },
           {
             "hostId": "vscode-insiders",

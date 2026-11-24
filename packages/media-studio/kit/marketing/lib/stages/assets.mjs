@@ -77,7 +77,7 @@ export async function assetsStage(ctx) {
     if (blocked) throw new Error(`assets: b-roll ${cut.id}/${beat.id} cannot be produced (${blocked}); fix the spec before any asset is generated`);
     // Read every supplied still, and check its entity, before anything is bought.
     if (beat.broll.file && ['stock', 'import'].includes(beat.broll.provider)) readStill(ctx, beat.broll, `${cut.id}/${beat.id}`);
-    const clash = beat.broll.provider === 'import' ? entityProblem(ctx.brand?.entity, beat.broll.receipt?.entity, beat.broll.entityException, 'this still') : null;
+    const clash = beat.broll.provider === 'import' && beat.broll.receipt ? entityProblem(ctx.brand?.entity, beat.broll.receipt.entity, beat.broll.entityException, 'this still', 'receipt') : null;
     if (clash) throw new Error(`assets: b-roll ${cut.id}/${beat.id}: ${clash}`);
   }
   const k = stageKey('assets', { sfx: sfx.map((s) => s.key), music: musicOn ? musicKey(ctx.spec.music.prompt, lengthMs, model) : null, broll: brolls.map(({ beat }) => [beat.id, beat.broll]) });

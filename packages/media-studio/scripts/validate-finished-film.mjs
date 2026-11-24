@@ -7,14 +7,14 @@
 // Hard errors (objective): opening-blank (black or single-colour first frame >= 0.2 s), blank-span (near-uniform span
 // > 0.5 s anywhere except a fade at the very end <= 1 s), silence (mid-film audio silence >= 5 s, unless reviewed),
 // trailing-silence (> 6 s, or > finalHoldSeconds + 3 s when declared), final-hold-unmet / final-hold-blank / final-hold-fading (the
-// declared final hold is not a stable, visible picture), no-audio, no-video, aspect-mismatch, duration-mismatch, deliverable-mismatch.
+// declared final hold is not a stable, visible picture), no-audio, no-video, aspect-mismatch, duration-mismatch, duration-invalid, deliverable-mismatch.
 // Advisories (a human looks; never block): opening-static, ending-unsettled, silence-review (3-5 s), low-detail
 // (possible loading or empty page), blurred-fill (vertical cut made from a 16:9 master).
 // Edge clipping, UI text size, spinners and language are not measured here: see skills/finish/references/gates.md.
 //
 // Cost: one reduced-scale decode of the film at SAMPLE_FPS, one audio pass, and two short freezedetect windows (the
 // first 3 s and the last seconds). requirements.json is read for finalHoldSeconds, aspect ("16x9"; "16:9" is tolerated),
-// durationSeconds and reviewedSilences [{start,end,reason}] (reason required), at its top level or one object down. The
+// durationSeconds ({min,max}; any other shape is a duration-invalid error) and reviewedSilences [{start,end,reason}] (reason required), at its top level or one object down. The
 // deliverable comes from --deliverable, else job.json (deliverable, or kind audio-only), else narrated-video; stills and
 // storyboard are not applicable (ok:true, notApplicable:true, nothing measured).
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
@@ -185,7 +185,14 @@ for (const r of reviewedList) {
 }
 const reviewed = [...parseRanges(reviewedArgs), ...reviewedReq];
 const wantAspect = parseAspect(pick(requirements, ['aspect']));
-const wantDuration = Number(pick(requirements, ['durationSeconds'])) || null;
+// durationSeconds is {min,max} (schemas/requirements.schema.json, check_requirements.py); any other shape is an error, never a skipped check
+const durRaw = pick(requirements, ['durationSeconds']);
+let wantDuration = null;
+if (durRaw !== undefined) {
+  const num = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+  if (durRaw && typeof durRaw === 'object' && !Array.isArray(durRaw) && num(durRaw.min) && num(durRaw.max) && durRaw.min <= durRaw.max) wantDuration = { min: durRaw.min, max: durRaw.max };
+  else err('duration-invalid', null, 'requirements durationSeconds must be {"min": seconds, "max": seconds} with 0 <= min <= max');
+}
 const hasVideoDeliverable = deliverable !== 'audio';
 
 const probe = await exec('ffprobe', ['-v', 'error', '-show_entries', 'format=duration:stream=index,codec_type,width,height,duration', '-of', 'json', candidate]);
@@ -200,7 +207,7 @@ const duration = Number(info.format?.duration) || Number(vStream?.duration) || N
 report.durationSeconds = round(duration, 3);
 if (!(duration > 0)) { err('unreadable', null, 'candidate has no measurable duration'); finish(); }
 if (!process.env.FINISHED_FILM_TIMEOUT_MS) timeoutMs = 120000 + Math.ceil(duration * 1500);
-if (wantDuration && Math.abs(duration - wantDuration) > Math.max(2, wantDuration * 0.03)) err('duration-mismatch', null, `the film runs ${round(duration)} s but requirements declare durationSeconds ${wantDuration}`);
+if (wantDuration && (duration < wantDuration.min - Math.max(2, wantDuration.min * 0.03) || duration > wantDuration.max + Math.max(2, wantDuration.max * 0.03))) err('duration-mismatch', null, `the film runs ${round(duration)} s but requirements declare durationSeconds ${wantDuration.min} to ${wantDuration.max}`);
 
 if (hasVideoDeliverable && !vStream) err('no-video', null, `${deliverable} has no video stream`);
 if (deliverable !== 'silent-video' && !aStream) err('no-audio', null, `${deliverable} has no audio stream; a narrated film must carry its narration`);
