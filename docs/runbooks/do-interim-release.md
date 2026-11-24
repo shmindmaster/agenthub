@@ -46,7 +46,7 @@ A failed build or a failed health check leaves the previous deployment serving, 
 
 ## Pre-merge runners on the droplet
 
-The existing product CI runners on the DigitalOcean droplet still serve product CI. No new work goes there: new repositories, new runners and new job types do not use it. Migration off the droplet is tracked in Linear CORE-107.
+The existing product CI runners on the DigitalOcean droplet still serve product CI. That is the one exception to the rule that nothing uses the droplet, and it lasts until those jobs move. No new work goes there: new repositories, new runners and new job types do not use it. Migration off the droplet is tracked in Linear CORE-107.
 
 ## AWS target (2026-12-01)
 

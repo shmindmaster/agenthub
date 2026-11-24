@@ -47,7 +47,6 @@
     }
   },
   "daytonaLane": {
-    "decision": "docs/architecture/mobile-lab-remote-android.md",
     "recordedOn": "2026-11-24",
     "supersedes": "The retired DigitalOcean build droplet's lanes (macOS container, remote Android worker, Android build lane), retired by owner direction 2026-11-24.",
     "linux": {
