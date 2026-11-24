@@ -20,8 +20,8 @@
         ]
       },
       "notes": [
-        "Series methodology and the technical explainer are media-studio content under skills/video since 2026-10-21; story-series-studio and technical-storytelling were retired into it.",
-        "browser-toolkit was retired at owner direction on 2026-10-30 and is no longer a bundle input; capture lanes now live in each repository's own tooling, and film capture comes from media-studio skills/capture.",
+        "Series methodology and the technical explainer are media-studio content under skills/studio (formerly skills/video) since 2026-10-21; story-series-studio and technical-storytelling were retired into it.",
+        "browser-toolkit was retired at owner direction on 2026-10-30 and is no longer a bundle input; capture lanes now live in each repository's own tooling, and film capture comes from media-studio skills/produce/references/capture.md.",
         "media-studio is the public video pack, including live-product screencasts (Playwright WebM + Recast)."
       ]
     },
@@ -40,7 +40,7 @@
         ]
       },
       "notes": [
-        "learning-studio was a registered package until its retirement on 2026-10-30, so this recipe requires media-studio directly; visual explainers come from its skills/video references.",
+        "learning-studio was a registered package until its retirement on 2026-10-30, so this recipe requires media-studio directly; visual explainers come from its skills/studio references.",
         "Remotion/animations are optional enhancements, not required to answer a question."
       ]
     },

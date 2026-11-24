@@ -12,6 +12,9 @@
     "primaryTakeaway": {"type": "string", "minLength": 1},
     "audienceContext": {"type": "object", "additionalProperties": false, "required": ["problemStatus", "sourceRefs"], "properties": {"problemStatus": {"enum": ["confirmed-discovery", "hypothesis", "fictional-scenario"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
     "nextStep": {"type": "object", "additionalProperties": false, "required": ["action", "owner", "agreedDate"], "properties": {"action": {"type": "string", "minLength": 1}, "owner": {"type": "string", "minLength": 1}, "agreedDate": {"type": ["string", "null"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
+    "deliverable": {"enum": ["narrated-video", "silent-video", "audio", "stills", "storyboard"], "description": "What the job produces; production_status.py requires only what that form needs. Omitted: audio for kind audio-only, else narrated-video."},
+    "narrationLanguage": {"type": "string", "pattern": "^([A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*|none)$", "description": "BCP-47 tag of the spoken language, or none. Independent of uiLanguage; check_requirements.py rejects a contradicting story/requirements.json."},
+    "uiLanguage": {"type": "string", "pattern": "^([A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*|none)$", "description": "BCP-47 tag of the language shown on screen, or none."},
     "maxDurationSeconds": {"type": "number", "minimum": 1},
     "captionPolicy": {"type": "object", "additionalProperties": false, "required": ["mode", "deliverySurface"], "properties": {"mode": {"enum": ["selectable", "open", "sidecar"]}, "deliverySurface": {"type": "string", "minLength": 1}}},
     "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
@@ -120,7 +123,7 @@
     "durationSeconds": { "type": "number", "minimum": 1 },
     "voice": {
       "type": "string",
-      "description": "Program narrator voice selected using skills/produce/references/voice-recipes.md. Governed Azure DragonHD voices are Ava, Andrew, Emma2 and Andrew2. New recipes exclude direct ElevenLabs. Public-preview MAI, desktop speech and owner voice cloning are forbidden. Historical voice IDs remain readable."
+      "description": "Program narrator voice selected using skills/produce/references/voice-recipes.md. Governed Azure DragonHD voices are Ava, Andrew, Emma2 and Andrew2. New recipes exclude direct ElevenLabs. Public-preview MAI and desktop speech are forbidden. A consented owner clone is limited to the scope in voice-recipes.md and its recorded approval. Historical voice IDs remain readable."
     },
     "workspace": {
       "type": "string",

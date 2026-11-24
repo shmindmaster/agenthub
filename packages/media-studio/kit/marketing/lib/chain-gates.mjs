@@ -130,3 +130,33 @@ export async function runMarketingGate({ ws, qdir, ratio, candidate, sha, compos
   const r = await runScript(moduleRoot, 'validate-marketing-readiness.mjs', [ws, candidate, '--readiness', wsReadiness, '--compose-map', composeMapRel, ...(existsSync(cueSheet) ? ['--cue-sheet', 'plan/cue-sheet.json'] : []), '--out', check], check);
   return chainGateResult('marketing', r);
 }
+
+/**
+ * Map the finished-film script's exit code and report (media-studio/finished-film/1) to a gate result. A pass needs exit 0,
+ * ok true, no errors, and a report whose sha256 is the exact candidate's: a missing report, or one for another file, is never a pass.
+ */
+export function finishedFilmResult({ code, report, stderr = '' }, candidateSha) {
+  if (!report) return { status: 'fail', detail: stderr || `exit ${code}, no finished-film report` };
+  if (report.schema !== 'media-studio/finished-film/1') return { status: 'fail', detail: `qa/finished-film.json is not a media-studio/finished-film/1 report (${report.schema ?? 'no schema'})` };
+  if (!candidateSha || report.sha256 !== candidateSha) return { status: 'fail', detail: `the finished-film report is for another file (${String(report.sha256 || 'no hash').slice(0, 12)}...), not this candidate` };
+  const errors = Array.isArray(report.errors) ? report.errors : [];
+  if (code !== 0 || report.ok !== true || errors.length) {
+    const shown = errors.slice(0, 3).map((e) => `${e.code}@${e.at ?? '-'}: ${e.message}`).join(' | ');
+    return { status: 'fail', detail: shown || stderr || `exit ${code}, report ok ${report.ok}` };
+  }
+  return { status: 'pass', detail: `no errors${report.advisories?.length ? `, ${report.advisories.length} advisories for a human look` : ''}`, report: 'qa/finished-film.json' };
+}
+
+/**
+ * gates.finishedFilm: validate-finished-film.mjs on the exact candidate, told the declared final hold (cut or spec) through a
+ * requirements file of its own, so no other gate reads it. The report is written to <ws>/qa/finished-film.json; an earlier one is removed first.
+ */
+export async function runFinishedFilmGate({ ws, candidate, sha, hold = 0, moduleRoot }) {
+  const out = join(ws, 'qa', 'finished-film.json');
+  rmSync(out, { force: true });
+  mkdirSync(join(ws, 'qa'), { recursive: true });
+  const requirements = join(ws, 'qa', 'finished-film-requirements.json');
+  writeFileSync(requirements, `${JSON.stringify(hold > 0 ? { finalHoldSeconds: hold } : {}, null, 2)}\n`);
+  const r = await runScript(moduleRoot, 'validate-finished-film.mjs', [candidate, '--out', out, '--requirements', requirements], out);
+  return finishedFilmResult(r, sha);
+}

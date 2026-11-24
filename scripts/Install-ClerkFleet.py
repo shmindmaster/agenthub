@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import hashlib
 from datetime import datetime, timezone
 
@@ -42,9 +43,15 @@ BLOCKED = {
     "zcode": "Standalone ZCode uses its own marketplace profile. Clerk's native plugin compatibility and scoped MCP authorization are unverified.",
     "grokbot": "Grok Bot is inventory only. Clerk skill import and scoped MCP authorization are unverified.",
     "manus": "Manus Desktop is inventory only. Clerk skill import and scoped MCP authorization are unverified.",
-    "qwen": "Clerk route discovery-required: Qwen Code became a dispatch host on 2026-11-11; whether it loads the "
-            "Clerk skills or an MCP server has not been established, and no mapping has been approved for it.",
+    "qwen": "Clerk route discovery-required: Qwen Code was a dispatch host from 2026-11-11 and was retired on 2026-11-19 "
+            "(inactiveAgents); whether it loads the Clerk skills or an MCP server was never established and no mapping was approved.",
 }
+
+
+def inactive_agents():
+    """Hosts listed under inactiveAgents in registry/agents.json, mapped to their status."""
+    registry = json.loads((REPO / "registry/agents.json").read_text(encoding="utf-8-sig"))
+    return {agent["id"]: agent.get("status", "inactive") for agent in registry.get("inactiveAgents", [])}
 
 
 def companion_rule(home):
@@ -81,7 +88,8 @@ def deploy_companion(home):
     path.write_text(rule, encoding="utf-8")
 
 
-def audit(upstream, home):
+def audit(upstream, home, hosts):
+    """Read back the selected hosts only. Blocked hosts have no route to read back; main() reports them apart from these rows."""
     patterns = {
         "claude": ".claude/plugins/cache/clerk-skills/clerk/*",
         "codex": ".codex/plugins/cache/clerk/clerk/*",
@@ -98,7 +106,7 @@ def audit(upstream, home):
     # Native installers can normalize Git checkout line endings on Windows.
     expected = {p.parent.name: hashlib.sha256(p.read_text(encoding="utf-8").encode()).hexdigest()
                 for p in (upstream / "skills").glob("*/SKILL.md")}
-    for host in sorted(set(NATIVE) | BRIDGES):
+    for host in sorted((set(NATIVE) | BRIDGES) & set(hosts)):
         if host == "devin":
             roots = list((Path(os.environ["APPDATA"]) / "devin/cli/plugins/cache").glob("github.com_clerk_skills-*/*"))
         elif host == "vscode-insiders":
@@ -139,12 +147,17 @@ def audit(upstream, home):
             rows[host]["qaGuidanceConfigured"] = path.is_file() and path.read_text(encoding="utf-8-sig") == rule
             rows[host]["qaGuidanceLoading"] = "not verified"
     for alias, host in ALIASES.items():
-        rows[alias] = {**rows[host], "configurationOwner": host}
-    for host, reason in BLOCKED.items():
-        rows[host] = {"matchingOfficialSkills": 0, "remoteConfigured": False,
-                      "installation": "blocked", "reason": reason,
-                      "freshSession": "not verified", "authenticatedMcp": "not verified"}
+        if host in rows:
+            rows[alias] = {**rows[host], "configurationOwner": host}
     return rows
+
+
+def audit_ok(rows):
+    """Every audited host has the official skills and a remote (or the skills-only policy); an empty audit proves nothing."""
+    return bool(rows) and all(r["matchingOfficialSkills"] == 20
+                              and (r["remoteConfigured"] or r.get("remotePolicy", "").startswith("skills only"))
+                              and r.get("qaGuidanceConfigured", True)
+                              for r in rows.values())
 
 
 def has_remote(path):
@@ -260,14 +273,24 @@ def bridge(host, upstream, home):
 
 
 def main():
+    inactive = inactive_agents()
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--apply", action="store_true")
     mode.add_argument("--audit", action="store_true", help="Read back official skill hashes and remote config, without starting hosts")
-    parser.add_argument("--host", action="append", choices=sorted(set(NATIVE) | BRIDGES | set(ALIASES) | set(BLOCKED)))
+    parser.add_argument("--host", action="append", choices=sorted(set(NATIVE) | BRIDGES | set(ALIASES) | set(BLOCKED) | set(inactive)))
     parser.add_argument("--runtime", type=Path, default=Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local/share")) / "AgentHub/clerk")
     args = parser.parse_args()
-    selected = {ALIASES.get(h, h) for h in (args.host or [*NATIVE, *BRIDGES, *BLOCKED])}
+    if args.host:
+        selected = {ALIASES.get(h, h) for h in args.host}
+        refused = sorted(selected & set(inactive))
+        if refused:
+            parser.error("inactive in registry/agents.json (inactiveAgents), refusing to target: " + ", ".join(refused))
+    else:
+        selected = set(NATIVE) | BRIDGES | set(BLOCKED)
+        for host in sorted(selected & set(inactive)):
+            print(f"skipped {host}: listed under inactiveAgents in registry/agents.json (status {inactive[host]})", file=sys.stderr)
+        selected -= set(inactive)
     blocked = sorted(set(BLOCKED) & selected)
     hosts = sorted(selected - set(BLOCKED))
     # A blocked-only apply must refuse before the runtime directory, upstream
@@ -280,12 +303,10 @@ def main():
     if os.name != "nt" and (args.apply or args.audit):
         parser.error("Apply/audit currently target Windows fleet layouts; use plan mode on other platforms")
     if args.audit:
-        rows = audit(args.runtime / "upstream", Path.home())
-        print(json.dumps(rows, indent=2))
-        raise SystemExit(0 if all(r["matchingOfficialSkills"] == 20
-                                 and (r["remoteConfigured"] or r.get("remotePolicy", "").startswith("skills only"))
-                                 and r.get("qaGuidanceConfigured", True)
-                                 for r in rows.values()) else 1)
+        rows = audit(args.runtime / "upstream", Path.home(), set(hosts))
+        # Blocked hosts have no approved route, so they are recorded here and never counted for or against the audit.
+        print(json.dumps({"hosts": rows, "blocked": {h: BLOCKED[h] for h in blocked}}, indent=2))
+        raise SystemExit(0 if audit_ok(rows) else 1)
     if not args.apply:
         print(json.dumps({"upstream": "https://github.com/clerk/skills", "hosts": hosts,
                           "blocked": {h: BLOCKED[h] for h in blocked},

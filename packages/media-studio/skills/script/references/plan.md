@@ -22,9 +22,9 @@ Check the storyboard against the brief before production. `check_picture_relevan
 
 ## Step 2: picture plan, breakdown and gates before spend
 
-Write the table as `story/picture-plan.json`: one scene per screenplay scene, each with a `visual` from the kit (`../visuals/references/kit-visuals.md`). Pin a reveal to a spoken word with an anchor in any `at` field: `"at": "@Penske"`, `"@trucks#1"` (second occurrence), `"@November+0.3"`. No hand-written script is needed: `build-picture.mjs` resolves the anchors from the voice clock after the takes exist.
+Write the table as `story/picture-plan.json`: one scene per screenplay scene, each with a `visual` from the kit (`../../produce/references/kit-visuals.md`). Pin a reveal to a spoken word with an anchor in any `at` field: `"at": "@Penske"`, `"@trucks#1"` (second occurrence), `"@November+0.3"`. No hand-written script is needed: `build-picture.mjs` resolves the anchors from the voice clock after the takes exist.
 
-Use the [narration-led explainer workflow](../../produce/references/explainer-shots.md) when animation advances the requested format. A narrated slide, direct demonstration, still or cut can be the right choice for a specific beat. Record `sourceAssetId` on the visual when several crops share an original, and `reuseReason` on an intentional return to footage. The variety check reports any repeated source without a reason.
+Use the [narration-led explainer workflow](../../produce/references/explainer-shots.md) when animation advances the requested format. Choose each film's opening, picture grammar and close from [treatments](../../studio/references/treatments.md) so adjacent films do not look alike. A narrated slide, direct demonstration, still or cut can be the right choice for a specific beat. Record `sourceAssetId` on the visual when several crops share an original, and `reuseReason` on an intentional return to footage. The variety check reports any repeated source without a reason.
 
 Then, with no voice or image spend yet:
 

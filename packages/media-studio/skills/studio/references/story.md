@@ -104,7 +104,7 @@ film. Keep the final review specific to its declared purpose.
 - Do not narrate visible chrome. Name the result after it appears.
 - If the voice names a config or integration, a scene shows it.
 - A line names only what the cursor will move to: one target per beat.
-- One voice per film or series, from the recipes in the `generate` skill. Clones only for personal or ABACare films, through AssemblyAI.
+- One voice per film or series, from `skills/produce/references/voice-recipes.md`. Clones only for personal or ABACare films, through AssemblyAI.
 - Stakeholder Q&A: `speaker` `ryan`, `vivian` or `aiden` on a labeled question card. The host carries most lines.
 
 ## No fluff

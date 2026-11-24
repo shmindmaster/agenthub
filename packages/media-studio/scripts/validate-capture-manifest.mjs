@@ -12,6 +12,21 @@ if (!manifestPath) {
 }
 
 const parsed = JSON.parse(readFileSync(manifestPath, "utf8"));
+
+// A clips object (capture/receipt.json from record-job.mjs) has no scenario, beat or captures
+// for this validator to check, so report that once instead of a missing-field error per shot.
+if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "clips" in parsed &&
+    !["scenario", "beat", "captures"].some((key) => key in parsed)) {
+  console.error(
+    `[error] ${manifestPath}: this is a clips manifest (a "clips" object, as written to capture/receipt.json), ` +
+      "not per-shot capture metadata. Check the receipt with validate-product-picture.mjs (release gate 8 in " +
+      "skills/finish/references/gates.md, which reads capture/receipt.json) and any edit map with " +
+      "`node validate-edit-map.mjs <jobRoot> <candidate> <edit-map.json>`. To validate per-shot metadata, " +
+      'pass a manifest that has a "scenario" or "beat" plus captureSurface, interaction and viewport.',
+  );
+  process.exit(1);
+}
+
 const manifests = Array.isArray(parsed) ? parsed : (parsed.captures ?? [parsed]);
 
 function isRect(value) {

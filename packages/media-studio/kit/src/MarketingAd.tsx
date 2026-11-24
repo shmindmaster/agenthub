@@ -14,6 +14,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import { entrance, plateRgb } from "../marketing/lib/layout.mjs";
 
 /**
  * MarketingAd: one composition for every ratio of an mvg ad (16:9, 4:5, 9:16). All geometry arrives in props from
@@ -35,6 +36,9 @@ export type AdBeat = {
   durationSec: number;
   headline?: string;
   isCta?: boolean;
+  /** The last card of a film with no call to action: headline, optional supporting line, no button or URL. */
+  isClosing?: boolean;
+  support?: string;
   clip?: { src: string; trimBeforeSec: number; playSec: number; srcW: number; srcH: number; camera: Camera };
   image?: { src: string };
 };
@@ -58,7 +62,7 @@ export type MarketingAdProps = {
   };
   brand: {
     productName: string;
-    colors: { primary: string; foreground: string; background: string; accent: string; onPrimary: string; emphasis?: string };
+    colors: { primary: string; foreground: string; background: string; accent: string; onPrimary: string; emphasis?: string; captionPlate?: string };
     fontDisplay: string;
     fontBody: string;
     fontFiles: { family: string; src: string; weight: number }[];
@@ -69,7 +73,8 @@ export type MarketingAdProps = {
   beats: AdBeat[];
   captions: CaptionChunk[];
   emphasis: string[];
-  cta: { text: string; displayUrl: string };
+  /** Absent for film types that do not sell: the last card is then a closing card. */
+  cta?: { text: string; displayUrl: string };
 };
 
 export const sampleMarketingAd: MarketingAdProps = {
@@ -86,20 +91,20 @@ export const sampleMarketingAd: MarketingAdProps = {
     ctaFootFont: 54,
   },
   brand: {
-    productName: "ABACare",
-    colors: { primary: "#6e56f8", foreground: "#0f172a", background: "#f6f8fb", accent: "#d97706", onPrimary: "#ffffff" },
+    productName: "Sample Product",
+    colors: { primary: "#2255cc", foreground: "#0f172a", background: "#f6f8fb", accent: "#d97706", onPrimary: "#ffffff" },
     fontDisplay: "Space Grotesk",
     fontBody: "Geist",
     fontFiles: [],
   },
-  label: "SYNTHETIC DEMO · NO PHI · REAL PRODUCT",
+  label: "SYNTHETIC DEMO",
   beats: [
     { id: "T1", kind: "title", startSec: 0, durationSec: 3, headline: "Sample ad" },
     { id: "C1", kind: "card", startSec: 3, durationSec: 3, headline: "Try it on synthetic data", isCta: true },
   ],
   captions: [],
   emphasis: [],
-  cta: { text: "Try it on synthetic data", displayUrl: "abacare.ai/demo" },
+  cta: { text: "Try it on synthetic data", displayUrl: "example.com/demo" },
 };
 
 const EASE = Easing.inOut(Easing.cubic);
@@ -108,7 +113,6 @@ const EASE = Easing.inOut(Easing.cubic);
 const UNSPOKEN_OPACITY = 0.88;
 // A caption cue fades in over at most 6 frames: a longer fade is caught mid-way by any sampled frame and reads as unreadable.
 const CAPTION_FADE_FRAMES = 6;
-const PLATE = "15, 23, 42";
 const EMPHASIS_COLOR = "#ffd166";
 
 /**
@@ -192,7 +196,7 @@ const BrollBeat: FC<{ beat: AdBeat; band: Box; colors: MarketingAdProps["brand"]
 
 // The opening title is the hook: the stake in a few big words on brand colour, landing word by word on the beat. Each
 // sentence is its own row so a line never wraps mid-sentence ("...Out in 2 / days."); the stagger counts across rows.
-const TitleBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }) => {
+const TitleBeat: FC<{ beat: AdBeat; props: MarketingAdProps; opening: boolean }> = ({ beat, props, opening }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const { brand, layout } = props;
@@ -215,8 +219,8 @@ const TitleBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props 
               {row.map((w, j) => {
                 const i = first + j;
                 const at = i * STAGGER * fps;
-                const rise = interpolate(frame, [at, at + 0.28 * fps], [size * 0.5, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
-                const fade = interpolate(frame, [at, at + 0.2 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+                // The opening beat is on screen from frame 0 (entrance.opacity is 1 there); only the rise motion continues.
+                const { opacity: fade, rise } = entrance(frame, fps, { first: opening, at, fadeSec: 0.2, riseSec: 0.28, risePx: size * 0.5 });
                 const em = props.emphasis.some((e) => e.toLowerCase().replace(/[^a-z0-9$%]/g, "") === w.toLowerCase().replace(/[^a-z0-9$%]/g, ""));
                 return (
                   <span key={`${i}-${w}`} style={{ fontFamily: stack(brand.fontDisplay, brand.fontBody, "display"), fontSize: size, fontWeight: 600, lineHeight: 1.02, letterSpacing: "-0.03em", color: em ? brand.colors.emphasis ?? EMPHASIS_COLOR : brand.colors.onPrimary, opacity: fade, transform: `translateY(${rise}px)` }}>
@@ -234,35 +238,38 @@ const TitleBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props 
 
 // The end card: logo lockup, the line the film ends on, the call to action, and the synthetic-data disclosure as one
 // small line at the foot (the only place it appears; it is never a chip over the product picture).
-const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }) => {
+const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps; opening: boolean }> = ({ beat, props, opening }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const { brand, layout, cta } = props;
-  const rise = interpolate(frame, [0, 0.45 * fps], [28, 0], { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
-  const fade = interpolate(frame, [0, 0.35 * fps], [0, 1], { extrapolateRight: "clamp" });
+  const { opacity: fade, rise } = entrance(frame, fps, { first: opening, fadeSec: 0.35, riseSec: 0.45, risePx: 28 });
   const box = layout.ctaBox;
   const base = Math.round(Math.min(box.w, box.h) * 0.11);
   const pillFont = layout.ctaPillFont ?? Math.round(base * 0.5);
   const footFont = layout.ctaFootFont ?? Math.round(pillFont * 0.62);
-  const lead = beat.isCta && beat.headline && beat.headline !== cta.text ? beat.headline : null;
+  const closing = !!beat.isClosing;
+  const lead = beat.isCta && cta && beat.headline && beat.headline !== cta.text ? beat.headline : null;
   const foot = [props.label, props.disclosure].filter(Boolean).join(" · ");
   return (
     <AbsoluteFill style={{ background: `linear-gradient(160deg, ${brand.colors.primary} 0%, ${brand.colors.foreground} 78%)` }}>
       <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: base * 0.45, opacity: fade, transform: `translateY(${rise}px)` }}>
-        {beat.isCta && props.logo ? <Img src={staticFile(props.logo)} style={{ height: Math.round(base * 0.9), width: "auto", marginBottom: base * 0.25 }} /> : null}
+        {(beat.isCta || closing) && props.logo ? <Img src={staticFile(props.logo)} style={{ height: Math.round(base * 0.9), width: "auto", marginBottom: base * 0.25 }} /> : null}
         {lead ? (
           <div style={{ fontFamily: stack(brand.fontDisplay, brand.fontBody, "display"), fontSize: Math.round(base * 0.62), fontWeight: 600, lineHeight: 1.15, color: "rgba(255,255,255,0.94)" }}>{lead}</div>
         ) : null}
         <div style={{ fontFamily: stack(brand.fontDisplay, brand.fontBody, "display"), fontSize: base, fontWeight: 600, lineHeight: 1.08, letterSpacing: "-0.02em", color: brand.colors.onPrimary }}>
-          {beat.isCta ? cta.text : beat.headline}
+          {beat.isCta && cta ? cta.text : beat.headline}
         </div>
-        {beat.isCta ? (
+        {closing && beat.support ? (
+          <div style={{ fontFamily: stack(brand.fontDisplay, brand.fontBody, "body"), fontSize: Math.round(base * 0.42), fontWeight: 500, lineHeight: 1.25, color: "rgba(255,255,255,0.92)", maxWidth: box.w * 0.9 }}>{beat.support}</div>
+        ) : null}
+        {beat.isCta && cta ? (
           <div style={{ marginTop: base * 0.3, padding: `${pillFont * 0.34}px ${pillFont * 0.78}px`, borderRadius: 999, background: brand.colors.emphasis ?? EMPHASIS_COLOR, color: brand.colors.foreground, fontFamily: stack(brand.fontDisplay, brand.fontBody, "display"), fontWeight: 700, fontSize: pillFont, lineHeight: 1.1 }}>
             {cta.displayUrl}
           </div>
         ) : null}
       </div>
-      {beat.isCta && foot ? (
+      {(beat.isCta || closing) && foot ? (
         <div style={{ position: "absolute", left: box.x, top: box.y + box.h - Math.round(footFont * 1.6), width: box.w, fontFamily: stack(brand.fontDisplay, brand.fontBody, "body"), fontSize: footFont, fontWeight: 600, letterSpacing: "0.04em", color: "rgba(255,255,255,0.86)", opacity: fade }}>
           {foot}
         </div>
@@ -273,10 +280,10 @@ const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }
 
 // A word that is spoken (or emphasised) is bold as well as brighter: colour alone is a 1.4:1 luminance step. The bold weight
 // is reserved in every word's box (a hidden bold copy sizes it), so the line never reflows as words are spoken.
-const CaptionWord_: FC<{ word: string; bold: boolean; opacity: number; color: string; scale: number; style: CSSProperties }> = ({ word, bold, opacity, color, scale, style }) => (
+const CaptionWord_: FC<{ word: string; bold: boolean; opacity: number; color: string; scale: number; shadowRgb: string; style: CSSProperties }> = ({ word, bold, opacity, color, scale, shadowRgb, style }) => (
   <span style={{ display: "inline-grid", ...style }}>
     <span style={{ gridArea: "1 / 1", visibility: "hidden", fontWeight: 700 }}>{word}</span>
-    <span style={{ gridArea: "1 / 1", justifySelf: "center", fontWeight: bold ? 700 : 600, color, opacity, transform: `scale(${scale})`, transformOrigin: "50% 60%", textShadow: "0 2px 10px rgba(15,23,42,0.55)" }}>{word}</span>
+    <span style={{ gridArea: "1 / 1", justifySelf: "center", fontWeight: bold ? 700 : 600, color, opacity, transform: `scale(${scale})`, transformOrigin: "50% 60%", textShadow: `0 2px 10px rgba(${shadowRgb}, 0.55)` }}>{word}</span>
   </span>
 );
 
@@ -300,6 +307,8 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
   let at = 0;
   for (const n of counts) { rows.push(chunk.words.slice(at, at + n)); at += n; }
   const maxWidth = Math.min(box.w, Math.round(width * 0.82));
+  // The plate follows the brand (brand.colors.captionPlate); the original navy when the brand names none.
+  const PLATE = plateRgb(props.brand.colors.captionPlate);
   const align = props.ratio === "16x9" ? "flex-start" : "center";
   return (
     <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: align, opacity: enter, overflow: "hidden" }}>
@@ -319,6 +328,7 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
                   opacity={spoken ? 1 : UNSPOKEN_OPACITY}
                   color={em ? props.brand.colors.emphasis ?? EMPHASIS_COLOR : "#ffffff"}
                   scale={active ? 1.03 : 1}
+                  shadowRgb={PLATE}
                   style={{ fontFamily: stack(props.brand.fontDisplay, props.brand.fontBody, "display"), fontSize: box.fontSize, letterSpacing: "-0.01em" }}
                 />
               );
@@ -343,8 +353,8 @@ export const MarketingAd: FC<MarketingAdProps> = (props) => {
           <Sequence key={beat.id} from={from} durationInFrames={duration} name={beat.id}>
             {beat.kind === "ui" ? <UiCamera beat={beat} band={layout.uiBand} /> : null}
             {beat.kind === "broll" ? <BrollBeat beat={beat} band={layout.uiBand} colors={brand.colors} /> : null}
-            {beat.kind === "title" ? <TitleBeat beat={beat} props={props} /> : null}
-            {beat.kind === "card" ? <CardBeat beat={beat} props={props} /> : null}
+            {beat.kind === "title" ? <TitleBeat beat={beat} props={props} opening={i === 0} /> : null}
+            {beat.kind === "card" ? <CardBeat beat={beat} props={props} opening={i === 0} /> : null}
           </Sequence>
         );
       })}

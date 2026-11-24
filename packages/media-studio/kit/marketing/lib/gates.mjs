@@ -7,13 +7,13 @@ import { chooseResult, expectationClipTimes, expandKeywords, shiftAsr, unnarrate
 import { CHAIN_GATES, captureViewportsFor } from './chain-gates.mjs';
 import { creativeMode } from './creative-modes.mjs';
 import { FRAMES } from './layout.mjs';
+import { holdSeconds } from './lint.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
 
 // integrity, pointer, frameIntegrity and marketing are the media-studio 2.0.0 film-chain gates (picture integrity, pointer path,
 // tiled-frame / luma-jump check, marketing floor).
 export const DEFAULT_REQUIRED = ['picture', 'integrity', 'pointer', 'frameIntegrity', 'captions', 'loudness', 'sync', 'listen', 'vision', 'marketing', 'story', 'viewerRelease', 'wordSync', 'transcript'];
 
-/** The gates deliver requires: the spec's list (or the default), always including the film-chain gates. */
 /** Does this ratio's cut (or, with no ratio, any cut) contain captured interface? */
 export function hasCapture(spec, ratio) {
   const cuts = Array.isArray(spec?.cuts) && spec.cuts.length ? spec.cuts : [{ ratios: spec?.ratios, beats: spec?.beats || [] }];
@@ -21,7 +21,14 @@ export function hasCapture(spec, ratio) {
   return (scoped.length ? scoped : cuts).some((c) => (c.beats || []).some((b) => b.kind === 'ui'));
 }
 
-export const requiredGates = (spec, ratio) => {
+/** The final hold a ratio's cut declares (cut over spec); with no ratio, the longest any cut declares. 0 when none. */
+export function declaredHold(spec, ratio) {
+  const cuts = Array.isArray(spec?.cuts) && spec.cuts.length ? spec.cuts : [{ ratios: spec?.ratios, beats: spec?.beats || [] }];
+  const scoped = ratio ? cuts.filter((c) => (c.ratios || []).includes(ratio)) : cuts;
+  return Math.max(0, ...(scoped.length ? scoped : cuts).map((c) => holdSeconds(c, spec)));
+}
+
+const gatesFor = (spec, ratio) => {
   if (creativeMode(spec) === 'verified-demo') {
     return [...new Set([...(spec?.qa?.required || DEFAULT_REQUIRED), ...CHAIN_GATES, 'wordSync', 'transcript'])];
   }
@@ -35,6 +42,12 @@ export const requiredGates = (spec, ratio) => {
   const required = spec?.qa?.required || DEFAULT_REQUIRED;
   return [...new Set([...required, ...CHAIN_GATES, 'wordSync', 'transcript'])]
     .filter(name => !neverForConcept.has(name));
+};
+
+/** The gates deliver requires: the spec's list (or the default), always the film-chain gates, and finishedFilm whenever a final hold is declared. */
+export const requiredGates = (spec, ratio) => {
+  const list = gatesFor(spec, ratio);
+  return declaredHold(spec, ratio) > 0 ? [...new Set([...list, 'finishedFilm'])] : list;
 };
 
 const seconds = (value) => {

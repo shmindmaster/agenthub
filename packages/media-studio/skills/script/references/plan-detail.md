@@ -46,7 +46,7 @@ One row per beat, written into `plan/storyboard.md`:
 Rules for the table:
 
 - **On screen** describes what appears, including any words the viewer should read. Avoid restating the spoken sentence unless the format calls for reading along.
-- **Visual kind** comes from the ladder in `../../visuals/references/ladder.md`. Prefer a picture kind: chart, svg, lottie, flow, layers, sequence, timeline, beforeafter, map, still, broll, screen-in-context, code. Use text cards for lessons, exercises, titles, quotes and other moments that call for reading.
+- **Visual kind** comes from the ladder in `../../produce/references/ladder.md`. Prefer a picture kind: chart, svg, lottie, flow, layers, sequence, timeline, beforeafter, map, still, broll, screen-in-context, code. Use text cards for lessons, exercises, titles, quotes and other moments that call for reading.
 - **Source** is the lane from `scripts/route_media.py`: kit, lottie, hand-drawn svg, captured screen, Azure image. Anything paid is priced here.
 - **Reveal timing** pins each part to the spoken word that names it (`at`, seconds from scene start, taken from the word boundaries).
 - Time picture changes and holds to the delivery. Give the viewer enough time to read, think or solve the exercise.
