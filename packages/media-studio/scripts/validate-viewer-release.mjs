@@ -294,8 +294,16 @@ if (evidence) {
     if (pronunciation.releaseEligible !== true) errors.push("pronunciation review is not release eligible.");
   }
   requireBoundPass("encodedVisualReview");
+  const creativeStory = job.kind !== 'product-screencast' && !job.communicationProfile
+    && (['tutorial', 'explainer', 'story', 'non-narrative'].includes(job.filmType)
+      || ['educational', 'explainer', 'fictional-story', 'abstract', 'concept-film', 'future-vision', 'documentary'].includes(job.creativeMode));
+  const standardStoryReview = !creativeStory || marketing || job.filmType === 'founder-pitch';
   const titles = requireBoundPass("titleReview");
-  if (titles && (!Number.isInteger(titles.titleCount) || titles.titleCount < 0)) errors.push("exact encoded title review must record the opening title count.");
+  if (titles && (!Number.isInteger(titles.titleCount) || titles.titleCount < 0)) {
+    errors.push("exact encoded title review must record the opening title count.");
+  } else if (titles && standardStoryReview && titles.titleCount > 1) {
+    errors.push("exact encoded title review must confirm no more than one opening title treatment.");
+  }
   const illustrative = job.kind !== 'product-screencast' && !job.communicationProfile && !job.campaign
     && ['educational', 'explainer', 'fictional-story', 'abstract'].includes(job.creativeMode)
     && job.noEnactedActions === true && job.noCompletedResultClaims === true;
@@ -315,7 +323,7 @@ if (evidence) {
   if (illustrative && !actions && (typeof story?.representation !== 'string' || !story.representation.trim())) {
     errors.push('story review must record the candidate-specific illustrative representation assessment.');
   }
-  if (story && (marketing || job.filmType === "founder-pitch") && !story.cta) errors.push("story review must confirm a concrete CTA.");
+  if (story && standardStoryReview && !story.cta) errors.push("story review must confirm a concrete CTA.");
   if (story?.sequence && (!story.sequence.seriesId || !Number.isInteger(story.sequence.chapter))) errors.push("when a series sequence is declared, story review must provide seriesId and integer chapter.");
   if (graphics?.length) {
     const review = requireBoundPass('timedGraphicReview');

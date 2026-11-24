@@ -145,6 +145,19 @@ test('an educational explanation can finish without a CTA or invented product ac
   assert.notEqual(result.code, 0);
   assert.match(result.output, /actionResultReview/);
 });
+test('a legacy verified screencast keeps the opening-title cap and CTA review', () => {
+  const root = join(scratch, 'legacy-story-review'); job(root);
+  const candidate = release(root);
+  const evidencePath = join(root, 'qa', 'viewer-release-evidence.json');
+  const evidence = JSON.parse(readFileSync(evidencePath, 'utf8'));
+  evidence.titleReview.titleCount = 2;
+  delete evidence.storyReview.cta;
+  writeFileSync(evidencePath, JSON.stringify(evidence));
+  const result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /no more than one opening title/);
+  assert.match(result.output, /concrete CTA/);
+});
 test('a social teaser still requires the marketing report after selecting a story form', () => {
   const root = join(scratch, 'typed-social-teaser'); job(root);
   const candidate = release(root);
