@@ -297,8 +297,16 @@ if (evidence) {
   // Same classification as write-story-review.py: a general job (a declared kind other than a verified screencast,
   // no creativeMode, not a marketing cut) is reviewed for its own form before capture, so release does not impose
   // the legacy CTA and single-title rules on it either.
+  // A communication profile may be declared in the screenplay or the job; write-story-review.py honours either.
+  const screenplayFile = join(root, 'story', 'screenplay.json');
+  let screenplayProfile = null;
+  if (existsSync(screenplayFile)) {
+    try { screenplayProfile = json(screenplayFile)?.communicationProfile ?? null; }
+    catch { errors.push('story/screenplay.json is not valid JSON; the release gate cannot read its communication profile.'); }
+  }
+  const communicationProfile = screenplayProfile || job.communicationProfile;
   const generalJob = !job.creativeMode && !marketing && typeof job.kind === 'string' && job.kind !== 'product-screencast';
-  const creativeStory = job.kind !== 'product-screencast' && !job.communicationProfile
+  const creativeStory = job.kind !== 'product-screencast' && !communicationProfile
     && (generalJob || ['tutorial', 'explainer', 'story', 'non-narrative'].includes(job.filmType)
       || ['educational', 'explainer', 'fictional-story', 'abstract', 'concept-film', 'future-vision', 'documentary'].includes(job.creativeMode));
   const standardStoryReview = !creativeStory || marketing || job.filmType === 'founder-pitch';
@@ -308,7 +316,7 @@ if (evidence) {
   } else if (titles && standardStoryReview && titles.titleCount > 1) {
     errors.push("exact encoded title review must confirm no more than one opening title treatment.");
   }
-  const illustrative = job.kind !== 'product-screencast' && !job.communicationProfile && !job.campaign
+  const illustrative = job.kind !== 'product-screencast' && !communicationProfile && !job.campaign
     && ['educational', 'explainer', 'fictional-story', 'abstract'].includes(job.creativeMode)
     && job.noEnactedActions === true && job.noCompletedResultClaims === true;
   const actions = !illustrative || evidence.actionResultReview ? requireBoundPass("actionResultReview") : null;

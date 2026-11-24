@@ -176,6 +176,19 @@ test('a training job reviewed for its own form releases without the legacy CTA a
     assert.notEqual(result.code, 0, JSON.stringify(legacy));
     assert.match(result.output, /concrete CTA/);
   }
+  // A profile declared only in the screenplay keeps the same release rules as one declared in the job.
+  writeFileSync(jobPath, JSON.stringify({ kind: 'training' }));
+  const screenplayPath = join(root, 'story', 'screenplay.json');
+  const screenplay = existsSync(screenplayPath) ? JSON.parse(readFileSync(screenplayPath, 'utf8')) : {};
+  writeFileSync(screenplayPath, JSON.stringify({ ...screenplay, communicationProfile: 'consulting-demo' }));
+  const narrationPath = join(root, 'qa', 'narration-check.json');
+  const narration = JSON.parse(readFileSync(narrationPath, 'utf8'));
+  narration.inputs.screenplay.sha256 = sha(screenplayPath);
+  writeFileSync(narrationPath, JSON.stringify(narration));
+  result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /concrete CTA/);
+  assert.match(result.output, /no more than one opening title/);
 });
 test('a social teaser still requires the marketing report after selecting a story form', () => {
   const root = join(scratch, 'typed-social-teaser'); job(root);
