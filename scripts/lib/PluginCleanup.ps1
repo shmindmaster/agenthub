@@ -31,6 +31,17 @@ function Read-AgentHubCleanupJson([string]$Path, [switch]$AsHashtable) {
     } catch { return $null }
 }
 
+function Resolve-AgentHubPluginReference([string]$Path) {
+    $full = [IO.Path]::GetFullPath($Path)
+    $ancestor = $full
+    while (-not (Get-Item -LiteralPath $ancestor -Force -ErrorAction SilentlyContinue)) {
+        $ancestor = [IO.Path]::GetDirectoryName($ancestor)
+        if (-not $ancestor) { throw 'Could not resolve the registered plugin path.' }
+    }
+    $physical = Resolve-AgentHubPhysicalPath $ancestor
+    return [IO.Path]::GetFullPath((Join-Path $physical ([IO.Path]::GetRelativePath($ancestor, $full))))
+}
+
 function Get-AgentHubOldPluginVersions {
     param([string]$HostId, [string]$Plugin, [string]$Root, [string]$ActivePath,
         [string]$Version, [string[]]$RegisteredPaths = @(), [string]$Manifest = 'plugin.json')
@@ -40,7 +51,15 @@ function Get-AgentHubOldPluginVersions {
     $active = [IO.Path]::GetFullPath($ActivePath)
     if (-not (Test-AgentHubPluginTree $Root $active)) { return }
     $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
-    $references = @($RegisteredPaths | Where-Object { $_ } | ForEach-Object { [IO.Path]::GetFullPath($_) }) + $active
+    try {
+        $references = @($RegisteredPaths | Where-Object { $_ } | ForEach-Object {
+            [IO.Path]::GetFullPath($_)
+            Resolve-AgentHubPluginReference $_
+        }) + $active
+    } catch {
+        New-AgentHubPluginCleanup $HostId $Plugin 'cleanup-inventory' $Root 'unmanaged' 'A registered plugin path could not be resolved.'
+        return
+    }
     foreach ($item in Get-ChildItem -LiteralPath $Root -Directory -Force) {
         if ($item.Name -notmatch '^\d+\.\d+\.\d+$' -or $item.FullName -in $references -or [version]$item.Name -ge [version]$Version) { continue }
         $prefix = $item.FullName + [IO.Path]::DirectorySeparatorChar
@@ -88,6 +107,20 @@ function Get-AgentHubCopilotDirectEntries($Document, [string]$Plugin, [string]$R
     })
 }
 
+function Write-AgentHubCopilotConfigTemp([string]$Path, [string]$Temp, [string]$Content) {
+    # Create the replacement with restricted access before writing any bytes.
+    $options = [IO.FileStreamOptions]::new()
+    $options.Mode = [IO.FileMode]::CreateNew
+    $options.Access = [IO.FileAccess]::Write
+    if (-not $IsWindows) {
+        $options.UnixCreateMode = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite
+    }
+    [IO.File]::Open($Temp, $options).Dispose()
+    if ($IsWindows) { Set-Acl -LiteralPath $Temp -AclObject (Get-Acl -LiteralPath $Path) }
+    [IO.File]::WriteAllText($Temp, $Content)
+    if (-not $IsWindows) { [IO.File]::SetUnixFileMode($Temp, [IO.File]::GetUnixFileMode($Path)) }
+}
+
 function Remove-AgentHubCopilotDirectRegistration([string]$Path, [string]$Plugin, [string]$RelativePath, [scriptblock]$Verify) {
     if ((Resolve-AgentHubPhysicalPath $Path) -ne [IO.Path]::GetFullPath($Path)) { throw 'Copilot configuration path is linked.' }
     $original = [IO.File]::ReadAllText($Path)
@@ -102,14 +135,14 @@ function Remove-AgentHubCopilotDirectRegistration([string]$Path, [string]$Plugin
     # Replace the single owned direct record and restore it if CLI readback fails.
     $temp = Join-Path (Split-Path -Parent $Path) ('.agenthub-plugin-' + [guid]::NewGuid().ToString('N') + '.tmp')
     try {
-        [IO.File]::WriteAllText($temp, $next)
+        Write-AgentHubCopilotConfigTemp $Path $temp $next
         if ([IO.File]::ReadAllText($Path) -cne $original) { throw 'Copilot configuration changed during cleanup.' }
         [IO.File]::Move($temp, $Path, $true)
         try {
             if (-not (& $Verify)) { throw 'Copilot registration cleanup did not verify.' }
         } catch {
             if ([IO.File]::ReadAllText($Path) -ceq $next) {
-                [IO.File]::WriteAllText($temp, $original)
+                Write-AgentHubCopilotConfigTemp $Path $temp $original
                 [IO.File]::Move($temp, $Path, $true)
             }
             throw

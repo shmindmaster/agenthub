@@ -32,16 +32,29 @@ try {
     if (Test-AgentHubPluginTree $base $outside) { throw 'Cleanup accepted a path outside its root.' }
     [IO.Directory]::Delete($link, $false)
 
+    $scopeAlias = Join-Path $fixture 'scope-alias'
+    New-Item -ItemType $kind -Path $scopeAlias -Target $base | Out-Null
+    $referenced = @(Get-AgentHubOldPluginVersions -HostId claude -Plugin ah-browser -Root $base -ActivePath $active -Version '2.0.0' -RegisteredPaths @(
+        (Join-Path $scopeAlias '1.0.0/project'), $retained
+    ))
+    if ($referenced.status -contains 'pending') { throw 'A project registration through a link did not protect its physical cache.' }
+    [IO.Directory]::Delete($scopeAlias, $false)
+
     $cfg = Join-Path $fixture 'config.json'
     $direct = @{name='ah-research';source=@{source='github';repo='shmindmaster/agenthub';path='packages/research'}}
     $fork = @{name='ah-research';source=@{source='github';repo='someone/agenthub';path='packages/research'}}
     $raw = (@{installedPlugins=@($direct,$fork);theme='test'} | ConvertTo-Json -Depth 7)
     [IO.File]::WriteAllText($cfg,$raw)
+    if (-not $IsWindows) {
+        $privateMode = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite
+        [IO.File]::SetUnixFileMode($cfg, $privateMode)
+    }
     try { Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $false }; throw 'Expected rollback.' }
     catch { if ($_.Exception.Message -notmatch 'did not verify') { throw } }
     if ([IO.File]::ReadAllText($cfg) -cne $raw) { throw 'Copilot did not roll back failed readback.' }
     Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $true }
     $result = Get-Content -LiteralPath $cfg -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (-not $IsWindows -and [IO.File]::GetUnixFileMode($cfg) -ne $privateMode) { throw 'Copilot configuration mode changed.' }
     if ($result.theme -ne 'test' -or @($result.installedPlugins).Count -ne 1 -or $result.installedPlugins[0].source.repo -ne 'someone/agenthub') {
         throw 'Copilot changed an unrelated registration or setting.'
     }
@@ -59,10 +72,15 @@ try {
     $script:freshStatus = 'current'
     $script:busy = $false
     $script:calls = 0
+    $script:canonicalEnabled = $true
     function Test-AgentHubPluginHostBusy { return $script:busy }
+    function Get-ListedPlugin { return $script:copilotCatalog }
     function Get-PluginClientList($Command) {
+        if ($Command -eq 'copilot') {
+            return $script:copilotCatalog, [pscustomobject]@{name='ah-research'; source='installed'}
+        }
         @(
-            @{pluginId='ah-media-studio@agenthub'; name='ah-media-studio'},
+            @{pluginId='ah-media-studio@agenthub'; name='ah-media-studio'; enabled=$script:canonicalEnabled},
             @{pluginId='ah-media-studio@created-by-me-remote'; name='ah-media-studio'},
             @{pluginId='ah-media-studio@independent'; name='ah-media-studio'}
         ) | ForEach-Object { [pscustomobject]$_ }
@@ -80,6 +98,11 @@ try {
     if ($script:calls) { throw 'Cleanup ran after replacement lost parity.' }
     $script:freshStatus = 'current'
     $row.status = 'current'
+    $script:canonicalEnabled = $false
+    if (@(Get-PluginCleanupPlan @($row) -Execute | Where-Object status -eq unmanaged).Count -ne 2 -or $script:calls) {
+        throw 'Disabled Codex replacement did not preserve the legacy registration.'
+    }
+    $script:canonicalEnabled = $true
     $apply = @(Get-PluginCleanupPlan @($row,$row) -Execute)
     if ($script:calls -ne 1 -or $apply.status -notcontains 'removed' -or $apply.status -notcontains 'unmanaged') {
         throw 'Apply did not remove only the known retired registration once.'
@@ -93,6 +116,20 @@ try {
         throw 'An open host did not defer old cache cleanup.'
     }
     $script:busy = $false
+
+    $copilotDir = Join-Path $fixture '.copilot'
+    $copilotRow = [pscustomobject]@{host='copilot';plugin='ah-research';marketplace='agenthub';expected='2.0.0';status='current';relative='packages/research'}
+    $script:copilotCatalog = [pscustomobject]@{name='ah-research';marketplace='agenthub';source='live';installedFrom=$outside}
+    $managedConfig = @{'installedPlugins'=@($direct)} | ConvertTo-Json -Depth 6
+    [IO.File]::WriteAllText((Join-Path $outside 'config.json'), $managedConfig)
+    New-Item -ItemType $kind -Path $copilotDir -Target $outside | Out-Null
+    if ((Get-PluginCleanupPlan @($copilotRow) -Execute).status -ne 'unmanaged') { throw 'Unknown Copilot catalog was not reported and preserved.' }
+    $script:copilotCatalog.installedFrom = $root
+    if ((Get-PluginCleanupPlan @($copilotRow) -Execute).status -ne 'unmanaged' -or $script:calls -ne 1) { throw 'Linked Copilot configuration was not preserved.' }
+    [IO.Directory]::Delete($copilotDir, $false)
+    [void][IO.Directory]::CreateDirectory($copilotDir)
+    [IO.File]::WriteAllText((Join-Path $copilotDir 'config.json'), $managedConfig)
+    if ((Get-PluginCleanupPlan @($copilotRow)).status -ne 'pending') { throw 'Verified Copilot direct duplicate was not detected.' }
 
     $local = Join-Path $fixture '.cursor/plugins/local/ah-media-studio'
     $claudeRegistry = Join-Path $fixture '.claude/plugins/installed_plugins.json'
