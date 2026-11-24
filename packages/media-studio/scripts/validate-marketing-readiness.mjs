@@ -39,7 +39,8 @@ const readinessPath = resolve(root, typeof opt['--readiness'] === 'string' ? opt
 const cuePath = resolve(root, typeof opt['--cue-sheet'] === 'string' ? opt['--cue-sheet'] : 'plan/cue-sheet.json');
 
 export const MARKETING_FORMS = Object.freeze(['campaign-flagship', 'campaign-comparison', 'campaign-short', 'campaign-outreach', 'marketing-cutdown', 'social-clip', 'hero']);
-export const isMarketingCut = (job) => job?.marketing === true || job?.kind === 'teaser' || MARKETING_FORMS.includes(job?.programForm);
+export const isMarketingCut = (job) => job?.marketing === true || job?.filmType === 'product-marketing'
+  || (!job?.filmType && (job?.kind === 'teaser' || MARKETING_FORMS.includes(job?.programForm)));
 
 const errors = []; const warnings = []; const checks = {};
 const fail = (check, message) => { checks[check] = 'fail'; errors.push(`${check}: ${message}`); };

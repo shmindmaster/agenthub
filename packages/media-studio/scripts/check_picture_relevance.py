@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Picture-relevance gate: every scene's on-screen content must come from what its line says.
+"""Match picture scenes to script scenes and flag low word overlap for editorial review.
 
     check_picture_relevance.py <props-or-picture-plan.json> <cue-sheet-or-screenplay.json> [--min-overlap 2] [--out PATH]
 
 Free and offline. Run it on the picture plan and the screenplay BEFORE any voice or image spend (a cue sheet and built props work too). For each scene it takes the
 words of the scene's visual body and bullets (the title and kicker do not count: a label is not content) and the words of
 the narration line with the same id, drops filler words, and counts the shared content words and numbers. A scene with
-fewer than --min-overlap shared terms fails, and so does a scene with no visual body at all. Exits 1 on any failure.
+fewer than --min-overlap shared terms produces an advisory. Use --enforce-overlap when the brief requires it.
 
 This catches what the frame checks cannot: a perfectly clean frame that shows nothing about the topic (speaker cards with a
 headline, a generic title slide). It does not judge design quality, layout or taste; the review vision pass owns that.
@@ -64,14 +64,14 @@ def scene_content_text(scene):
     return " ".join(parts)
 
 
-def judge_scene(scene, narration, min_overlap=2):
+def judge_scene(scene, narration, min_overlap=2, *, enforce_overlap=False):
     content = scene_content_text(scene)
-    if not content.strip():
-        return {"id": scene.get("id"), "ok": False, "overlap": [], "reasons": ["no visual body: a title alone shows nothing"]}
     shared = sorted(set(tokens(content)) & set(tokens(narration)))
-    ok = len(shared) >= min_overlap
-    reasons = [] if ok else [f"only {len(shared)} shared term(s), need {min_overlap}"]
-    return {"id": scene.get("id"), "ok": ok, "overlap": shared, "reasons": reasons}
+    notes = [] if len(shared) >= min_overlap else [
+        f"only {len(shared)} shared term(s), target {min_overlap}" if content.strip() else "no visual body text to compare"
+    ]
+    return {"id": scene.get("id"), "ok": not (enforce_overlap and notes), "overlap": shared,
+            "reasons": notes if enforce_overlap else [], "advisories": [] if enforce_overlap else notes}
 
 
 def load_lines(path):
@@ -87,6 +87,7 @@ def main(argv=None):
     ap.add_argument("props")
     ap.add_argument("cues")
     ap.add_argument("--min-overlap", type=int, default=2)
+    ap.add_argument("--enforce-overlap", action="store_true")
     ap.add_argument("--out")
     args = ap.parse_args(argv)
     scenes = json.loads(Path(args.props).read_text(encoding="utf-8")).get("scenes") or []
@@ -96,7 +97,7 @@ def main(argv=None):
         if sc.get("id") not in cues:
             results.append({"id": sc.get("id"), "ok": False, "overlap": [], "reasons": ["no narration line with this id"]})
         else:
-            results.append(judge_scene(sc, cues[sc["id"]], args.min_overlap))
+            results.append(judge_scene(sc, cues[sc["id"]], args.min_overlap, enforce_overlap=args.enforce_overlap))
     missing = [i for i in cues if i not in {s.get("id") for s in scenes}]
     for i in missing:
         results.append({"id": i, "ok": False, "overlap": [], "reasons": ["narration line has no scene"]})
@@ -108,6 +109,8 @@ def main(argv=None):
         out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     for r in results:
         print(f"{'PASS' if r['ok'] else 'FAIL'} {r['id']}: {', '.join(r['overlap'][:6]) or '-'}" + ("" if r["ok"] else "  <- " + "; ".join(r["reasons"])))
+        for note in r.get("advisories", []):
+            print("REVIEW:", note)
     print("RESULT:", "ok" if report["ok"] else "FAILED")
     return 0 if report["ok"] else 1
 

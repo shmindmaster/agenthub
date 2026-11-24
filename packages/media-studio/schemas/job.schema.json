@@ -37,6 +37,7 @@
         "teaser"
       ]
     },
+    "filmType": {"enum": ["product-marketing", "feature-demo", "tutorial", "explainer", "social-cut", "founder-pitch", "internal-update", "story", "non-narrative"]},
     "creativeMode": {
       "enum": ["verified-demo", "hybrid", "future-vision", "concept-film", "fictional-story", "explainer", "documentary", "educational", "abstract"],
       "description": "Independent from kind/programForm. Non-verified modes permit fully generated humans of any age, fictional patients, unblurred envisioned UI and non-linear creative forms. Verified current-product proof still needs real capture."

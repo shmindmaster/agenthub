@@ -142,6 +142,6 @@ One per job. Remotion for typed React, parametrised templates and the archetype 
 
 ## Hero shots with generative video
 
-Approved hero shots only. Never a product screenshot, not even "to add motion". Higgsfield and Runway credits are frozen unless the owner approves.
+Use the authorized generative lane for shots the brief calls for. A generated product screenshot cannot prove current behavior. Higgsfield and Runway credits are frozen unless the owner approves.
 
 Veo 3.1 prompt, in order: camera work; subject and action, with up to three reference images for identity; setting and light from the bible; dialogue and audio inside the prompt. For a transition, give first and last frame.

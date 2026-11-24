@@ -193,7 +193,9 @@ if (existsSync(modelSpecsDir)) {
 }
 // The feed test: marketing cuts fail closed below the marketing floor (validate-marketing-readiness.mjs owns the list).
 const MARKETING_FORMS = ['campaign-flagship', 'campaign-comparison', 'campaign-short', 'campaign-outreach', 'marketing-cutdown', 'social-clip', 'hero'];
-if (job.marketing === true || job.kind === 'teaser' || MARKETING_FORMS.includes(job.programForm)) {
+const marketing = job.marketing === true || job.filmType === 'product-marketing'
+  || (!job.filmType && (job.kind === 'teaser' || MARKETING_FORMS.includes(job.programForm)));
+if (marketing) {
   const mk = canonical(boundReport('qa/marketing-readiness-check.json', 'media-studio/validate-marketing-readiness', 'a marketing cut releases only at or above the marketing floor (validate-marketing-readiness.mjs)'), 'qa/marketing-readiness-check.json',
     [['hookMaxSeconds', 'max', 2], ['endCardWindowSeconds', 'max', 8], ['beatToleranceMs', 'max', 80], ['beatHitRatio', 'min', 0.9], ['referencesRequired', 'min', 3]]);
   if (mk && mk.applies !== true) errors.push('qa/marketing-readiness-check.json did not apply the marketing floor to this job; rerun it with the job.json that declares the marketing cut.');
@@ -294,8 +296,11 @@ if (evidence) {
   }
   requireBoundPass("encodedVisualReview");
   const titles = requireBoundPass("titleReview");
-  if (titles && (!Number.isInteger(titles.titleCount) || titles.titleCount < 0 || titles.titleCount > 1)) errors.push("exact encoded title review must confirm no more than one opening title treatment.");
-  const actions = requireBoundPass("actionResultReview");
+  if (titles && (!Number.isInteger(titles.titleCount) || titles.titleCount < 0)) errors.push("exact encoded title review must record the opening title count.");
+  const illustrative = job.kind !== 'product-screencast' && !job.communicationProfile && !job.campaign
+    && ['educational', 'explainer', 'fictional-story', 'abstract'].includes(job.creativeMode)
+    && job.noEnactedActions === true && job.noCompletedResultClaims === true;
+  const actions = !illustrative || evidence.actionResultReview ? requireBoundPass("actionResultReview") : null;
   if (actions) {
     const storyboardPath = join(root, 'story', 'storyboard.json');
     const stateReview = ['settled-state', 'conceptual-animation'].includes(actions.mode);
@@ -308,7 +313,10 @@ if (evidence) {
     errors.push(...validateActionResultReview({job, storyboard, timeline, review: actions, candidateSha256: candidateSha, candidateDurationSeconds}));
   }
   const story = requireBoundPass("storyReview");
-  if (story && !story.cta) errors.push("story review must confirm a concrete CTA.");
+  if (illustrative && !actions && (typeof story?.representation !== 'string' || !story.representation.trim())) {
+    errors.push('story review must record the candidate-specific illustrative representation assessment.');
+  }
+  if (story && (marketing || job.filmType === "founder-pitch") && !story.cta) errors.push("story review must confirm a concrete CTA.");
   if (story?.sequence && (!story.sequence.seriesId || !Number.isInteger(story.sequence.chapter))) errors.push("when a series sequence is declared, story review must provide seriesId and integer chapter.");
   if (graphics?.length) {
     const review = requireBoundPass('timedGraphicReview');

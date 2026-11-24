@@ -22,9 +22,9 @@ Cheapest first, in `scripts/`. `all` is every kind, `screen` is `product-screenc
 | 16 | `validate-marketing-readiness.mjs` | marketing | `qa/marketing-readiness-check.json` | Below floor | Recut |
 | 17 | `validate-viewer-release.mjs` | all, every recut | Nothing | See below | Owning gate |
 
-Order 17 reads `qa/viewer-release-evidence.json`. It refuses a missing, stale or loosened report, and checks captions (2 lines, 42 per line, 84 per cue, 20 per second), audio (-16 LUFS ±1.5 or `loudnessTargetLufs`, at most -1 dBTP), `pronunciation` (`authored-script`, `releaseEligible`), title, action-result, `storyReview` CTA, frame size, duration and campaign forms.
+Order 17 reads `qa/viewer-release-evidence.json`. It refuses a missing, stale or loosened report, and checks captions (2 lines, 42 per line, 84 per cue, 20 per second), audio (-16 LUFS ±1.5 or `loudnessTargetLufs`, at most -1 dBTP), `pronunciation` (`authored-script`, `releaseEligible`), title, action-result, `storyReview` and a CTA where its form calls for one, frame size, duration and campaign forms.
 
-It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-256, the narration check to its script and pointer path to `capture/receipt.json`. A recut voids every candidate-bound report. An mvg job may file `media-studio/mvg-picture-gate` for order 11.
+It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-256, the narration check to its script and pointer path to `capture/receipt.json`. A recut voids every candidate-bound report. For explicitly illustrative educational, explanation, fiction or abstract work without enacted product actions or completed product claims, set `noEnactedActions` and `noCompletedResultClaims` to true. If the job does not require an action-result review, record the candidate-specific representation assessment in `storyReview.representation`. Verify any current-product claim against source evidence. An mvg job may file `media-studio/mvg-picture-gate` for order 11.
 
 ## Picture
 
@@ -32,7 +32,7 @@ It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-25
 
 ## Words only
 
-`scripts/check_visual_variety.py <briefing-props.json>` checks picture share, consecutive scenes without pictures, overuse of one visual kind and repeated footage or stills without a `reuseReason`. Compare intentional callbacks to their earlier use during the encoded review. Run this check with `check_picture_relevance.py` before any voice or render spend.
+`scripts/check_visual_variety.py <briefing-props.json>` checks picture share, consecutive scenes without pictures, overuse of one visual kind and repeated footage or stills without a `reuseReason`. Treat these counts as editorial signals. Compare intentional callbacks to their earlier use during the encoded review. Run this check with `check_picture_relevance.py` before any voice or render spend.
 
 ## Pronunciation
 

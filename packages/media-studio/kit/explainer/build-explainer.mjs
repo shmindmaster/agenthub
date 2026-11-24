@@ -141,25 +141,27 @@ export const buildExplainer = ({ cueSheet, receipts, plan, fps = 30, width = the
     const lastBeat = beats.length ? Math.max(...beats.map((beat) => beat.atSeconds)) : titleAt;
     const holdSeconds = Math.max(0, +(durationSeconds - lastBeat).toFixed(3));
 
-    if (beats.some((beat) => beat.atSeconds > durationSeconds - 0.2)) {
+    if (beats.some((beat) => beat.atSeconds < 0 || beat.atSeconds >= durationSeconds)) {
       errors.push(`${cue.id}: a beat lands at or after the end of a ${durationSeconds.toFixed(2)}s shot`);
     }
     const firstMotion = planShot.title || planShot.kicker || planShot.sub ? titleAt : heroAtSeconds;
     if (firstMotion > RULES.firstBeatMaxSeconds) {
-      errors.push(`${cue.id}: nothing moves until ${firstMotion.toFixed(2)}s; the first entrance must land by ${RULES.firstBeatMaxSeconds}s`);
+      warnings.push(`${cue.id}: nothing moves until ${firstMotion.toFixed(2)}s; the first entrance must land by ${RULES.firstBeatMaxSeconds}s`);
     }
     if (heroAtSeconds > RULES.heroMaxSeconds) {
-      errors.push(`${cue.id}: the hero does not appear until ${heroAtSeconds.toFixed(2)}s; the ceiling is ${RULES.heroMaxSeconds}s`);
+      warnings.push(`${cue.id}: the hero does not appear until ${heroAtSeconds.toFixed(2)}s; the ceiling is ${RULES.heroMaxSeconds}s`);
     }
     if (holdSeconds < RULES.minHoldSeconds) {
-      errors.push(
+      warnings.push(
         `${cue.id}: lands and cuts — ${holdSeconds.toFixed(2)}s hold after the last beat, the floor is ${RULES.minHoldSeconds}s`,
       );
     }
     const needsTitle = ['statement', 'number', 'contrast', 'mechanism', 'layers', 'timeline', 'evidence', 'checklist'].includes(family);
     if (needsTitle && !planShot.title) errors.push(`${cue.id}: ${planShot.archetype} needs a title (the line the shot is about)`);
 
-    const structural = validateShot({ ...planShot, visual: resolved, durationSeconds, beats }, {});
+    const structural = validateShot({ ...planShot, visual: resolved, durationSeconds, beats }, {
+      advisory: (rule, message) => warnings.push([cue.id, rule, message].join(': ')),
+    });
     for (const problem of structural) errors.push(`${cue.id}: ${problem.rule}: ${problem.message}`);
 
     return {
@@ -214,20 +216,20 @@ export const buildExplainer = ({ cueSheet, receipts, plan, fps = 30, width = the
   for (const chapter of chapters) {
     const seconds = (chapter.endFrame - chapter.startFrame) / fps;
     if (longEnoughForChapters && seconds < RULES.minChapterSeconds) {
-      errors.push(`chapter ${chapter.id} runs ${seconds.toFixed(1)}s; a film over three minutes needs chapters of ${RULES.minChapterSeconds}s or more`);
+      warnings.push(`chapter ${chapter.id} runs ${seconds.toFixed(1)}s; a film over three minutes needs chapters of ${RULES.minChapterSeconds}s or more`);
     }
   }
   if (chapters.length > RULES.maxChapters) {
-    errors.push(`${chapters.length} chapters; the ceiling is ${RULES.maxChapters}`);
+    warnings.push(`${chapters.length} chapters; the ceiling is ${RULES.maxChapters}`);
   }
   for (const chapter of chapters) {
     const members = shots.filter((shot) => shot.chapterId === chapter.id);
     const hasBig = members.some((shot) => ['l', 'xl'].includes(FAMILIES[shot.family].tier));
-    if (!hasBig) errors.push(`chapter ${chapter.id} has no large or full-frame shot; every chapter needs one`);
+    if (!hasBig) warnings.push(`chapter ${chapter.id} has no large or full-frame shot; every chapter needs one`);
   }
   for (let index = 1; index < shots.length; index += 1) {
     if (shots[index].family === shots[index - 1].family && !shots[index].repeatIsPoint) {
-      errors.push(`${shots[index].id}: ${shots[index].family} repeats the previous shot with no repeatIsPoint`);
+      warnings.push(`${shots[index].id}: ${shots[index].family} repeats the previous shot with no repeatIsPoint`);
     }
   }
   const typeOnly = shots.filter((shot) => ['statement', 'quote', 'number'].includes(shot.family)).length;

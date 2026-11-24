@@ -1,13 +1,17 @@
 ---
 name: studio
-description: Takes a video, screencast, explainer, ad or audio idea to a finished, reviewed piece, asking a few quick questions first to pick the approach. Use when someone wants any video or audio made, or brings an idea, topic or rough ask. Not for one step of a running job.
+description: Takes a video, screencast, explainer, ad or audio idea to a finished, reviewed piece, using the requested brief to choose the approach. Use when someone wants any video or audio made, or brings an idea, topic or rough ask. Not for one step of a running job.
 ---
 # Studio
 ## Workflow contract
 1. Use the request and the job root if one exists. Read `production_status.py <jobRoot>` first and resume at the earliest missing or failed stage; reuse accepted assets.
 2. New job: run the intake below, then run `script`, `produce` and `finish` in order. Each stage writes a file and passes its gate before the next starts.
 3. Return the delivered file and the review verdict, or the last passed stage and the exact next input.
-4. Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.
+4. Continue through internal creative, script, pilot and final candidate decisions within delegated authority. Pause for an explicitly reserved review, a material unresolved choice, paid work outside authorization or external publication.
+## Let the brief direct the film
+
+Follow the requested form, storyline, picture, pace and production method. Use evidence-led treatment for a documentary or verified product proof when the brief calls for it. Education can use code, diagrams, simulations and synthetic math pictures. Fiction can use generated scenes and invented worlds. A conceptual explanation can hold a frame for reading or thinking. Use text or synthetic UI where it serves the experience and disclose its status where it might be taken for real product behavior.
+
 ## Choose the viewing route
 
 For interview preparation, infer the call stage and the interviewer's stated agenda from the supplied invitation and correspondence. Use the role description and candidate evidence to choose the stories. For a product film, discover the actual workflows, roles and consequences before cutting for time. When a job needs both, plan a reusable standalone product sequence and give it a chapter inside the tailored briefing. Keep the personal framing in the briefing. Carry these defaults into the existing brief without repeating settled intake questions.
@@ -29,9 +33,9 @@ Pass accepted choices into the existing brief and job manifest. Reuse an existin
 - Transcription: `ah-assemblyai`. Optional edit hand-off: Descript.
 ## Rules
 <HARD-GATE>
-No stage starts until the previous one shows PASS in `production_status.py`. Record an approval with `production_status.py <jobRoot> --approve <name>` only after the owner said yes to that exact item in this conversation.
+Record actual internal delegation in `production.json` as `"reviewAuthority": "delegated"`. List any explicitly reserved checkpoints under `requiredReviews` (`case`, `screenplay`, `plan`, `delivered`). For a required review, use `production_status.py <jobRoot> --approve <name>` only for actual owner approval. Delegation never authorizes purchases, raises spend caps, unlocks providers, or authorizes external publication. Preserve privacy, rights and credential controls.
 </HARD-GATE>
-- Picture first: every line has something to look at; words in boxes fail the picture gates.
+- Plan the picture or intentional stillness for each beat. Use automated style signals to direct review against the brief.
 - Cheapest authorized lane that passes QA; show the budget before any paid step.
 - Never present concept or synthetic UI as verified current product behaviour.
 - Product repositories are read-only; all work lives in an external job workspace.

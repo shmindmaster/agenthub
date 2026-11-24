@@ -59,7 +59,13 @@ export function beatIsFactual(beat = {}, mode = 'verified-demo', names = []) {
 }
 
 export function creativeMode(spec = {}) {
-  return CREATIVE_MODES.includes(spec.creativeMode) ? spec.creativeMode : 'verified-demo';
+  if (CREATIVE_MODES.includes(spec.creativeMode)) return spec.creativeMode;
+  if (!spec.creativeMode && !spec.product) {
+    if (spec.filmType === 'explainer') return 'explainer';
+    if (spec.filmType === 'story') return 'fictional-story';
+    if (spec.filmType === 'non-narrative') return 'abstract';
+  }
+  return 'verified-demo';
 }
 
 export function conceptBeat(beat = {}) {

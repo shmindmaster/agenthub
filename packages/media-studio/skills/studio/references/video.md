@@ -26,7 +26,7 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 - **Verified current-product screencasts** use real captured WebM plus Recast for factual functionality. **Vision, fictional and concept films** may render wholly synthetic UI, realistic human characters and animated scenes via their supported image/video/Remotion workflow. Do not mislabel concept UI as verified current behavior.
 - Captions are a sidecar `.srt` only, never embedded or burned in.
 - Never invent factual metrics or present fictional customers or proposed behavior as verified current facts. Intentionally invent characters, scenes, interfaces and speculative technologies when the approved film calls for them; identify the representation appropriately. Recut the master instead of shipping an addendum.
-- Higgsfield and Runway credits stay frozen until the owner approves spend. ElevenLabs only with a written reason in the job. Generative video: approved hero shots only.
+- Higgsfield and Runway credits stay frozen until the owner approves spend. ElevenLabs only with a written reason in the job. Use generative video where it serves the brief and the lane and spend are authorized.
 
 ## References
 

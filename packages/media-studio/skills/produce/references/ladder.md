@@ -49,4 +49,4 @@ The rows above say what to show. Who writes each kit spec is a separate choice.
 
 ## Mix
 
-Aim for a run that alternates: a picture, a number, a mechanism, a state change. Three text cards in a row is a failure. `check_visual_variety.py` enforces it.
+Aim for a run that alternates: a picture, a number, a mechanism, a state change. The variety check flags a run of text cards. Keep the run when it serves the brief, for example a sequence of exercises.

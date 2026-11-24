@@ -29,7 +29,7 @@ if (!libRoot) { console.error('check-story: the marketing kit library was not fo
 const lib = (name) => pathToFileURL(resolve(libRoot, name)).href;
 const { inspectNarrativeArc, describeFilmType } = await import(lib('narrative.mjs'));
 const { FILM_TYPES, resolveFilmType } = await import(lib('story-profiles.mjs'));
-const { creativeMode } = await import(lib('creative-modes.mjs'));
+const { creativeMode, conceptBeat } = await import(lib('creative-modes.mjs'));
 const { withProductProfile, productProfile } = await import(lib('product-profile.mjs'));
 const { estimateBeatSeconds } = await import(lib('lint.mjs'));
 
@@ -50,7 +50,7 @@ export function normalizeBeat(raw, index) {
     narration,
     // A plan has no capture yet, so kind is the declared intent: the product is shown where the role shows it.
     // A shot classified as proposed, fictional or illustrative is a generated shot, never a capture.
-    kind: raw.kind || (raw.visualMode === 'screen' || (SHOWS_PRODUCT.has(role) && !['proposed', 'fictional', 'illustrative'].includes(raw.truthStatus)) ? 'ui' : 'card'),
+    kind: raw.kind || (!conceptBeat(raw) && (raw.visualMode === 'screen' || SHOWS_PRODUCT.has(role)) ? 'ui' : 'card'),
   };
   if (onScreenText) beat.onScreenText = onScreenText;
   if (raw.truthStatus) beat.truthStatus = raw.truthStatus;

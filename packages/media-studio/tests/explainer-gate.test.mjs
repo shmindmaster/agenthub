@@ -7,6 +7,7 @@ import { build, clone, cueSheet } from './fixtures/explainer/fixture.mjs';
 
 const rules = (verdict) => verdict.failed.map((entry) => entry.rule);
 const warnings = (verdict) => verdict.warnings.map((entry) => entry.rule);
+const advisories = (verdict) => verdict.advisories.map(({ rule }) => rule);
 const props = () => build().props;
 
 test('a measured-ready film passes, with the unmeasured composition called out', () => {
@@ -21,15 +22,15 @@ test('a release that claims to be measured but supplies no frames fails', () => 
   assert.ok(rules(verdict).includes('metrics-missing'));
 });
 
-test('a shot that lands and cuts fails', () => {
+test('a short landing hold is advisory', () => {
   const film = clone(props());
   film.shots[1].holdSeconds = 0.4;
   const verdict = judge({ props: film, cueSheet });
-  assert.equal(verdict.ok, false);
-  assert.ok(rules(verdict).includes('hold'));
+  assert.equal(verdict.ok, true);
+  assert.ok(advisories(verdict).includes('hold'));
 });
 
-test('a film of type-only frames fails', () => {
+test('a film of type-only frames gets an advisory', () => {
   const film = clone(props());
   for (const shot of film.shots.slice(0, 4)) {
     shot.archetype = 'kinetic-statement';
@@ -37,20 +38,20 @@ test('a film of type-only frames fails', () => {
     delete shot.visual;
   }
   const verdict = judge({ props: film, cueSheet });
-  assert.ok(rules(verdict).includes('type-only-cap'));
+  assert.ok(advisories(verdict).includes('type-only-cap'));
 });
 
-test('the same family twice in a row fails unless the repeat is the point', () => {
+test('the same family twice in a row is flagged unless the repeat is the point', () => {
   const film = clone(props());
   film.shots[1].archetype = 'kinetic-statement';
   film.shots[1].family = 'statement';
   delete film.shots[1].visual;
-  assert.ok(rules(judge({ props: film, cueSheet })).includes('no-consecutive-repeat'));
+  assert.ok(advisories(judge({ props: film, cueSheet })).includes('no-consecutive-repeat'));
   film.shots[1].repeatIsPoint = true;
-  assert.equal(rules(judge({ props: film, cueSheet })).includes('no-consecutive-repeat'), false);
+  assert.equal(advisories(judge({ props: film, cueSheet })).includes('no-consecutive-repeat'), false);
 });
 
-test('a chapter with no large or full-frame shot fails', () => {
+test('a chapter with no large or full-frame shot is flagged', () => {
   const film = clone(props());
   for (const shot of film.shots.slice(3)) {
     shot.archetype = 'evidence-proof';
@@ -58,7 +59,7 @@ test('a chapter with no large or full-frame shot fails', () => {
     shot.visual = { kind: 'proof', claim: 'c', evidence: 'e' };
     shot.repeatIsPoint = true;
   }
-  assert.ok(rules(judge({ props: film, cueSheet })).includes('chapter-hero'));
+  assert.ok(advisories(judge({ props: film, cueSheet })).includes('chapter-hero'));
 });
 
 test('the clock must add up, and a gap between shots is a failure', () => {
@@ -90,14 +91,14 @@ test('a vertical frame is refused rather than letterboxed', () => {
   assert.ok(rules(judge({ props: film, cueSheet })).includes('aspect'));
 });
 
-test('measured static runs, empty stretches and unbound receipts fail', () => {
+test('static and sparse frames are advisory while unbound receipts fail', () => {
   const still = judge({
     props: props(),
     cueSheet,
     metrics: { propsSha256: 'ABC', film: { longestStaticSeconds: 3.2 } },
     propsSha256: 'ABC',
   });
-  assert.ok(rules(still).includes('static-run'));
+  assert.ok(advisories(still).includes('static-run'));
 
   const empty = judge({
     props: props(),
@@ -105,7 +106,7 @@ test('measured static runs, empty stretches and unbound receipts fail', () => {
     metrics: { propsSha256: 'ABC', film: { longestEmptyRunSeconds: 2.0 } },
     propsSha256: 'ABC',
   });
-  assert.ok(rules(empty).includes('empty-frame'));
+  assert.ok(advisories(empty).includes('empty-frame'));
 
   const unbound = judge({
     props: props(),
@@ -116,7 +117,7 @@ test('measured static runs, empty stretches and unbound receipts fail', () => {
   assert.ok(rules(unbound).includes('metrics-binding'));
 });
 
-test('a small hero and background debris warn, and strict makes warnings fatal', () => {
+test('a small hero and background debris remain advisory in strict mode', () => {
   const soft = judge({
     props: props(),
     cueSheet,
@@ -124,7 +125,7 @@ test('a small hero and background debris warn, and strict makes warnings fatal',
     propsSha256: 'ABC',
   });
   assert.equal(soft.ok, true);
-  assert.deepEqual(warnings(soft).sort(), ['debris', 'hero-small']);
+  assert.deepEqual(advisories(soft).sort(), ['debris', 'hero-small']);
 
   const strict = judge({
     props: props(),
@@ -133,8 +134,8 @@ test('a small hero and background debris warn, and strict makes warnings fatal',
     propsSha256: 'ABC',
     strict: true,
   });
-  assert.equal(strict.ok, false);
-  assert.ok(rules(strict).includes('hero-small-strict'));
+  assert.equal(strict.ok, true);
+  assert.ok(advisories(strict).includes('hero-small'));
 });
 
 test('the encoded film must agree with the props', () => {
@@ -155,7 +156,7 @@ test('the metrics reader tolerates the receipt shapes a render host can produce'
   assert.equal(empty.emptySeconds, 2);
 });
 
-test('release refuses failed metrics, sparse coverage and evidence from another encode', () => {
+test('release reports aesthetic metrics and refuses sparse or mismatched evidence', () => {
   const picture = props();
   const encoded = { sha256: 'CANDIDATE', bytes: 1024, probed: true, seconds: picture.totalSeconds };
   const frameReport = {
@@ -174,7 +175,7 @@ test('release refuses failed metrics, sparse coverage and evidence from another 
     encoded,
   });
   assert.equal(check({}).ok, true);
-  assert.ok(rules(check({ ok: false })).includes('metrics-failed'));
+  assert.ok(advisories(check({ ok: false })).includes('metrics-style'));
   assert.ok(rules(check({ complete: false })).includes('metrics-coverage'));
   assert.ok(rules(check({ perShot: frameReport.perShot.slice(1) })).includes('metrics-coverage'));
   assert.ok(rules(check({ encoded: { ...encoded, sha256: 'OTHER' } })).includes('metrics-encoded-binding'));

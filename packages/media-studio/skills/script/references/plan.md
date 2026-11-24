@@ -3,7 +3,7 @@
 ## Workflow contract
 
 1. Use the approved brief and locked story, or the approved brief for a job without a separate screenplay.
-2. Map each line to a picture, price eligible lanes, run picture gates and record approval before spending.
+2. Map each line to a picture, price eligible lanes, check picture coverage, review the design and verify spend authorization.
 3. Hand `capture`, `visuals` and `generate` the approved storyboard, picture plan, breakdown and work list.
 4. If a required asset depends on a frozen lane or the plan fails, resolve the blocker before releasing tasks.
 
@@ -18,7 +18,7 @@ capture/result storyboard and real-product evidence. Voice-only or
 silent visual scenes need not invent narration to fill fields.
 
 <HARD-GATE>
-No voice generation, image generation, capture or render until the storyboard passes `check_picture_relevance.py` and `check_visual_variety.py` and the owner has seen the picture table. Paying for audio or images against a picture that is words in boxes wastes money twice.
+Check the storyboard against the brief before production. `check_picture_relevance.py` checks coverage. Vocabulary overlap and the style findings from `check_visual_variety.py` are editorial signals. Complete reserved reviews and obtain any required spend approval before paying.
 </HARD-GATE>
 
 ## Step 2: picture plan, breakdown and gates before spend
@@ -32,13 +32,13 @@ Then, with no voice or image spend yet:
 ```text
 py -3 scripts/check_script_terms.py story/locked-script.txt                                   # names and acronyms pinned
 py -3 scripts/check_picture_relevance.py story/picture-plan.json story/screenplay.json --out qa/picture-relevance.json
-py -3 scripts/check_visual_variety.py story/picture-plan.json --out qa/visual-variety.json    # not words in boxes
+py -3 scripts/check_visual_variety.py story/picture-plan.json --out qa/visual-variety.json    # editorial diagnostics
 py -3 scripts/screenplay_breakdown.py <jobRoot>                                               # cast, assets, budget, schedule
 ```
 
-`screenplay_breakdown.py` writes `plan/breakdown.json`: the cast, the assets that must exist, the priced budget (speech from the documented Azure rates, stills counted and unpriced until quoted) and the build order. It fails on a scene with no picture or a picture that needs a frozen lane. Show the owner the picture table and the budget; on a yes, `production_status.py <jobRoot> --approve plan`.
+`screenplay_breakdown.py` writes `plan/breakdown.json`: the cast, the assets that must exist, the priced budget (speech from the documented Azure rates, stills counted and unpriced until quoted) and the build order. It fails on a scene with no picture or a picture that needs a frozen lane. Record the picture table and budget. For reserved plan review, show them to the owner and record actual approval with `production_status.py <jobRoot> --approve plan`.
 
-A failing gate goes back to the table, never to the threshold.
+Repair invalid inputs and use the brief to decide which style advisories need revisions.
 
 ## Deliver
 

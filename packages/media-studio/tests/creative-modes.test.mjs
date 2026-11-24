@@ -52,9 +52,9 @@ test('future vision: synthetic child patients and fully readable imagined UI nee
   const r = validateSpec(s);
   assert.equal(r.ok, true, JSON.stringify(r.errors));
   assert.equal(r.errors.some(x => /people|patient|fake-ui|no-ui/.test(x.code)), false);
-  // The same film with no person, situation or change is not yet a story.
+  // A fully specified treatment can carry the vision without a fixed emotional template.
   delete s.narrative;
-  assert.ok(validateSpec(s).errors.some(e => e.rule === 'story.narrative'));
+  assert.equal(validateSpec(s).ok, true);
 });
 
 test('fictional day-in-the-life is free of age, healthcare and screen prohibitions', () => {

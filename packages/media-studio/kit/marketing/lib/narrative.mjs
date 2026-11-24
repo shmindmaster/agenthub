@@ -132,8 +132,8 @@ export function inspectNarrativeArc(spec, cut, estimateBeatSeconds, options = {}
     }
   }
 
-  if (!rules.slots.length && !rules.first && !rules.last) return finish(); // free-order forms
   if (!beats.length) { add('beats', 'Cut has no beats.'); return finish(); }
+  if (!rules.slots.length && !rules.first && !rules.last) return finish(); // free-order forms
   for (const beat of beats) {
     if (!isKnownRole(beat.storyRole)) add('role', `Beat ${beat.id} needs a valid storyRole (${marketing ? 'hook, context, problem, context-problem, solution, demonstration, proof, payoff, cta' : [...new Set(rules.slots.flatMap(fills))].join(', ') || 'see check-story --types'}).`, `${cut.id}/${beat.id}`);
   }

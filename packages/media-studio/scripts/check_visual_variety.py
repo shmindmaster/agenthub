@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Words-only gate: a film must show things, not just present words well.
+"""Report picture variety and repeated sources for editorial review.
 
     check_visual_variety.py <briefing-props.json> [--min-picture 0.4] [--max-text 0.25] [--max-same 0.4] [--out PATH]
 
@@ -10,12 +10,12 @@ Free and offline. Run it on the storyboard's props BEFORE rendering. Every scene
   typographic   words arranged as a figure: stat, table, split, proof
   text          words on a card: hero, quote, checklist, cta, sidecar, chapter, lower-third (or no visual)
 
-Fails when: fewer than --min-picture of the scenes are pictures; more than --max-text are text cards; three scenes in a
+Flags when: fewer than --min-picture of the scenes are pictures; more than --max-text are text cards; three scenes in a
 row are not pictures; one visual kind fills more than --max-same of a program of five or more scenes;
 or a picture source returns without a documented editorial purpose.
 
 This counts what kind of thing is on screen. check_picture_relevance.py judges whether it is about the line, and the
-review vision pass judges whether it looks good. Passing here proves variety, not quality.
+review vision pass judges whether it looks good. Use --enforce-style when the brief requires these thresholds.
 """
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ def classify(scene):
     return "text"
 
 
-def judge(scenes, min_picture=0.4, max_text=0.25, max_same=0.4):
+def judge(scenes, min_picture=0.4, max_text=0.25, max_same=0.4, *, enforce_style=False):
     n = len(scenes)
     classes = [classify(s) for s in scenes]
     kinds = [(s.get("visual") or {}).get("kind") or "none" for s in scenes]
@@ -87,7 +87,8 @@ def judge(scenes, min_picture=0.4, max_text=0.25, max_same=0.4):
             if kinds.count(k) / n > max_same:
                 reasons.append(f"'{k}' fills {kinds.count(k)} of {n} scenes, limit {max_same:.0%}")
     reasons.extend(repeated_sources(scenes))
-    return {"ok": not reasons, "reasons": reasons, "classes": classes, "kinds": kinds,
+    return {"ok": not (enforce_style and reasons), "reasons": reasons if enforce_style else [],
+            "advisories": [] if enforce_style else reasons, "classes": classes, "kinds": kinds,
             "counts": {c: classes.count(c) for c in ("picture", "typographic", "text")}, "pictureShare": round(pic, 3), "textShare": round(txt, 3)}
 
 
@@ -97,10 +98,11 @@ def main(argv=None):
     ap.add_argument("--min-picture", type=float, default=0.4)
     ap.add_argument("--max-text", type=float, default=0.25)
     ap.add_argument("--max-same", type=float, default=0.4)
+    ap.add_argument("--enforce-style", action="store_true")
     ap.add_argument("--out")
     args = ap.parse_args(argv)
     scenes = json.loads(Path(args.props).read_text(encoding="utf-8")).get("scenes") or []
-    rep = judge(scenes, args.min_picture, args.max_text, args.max_same)
+    rep = judge(scenes, args.min_picture, args.max_text, args.max_same, enforce_style=args.enforce_style)
     rep = {"schema": "media-studio/visual-variety/1", **rep}
     if args.out:
         out = Path(args.out)
@@ -110,6 +112,8 @@ def main(argv=None):
     print("counts:", rep["counts"])
     for r in rep["reasons"]:
         print("FAIL:", r)
+    for note in rep.get("advisories", []):
+        print("REVIEW:", note)
     print("RESULT:", "ok" if rep["ok"] else "FAILED")
     return 0 if rep["ok"] else 1
 

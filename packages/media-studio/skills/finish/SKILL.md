@@ -1,16 +1,16 @@
 ---
 name: finish
-description: Assembles accepted voice, picture and plates into a mastered video, then has a fresh reviewer score it and decide if it ships. Use when someone asks to assemble, render, cut, mix, fix loudness, deliver, review, score or QA a video. Not for making new assets; use produce.
+description: Assembles accepted voice, picture and plates into a mastered video, then has a fresh reviewer judge it against the brief. Use when someone asks to assemble, render, cut, mix, fix loudness, deliver, review, score or QA a video. Not for making new assets; use produce.
 ---
 # Finish
 ## Workflow contract
 1. Use the accepted assets from `produce` and the locked storyboard.
 2. Compose and render with the official Remotion plugin on the authorized remote render lane in a disposable workspace (the private compute guidance names the lane and its dates; never render on the operator's PC, and verify the pulled-back file's hash and size before cleaning up the worker); master loudness; write captions as a sidecar `.srt`. Delivery sizes follow the job profile (for example 1920×1080 or 1080×1920).
 3. Have a fresh, separate reviewer score the encoded candidate and list defects and scenes to revise; return the deliverable and verdict.
-4. If a gate fails, recut first, then recapture, then rewrite; never ship a failing candidate.
+4. Repair verified defects at their source and recheck the encoded candidate. Complete authorized internal delivery after QA. External publication requires separate approval for the actual candidate and destination.
 ## Check the experience in the delivered editions
 
-Review the exported picture against the spoken lines. At each consequential claim, verify the visible person, number, record, action and outcome. Flag extended low-motion intervals for inspection; resolve idle passages with the actual action, a timed point of focus or a tighter edit. Keep useful reading time. A motion score alone cannot distinguish a useful explanation from a camera pan.
+Review the exported picture against the spoken lines. Verify consequential factual claims against their sources. For illustrative scenes, judge correctness, readability, synchronization and the requested experience. Flag extended low-motion intervals for inspection; resolve idle passages with the actual action, a timed point of focus or a tighter edit. Keep useful reading time. A motion score alone cannot distinguish a useful explanation from a camera pan.
 
 Review each complete sentence affected by a name repair in the final video and any listen-first mix. Check speaker continuity, word endings, pauses and caption alignment at the join. Report whether review used direct listening or automated analysis. For interview preparation, verify the short rehearsal route, chapter jumps and closing questions. For a reused product film, check the standalone and embedded clocks separately and carry the final seek points into the viewing guide.
 

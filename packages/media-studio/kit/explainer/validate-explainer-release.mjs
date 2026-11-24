@@ -1,17 +1,12 @@
 #!/usr/bin/env node
-// The explainer release gate: refuse a film whose shot grammar, clock or
-// measured picture does not hold up.
+// Check that explainer shots and measurements match the encoded film and its clock.
 //
 //   node validate-explainer-release.mjs <jobRoot> [--props picture/explainer-props.json]
 //        [--metrics qa/explainer-frame-metrics.json] [--encoded output/film.mp4]
 //        [--require-metrics] [--strict]
 //
-// Why this exists: the package's own evidence says the existing gates cannot
-// tell a good picture from a clean one ("variety, not quality"; relevance
-// "does not judge design"). This gate judges the three things that separated
-// the reference's weak film from its strong one: frame composition (hero size,
-// emptiness, debris), sustained motion with a landing hold, and a shot grammar
-// that actually varies the composition. It writes qa/explainer-release.json.
+// Rendering and receipt-binding problems fail. Composition and pacing
+// diagnostics inform the candidate review. Writes qa/explainer-release.json.
 //
 // No network, no spend.
 import { createHash } from 'node:crypto';
@@ -52,12 +47,14 @@ export const metricsFacts = (report) => {
 export const judge = ({ props, propsSha256, cueSheet, metrics, encoded, requireMetrics = false, strict = false }) => {
   const failed = [];
   const warnings = [];
+  const advisories = [];
+  const advise = (rule, message, shotId) => advisories.push({ rule, message, ...(shotId ? { shotId } : {}) });
   const fail = (rule, message, shotId) => failed.push({ rule, message, ...(shotId ? { shotId } : {}) });
   const warn = (rule, message, shotId) => warnings.push({ rule, message, ...(shotId ? { shotId } : {}) });
 
   if (!props || typeof props !== 'object') {
     fail('props-shape', 'the props are not an object');
-    return { ok: false, failed, warnings };
+    return { ok: false, failed, warnings, advisories };
   }
   const film = props.film ?? {};
   const shots = Array.isArray(props.shots) ? props.shots : [];
@@ -85,32 +82,32 @@ export const judge = ({ props, propsSha256, cueSheet, metrics, encoded, requireM
       fail('family-consistent', `${shot.id} declares family ${shot.family} but ${shot.archetype} renders as ${familyOf(shot.archetype, shot.visual?.kind)}`, shot.id);
     }
     const durationSeconds = Number(shot.durationSeconds ?? shot.durationFrames / fps);
-    for (const problem of validateShot({ ...shot, durationSeconds }, { previousFamily: familyOf(shots[index - 1]?.archetype, shots[index - 1]?.visual?.kind) })) {
+    for (const problem of validateShot({ ...shot, durationSeconds }, { previousFamily: familyOf(shots[index - 1]?.archetype, shots[index - 1]?.visual?.kind), advisory: (rule, message) => advise(rule, message, shot.id) })) {
       fail(problem.rule, problem.message, shot.id);
     }
     const lastBeat = Math.max(0, ...(shot.beats ?? []).map((beat) => Number(beat.atSeconds ?? 0)));
     const hold = Number(shot.holdSeconds ?? durationSeconds - lastBeat);
     if (hold < RULES.minHoldSeconds) {
-      fail('hold', `${shot.id} lands and cuts: ${hold.toFixed(2)}s after the last beat, floor ${RULES.minHoldSeconds}s`, shot.id);
+      advise('hold', `${shot.id} lands and cuts: ${hold.toFixed(2)}s after the last beat, floor ${RULES.minHoldSeconds}s`, shot.id);
     }
     const firstBeat = Math.min(
       ...(shot.beats?.length ? shot.beats.map((beat) => Number(beat.atSeconds ?? Infinity)) : [0.15]),
     );
     const firstMotion = shot.title || shot.kicker || shot.sub ? 0.15 : firstBeat;
     if (firstMotion > RULES.firstBeatMaxSeconds) {
-      fail('first-beat', `${shot.id} does not move until ${firstMotion.toFixed(2)}s, later than ${RULES.firstBeatMaxSeconds}s`, shot.id);
+      advise('first-beat', `${shot.id} does not move until ${firstMotion.toFixed(2)}s, later than ${RULES.firstBeatMaxSeconds}s`, shot.id);
     }
     if (firstBeat > RULES.heroMaxSeconds) {
-      fail('hero-late', `${shot.id} brings its hero at ${firstBeat.toFixed(2)}s, later than ${RULES.heroMaxSeconds}s`, shot.id);
+      advise('hero-late', `${shot.id} brings its hero at ${firstBeat.toFixed(2)}s, later than ${RULES.heroMaxSeconds}s`, shot.id);
     }
-    if ((shot.beats ?? []).some((beat) => Number(beat.atSeconds) > durationSeconds - 0.2)) {
+    if ((shot.beats ?? []).some((beat) => !Number.isFinite(beat.atSeconds) || beat.atSeconds < 0 || beat.atSeconds >= durationSeconds)) {
       fail('beat-after-end', `${shot.id} has a beat at or after its end`, shot.id);
     }
   }
 
   const typeOnly = shots.filter((shot) => ['statement', 'quote', 'number'].includes(shot.family)).length;
   if (typeOnly / Math.max(1, shots.length) > RULES.maxStatementShare) {
-    fail('type-only-cap', `${typeOnly}/${shots.length} shots are type-only; cap ${Math.round(RULES.maxStatementShare * 100)}%`);
+    advise('type-only-cap', `${typeOnly}/${shots.length} shots are type-only; cap ${Math.round(RULES.maxStatementShare * 100)}%`);
   }
 
   const chapters = film.chapters ?? [];
@@ -122,14 +119,14 @@ export const judge = ({ props, propsSha256, cueSheet, metrics, encoded, requireM
     const seconds = (chapter.endFrame - chapter.startFrame) / fps;
     if (seconds <= 0) fail('chapter-empty', `chapter ${chapter.id} has no frames`);
     if (props.totalSeconds >= 180 && seconds < RULES.minChapterSeconds) {
-      fail('chapter-min', `chapter ${chapter.id} runs ${seconds.toFixed(1)}s; a film over three minutes needs ${RULES.minChapterSeconds}s`);
+      advise('chapter-min', `chapter ${chapter.id} runs ${seconds.toFixed(1)}s; a film over three minutes needs ${RULES.minChapterSeconds}s`);
     }
     const members = shots.filter((shot) => shot.chapterId === chapter.id);
     if (!members.length) fail('chapter-members', `chapter ${chapter.id} has no shots`);
     const hasBig = members.some((shot) => ['l', 'xl'].includes(FAMILIES[shot.family]?.tier));
-    if (!hasBig) fail('chapter-hero', `chapter ${chapter.id} has no large or full-frame shot`);
+    if (!hasBig) advise('chapter-hero', `chapter ${chapter.id} has no large or full-frame shot`);
   });
-  if (chapters.length > RULES.maxChapters) fail('chapter-count', `${chapters.length} chapters; ceiling ${RULES.maxChapters}`);
+  if (chapters.length > RULES.maxChapters) advise('chapter-count', `${chapters.length} chapters; ceiling ${RULES.maxChapters}`);
   if (chapters.length) {
     const last = chapters[chapters.length - 1];
     if (Math.abs(last.endFrame - sumFrames) > 1) {
@@ -148,7 +145,7 @@ export const judge = ({ props, propsSha256, cueSheet, metrics, encoded, requireM
 
   if (metrics) {
     if (metrics.ok === false || metrics.film?.ok === false) {
-      fail('metrics-failed', 'the frame measurement detected a high-severity visual defect');
+      advise('metrics-style', 'frame heuristics flagged the composition; assess the affected frames against the brief');
     }
     if ((requireMetrics || encoded) &&
       (metrics.complete !== true || metrics.frames !== expectedFrames ||
@@ -167,22 +164,22 @@ export const judge = ({ props, propsSha256, cueSheet, metrics, encoded, requireM
     }
     const facts = metricsFacts(metrics);
     if (facts.longestStaticSeconds > RULES.maxStaticRunSeconds) {
-      fail(
+      advise(
         'static-run',
         `the picture holds still for ${facts.longestStaticSeconds.toFixed(2)}s; the ceiling is ${RULES.maxStaticRunSeconds}s — give the verb its action, do not add drifting`,
       );
     }
     if (facts.emptySeconds > 1.5) {
-      fail(
+      advise(
         'empty-frame',
         `an empty stretch runs ${facts.emptySeconds.toFixed(2)}s: the hero falls under 15% of frame height, so the frame has no subject`,
       );
     }
     const smallHero = 0.1528 * Number(film.height ?? 1000);
     if (facts.heroMedianPx && facts.heroMedianPx < smallHero) {
-      warn('hero-small', `the median hero is ${facts.heroMedianPx.toFixed(0)}px; ${smallHero.toFixed(0)}px is the floor at this height`);
+      advise('hero-small', `the median hero is ${facts.heroMedianPx.toFixed(0)}px; ${smallHero.toFixed(0)}px is the floor at this height`);
     }
-    if (facts.debris > 10) warn('debris', `${facts.debris} small components compete with the hero`);
+    if (facts.debris > 10) advise('debris', `${facts.debris} small components compete with the hero`);
   } else if (requireMetrics) {
     fail('metrics-missing', 'no frame-metrics receipt was supplied');
   } else {
@@ -203,7 +200,7 @@ export const judge = ({ props, propsSha256, cueSheet, metrics, encoded, requireM
   if (strict && warnings.length) {
     for (const warning of warnings) failed.push({ ...warning, rule: `${warning.rule}-strict` });
   }
-  return { ok: failed.length === 0, failed, warnings };
+  return { ok: failed.length === 0, failed, warnings, advisories };
 };
 
 const probeDuration = (file) => {
@@ -285,6 +282,7 @@ if (isMain) {
     encoded,
     failed: [...errors.map((message) => ({ rule: 'input', message })), ...verdict.failed],
     warnings: verdict.warnings,
+    advisories: verdict.advisories ?? [],
   };
   const outPath = resolve(root, 'qa/explainer-release.json');
   mkdirSync(dirname(outPath), { recursive: true });

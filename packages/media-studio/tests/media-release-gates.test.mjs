@@ -124,6 +124,27 @@ test("release gate accepts a fast intact cue only when the rate-bound report lis
   evidence.captions.rateBoundReport.sha256 = sha(reportPath); writeFileSync(evidencePath, JSON.stringify(evidence));
   result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /paragraph/);
 });test("release gate passes only with candidate-bound analyzer and reviews", () => { const root = join(scratch, "pass"); job(root); const candidate = release(root); const result = run(releaseValidator, [root, candidate]); assert.equal(result.code, 0, result.output); });
+test('an educational explanation can finish without a CTA or invented product actions', () => {
+  const root = join(scratch, 'probability-lesson'); job(root);
+  const candidate = release(root);
+  const jobPath = join(root, 'job.json');
+  const lesson = { kind: 'explainer', filmType: 'explainer', creativeMode: 'educational', noEnactedActions: true, noCompletedResultClaims: true };
+  writeFileSync(jobPath, JSON.stringify(lesson));
+  const evidencePath = join(root, 'qa', 'viewer-release-evidence.json');
+  const evidence = JSON.parse(readFileSync(evidencePath, 'utf8'));
+  evidence.titleReview.titleCount = 2;
+  delete evidence.actionResultReview;
+  delete evidence.storyReview.cta;
+  evidence.storyReview.representation = 'The outcome grid shows fictional draws and makes no claim about a deployed product.';
+  writeFileSync(evidencePath, JSON.stringify(evidence));
+  let result = run(releaseValidator, [root, candidate]);
+  assert.equal(result.code, 0, result.output);
+
+  writeFileSync(jobPath, JSON.stringify({ ...lesson, kind: 'product-screencast' }));
+  result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /actionResultReview/);
+});
 test('release gate consumes exact encoded-picture evidence and rejects lax thresholds', () => {
   const root = join(scratch, 'picture-report'); job(root); const candidate = release(root);
   const picturePath = join(root, 'qa', 'encoded-picture.json');

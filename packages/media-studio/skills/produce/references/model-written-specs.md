@@ -139,7 +139,7 @@ The model cannot watch video. Give it deduplicated, downscaled frames with times
 - Each item carries the source timestamp it attaches to: chapter titles, step captions shown while the action happens, callouts, zoom regions (a zoom is a crop of the real footage, so it stays truthful by construction), term cards when jargon is first spoken, and a supporting diagram with the timestamp range it belongs to.
 - Give it the free regions of each frame and require overlays to sit inside one. Reject in code any overlay that intersects the cursor, the active element or the next click target from the event log.
 - Overlays enter and leave on the recording's own beats: a click, a page change, a sentence boundary. Long enough to read, short enough not to linger over the next action.
-- If an explanation needs more time than the footage allows, use a side panel that persists across the segment. Holding or slowing the footage changes the recording and needs the owner's approval each time.
+- If an explanation needs more time than the footage allows, use a side panel that persists across the segment. Respect the capture timing and evidence contract. Resolve reserved reviews before changing the approved use of verified footage.
 - The model may fix caption punctuation and line breaks. It may not reword what was said.
 - Take callout coordinates from the event log or page structure. From vision alone, ask for a bounding box, pad it and check a sample by eye.
 

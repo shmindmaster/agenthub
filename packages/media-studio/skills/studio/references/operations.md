@@ -48,7 +48,7 @@ Reuse accepted assets. Order of repair: recut, recapture, rewrite. Re-render onl
 
 ## Paid providers
 
-Higgsfield and Runway credits are frozen until the owner approves a spend. ElevenLabs speech is owner-authorized per job through `generate`; ElevenLabs sound effects and music stay disabled. Generative video is for approved hero shots only.
+Higgsfield and Runway credits are frozen until the owner approves a spend. ElevenLabs speech is owner-authorized per job through `generate`; ElevenLabs sound effects and music stay disabled. Use generative video where it serves the brief and the lane and spend are authorized.
 
 ## Short ads
 

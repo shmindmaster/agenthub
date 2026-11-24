@@ -15,7 +15,7 @@ Do not write narration, call a voice or image provider, capture, or render until
 
 ## Next
 
-In a whole-film job the brief is `case/case.md` (the `studio` skill scaffolds it with `studio_init.py`); write it there and record the owner's yes with `production_status.py <jobRoot> --approve case`. Then `develop` for the story and screenplay, and `plan`.
+In a whole-film job the brief is `case/case.md` (the `studio` skill scaffolds it with `studio_init.py`); write it there and record an explicitly required owner's yes with `production_status.py <jobRoot> --approve case`. Then `develop` for the story and screenplay, and `plan`.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](brief-detail.md)
 

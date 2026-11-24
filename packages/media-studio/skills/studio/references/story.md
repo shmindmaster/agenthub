@@ -1,5 +1,7 @@
 # Story
 
+Select the story structure from the brief. The hook, hero, reversal and proof templates below are options for forms that benefit from them. For education, fiction and conceptual animation, use the requested organizing idea and judge the result against the intended viewer experience. Keep factual claims and illustrative examples clearly distinguishable.
+
 Write the brief, thesis and script from the source in context, in this turn. Infer structure, tone and length. Do not generate TTS.
 
 Contents: Brief and thesis · Spine · Writing for the ear · No fluff · Explainer path · Dramatised incidents · Technical story beat map · Diagnose first · Tools
@@ -55,7 +57,9 @@ A single-beat clip runs question → reveal → takeaway.
 
 `write-story-review.py` requires: first scene `hook`; a `before` scene ahead of the hero; hero outside the first 3 scenes, `holdAfterSeconds` ≥ 1.0, and `silenceOnReveal` or `musicCue` `silence` or `sting`; `trust` or `proof` within 3 scenes after it, or a recorded judgment.
 
-## Story structure follows the chosen form
+## Story
+
+Select the story structure from the brief. The hook, hero, reversal and proof templates below are options for forms that benefit from them. For education, fiction and conceptual animation, use the requested organizing idea and judge the result against the intended viewer experience. Keep factual claims and illustrative examples clearly distinguishable. structure follows the chosen form
 
 See `creative-formats.md` before imposing a beat map. A verified
 software demonstration needs a recognizable problem, the named current
