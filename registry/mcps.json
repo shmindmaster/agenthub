@@ -597,11 +597,11 @@
         "-y",
         "@mobilenext/mobile-mcp@1.0.17"
       ],
-      "credentialPolicy": "none-in-config; no account or token. mobile_login_to_cloud_provider and the remote-device tools reach Mobile Next Cloud and are never used: devices are local or on sh-forge only.",
+      "credentialPolicy": "none-in-config; no account or token. mobile_login_to_cloud_provider and the remote-device tools reach Mobile Next Cloud and are never used: devices are local only.",
       "providesCapabilities": [
         "mobile.android.local"
       ],
-      "providesCapabilitiesNote": "One API for iOS and Android: real devices on USB, Android emulators, iOS Simulators. On Windows it sees the USB iPhone through Apple Mobile Device Service with no Mac. Reading or tapping an iPhone screen needs its on-device agent installed once, re-signed on macOS (the forge guest) because re-signing calls /usr/bin/security; see packages/mobile-development/skills/mobile-device-lab/references/mobile-mcp.md.",
+      "providesCapabilitiesNote": "One API for iOS and Android: real devices on USB, Android emulators, iOS Simulators. On Windows it sees the USB iPhone through Apple Mobile Device Service with no Mac. Reading or tapping an iPhone screen needs its on-device agent installed once, re-signed on a macOS host (a Daytona v2 Mac reservation, not yet run) because re-signing calls /usr/bin/security; see packages/mobile-development/skills/mobile-device-lab/references/mobile-mcp.md.",
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-11-11",
@@ -619,7 +619,7 @@
         "claude",
         "codex"
       ],
-      "notes": "Added 2026-11-11 (SH-4412) beside appium-mobile, which stays until mobile-mcp has proven the Android emulator and Simulator routes it would replace. MobileBuildMCP (getsentry) is macOS-only and runs inside the forge guest; it is documented in references/mobile-mcp.md and not registered until Xcode is installed there and a run is verified."
+      "notes": "Added 2026-11-11 (SH-4412) beside appium-mobile, which stays until mobile-mcp has proven the Android emulator and Simulator routes it would replace. MobileBuildMCP (getsentry) is macOS-only and runs inside a Daytona v2 Mac reservation (not yet run); it is documented in references/mobile-mcp.md and not registered until a run there is verified."
     },
     {
       "id": "assemblyai",
