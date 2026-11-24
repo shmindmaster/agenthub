@@ -5,7 +5,7 @@ description: Assembles accepted voice, picture and plates into a mastered video,
 # Finish
 ## Workflow contract
 1. Use the accepted assets from `produce` and the locked storyboard.
-2. Compose and render with the official Remotion plugin on the authorized remote render lane in a disposable workspace (the private compute guidance names the lane and its dates; never render on the operator's PC, and verify the pulled-back file's hash and size before cleaning up the worker); master loudness; write captions as a sidecar `.srt`. Delivery sizes follow the job profile (for example 1920×1080 or 1080×1920).
+2. Use the requested composition route. For Remotion use the official plugin. Render on the authorized remote lane in a disposable workspace (the private compute guidance names the lane and its dates; never render on the operator's PC, and verify the pulled-back file's hash and size before cleaning up the worker); master loudness; write captions as a sidecar `.srt`. Delivery sizes follow the job profile (for example 1920×1080 or 1080×1920).
 3. Have a fresh, separate reviewer score the encoded candidate and list defects and scenes to revise; return the deliverable and verdict.
 4. Repair verified defects at their source and recheck the encoded candidate. Complete authorized internal delivery after QA. External publication requires separate approval for the actual candidate and destination.
 ## Check the experience in the delivered editions
