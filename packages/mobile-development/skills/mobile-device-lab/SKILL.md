@@ -12,7 +12,7 @@ description: "Drives real iPhones and Android devices (Mobile MCP) and emulators
 3. Return the device, app identity, smoke verdict, evidence path, and cleanup result.
 4. If preflight, lease, or app identity fails, stop before driving the device and record the blocker.
 
-Android emulator and Maestro runs use the Windows emulator or a USB device: Daytona has no KVM, so there is no remote emulator (`mobile.ps1 remote` refuses). Gradle and APK builds can run on a Daytona v2 Linux box (`node scripts/daytona-run.mjs --owner <project> -- <command>`; expected to work, not yet run). iOS runs only on a Daytona v2 Mac reservation, which costs money per 24-hour window: read `references/daytona-mac.md` first, get owner approval of the price, and never create a macOS sandbox without an explicit reservation. Report results as "verified on simulator" or "verified on emulator", never "on device".
+Android emulator and Maestro runs use the Windows emulator or a USB device: Daytona has no KVM, so there is no remote emulator (`mobile.ps1 remote` refuses). Gradle and APK builds can run on a Daytona v2 Linux box (`node scripts/daytona-run.mjs --owner <project> -- <command>`; expected to work, not yet run). iOS runs on the owner's Daytona v2 Mac boxes: read `references/daytona-mac.md` first, check `python scripts/daytona_mac.py status`, and never create a macOS sandbox or buy a reservation without owner approval of the price. Report results as "verified on simulator" or "verified on emulator", never "on device".
 
 ```powershell
 $mobile = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1"
@@ -48,7 +48,7 @@ Hold the lease around anything that mutates a shared emulator or Simulator: buil
 
 ## References
 
-- `references/daytona-mac.md`. Read before any iOS, Simulator or Xcode work: the Daytona v2 Mac reservation rules, and why there is no remote Android emulator.
+- `references/daytona-mac.md`. Read before any iOS, Simulator or Xcode work: the owner's standing Daytona v2 Mac boxes and the rules for paid reservations, and why there is no remote Android emulator.
 - `references/inner-loop.md`. Read when choosing rebuild vs reload, building or syncing the app under test, build speed, test tools, or web targets.
 - `references/lab-operations.md`. Read for the lease and idle-check commands, a guest that will not start, Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
 - `references/mobile-mcp.md`. Read before driving a real iPhone or Android device with Mobile MCP, or before iOS build and log work with MobileBuildMCP on a Daytona Mac.
