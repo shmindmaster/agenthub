@@ -46,72 +46,23 @@
       "note": "A ceiling, not an install instruction: the parent owns the guest Xcode install, and setup-appium-guest.sh only reports a difference. Xcode 27 also requires macOS 26.6+, but meeting that floor does not make it installable on this architecture. Re-check the source before acting on this."
     }
   },
-  "remoteAndroid": {
+  "daytonaLane": {
     "decision": "docs/architecture/mobile-lab-remote-android.md",
-    "recordedOn": "2026-11-10",
-    "sshHostAlias": "mobile-lab",
-    "user": "mobilelab",
-    "labRoot": "/srv/mobile-lab",
-    "apiLevel": 36,
-    "avdName": "lab-api36",
-    "deviceSerial": "emulator-5554",
-    "viewLocalPort": 15555,
-    "lease": "flock on <labRoot>/state/lease.lock, held for a whole run. The local Global mutex still governs the Windows emulator and the macOS guest.",
-    "host": {
-      "provider": "digitalocean",
-      "name": "sh-forge",
-      "dropletId": 618320850,
-      "shared": true,
-      "incrementalDailyCostUsd": 0,
-      "teardown": "2026-12-01",
-      "after": "Re-run the provisioning script on an AWS nested-virtualization instance (C8i, M8i or R8i family, or a .metal size) and repoint the SSH alias. Nothing else changes."
+    "recordedOn": "2026-11-24",
+    "supersedes": "The retired DigitalOcean build droplet's lanes (macOS container, remote Android worker, Android build lane), retired by owner direction 2026-11-24.",
+    "linux": {
+      "route": "node scripts/daytona-run.mjs --owner <project> -- <command>",
+      "platform": "Daytona v2 (api.daytona.com, @daytona/sdk 2.x). DAYTONA_API_KEY also works on the older platform (app.daytona.io) for non-Mac work.",
+      "androidBuild": "Android Gradle and APK builds are expected to work on a v2 Linux box and have not been run.",
+      "androidEmulator": "No lane. Daytona has no /dev/kvm (v1 answered: KVM sandboxes are not enabled for this organization; v2 has no /dev/kvm, Enterprise plan only). Emulator and Maestro runs use the Windows emulator or a USB device."
     },
-    "apps": [
-      {
-        "productId": "abacare",
-        "install": "corepack pnpm install --filter @abacare/mobile... --frozen-lockfile",
-        "defaultProfile": "unconfigured",
-        "profiles": {
-          "unconfigured": {
-            "variant": "release",
-            "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
-            "flow": ".maestro/smoke-unconfigured.yaml",
-            "screenshot": true,
-            "note": "A build with no API URL must refuse to start. Reaches no backend and shows no clinical data, so capture is allowed."
-          },
-          "preview-rig": {
-            "variant": "debug",
-            "env": {
-              "PREVIEW_MOCK": "1",
-              "SENTRY_DISABLE_AUTO_UPLOAD": "true",
-              "EXPO_PUBLIC_API_URL": "http://10.0.2.2:8788/api",
-              "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k"
-            },
-            "preCommand": "PORT=8788 node preview/server.js",
-            "flow": ".maestro/journeys/06-identity-gate.yaml",
-            "launchUrl": "exp+abacare://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081&disableOnboarding=1&disableFab=1&disableAutoLaunch=1",
-            "flowRewrite": { "http://10.0.2.2:8787": "http://127.0.0.1:8788" },
-            "screenshot": true,
-            "verified": true,
-            "note": "Synthetic tenant from preview/server.js on the worker with the mock identity. The publishable key is the repository's documented placeholder for clerk.example.com. launchUrl (SH-4390) makes the worker run a copy of the flow that opens the development-client deep link after every launchApp, so the debug build loads the Metro bundle instead of stopping on the Expo launcher; 10.0.2.2 is the emulator's alias for the worker's loopback, where Metro listens on 8081. disableOnboarding=1, disableFab=1 and disableAutoLaunch=1 on the link keep the Expo dev menu out of the journeys: expo-dev-menu's showsAtLaunch preference defaults to true, so after every clearState launch the dev menu opens over the app unless disableAutoLaunch turns it off (it also finishes onboarding); expo-dev-launcher reads the flags from the link on every open. The rig listens on 8788 (PORT in preCommand) because the lab host is shared and 8787 is held by another service; flowRewrite maps the flow's committed 8787 address to the rig's loopback port for the host-side runScript (the rig's __control endpoint), since Maestro scripts run on the worker, not in the emulator; the app itself keeps the 10.0.2.2 build address."
-          }
-        }
-      },
-      {
-        "productId": "rexa",
-        "install": "npm ci",
-        "extraPaths": ["assets/narration"],
-        "defaultProfile": "smoke",
-        "profiles": {
-          "smoke": {
-            "variant": "release",
-            "env": {},
-            "flow": ".maestro/other-screens.yaml",
-            "screenshot": true
-          }
-        }
-      }
-    ]
+    "macos": {
+      "route": "packages/mobile-development/skills/mobile-device-lab/references/daytona-mac.md",
+      "platform": "Daytona v2 only, region us-east-bos-1, image base-macos (documented: macOS 26.6.2, Xcode 26.6, iPhone simulator, Homebrew, Python).",
+      "purchase": "A 24-hour reservation, bought explicitly with owner approval of its price. Auto-reserve is on for the organization and renews by itself, so a sandbox created without a reservation buys one: always create an explicit reservation and turn renewal off.",
+      "verified": false,
+      "note": "Not yet run by us. USB devices and signing are undocumented."
+    }
   },
   "agentSurface": {
     "primary": [
@@ -215,18 +166,6 @@
         "command": "mobile.ps1 check <files|runtime> [android|ios|both]",
         "providerIds": ["windows-mobile-toolchain", "vmware-workstation", "macos-guest-vm", "android-avd", "ios-simulator"],
         "serviceIds": ["adb", "ssh", "guest-appium", "appium-mcp"]
-      },
-      {
-        "id": "device.android-remote",
-        "name": "Build, run, test and view an app on the remote Linux Android worker",
-        "command": "mobile.ps1 remote <status|start|stop|run|sync|view|clean|provision> [productId]",
-        "providerIds": ["mobile-scope-registry", "linux-android-worker"],
-        "serviceIds": ["ssh"],
-        "fileRefs": [
-          "packages/mobile-development/skills/mobile-device-lab/references/remote-android.md",
-          "packages/mobile-development/skills/mobile-device-lab/scripts/Invoke-MobileLabRemote.ps1",
-          "packages/mobile-development/skills/mobile-device-lab/scripts/worker/provision-android-worker.sh"
-        ]
       }
     ],
     "specialty": [
@@ -346,14 +285,6 @@
       "platform": "ios",
       "expectationRef": "expectations.ios",
       "providerId": "macos-guest-vm"
-    },
-    {
-      "id": "linux-android-worker",
-      "kind": "remote-worker",
-      "platform": "linux",
-      "configRef": "remoteAndroid",
-      "requires": "x86_64 Ubuntu host with /dev/kvm; no Docker",
-      "provisioning": "packages/mobile-development/skills/mobile-device-lab/scripts/worker/provision-android-worker.sh"
     }
   ],
   "services": [
@@ -408,8 +339,7 @@
       "test.mobile-web",
       "evidence.capture",
       "guest.sync",
-      "health.check",
-      "device.android-remote"
+      "health.check"
     ],
     "specialty": [
       "build.ios-signed",
@@ -427,7 +357,7 @@
       { "id": "android-studio", "name": "Android Studio", "reason": "CLI SDK and AVD tooling is sufficient and avoids a second bundled JDK." },
       { "id": "nested-virtualization", "name": "Nested virtualization", "reason": "The macOS guest does not need nested VMs and the working VM configuration keeps vhv.enable false." },
       { "id": "second-vm-nic", "name": "Second VM NIC", "reason": "VMnet8 NAT already provides host-private reachability and a second NIC adds address ambiguity." },
-      { "id": "routine-cloud-builds", "name": "Routine paid cloud builds (EAS Build)", "reason": "Android APKs compile with Gradle on the owner's own Linux worker and iOS builds compile in the macOS guest; a paid build service is a gated fallback, not the routine path." },
+      { "id": "routine-cloud-builds", "name": "Routine paid cloud builds (EAS Build)", "reason": "Android APKs compile with Gradle on a Daytona v2 Linux box (not yet run) and iOS builds compile in a Daytona v2 Mac reservation (not yet run); a paid build service is a gated fallback, not the routine path." },
       { "id": "cloud-device-farms", "name": "Cloud device farms", "reason": "The canonical lab uses local virtual devices; paid external device farms are outside this capability." }
     ]
   }

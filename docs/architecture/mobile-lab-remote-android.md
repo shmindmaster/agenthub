@@ -1,5 +1,7 @@
 # Mobile lab: remote Android worker
 
+> **Superseded 2026-11-24 (owner direction, CORE-107).** The build droplet this lab ran on is retired and Daytona is the lane. Daytona has no `/dev/kvm` (the older platform answered "KVM sandboxes are not enabled for this organization"; v2 sandboxes have no `/dev/kvm`, an Enterprise-plan feature), so there is **no remote Android emulator lane**. `mobile.ps1 remote` now refuses with that explanation, and the worker, driver, provisioning script, `remoteAndroid` registry section and their tests are deleted. Android Gradle and APK builds are expected to work on a Daytona v2 Linux box (`node scripts/daytona-run.mjs --owner <project> -- <command>`) but have not been run. Emulator and Maestro runs use the Windows emulator or a USB device. iOS runs only on a paid 24-hour Daytona v2 Mac reservation (`packages/mobile-development/skills/mobile-device-lab/references/daytona-mac.md`). The text below is the 2026-11-10 decision as recorded, kept as history; do not follow its commands.
+
 Decision recorded 2026-11-10. Owner: `mobile-development` capability (`mobile-quality`). Tracking: SH-4379.
 
 ## Decision
@@ -53,16 +55,9 @@ agent on any host
 - **Health-sensitive apps**: a profile for a `healthSensitive` product is refused if any variable points at a non-local address. ABACare builds either unconfigured or against the repository's synthetic preview server running on the worker.
 - **Stale native project**: `android/` is regenerated with `expo prebuild --clean` whenever the package manifest, app config, lockfile or public build variables change.
 
-## Hosting
+## Hosting (history)
 
-| Period | Host | Cost |
-| --- | --- | --- |
-| Until 2026-12-01 | Shared DigitalOcean droplet `sh-forge` (c-32-intel, tagged `teardown-2026-12-01`), the one standing build host for every product | No added cost; the droplet already runs |
-| From 2026-12-01 | An AWS nested-virtualization instance (C8i, M8i or R8i family) or a `.metal` size, started for the work and stopped after | Billed only while running |
-
-Daytona sandboxes are not a target for the emulator until one is shown to expose `/dev/kvm`; that has not been checked. Heavy single jobs like Android Gradle builds stay on `sh-forge` in any case (owner direction, 2026-11-12).
-
-The lab moved from `sh-build-02` to `sh-forge` on 2026-11-14 when the owner retired the separate build droplets (2026-11-12 direction): the SSH alias `mobile-lab` was repointed and the worker re-provisioned from the same script. The host is shared, so a profile must not assume a port is free: the ABACare rig listens on 8788 because another service holds 8787, and the worker fails a run whose `preCommand` dies at startup instead of letting the flow talk to the foreign listener.
+The worker ran on the shared DigitalOcean build droplet (first a separate host, from 2026-11-14 the single shared one), reached through the SSH alias `mobile-lab`. That droplet is retired. The plan to move it to an AWS nested-virtualization instance was never carried out, and the worker, its provisioning script and the `remoteAndroid` registry section have been deleted. They remain in git history before the 2026-11-24 retirement commit.
 
 ## Verified 2026-11-10
 

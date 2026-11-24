@@ -19,7 +19,7 @@ stranger-safe first run. For this private fleet checkout, also use
 - [architecture/control-plane-modules.md](./architecture/control-plane-modules.md) —
   PathBinding, host catalog, capability overlay, and the public/personal split.
 - [architecture/mobile-lab-remote-android.md](./architecture/mobile-lab-remote-android.md) —
-  remote Android lane of the mobile device lab.
+  superseded record of the remote Android lane (retired 2026-11-24).
 - [architecture/overview.md](./architecture/overview.md) — registry model and
   validation layers (fleet checkout).
 - [architecture/portfolio-policy.md](./architecture/portfolio-policy.md) —
@@ -67,7 +67,7 @@ stranger-safe first run. For this private fleet checkout, also use
 - [runbooks/codebuild-pr-ci.md](./runbooks/codebuild-pr-ci.md) — reusable
   CodeBuild pull-request CI template, read-only preflight, and IAM boundary.
 - [runbooks/do-interim-release.md](./runbooks/do-interim-release.md) — DigitalOcean
-  CI runner kit (`ci/do-runner`), SHA-tag image releases, rollback, and AWS target.
+  SHA-tag image releases, rollback, and AWS target.
 - [runbooks/pr-review.md](./runbooks/pr-review.md) — the host-enforced
   read-only PR reviewer run through the dispatcher.
 - [../ci/daytona-factory/README.md](../ci/daytona-factory/README.md) — Daytona
