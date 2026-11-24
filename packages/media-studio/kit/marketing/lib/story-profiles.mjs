@@ -303,7 +303,7 @@ function inspectStatus(brief, add) {
   if (unowned || overdue) add('status.green-with-open-issues', `Status is green, but ${unowned ? 'a risk has no owner' : 'a decision is overdue'}. Show amber or red, or fix the record.`);
 }
 
-const NUMBER = /[0-9]|(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|millions?|billions?|twice|double[sd]?|triple[sd]?|half|halve[sd]?|quarter|third|percent)/i;
+const NUMBER = /[0-9]|\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|millions?|billions?|twice|double[sd]?|triple[sd]?|half|halve[sd]?|quarter|third|percent)\b/i;
 const statesNumber = (b) => NUMBER.test(['narration', 'voice', 'actionTitle', 'supportingArgument', 'onScreen', 'onScreenText', 'title', 'text'].map((key) => (typeof b[key] === 'string' ? b[key] : '')).join(' '));
 
 /** Sections, options and the one-ask rule for the engagement profiles. */
