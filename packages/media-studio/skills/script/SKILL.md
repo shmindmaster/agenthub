@@ -1,6 +1,6 @@
 ---
 name: script
-description: Turns the requested idea into a brief, story, script and storyboard with a picture for every line, gated before any spend. Use when a video needs its brief, logline, treatment, screenplay, beat sheet or storyboard. Not for recording, voices or rendering; use produce or finish.
+description: Use when a film needs a brief, treatment, screenplay, beat sheet, storyboard or picture plan.
 ---
 # Script
 ## Workflow contract

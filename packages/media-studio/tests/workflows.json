@@ -13,31 +13,31 @@
     {
       "skill": "studio",
       "kind": "recovery",
-      "input": "The owner has not said yes to the final cut.",
-      "expected": "Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets.",
+      "input": "The owner explicitly reserved final-cut review and has not approved the candidate.",
+      "expected": "Pause for an explicitly reserved review",
       "evidence": [
-        "Use the request and the job root if one exists. Read `production_status.py <jobRoot>` first and resume at the earliest missing or failed stage; reuse accepted assets.",
-        "Stop at an owner approval (brief/script, spend, final cut) and keep accepted assets."
+        "**Recommend a treatment first.** In a few lines give the viewer promise, film form, director's visual approach, screenplay spine, proposed narration style, authentic/source media plan and likely delivery. The writer uses this recommendation to develop the existing brief, screenplay and storyboard; it is not an extra approval stage.",
+        "**Cast voices by sound and suitability, not vendor branding.** Where narration is valuable and unresolved, recommend two or three *currently governed, authorized* voices and offer a short same-passage audition. Generate playable auditions only after the exact provider, estimated spend and approval gates pass. Do not imply a catalog listing, credits or a generated label is a playable sample. AssemblyAI also remains a transcription and alignment option. Honor the no-clone, frozen-lane and per-film approval policies."
       ]
     },
     {
       "skill": "script",
       "kind": "workflow",
-      "input": "Write the brief and storyboard for an approved video idea.",
-      "expected": "Hand `produce` the approved storyboard, picture plan and work list.",
+      "input": "Write a lesson storyboard with code and synthetic math pictures from a complete delegated brief.",
+      "expected": "Storyboard, picture plan and gates: [plan](references/plan.md), detail [plan-detail](references/plan-detail.md).",
       "evidence": [
-        "Write the brief and get the owner's yes; then the story and locked script; then the storyboard and picture plan with priced lanes.",
-        "Hand `produce` the approved storyboard, picture plan and work list."
+        "Story and screenplay: [develop](references/develop.md), detail [develop-detail](references/develop-detail.md).",
+        "Storyboard, picture plan and gates: [plan](references/plan.md), detail [plan-detail](references/plan-detail.md)."
       ]
     },
     {
       "skill": "script",
       "kind": "recovery",
-      "input": "The storyboard fails the picture gate.",
-      "expected": "If an approval or a passing picture gate is missing, stop and keep the draft.",
+      "input": "The picture plan has a real coverage defect and an advisory about deliberate text repetition.",
+      "expected": "Resolve reserved reviews and material defects. Record delegated decisions in the job.",
       "evidence": [
-        "Use the studio intake answers, the request and any source material.",
-        "If an approval or a passing picture gate is missing, stop and keep the draft."
+        "Brief: [brief](references/brief.md), detail [brief-detail](references/brief-detail.md).",
+        "Resolve reserved reviews and material defects. Record delegated decisions in the job."
       ]
     },
     {
@@ -53,31 +53,31 @@
     {
       "skill": "produce",
       "kind": "recovery",
-      "input": "The voice lane is frozen.",
+      "input": "The paid voice lane is frozen.",
       "expected": "If a lane is frozen, unpaid or failing, stop that asset and report the exact blocker; keep accepted assets.",
       "evidence": [
-        "Use the approved storyboard, picture plan and work list from `script`.",
+        "Use the internally accepted storyboard, picture plan and work list from `script`.",
         "If a lane is frozen, unpaid or failing, stop that asset and report the exact blocker; keep accepted assets."
       ]
     },
     {
       "skill": "finish",
       "kind": "workflow",
-      "input": "Assemble and review the accepted takes.",
+      "input": "Assemble and review a cinematic animation in the requested composition route.",
       "expected": "Have a fresh, separate reviewer score the encoded candidate and list defects and scenes to revise; return the deliverable and verdict.",
       "evidence": [
-        "Compose and render with the official Remotion plugin on the authorized remote render lane in a disposable workspace (the private compute guidance names the lane and its dates; never render on the operator's PC, and verify the pulled-back file's hash and size before cleaning up the worker); master loudness; write captions as a sidecar `.srt`. Delivery sizes follow the job profile (for example 1920×1080 or 1080×1920).",
+        "Use the requested composition route. For Remotion use the official plugin. Render on the authorized remote lane in a disposable workspace (the private compute guidance names the lane and its dates; never render on the operator's PC, and verify the pulled-back file's hash and size before cleaning up the worker); master loudness; write captions as a sidecar `.srt`. Delivery sizes follow the job profile (for example 1920×1080 or 1080×1920).",
         "Have a fresh, separate reviewer score the encoded candidate and list defects and scenes to revise; return the deliverable and verdict."
       ]
     },
     {
       "skill": "finish",
       "kind": "recovery",
-      "input": "The encoded candidate fails a gate.",
-      "expected": "If a gate fails, recut first, then recapture, then rewrite; never ship a failing candidate.",
+      "input": "The candidate fails a technical gate and the external destination has no publication authorization.",
+      "expected": "Repair verified defects at their source and recheck the encoded candidate. Complete authorized internal delivery after QA. External publication requires separate approval for the actual candidate and destination.",
       "evidence": [
         "Use the accepted assets from `produce` and the locked storyboard.",
-        "If a gate fails, recut first, then recapture, then rewrite; never ship a failing candidate."
+        "Repair verified defects at their source and recheck the encoded candidate. Complete authorized internal delivery after QA. External publication requires separate approval for the actual candidate and destination."
       ]
     }
   ]

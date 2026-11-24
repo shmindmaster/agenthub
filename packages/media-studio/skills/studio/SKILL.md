@@ -1,6 +1,6 @@
 ---
 name: studio
-description: Takes a video, screencast, explainer, ad or audio idea to a finished, reviewed piece, using the requested brief to choose the approach. Use when someone wants any video or audio made, or brings an idea, topic or rough ask. Not for one step of a running job.
+description: Use when a video or audio idea, lesson, screencast, fictional film or explainer needs end-to-end production.
 ---
 # Studio
 ## Workflow contract

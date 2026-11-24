@@ -1,6 +1,6 @@
 ---
 name: produce
-description: Produces the accepted pieces a video needs (screen takes, narration, voices, stills, diagrams, animation and music) under spend controls. Use when a storyboard is ready for production and needs footage, voice, images or visuals made. Not for assembly or review; use finish.
+description: Use when a ready storyboard needs footage, narration, stills, diagrams, animation or music.
 ---
 # Produce
 ## Workflow contract

@@ -1,6 +1,6 @@
 ---
 name: finish
-description: Assembles accepted voice, picture and plates into a mastered video, then has a fresh reviewer judge it against the brief. Use when someone asks to assemble, render, cut, mix, fix loudness, deliver, review, score or QA a video. Not for making new assets; use produce.
+description: Use when a film needs assembly, rendering, mixing, mastering, encoded review or delivery.
 ---
 # Finish
 ## Workflow contract
