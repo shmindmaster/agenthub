@@ -4,7 +4,7 @@
 // Contract: skills/studio/references/screen-stage.md.
 import { execFileSync } from 'node:child_process';
 
-export const CHANGES = Object.freeze({ windowSeconds: 1.2, gridW: 320, gridH: 180, cellCss: 32, pixelDelta: 14, cellFill: 0.1, minCells: 2, samples: 7 });
+export const CHANGES = Object.freeze({ windowSeconds: 1.2, gridW: 320, gridH: 180, cellCss: 32, pixelDelta: 14, cellFill: 0.1, minCells: 2, samples: 7, typingTargetSeconds: 1.6 });
 
 /** Gray 320x180 raster of one frame file (JPEG) as a Uint8Array. */
 export function grayGrid(file, w = CHANGES.gridW, h = CHANGES.gridH) {
@@ -94,10 +94,10 @@ export function measureChanges({ presses, frames, viewport, grid = grayGrid }) {
  * (an autocomplete list, a spinner, a validation message): those play at real speed. Spans keep the 0.15 s ramps of sync-lib.
  * `frames` is { times, files } (absolute files); `actions` the receipt events on the clip clock.
  */
-export function typingSpans({ actions, frames, viewport, speed = 2, minSeconds = 1.0, tailSeconds = 0.4, grid = grayGrid }) {
+export function typingSpans({ actions, frames, viewport, speed = 'auto', targetSeconds = CHANGES.typingTargetSeconds, minSeconds = 1.0, tailSeconds = 0.4, grid = grayGrid }) {
   const out = [];
-  const S = Math.min(3, Math.max(1, Number(speed) || 1));
-  if (S <= 1) return out;
+  const fixed = speed === 'auto' ? null : Math.min(3, Math.max(1, Number(speed) || 1));
+  if (fixed !== null && fixed <= 1) return out;
   for (const a of actions || []) {
     if (a.type !== 'type' && a.type !== 'fill') continue;
     const t0 = a.tStart ?? a.t, t1 = a.tEnd;
@@ -112,7 +112,10 @@ export function typingSpans({ actions, frames, viewport, speed = 2, minSeconds =
       if (outside.length) { end = Math.min(end, t - 0.2); break; }
       prev = cur;
     }
-    if (end - t0 >= 0.4) out.push({ from: Math.round(t0 * 1000) / 1000, to: Math.round(end * 1000) / 1000, speed: S, reason: 'typing' });
+    if (end - t0 < 0.4) continue;
+    // auto: the factor that makes this span take about targetSeconds, between 1x and 3x
+    const S = fixed ?? Math.round(Math.min(3, Math.max(1, (end - t0) / targetSeconds)) * 100) / 100;
+    if (S > 1.05) out.push({ from: Math.round(t0 * 1000) / 1000, to: Math.round(end * 1000) / 1000, speed: S, reason: 'typing' });
   }
   return out;
 }

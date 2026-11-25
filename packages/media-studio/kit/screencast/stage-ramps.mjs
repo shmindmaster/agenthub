@@ -10,7 +10,7 @@ import { RAMP_SECONDS } from './sync-lib.mjs';
  * @param entry      the clip's capture receipt entry (actions, viewport, stage.framesIndex)
  * @param index      parsed frames index { frames: [{ t, file }] } of the clip
  * @param id         clip id
- * @param cfg        job.screenStage ({ typingSpeed?: number | false })
+ * @param cfg        job.screenStage ({ typingSpeed?: number | 'auto' | false }); auto picks the factor from each burst so the typing takes about 1.6 s
  * @param manual     manifest clip `speedSpans`: [{ from, to, speed, reason }] in source seconds
  */
 export function stageRamps({ jobRoot, entry, index, id, cfg = {}, manual = [] }) {
@@ -24,7 +24,7 @@ export function stageRamps({ jobRoot, entry, index, id, cfg = {}, manual = [] })
     actions: entry.actions || [],
     frames: { times: index.frames.map((f) => f.t), files: index.frames.map((f) => path.join(jobRoot, 'capture', 'raw', id, 'frames', f.file)) },
     viewport: entry.viewport,
-    speed: Number(cfg.typingSpeed) > 1 ? Number(cfg.typingSpeed) : 2,
+    speed: Number(cfg.typingSpeed) > 1 ? Number(cfg.typingSpeed) : 'auto',
   });
   const all = [...declared];
   for (const t of typing) if (!declared.some((d) => t.from < d.to && t.to > d.from)) all.push(t);

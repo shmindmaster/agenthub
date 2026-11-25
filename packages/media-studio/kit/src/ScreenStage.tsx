@@ -20,7 +20,8 @@ export type ScreenStageProps = {
   background?: string;
 };
 
-const MAX_N = 64;
+const MAX_N = 96;  // page samples across the shutter: at least the blur length in px, capped here
+const MAX_NC = 48; // cursor samples
 const MAX_POLY = 32;
 
 const VERT = `#version 300 es
@@ -35,7 +36,7 @@ uniform int uN;
 uniform int uMoving;
 uniform vec4 uCam[${MAX_N}];
 uniform int uNc;
-uniform vec4 uCur[${MAX_N}];
+uniform vec4 uCur[${MAX_NC}];
 uniform vec2 uPoly[${MAX_POLY}];
 uniform int uPolyN;
 uniform vec2 uHot;
@@ -101,7 +102,7 @@ void main() {
 
   float ca = 0.0; vec3 cc = vec3(0.0);
   if (uNc > 0 && s0.x >= uCurBox.x && s0.x <= uCurBox.z && s0.y >= uCurBox.y && s0.y <= uCurBox.w) {
-    for (int k = 0; k < ${MAX_N}; k++) {
+    for (int k = 0; k < ${MAX_NC}; k++) {
       if (k >= uNc) break;
       vec4 u = uCur[k];
       if (u.w <= 0.0) continue;
@@ -221,7 +222,7 @@ function frameSetup(plan: any, track: any, t: number, fps: number) {
     curBlur = Math.hypot(pa.x - pb.x, pa.y - pb.y);
   }
   const moving = pageBlur > STAGE.blur.minPx;
-  const N = moving ? Math.min(MAX_N, Math.max(32, Math.ceil(pageBlur * 2))) : 16;
+  const N = moving ? Math.min(MAX_N, Math.max(48, Math.ceil(pageBlur * 2.5))) : 16;
   const cam = new Float32Array(MAX_N * 4);
   for (let j = 0; j < N; j++) {
     const tj = moving ? Math.max(0, t + ((j + 0.5) / N - 0.5) * shutter) : t;
@@ -230,8 +231,8 @@ function frameSetup(plan: any, track: any, t: number, fps: number) {
   }
   const kind = st.cursor?.kind || "arrow";
   const shape = (CURSOR_SHAPES as any)[kind] || CURSOR_SHAPES.arrow;
-  const Nc = hasCursor ? (curBlur > STAGE.blur.minPx ? Math.min(MAX_N, Math.max(24, Math.ceil(curBlur * 2))) : 1) : 0;
-  const cur = new Float32Array(MAX_N * 4);
+  const Nc = hasCursor ? (curBlur > STAGE.blur.minPx ? Math.min(MAX_NC, Math.max(24, Math.ceil(curBlur * 2))) : 1) : 0;
+  const cur = new Float32Array(MAX_NC * 4);
   let box = [1e9, 1e9, -1e9, -1e9];
   for (let k = 0; k < Nc; k++) {
     const tk = Nc > 1 ? Math.max(0, t + ((k + 0.5) / Nc - 0.5) * shutter) : t;

@@ -38,12 +38,12 @@ export const STAGE = Object.freeze({
   press: Object.freeze({ seconds: 0.15, scale: 0.9 }),
   background: Object.freeze({ colors: Object.freeze([[22, 34, 52], [58, 96, 138]]), angle: 135 }), // fallback gradient behind a phone screen (sRGB 0-255)
   phoneFill: 0.9,           // a phone screen inside a wide frame fills this share of the frame height
-  highlight: Object.freeze({ dim: 0.45, easeSeconds: 0.25, holdSeconds: 1.5, padding: 6, outline: 2 }), // the one highlight: dim outside a cutout, a thin outline
+  highlight: Object.freeze({ clearBeforePressSeconds: 0.03, dim: 0.45, easeSeconds: 0.25, holdSeconds: 1.5, padding: 6, outline: 2 }), // the one highlight: dim outside a cutout, a thin outline
   hideFadeSeconds: 0.2,
   idleHideSeconds: 2.0,     // a still cursor fades after this long (never across a pointAt) and is back before the next move
   kindDebounceSeconds: 0.12,// a cursor-type change that lasts less than this is not drawn
   restSeconds: 0.5,         // the cursor stops moving this long before the run ends
-  blur: Object.freeze({ shutterAngle: 170, maxSamples: 48, minPx: 0.6 }), // one WebGL pass, linear light; samples follow the blur length in px
+  blur: Object.freeze({ shutterAngle: 170, maxSamples: 96, minPx: 0.6 }), // one WebGL pass, linear light; samples follow the blur length in px
 });
 
 /** Capture viewport per delivered ratio: each ratio is recorded at its own responsive viewport and fills its frame edge to edge. */

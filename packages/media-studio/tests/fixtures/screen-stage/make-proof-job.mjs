@@ -16,14 +16,13 @@ const root = resolve(outDir);
 const put = (rel, data) => { const p = join(root, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, typeof data === 'string' ? data : JSON.stringify(data, null, 2) + '\n'); };
 
 const TOUCH = args.includes('--touch'), PHONE_IN_FRAME = args.includes('--phone-in-frame');
-const DURATION = TOUCH || PHONE_IN_FRAME ? 7.3 : 12.6;
+const DURATION = TOUCH || PHONE_IN_FRAME ? 7.3 : 14.0;
 // [word, start, end] seconds. Content-word starts are the click moments: amounts 1.6, Format 2.6, Number 3.7, Currency 4.8; Applied 5.2.
 const WORDS = [
   ['Select', 1.05, 1.40], ['the', 1.40, 1.55], ['amounts,', 1.60, 2.10], ['open', 2.22, 2.50], ['Format,', 2.60, 3.10], ['choose', 3.22, 3.60],
-  ['Number,', 3.70, 4.15], ['pick', 4.25, 4.65], ['Currency.', 4.80, 5.18], ['Applied', 5.20, 5.55],
-  ...(TOUCH || PHONE_IN_FRAME
-    ? [['to', 5.55, 5.65], ['all', 5.65, 5.82], ['seven', 5.82, 6.10], ['cells', 6.10, 6.38], ['at', 6.38, 6.46], ['once.', 6.46, 6.58]]
-    : [['Then', 5.55, 5.72], ['add', 5.72, 5.86], ['a', 5.86, 5.98], ['note.', 6.04, 6.50]]),
+  ['Number,', 3.70, 4.15], ['pick', 4.25, 4.65], ['Currency.', 4.80, 5.18], ['Applied', 5.20, 5.55], ['to', 5.55, 5.65], ['all', 5.65, 5.82],
+  ['seven', 5.82, 6.10], ['cells', 6.10, 6.38], ['at', 6.38, 6.46], ['once.', 6.46, 6.58],
+  ...(TOUCH || PHONE_IN_FRAME ? [] : [['Then', 7.30, 7.55], ['add', 7.55, 7.75], ['a', 7.75, 7.80], ['note.', 7.85, 8.30]]),
 ].map(([w, start, end]) => ({ w, start, end }));
 const TEXT = WORDS.map((x) => x.w).join(' ');
 
@@ -33,7 +32,7 @@ put('job.json', {
   repositoryWritePolicy: 'read-only',
   deliveryProfile: TOUCH ? 'vertical-9x16' : 'youtube-16x9',
   ...(args.includes('--viewer-facing') ? {} : { intent: 'draft' }),
-  screenStage: TOUCH ? {} : PHONE_IN_FRAME ? { background: { kind: 'gradient' } } : { highlights: [{ action: 'Open format', start: -0.2, hold: 1.4 }] },
+  screenStage: TOUCH ? {} : PHONE_IN_FRAME ? { background: { kind: 'gradient' } } : { highlights: [{ action: 'Select amounts', start: -1.0, hold: 0.7 }] },
 });
 
 put('story/narration-timeline.json', { durationSeconds: DURATION, segments: [{ id: 'S01', scene: 'S01', text: TEXT, startSeconds: 0, durationSeconds: DURATION, words: WORDS }] });
@@ -87,7 +86,7 @@ export const scenes = {
     await press(h.page.getByTestId('item-number'), { label: 'Open number', ms: 400, settle: 250, hold: 390 });
     await press(h.page.getByTestId('sub-currency'), { label: 'Apply currency', ms: 400, settle: 250, hold: 100 });
     await h.expect(h.page.getByTestId('toast'), 'Currency format applied', { text: 'Currency format applied to 7 cells', hold: 300 });
-    if (!${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) await h.typeText(h.page.getByTestId('note-field'), 'Currency applied to the Amount column, checked against October', { label: 'Type a note', ms: 400, settle: 250, delay: 85, hold: 900 });
+    if (!${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) { await h.hold(1800); await h.typeText(h.page.getByTestId('note-field'), 'Checked against the October statement', { label: 'Type a note', ms: 400, settle: 250, delay: 85, hold: 900 }); }
     await h.hold(${TOUCH || PHONE_IN_FRAME ? 1300 : 2600});
   },
 };

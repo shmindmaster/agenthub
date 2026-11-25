@@ -312,11 +312,16 @@ test('typing spans: stop 0.4 s before the end of the typing, and at the first ch
   const withMenu = blank.slice(); for (let y = 90; y < 150; y++) for (let x = 200; x < 300; x++) withMenu[y * 320 + x] = 30;
   const grid = (f) => (f === 'f3' || f === 'f4' || f === 'f5' ? withMenu : blank);
   const field = { x: 100, y: 100, w: 300, h: 40 };
-  const quiet = CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 3, targetBox: field }], frames: { times: [0, 1, 2], files: ['f0', 'f1', 'f2'] }, viewport, grid });
+  const quiet = CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 3, targetBox: field }], frames: { times: [0, 1, 2], files: ['f0', 'f1', 'f2'] }, viewport, speed: 2, grid });
   assert.deepEqual(quiet, [{ from: 1, to: 2.6, speed: 2, reason: 'typing' }]);
-  const popup = CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 4.5, targetBox: field }], frames: { times, files }, viewport, grid });
+  const popup = CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 4.5, targetBox: field }], frames: { times, files }, viewport, speed: 2, grid });
   assert.ok(popup.length === 1 && popup[0].to < 2.7 && popup[0].to > 2.0, JSON.stringify(popup));
-  assert.deepEqual(CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 1.6, targetBox: field }], frames: { times, files }, viewport, grid }), [], 'a short burst plays at real speed');
+  assert.deepEqual(CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 1.6, targetBox: field }], frames: { times, files }, viewport, speed: 2, grid }), [], 'a short burst plays at real speed');
+  // auto: the factor that makes the span take about 1.6 s, between 1x and 3x; a burst already near 1.6 s is not sped up
+  const long = CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 4, targetBox: field }], frames: { times: [0, 1, 2], files: ['f0', 'f1', 'f2'] }, viewport, grid });
+  assert.equal(long.length, 1); assert.ok(Math.abs(long[0].speed - 2.6 / 1.6) < 0.02, JSON.stringify(long));
+  assert.equal(CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 20, targetBox: field }], frames: { times: [0, 1, 2], files: ['f0', 'f1', 'f2'] }, viewport, grid })[0].speed, 3, 'auto is capped at 3x');
+  assert.deepEqual(CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 3, targetBox: field }], frames: { times: [0, 1, 2], files: ['f0', 'f1', 'f2'] }, viewport, grid }), [], 'a 1.6 s span stays at real speed');
   assert.equal(CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 3, targetBox: field }], frames: { times, files }, viewport, speed: 5, grid })[0].speed, 3, 'capped at 3x');
 });
 
@@ -335,20 +340,28 @@ test('zoom modes: off keeps the full page, manual follows the declared regions (
   assert.throws(() => mk({ mode: 'manual', regions: [{ target: 'Nope' }] }), /no recorded action labelled "Nope"/);
 });
 
-test('highlight: the recorded element box, eased in and out, one at a time', () => {
+test('highlight: the recorded element box, eased in and out, fully faded before the click, one at a time', () => {
   const acts = [click(1.5, 300, 200, css(260, 185, 80, 30), 'Go'), click(4.5, 900, 500, css(860, 485, 80, 30), 'Later')];
-  const p = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts) }, options: { highlights: [{ action: 'Go', start: -0.2, hold: 1.5 }] } });
+  const mk = (highlights) => P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts) }, options: { highlights } });
+  const p = mk([{ action: 'Go', start: -1.0, hold: 0.7 }]);
   assert.equal(p.highlights.length, 1);
   const h = p.highlights[0];
-  assert.equal(h.t0, 1.3); assert.equal(h.t1, 2.8); assert.equal(h.dim, 0.45);
+  assert.equal(h.t0, 0.5); assert.equal(h.t1, 1.2); assert.equal(h.dim, 0.45);
   const cssBox = css(260, 185, 80, 30);
   assert.ok(h.box.x <= cssBox.x * 1.5 && h.box.y <= cssBox.y * 1.5 && h.box.x + h.box.w >= (cssBox.x + cssBox.w) * 1.5, 'the cutout holds the recorded box');
-  assert.equal(M.stateAt(p, 1.2).highlight, null);
-  assert.equal(M.stateAt(p, 1.3).highlight.amount, 0);
-  assert.ok(M.stateAt(p, 1.425).highlight.amount > 0.4 && M.stateAt(p, 1.425).highlight.amount < 0.6);
-  assert.equal(M.stateAt(p, 2.0).highlight.amount, 1);
-  assert.equal(M.stateAt(p, 3.0).highlight, null, 'gone after the hold');
-  assert.throws(() => P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts) }, options: { highlights: [{ action: 'Go', hold: 3.5 }, { action: 'Later', start: -1 }] } }), /overlap/);
+  assert.equal(M.stateAt(p, 0.4).highlight, null);
+  assert.equal(M.stateAt(p, 0.5).highlight.amount, 0);
+  assert.ok(M.stateAt(p, 0.625).highlight.amount > 0.4 && M.stateAt(p, 0.625).highlight.amount < 0.6);
+  assert.equal(M.stateAt(p, 0.85).highlight.amount, 1);
+  assert.equal(M.stateAt(p, 1.3).highlight, null, 'gone before the click at 1.5 s: the result is never dimmed');
+  assert.deepEqual(C.highlightProblems(p), []);
+  // a longer hold is cut back so it is over before the click
+  assert.equal(mk([{ action: 'Go', start: -1.0, hold: 3 }]).highlights[0].t1, 1.22);
+  // core-v2 let it outstay its element: that plan is refused by the check
+  const outstay = JSON.parse(JSON.stringify(p)); outstay.highlights[0].t1 = 2.8;
+  assert.match(C.highlightProblems(outstay)[0], /still on at the press at 1.5s/);
+  assert.throws(() => mk([{ action: 'Go', start: -0.5, hold: 1.5 }]), /has no room/);
+  assert.throws(() => mk([{ action: 'Go', start: -1.0, hold: 0.7 }, { action: 'Go', start: -0.9, hold: 0.5 }]), /overlap/);
   assert.throws(() => P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf([{ type: 'click', t: 1.5, tStart: 1.5, x: 300, y: 200, label: 'Blind' }]) }, options: { highlights: [{ action: 'Blind' }] } }), /no recorded element box/);
 });
 
@@ -377,4 +390,36 @@ test('changed boxes never run past the page, so a result at the bottom edge is a
   const boxes = CH.changedBoxes(a, b, viewport);
   assert.ok(boxes.length === 1, JSON.stringify(boxes));
   assert.ok(boxes[0].x + boxes[0].w <= viewport.width + 1e-6 && boxes[0].y + boxes[0].h <= viewport.height + 1e-6, JSON.stringify(boxes[0]));
+});
+
+test('one-frame reversions: A, B, A is caught; a real change, a hold and a move are not', () => {
+  const mk = (v) => new Uint8Array(480 * 270).fill(v);
+  const A = mk(100), B = mk(140), Cc = mk(180);
+  assert.deepEqual(F.oneFrameReversions([A, A, B, A, A]).map((r) => r.i), [2], 'the odd frame');
+  assert.deepEqual(F.oneFrameReversions([A, A, B, B, B]), [], 'a change that stays is not a reversion');
+  assert.deepEqual(F.oneFrameReversions([A, B, Cc, mk(220), mk(255)]), [], 'a move or a blur is not one');
+  assert.deepEqual(F.oneFrameReversions([A, A, B, A, A], { allowed: [{ from: 2, to: 2 }] }), [], 'a declared animation is allowed');
+});
+
+test('the pointer is hidden while a field is typed into and comes back when it next moves', () => {
+  const field = css(200, 100, 300, 40);
+  const acts = [
+    { type: 'move', t: 1.0, x: 300, y: 120 },
+    click(1.5, 300, 120, field, 'Note'),
+    { type: 'type', t: 1.9, tStart: 1.9, tEnd: 4.0, targetBox: field, label: 'Note', x: 300, y: 120 },
+    { type: 'move', t: 5.0, x: 700, y: 400 }, { type: 'move', t: 5.2, x: 720, y: 410 },
+    click(6.0, 720, 410, css(700, 395, 80, 30), 'Later'),
+  ];
+  const p = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts) } });
+  const r = p.cursor.hidden.find(([a, b]) => a >= 1.8 && a <= 2.0);
+  assert.ok(r, JSON.stringify(p.cursor.hidden));
+  assert.ok(r[1] >= 4.9 && r[1] <= 5.1, 'back when the pointer next moves: ' + JSON.stringify(r));
+  assert.ok(M.stateAt(p, 3.0).cursor.hidden > 0.99, 'gone in the middle of the typing');
+});
+
+test('a result the next move would cut off is carried into the next region when both fit, never silently dropped', () => {
+  const acts = [click(1.5, 300, 200, css(260, 185, 80, 30), 'Go'), click(2.4, 900, 400, css(860, 385, 80, 30), 'Next')];
+  const p = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts, [{ label: 'Done', observed: true, observedAt: 1.9, targetBox: css(980, 600, 200, 60) }]) } });
+  const dropped = (p.warnings || []).some((w) => /is not followed/.test(w));
+  assert.ok(!dropped || C.unseenResultProblems(p).length > 0, 'a dropped result is reported as a problem');
 });

@@ -58,6 +58,22 @@ export function resultProblems(plan) {
   return out;
 }
 
-export const planProblems = (plan) => [...zoomProblems(plan), ...leadProblems(plan), ...resultProblems(plan)];
+/** A result the plan could not show (dropped for the next move, and not carried into it) is a result the viewer never sees. */
+export function unseenResultProblems(plan) {
+  return (plan.warnings || []).filter((w) => /is not followed/.test(w)).map((w) => `${w}: the result is never shown`);
+}
+
+/** A highlight is over (fully faded) before the click on or inside its element and before any other press, so the result is never dimmed. */
+export function highlightProblems(plan) {
+  const out = [], ease = STAGE.highlight.easeSeconds;
+  const presses = (plan.cursor.clicks || []).map((c) => c.t);
+  for (const h of plan.highlights || []) {
+    const p = presses.filter((t) => t >= h.t0 - 1e-6 && t < h.t1 + ease + 1e-6);
+    if (p.length) out.push(`the highlight on "${h.label}" (${h.t0}-${h.t1}s) is still on at the press at ${p[0]}s: it must be fully faded before the click, or the result is dimmed`);
+  }
+  return out;
+}
+
+export const planProblems = (plan) => [...zoomProblems(plan), ...leadProblems(plan), ...resultProblems(plan), ...unseenResultProblems(plan), ...highlightProblems(plan)];
 
 export { cameraAt, cursorAt, buildCursorTrack };

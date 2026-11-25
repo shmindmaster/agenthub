@@ -49,7 +49,7 @@ export function slotEvents(slot, clip) {
   const merged = [];
   for (const p of out.presses) {
     const prev = merged[merged.length - 1];
-    if (p.type === 'type' && prev && (prev.type === 'click' || prev.type === 'tap') && p.t - prev.t <= 2) { prev.tEnd = Math.max(prev.tEnd, p.t + Math.max(0.3, (p.tEnd ?? p.t) - p.t)); prev.typed = true; continue; }
+    if (p.type === 'type' && prev && (prev.type === 'click' || prev.type === 'tap') && p.t - prev.t <= 2) { prev.tEnd = Math.max(prev.tEnd, p.t + Math.max(0.3, (p.tEnd ?? p.t) - p.t)); prev.typed = true; prev.typeStart = p.t; continue; }
     if (p.type === 'type' && Number.isFinite(p.tEnd) && p.tEnd <= p.t) p.tEnd = p.t + 0.6;
     merged.push(p);
   }
@@ -113,7 +113,13 @@ function buildHighlights(list, presses, g) {
     const pad = STAGE.highlight.padding * g.k;
     const b = toStageBox(g, p.box);
     const t0 = r3(Math.max(0, p.t + (Number.isFinite(h.start) ? h.start : -0.15)));
-    out.push({ t0, t1: r3(t0 + (Number(h.hold) > 0 ? Number(h.hold) : STAGE.highlight.holdSeconds)), box: { x: r3(b.x - pad), y: r3(b.y - pad), w: r3(b.w + 2 * pad), h: r3(b.h + 2 * pad) }, dim: clamp(Number(h.dim ?? STAGE.highlight.dim), 0.1, 0.8), label: h.action });
+    // A highlight is over (fully faded) before the click on or inside its element, and before any other press: the product changes after a
+    // press, and the result must never be dimmed. It is an attention cue ahead of the action, not a frame around it.
+    const firstPress = presses.filter((q) => q.t >= t0 - 1e-6).reduce((m, q) => Math.min(m, q.t), Infinity);
+    const wanted = t0 + (Number(h.hold) > 0 ? Number(h.hold) : STAGE.highlight.holdSeconds);
+    const t1 = r3(Math.min(wanted, firstPress - STAGE.highlight.easeSeconds - STAGE.highlight.clearBeforePressSeconds));
+    if (t1 - t0 < 2 * STAGE.highlight.easeSeconds) throw new Error(`screenStage.highlights[${i}]: "${h.action}" has no room: it must fade out ${STAGE.highlight.clearBeforePressSeconds + STAGE.highlight.easeSeconds} s before the click at ${p.t}s (or the first press after it), and fit ${2 * STAGE.highlight.easeSeconds} s between: start it earlier (start: ${r3(Math.min(-1.0, (h.start ?? -0.15) - 0.6))})`);
+    out.push({ t0, t1, box: { x: r3(b.x - pad), y: r3(b.y - pad), w: r3(b.w + 2 * pad), h: r3(b.h + 2 * pad) }, dim: clamp(Number(h.dim ?? STAGE.highlight.dim), 0.1, 0.8), label: h.action });
   }
   out.sort((a, b) => a.t0 - b.t0);
   for (let i = 1; i < out.length; i++) if (out[i].t0 < out[i - 1].t1 - 1e-6) throw new Error(`screenStage.highlights: "${out[i - 1].label}" and "${out[i].label}" overlap: one highlight at a time`);
@@ -157,7 +163,7 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     let box = act;
     // The action and its result both stay in frame when they fit together; otherwise the result is dropped before the action is.
     let joined = false;
-    if (resp.length) { const both = unionBox([act, ...resp]); if (zoomForBox(both, g) > 1) { box = both; joined = true; } }
+    if (resp.length) { const both = unionBox([act, ...resp]); if (zoomForBox(both, g) >= g.zoom.min - 1e-6) { box = both; joined = true; } }
     // What changed on the page within about a second of the last press (measured from the captured frames). When it lies outside the
     // action it must be seen: it joins the region if both fit, otherwise the camera goes to it within resultLeadSeconds of the press.
     const lastPress = c.presses[c.presses.length - 1];
@@ -167,7 +173,7 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     c.resultCamera = null;
     if (c.resultBox) {
       const both = unionBox([box, c.resultBox]);
-      if (zoomForBox(both, g) > 1) { box = both; joined = true; }
+      if (zoomForBox(both, g) >= g.zoom.min - 1e-6) { box = both; joined = true; }
       else { c.resultCamera = cameraForBox(c.resultBox, g, { bias: false }); c.resultAt = lastPress.t + STAGE.resultLeadSeconds; }
     }
     c.action = act; c.region = box;
@@ -179,7 +185,13 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     const nxt = clusters[i + 1];
     if (c.resultCamera && nxt) {
       const nextStart = nxt.approachStart != null ? nxt.approachStart : nxt.firstT - leadSec;
-      if (nextStart - c.resultAt < STAGE.resultMinViewSeconds) { warnings.push(`the result of "${lastPress.label || lastPress.type}" at ${lastPress.t}s is not followed: the next approach starts ${r3(nextStart - lastPress.t)} s later`); c.resultCamera = null; c.resultBox = null; }
+      if (nextStart - c.resultAt < STAGE.resultMinViewSeconds) {
+        // The pointer is already on its way: show the result in the next region when both fit at the minimum zoom, else it would be missed.
+        const withNext = unionBox([...nxt.boxes, c.resultBox]);
+        if (!nxt.manual && zoomForBox(withNext, g) >= g.zoom.min - 1e-6) { nxt.boxes.push(c.resultBox); nxt.carriedResult = c.resultBox; }
+        else warnings.push(`the result of "${lastPress.label || lastPress.type}" at ${lastPress.t}s is not followed: the next approach starts ${r3(nextStart - lastPress.t)} s later`);
+        c.resultCamera = null; c.resultBox = null;
+      }
     }
     c.resultEnd = Math.max(c.lastEnd, ...results.filter((r) => r.t >= c.firstT && r.t < limit).map((r) => r.t));
   });
@@ -233,6 +245,14 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
   }
   const touch = slots.some((s) => clips[s.clipId]?.touch);
   const hidden = [...(options.hideCursor || [])];
+  // While a field is typed into the pointer is hidden, as an operating system does: an I-beam sitting on the words covers them. It comes
+  // back when the pointer next moves.
+  if (!touch) for (const p of presses) {
+    if (!p.typed && p.type !== 'type') continue;
+    const from = Number.isFinite(p.typeStart) ? p.typeStart : p.t + 0.25;
+    const back = moves.filter((m) => m.t > p.tEnd + 0.05).reduce((m, x) => Math.min(m, x.t), Infinity);
+    hidden.push([from, Math.min(runSeconds + 0.3, Number.isFinite(back) ? back : runSeconds + 0.3)]);
+  }
   if (options.idleHide !== false && !touch) hidden.push(...idleHideRanges({ samples: stageSamples, presses, runSeconds }));
   const cursor = { mode: touch ? 'touch' : 'pointer', samples: stageSamples, clicks, hidden: hidden.map(([a, b]) => [r3(a), r3(b)]) };
 

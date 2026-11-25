@@ -55,6 +55,19 @@ export const LIMITS = Object.freeze({
   resultSeenSeconds: [0.3, 1.0],
 });
 
+/** Seconds of speech in the narration timeline, merged across gaps shorter than 0.6 s: [{ from, to }] on the film clock. */
+const speechSpans = (() => {
+  try {
+    const tl = JSON.parse(readFileSync(join(jobRoot, 'story', 'narration-timeline.json'), 'utf8').replace(/^﻿/, ''));
+    const raw = [];
+    for (const seg of tl.segments || []) for (const w of seg.words || []) if (Number.isFinite(w.start) && Number.isFinite(w.end)) raw.push({ from: (seg.startSeconds || 0) + w.start, to: (seg.startSeconds || 0) + w.end });
+    raw.sort((a, b) => a.from - b.from);
+    const out = [];
+    for (const r of raw) { const l = out[out.length - 1]; if (l && r.from - l.to < 0.6) l.to = Math.max(l.to, r.to); else out.push({ ...r }); }
+    return out;
+  } catch { return []; }
+})();
+const spokenOverlap = (a, b) => speechSpans.reduce((n, r) => n + Math.max(0, Math.min(b, r.to) - Math.max(a, r.from)), 0);
 const jobCfg = (() => { try { const j = JSON.parse(readFileSync(join(jobRoot, 'job.json'), 'utf8').replace(/^﻿/, '')); return j.screenStage && typeof j.screenStage === 'object' ? j.screenStage : {}; } catch { return {}; } })();
 const readJson = (rel) => { const p = join(jobRoot, rel); return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8').replace(/^﻿/, '')) : null; };
 const sha256 = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
@@ -238,6 +251,12 @@ for (const listed of plansListed) {
         const changes = CH.measureChanges({ presses: pressTimes, frames: { times: frames.times, files: frames.files.map((f) => join(jobRoot, 'capture', 'raw', f)) }, viewport: e.viewport });
         clipsIn[id] = { actions: e.actions || [], expectations: e.expectations || [], frames, touch: !!e.hasTouch, changes };
         captureRows.push({ clip: id, deviceScaleFactor: e.deviceScaleFactor, ...CH_RATE(frames.times) });
+        // the captured frames themselves: in timestamp order, and no one-frame reversion (A, B, A) in what the browser delivered
+        for (let k = 1; k < frames.times.length; k++) if (!(frames.times[k] > frames.times[k - 1])) fail(`run ${listed.run}: capture ${id}: frame ${index.frames[k].file} is out of timestamp order`);
+        const grays = index.frames.map((f) => grayImage(join(jobRoot, 'capture', 'raw', id, 'frames', f.file), 240, 135));
+        const capRev = F.oneFrameReversions(grays.filter(Boolean), { minDiff: 0.15 });
+        captureRows[captureRows.length - 1].oneFrameReversions = capRev.map((r) => ({ ...r, file: index.frames[r.i]?.file }));
+        for (const r of capRev) fail(`run ${listed.run}: capture ${id}: captured frame ${index.frames[r.i]?.file} differs from both neighbours while they are alike: the product painted it or the browser delivered it out of order`);
       }
       const again = P.buildStagePlan({ frame: plan.frame, viewport: plan.viewport, dsf: plan.deviceScaleFactor, slots: plan.slots, clips: clipsIn, options: { hideCursor: plan.cursor.hiddenDeclared || [], idleHide: plan.cursor.idleHide, zoom: jobCfg.zoom, highlights: jobCfg.highlights, layout: jobCfg.background ? 'phone' : null, background: plan.background } });
       rebuilt = again;
@@ -289,6 +308,13 @@ for (const listed of plansListed) {
     const curPx = plan.cursor.mode !== 'touch' && a.cursor && b.cursor && a.cursor.visible > 0.99 && !a.cursor.hidden ? Math.hypot(a.cursor.x - b.cursor.x, a.cursor.y - b.cursor.y) * a.camera.z : 0;
     const srcSame = a.frame === b.frame;
     if ((camPx >= LIMITS.minMovingPxPerFrame) || (curPx >= LIMITS.minMovingPxPerFrame * 2 && srcSame)) { moving++; if (diffs[i] < LIMITS.duplicateDiff) dup++; }
+  }
+  // a frame that differs from both neighbours while they are alike: a wrong texture, a frame out of order. Never smoothed over.
+  {
+    const allowed = (jobCfg.declaredAnimations || []).map((a) => ({ from: Math.floor(a.from * fps), to: Math.ceil(a.to * fps) }));
+    const rev = F.oneFrameReversions(run, { allowed });
+    row.checks.oneFrameReversions = rev.map((r) => ({ ...r, t: r2(r.i / fps) }));
+    for (const r of rev) fail(`run ${listed.run}: frame ${r.i} (${r2(r.i / fps)}s) differs from both neighbours (${r.toPrev} and ${r.toNext}) while they are alike (${r.prevToNext}): a one-frame reversion`);
   }
   row.checks.movingFrames = moving; row.checks.duplicatedInMoves = dup;
   if (dup > 0) fail(`run ${listed.run}: ${dup} duplicated or frozen frame(s) inside a camera or cursor move (of ${moving} moving frames)`);
@@ -383,14 +409,15 @@ for (const listed of plansListed) {
   // 9c. no unchanged view held for over 1.0 s
   {
     const longRuns = [];
-    for (const r of F.stillRuns(run)) {
-      const dur = (r.to - r.from + 1) / fps;
+    for (const r of F.stillRuns(run, 8, F.CARET_PX)) {
+      // narration covers a hold: only the part nobody is speaking over counts
+      const dur = (r.to - r.from + 1) / fps - spokenOverlap(T0 + r.from / fps, T0 + (r.to + 1) / fps);
       const atStart = r.from === 0, atEnd = r.to >= run.length - 2;
       const allowed = atStart ? LIMITS.stillStartSeconds : atEnd ? LIMITS.stillEndSeconds : LIMITS.stillSeconds;
       if (dur > allowed) longRuns.push({ fromSeconds: r2(r.from / fps), seconds: r2(dur) });
     }
     row.checks.longStillRuns = longRuns;
-    for (const l of longRuns) fail(`run ${listed.run}: the view is held unchanged for ${l.seconds} s from ${l.fromSeconds}s (limit ${LIMITS.stillSeconds} s without narration)`);
+    for (const l of longRuns) fail(`run ${listed.run}: the view is held unchanged for ${l.seconds} s from ${l.fromSeconds}s (limit ${LIMITS.stillSeconds} s without narration over it)`);
   }
 
   // 9d. a result that appears elsewhere is in the measured view

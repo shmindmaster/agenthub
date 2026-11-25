@@ -105,7 +105,10 @@ export function ghostExcess(film, ideal, w, h, dir, maxLag) {
 /** Mean luma of a gray raster. */
 export const meanLuma = (g) => { let s = 0; for (let i = 0; i < g.length; i++) s += g[i]; return s / g.length; };
 
-/** Runs of consecutive frames with (almost) no pixel change: [{ from, to }] frame indices. A frame "changes" when more than `minPx` pixels differ by over `delta`. */
+/** Runs of consecutive frames with (almost) no pixel change: [{ from, to }] frame indices. A frame "changes" when more than `minPx` pixels differ by over `delta`; a blinking caret is a few pixels, so the hold rule passes CARET_PX. */
+/** Changed pixels at 480 x 270 that are still "nothing": a caret or a blinking dot (a few pixels, repeating). */
+export const CARET_PX = 40;
+
 export function stillRuns(frames, delta = 8, minPx = 6) {
   const runs = []; let start = null;
   for (let i = 1; i < frames.length; i++) {
@@ -115,6 +118,24 @@ export function stillRuns(frames, delta = 8, minPx = 6) {
   }
   if (start !== null) runs.push({ from: start, to: frames.length - 1 });
   return runs;
+}
+
+/**
+ * One-frame reversions: a frame that differs from both neighbours while the neighbours are alike (A, B, A). A true change or a blur
+ * never does that. `frames` are gray rasters; `diff` is the mean absolute difference over them. Returns [{ i, toPrev, toNext, prevToNext }].
+ * Frames inside `allowed` ranges ([{ from, to }] frame indices: a declared animation such as a blinking element) are skipped.
+ */
+export function oneFrameReversions(frames, { minDiff = 0.3, ratio = 0.35, allowed = [] } = {}) {
+  const diff = (a, b) => { let s = 0; for (let k = 0; k < a.length; k++) s += Math.abs(a[k] - b[k]); return s / a.length; };
+  const out = [];
+  for (let i = 1; i < frames.length - 1; i++) {
+    if (allowed.some((r) => i >= r.from && i <= r.to)) continue;
+    const a = diff(frames[i - 1], frames[i]), b = diff(frames[i], frames[i + 1]);
+    if (a <= minDiff || b <= minDiff) continue;
+    const c = diff(frames[i - 1], frames[i + 1]);
+    if (c < ratio * Math.min(a, b)) out.push({ i, toPrev: Math.round(a * 100) / 100, toNext: Math.round(b * 100) / 100, prevToNext: Math.round(c * 100) / 100 });
+  }
+  return out;
 }
 
 /** Frame rate of a capture's animation bursts: consecutive frames closer than `burstGapMs` belong to one burst; the median gap is the unique fps, the 95th percentile the floor. */
