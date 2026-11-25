@@ -1,9 +1,12 @@
 """Offline tests for the screenplay breakdown, budget and schedule."""
 import json
+from datetime import date
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
+import generate_stills
 import screenplay_breakdown as bd
 
 SP = {"title": "T", "scenes": [
@@ -75,6 +78,23 @@ class Breakdown(unittest.TestCase):
         self.assertEqual(r["scenes"][0]["lane"], "azure-image")
         self.assertAlmostEqual(r["budget"]["pricedUsd"], r["budget"]["speechUsd"] + r["budget"]["transcriptionCheckUsd"] + r["budget"]["stillsUsd"], places=3)
         self.assertEqual(r["assets"], [{"kind": "still", "src": "stills/a.png"}])
+
+    def test_an_abacare_still_follows_the_grant_date_like_the_generator(self):
+        plan = {"scenes": [{"id": "a", "visual": {"kind": "still", "src": "stills/a.png", "prompt": "Four trucks idling at a dock at dawn"}}, PLAN["scenes"][1]]}
+        with mock.patch.object(generate_stills, "OPENAI_GRANT_UNTIL", date(2999, 1, 1)):
+            open_ = bd.summarize(SP, plan, identity="abacare")
+        with mock.patch.object(generate_stills, "OPENAI_GRANT_UNTIL", date(2000, 1, 1)):
+            ended = bd.summarize(SP, plan, identity="abacare")
+        self.assertEqual(open_["scenes"][0]["lane"], "openai-image")
+        self.assertEqual(ended["scenes"][0]["lane"], "runware-image")
+        self.assertTrue(ended["ok"], ended["errors"])
+        self.assertLess(ended["scenes"][0]["imageUsd"], open_["scenes"][0]["imageUsd"])
+
+    def test_naming_the_openai_lane_for_another_entity_is_an_error_in_the_quote_too(self):
+        plan = {"scenes": [{"id": "a", "visual": {"kind": "still", "lane": "openai-image", "src": "stills/a.png", "prompt": "Four trucks at a dock"}}, PLAN["scenes"][1]]}
+        r = bd.summarize(SP, plan, identity="mahumtech")
+        self.assertFalse(r["ok"])
+        self.assertTrue(any("credits fund only their own entity" in e for e in r["errors"]))
 
     def test_a_still_with_no_prompt_is_an_error(self):
         plan = {"scenes": [{"id": "a", "visual": {"kind": "still", "src": "stills/a.png"}}, PLAN["scenes"][1]]}
