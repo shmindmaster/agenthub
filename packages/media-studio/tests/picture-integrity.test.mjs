@@ -69,7 +69,7 @@ function buildJob({ profile = 'briefing-board', clip = [1600, 1000], frame = [16
   for (const d of ['capture/clips', 'output', 'qa', 'plan', 'story']) mkdirSync(join(root, d), { recursive: true });
   const clipPath = join(root, 'capture', 'clips', 'W01.mp4');
   movingClip(clipPath, clip[0], clip[1]);
-  writeFileSync(join(root, 'job.json'), JSON.stringify({ kind: 'product-screencast', title: 't', deliveryProfile: profile, ...job }));
+  writeFileSync(join(root, 'job.json'), JSON.stringify({ kind: 'product-screencast', title: 't', deliveryProfile: profile, legacyReceiptAllowed: 'hand-written fixture receipt', ...job }));
   const vp = viewport || { width: clip[0], height: clip[1] };
   writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify({
     schemaVersion: '1.0.0', generator: 'media-studio/record-job',

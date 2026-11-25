@@ -248,7 +248,7 @@ test('portrait campaign composes a bounded source reframe with timed graphic and
   writeFileSync(join(root, 'story', 'timed-graphics.json'), JSON.stringify({ overlays: [{ assetId: 'label', x: 80, y: 180, width: 200, height: 80, startSeconds: 1, endSeconds: 3 }] }));
   writeFileSync(join(root, 'capture', 'manifest.json'), JSON.stringify({ clips: [{ id: 'S01', file: 'clips/S01.webm', segments: ['S01'], sourceRegion: region }] }));
   putReceipt(root, { schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: { S01: { file: 'clips/S01.webm', sha256: sha(clip), recast: 'full', valid: true, events: { pointerMoves: 10, clicks: 1, expectationsObserved: 1 } } } }, { ...IDENTITY, scenarioId: 'synthetic-01' });
-  writeFileSync(join(root, 'evidence', 'demo-scenario-proof.json'), JSON.stringify({ scenarioId: 'synthetic-01', continuity: { entities: [{ type: 'client', id: 'record-01' }] } }));
+  writeFileSync(join(root, 'evidence', 'demo-scenario-proof.json'), JSON.stringify({ personaId: IDENTITY.persona, sourceRevision: IDENTITY.sourceRevision, servedRevision: IDENTITY.servedRevision, baseUrl: IDENTITY.baseUrl, scenarioId: 'synthetic-01', continuity: { entities: [{ type: 'client', id: 'record-01' }] } }));
   const composed = run(compose, [root, 'portrait']); assert.equal(composed.code, 0, composed.out);
   const mapPath = join(root, 'output', 'portrait-compose-map.json');
   assert.deepEqual(JSON.parse(readFileSync(mapPath, 'utf8')).groups[0].sourceRegion, region);

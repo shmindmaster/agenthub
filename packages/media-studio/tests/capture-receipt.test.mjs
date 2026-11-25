@@ -298,6 +298,14 @@ test('the backfill tools keep a sealed receipt sealed and refuse an edited one',
   const r = run(join(scripts, 'backfill-capture-receipt.mjs'), [root]);
   assert.notEqual(r.code, 0); assert.match(r.out, /edited after it was written/);
 });
+test('the marketing generator refuses a clip from an edited receipt', { skip }, async () => {
+  const { resolveClip } = await import('../kit/marketing/lib/stages/capture.mjs');
+  const root = job('mvg-source');
+  const beat = { id: 'B1', ui: { sourceJob: root, clipId: 'S02' } };
+  assert.equal(resolveClip({ specDir: root }, beat).entry.file, 'clips/S02.webm');
+  edit(root, (r) => { r.clips.S02.actions[1].tStart = 0.6; });
+  assert.throws(() => resolveClip({ specDir: root }, beat), /edited after it was written/);
+});
 test('the proof fixture satisfies the scenario gate', () => {
   const root = join(scratch, 'proof'); write(join(root, 'job.json'), { kind: 'product-screencast', intent: 'viewer-facing' });
   write(join(root, 'story', 'storyboard.json'), { scenarioId: 'weeknight', cta: 'c', beats: [{ id: 'S02' }] }); writeProof(root);
