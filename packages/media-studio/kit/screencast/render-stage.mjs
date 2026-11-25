@@ -30,7 +30,7 @@ writeFileSync(propsPath, JSON.stringify({ plan, framesBase }));
 mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
 const started = Date.now();
 const args = [cli, 'render', 'src/index.ts', 'ScreenStage', path.resolve(out), `--props=${propsPath}`, `--public-dir=${path.resolve(publicDir)}`,
-  '--image-format=png', '--codec=h264', '--crf=15', '--x264-preset=medium', '--pixel-format=yuv420p', '--color-space=bt709', '--muted', `--concurrency=${flag('--concurrency', '8')}`, `--gl=${process.env.STAGE_GL || (process.platform === 'linux' ? 'swangle' : 'angle')}`, '--overwrite'];
+  '--image-format=png', '--codec=h264', '--crf=15', '--x264-preset=medium', '--pixel-format=yuv420p', '--color-space=bt709', '--muted', `--concurrency=${flag('--concurrency', '8')}`, `--gl=${process.env.STAGE_GL || (process.platform === 'linux' ? 'swangle' : 'angle')}`, '--overwrite', ...(process.env.STAGE_LOG ? [`--log=${process.env.STAGE_LOG}`] : [])];
 const r = spawnSync(process.execPath, args, { cwd: kit, stdio: 'inherit', windowsHide: true });
 rmSync(tmp, { recursive: true, force: true });
 if (r.status !== 0) process.exit(r.status || 1);
