@@ -223,30 +223,30 @@ try {
         }
 
         # Verify preserved defaults
-        $oc = Get-Content "$fakeHome\.config\opencode\opencode.json" -Raw | ConvertFrom-Json
+        $oc = Get-Content "$fakeHome\.config\opencode\opencode.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True ($oc.model -eq 'qwen-token-plan/qwen3.8-max') 'OpenCode default model changed'
         Assert-True ($oc.small_model -eq 'qwen-token-plan/qwen3.8-flash') 'OpenCode small_model changed'
 
-        $codexCfg = Get-Content "$fakeHome\.codex\config.toml" -Raw
+        $codexCfg = Get-Content "$fakeHome\.codex\config.toml" -Raw -Encoding UTF8
         Assert-True ($codexCfg -notmatch '\[profiles\.daytona-') 'Codex config.toml must not contain inline [profiles.daytona-*]'
         foreach ($p in @('daytona-fast', 'daytona-specialist', 'daytona-vision', 'daytona-turbo', 'daytona-flagship')) {
             Assert-True (Test-Path -LiteralPath "$fakeHome\.codex\$p.config.toml") "Missing standalone Codex profile $p.config.toml"
         }
 
-        $cl = Get-Content "$fakeHome\.cline\data\settings\providers.json" -Raw | ConvertFrom-Json
+        $cl = Get-Content "$fakeHome\.cline\data\settings\providers.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True ($cl.lastUsedProvider -eq 'cline') 'Cline lastUsedProvider changed'
         Assert-True ($cl.providers.cline.settings.auth.accessToken -eq 'tok-keep') 'Cline OAuth token altered'
         Assert-True ($cl.providers.'openai-compatible'.settings.baseUrl -eq 'https://inference.shtrial.com/v1') 'Cline openai-compatible baseUrl mismatch'
 
-        $grokCfg = Get-Content "$fakeHome\.grok\config.toml" -Raw
+        $grokCfg = Get-Content "$fakeHome\.grok\config.toml" -Raw -Encoding UTF8
         Assert-True ($grokCfg -notmatch '\[model\.daytona-specialist\]') 'Legacy Grok [model.daytona-specialist] must be pruned'
         Assert-True ($grokCfg -match 'Qwen3\.8 27B Uncensored FP8') 'Grok display names must include uncensored checkpoint label'
 
-        $vscCfg = Get-Content "$fakeRoaming\Code - Insiders\User\chatLanguageModels.json" -Raw | ConvertFrom-Json
+        $vscCfg = Get-Content "$fakeRoaming\Code - Insiders\User\chatLanguageModels.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True (@($vscCfg | Where-Object { $_.name -eq 'Daytona H200' }).Count -eq 0) 'Legacy VS Code Daytona H200 group must be pruned'
         Assert-True (@($vscCfg | Where-Object { $_.name -eq 'Copilot' }).Count -eq 1) 'Copilot group in VS Code must be preserved'
 
-        $zcCfg = Get-Content "$fakeHome\.zcode\v2\provider_config.json" -Raw | ConvertFrom-Json
+        $zcCfg = Get-Content "$fakeHome\.zcode\v2\provider_config.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True ($zcCfg.config.providerOrder -notcontains 'daytona-turbo-heretic-q6') 'Legacy ZCode providerOrder entry must be pruned'
         Assert-True ($zcCfg.config.providerOrder -contains 'account:zai-start-plan') 'ZCode account:zai-start-plan must be preserved'
     }

@@ -32,6 +32,6 @@
    ```
 6. **Verify end-to-end without editing any coding agent:**
    ```powershell
-   python C:\Users\SaroshHussain\.config\opencode\daytona\gpu.py doctor
-   python C:\Users\SaroshHussain\.config\opencode\daytona\gpu.py reconcile
+   python "$env:USERPROFILE\.config\opencode\daytona\gpu.py" doctor
+   python "$env:USERPROFILE\.config\opencode\daytona\gpu.py" reconcile
    ```
