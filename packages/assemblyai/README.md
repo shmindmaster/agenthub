@@ -1,12 +1,13 @@
 # AssemblyAI plugin
 
-Thin AgentHub wrapper for AssemblyAI. It holds one routing skill and points each host at AssemblyAI's two hosted MCP servers. It runs no local process and stores no key.
+Thin AgentHub wrapper for AssemblyAI. It holds one skill with two references and points each host at AssemblyAI's two hosted MCP servers. It runs no local process and stores no key.
 
 ## Contents
 
 | Path | Host |
 |---|---|
-| `skills/assemblyai/SKILL.md` | Every host. The only skill text |
+| `skills/assemblyai/SKILL.md` | Every host. Routing, the two cloned voices and their rules |
+| `skills/assemblyai/references/` | Every host. `speech.md` and `transcription.md`, read when needed |
 | `plugin.json`, `mcp.json` | Agent Plugins 1.0.0 (Copilot, Codex, Cursor) |
 | `.claude-plugin/plugin.json`, `.mcp.json` | Claude Code, plus Grok and Factory, which read Claude layouts |
 | `.cursor-plugin/plugin.json` | Cursor |
@@ -65,4 +66,4 @@ Run one in a fresh session on that host. A pass prints the marker and the two UR
 
 ## Keys
 
-The MCP entries carry no key. Sign-in is OAuth. Code that calls the REST API reads `ASSEMBLYAI_API_KEY` from the environment. Media work goes through `media-studio`, not this plugin. AssemblyAI also does TTS: stock voices for ABACare films, and cloned voices for personal and ABACare films only (consented reference, 60 day validity, renewable). `media-studio` picks it for those.
+The MCP entries carry no key. Sign-in is OAuth. Code that calls the REST API reads `ASSEMBLYAI_API_KEY` from the environment. Media work goes through `media-studio`, not this plugin. AssemblyAI also does speech: the owner's cloned voices for personal and ABACare work, and stock voices for ABACare. The skill names each clone and its consent rules.

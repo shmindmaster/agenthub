@@ -21,7 +21,7 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 
 - Real user data on a live product: stop with `PIPELINE_BLOCKED`.
 - Stock film speech uses Deepgram first (governed Flux batch), then governed GA Azure DragonHD; ABACare films use AssemblyAI stock voices. Desktop speech, HeyGen stock avatar voices and Local AI are forbidden for delivery, rehearsal and drafts.
-- Voice clones only for personal or ABACare films, made with AssemblyAI cloned voices once a governed adapter exists; the one ElevenLabs clone exception is the manifest-named Deloitte pursuit films (`content-controls.md`). Speaker similarity is advisory; never fail or re-voice on it.
+- Voice clones only for personal or ABACare films, made with AssemblyAI cloned voices through `scripts/narration-preflight.mjs` (`ah-assemblyai` lists the voice IDs); the one ElevenLabs clone exception is the manifest-named Deloitte pursuit films (`content-controls.md`). Speaker similarity is advisory; never fail or re-voice on it.
 - Reuse accepted assets. Repair order: recut, recapture, rewrite.
 - **Verified current-product screencasts** use real captured WebM plus Recast for factual functionality. **Vision, fictional and concept films** may render wholly synthetic UI, realistic human characters and animated scenes via their supported image/video/Remotion workflow. Do not mislabel concept UI as verified current behavior.
 - Captions are a sidecar `.srt` only, never embedded or burned in.
