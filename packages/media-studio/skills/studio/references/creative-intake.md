@@ -46,11 +46,11 @@ Use the existing `script` stage to write the formal treatment, screenplay, beat 
 
 Cast by **delivery quality** (clear instructional, warm conversational, confident authoritative, expressive cinematic, character dialogue), then choose eligible providers from the actual catalog:
 
-- **Deepgram:** the default for stock (non-cloned) voices: Flux TTS batch through the governed adapter (Flux Sienna and Haley; Aura-2 is not governed yet). ABACare films use AssemblyAI stock voices instead.
+- **Deepgram:** the default for stock (non-cloned) voices: Flux TTS batch through the governed adapter (Flux Sienna and Haley; Aura-2 is not governed yet). ABACare films use the AssemblyAI clones instead.
 - **Azure Speech DragonHD:** the next route after Deepgram. Approved voices such as Emma2/Andrew2 for conversational walkthroughs; Ava/Andrew where suitable.
 - **Azure OpenAI / OpenAI speech:** directed narration including Marin/Cedar **only when the specific governed route is enabled for this task**.
 - **ElevenLabs:** premium speech, dialogue and effects are candidates **only under the applicable authorization and frozen-lane policy**, including the Deloitte pursuit films (Revolva, Empowera, CoLedger), and only with a written reason in the job.
-- **AssemblyAI:** TTS for ABACare films and the only clone route (personal and ABACare films), run by `scripts/narration-preflight.mjs`, plus transcription, timing, alignment and independent quality checks. Recommend `sarosh-hussain` first for a personal film with no other voice named; the job uses it once the owner asks for his voice on that film (`privateVoiceApprovals` quotes the request), and otherwise gets the stock default. On ABACare films each clone speaks for its own person. `ah-assemblyai` lists both voice IDs and the consent check; consent lasts 60 days and is renewable.
+- **AssemblyAI:** TTS for ABACare films with the clones, or a personal film where the owner asks for one, run by `scripts/narration-preflight.mjs`, plus transcription, timing, alignment and independent quality checks. A personal film gets the Deepgram default unless the owner asks for a clone on that film (`privateVoiceApprovals` quotes the request). ABACare casting is in `../../produce/references/narration-preflight.md`. `ah-assemblyai` lists both voice IDs and the consent check; consent lasts 60 days and is renewable.
 - Other providers: candidates only after checking `route_media.py --catalog`, actual model/voice compatibility, authorization, and pricing.
 
 Do not promise that any named voice is currently callable merely because its documentation exists. Never generate fake audio previews or describe an unplayed sample as heard.
@@ -64,7 +64,7 @@ When a real audition is useful and authorized:
 5. Present actual playable previews with meaningful names; if audio cannot be played or audition approval is unavailable, present an explicit limitation, not a fabricated opinion of the voices.
 6. Save the approved choice for the current film/series and regenerate only changed or rejected segments.
 
-A requested cloned voice does not bypass existing private consent, account, spend or scope rules. Clones are for personal or ABACare films only, through AssemblyAI. Before any generation, name the owning entity and read its live balance; use the provider with the most usable credit for that entity. Do not automatically audition a full provider roster on every film.
+A requested cloned voice does not bypass existing private consent, account, spend or scope rules. Clones are for ABACare films, or a job where the owner asks for one. Before any generation, name the owning entity and read its live balance; use the provider with the most usable credit for that entity. Do not automatically audition a full provider roster on every film.
 
 ## Picture and capture choice
 

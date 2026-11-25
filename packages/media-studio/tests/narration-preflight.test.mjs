@@ -18,7 +18,8 @@ const snapshot = (key, availableUsd = 20) => ({ entity: 'abacare', source: 'dash
   observedAt: new Date(now).toISOString(), credentialSha256: hash(key) });
 const snapshots = { assemblyai: snapshot(env.ASSEMBLYAI_API_KEY), openai: snapshot(env.OPENAI_API_KEY), deepgram: snapshot(env.DEEPGRAM_API_KEY) };
 const stock = { source: 'assemblyai', visibility: 'public', status: 'active', language: 'english', ready_models: ['assemblyai-tts-1'] };
-const script = { entity: 'abacare', longForm: true, turns: [{ text: 'The answer opens here.' }, { text: 'The answer continues here.' }] };
+const voices = { assemblyai: 'aai-jane', deepgram: 'flux-sienna-en', openai: 'marin' };
+const script = { entity: 'abacare', longForm: true, turns: [{ text: 'The answer opens here.', voices }, { text: 'The answer continues here.', voices }] };
 const openaiRate = '### Text tokens\n| Input | $0.6 | 1M tokens |\n### Audio tokens\n| Output | $20 | 1M tokens |\n### Image tokens';
 const assemblyRate = '| AssemblyAI-TTS-1 | \\$15 per 1M input characters | Available |';
 const deepgramPolicy = JSON.parse(readFileSync(new URL('../scripts/narration-deepgram-policy.json', import.meta.url), 'utf8'));
@@ -130,11 +131,13 @@ test('group adjacent same-speaker turns and preserve order, exact Unicode and cu
 test('stock narration defaults to Deepgram, and to AssemblyAI only for ABACare or when named', async () => {
   const budget = { readDeepgramBudget: () => 1_000_000 };
   const personal = Object.fromEntries(Object.entries(snapshots).map(([k, v]) => [k, { ...v, entity: 'personal' }]));
-  const film = { ...script, entity: 'personal' };
+  const film = { ...script, entity: 'personal', turns: script.turns.map(({ text }) => ({ text })) };
   assert.equal((await preflight(film, { ...fake(), snapshots: personal, now, env, ...budget })).pick, 'deepgram');
   assert.equal((await preflight(film, { ...fake(), snapshots: personal, now, env })).pick, 'openai');
   assert.equal((await preflight({ ...film, provider: 'assemblyai' }, { ...fake(), snapshots: personal, now, env })).pick, 'assemblyai');
   assert.equal((await preflight(script, { ...fake(), snapshots, now, env, ...budget })).pick, 'assemblyai');
+  const uncast = await preflight({ ...script, turns: film.turns }, { ...fake(), snapshots, now, env, ...budget });
+  assert.equal(uncast.pick, null, 'an ABACare script that names no voice gets no stock substitute');
 });
 
 test('ABACare narration uses funded AssemblyAI; quote only performs reads', async () => {
@@ -158,16 +161,17 @@ test('unknown, stale, low, and mismatched funding never become available credit'
   }
 });
 
-test('unavailable price, private clone or direction requirements select another qualified lane', async () => {
+test('an ABACare voice that cannot run is never replaced by another provider unless the job names one', async () => {
   for (const option of [{ assemblyRateDoc: 'changed' }, { voice: { ...stock, visibility: 'private' } }]) {
     const q = await preflight(script, { ...fake(option), snapshots, now, env });
-    assert.notEqual(q.pick, 'assemblyai');
+    assert.equal(q.pick, null);
+    assert.equal((await preflight({ ...script, provider: 'openai' }, { ...fake(option), snapshots, now, env })).pick, 'openai');
   }
   const pinned = { ...script, turns: [{ text: 'Keep this voice.', voices: { assemblyai: 'private-fixture' } }] };
   const incompatible = await preflight(pinned, { ...fake({ voice: { ...stock, visibility: 'private' } }), snapshots, now, env });
   assert.equal(incompatible.pick, null);
   const priced = await preflight({ ...script, requiresDirection: true }, { ...fake(), snapshots, now, env });
-  assert.equal(priced.pick, 'openai');
+  assert.equal(priced.pick, null);
 });
 
 test('execution requires exact authorization and a current rate, then uses one metered request and reuses bytes', async () => {
@@ -282,7 +286,7 @@ test('exact integer cap works across takes and the quote cannot move to another 
   const folder = mkdtempSync(join(tmpdir(), 'studio-narration-'));
   try {
     const provider = fake();
-    const text = { ...script, turns: [{ text: 'x'.repeat(4181), keepSeparate: true }, { text: 'x'.repeat(820) }] };
+    const text = { ...script, turns: [{ text: 'x'.repeat(4181), keepSeparate: true, voices }, { text: 'x'.repeat(820), voices }] };
     const options = { ...provider, snapshots, now, env };
     const quote = await preflight(text, options);
     const approval = auth(quote, folder, 0.075015);
@@ -301,7 +305,7 @@ test('renewal prices only missing wallet spend and preserves the cumulative auth
   const folder = join(parent, 'takes');
   try {
     const provider = fake();
-    const text = { ...script, turns: [{ text: 'a'.repeat(2000), keepSeparate: true }, { text: 'b'.repeat(1000) }] };
+    const text = { ...script, turns: [{ text: 'a'.repeat(2000), keepSeparate: true, voices }, { text: 'b'.repeat(1000), voices }] };
     const options = { ...provider, snapshots, now, env, outputDir: folder };
     const original = await preflight(text, options);
     await executeAssembly(text, original, auth(original, folder), folder, options);

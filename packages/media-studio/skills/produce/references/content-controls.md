@@ -27,7 +27,7 @@ Azure: `quote()` returns `cache_key` and `maximum_usd_micros`. The owner's immut
 
 ## ElevenLabs job
 
-Owner-authorized only, with a written reason in the job. Clones of Sarosh and Syeda F. Abidi for personal or ABACare films go through AssemblyAI first; an ElevenLabs clone runs only for a job whose private manifest names it (the Deloitte pursuit films, or one of those two people with a written reason). There is no default voice, model or budget, and a ceiling in the default ledger authorizes nothing. Never put a real voice ID in this repository.
+Owner-authorized only, with a written reason in the job. ABACare films use the AssemblyAI clones of Syeda F. Abidi and Sarosh; a personal film uses one only when the owner asks for it in that job. An ElevenLabs clone runs only for a job whose private manifest names it (the Deloitte pursuit films, or another job where the owner asks for that clone). There is no default voice, model or budget, and a ceiling in the default ledger authorizes nothing. Never put a real voice ID in this repository.
 
 The manifest is a procedural control, not a security boundary. It keeps a cooperating agent on the approved request, and it stops nothing else: any process running as this user with the key could write a manifest or call the API directly.
 

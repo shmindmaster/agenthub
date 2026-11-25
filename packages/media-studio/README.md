@@ -15,7 +15,7 @@ Live-product screencasts use Playwright WebM + Recast in this pack (`kit/screenc
 
 **Product picture** (`skills/studio/references/product-picture.md`): when the subject is a running product, the encoded film is Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards. `scripts/validate-product-picture.mjs` fails closed. Host projections must match `plugin.json`.
 
-New recorded narration starts with [live rate and funding preflight](skills/produce/references/narration-preflight.md). Eligible AssemblyAI stock voices are the default for long-form narration.
+New recorded narration starts with [live rate and funding preflight](skills/produce/references/narration-preflight.md). Deepgram Flux is the default voice; the AssemblyAI clones are for ABACare films, or a job where the owner asks for them.
 
 Version authority: root `plugin.json` (`4.0.2`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `MEDIA_STUDIO_ROOT`, default `D:\Media-Studio`). Private show bibles and customer recordings stay outside this repository.

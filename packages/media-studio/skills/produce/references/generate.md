@@ -13,7 +13,7 @@ Hash each input (voice, style, SSML, format) and reuse an accepted take or plate
 
 ## Routing
 
-Begin with verified, reusable assets and a beat-specific quality floor. For new narration run the [live preflight](narration-preflight.md) before a paid call; Stock (non-cloned) voices come from Deepgram Flux (Sienna or Haley) for every film except ABACare, then Azure DragonHD, then OpenAI; ABACare films use AssemblyAI stock voices on ABACare credit (owner direction 2026-11-23). Compare
+Begin with verified, reusable assets and a beat-specific quality floor. For new narration run the [live preflight](narration-preflight.md) before a paid call; Stock (non-cloned) voices come from Deepgram Flux (Sienna or Haley) for every film except ABACare, then Azure DragonHD, then OpenAI; ABACare films use the AssemblyAI clones on ABACare credit (owner direction 2026-11-25). Compare
 eligible specialist providers at the **same** resolution, length and
 capability. Cheapest **acceptable** result wins, not the cheapest provider
 name or account credit. The legacy `route_media.py` sorts lane readiness;
@@ -24,7 +24,7 @@ Use `references/provider-cost-quality-routing.md` for AssemblyAI,
 ElevenLabs and Runware modality and model choices. Escalate only the asset
 that failed. Default, then escape hatch:
 
-- Narration follows the live preflight. Established Azure recipes keep their pinned DragonHD voice. Clones of Sarosh, or of Syeda F. Abidi with her own recorded consent, are for personal or ABACare films only, through AssemblyAI.
+- Narration follows the live preflight. Established Azure recipes keep their pinned DragonHD voice. Clones of Sarosh, or of Syeda F. Abidi with her own recorded consent, are for ABACare films, or a personal film where the owner asks for one, through AssemblyAI.
 - Take ASR: `cloud-ai.mjs align` on Azure fast transcription; `--provider assemblyai` only when a job names it.
 - Stills: existing approved Azure `gpt-image-2.5-flare` remains callable.
   Runware's proven `runware:z-image@0` remains the only model accepted by
@@ -66,7 +66,7 @@ credit is not an authorization. Higgsfield and Runway credits are frozen until t
 
 Use each beat's `direction.register` to guide the performance. Pass style controls only where the governed voice supports them, and shape the rest with script phrasing and edit silence.
 
-Use `references/voice-recipes.md` to select one voice per film or series. Stock narration uses governed Deepgram Flux batch synthesis (Sienna or Haley) except for ABACare films, which use AssemblyAI stock voices. When Azure is the fallback, choose DragonHD Emma2 or Andrew2, with Ava as fallback; the Azure Speech adapter takes no style argument for these voices. Haley also serves prepared support prompts. The reference distinguishes callable choices from gated candidates, including Azure OpenAI Marin for directed narration. Reuse accepted takes. If the governed route cannot run, deliver the cut silent with the lines on screen. Desktop speech and HeyGen stock avatar voices are forbidden at every stage. For a personal or ABACare film spoken by Sarosh or Syeda F. Abidi, use their AssemblyAI clone with the job's `privateVoiceApprovals` entry (`narration-preflight.md`; `ah-assemblyai` lists the voice IDs and consent check). No clone on other films except the manifest-named Deloitte films, which stay on ElevenLabs. Each new line passes the take loop. Speaker similarity is advisory. Add pauses in the edit and use measured word timing.
+Use `references/voice-recipes.md` to select one voice per film or series. Stock narration uses governed Deepgram Flux batch synthesis (Sienna or Haley) except for ABACare films, which use the AssemblyAI clones. When Azure is the fallback, choose DragonHD Emma2 or Andrew2, with Ava as fallback; the Azure Speech adapter takes no style argument for these voices. Haley also serves prepared support prompts. The reference distinguishes callable choices from gated candidates, including Azure OpenAI Marin for directed narration. Reuse accepted takes. If the governed route cannot run, deliver the cut silent with the lines on screen. Desktop speech and HeyGen stock avatar voices are forbidden at every stage. For an ABACare film, or a personal film where the owner asks for a clone, use the AssemblyAI clone with the job's `privateVoiceApprovals` entry (`narration-preflight.md`; `ah-assemblyai` lists the voice IDs and consent check). No clone on other films except a job whose manifest names one (`content-controls.md`). Each new line passes the take loop. Speaker similarity is advisory. Add pauses in the edit and use measured word timing.
 
 ## References
 

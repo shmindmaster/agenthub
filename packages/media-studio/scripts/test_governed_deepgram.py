@@ -96,7 +96,9 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(p["maximum_usd_micros"], 90)
         self.assertNotEqual(plan()["cache_key"], plan(expressivity=1)["cache_key"])
         self.assertNotEqual(plan()["cache_key"], plan(dictionary_revision="literal-2")["cache_key"])
-        for value in (float("nan"), float("inf"), True, -1, 2):
+        for value in (-2, -1, 2):
+            self.assertNotEqual(plan()["cache_key"], plan(expressivity=value)["cache_key"])
+        for value in (float("nan"), float("inf"), True, 0.5, 1.5, -3, 3):
             with self.assertRaises(ValueError):
                 plan(expressivity=value)
 
@@ -142,7 +144,7 @@ class AdapterTests(unittest.TestCase):
             request = factory.return_value.open.call_args.args[0]
         query = parse_qs(urlsplit(request.full_url).query)
         self.assertEqual(query["model"], ["flux-haley-en"])
-        self.assertEqual(query["expressivity"], ["0.0"])
+        self.assertEqual(query["expressivity"], ["0"])
         record = json.loads(receipt.read_text(encoding="utf-8"))
         self.assertEqual(record["model"], "flux-haley-en")
         self.assertEqual(record["request_id"], "synthetic-haley")

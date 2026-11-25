@@ -6,7 +6,7 @@ Use verified rates and eligible funding. Escalate only the item that failed.
 
 | Need | Default | Escape hatch |
 | --- | --- | --- |
-| Narration | [Live preflight](narration-preflight.md): Deepgram Flux stock voices; AssemblyAI stock voices for ABACare films | Azure DragonHD, then OpenAI. Preserve pinned casts. |
+| Narration | [Live preflight](narration-preflight.md): Deepgram Flux; the AssemblyAI clones for ABACare films | Azure DragonHD, then OpenAI. Preserve pinned casts. |
 | Take ASR | `cloud-ai.mjs align` on Azure fast transcription | `--provider assemblyai` only when a job names it |
 | Backlog transcription | Azure batch | `gpt-transcribe` |
 | Real-time STT | Deepgram Nova-3 | None; Azure costs twice as much |
@@ -34,7 +34,7 @@ Run the integrity check with this exact command; do not change it:
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '4.5.0') { throw 'Speech tools are stale. Deploy the current media-studio package first.' }
+if ((Get-Content "$tools/plugin.json" -Raw | ConvertFrom-Json).version -ne '4.5.1') { throw 'Speech tools are stale. Deploy the current media-studio package first.' }
 pwsh -NoProfile -File "$tools/Test-SpeechIntegrity.ps1" -Path <take.wav> -Text '<locked line>' -JsonOut qa/integrity/<id>.json
 ```
 
