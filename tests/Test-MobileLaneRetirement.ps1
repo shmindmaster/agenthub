@@ -52,7 +52,7 @@ $skill = Read-Text (Join-Path $labRoot 'SKILL.md')
 Report 'daytona-mac.md records the reservation rules and SKILL.md points at it and at the macOS VM' (
     $mac -match 'base-macos' -and $mac -match 'us-east-bos-1' -and $mac -match 'reservation' -and
     $mac -match '(?i)owner approval' -and $mac -match '(?i)renewal' -and $mac -match '24-hour' -and
-    $mac -match '(?i)not an iOS build' -and $mac -match 'daytona_mac\.py status' -and $mac -match 'no /dev/kvm|KVM' -and
+    $mac -match '(?i)verified on simulator only' -and $mac -match 'daytona_mac\.py status' -and $mac -match 'no /dev/kvm|KVM' -and
     $skill -match 'references/daytona-mac\.md' -and $skill -match 'references/forge-mac\.md' -and
     (Test-Path -LiteralPath (Join-Path $labRoot 'forge/mac'))
 ) 'The Daytona Mac reference or its SKILL link is missing or incomplete.'
