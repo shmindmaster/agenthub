@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Manage the long-lived Daytona v2 macOS build boxes.
 
-The v2 SDK reads DAYTONA_API_KEY. This machine keeps the v2/Mac project key in
-DAYTONA_API_KEY1; set DAYTONA_V2_API_KEY to that value when invoking this helper.
-No key value is ever printed or written to a file.
+The v2 SDK reads DAYTONA_API_KEY, and so does this helper: all Daytona work uses
+one organization. No key value is ever printed or written to a file.
 
 Provisioning identifiers are supplied by environment variables so this public
 script carries no private infrastructure details. See the private guidance file
@@ -12,7 +11,9 @@ script carries no private infrastructure details. See the private guidance file
 Required env: DAYTONA_MAC_REGION, DAYTONA_MAC_MODEL, DAYTONA_MAC_SANDBOXES
 (comma-separated names), DAYTONA_MAC_RESERVATION_ID.
 Optional env: DAYTONA_MAC_RESOURCES ("cpu,memory_gib,disk_gib"),
-DAYTONA_MAC_LABELS (JSON object of shared labels).
+DAYTONA_MAC_LABELS (JSON object of shared labels), DAYTONA_MAC_ORG (refuse a key
+from any other organization), DAYTONA_MAC_AUTO_RENEW=1 (create turns renewal on;
+otherwise create turns it off, so a reservation ends instead of buying another day).
 
 Usage: python scripts/daytona_mac.py create|status|wake|stop
 """
@@ -37,10 +38,7 @@ def required(name: str) -> str:
 
 
 def client() -> Daytona:
-    key = os.environ.get("DAYTONA_V2_API_KEY") or os.environ.get("DAYTONA_API_KEY1")
-    if not key:
-        raise SystemExit("Set DAYTONA_V2_API_KEY (or DAYTONA_API_KEY1) before running this helper.")
-    os.environ["DAYTONA_API_KEY"] = key
+    required("DAYTONA_API_KEY")
     return Daytona()
 
 
@@ -91,6 +89,10 @@ def main() -> None:
     key_info = d.v2.current_api_key()
     print("key", {"name": key_info.name, "project": key_info.project_id, "org": key_info.context.org_name})
 
+    expected_org = os.environ.get("DAYTONA_MAC_ORG", "").strip()
+    if expected_org and key_info.context.org_name != expected_org:
+        raise SystemExit(f"DAYTONA_API_KEY belongs to {key_info.context.org_name!r}, not {expected_org!r}.")
+
     boxes = find_boxes(d, names)
     print("sandboxes", [sandbox_summary(s) for s in boxes.values()])
 
@@ -135,7 +137,9 @@ def main() -> None:
     if action != "create":
         raise SystemExit(f"Unknown action {action!r}; use create, status, wake or stop")
 
-    d.v2.reservations.update(reservation.id, auto_renew=True)
+    renew = os.environ.get("DAYTONA_MAC_AUTO_RENEW", "").strip() == "1"
+    d.v2.reservations.update(reservation.id, auto_renew=renew)
+    print("auto_renew", renew)
     for name in names:
         labels = dict(shared_labels)
         labels.update(BOX_LABEL)
