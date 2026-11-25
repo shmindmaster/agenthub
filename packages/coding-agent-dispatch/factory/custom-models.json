@@ -57,17 +57,6 @@
       "reasoningEffort": "high"
     },
     {
-      "model": "qwen4-max-preview",
-      "displayName": "Qwen4 Max Preview [Qwen Token Plan]",
-      "maxOutputTokens": 131072,
-      "maxContextLimit": 1000000,
-      "noImageSupport": false,
-      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
-      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
-      "provider": "generic-chat-completion-api",
-      "reasoningEffort": "medium"
-    },
-    {
       "model": "qwen3.8-max-tp",
       "displayName": "Qwen3.8 Max [Qwen Token Plan]",
       "maxOutputTokens": 131072,

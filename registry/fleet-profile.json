@@ -440,8 +440,8 @@
         "omits": ["--auto"]
       },
       "readOnlyNote": "2026-11-11 `droid exec --help`: \"By default, it runs in read-only mode, requiring explicit flags to enable modifications.\" and \"DEFAULT (no flags) Read-only mode ... No modifications to files or system\". The mode is the absence of --auto, so -ReadOnly leaves --auto out and adds no flag; --settings still passes the repo-owned rules file. No model run exercised this mode; the flags come from help text only.",
-      "model": "custom:qwen4-max-preview",
-      "modelNote": "2026-11-14 SH-4676: the dispatch default is the zero-credit BYOK plan route custom:qwen4-max-preview (QWEN_TOKEN_PLAN_API_KEY; owner direction 2026-11-12 prefers qwen4-max-preview for coding on Token Plan routes). The previous default gpt-6-luna is Factory-hosted and billed 651 credits for a one-line probe (2026-10-26). Factory-hosted ids stay in allowedModels for an explicit -Model opt-in; they spend Factory credits.",
+      "model": "custom:qwen4-max",
+      "modelNote": "2026-11-24 CORE-135: the default moved to custom:qwen4-max, because the provider retires qwen4-max-preview on 2026-11-25 at about 10 AM CST; qwen4-max answered a live Token Plan call that day. History, 2026-11-14 SH-4676: the dispatch default was the zero-credit BYOK plan route custom:qwen4-max-preview (QWEN_TOKEN_PLAN_API_KEY; owner direction 2026-11-12 prefers qwen4-max-preview for coding on Token Plan routes). The previous default gpt-6-luna is Factory-hosted and billed 651 credits for a one-line probe (2026-10-26). Factory-hosted ids stay in allowedModels for an explicit -Model opt-in; they spend Factory credits.",
       "allowedModels": [
         "gpt-6-luna",
         "gemini-3.8-flash",
@@ -449,7 +449,7 @@
         "claude-sonnet-5",
         "gpt-6-sol",
         "custom:qwen3.8-max-tp",
-        "custom:qwen4-max-preview",
+        "custom:qwen4-max",
         "custom:glm-5.4-zai",
         "custom:mimo-v2.6-pro",
         "custom:mimo-v2.6-flash"
@@ -635,7 +635,7 @@
         "mimo-token-plan/mimo-v2.6-pro",
         "mimo-token-plan/mimo-v2.6-flash",
         "qwen-token-plan/qwen3.8-max",
-        "qwen-token-plan/qwen4-max-preview",
+        "qwen-token-plan/qwen4-max",
         "qwen-token-plan/qwen3.8-flash",
         "zai-glm-plan/glm-5.4"
       ],
@@ -723,7 +723,7 @@
         "mimo/mimo-v2.6-pro",
         "mimo/mimo-v2.6-flash",
         "qwen-token-plan/qwen3.8-max",
-        "qwen-token-plan/qwen4-max-preview",
+        "qwen-token-plan/qwen4-max",
         "zai-coding-plan/glm-5.4"
       ],
       "planRoutesNote": "2026-11-14 smoke-verified through Invoke-CodingAgent.ps1 (READY, exit 0): qwen-token-plan/qwen3.8-max (QWEN_TOKEN_PLAN_API_KEY), zai-coding-plan/glm-5.3 (ZAI_CODING_PLAN_API_KEY), mimo/mimo-v2.6-pro (MIMO_API_KEY). Providers live in ~/.config/kilo/config.json with {env:...} keys.",
