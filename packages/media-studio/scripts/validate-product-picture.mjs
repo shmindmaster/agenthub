@@ -30,7 +30,7 @@ if (!libPath) { console.error('sync-lib.mjs not found beside this script or in .
 const { uploadEventProblems, fillEventProblems, selectEventProblems } = await import(pathToFileURL(libPath).href);
 const receiptLibPath = [join(scriptDir, 'receipt-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find(existsSync);
 if (!receiptLibPath) { console.error('receipt-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
-const { receiptIntegrity, provenanceProblems, videoLeadProblems } = await import(pathToFileURL(receiptLibPath).href);
+const { receiptIntegrity, legacyReason: legacyReasonOf, proofProblems, provenanceProblems, videoLeadProblems } = await import(pathToFileURL(receiptLibPath).href);
 
 export const SCREEN_DURATION_MIN = 0.7;
 export const CARD_MAX_SECONDS = 8;
@@ -180,7 +180,7 @@ const receiptBySha = new Map();
 for (const [id, entry] of Object.entries(receipt?.clips || {})) if (entry?.sha256) receiptBySha.set(entry.sha256, { id, ...entry });
 if (needByClip.size && !receipt) fail('missing capture/receipt.json; screen clips must come from kit/screencast/record-job.mjs (live Playwright session, hash-bound receipt)');
 const integrity = receipt ? receiptIntegrity(receipt) : null;
-const legacyReason = typeof job.legacyReceiptAllowed === 'string' ? job.legacyReceiptAllowed.trim() : '';
+const legacyReason = legacyReasonOf(job);
 if (integrity?.state === 'edited' || integrity?.state === 'unknown-schema') fail(integrity.message);
 else if (integrity?.state === 'unsealed') {
   if (draft) warn(integrity.message);
@@ -189,6 +189,7 @@ else if (integrity?.state === 'unsealed') {
 }
 const checkProvenance = integrity?.state === 'sealed' && !draft;
 if (checkProvenance && !proof) fail('missing evidence/demo-scenario-proof.json; the takes cannot be checked against a proven workflow');
+if (checkProvenance && proof) for (const problem of proofProblems(proof)) fail(problem);
 for (const c of clips) {
   for (const named of [c.file, c.overlay]) {
     if (typeof named === 'string' && named && !existsSync(resolve(jobRoot, 'capture', named))) fail(`manifest clip ${c.id} names ${named}, which does not exist under capture/`);
@@ -211,6 +212,7 @@ for (const [clip, { need, segments: segIds }] of needByClip) {
     fail(`clip ${label}: sha256 ${hash.slice(0, 12)} is not in capture/receipt.json; the encoded picture must be the receipt-bound clip from record-job.mjs (no re-encode, no substitution)`);
   } else if (entry) {
     if (checkProvenance && proof) for (const problem of provenanceProblems(label, entry.provenance, proof)) fail(problem);
+    if (checkProvenance && entry.preflight === 'skipped') fail(`clip ${label}: recorded with --skip-preflight, which a viewer-facing film cannot use`);
     for (const problem of videoLeadProblems(label, clip.videoLead, entry.actions || [])) fail(problem);
     if (entry.valid === false) fail(`clip ${label}: receipt marks the take invalid (${entry.error || (entry.events?.expectationsFailed || []).join(',') || 'no pointer motion'})`);
     const ev = entry.events || {};

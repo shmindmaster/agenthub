@@ -91,6 +91,13 @@ class Forms(unittest.TestCase):
             (self.root / rel).unlink()
             self.assertIn(says, " ".join(self.state("production")["reasons"]), rel)
 
+    def test_a_screencast_timeline_without_voice_files_uses_the_take_receipts(self):
+        self.screencast_files()
+        w(self.root, "story/narration-timeline.json", {"segments": [{"id": "S01a", "text": "See"}, {"id": "S01b", "text": "the week."}]})
+        self.assertIn("S01", " ".join(self.state("production")["reasons"]))
+        w(self.root, "takes/S01.receipt.json", {})
+        self.assertEqual(self.state("production")["state"], "PASS", self.state("production")["reasons"])
+
     def test_a_product_picture_report_for_another_receipt_is_stale(self):
         self.screencast_files()
         w(self.root, "capture/receipt.json", {"clips": {"S01": {}}})

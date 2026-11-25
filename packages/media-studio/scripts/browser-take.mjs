@@ -69,9 +69,9 @@ if (invoked) {
       const receiptPath = join(root, 'capture', 'receipt.json');
       const receiptLib = [join(here, 'receipt-lib.mjs'), join(here, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find(existsSync);
       if (!receiptLib) throw new Error('receipt-lib.mjs not found beside this script or in ../kit/screencast');
-      const { editedReceiptProblem, saveReceipt } = await import(pathToFileURL(receiptLib).href);
+      const { receiptProblem, saveReceipt } = await import(pathToFileURL(receiptLib).href);
       const receipt = existsSync(receiptPath) ? JSON.parse(readFileSync(receiptPath, 'utf8')) : { schema: 'media-studio/capture-receipt/1', clips: {} };
-      const edited = editedReceiptProblem(receipt);
+      const edited = receiptProblem(receipt, null);
       if (edited) throw new Error(edited);
       receipt.clips = { ...(receipt.clips || {}), [clipId]: receiptClip(take, Date.now()) };
       saveReceipt(receiptPath, receipt);

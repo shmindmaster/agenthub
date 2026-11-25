@@ -15,7 +15,7 @@
 //   export const order = ['S05', ...];                      // default recording order
 //   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, mobileLayout?: { cssWidth, scale }, pageZoom?: 1.5, recast?: { S05: { autoZoom: false } } };
 //   export const scenes = { async S05(h, ctx) {...} };      // one function per screen beat; h = record-lib helpers
-//   options.provenance = { sourceRevision, servedRevision? }  // the product build this job records
+//   options.provenance = { sourceRevision }                   // the product source this job records (declared, not observed)
 //   export const identity = async (page) => ({ persona, servedRevision });  // read off the live page after each take; it must not
 //                                                             // act on it. Required for a viewer-facing job. A persona, scenario or
 //                                                             // revision other than the scenario proof's makes the take invalid.
@@ -33,7 +33,7 @@ import { createHash } from 'node:crypto';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { startRecording, finishRecording, renderRecast } from './record-lib.mjs';
-import { openReceipt, saveReceipt, isViewerFacing, provenanceProblems } from './receipt-lib.mjs';
+import { openReceipt, saveReceipt, isViewerFacing, proofProblems, provenanceProblems } from './receipt-lib.mjs';
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--')));
@@ -122,7 +122,8 @@ receipt.baseUrl = options.baseUrl;
 const save = () => { fs.writeFileSync(recPath, JSON.stringify(recordings, null, 2)); saveReceipt(receiptPath, receipt, { seal: true }); };
 
 let kitVersion = null;
-try { kitVersion = JSON.parse(fs.readFileSync(path.join(here, '..', 'package.json'), 'utf8')).version; } catch { kitVersion = null; }
+// kit/package.json beside the kit; plugin.json beside this file in _shared/tools
+for (const f of [path.join(here, '..', 'package.json'), path.join(here, 'plugin.json')]) { try { kitVersion ||= JSON.parse(fs.readFileSync(f, 'utf8')).version; } catch { /* next */ } }
 const viewerFacing = isViewerFacing(job);
 const proofPath = path.join(jobRoot, 'evidence', 'demo-scenario-proof.json');
 const proof = fs.existsSync(proofPath) ? JSON.parse(fs.readFileSync(proofPath, 'utf8').replace(/^\uFEFF/, '')) : null;
@@ -130,7 +131,7 @@ if (viewerFacing && !flags.has('--recast-only') && typeof mod.identity !== 'func
 const observeIdentity = async (page) => {
   const seen = typeof mod.identity === 'function' ? (await mod.identity(page)) || {} : {};
   return { persona: seen.persona ?? null, scenarioId: proof?.scenarioId ?? null, sourceRevision: options.provenance?.sourceRevision ?? null,
-    servedRevision: seen.servedRevision ?? options.provenance?.servedRevision ?? null, baseUrl: options.baseUrl, kitVersion };
+    servedRevision: seen.servedRevision ?? null, baseUrl: options.baseUrl, kitVersion };
 };
 const failed = [];
 
@@ -256,6 +257,7 @@ for (const id of ids) {
     traceSha256: fs.existsSync(fin.tracePath) ? sha256(fin.tracePath) : null,
     recordedAt: take.startedAt,
     provenance,
+    preflight: recordings.preflight === 'skipped' ? 'skipped' : 'ok',
     ...(capture.videoSize ? { videoSize: capture.videoSize } : {}),
     viewport: rec.viewport,
     deviceScaleFactor: options.mobileLayout ? options.mobileLayout.scale : capture.deviceScaleFactor || 2,

@@ -37,6 +37,9 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
 if (!libPath) { console.error('sync-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
 const L = await import(pathToFileURL(libPath).href);
+const receiptLibPath = [join(scriptDir, 'receipt-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find(existsSync);
+if (!receiptLibPath) { console.error('receipt-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
+const { isViewerFacing, proofProblems } = await import(pathToFileURL(receiptLibPath).href);
 
 const USAGE = 'Usage: node validate-capture-preflight.mjs <jobRoot> [--out qa/capture-preflight.json] [--typing-ms 55] [--typing-overhead-s 0.85]';
 const argv = process.argv.slice(2);
@@ -451,8 +454,8 @@ if (model) {
   }
 }
 
-// A viewer-facing product recording needs its passing scenario proof first (gate 5). The gate itself decides what is viewer-facing.
-if (existsSync(join(root, 'job.json'))) {
+// A viewer-facing product recording needs its passing scenario proof first (gate 5), and the proof must name what a take is checked against.
+if (isViewerFacing(readJson('job.json'))) {
   const proofGate = join(scriptDir, 'validate-demo-scenario.mjs');
   if (!existsSync(proofGate)) errors.push('validate-demo-scenario.mjs not found beside this script (deploy list)');
   else {
@@ -463,6 +466,8 @@ if (existsSync(join(root, 'job.json'))) {
       errors.push(...(found.length ? found : [`scenario proof gate failed: ${String(r.stderr || r.stdout).trim().split('\n')[0]}`]).map((e) => `scenario proof: ${e}`));
     }
   }
+  const proof = readJson('evidence/demo-scenario-proof.json');
+  if (proof) errors.push(...proofProblems(proof));
   bind('scenarioProof', 'evidence/demo-scenario-proof.json');
 }
 

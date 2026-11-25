@@ -38,7 +38,7 @@ import { readPhysicalResultObservations, applyPhysicalResultObservations } from 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const receiptLibPath = [join(scriptDir, 'receipt-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find(existsSync);
 if (!receiptLibPath) { console.error('receipt-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
-const { editedReceiptProblem, leadSeconds, videoLeadProblems } = await import(pathToFileURL(receiptLibPath).href);
+const { receiptProblem, leadSeconds, videoLeadProblems } = await import(pathToFileURL(receiptLibPath).href);
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
 if (!libPath) { console.error('sync-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
 const L = await import(pathToFileURL(libPath).href);
@@ -68,7 +68,7 @@ const capturePlan = readJson('story/capture-plan.json');
 const storyboard = readJson('story/storyboard.json');
 const manifest = readJson('capture/manifest.json') || {};
 const receipt = readJson('capture/receipt.json');
-const editedReceipt = editedReceiptProblem(receipt);
+const editedReceipt = receiptProblem(receipt, existsSync(join(root, 'job.json')) ? readJson('job.json') : null);
 if (editedReceipt) errors.push(editedReceipt);
 const sbBeats = storyboard ? (storyboard.beats || storyboard.scenes || []) : [];
 const cpScenes = capturePlan ? (capturePlan.scenes || []) : [];

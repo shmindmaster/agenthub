@@ -298,10 +298,15 @@ def screencast_prod(root, narrated):
         segments = jload(tl).get("segments", []) if tl.exists() else []
         sp = root / "story/screenplay.json"
         scenes = [s["id"] for s in jload(sp).get("scenes", []) if (s.get("narration") or "").strip()] if sp.exists() else []
-        bad = [s for s in scenes if s not in {g.get("scene") or g.get("id") for g in segments}]
-        for g in segments:
+        scene_of = lambda g: g.get("scene") or re.sub(r"[a-z]$", "", str(g.get("id")))
+        bad = [s for s in scenes if s not in {scene_of(g) for g in segments}]
+        for g in segments:  # a segment names its own voice file, or the scene has a take receipt (import-narration.mjs)
             f = root / str(g.get("voice") or "")
-            if not g.get("voice") or not f.is_file() or (g.get("voiceSha256") and creq.sha256(f) != g["voiceSha256"]):
+            if g.get("voice"):
+                current = f.is_file() and (not g.get("voiceSha256") or creq.sha256(f) == g["voiceSha256"])
+            else:
+                current = any((root / "takes" / f"{i}.receipt.json").exists() for i in (g.get("id"), scene_of(g)))
+            if not current:
                 bad.append(str(g.get("id")))
         if bad:
             r.append(f"no current voice in story/narration-timeline.json for: {', '.join(bad[:6])}")

@@ -42,27 +42,36 @@ export function openReceipt(path, fresh) {
 export const saveReceipt = (path, receipt, { seal = receipt.contentSha256 !== undefined } = {}) =>
   writeFileSync(path, JSON.stringify(seal ? sealReceipt(receipt) : receipt, null, 2));
 
-/** Gates that only read action times: refuse an edited receipt, and an unknown schema that claims to be one of ours. */
-export function editedReceiptProblem(receipt) {
-  if (!receipt || (receipt.schemaVersion === undefined && receipt.contentSha256 === undefined)) return null;
+export const legacyReason = (job) => (typeof job?.legacyReceiptAllowed === 'string' ? job.legacyReceiptAllowed.trim() : '');
+/**
+ * Gates that only read action times. A viewer-facing screencast needs a sealed, unedited receipt (or the written legacy reason), so
+ * stripping the seal does not help. Elsewhere a receipt another tool wrote (no schemaVersion, no seal) is left alone.
+ */
+export function receiptProblem(receipt, job) {
+  if (!receipt) return null;
+  const strict = job?.kind === 'product-screencast' && isViewerFacing(job);
+  if (!strict && receipt.schemaVersion === undefined && receipt.contentSha256 === undefined) return null;
   const { state, message } = receiptIntegrity(receipt);
-  return state === 'edited' || state === 'unknown-schema' ? message : null;
+  if (state === 'unsealed') return strict && !legacyReason(job) ? `${message}, or give the reason in job.legacyReceiptAllowed` : null;
+  return state === 'sealed' ? null : message;
 }
 
 export const isViewerFacing = (job) => job?.intent !== 'draft' && (job?.kind === 'product-screencast' || job?.viewerFacing === true);
 
 export const PROVENANCE_FIELDS = ['persona', 'scenarioId', 'sourceRevision', 'servedRevision', 'baseUrl', 'kitVersion'];
-/** What the scenario proof says must have been recorded. A field the proof does not name is not compared. */
+/** What the scenario proof says must have been recorded. A proof that leaves one out cannot vouch for a take. */
 export const provenIdentity = (proof) => ({
   persona: proof?.personaId, scenarioId: proof?.scenarioId, sourceRevision: proof?.sourceRevision, servedRevision: proof?.servedRevision, baseUrl: proof?.baseUrl,
 });
+const PROOF_FIELDS = { persona: 'personaId', scenarioId: 'scenarioId', sourceRevision: 'sourceRevision', servedRevision: 'servedRevision', baseUrl: 'baseUrl' };
+export const proofProblems = (proof) => Object.values(PROOF_FIELDS).filter((f) => typeof proof?.[f] !== 'string' || !proof[f].trim()).map((f) => `the scenario proof names no ${f}`);
 export function provenanceProblems(clipId, provenance, proof) {
   const problems = [];
   const expected = provenIdentity(proof);
   for (const field of PROVENANCE_FIELDS) {
     const value = provenance?.[field];
     if (typeof value !== 'string' || !value.trim()) problems.push(`clip ${clipId}: the take records no ${field}`);
-    else if (expected[field] !== undefined && value !== expected[field]) problems.push(`clip ${clipId}: ${field} ${JSON.stringify(value)} is not the proven ${JSON.stringify(expected[field])}`);
+    else if (field in expected && value !== expected[field]) problems.push(`clip ${clipId}: ${field} ${JSON.stringify(value)} is not the proven ${JSON.stringify(expected[field])}`);
   }
   return problems;
 }

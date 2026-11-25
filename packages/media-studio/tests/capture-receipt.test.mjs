@@ -58,6 +58,16 @@ test('pointer path and cue sheet refuse an edited receipt', { skip }, () => {
   for (const name of ['validate-pointer-path.mjs', 'build-cue-sheet.mjs']) { const r = gate(name, root); assert.equal(r.code, 1, name); assert.match(r.out, /edited after it was written/, name); }
 });
 
+test('a stripped seal is refused by every reader, unless the job gives a reason', { skip }, () => {
+  const root = job('stripped'); edit(root, (r) => { delete r.contentSha256; r.schemaVersion = '1.0.0'; });
+  for (const name of ['validate-pointer-path.mjs', 'build-cue-sheet.mjs']) { const r = gate(name, root); assert.equal(r.code, 1, name); assert.match(r.out, /not sealed/, name); }
+  edit(root, (r) => { delete r.schemaVersion; });
+  for (const name of ['validate-pointer-path.mjs', 'build-cue-sheet.mjs']) assert.match(gate(name, root).out, /unknown receipt schemaVersion/, name);
+  edit(root, (r) => { r.schemaVersion = '1.0.0'; });
+  write(join(root, 'job.json'), { ...readJson(join(root, 'job.json')), legacyReceiptAllowed: 'recorded on 4.2.0' });
+  for (const name of ['validate-pointer-path.mjs', 'build-cue-sheet.mjs']) assert.doesNotMatch(gate(name, root).out, /not sealed/, name);
+});
+
 test('encoded picture refuses an edited receipt', { skip }, () => {
   const root = job('edited-encoded'); edit(root, (r) => { r.baseUrl = 'x'; });
   const candidate = join(root, 'out', 'film.mp4'); mkdirSync(dirname(candidate), { recursive: true });
@@ -84,6 +94,46 @@ for (const field of ['persona', 'scenarioId', 'sourceRevision', 'servedRevision'
     assert.equal(r.code, 1, r.out); assert.match(r.out, new RegExp(`records no ${field}`));
   });
 }
+
+for (const field of ['personaId', 'sourceRevision', 'servedRevision', 'baseUrl']) test(`a proof that names no ${field} cannot vouch for a take`, { skip }, () => {
+  const root = job(`proof-no-${field}`); const p = join(root, 'evidence', 'demo-scenario-proof.json');
+  const proof = readJson(p); delete proof[field]; write(p, proof);
+  const r = gate('validate-product-picture.mjs', root);
+  assert.equal(r.code, 1, r.out); assert.match(r.out, new RegExp(`proof names no ${field}`));
+  rmSync(receiptOf(root));
+  const rec = record(root, SCENES());
+  assert.notEqual(rec.code, 0); assert.match(rec.out, new RegExp(`proof names no ${field}`)); assert.equal(rec.receipt, null);
+});
+
+test('a take recorded with --skip-preflight is refused on a viewer-facing job', { skip }, () => {
+  const root = fresh('skipped-preflight');
+  assert.equal(record(root, SCENES(), ['--skip-preflight']).code, 0);
+  const r = gate('validate-product-picture.mjs', root);
+  assert.equal(r.code, 1); assert.match(r.out, /--skip-preflight/);
+});
+
+test('the served revision is read off the page, not declared', { skip }, () => {
+  const scenes = SCENES('', "export const identity = async () => ({ persona: 'parent' });").replace("provenance: {", "provenance: { servedRevision: 'f1c30ee967',");
+  const r = record(fresh('declared-served'), scenes);
+  assert.equal(r.code, 1, r.out); assert.match(r.receipt.clips.S02.error, /no servedRevision/);
+});
+
+test('a BOM in job.json does not fail the pre-flight', { skip }, () => {
+  const root = fresh('bom'); const p = join(root, 'job.json');
+  writeFileSync(p, `\uFEFF${JSON.stringify(readJson(p))}`);
+  const r = record(root, SCENES());
+  assert.equal(r.code, 0, r.out);
+});
+
+test('the kit version is known when the recorder runs from _shared/tools', { skip }, () => {
+  const tools = join(scratch, '_shared', 'tools');
+  cpSync(join(recorder(), 'screencast'), tools, { recursive: true });
+  copyFileSync(join(pkg, 'plugin.json'), join(tools, 'plugin.json'));
+  const root = fresh('shared-tools'); write(join(root, 'capture', 'scenes.mjs'), SCENES());
+  const r = spawnSync(process.execPath, [join(tools, 'record-job.mjs'), root, '--no-recast'], { encoding: 'utf8', windowsHide: true, env: { ...process.env, FAKE_RAW: source } });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal(readJson(receiptOf(root)).clips.S02.provenance.kitVersion, readJson(join(pkg, 'plugin.json')).version);
+});
 
 test('a viewer-facing job without a scenario proof is refused, a draft is not', { skip }, () => {
   const root = job('no-proof'); rmSync(join(root, 'evidence'), { recursive: true });
