@@ -424,7 +424,10 @@ for (const listed of plansListed) {
   row.results = [];
   const inView = (t, box) => {
     const m = measure(T0 + t);
-    return !!(m && m.ncc >= LIMITS.bindingNcc - 0.2 && M.boxInView({ cx: m.measured.cx, cy: m.measured.cy, z: m.measured.z }, g, { x: box.x + 3, y: box.y + 3, w: box.w - 6, h: box.h - 6 }));
+    // a box that runs to a page edge is in view when the page edge is: a spring that is 0.5 s into a pull-out to the full page is still a hair inside it (about 1 percent)
+    const lo = (v, dim) => (v <= 2 ? 0.012 * dim : 3), hi = (v, dim) => (v >= dim - 2 ? 0.012 * dim : 3);
+    const x0 = box.x + lo(box.x, g.W), y0 = box.y + lo(box.y, g.H), x1 = box.x + box.w - hi(box.x + box.w, g.W), y1 = box.y + box.h - hi(box.y + box.h, g.H);
+    return !!(m && m.ncc >= LIMITS.bindingNcc - 0.2 && M.boxInView({ cx: m.measured.cx, cy: m.measured.cy, z: m.measured.z }, g, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }));
   };
   for (const res of (rebuilt || plan).results || []) {
     const need = [res.mustBeSeenBy, res.heldUntil].filter(Number.isFinite);
@@ -488,12 +491,15 @@ for (const listed of plansListed) {
       // a phone screen inside a wide frame: the window lies inside the screen, never over the gradient or the shadow
       let bounds = null;
       if (g.placement) { const p0 = M.projectPoint(camTop, g, { x: g.placement.x, y: g.placement.y }), p1 = M.projectPoint(camTop, g, { x: g.placement.x + g.placement.w, y: g.placement.y + g.placement.h }); bounds = { x0: Math.min(p0.x, p1.x) + 12, y0: Math.min(p0.y, p1.y) + 12, x1: Math.max(p0.x, p1.x) - 12, y1: Math.max(p0.y, p1.y) - 12 }; }
-      const win = F.busiestWindow(filmFull, g.W, g.H, 480, 270, bounds ? 20 : 60, bounds);
+      // the pointer and a tap ring are drawn on the film, not in the capture: the window keeps clear of them
+      const avoid = [];
+      if (stTop.cursor && (stTop.cursor.visible ?? 1) > 0) { const pc = M.projectPoint(camTop, g, { x: stTop.cursor.x, y: stTop.cursor.y }), r = 130 * camTop.z; avoid.push({ x0: pc.x - r, y0: pc.y - r, x1: pc.x + r, y1: pc.y + r }); }
+      const win = F.busiestWindow(filmFull, g.W, g.H, 480, 270, bounds ? 20 : 60, bounds, avoid);
       const film = new Float32Array(480 * 270);
       for (let j = 0; j < 270; j++) for (let i = 0; i < 480; i++) film[j * 480 + i] = filmFull[(win.y0 + j) * g.W + win.x0 + i];
       const ideal = F.idealBlurCrop(srcFull, g.W, g.H, cs, win.x0, win.y0, 480, 270);
       const ge = F.ghostExcess(film, ideal, 480, 270, dir, Math.max(8, Math.min(80, Math.ceil(lenEst * 1.5))));
-      ghostRows.push({ move: seg.t0, t: r2(top.t), blurPx: r2(lenEst), excess: r2(ge.excess), lag: ge.lag });
+      ghostRows.push({ move: seg.t0, t: r2(top.t), blurPx: r2(lenEst), excess: r2(ge.excess), lag: ge.lag, window: { x0: win.x0, y0: win.y0 }, avoided: avoid.length });
       if (ge.excess > LIMITS.ghostExcess) fail(`run ${listed.run}: repeated copies along the motion in the ${seg.reason} move at ${seg.t0}s (frame ${r2(top.t)}s: autocorrelation ${r2(ge.excess)} above an ideal blur at lag ${ge.lag}, limit ${LIMITS.ghostExcess})`);
     });
     row.checks.colourInMotion = colourRows; row.checks.ghosting = ghostRows;

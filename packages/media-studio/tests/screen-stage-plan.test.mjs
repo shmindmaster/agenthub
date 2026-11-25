@@ -463,3 +463,13 @@ test('the gradient comes from the page theme colour: a navy and teal page gives 
   const [dark, light] = M.gradientFromColour([r, g, b]);
   assert.ok(dark[2] >= dark[0] && light[2] >= light[0], 'both tones stay in the blue-green family');
 });
+
+test('the busiest window keeps clear of drawn things: a pointer region is never picked for the blur reading', () => {
+  const W = 400, H = 300, g = new Float32Array(W * H);
+  for (let y = 100; y < 160; y++) for (let x = 100; x < 160; x++) g[y * W + x] = (x + y) % 2 ? 255 : 0;       // busy patch (the pointer)
+  for (let y = 200; y < 260; y++) for (let x = 250; x < 310; x++) g[y * W + x] = ((x >> 1) + y) % 2 ? 200 : 40; // a quieter patch (the page)
+  const free = F.busiestWindow(g, W, H, 100, 100, 20);
+  assert.ok(free.x0 < 160 && free.y0 < 160, 'without the rule the busy patch wins');
+  const kept = F.busiestWindow(g, W, H, 100, 100, 20, null, [{ x0: 90, y0: 90, x1: 170, y1: 170 }]);
+  assert.ok(!(kept.x0 < 170 && kept.x0 + 100 > 90 && kept.y0 < 170 && kept.y0 + 100 > 90), 'the window avoids the rect');
+});
