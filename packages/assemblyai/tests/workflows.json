@@ -8,7 +8,7 @@
       "evidence": [
         "Resolve the supported API fields, submit the authorized asset once, then poll the same transcript ID to a terminal status.",
         "Return the transcript ID, selected speaker labels and timestamps, and any unprocessed span.",
-        "For personal narration with no other voice named, use `sarosh-hussain`."
+        "Never write that approval yourself."
       ]
     },
     {

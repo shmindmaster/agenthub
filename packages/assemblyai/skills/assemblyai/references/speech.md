@@ -15,6 +15,8 @@ A clone works only on the host of its own zone, and ours are in the US. On the E
 
 ## Speak with a clone
 
+Films and narration use `media-studio`, never this raw call. Elsewhere the call bills per character, so it needs approval of the spend.
+
 Send `voice_id` and leave out `language` and `model_id`: the clone speaks the language it was recorded in. `voice` is retired on the native routes and refused.
 
 ```bash

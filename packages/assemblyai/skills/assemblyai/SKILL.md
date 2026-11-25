@@ -37,10 +37,10 @@ Both are private to the ABACare account, in the US zone, English, on `assemblyai
 | Sarosh Hussain | `sarosh-hussain` | The request says "my voice" or "my cloned voice", or Sarosh is the speaker |
 | Syeda Fatima Abidi | `syeda-fatima-abidi` | Syeda is the speaker |
 
-- Personal or ABACare work only. For personal narration with no other voice named, use `sarosh-hussain`. For ABACare, use the clone of the person speaking; any other narrator or character gets a stock `aai-` voice. Other companies' work gets a stock voice through `media-studio`.
-- Check the clone before a job: `GET https://tts.us.assemblyai.com/v1/voices/<voice_id>` must show `status: active`, `assemblyai-tts-1` in `ready_models`, `consent.attested: true` and a future `retention.expires_at`. The check is free.
+- Personal or ABACare work only. For personal narration with no other voice named, recommend `sarosh-hussain` first. A film uses it once the owner has asked for his voice on that film; until then it gets the stock default. Never write that approval yourself. For ABACare, use the clone of the person speaking; any other narrator or character gets a stock `aai-` voice. Other companies' work gets a stock voice through `media-studio`.
+- Check the clone before a job: `GET https://tts.us.assemblyai.com/v1/voices/<voice_id>` must show `status: active`, `source: customer_upload`, `visibility: private`, the zone and language you need, `assemblyai-tts-1` in `ready_models`, `consent.attested: true` and a future `retention.expires_at`. It makes no speech. The fields are the ones `media-studio` reads; no vendor page lists them.
 - Never swap in a look-alike or stock voice silently. If the clone fails the check, say so and stop before any paid speech.
-- Consent lasts 60 days and an expired clone cannot be revived. Tell the owner when fewer than 14 days remain. `extend_biometric_consent` attests consent on the speaker's behalf, so send it only after that speaker said yes in the current task.
+- Consent lasts 60 days and an expired clone cannot be revived. Tell the owner when fewer than 14 days remain. `extend_biometric_consent` attests renewed consent for the account: send it only after that speaker said yes in the current task. Renewal is a billed speech request, so the owner approves that spend too.
 - Creating a clone, deleting one or making one public needs an explicit request. Label the delivered speech as AI-generated.
 
 ## MCP servers
