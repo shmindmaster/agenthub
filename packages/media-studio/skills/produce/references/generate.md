@@ -26,7 +26,7 @@ that failed. Default, then escape hatch:
 
 - Narration follows the live preflight. Established Azure recipes keep their pinned DragonHD voice. Clones of Sarosh, or of Syeda F. Abidi with her own recorded consent, are for ABACare films, or a personal film where the owner asks for one, through AssemblyAI.
 - Take ASR: `cloud-ai.mjs align` on Azure fast transcription; `--provider assemblyai` only when a job names it.
-- Stills: existing approved Azure `gpt-image-2.5-flare` remains callable.
+- Stills: existing approved Azure `gpt-image-2.5-flare` remains callable. `generate_stills.py --lane openai-image` runs OpenAI direct `gpt-image-2.6-flare` (ABACare grant only; see stills.md).
   Runware's proven `runware:z-image@0` remains the only model accepted by
   the current `generate_stills.py` fixed-payload adapter. For alternative
   imagery, compare **live** FLUX 3 Klein (cheap/fast), Qwen-Image-2.1-Turbo

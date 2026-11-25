@@ -1,7 +1,7 @@
 {
   "schema": "media-studio/provider-routing/1",
-  "revision": "provider-routing-2026-11-23-1",
-  "asOf": "2026-11-23",
+  "revision": "provider-routing-2026-11-25-1",
+  "asOf": "2026-11-25",
   "basis": "Provider capabilities and public pricing docs reviewed 2026-11-10; owner credit routing updated 2026-11-23 and the Deepgram Flux rate re-checked that day. Balances named on lanes below date from 2026-11-03 to 2026-11-06 and are stale: a balance older than a week, or missing, is unknown. Read the live balance where each lane says and record it in the private credits ledger before a paid run.",
   "rules": [
     "Before any paid generation, name the owning entity, read its live balance, and use the provider with the most usable credit for it. Credits fund only their own entity and are used before pay-as-you-go spend; a credit is not permission to raise a spending cap.",
@@ -152,7 +152,7 @@
       "cost": "Azure credit, about $0.007 for a low-quality 1536x1024 picture (measured 2026-11-06), quoted as an upper bound before any run",
       "identity": "mahumtech",
       "how": "scripts/generate_stills.py <jobRoot> (quote), then --run. Deployments gpt-image-2.5-flare (default) and gpt-image-2.5-sunburst on mt-foundary-resource; override with MEDIA_STUDIO_AZURE_IMAGE_DEPLOYMENT. Key auth through AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY; the Entra principal lacks the images data action, so do not rely on it.",
-      "notes": "Verified by a real call on 2026-11-06 (158 output tokens, a photographic dock scene). Best photographic quality of the ready lanes. No text, logos or likenesses of real people in the picture: text goes in the kit."
+      "notes": "Verified by a real call on 2026-11-06 (158 output tokens, a photographic dock scene). Best photographic quality of the ready lanes. No text, logos or likenesses of real people in the picture: text goes in the kit. Microsoft Learn (updated 2026-11-24) lists gpt-image-2.5-flare and -sunburst but no 2.6, and the token rates match 2.6, so staying on 2.5 costs nothing extra."
     },
     {
       "id": "elevenlabs-speech",
@@ -562,16 +562,13 @@
         "still",
         "illustration",
         "photo",
-        "background",
-        "svg",
-        "animated-gif",
-        "image-edit"
+        "background"
       ],
       "status": "ready",
-      "cost": "OpenAI direct gpt-image-2.6: $5 text in, $8 image in, $30 image out per 1M tokens; about $0.04 low to $0.37 max per 1536x1024 picture (planning estimate); Batch halves it",
+      "cost": "OpenAI direct gpt-image-2.6: $5 text in, $8 image in, $30 image out per 1M tokens; about $0.04 low to $0.37 max per 1536x1024 picture (planning estimate). Standard tier: the pricing page also lists half-price Batch rates for 2.6, but both 2.6 model pages mark the Batch endpoint not supported, so do not plan on Batch",
       "identity": "any",
-      "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. generateImage({model}) with gpt-image-2.6-flare (default) or gpt-image-2.6-sunburst (hero, precise edits).",
-      "notes": "Verified 2026-11-13: gpt-image-2.6-flare low 1024x1024 (824 output tokens). Flare first, Sunburst as the precision escalation; azure-image and runware-image stay available. Not for exact product UI, charts or text: use capture and the kit. ABACare images use the ABACare org grant until it expires on 2026-11-26, then runware-image."
+      "how": "kit/marketing/lib/providers/openai.mjs with OPENAI_API_KEY (direct OpenAI account, separate from Azure OpenAI). Quote first with scripts/estimate-job-cost.mjs; the ledger records actual usage. generateImage({model}) with gpt-image-2.6-flare (default) or gpt-image-2.6-sunburst (hero, precise edits). The governed still path is scripts/generate_stills.py <jobRoot> --lane openai-image (quote first, then --run; MEDIA_STUDIO_OPENAI_IMAGE_MODEL=gpt-image-2.6-sunburst for the precision tier; visual.complexity low, medium or high); it is picked automatically only for ABACare jobs until 2026-11-26.",
+      "notes": "Verified 2026-11-13: gpt-image-2.6-flare low 1024x1024 (824 output tokens). Flare first, Sunburst as the precision escalation; azure-image and runware-image stay available. Not for exact product UI, charts or text: use capture and the kit. ABACare images use the ABACare org grant until it expires on 2026-11-26, then runware-image: after that date generate_stills.py refuses this lane for ABACare rather than pay as you go. Read against developers.openai.com on 2026-11-25: both models bill $5 text in, $1.25 cached text, $8 image in, $2 cached image, $30 image out per 1M (cached rates apply to the Responses image tool only, not to the Images API). SVG output, animated GIF output, markup-guided edits and the complexity field are real 2.6 API features, but no governed adapter produces SVG, GIF or edits yet, so this lane serves PNG stills only; SVG is generation-only and bills a second authoring-model charge. Azure lists gpt-image-2.5, not 2.6, at the same token rates, so non-ABACare stills stay on azure-image."
     },
     {
       "id": "openai-speech",

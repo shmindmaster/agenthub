@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the real pictures for a film: quoted first, spent only on --run, never paid for twice.
 
-    generate_stills.py <jobRoot> [--lane azure-image|runware-image] [--quality low|medium|high] [--size 1536x1024]
+    generate_stills.py <jobRoot> [--lane azure-image|runware-image|openai-image] [--quality low|medium|high|xhigh|max] [--size 1536x1024]
                        [--scenes s3,s5] [--max-usd 2.00] [--max-images 24] [--public-dir DIR] [--no-link] [--run] [--json]
 
 Reads story/picture-plan.json. A scene is a generated picture when visual.kind is "still" and visual.prompt says what the
@@ -11,7 +11,7 @@ before, writes assets/stills/<scene>.png, records each one in assets/stills/mani
 visual.src in the picture plan so the kit's still visual (layout "bleed" for a full-frame photograph) can show it.
 
 Lanes (policy/provider-routing.json): azure-image is the default (MahumTech, gpt-image deployment on mt-foundary-resource);
-runware-image is the cheap draft lane only for its tested default model `runware:z-image@0`. A frozen lane is refused. Keys come from the environment by name and are never printed
+runware-image is the cheap draft lane only for its tested default model `runware:z-image@0`; openai-image is OpenAI direct gpt-image-2.6-flare (default) or -sunburst on the ABACare grant, chosen automatically only for ABACare jobs while the grant lasts (to 2026-11-26) and by name otherwise. A frozen lane is refused. Keys come from the environment by name and are never printed
 or stored: AZURE_OPENAI_ENDPOINT with AZURE_OPENAI_API_KEY (or an Entra token from the Azure CLI), RUNWARE_API_KEY. Setting MEDIA_STUDIO_RUNWARE_IMAGE_MODEL to any other model is intentionally refused until a per-model governed adapter and price quote exists.
 
 Prices are estimates and say so. Azure low and medium are quoted at the measured price plus 50% (about 1 and 2 cents); high is not measured yet, so it
@@ -33,7 +33,7 @@ import sys
 import urllib.error
 import urllib.request
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import route_media
@@ -41,6 +41,15 @@ import route_media
 SCHEMA = "media-studio/stills/1"
 AZURE_API_VERSION = "2025-04-01-preview"
 AZURE_DEFAULT_DEPLOYMENT = "gpt-image-2.5-flare"
+OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations"
+# gpt-image-2.6 (developers.openai.com model pages and pricing, read 2026-11-25). Flare and Sunburst share one token price. Azure does not
+# list 2.6 (it lists 2.5), so this lane is the OpenAI direct route.
+OPENAI_DEFAULT_MODEL = "gpt-image-2.6-flare"
+OPENAI_MODELS = ("gpt-image-2.6-flare", "gpt-image-2.6-sunburst")
+OPENAI_COMPLEXITIES = ("low", "medium", "high")  # the API default when omitted is high; the guide says it has no separate fee
+OPENAI_USD_PER_M = {"text_in": 5.0, "image_in": 8.0, "image_out": 30.0}  # Standard tier; the 2.6 model pages say the Batch endpoint is not supported
+OPENAI_OUT_TOKENS_EST = {"low": 1100, "medium": 4200, "high": 6200, "xhigh": 9500, "max": 12000}  # planning estimates at 1536x1024, not sourced counts
+OPENAI_GRANT_UNTIL = date(2026, 11, 26)  # the ABACare OpenAI org grant (policy/provider-routing.json); never pay as you go to extend it
 RUNWARE_URL = "https://api.runware.ai/v1"
 RUNWARE_DEFAULT_MODEL = "runware:z-image@0"
 # The legacy generic imageInference payload (steps=8, positivePrompt, fixed PNG)
@@ -59,7 +68,8 @@ def validate_runware_image_model(model):
         )
 SIZES = ("1536x1024", "1024x1024", "1024x1536")
 QUALITIES = ("low", "medium", "high")
-LANES = {"azure-image": "azure", "runware-image": "runware"}
+OPENAI_QUALITIES = QUALITIES + ("xhigh", "max")
+LANES = {"azure-image": "azure", "runware-image": "runware", "openai-image": "openai"}
 # gpt-image-1 output-token counts by size and quality, the only published meter; an upper bound for the 2.5 deployments.
 AZURE_OUTPUT_TOKENS = {
     "1024x1024": {"low": 272, "medium": 1056, "high": 4160},
@@ -89,6 +99,17 @@ AZURE_MEASURED_USD = {"low": 0.0066, "medium": 0.0144}
 QUOTE_MARGIN = 1.5
 
 
+def openai_cost_usd(usage):
+    """Billed dollars from an Images API usage block: text and image input and image output tokens at the 2.6 Standard rates."""
+    usage = usage or {}
+    details = usage.get("input_tokens_details") or {}
+    total_in = int(usage.get("input_tokens") or 0)
+    image_in = int(details.get("image_tokens") or 0)
+    text_in = int(details["text_tokens"]) if details.get("text_tokens") is not None else max(0, total_in - image_in)
+    r = OPENAI_USD_PER_M
+    return round((text_in * r["text_in"] + image_in * r["image_in"] + int(usage.get("output_tokens") or 0) * r["image_out"]) / 1e6, 6)
+
+
 def estimate_usd(lane_id, size="1536x1024", quality="medium"):
     """Dollars to quote for one picture: measured price plus a margin where one exists, else a worst-case bound."""
     if lane_id == "azure-image":
@@ -97,6 +118,10 @@ def estimate_usd(lane_id, size="1536x1024", quality="medium"):
             return round(AZURE_MEASURED_USD[quality] * (w * h) / (1536 * 1024) * QUOTE_MARGIN, 4)
         tokens = AZURE_OUTPUT_TOKENS.get(size, AZURE_OUTPUT_TOKENS["1536x1024"])[quality]
         return round(azure_cost_usd(tokens, AZURE_PROMPT_TOKENS_UPPER), 4)
+    if lane_id == "openai-image":
+        w, h = (int(n) for n in size.split("x"))
+        tokens = OPENAI_OUT_TOKENS_EST[quality] * (w * h) / (1536 * 1024) * QUOTE_MARGIN
+        return round((AZURE_PROMPT_TOKENS_UPPER * OPENAI_USD_PER_M["text_in"] + tokens * OPENAI_USD_PER_M["image_out"]) / 1e6, 4)
     if lane_id == "runware-image":
         return RUNWARE_USD_PER_IMAGE
     raise StillsError(f"no price known for lane {lane_id}")
@@ -108,8 +133,10 @@ def compose_prompt(prompt, style=None):
     return " ".join(p for p in parts if p)
 
 
-def cache_key(lane_id, model, size, quality, full_prompt):
-    blob = json.dumps([lane_id, model, size, quality, full_prompt], sort_keys=True).encode("utf-8")
+def cache_key(lane_id, model, size, quality, full_prompt, complexity=None):
+    # Complexity joins the key only when set, so every key paid for before it existed stays valid.
+    parts = [lane_id, model, size, quality, full_prompt] + ([complexity] if complexity else [])
+    blob = json.dumps(parts, sort_keys=True).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
 
 
@@ -167,6 +194,35 @@ def generate_azure(full_prompt, size, quality, env, post):
             "usage": {"inputTokens": in_tokens, "outputTokens": out_tokens}}
 
 
+def openai_model(env):
+    model = _env(env, "MEDIA_STUDIO_OPENAI_IMAGE_MODEL") or OPENAI_DEFAULT_MODEL
+    if model not in OPENAI_MODELS:
+        raise StillsError(f"OpenAI image model {model} has no verified price here; use one of {', '.join(OPENAI_MODELS)}")
+    return model
+
+
+def generate_openai(full_prompt, size, quality, env, post, complexity=None):
+    key = _env(env, "OPENAI_API_KEY")
+    if not key:
+        raise StillsError("OPENAI_API_KEY is not set")
+    model = openai_model(env)
+    body = {"model": model, "prompt": full_prompt, "size": size, "quality": quality, "n": 1, "output_format": "png"}
+    if complexity:
+        body["complexity"] = complexity
+    data = post(OPENAI_IMAGES_URL, {"Authorization": "Bearer " + key}, body)
+    rows = data.get("data") or []
+    if not rows or not rows[0].get("b64_json"):
+        raise StillsError("OpenAI returned no image")
+    usage = data.get("usage") or {}
+    out_tokens, in_tokens = int(usage.get("output_tokens") or 0), int(usage.get("input_tokens") or 0)
+    if out_tokens:
+        usd, basis = openai_cost_usd(usage), "actual tokens from the response at the gpt-image-2.6 Standard rates"
+    else:
+        usd, basis = estimate_usd("openai-image", size, quality), "estimate: the response carried no usage"
+    return {"png": base64.b64decode(rows[0]["b64_json"]), "model": model, "usd": usd, "basis": basis,
+            "usage": {"inputTokens": in_tokens, "outputTokens": out_tokens}}
+
+
 def generate_runware(full_prompt, size, quality, env, post):
     key = _env(env, "RUNWARE_API_KEY")
     if not key:
@@ -191,7 +247,7 @@ def generate_runware(full_prompt, size, quality, env, post):
     return {"png": base64.b64decode(rows[0]["imageBase64Data"]), "model": model, "usd": usd, "basis": basis, "usage": {}}
 
 
-ADAPTERS = {"azure-image": generate_azure, "runware-image": generate_runware}
+ADAPTERS = {"azure-image": generate_azure, "runware-image": generate_runware, "openai-image": generate_openai}
 
 
 def load_json(path, default=None):
@@ -207,14 +263,23 @@ def write_json(path, data):
     p.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
-def pick_lane(visual, cli_lane, identity, policy):
+def openai_grant_open(identity, today):
+    """The OpenAI lane is ABACare's grant: automatic only for ABACare while it lasts. Other entities reach it only by name."""
+    return identity == "abacare" and today <= OPENAI_GRANT_UNTIL
+
+
+def pick_lane(visual, cli_lane, identity, policy, today=None):
+    today = today or date.today()
     wanted = visual.get("lane") or cli_lane
     usable = {l["id"]: l for l in route_media.route(policy, ["image"], identity) if l["id"] in ADAPTERS}
+    if wanted == "openai-image" and identity == "abacare" and today > OPENAI_GRANT_UNTIL:
+        raise StillsError(f"the ABACare OpenAI grant ended {OPENAI_GRANT_UNTIL}; use runware-image, not pay-as-you-go")
     if wanted:
         if wanted in usable:
             return wanted
         status = next((l["status"] for l in policy["lanes"] if l["id"] == wanted), "unknown")
         raise StillsError(f"lane {wanted} is not usable for images today (status {status}); usable: {', '.join(usable) or 'none'}")
+    usable = {k: v for k, v in usable.items() if k != "openai-image" or openai_grant_open(identity, today)}
     if not usable:
         raise StillsError("no usable image lane for this identity; see scripts/route_media.py image --all")
     return next(iter(usable))
@@ -247,22 +312,36 @@ def plan_work(job, args, policy):
             problems.append(f"{sid}: {e}")
             continue
         size, quality = visual.get("size") or args.size, visual.get("quality") or args.quality
-        if size not in SIZES or quality not in QUALITIES:
-            problems.append(f"{sid}: size must be one of {', '.join(SIZES)} and quality one of {', '.join(QUALITIES)}")
+        qualities = OPENAI_QUALITIES if lane == "openai-image" else QUALITIES
+        if size not in SIZES or quality not in qualities:
+            problems.append(f"{sid}: size must be one of {', '.join(SIZES)} and quality one of {', '.join(qualities)} on {lane}")
+            continue
+        complexity = (visual.get("complexity") or os.environ.get("MEDIA_STUDIO_OPENAI_IMAGE_COMPLEXITY") or None) if lane == "openai-image" else None
+        if complexity and complexity not in OPENAI_COMPLEXITIES:
+            problems.append(f"{sid}: complexity must be one of {', '.join(OPENAI_COMPLEXITIES)}")
             continue
         full = compose_prompt(prompt, style)
-        model = (os.environ.get("MEDIA_STUDIO_AZURE_IMAGE_DEPLOYMENT") or AZURE_DEFAULT_DEPLOYMENT) if lane == "azure-image" else (os.environ.get("MEDIA_STUDIO_RUNWARE_IMAGE_MODEL") or RUNWARE_DEFAULT_MODEL)
+        if lane == "azure-image":
+            model = os.environ.get("MEDIA_STUDIO_AZURE_IMAGE_DEPLOYMENT") or AZURE_DEFAULT_DEPLOYMENT
+        elif lane == "openai-image":
+            try:
+                model = openai_model(os.environ)
+            except StillsError as e:
+                problems.append(f"{sid}: {e}")
+                continue
+        else:
+            model = os.environ.get("MEDIA_STUDIO_RUNWARE_IMAGE_MODEL") or RUNWARE_DEFAULT_MODEL
         if lane == "runware-image":
             try:
                 validate_runware_image_model(model)
             except StillsError as e:
                 problems.append(f"{sid}: {e}")
                 continue
-        key = cache_key(lane, model, size, quality, full)
+        key = cache_key(lane, model, size, quality, full, complexity)
         have = (manifest.get("stills") or {}).get(sid) or {}
         cached = have.get("key") == key and (job / "assets" / "stills" / f"{sid}.png").exists()
         rows.append({"id": sid, "lane": lane, "model": model, "size": size, "quality": quality, "prompt": full, "key": key,
-                     "cached": cached, "estimateUsd": 0.0 if cached else estimate_usd(lane, size, quality)})
+                     "complexity": complexity, "cached": cached, "estimateUsd": 0.0 if cached else estimate_usd(lane, size, quality)})
     return plan, rows, problems, identity
 
 
@@ -296,7 +375,8 @@ def run(job, args, env=None, post=None, now=None):
 
     def one(row):
         adapter = ADAPTERS[row["lane"]]
-        result = adapter(row["prompt"], row["size"], row["quality"], env, post)
+        extra = {"complexity": row["complexity"]} if row["lane"] == "openai-image" else {}
+        result = adapter(row["prompt"], row["size"], row["quality"], env, post, **extra)
         width, height = png_size(result["png"])
         want_w, want_h = (int(n) for n in row["size"].split("x"))
         if min(width, height) < 512:
@@ -377,7 +457,7 @@ def main(argv=None):
     ap.add_argument("job")
     ap.add_argument("--lane", choices=sorted(LANES))
     ap.add_argument("--identity", choices=["mahumtech", "abacare", "any"])
-    ap.add_argument("--quality", choices=QUALITIES, default="medium")
+    ap.add_argument("--quality", choices=OPENAI_QUALITIES, default="medium", help="xhigh and max exist on openai-image only")
     ap.add_argument("--size", choices=SIZES, default="1536x1024")
     ap.add_argument("--scenes")
     ap.add_argument("--max-usd", type=float, default=2.0)
