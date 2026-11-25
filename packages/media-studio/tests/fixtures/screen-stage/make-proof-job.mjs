@@ -81,6 +81,7 @@ export const scenes = {
   async S01(h) {
     await h.go('/', { readySelector: '[data-testid="col-amount"]', settle: 800 });
     const press = (loc, o) => (${JSON.stringify(TOUCH || PHONE_IN_FRAME)} ? h.tap(loc, { ...o, hold: 1000 }) : h.click(loc, o));
+    if (${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) await h.hold(700); // a tap has no pointer approach: the first press waits for its word
     await press(h.page.getByTestId('col-amount'), { label: 'Select amounts', ms: 400, settle: 250, hold: 290 });
     await press(h.page.getByTestId('menu-format'), { label: 'Open format', ms: 400, settle: 250, hold: 390 });
     await press(h.page.getByTestId('item-number'), { label: 'Open number', ms: 400, settle: 250, hold: 390 });
