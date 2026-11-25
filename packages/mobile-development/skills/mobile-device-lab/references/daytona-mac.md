@@ -2,7 +2,7 @@
 
 Read before any iOS build, Simulator or Xcode work. Since 2026-11-24 the DigitalOcean build droplet is retired and Daytona is the lane. The local VMware macOS VM is also retired (`Invoke-MobileLabVmrunStart` refuses). A connected iPhone or Android phone on this PC stays available for device testing (`physical-iphone.md`).
 
-**Status.** The owner directed one long-lived Mac for iOS work on 2026-11-21. Two macOS boxes were created on it and checked by command: macOS 26.6.2, Xcode 26.6, Node 24, pnpm, CocoaPods, fastlane. That proves the toolchain, not an iOS build, a signed install or a USB device. The state of those boxes was not visible from this repository's keys on 2026-11-24, so check it before planning work. Identifiers, key name and cost are in the private `guidance/daytona-mac.md`.
+**Status.** Two macOS boxes ran on 2026-11-21 and were checked by command: macOS 26.6.2, Xcode 26.6, Node 24, pnpm, CocoaPods, fastlane. That proves the toolchain, not an iOS build, a signed install or a USB device. Their reservation ended on 2026-11-22 (renewal failed) and no Mac is reserved as of 2026-11-24. All Daytona work, Macs included, uses one organization (owner direction 2026-11-24): the key is `DAYTONA_API_KEY`. Identifiers and cost are in the private `guidance/daytona-mac.md`.
 
 ## What Daytona gives
 
@@ -21,10 +21,10 @@ The Xcode ceiling in `registry/mobile-development.json` (`expectations.xcode`) d
 
 A Mac is a paid 24-hour reservation. Auto-reserve is **on** by default for the organization, so creating a macOS sandbox without naming a reservation buys one, and a reservation with renewal on buys the next day.
 
-1. Use the owner's existing boxes. `python scripts/daytona_mac.py status` reports them; `wake` starts them before a session.
+1. Use a Mac the owner already reserved. `python scripts/daytona_mac.py status` reports the boxes; `wake` starts them before a session.
 2. Get owner approval of the price before buying any other reservation: a new one, a different model, or a replacement for one that ended. "The task needs a Mac" is not approval. Always pass `reservation: <id>`; never let a bare create buy one.
-3. Renewal on the owner's standing reservation is the owner's choice: leave it as found. Turn renewal off on any reservation bought for one task, and read the setting back.
-4. When the owner no longer wants the standing box, `python scripts/daytona_mac.py stop` turns renewal off first, then stops the boxes.
+3. Renewal is the owner's choice. A reservation renews in its last hour only while a sandbox on it runs or is paused and the balance covers the day; when it ends, the Mac is erased and persistent disks are kept as images for 30 days. `create` leaves renewal off unless `DAYTONA_MAC_AUTO_RENEW=1`; read the setting back.
+4. When the owner no longer wants the box, `python scripts/daytona_mac.py stop` turns renewal off first, then stops the boxes.
 5. Capture every artifact, compare hash and size with the Mac's own record, and label new sandboxes with `owner` and `run`. Clean up only sandboxes that carry your own `run` label.
 
 `scripts/daytona-run.mjs` creates Linux boxes only and never buys a Mac.
