@@ -90,7 +90,7 @@ widen its allowlist in a brief; see "Forge unattended intake" in
    Subscription plan routes (smoke-verified 2026-11-14) for opencode, kilo and
    factory: Qwen Token Plan, Z.ai GLM Coding Plan and MiMo Token Plan. Exact
    ids are in `references/hosts.md` -> Plan routes.
-   For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.3`
+   For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.4`
    on Windows or `-Forge -HostId opencode-zai -Cwd <Forge-worktree>` for an
    interactive session. See the host reference for the Windows tool limits.
 

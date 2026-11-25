@@ -29,7 +29,7 @@ For unattended AWS work, an existing automatically renewable profile can use AWS
 
 The official Devin MCP server uses the same hook (SH-4969). `packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1` reads the Devin service-user key with `op read` through the 1Password service account (`OP_SERVICE_ACCOUNT_TOKEN`) at connect time and prints only `Authorization` and `X-Org-Id` as JSON. Claude uses `headersHelper` for `https://mcp.devin.ai/mcp`. The Claude and Codex plugin-only exceptions preserve existing registrations during pruning. Fleet sync leaves this owner-configured server out of every generated scope, including `all`. Never put the key or a key-bearing environment variable in a host config.
 
-Codex reads the existing `http_headers_helper` registration. On the tested Windows build, the helper's child environment excludes `OP_SERVICE_ACCOUNT_TOKEN`. It exits with code 3 and the native tool list remains empty. Preserve the registration while checking for a vendor-supported credential route. [Codex header-helper environment issue](https://github.com/openai/codex/issues/46244)
+Codex reads the existing `http_headers_helper` registration. On the tested Windows build, the helper's child environment excludes `OP_SERVICE_ACCOUNT_TOKEN`. It exits with code 3 and the native tool list remains empty. The live Windows command is `Get-DevinMcpHeadersForStrippedHost.ps1`, which copies the User-scope token into the process and then runs `Get-DevinMcpHeaders.ps1`. Preserve that registration. Do not point Codex back at the helper alone, and do not put the Devin key in the config. [Codex header-helper environment issue](https://github.com/openai/codex/issues/46244)
 
 A remote URL saves local server resources only when execution moves off the machine. Browser Use offers a hosted browser MCP with separate cloud credentials. Remote Desktop Commander continues to require a local device agent. Local filesystem, signed-in browser, device, and 1Password integrations retain their local dependencies. Use each host's built-in tools where they provide the required workflow and keep remaining local integrations task-scoped. Vendor plugin caches can contain unused servers and previous versions, so an audit must distinguish enabled installations, cached definitions, runtime connections, and authenticated tool calls.
 
@@ -177,7 +177,7 @@ uses its native account login on both hosts. In OpenCode, use
 DeepSeek V4.1 Flash.
 Choose `opencode-zai` for the runner's Z.ai Coding Plan and its four Z.ai
 MCPs. On Windows, select that plan with
-`-HostId opencode -Model zai-coding-plan/glm-5.3`. This Windows route
+`-HostId opencode -Model zai-coding-plan/glm-5.4`. This Windows route
 supports workspace edits and Z.ai MCPs, with shell tools disabled.
 On Windows use `codex --profile qwen` with the user environment reference.
 To keep an interactive task alive across SSH disconnects, start Herdr or

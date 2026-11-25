@@ -331,7 +331,7 @@
         "opencode.json": ["model", "small_model"]
       },
       "managedConfigKeysNote": "2026-11-14 (SH-4674): Sync-AgentHub merges hostSettings.opencode.model into opencode.json 'model' and .smallModel into 'small_model' beside the MCP registry merge, so a fleet sync reproduces the zero-thought host defaults. Every other opencode.json key (providers, policies, plugins, mcp, tool_output) stays host/registry-owned as before; providers are never removed by sync.",
-      "quotaFallback": "qwen-token-plan/qwen3.8-max -> zai-glm-plan/glm-5.3-flash -> mimo-token-plan/mimo-v2.6-flash -> opencode-go/glm-5.3-flash",
+      "quotaFallback": "qwen-token-plan/qwen3.8-max -> zai-glm-plan/glm-5.4 -> mimo-token-plan/mimo-v2.6-flash -> opencode-go/glm-5.3-flash",
       "quotaFallbackNote": "2026-11-14 (SH-4674): when the Qwen Token Plan quota is exhausted (402/quota errors), select the next subscription route in order: the Z.ai GLM Coding Plan provider zai-glm-plan (ZAI_CODING_PLAN_API_KEY), then the Xiaomi MiMo Token Plan provider mimo-token-plan (MIMO_API_KEY), then the OpenCode Go subscription provider opencode-go on the stored workspace login. All four are subscription plans; the opencode/ Zen wallet and other pay-as-you-go routes are refused by the dispatcher and are never a fallback (owner direction 2026-11-10).",
       "modelNote": "2026-10-23: OpenCode 2.1.4 native Console account OAuth, stored by its shared service. The built-in opencode provider is configured privately with the Go-only https://opencode.ai/inference/go/v1 endpoint and no API-key override. Exact-response inference passed in 3.8 seconds. CLI and Desktop share this service; title generation uses the same Go model. 2026-11-10 (opencode 2.2.6): the Go subscription is addressed as provider opencode-go (opencode-go/<model>), which answers on the stored Go workspace login with OPENCODE_GO_API_KEY unset; opencode/<model> is the pay-as-you-go Zen wallet and returned 'Insufficient balance'. model and smallModel were corrected from opencode/glm-5.3-flash to opencode-go/glm-5.3-flash. 2026-11-14 (opencode 2.3.0, SH-4674): host defaults moved to the Qwen Token Plan per owner direction -- model qwen-token-plan/qwen3.8-max, small_model qwen-token-plan/qwen3.8-flash (keys as {env:QWEN_TOKEN_PLAN_API_KEY}); GLM (zai-glm-plan) and MiMo (mimo-token-plan) stay selectable per session, and the unattended dispatcher default in dispatchPolicy.opencode.model remains the Go subscription. The live opencode.json had drifted to nvidia/z-ai/glm-5.3-flash, a credit-wallet route no policy chose; the nvidia and deepseek provider blocks are left in place for running jobs but are not a sanctioned default."
     },
@@ -444,14 +444,13 @@
       "modelNote": "2026-11-14 SH-4676: the dispatch default is the zero-credit BYOK plan route custom:qwen4-max-preview (QWEN_TOKEN_PLAN_API_KEY; owner direction 2026-11-12 prefers qwen4-max-preview for coding on Token Plan routes). The previous default gpt-6-luna is Factory-hosted and billed 651 credits for a one-line probe (2026-10-26). Factory-hosted ids stay in allowedModels for an explicit -Model opt-in; they spend Factory credits.",
       "allowedModels": [
         "gpt-6-luna",
-        "glm-5.3-flash",
         "gemini-3.8-flash",
         "gpt-5.4-mini",
         "claude-sonnet-5",
         "gpt-6-sol",
         "custom:qwen3.8-max-tp",
         "custom:qwen4-max-preview",
-        "custom:glm-5.3-zai",
+        "custom:glm-5.4-zai",
         "custom:mimo-v2.6-pro",
         "custom:mimo-v2.6-flash"
       ],
@@ -632,13 +631,13 @@
         "opencode-go/kimi-k2.7-code",
         "opencode-go/deepseek-v4-pro",
         "opencode-go/gemini-4-argon",
-        "zai-coding-plan/glm-5.3",
+        "zai-coding-plan/glm-5.4",
         "mimo-token-plan/mimo-v2.6-pro",
         "mimo-token-plan/mimo-v2.6-flash",
         "qwen-token-plan/qwen3.8-max",
         "qwen-token-plan/qwen4-max-preview",
         "qwen-token-plan/qwen3.8-flash",
-        "zai-glm-plan/glm-5.3"
+        "zai-glm-plan/glm-5.4"
       ],
       "planRoutesNote": "2026-11-14 smoke-verified through Invoke-CodingAgent.ps1 (READY, exit 0): qwen-token-plan/qwen3.8-max (QWEN_TOKEN_PLAN_API_KEY, Qwen Token Plan), zai-glm-plan/glm-5.3 (native OpenCode 2.x Z.ai Coding Plan provider, ZAI_CODING_PLAN_API_KEY), zai-coding-plan/glm-5.3 (legacy Windows launcher), mimo-token-plan/mimo-v2.6-pro (MIMO_API_KEY). qwen4-max-preview verified by a direct opencode run the same day.",
       "allowedModelsNote": "Smoke-verified models, not a limit on -Model. opencode-go/* entries are the OpenCode Go subscription, reached through the stored Go workspace login. The opencode/* provider is the pay-as-you-go Zen wallet, a different route: it returned 'Insufficient balance' on 2026-11-10 (opencode 2.2.6) while opencode-go/glm-5.3-flash and opencode-go/kimi-k2.7-code returned READY with OPENCODE_GO_API_KEY unset. Every opencode-go id here is in the `opencode models` listing (32 opencode-go models). mimo-token-plan/* entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.config/opencode/opencode.json and are the fallback when the Go plan is out of credit or usage (owner direction 2026-11-11; the 402 'Insufficient balance' seen on 2026-11-11 came from the opencode/* Zen wallet ids this list carried then, not from the Go subscription).",
@@ -725,8 +724,7 @@
         "mimo/mimo-v2.6-flash",
         "qwen-token-plan/qwen3.8-max",
         "qwen-token-plan/qwen4-max-preview",
-        "zai-coding-plan/glm-5.3",
-        "zai-coding-plan/glm-5.3-flash"
+        "zai-coding-plan/glm-5.4"
       ],
       "planRoutesNote": "2026-11-14 smoke-verified through Invoke-CodingAgent.ps1 (READY, exit 0): qwen-token-plan/qwen3.8-max (QWEN_TOKEN_PLAN_API_KEY), zai-coding-plan/glm-5.3 (ZAI_CODING_PLAN_API_KEY), mimo/mimo-v2.6-pro (MIMO_API_KEY). Providers live in ~/.config/kilo/config.json with {env:...} keys.",
       "allowedModelsNote": "Recorded models, not a limit on -Model. mimo/mimo-v2.6-pro was smoke-verified on the MiMo provider (2026-11-10, governed command). mimo/mimo-v2.6-flash is listed under provider mimo in ~/.config/kilo/config.json and was added on owner direction 2026-11-10 without a captured response.",

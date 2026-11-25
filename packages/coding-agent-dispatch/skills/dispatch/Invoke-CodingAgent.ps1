@@ -251,7 +251,7 @@ if ($Auth) {
             zcode = 'In ZCode Desktop, use Connect to sign in to the intended Z.ai Coding Plan and select its model.'
             cline = 'cline auth'
             opencode = 'opencode; run /connect and choose the intended provider'
-            'opencode-zai' = 'Use -HostId opencode -Model zai-coding-plan/glm-5.3; the Windows launcher reads ZAI_CODING_PLAN_API_KEY.'
+            'opencode-zai' = 'Use -HostId opencode -Model zai-coding-plan/glm-5.4; the Windows launcher reads ZAI_CODING_PLAN_API_KEY.'
             github = 'gh auth status; gh auth login if needed'
             'codex-qwen' = 'codex --profile qwen; uses QWEN_TOKEN_PLAN_API_KEY'
         }
