@@ -11,7 +11,7 @@ before, writes assets/stills/<scene>.png, records each one in assets/stills/mani
 visual.src in the picture plan so the kit's still visual (layout "bleed" for a full-frame photograph) can show it.
 
 Lanes (policy/provider-routing.json): azure-image is the default (MahumTech, gpt-image deployment on mt-foundary-resource);
-runware-image is the cheap draft lane only for its tested default model `runware:z-image@0`; openai-image is OpenAI direct gpt-image-2.6-flare (default) or -sunburst on the ABACare grant, chosen automatically only for ABACare jobs while the grant lasts (to 2026-11-26) and by name otherwise. A frozen lane is refused. Keys come from the environment by name and are never printed
+runware-image is the cheap draft lane only for its tested default model `runware:z-image@0`; openai-image is OpenAI direct gpt-image-2.6-flare (default) or -sunburst on the ABACare OpenAI grant, so it serves ABACare jobs only, and only while the grant lasts (to 2026-11-26): every other identity, named or not and a missing identity included, is refused. A frozen lane is refused. Keys come from the environment by name and are never printed
 or stored: AZURE_OPENAI_ENDPOINT with AZURE_OPENAI_API_KEY (or an Entra token from the Azure CLI), RUNWARE_API_KEY. Setting MEDIA_STUDIO_RUNWARE_IMAGE_MODEL to any other model is intentionally refused until a per-model governed adapter and price quote exists.
 
 Prices are estimates and say so. Azure low and medium are quoted at the measured price plus 50% (about 1 and 2 cents); high is not measured yet, so it
@@ -264,7 +264,7 @@ def write_json(path, data):
 
 
 def openai_grant_open(identity, today):
-    """The OpenAI lane is ABACare's grant: automatic only for ABACare while it lasts. Other entities reach it only by name."""
+    """The OpenAI lane spends ABACare's grant: ABACare jobs only, and only while the grant lasts."""
     return identity == "abacare" and today <= OPENAI_GRANT_UNTIL
 
 
@@ -272,8 +272,13 @@ def pick_lane(visual, cli_lane, identity, policy, today=None):
     today = today or date.today()
     wanted = visual.get("lane") or cli_lane
     usable = {l["id"]: l for l in route_media.route(policy, ["image"], identity) if l["id"] in ADAPTERS}
-    if wanted == "openai-image" and identity == "abacare" and today > OPENAI_GRANT_UNTIL:
-        raise StillsError(f"the ABACare OpenAI grant ended {OPENAI_GRANT_UNTIL}; use runware-image, not pay-as-you-go")
+    if wanted == "openai-image":
+        # Credits fund only their own entity: this lane spends ABACare's OpenAI grant, so no other identity may name it.
+        if identity != "abacare":
+            raise StillsError(f"openai-image spends the ABACare OpenAI grant and credits fund only their own entity; a job with identity '{identity or 'missing'}' "
+                              "cannot use it (a missing identity counts as 'any'). Use azure-image, or set the job's identity to abacare")
+        if today > OPENAI_GRANT_UNTIL:
+            raise StillsError(f"the ABACare OpenAI grant ended {OPENAI_GRANT_UNTIL}; use runware-image, not pay-as-you-go")
     if wanted:
         if wanted in usable:
             return wanted

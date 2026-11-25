@@ -245,6 +245,9 @@ class OpenAiLane(unittest.TestCase):
         self.env_patch = mock.patch.dict(os.environ, {k: "" for k in ("MEDIA_STUDIO_OPENAI_IMAGE_MODEL", "MEDIA_STUDIO_OPENAI_IMAGE_COMPLEXITY")})
         self.env_patch.start()
         self.addCleanup(self.env_patch.stop)
+        grant = mock.patch.object(g, "OPENAI_GRANT_UNTIL", date(2999, 1, 1))  # tests must not rot when the real grant ends
+        grant.start()
+        self.addCleanup(grant.stop)
 
     def test_cost_is_priced_from_the_usage_block_at_the_2_6_standard_rates(self):
         # $5 per 1M text in, $8 per 1M image in, $30 per 1M image out (developers.openai.com pricing, 2026-11-25).
@@ -284,15 +287,35 @@ class OpenAiLane(unittest.TestCase):
             self.assertIn("grant ended", rep["problems"][0])
             self.assertEqual(fake.calls, [])
 
-    def test_other_entities_stay_on_azure_and_reach_openai_only_by_name(self):
+    def test_every_other_identity_is_refused_even_when_it_names_the_lane(self):
+        # Credits fund only their own entity: the lane spends ABACare's grant, so mahumtech, any and a missing identity are all refused.
+        for identity in ("mahumtech", "any", None):
+            with self.subTest(identity=identity), tempfile.TemporaryDirectory() as d:
+                job = make_job(d, [still("s1", lane="openai-image")], identity=identity)
+                fake = FakeProvider()
+                rep = g.run(job, args(run=True), env=ENV, post=fake)
+                self.assertFalse(rep["ok"])
+                self.assertIn("credits fund only their own entity", rep["problems"][0])
+                self.assertEqual(fake.calls, [])
+                self.assertFalse((job / "assets").exists())
+
+    def test_the_command_line_lane_and_identity_flags_cannot_borrow_the_grant_either(self):
         with tempfile.TemporaryDirectory() as d:
-            job = make_job(d, [still("s1"), still("s2", "A parcel scanner on a counter", lane="openai-image")])
-            rep = g.run(job, args(), env=ENV, post=FakeProvider())
-            self.assertEqual([s["lane"] for s in rep["scenes"]], ["azure-image", "openai-image"])
+            job = make_job(d, [still("s1")], identity="abacare")
+            fake = FakeProvider()
+            rep = g.run(job, args(run=True, lane="openai-image", identity="mahumtech"), env=ENV, post=fake)
+            self.assertIn("credits fund only their own entity", rep["problems"][0])
+            self.assertEqual(fake.calls, [])
+
+    def test_other_entities_never_get_it_by_default_and_stay_on_azure(self):
+        for identity in ("mahumtech", "any"):
+            with self.subTest(identity=identity), tempfile.TemporaryDirectory() as d:
+                job = make_job(d, [still("s1")], identity=identity)
+                self.assertEqual(g.run(job, args(), env=ENV, post=FakeProvider())["scenes"][0]["lane"], "azure-image")
 
     def test_run_sends_the_documented_request_and_records_actual_usage(self):
         with tempfile.TemporaryDirectory() as d:
-            job = make_job(d, [still("s1", lane="openai-image", quality="low")])
+            job = make_job(d, [still("s1", lane="openai-image", quality="low")], identity="abacare")
             fake = FakeProvider(output_tokens=824)
             rep = g.run(job, args(run=True), env=ENV, post=fake)
             self.assertTrue(rep["ok"])
@@ -308,7 +331,7 @@ class OpenAiLane(unittest.TestCase):
 
     def test_complexity_is_sent_only_when_asked_and_changes_the_cache_key(self):
         with tempfile.TemporaryDirectory() as d:
-            job = make_job(d, [still("s1", lane="openai-image", complexity="low")])
+            job = make_job(d, [still("s1", lane="openai-image", complexity="low")], identity="abacare")
             fake = FakeProvider()
             g.run(job, args(run=True, quality="low"), env=ENV, post=fake)
             self.assertEqual(fake.calls[0]["body"]["complexity"], "low")
@@ -319,7 +342,7 @@ class OpenAiLane(unittest.TestCase):
             self.assertFalse(again["scenes"][0]["cached"])
             self.assertEqual(len(fake.calls), 2)
         with tempfile.TemporaryDirectory() as d:
-            job = make_job(d, [still("s1", lane="openai-image")])
+            job = make_job(d, [still("s1", lane="openai-image")], identity="abacare")
             fake = FakeProvider()
             g.run(job, args(run=True, quality="low"), env=ENV, post=fake)
             self.assertNotIn("complexity", fake.calls[0]["body"])
@@ -327,20 +350,22 @@ class OpenAiLane(unittest.TestCase):
     def test_bad_complexity_model_or_quality_is_refused_before_spend(self):
         with tempfile.TemporaryDirectory() as d:
             fake = FakeProvider()
-            job = make_job(d, [still("s1", lane="openai-image", complexity="extreme"), still("s2", "A pallet of parcels", lane="azure-image", quality="max")])
+            job = make_job(d, [still("s1", lane="openai-image", complexity="extreme")], identity="abacare")
             rep = g.run(job, args(run=True), env=ENV, post=fake)
-            self.assertFalse(rep["ok"])
-            self.assertEqual(len(rep["problems"]), 2)
+            self.assertIn("complexity must be one of", rep["problems"][0])
+            job2 = make_job(Path(d) / "az", [still("s2", "A pallet of parcels", lane="azure-image", quality="max")])
+            rep2 = g.run(job2, args(run=True), env=ENV, post=fake)
+            self.assertIn("quality one of low, medium, high on azure-image", rep2["problems"][0])
             self.assertEqual(fake.calls, [])
         with tempfile.TemporaryDirectory() as d:
-            job = make_job(d, [still("s1", lane="openai-image")])
+            job = make_job(d, [still("s1", lane="openai-image")], identity="abacare")
             with mock.patch.dict(os.environ, {"MEDIA_STUDIO_OPENAI_IMAGE_MODEL": "gpt-image-3"}):
                 rep = g.run(job, args(run=True), env=ENV, post=FakeProvider())
             self.assertIn("no verified price", rep["problems"][0])
 
     def test_sunburst_and_xhigh_are_accepted_on_this_lane(self):
         with tempfile.TemporaryDirectory() as d:
-            job = make_job(d, [still("s1", lane="openai-image", quality="xhigh")])
+            job = make_job(d, [still("s1", lane="openai-image", quality="xhigh")], identity="abacare")
             with mock.patch.dict(os.environ, {"MEDIA_STUDIO_OPENAI_IMAGE_MODEL": "gpt-image-2.6-sunburst"}):
                 rep = g.run(job, args(), env=ENV, post=FakeProvider())
             self.assertTrue(rep["ok"])
@@ -348,7 +373,7 @@ class OpenAiLane(unittest.TestCase):
 
     def test_missing_key_fails_clearly_without_a_call(self):
         with tempfile.TemporaryDirectory() as d:
-            job = make_job(d, [still("s1", lane="openai-image")])
+            job = make_job(d, [still("s1", lane="openai-image")], identity="abacare")
             fake = FakeProvider()
             rep = g.run(job, args(run=True), env={}, post=fake)
             self.assertIn("OPENAI_API_KEY", rep["failed"][0]["error"])
