@@ -224,6 +224,13 @@ test('compose pads the narration lead-in so picture time is timeline time and th
     const near = cuts.reduce((best, t) => (Math.abs(t - planned) < Math.abs(best - planned) ? t : best), Infinity);
     assert.ok(Math.abs(near - planned) <= 1.5 / 30, `scene change planned at ${planned}s, nearest encoded cut ${near}s (cuts: ${cuts.join(', ')})`);
   }
+  // The last picture holds; a fade to black is opt-in (CORE-125).
+  const lastLuma = () => { const r = spawnSync('ffmpeg', ['-v', 'error', '-sseof', '-0.1', '-i', join(root, 'output', 'lead-silent.mp4'), '-frames:v', '1', '-vf', 'scale=16:16,format=gray', '-f', 'rawvideo', '-'], { windowsHide: true }); return r.stdout.reduce((n, v) => n + v, 0) / r.stdout.length; };
+  assert.ok(lastLuma() > 60, `the last picture is dark: ${lastLuma()}`);
+  const job = JSON.parse(readFileSync(join(root, 'job.json'), 'utf8'));
+  writeFileSync(join(root, 'job.json'), JSON.stringify({ ...job, endFadeSeconds: 0.8 }));
+  const faded = run(compose, [root, 'lead']); assert.equal(faded.code, 0, faded.out);
+  assert.ok(lastLuma() < 40, `endFadeSeconds did not fade: ${lastLuma()}`);
 });
 
 test('portrait campaign composes a bounded source reframe with timed graphic and binds the encoded source', { skip: !ffmpegAvailable, timeout: 180000 }, () => {

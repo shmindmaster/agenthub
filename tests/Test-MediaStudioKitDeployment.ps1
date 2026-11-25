@@ -68,7 +68,7 @@ try {
     $deployedReport = Get-Content -LiteralPath (Join-Path $specsJob 'qa\model-specs-report.json') -Raw -Encoding utf8 | ConvertFrom-Json
     if ($deployedReport.generator -ne 'media-studio/validate-model-specs' -or $deployedReport.ok -ne $true) { throw "Deployed model-specs gate wrote an unexpected report: $gateOutput" }
     $checks++
-    foreach ($name in @('compose-screencast.mjs','render-overlay.mjs','render-code.mjs','render-html.mjs','render-card.mjs','record-job.mjs','record-lib.mjs','sync-lib.mjs','receipt-lib.mjs')) {
+    foreach ($name in @('compose-screencast.mjs','render-overlay.mjs','render-code.mjs','render-html.mjs','render-card.mjs','record-job.mjs','record-lib.mjs','sync-lib.mjs','receipt-lib.mjs','write-scenario-proof.mjs')) {
         $source = Join-Path (Join-Path $package 'kit\screencast') $name
         $destination = Join-Path $shared $name
         if (-not (Test-Path -LiteralPath $destination)) { throw "Missing shared tool: $destination" }
