@@ -9,8 +9,8 @@ import { pipeline } from 'node:stream/promises';
 const API = '2023-11-03';
 const BLOCK = 8 * 1024 * 1024;
 // Every request carries a wall-clock timeout (it also bounds reading the response body) so a stalled socket cannot hang a render.
-const REQUEST_TIMEOUT_MS = 120_000;
-const TRANSFER_TIMEOUT_MS = 30 * 60_000; // whole-file downloads (runtime tarball ~1 GB) and uploads
+export const REQUEST_TIMEOUT_MS = 120_000;
+export const TRANSFER_TIMEOUT_MS = 30 * 60_000; // whole-file downloads (runtime tarball ~1 GB) and uploads
 const SINGLE_PUT_MAX = 64 * 1024 * 1024;
 
 export function blobClient(account, getToken) {
