@@ -25,7 +25,10 @@ import governed_deepgram as shared
 
 BUCKET = "azure-speech/usd-micros"
 PRICE_POLICY = "azure-eastus2-neural-hd-20261026-22-microusd-per-utf8-byte"
-VALID_THROUGH = datetime.date(2026, 11, 24)
+# Both eastus2 rates were re-read on 2026-11-25 UTC and are unchanged; the evidence is in governed_azure_speech.md.
+# A policy id stays while its rate holds: it is inside every request key and owner grant, so renaming it would orphan
+# bought audio. A changed rate needs a new id.
+VALID_THROUGH = datetime.date(2026, 12, 24)
 MAX_BYTES = 64 * 1024 * 1024
 # GA DragonHD only (catalog 2026-11-06). Public-preview MAI and podcast HD voices are refused.
 VOICES = {
