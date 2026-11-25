@@ -25,6 +25,7 @@ Copy this list and tick each item.
 - [ ] Handle each state that applies: empty, loading, error, partial, offline, permission.
 - [ ] Check keyboard, focus and narrow width. Keep the user's input after any failure.
 - [ ] Run the focused test, then the broader checks.
+- [ ] For a UI change, start the repository's dev server in the background on a free port, with no window and no focus, and report its URL. Open nothing.
 - [ ] Report changed files, commands with their output, and remaining risks.
 
 ## Rules
@@ -37,4 +38,5 @@ Copy this list and tick each item.
 
 Next: `verify`, from a fresh context.
 
+Read when building a UI: [UI standard](../../references/ui-standard.md).
 Read when applying the detailed patterns, accessibility. [Workflow detail](references/workflow-detail.md)
