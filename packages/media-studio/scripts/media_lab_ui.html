@@ -34,7 +34,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;max-width:1280px;
 .tab{display:flex;align-items:center;justify-content:center;gap:6px;height:38px;min-width:42px;padding:0 10px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--mut);cursor:pointer}
 .tab[aria-selected=true]{color:var(--text);border-bottom-color:var(--acc)}
 .tab{flex:1;padding:0}.tab .lbl{display:none}
-@media (min-width:720px) and (max-width:959px){.tab{flex:0 1 auto;padding:0 10px}.tab .lbl{display:inline}.mode{display:none}}
+@media (min-width:768px){.tabs{flex-wrap:wrap}.tab{flex:0 0 auto;padding:0 12px}.tab .lbl{display:inline}.mode{display:none}}
 .mode{margin:0 0 10px}
 .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
 .f{display:flex;flex-direction:column;gap:3px;min-width:0}.wide{grid-column:1/-1}
@@ -155,7 +155,7 @@ async function box(action,body){
   poll();
 }
 $('#bStart').onclick=async()=>{const b=S.box;
-  if(await ask(`Start the media box? About $${b.usd_per_hour.toFixed(2)} per hour (estimate), it stops by itself after ${b.ttl} minutes, and it takes roughly ${b.boot_min} minutes to boot.`,'Start'))box('start',{confirm:true})};
+  if(await ask(`Start the media box? About $${b.usd_per_hour.toFixed(2)} per hour, it stops by itself after ${b.ttl} minutes, and it takes roughly ${b.boot_min} minutes to boot.`,'Start'))box('start',{confirm:true})};
 $('#bExtend').onclick=()=>box('extend',{});
 $('#bStop').onclick=async()=>{if(await ask('Stop the media box? It is deleted and any running job is lost.','Stop'))box('stop',{confirm:true})};
 $('#profile').onclick=e=>{const p=e.target.dataset.p;if(p)setProfile(p)};

@@ -9,7 +9,7 @@ request and no running job. No scheduled task, Run key or service: only the Star
 """
 from __future__ import annotations
 
-import argparse, base64, collections, hmac, json, math, os, re, secrets, shutil, subprocess, sys, threading, time, traceback, webbrowser
+import argparse, base64, collections, hmac, json, math, os, re, secrets, shutil, socket, subprocess, sys, threading, time, traceback, webbrowser
 from datetime import datetime, timezone
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,9 +21,9 @@ import daytona_media_client as mc
 HERE = Path(__file__).resolve().parent
 DEFAULT_PORT, IDLE_MINUTES = 8765, 30
 GPU_PY = Path.home() / ".config" / "opencode" / "daytona" / "gpu.py"
-# Approximate spot price of one MI355X box in USD per hour. NOT read from billing: catalog.json carries no price, so this
-# is a placeholder estimate. Set policy.approxHourlyUsd in the installed catalog.json to override it.
-APPROX_USD_PER_HOUR = 3.00
+# Spot price of one MI355X box in USD per hour, read 2026-11-25. catalog.json carries no price; set
+# policy.approxHourlyUsd in the installed catalog.json to override this when the rate changes.
+APPROX_USD_PER_HOUR = 3.56
 TTL_MIN, EXTEND_MIN, MAX_TTL_MIN, BOOT_MIN, MAX_BODY = 120, 60, 480, 10, 300 << 20
 NOWIN = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 SHORTCUT = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "AI Media Lab.lnk"
@@ -440,10 +440,20 @@ class Handler(BaseHTTPRequestHandler):
         self.route("POST")
 
 
+class Server(ThreadingHTTPServer):
+    """No shared port: SO_REUSEADDR would let a second process bind the same Windows port beside this one."""
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def make_server(a):
     lab = Lab(a)
     handler = type("BoundHandler", (Handler,), {"lab": lab})
-    httpd = ThreadingHTTPServer(("127.0.0.1", a.port), handler)
+    httpd = Server(("127.0.0.1", a.port), handler)
     httpd.daemon_threads, httpd.lab = True, lab
     lab.port = httpd.server_address[1]
     return httpd, lab

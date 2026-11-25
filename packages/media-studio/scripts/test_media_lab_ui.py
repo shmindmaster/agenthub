@@ -532,6 +532,35 @@ class Box(Base):
             self.assertFalse(lnk.exists())
 
 
+class SinglePort(Base):
+    def test_a_second_copy_on_the_same_port_is_not_bound_and_reports_the_running_one(self):
+        import socket, subprocess
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        argv = [sys.executable, "-B", str(Path(ui.__file__)), "--port", str(port), "--state-dir", tmp.name, "--out", tmp.name,
+                "--gpu-py", str(Path(tmp.name) / "none.py"), "--gateway-url", "http://127.0.0.1:9", "--idle-minutes", "5"]
+        env = {**os.environ, "AGENTHUB_INFERENCE_KEY": KEY}
+        first = subprocess.Popen(argv, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=ui.NOWIN)
+        try:
+            session = Path(tmp.name) / "session.json"
+            end = time.time() + 15
+            while not session.exists() and time.time() < end:
+                time.sleep(0.1)
+            self.assertTrue(session.exists(), "first copy did not start")
+            second = subprocess.run(argv, env=env, capture_output=True, text=True, timeout=30, creationflags=ui.NOWIN)
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertIn("already running", second.stdout)
+            self.assertNotIn("cannot bind", second.stdout)
+            with self.assertRaises(OSError):
+                ui.make_server(SimpleNamespace(port=port, gateway_url=None, out=tmp.name, gpu_py=str(Path(tmp.name) / "none.py"), idle_minutes=5, poll=1))
+        finally:
+            first.kill()
+            first.wait()
+
+
 class Idle(Base):
     def serve(self, s, idle_s):
         ui.start_threads(s.httpd, s.lab, idle_s)
