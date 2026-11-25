@@ -50,6 +50,7 @@ put('story/cue-plan.json', {
       ],
       result: { label: 'Currency format applied', keywords: ['applied'] },
       expectedState: 'The Amount cells read as dollars and a toast confirms the format',
+      pointer: { maxReversals: 1, reason: 'the flow goes from the data column to the menu bar, then down the menu: one turn' },
     },
   },
 });
