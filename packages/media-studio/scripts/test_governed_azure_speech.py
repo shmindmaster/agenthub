@@ -15,6 +15,18 @@ import datetime
 
 import governed_azure_speech as az
 
+# The price check has its own test; every other test is about something else and
+# must not start failing on the day the checked price lapses.
+_price_is_current = patch.object(az, "VALID_THROUGH", datetime.date.max)
+
+
+def setUpModule():
+    _price_is_current.start()
+
+
+def tearDownModule():
+    _price_is_current.stop()
+
 
 class AzureTests(unittest.TestCase):
     def setUp(self):
@@ -34,6 +46,12 @@ class AzureTests(unittest.TestCase):
     def tearDown(self):
         self.env.stop()
         self.tmp.cleanup()
+
+    def test_price_policy_lapse_fails_closed(self):
+        today = datetime.datetime.now(datetime.timezone.utc).date()
+        with patch.object(az, "VALID_THROUGH", today - datetime.timedelta(days=1)):
+            with self.assertRaisesRegex(RuntimeError, "Price policy expired"):
+                az.quote("Synthetic.", workspace="synthetic-job", revision="v1", dictionary_revision="v1")
 
     def save(self):
         self.manifest.write_text(json.dumps(self.policy))

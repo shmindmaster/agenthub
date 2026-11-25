@@ -1,4 +1,5 @@
 """Offline tests for the adapter-owned pronunciation lexicon. No network, no spend."""
+import datetime
 import json
 from pathlib import Path
 import tempfile
@@ -6,6 +7,19 @@ import unittest
 from unittest.mock import patch
 
 import governed_azure_speech as az
+
+# The price check has its own test; every other test is about something else and
+# must not start failing on the day the checked price lapses.
+_price_is_current = patch.object(az, "VALID_THROUGH", datetime.date.max)
+
+
+def setUpModule():
+    _price_is_current.start()
+
+
+def tearDownModule():
+    _price_is_current.stop()
+
 
 KW = dict(workspace="synthetic-job", revision="v1", dictionary_revision="v1",
           voice="en-US-GuyNeural", style="friendly")
