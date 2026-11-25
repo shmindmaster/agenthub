@@ -7,9 +7,9 @@
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$specPath = Join-Path $repoRoot 'registry\inference-providers.json'
-$catalogPath = Join-Path $repoRoot 'scripts\daytona-inference\catalog.json'
-$syncScript = Join-Path $repoRoot 'scripts\Sync-InferenceProviders.ps1'
+$specPath = Join-Path $repoRoot 'registry' 'inference-providers.json'
+$catalogPath = Join-Path $repoRoot 'scripts' 'daytona-inference' 'catalog.json'
+$syncScript = Join-Path $repoRoot 'scripts' 'Sync-InferenceProviders.ps1'
 
 function Assert-True([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw "ASSERTION FAILED: $Message" }
@@ -36,7 +36,7 @@ Assert-True ($catalog.roles.specialist.profiles.H200.snapshotName -eq 'agenthub-
 Assert-True ($catalog.roles.flagship.profiles.H200.snapshotName -eq 'agenthub-llama-cuda-h200') 'H200 flagship snapshotName mismatch'
 
 foreach ($recipeFile in @('serve-vllm-cuda.sh', 'serve-vllm-rocm-gfx950.sh')) {
-    $recipeText = Get-Content -LiteralPath (Join-Path $repoRoot "scripts\daytona-inference\recipes\$recipeFile") -Raw -Encoding UTF8
+    $recipeText = Get-Content -LiteralPath (Join-Path $repoRoot 'scripts' 'daytona-inference' 'recipes' $recipeFile) -Raw -Encoding UTF8
     Assert-True ($recipeText -match 'caches/vllm-') "$recipeFile must restore persisted vLLM JIT caches"
     Assert-True ($recipeText -match 'overlay2') "$recipeFile must include Sysbox overlay2 symlink workaround"
 }
@@ -178,32 +178,32 @@ $sentinelKey = 'synthetic-sentinel-key-never-print-9999'
 
 try {
     $dirs = @(
-        "$fakeHome\.config\opencode",
-        "$fakeHome\.codex",
-        "$fakeHome\.factory",
-        "$fakeHome\.grok",
-        "$fakeHome\.copilot",
-        "$fakeRoaming\Code - Insiders\User",
-        "$fakeHome\.config\kilo",
-        "$fakeHome\.cline\data\settings",
-        "$fakeHome\.zcode\v2"
+        "$fakeHome/.config/opencode",
+        "$fakeHome/.codex",
+        "$fakeHome/.factory",
+        "$fakeHome/.grok",
+        "$fakeHome/.copilot",
+        "$fakeRoaming/Code - Insiders/User",
+        "$fakeHome/.config/kilo",
+        "$fakeHome/.cline/data/settings",
+        "$fakeHome/.zcode/v2"
     )
     foreach ($d in $dirs) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
 
-    [IO.File]::WriteAllText("$fakeHome\.config\opencode\opencode.json", (@{
+    [IO.File]::WriteAllText("$fakeHome/.config/opencode/opencode.json", (@{
         model = 'qwen-token-plan/qwen3.8-max'
         small_model = 'qwen-token-plan/qwen3.8-flash'
         providers = @{ 'qwen-token-plan' = @{ name = 'Qwen Token Plan' } }
         agents = @{ title = @{ model = 'qwen-token-plan/qwen3.8-flash' } }
     } | ConvertTo-Json -Depth 10))
 
-    [IO.File]::WriteAllText("$fakeHome\.codex\config.toml", "forced_login_method = `"chatgpt`"`nmodel = `"gpt-6.2-sol`"`n")
-    [IO.File]::WriteAllText("$fakeHome\.factory\settings.json", (@{ model = $null; customModels = @(@{ model = 'qwen4-max-preview'; baseUrl = 'https://example.invalid/v1' }) } | ConvertTo-Json -Depth 10))
-    [IO.File]::WriteAllText("$fakeHome\.grok\config.toml", "[models]`ndefault = `"grok-4`"`n`n[model.daytona-specialist]`nmodel = `"agent-specialist`"`nname = `"Old Daytona Specialist`"`n")
-    [IO.File]::WriteAllText("$fakeRoaming\Code - Insiders\User\chatLanguageModels.json", (@(@{ name = 'Copilot'; vendor = 'copilot' }, @{ name = 'Daytona H200'; vendor = 'customendpoint'; models = @() }) | ConvertTo-Json -Depth 10))
-    [IO.File]::WriteAllText("$fakeHome\.config\kilo\kilo.jsonc", (@{ model = 'mimo/mimo-v2.6-pro'; provider = @{ mimo = @{ name = 'MiMo' } } } | ConvertTo-Json -Depth 10))
-    [IO.File]::WriteAllText("$fakeHome\.cline\data\settings\providers.json", (@{ version = 1; lastUsedProvider = 'cline'; providers = @{ cline = @{ settings = @{ auth = @{ accessToken = 'tok-keep' } } } } } | ConvertTo-Json -Depth 10))
-    [IO.File]::WriteAllText("$fakeHome\.zcode\v2\provider_config.json", (@{ schemaVersion = 1; config = @{ providerOrder = @('account:zai-start-plan', 'daytona-turbo-heretic-q6'); providerConfigRules = @{ providerRules = @(@{ providerId = 'account:zai-start-plan'; config = @{ modelOrder = @('GLM-5.4') } }, @{ providerId = 'daytona-turbo-heretic-q6'; config = @{ modelOrder = @('old') } }) } } } | ConvertTo-Json -Depth 10))
+    [IO.File]::WriteAllText("$fakeHome/.codex/config.toml", "forced_login_method = `"chatgpt`"`nmodel = `"gpt-6.2-sol`"`n")
+    [IO.File]::WriteAllText("$fakeHome/.factory/settings.json", (@{ model = $null; customModels = @(@{ model = 'qwen4-max-preview'; baseUrl = 'https://example.invalid/v1' }) } | ConvertTo-Json -Depth 10))
+    [IO.File]::WriteAllText("$fakeHome/.grok/config.toml", "[models]`ndefault = `"grok-4`"`n`n[model.daytona-specialist]`nmodel = `"agent-specialist`"`nname = `"Old Daytona Specialist`"`n")
+    [IO.File]::WriteAllText("$fakeRoaming/Code - Insiders/User/chatLanguageModels.json", (@(@{ name = 'Copilot'; vendor = 'copilot' }, @{ name = 'Daytona H200'; vendor = 'customendpoint'; models = @() }) | ConvertTo-Json -Depth 10))
+    [IO.File]::WriteAllText("$fakeHome/.config/kilo/kilo.jsonc", (@{ model = 'mimo/mimo-v2.6-pro'; provider = @{ mimo = @{ name = 'MiMo' } } } | ConvertTo-Json -Depth 10))
+    [IO.File]::WriteAllText("$fakeHome/.cline/data/settings/providers.json", (@{ version = 1; lastUsedProvider = 'cline'; providers = @{ cline = @{ settings = @{ auth = @{ accessToken = 'tok-keep' } } } } } | ConvertTo-Json -Depth 10))
+    [IO.File]::WriteAllText("$fakeHome/.zcode/v2/provider_config.json", (@{ schemaVersion = 1; config = @{ providerOrder = @('account:zai-start-plan', 'daytona-turbo-heretic-q6'); providerConfigRules = @{ providerRules = @(@{ providerId = 'account:zai-start-plan'; config = @{ modelOrder = @('GLM-5.4') } }, @{ providerId = 'daytona-turbo-heretic-q6'; config = @{ modelOrder = @('old') } }) } } } | ConvertTo-Json -Depth 10))
 
     $prevKey = $env:AGENTHUB_INFERENCE_KEY
     $env:AGENTHUB_INFERENCE_KEY = $sentinelKey
@@ -223,30 +223,30 @@ try {
         }
 
         # Verify preserved defaults
-        $oc = Get-Content "$fakeHome\.config\opencode\opencode.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+        $oc = Get-Content "$fakeHome/.config/opencode/opencode.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True ($oc.model -eq 'qwen-token-plan/qwen3.8-max') 'OpenCode default model changed'
         Assert-True ($oc.small_model -eq 'qwen-token-plan/qwen3.8-flash') 'OpenCode small_model changed'
 
-        $codexCfg = Get-Content "$fakeHome\.codex\config.toml" -Raw -Encoding UTF8
+        $codexCfg = Get-Content "$fakeHome/.codex/config.toml" -Raw -Encoding UTF8
         Assert-True ($codexCfg -notmatch '\[profiles\.daytona-') 'Codex config.toml must not contain inline [profiles.daytona-*]'
         foreach ($p in @('daytona-fast', 'daytona-specialist', 'daytona-vision', 'daytona-turbo', 'daytona-flagship')) {
-            Assert-True (Test-Path -LiteralPath "$fakeHome\.codex\$p.config.toml") "Missing standalone Codex profile $p.config.toml"
+            Assert-True (Test-Path -LiteralPath "$fakeHome/.codex/$p.config.toml") "Missing standalone Codex profile $p.config.toml"
         }
 
-        $cl = Get-Content "$fakeHome\.cline\data\settings\providers.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+        $cl = Get-Content "$fakeHome/.cline/data/settings/providers.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True ($cl.lastUsedProvider -eq 'cline') 'Cline lastUsedProvider changed'
         Assert-True ($cl.providers.cline.settings.auth.accessToken -eq 'tok-keep') 'Cline OAuth token altered'
         Assert-True ($cl.providers.'openai-compatible'.settings.baseUrl -eq 'https://inference.shtrial.com/v1') 'Cline openai-compatible baseUrl mismatch'
 
-        $grokCfg = Get-Content "$fakeHome\.grok\config.toml" -Raw -Encoding UTF8
+        $grokCfg = Get-Content "$fakeHome/.grok/config.toml" -Raw -Encoding UTF8
         Assert-True ($grokCfg -notmatch '\[model\.daytona-specialist\]') 'Legacy Grok [model.daytona-specialist] must be pruned'
         Assert-True ($grokCfg -match 'Qwen3\.8 27B Uncensored FP8') 'Grok display names must include uncensored checkpoint label'
 
-        $vscCfg = Get-Content "$fakeRoaming\Code - Insiders\User\chatLanguageModels.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+        $vscCfg = Get-Content "$fakeRoaming/Code - Insiders/User/chatLanguageModels.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True (@($vscCfg | Where-Object { $_.name -eq 'Daytona H200' }).Count -eq 0) 'Legacy VS Code Daytona H200 group must be pruned'
         Assert-True (@($vscCfg | Where-Object { $_.name -eq 'Copilot' }).Count -eq 1) 'Copilot group in VS Code must be preserved'
 
-        $zcCfg = Get-Content "$fakeHome\.zcode\v2\provider_config.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+        $zcCfg = Get-Content "$fakeHome/.zcode/v2/provider_config.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True ($zcCfg.config.providerOrder -notcontains 'daytona-turbo-heretic-q6') 'Legacy ZCode providerOrder entry must be pruned'
         Assert-True ($zcCfg.config.providerOrder -contains 'account:zai-start-plan') 'ZCode account:zai-start-plan must be preserved'
     }
