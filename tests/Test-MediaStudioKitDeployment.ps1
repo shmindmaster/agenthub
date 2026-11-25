@@ -13,6 +13,13 @@ try {
     # A stale copy of a retired local-AI owner-voice helper left by an earlier sync is removed, not reported unmanaged.
     New-Item -ItemType Directory -Force -Path $shared | Out-Null
     foreach ($name in $retiredOwnerVoice) { Set-Content -LiteralPath (Join-Path $shared $name) -Value '# stale' -Encoding ascii }
+    # CORE-136: the Azure render job and the Qwen queue clock left by an earlier sync are removed too.
+    $retiredKit = @('cloud-render.mjs', 'blob.mjs', 'worker.mjs', 'recast-run.mjs', 'chunk-render.mjs', 'Provision-CloudRender.ps1' | ForEach-Object { Join-Path (Join-Path $runtimeKit 'cloud') $_ }) +
+        @((Join-Path (Join-Path $runtimeKit 'screencast') 'queue-qwen-alignment-clock.mjs'), (Join-Path $shared 'queue-qwen-alignment-clock.mjs'))
+    foreach ($path in $retiredKit) {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $path) | Out-Null
+        Set-Content -LiteralPath $path -Value '// stale' -Encoding ascii
+    }
     # Capture warnings and host output: a deployed helper missing from the managed list is reported as unmanaged.
     $firstSync = (& (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -RuntimeKit $runtimeKit 3>&1 6>&1 | Out-String)
     if ($firstSync -match 'unmanaged entries') { throw "A deployed entry is reported unmanaged: $firstSync" }
@@ -20,6 +27,10 @@ try {
     foreach ($name in $retiredOwnerVoice) {
         if (Test-Path -LiteralPath (Join-Path (Join-Path $package 'scripts') $name)) { throw "Retired local-AI helper is back in the package: $name" }
         if (Test-Path -LiteralPath (Join-Path $shared $name)) { throw "Retired local-AI helper is still deployed: $name" }
+        $checks++
+    }
+    foreach ($path in $retiredKit) {
+        if (Test-Path -LiteralPath $path) { throw "Retired media-studio file is still deployed: $path" }
         $checks++
     }
     $syncSource = Get-Content -LiteralPath (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -Raw -Encoding utf8

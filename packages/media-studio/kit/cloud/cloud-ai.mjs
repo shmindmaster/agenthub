@@ -74,7 +74,7 @@ class TimedOut extends Error {}
 // Sending comes on top: image and WAV bodies reach tens of MB, allowed for at 2 Mbit/s.
 const REPLY_MS = 300_000;
 const UPLOAD_BYTES_PER_MS = 250;
-const SMALL_REQUEST_MS = 120_000; // listing models, submitting or reading a transcript; the same bound as blob.mjs
+const SMALL_REQUEST_MS = 120_000; // listing models, submitting or reading a transcript
 export const callDeadlineMs = (bytes) => REPLY_MS + Math.ceil(bytes / UPLOAD_BYTES_PER_MS);
 
 /** One bounded HTTP exchange: the deadline covers connecting, sending and reading the whole body. */

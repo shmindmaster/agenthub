@@ -176,7 +176,7 @@ spoken keywords land on (for the sync gate); `sfx[].cue` is `start`, `end`, `at:
 
 The brand file (`brand.schema.json`) holds colors, fonts (files are loaded in the composition), safe zones per ratio,
 `forbiddenNames` (prospects, customers, partners, competitors), extra `bannedPhrases`, cumulative and per-run `budgets`,
-loudness targets, the vision and image models, the timing provider, the demo URL, the delivery folder and its
+loudness targets, the vision and image models, the demo URL, the delivery folder and its
 `reservedNumbers`.
 
 ## Stages (each cached by the hash of its inputs; `--force` ignores caches)

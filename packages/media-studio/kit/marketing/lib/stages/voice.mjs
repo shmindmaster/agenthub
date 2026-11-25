@@ -1,5 +1,5 @@
 // Stage 2: voice. One file per narrated beat; ElevenLabs (governed ledger, request stitching), OpenAI
-// OpenAI speech (instructions) or an injected local voice (Local AI is off: the default refuses). Cached by
+// speech (instructions) or an imported narration. Cached by
 // (text, voice, model, settings, neighbors), so an unchanged line never costs twice. A beat's `voiceTake` (1, 2, …) asks
 // for a fresh take of that one line (a new key and ledger revision) after a listen or review rejects the delivery.
 import { copyFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
@@ -12,7 +12,7 @@ import { fileSha, hashOf, readJson, sha256, writeJson } from '../util.mjs';
 
 const AUDIO_EXT = new Set(['.wav', '.mp3', '.m4a']);
 
-/** The cost-ledger provider a voice line is recorded under, or null when the voice has none (a retired local voice). */
+/** The cost-ledger provider a voice line is recorded under, or null for an unknown provider. */
 export function ledgerProvider(v) {
   if (v.provider === 'import') return v.source;
   return v.provider === 'elevenlabs' || v.provider === 'openai' ? v.provider : null;
