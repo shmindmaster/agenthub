@@ -487,8 +487,8 @@ for (const listed of plansListed) {
         }
         return top;
       };
-      const quiet = (() => { for (let d = 0.3; d <= 1.3; d += 0.05) { const a = M.cameraAt(plan.camera, c.t + d - 0.5 / fps, g), b = M.cameraAt(plan.camera, c.t + d + 0.5 / fps, g); const cs = M.stateAt(plan, c.t + d).cursor; if (Math.hypot((a.cx - b.cx) * a.z, (a.cy - b.cy) * a.z, (a.z - b.z) * g.W / 2) < 1.5 && (!cs || Math.hypot(cs.vx, cs.vy) < 60)) return c.t + d; } return c.t + 0.4; })();
-      const dip = best(Math.round((c.t + 0.15 * 0.35) * fps) / fps), rest = best(quiet);
+      const quiet = (() => { for (let d = 0.17; d <= 1.3; d += 0.03) { const a = M.cameraAt(plan.camera, c.t + d - 0.5 / fps, g), b = M.cameraAt(plan.camera, c.t + d + 0.5 / fps, g); const cs = M.stateAt(plan, c.t + d).cursor; if (Math.hypot((a.cx - b.cx) * a.z, (a.cy - b.cy) * a.z, (a.z - b.z) * g.W / 2) < 1.5 && (!cs || Math.hypot(cs.vx, cs.vy) < 60)) return c.t + d; } return null; })(); // no quiet moment before the next move: the return to full size is not measurable for this press
+      const dip = best(Math.round((c.t + 0.15 * 0.35) * fps) / fps), rest = quiet === null ? null : best(quiet);
       rows.push({ label: c.label, t: c.t, dipScale: dip && r2(dip.scale), restScale: rest && r2(rest.scale) });
       if (dip && !(dip.scale >= LIMITS.pressScale[0] && dip.scale <= LIMITS.pressScale[1])) fail(`run ${listed.run}: the cursor at the press of "${c.label}" (${c.t}s) measures ${r2(dip.scale)} of its size, not about 0.9: no press response`);
       if (rest && !(rest.scale >= 0.93 && rest.scale <= 1.06 && (!dip || rest.scale - dip.scale >= 0.03))) fail(`run ${listed.run}: the cursor does not return to full size after the press of "${c.label}" (${r2(rest.scale)})`);

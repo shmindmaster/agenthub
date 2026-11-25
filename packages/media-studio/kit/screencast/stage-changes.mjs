@@ -40,7 +40,9 @@ export function changedBoxes(a, b, viewport, { gridW = CHANGES.gridW, gridH = CH
       }
     }
     if (n < CHANGES.minCells) continue;
-    boxes.push({ x: x0 * cw / sx, y: y0 * ch / sy, w: (x1 - x0 + 1) * cw / sx, h: (y1 - y0 + 1) * ch / sy });
+    // the last row or column of cells may run past the page: clamp to it
+    const bx = x0 * cw / sx, by = y0 * ch / sy;
+    boxes.push({ x: bx, y: by, w: Math.min(viewport.width, (x1 + 1) * cw / sx) - bx, h: Math.min(viewport.height, (y1 + 1) * ch / sy) - by });
   }
   return boxes;
 }

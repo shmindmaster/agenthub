@@ -73,6 +73,10 @@ cp "$J"/capture/raw/S01/frames.json "$OUT/frames.json"
 # a few source frames for the sharpness comparison against the zoomed stills
 cp "$J/capture/raw/S01/frames.json" "$OUT/frames.json"
 for f in $(ls "$J/capture/raw/S01/frames" | sed -n '1p;8p;16p;24p;33p'); do cp "$J/capture/raw/S01/frames/$f" "$OUT/frames/"; done
+# text-edge sharpness: the film at rest against the capture resampled to the same geometry (zoomed holds and the unzoomed opening)
+step "sharpness"
+TIMES=$(node -e "const p=JSON.parse(require('fs').readFileSync('$J/output/$BASE-stage-plan-0.json','utf8'));const s=p.camera.segments;const t=[0.1];s.forEach((g,i)=>{const n=i+1<s.length?s[i+1].t0:p.runSeconds;if(n-g.t0>1.2)t.push(+(g.t0+Math.min(1.0,(n-g.t0)/2)).toFixed(2));});console.log(t.join(' '))")
+node "$R/tests/fixtures/screen-stage/sharpness.mjs" "$J/output/$BASE-silent.mp4" "$J/output/$BASE-stage-plan-0.json" "$J/capture/raw/S01/frames" $TIMES > "$OUT/sharpness.json" 2> "$OUT/sharpness.err"; echo "sharpness exit $?"
 # click sounds: the effects stem (one synthesised click or tap per drawn press) muxed onto the silent film, and the music-bed rule
 step "click sounds"
 node "$R/kit/screencast/stage-effects.mjs" "$J" "$BASE" > "$OUT/effects.log" 2>&1; echo "stage-effects exit $?"
