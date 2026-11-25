@@ -633,8 +633,7 @@ exit (Invoke-DevinCloudMain -Action create -Prompt 'race' -RunId `$env:RACE_RUN 
         Where-Object { [IO.File]::ReadAllText($_.FullName).Contains($syntheticKey) } | ForEach-Object { $_.FullName })
     Check 'the helper writes the key to no file outside its protected cache' ($leaks.Count -eq 0) ($leaks -join '; ')
     $hostsDoc = [IO.File]::ReadAllText((Join-Path $dispatchDir 'references\hosts.md'))
-    $planDoc = [IO.File]::ReadAllText((Join-Path $repoRoot 'docs\plans\active\devin-peer-orchestration.md'))
-    foreach ($doc in @(@{ Name = 'hosts.md'; Text = $hostsDoc }, @{ Name = 'devin-peer-orchestration.md'; Text = $planDoc })) {
+    foreach ($doc in @(@{ Name = 'hosts.md'; Text = $hostsDoc })) {
         Check "$($doc.Name) uses the documented Linear wording" ($doc.Text -match 'Assign the ticket to Devin' -and $doc.Text -notmatch 'delegate to the "Devin" app user') ''
         Check "$($doc.Name) says the MCP lane is not capped by the adapter and names only documented limits" ($doc.Text -match 'enforced only by the dispatcher adapter' -and $doc.Text -match 'admin/billing/org-acu-limits' -and $doc.Text -match 'admin/billing/user-acu-limits' -and $doc.Text -match 'max_session_acu_limit' -and $doc.Text -match 'not yet set' -and $doc.Text -notmatch 'default session spending limit') ''
         Check "$($doc.Name) documents the wait exit codes and -After" ($doc.Text -match '-After' -and $doc.Text -match 'exit 4|exits 4') ''

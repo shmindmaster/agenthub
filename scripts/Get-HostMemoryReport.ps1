@@ -6,8 +6,7 @@ leftovers, for the moment the machine feels slow.
 
 .DESCRIPTION
 Owner direction 2026-10-28: memory problems keep coming back, and the cause is
-process sprawl, not one bad process. Measured that day (docs/ops/
-host-memory-audit-2026-10-28.md): five Claude Code CLIs at about 650 MB private
+process sprawl, not one bad process. Measured that day: five Claude Code CLIs at about 650 MB private
 each, a Codex desktop app that grew from 5.3 to 8.8 GB working set in 20
 minutes because every loaded thread and every nested app-server started its own
 copy of every stdio MCP server, and Playwright CLI daemons that outlived the

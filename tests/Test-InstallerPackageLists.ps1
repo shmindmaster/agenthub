@@ -6,7 +6,7 @@ A hardcoded list fails by omission: a capability is registered, every host that
 reads the registry receives it, and Amp quietly never does. Nothing fails
 at the time, and the gap surfaces later as a host that cannot do work its
 registry row says it can. Warp carried the same guard until it was decommissioned
-on 2026-11-19 (docs/fleet/retired-hosts-2026-10-21.md); a retired host gains no
+on 2026-11-19 (docs/current-state.md); a retired host gains no
 new capability mappings, so its coverage check was removed with its support.
 
 So this asserts each list still covers every capability the registry maps to that

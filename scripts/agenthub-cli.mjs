@@ -2,8 +2,8 @@
 /**
  * Thin cross-platform entry for AgentHub. `doctor` runs in Node
  * (src/doctor) and needs no PowerShell. Every other command resolves
- * pwsh/powershell and delegates to scripts/AgentHub.ps1 (and
- * Export-PublicCore.ps1 for export); lifecycle logic stays in PowerShell.
+ * pwsh/powershell and delegates to scripts/AgentHub.ps1;
+ * lifecycle logic stays in PowerShell.
  */
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -13,7 +13,6 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "..");
 const agentHubPs1 = join(repoRoot, "scripts", "AgentHub.ps1");
-const exportPs1 = join(repoRoot, "scripts", "Export-PublicCore.ps1");
 
 const HELP = `AgentHub — portable control plane for skills, plugins, MCP, and policy
 
@@ -33,7 +32,6 @@ Commands:
   sync --apply         Deploy after validate passes
   drift                Same as sync without --apply
   inventory            List registered hosts / capabilities
-  export <dir>         Write a public-core tree (does not push)
 
 Options:
   --apply              Only for sync
@@ -59,7 +57,7 @@ function findShell() {
   return candidates[0];
 }
 
-const ENGINE_COMMANDS = new Set(["init", "validate", "sync", "drift", "inventory", "export"]);
+const ENGINE_COMMANDS = new Set(["init", "validate", "sync", "drift", "inventory"]);
 
 // -NonInteractive makes any prompt in a delegated script fail instead of
 // waiting on stdin, so an unattended or piped run cannot hang.
@@ -114,26 +112,6 @@ async function main() {
   }
 
   const shell = findShell();
-
-  if (command === "export") {
-    const dest = rest.find((a) => !a.startsWith("-"));
-    if (!dest) {
-      console.error("Usage: agenthub export <destination-dir>");
-      process.exit(2);
-    }
-    if (!existsSync(exportPs1)) {
-      console.error(`Missing ${exportPs1}`);
-      process.exit(1);
-    }
-    const code = await run(shell, [
-      "-NoProfile",
-      "-File",
-      exportPs1,
-      "-Destination",
-      dest,
-    ]);
-    process.exit(code);
-  }
 
   const psArgs = ["-NoProfile", "-File", agentHubPs1, command];
   if (apply && (command === "sync" || command === "drift")) {

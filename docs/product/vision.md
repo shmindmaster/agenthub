@@ -15,7 +15,7 @@ servers, and policy across all coding-agent hosts in the fleet.
   experience artifacts.
 - The portable control plane is `policy-core.md` plus `registry/` templates.
   Owner identity, local runtime roots, and private evidence stay in
-  `overlays/personal/` and are not part of a public-core export.
+  `overlays/personal/` and are never tracked here.
 - Everything generated at runtime lives under `%LOCALAPPDATA%\AgentHub`.
 - Local AI runtimes, models, caches, and media live only under `D:\Local-AI`.
 
