@@ -609,8 +609,8 @@
         "status": "keep-read-only",
         "owner": "portfolio",
         "surface": "claude.ai account connector (ElevenLabs Creative, voice and speech only)",
-        "defaultStep": "Read-only discovery: voices, workspace, account and model inventory. Every paid generation stays on the governed CLI (packages/elevenlabs/scripts/elevenlabs_cli.py) and its shared ledger; the connector never generates.",
-        "referencedBy": "retired with packages/elevenlabs on 2026-10-30 at owner direction",
+        "defaultStep": "Read-only discovery: voices, workspace, account and model inventory. Every paid generation stays on the governed CLI (packages/media-studio/scripts/elevenlabs_cli.py) and its shared ledger; the connector never generates.",
+        "referencedBy": "retired with packages/elevenlabs on 2026-10-30 at owner direction; its governed CLI owner is packages/media-studio/scripts/elevenlabs_cli.py",
         "live": true,
         "liveEvidence": "2026-10-21: creative_list_voices returned 25 voices with has_more; its connector_notice states it covers voice and speech only and refuses image, video and music nodes."
       },
@@ -831,7 +831,7 @@
             "installedVersion": null,
             "current": false,
             "updateCommand": "npx skills add cline/skills --global --skill desktop-commander-overview --agent cline --yes",
-            "note": "The shared copy matches upstream. Cline also has a separate host-local copy with differing content; effective discovery and local provenance still need verification."
+            "note": "Whether the shared copy matches upstream is not established: installedVersion is null and current is false. Cline also has a separate host-local copy with differing content; effective discovery and local provenance still need verification."
           }
         ]
       },
@@ -1093,8 +1093,8 @@
             "channel": "upstream-skills-and-remote-mcp",
             "installedVersion": "1.0.0",
             "current": true,
-            "updateCommand": "python scripts/Install-ClerkFleet.py --apply --host warp",
-            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified."
+            "updateCommand": "python scripts/Install-ClerkFleet.py --apply",
+            "note": "2026-11-04 filesystem readback: all 20 official SKILL.md texts match upstream commit 1e92b7d15015fb53ada5f466463bcc49ad4a777a after line-ending normalization; exact official remote URL configured. Host loading and OAuth are unverified. Warp was retired 2026-11-19 (inactiveAgents), so the installer now refuses --host warp; the plain --apply updates the active hosts and skips it."
           },
           {
             "hostId": "vscode-insiders",
@@ -1223,7 +1223,7 @@
           "audio.elevenlabs"
         ],
         "required": false,
-        "note": "Official product skills complement the host-native ElevenLabs OAuth connector. AgentHub packages/elevenlabs owns fleet routing, credit checks and the shared REST fallback. Existing owner-approved hosted clones retain integrity and ASR gates and local fallback; speaker identity is advisory only (owner direction 2026-10-27). Do not vendor this catalog or install a redundant local MCP.",
+        "note": "Official product skills complement the host-native ElevenLabs OAuth connector. packages/media-studio/scripts/elevenlabs_cli.py owns fleet routing, credit checks and the shared REST fallback. Existing owner-approved hosted clones retain integrity and ASR gates and local fallback; speaker identity is advisory only (owner direction 2026-10-27). Do not vendor this catalog or install a redundant local MCP.",
         "observedAt": "2026-08-24",
         "hostChannels": [
           {
@@ -1468,7 +1468,7 @@
           "video.programmatic-composition"
         ],
         "required": false,
-        "note": "AgentHub packages request video.programmatic-composition; hosts resolve to Remotion upstream skills (remotion-best-practices is a router over create/markup/studio/render/captions). Do not vendor Remotion rules into AgentHub. Install: npx skills add remotion-dev/skills. Official plugins also exist for Claude, Codex, and Cursor (remotion.dev/plugins). Installed 2026-08-25 globally to ~/.agents/skills and Grok (~/.grok/skills symlink) plus Cursor junctions. Claude and Codex remain owner-installed (hostPrivateExtensionPolicy).",
+        "note": "AgentHub packages request video.programmatic-composition; hosts resolve to Remotion upstream skills (remotion-best-practices is a router over create/markup/studio/render/captions). Do not vendor Remotion rules into AgentHub. Install: npx skills add remotion-dev/skills. Official plugins also exist for Claude, Codex, and Cursor (remotion.dev/plugins). Installed 2026-08-25 globally to ~/.agents/skills and Grok (~/.grok/skills symlink) plus Cursor junctions. Claude and Codex remain owner-installed (hostPrivateExtensionPolicy). This skills package is optional (required is false). The Remotion npm libraries pinned in packages/media-studio/kit/package.json are a separate dependency that the media-studio render path requires; installing these skills does not provide them.",
         "observedAt": "2026-08-25",
         "hostChannels": [
           {

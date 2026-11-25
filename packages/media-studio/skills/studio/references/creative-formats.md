@@ -92,6 +92,13 @@ traditional advertising CTA into a non-marketing documentary.
 montage or music-led arc may replace literal character/obstacle/solution
 beats; assess it against *its own intended experience*.
 
+**Business engagement film:** a pitch video, proposal video, steering committee
+update, kickoff video, final readout or value review is a decision film for a named
+audience. Use the matching `communicationProfile` and
+[engagement formats](engagement-formats.md). Concept scenes and projections stay labelled as
+proposed or illustrative; a number needs a measured source. It needs no product capture
+unless the brief shows a real tracker or product.
+
 ## Story and picture quality
 
 Brief → treatment → beat map → script → shot plan → approved assets →
@@ -133,3 +140,7 @@ prices, add a governed adapter, check receipts and review output
 before claiming the route is production-ready. Realistic unblurred
 generated images can be authored by an eligible image model; generated
 video requires a real video integration or accepted external source.
+
+## Treatments
+
+For concrete openings, picture grammar, closings, vertical and localization rules per format, and series rotation, see [treatments](treatments.md).

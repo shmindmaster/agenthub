@@ -79,6 +79,6 @@ Use `references/voice-recipes.md` to select one voice per film or series. Stock 
 - `scripts/route_media.py --catalog`: Run first when planning any generation; it prints every lane, scripted or by hand, with mode, cost and how.
 - `references/stills.md`: Read when a scene needs a generated photograph: quote, lanes, cache, ledger.
 - `references/irukadark.md`: Read when a scene needs a generated clip (approved hero shot) or a by-hand picture or track from IrukaDark.
-- `../capture/references/abacare-lexicon.json`: Read when pronouncing ABACare film names.
+- `abacare-lexicon.json`: Read when pronouncing ABACare film names.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](generate-detail.md)

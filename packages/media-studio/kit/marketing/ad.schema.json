@@ -4,19 +4,26 @@
   "description": "One ad spec file in, gated 16:9 / 4:5 / 9:16 ads out. Written within the JSON-Schema subset lib/schema.mjs validates.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "title", "product", "audience", "objective", "voice", "claims", "labels", "cta"],
+  "required": ["id", "title", "product", "audience", "objective", "voice", "claims", "labels"],
   "anyOf": [
     { "required": ["ratios", "targetSeconds", "beats"] },
     { "required": ["cuts"] }
   ],
   "properties": {
-    "communicationProfile": {"enum": ["consulting-demo", "technical-walkthrough", "product-update"]},
+    "communicationProfile": {"enum": ["consulting-demo", "technical-walkthrough", "product-update", "pitch", "proposal", "status-update", "kickoff", "final-readout", "value-review"]},
+    "cadence": {"enum": ["weekly", "steering"]},
+    "rag": {"enum": ["red", "amber", "green"]},
+    "ragSince": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "statusDate": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "risks": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["description", "owner", "impact", "mitigation"], "properties": {"description": {"type": "string", "minLength": 1}, "owner": {"type": "string", "minLength": 1}, "impact": {"type": "string", "minLength": 1}, "mitigation": {"type": "string", "minLength": 1}}}},
+    "decisions": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["decision", "owner", "dueDate"], "properties": {"decision": {"type": "string", "minLength": 1}, "owner": {"type": "string", "minLength": 1}, "dueDate": {"type": ["string", "null"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}}},
     "primaryAudience": {"type": "string", "minLength": 1},
     "viewerDecision": {"type": "string", "minLength": 1},
     "primaryTakeaway": {"type": "string", "minLength": 1},
     "audienceContext": {"type": "object", "additionalProperties": false, "required": ["problemStatus", "sourceRefs"], "properties": {"problemStatus": {"enum": ["confirmed-discovery", "hypothesis", "fictional-scenario"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
     "nextStep": {"type": "object", "additionalProperties": false, "required": ["action", "owner", "agreedDate"], "properties": {"action": {"type": "string", "minLength": 1}, "owner": {"type": "string", "minLength": 1}, "agreedDate": {"type": ["string", "null"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
     "maxDurationSeconds": {"type": "number", "minimum": 1},
+    "finalHoldSeconds": {"type": "number", "minimum": 0, "maximum": 30},
     "captionPolicy": {"type": "object", "additionalProperties": false, "required": ["mode", "deliverySurface"], "properties": {"mode": {"enum": ["selectable", "open", "sidecar"]}, "deliverySurface": {"type": "string", "minLength": 1}}},
     "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
     "scenarioRecord": {"type": "string", "minLength": 1},
@@ -48,13 +55,20 @@
         "type": "object", "additionalProperties": false,
         "required": ["id", "ratios", "targetSeconds", "beats"],
         "properties": {
-          "communicationProfile": {"enum": ["consulting-demo", "technical-walkthrough", "product-update"]},
+          "communicationProfile": {"enum": ["consulting-demo", "technical-walkthrough", "product-update", "pitch", "proposal", "status-update", "kickoff", "final-readout", "value-review"]},
+          "cadence": {"enum": ["weekly", "steering"]},
+          "rag": {"enum": ["red", "amber", "green"]},
+          "ragSince": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+          "statusDate": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+          "risks": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["description", "owner", "impact", "mitigation"], "properties": {"description": {"type": "string", "minLength": 1}, "owner": {"type": "string", "minLength": 1}, "impact": {"type": "string", "minLength": 1}, "mitigation": {"type": "string", "minLength": 1}}}},
+          "decisions": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["decision", "owner", "dueDate"], "properties": {"decision": {"type": "string", "minLength": 1}, "owner": {"type": "string", "minLength": 1}, "dueDate": {"type": ["string", "null"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}}},
           "primaryAudience": {"type": "string", "minLength": 1},
           "viewerDecision": {"type": "string", "minLength": 1},
           "primaryTakeaway": {"type": "string", "minLength": 1},
           "audienceContext": {"type": "object", "additionalProperties": false, "required": ["problemStatus", "sourceRefs"], "properties": {"problemStatus": {"enum": ["confirmed-discovery", "hypothesis", "fictional-scenario"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
           "nextStep": {"type": "object", "additionalProperties": false, "required": ["action", "owner", "agreedDate"], "properties": {"action": {"type": "string", "minLength": 1}, "owner": {"type": "string", "minLength": 1}, "agreedDate": {"type": ["string", "null"]}, "sourceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
           "maxDurationSeconds": {"type": "number", "minimum": 1},
+          "finalHoldSeconds": {"type": "number", "minimum": 0, "maximum": 30},
           "captionPolicy": {"type": "object", "additionalProperties": false, "required": ["mode", "deliverySurface"], "properties": {"mode": {"enum": ["selectable", "open", "sidecar"]}, "deliverySurface": {"type": "string", "minLength": 1}}},
           "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
           "scenarioRecord": {"type": "string", "minLength": 1},
@@ -95,6 +109,7 @@
     },
     "beats": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/beat" } },
     "cta": {
+      "description": "The one ask. Required by the lint for a film that sells (filmType product-marketing or founder-pitch) and for a spec that declares no filmType; optional for the other declared film types.",
       "type": "object", "additionalProperties": false,
       "required": ["text", "url"],
       "properties": {
@@ -127,7 +142,11 @@
       "type": "object", "additionalProperties": false,
       "properties": {
         "elevenlabsCredits": { "type": "integer", "minimum": 0 },
-        "openaiUsd": { "type": "number", "minimum": 0 }
+        "openaiUsd": { "type": "number", "minimum": 0 },
+        "assemblyaiUsd": { "type": "number", "minimum": 0 },
+        "deepgramUsd": { "type": "number", "minimum": 0 },
+        "runwareUsd": { "type": "number", "minimum": 0 },
+        "azureUsd": { "type": "number", "minimum": 0 }
       }
     },
     "edit": {
@@ -150,7 +169,7 @@
         "storyMin": { "type": "number", "minimum": 0, "maximum": 100 },
         "visionEverySeconds": { "type": "number", "minimum": 0.5, "maximum": 5 },
         "loudness": { "enum": ["social", "web"] },
-        "required": { "type": "array", "items": { "enum": ["picture", "integrity", "pointer", "frameIntegrity", "captions", "loudness", "sync", "listen", "vision", "marketing", "story", "viewerRelease", "wordSync", "transcript"] } }
+        "required": { "type": "array", "items": { "enum": ["picture", "integrity", "pointer", "frameIntegrity", "captions", "loudness", "sync", "listen", "vision", "marketing", "story", "viewerRelease", "wordSync", "transcript", "finishedFilm"] } }
       }
     },
     "notes": { "type": "array", "items": { "type": "string" } }
@@ -200,7 +219,11 @@
       "type": "object", "additionalProperties": false,
       "required": ["provider", "voiceId", "model"],
       "properties": {
-        "provider": { "enum": ["elevenlabs", "openai", "local"] },
+        "provider": { "enum": ["elevenlabs", "openai", "local", "import"], "description": "import: narration already made by a governed script or recorded by a person, read from voice.manifest (media-studio/narration-import/1). No provider is called and nothing is charged." },
+        "source": { "enum": ["assemblyai", "deepgram", "azure", "openai", "elevenlabs", "recording"], "description": "provider import only: who made the audio. recording is a human recording (not AI-generated); every other source is AI-generated and needs a disclosure." },
+        "manifest": { "type": "string", "minLength": 1, "description": "provider import only: path of the import manifest, relative to the spec folder. Audio files must sit inside the manifest's folder." },
+        "aiGenerated": { "type": "boolean", "description": "provider import only: optional restatement; it must agree with source (false only for a recording)." },
+        "entityException": { "type": "object", "additionalProperties": false, "required": ["reason", "approvedBy"], "description": "provider import only: lets an import whose entity differs from the brand entity proceed; recorded in the ledger note.", "properties": { "reason": { "type": "string", "minLength": 8 }, "approvedBy": { "type": "string", "minLength": 2 } } },
         "voiceId": { "type": "string", "minLength": 2 },
         "name": { "type": "string" },
         "model": { "type": "string", "minLength": 2 },
@@ -232,6 +255,10 @@
       "required": ["id", "kind"],
       "properties": {
         "actionTitle": {"type": "string", "minLength": 12, "maxLength": 160},
+        "section": {"type": "string", "minLength": 1, "description": "The engagement section this scene belongs to. Checked in code against the communicationProfile's own list, not a schema enum."},
+        "options": {"type": "array", "minItems": 2, "maxItems": 3, "items": {"type": "object", "additionalProperties": false, "required": ["label", "recommended"], "properties": {"label": {"type": "string", "minLength": 1}, "recommended": {"type": "boolean"}}}},
+        "assumptions": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "exclusions": {"type": "array", "items": {"type": "string", "minLength": 1}},
         "supportingArgument": {"type": "string", "minLength": 1},
         "proofRefs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
         "evidenceClaims": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["text", "scope", "sourceRefs", "implementationState", "dataType", "aiExecutionMode", "businessValidation"], "properties": {"text": {"type": "string", "minLength": 1}, "scope": {"enum": ["product-behavior", "measured-benefit", "proposed-interface", "customer-priority", "illustrative-scenario"]}, "sourceRefs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}, "implementationState": {"enum": ["implemented", "proposed"]}, "dataType": {"enum": ["synthetic", "customer", "public"]}, "aiExecutionMode": {"enum": ["live", "recorded", "stubbed", "none"]}, "businessValidation": {"enum": ["unvalidated", "measured", "discovery-confirmed"]}, "visibleLabel": {"type": "string", "minLength": 1}, "measurement": {"type": "object", "additionalProperties": false, "required": ["baseline", "comparison", "population", "method", "timeWindow"], "properties": {"baseline": {"type": "string", "minLength": 1}, "comparison": {"type": "string", "minLength": 1}, "population": {"type": "string", "minLength": 1}, "method": {"type": "string", "minLength": 1}, "timeWindow": {"type": "string", "minLength": 1}}}}}},
@@ -283,9 +310,19 @@
         "broll": {
           "type": "object", "additionalProperties": false, "required": ["provider", "prompt"],
           "properties": {
-            "provider": { "enum": ["openai-image", "elevenlabs-video", "stock"] },
+            "provider": { "enum": ["openai-image", "elevenlabs-video", "stock", "import"], "description": "elevenlabs-video has no governed adapter and stock without a file cannot be produced: both fail the lint. import: a still made by a governed script (Runware, Azure) or licensed, supplied as file + sha256." },
             "prompt": { "type": "string", "minLength": 10 },
-            "file": { "type": "string" },
+            "file": { "type": "string", "description": "stock and import: a still image (png, jpg or webp), relative to the spec folder." },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "import: SHA-256 of file." },
+            "source": { "enum": ["runware", "azure", "openai", "licensed"], "description": "import: who made the still." },
+            "model": { "type": "string" },
+            "entityException": { "type": "object", "additionalProperties": false, "required": ["reason", "approvedBy"], "properties": { "reason": { "type": "string", "minLength": 8 }, "approvedBy": { "type": "string", "minLength": 2 } } },
+            "aiGenerated": { "type": "boolean", "description": "import: false only for a licensed image." },
+            "receipt": {
+              "type": "object",
+              "description": "import: provider receipt of the governed run; outputSha256 must equal sha256.",
+              "properties": { "provider": { "type": "string" }, "requestId": { "type": "string" }, "outputSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "usdMicros": { "type": ["integer", "null"] }, "estimated": { "type": "boolean" }, "entity": { "type": "string" } }
+            },
             "quality": { "enum": ["low", "medium", "high"] },
             "depictsProductUI": { "type": "boolean", "description": "True for a synthetic interface or envisioned future software screen. Allowed in concept/vision/hybrid modes; never substituted as measured proof of existing functionality." },
             "actor": {

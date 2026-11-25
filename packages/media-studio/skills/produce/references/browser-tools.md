@@ -1,6 +1,6 @@
 # Browser tools for looking at pages
 
-Read this when you need to look at a web page before scripting a capture, or compare screenshots after a render. Delivered product footage still comes from `skills/capture` (Playwright WebM plus Recast); nothing here replaces it.
+Read this when you need to look at a web page before scripting a capture, or compare screenshots after a render. Delivered product footage still comes from `skills/produce/references/capture.md` (Playwright WebM plus Recast); nothing here replaces it.
 
 ## agent-browser (`vercel-labs/agent-browser`, Apache-2.0)
 

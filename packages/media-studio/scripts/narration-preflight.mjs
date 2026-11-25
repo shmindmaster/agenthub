@@ -285,6 +285,22 @@ async function response(fetcher, url, options = {}) {
   return res;
 }
 
+// A private clone needs an explicit job-scoped approval and live provider consent.
+export function eligibleAssemblyVoice(v, voice, script, now) {
+  const common = v.status === 'active' && v.language === (script.language || 'english') &&
+    v.ready_models?.includes(models.assemblyai);
+  if (!common) return false;
+  if (v.source === 'assemblyai' && v.visibility === 'public') return true;
+  const approvedOwners = new Set(['sarosh-hussain', 'syeda-fatima-abidi']);
+  const approval = Array.isArray(script.privateVoiceApprovals) && script.privateVoiceApprovals.find(a => a && a.voice === voice &&
+    a.entity === script.entity && typeof a.ownerApproval === 'string' && a.ownerApproval.trim());
+  return Boolean(approval && approvedOwners.has(voice) && ['abacare', 'personal'].includes(script.entity) &&
+    v.slug === voice && v.source === 'customer_upload' && v.visibility === 'private' &&
+    v.zone === (script.region ?? 'us') && v.consent?.attested === true &&
+    Number.isFinite(Date.parse(v.consent.attested_at)) && Date.parse(v.consent.attested_at) <= now &&
+    Number.isFinite(Date.parse(v.retention?.expires_at)) && Date.parse(v.retention.expires_at) > now);
+}
+
 async function account(provider, script, snapshot, voices, now, fetcher, key, model = models[provider]) {
   if (!key) return { access: 'missing-key', balance: 'unknown' };
   let access = 'unverified';
@@ -295,9 +311,8 @@ async function account(provider, script, snapshot, voices, now, fetcher, key, mo
       const catalog = await Promise.all(voices.map(async voice =>
         (await response(fetcher, region + '/v1/voices/' + encodeURIComponent(voice),
           { headers: { Authorization: key } })).json()));
-      const language = script.language || 'english';
-      access = catalog.length && catalog.every(v => v.source === 'assemblyai' && v.visibility === 'public' && v.status === 'active' &&
-        v.language === language && v.ready_models?.includes(models[provider])) ? 'verified' : 'voice-ineligible';
+      access = catalog.length && catalog.every((v, i) => eligibleAssemblyVoice(v, voices[i], script, now))
+        ? 'verified' : 'voice-ineligible';
     } else if (provider === 'openai') {
       await response(fetcher, 'https://api.openai.com/v1/models/' + model,
         { headers: { Authorization: 'Bearer ' + key } });

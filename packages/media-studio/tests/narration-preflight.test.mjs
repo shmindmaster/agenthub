@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { executeAssembly, inspectElevenLabs, makeBatches, parseRate, preflight, recoverLedgers, resolveOpenAIKey } from '../scripts/narration-preflight.mjs';
+import { executeAssembly, inspectElevenLabs, eligibleAssemblyVoice, makeBatches, parseRate, preflight, recoverLedgers, resolveOpenAIKey } from '../scripts/narration-preflight.mjs';
 
 const now = Date.parse('2026-11-22T18:30:00Z');
 const env = { ASSEMBLYAI_API_KEY: 'fixture-key', OPENAI_API_KEY: 'openai-fixture', DEEPGRAM_API_KEY: 'dg-fixture' };
@@ -326,4 +326,17 @@ test('renewal prices only missing wallet spend and preserves the cumulative auth
     assert.equal(provider.posts.length, 3);
     assert.equal(provider.posts[2].text, 'b'.repeat(1000));
   } finally { rmSync(parent, { recursive: true, force: true }); }
+});
+
+
+test('private AssemblyAI clone requires scoped approval and current provider consent', () => {
+  const clone = { slug: 'sarosh-hussain', source: 'customer_upload', visibility: 'private', status: 'active', language: 'english', zone: 'us', ready_models: ['assemblyai-tts-1'], consent: { attested: true, attested_at: '2026-11-20T00:00:00Z' }, retention: { expires_at: '2027-01-01T00:00:00Z' } };
+  const approved = { entity: 'abacare', privateVoiceApprovals: [{ voice: 'sarosh-hussain', entity: 'abacare', ownerApproval: 'approved for film' }] };
+  assert.equal(eligibleAssemblyVoice(clone, 'sarosh-hussain', approved, now), true);
+  assert.equal(eligibleAssemblyVoice(clone, 'sarosh-hussain', { entity: 'abacare' }, now), false);
+  assert.equal(eligibleAssemblyVoice(clone, 'other', approved, now), false);
+  assert.equal(eligibleAssemblyVoice({ ...clone, slug: 'other' }, 'other', { ...approved, privateVoiceApprovals: [{ voice: 'other', entity: 'abacare', ownerApproval: 'yes' }] }, now), false);
+  assert.equal(eligibleAssemblyVoice({ ...clone, consent: { attested: false } }, 'sarosh-hussain', approved, now), false);
+  assert.equal(eligibleAssemblyVoice({ ...clone, retention: { expires_at: '2026-11-21T00:00:00Z' } }, 'sarosh-hussain', approved, now), false);
+  assert.equal(eligibleAssemblyVoice(clone, 'sarosh-hussain', { ...approved, entity: 'mahumtech' }, now), false);
 });

@@ -29,8 +29,8 @@ export and authorized cost limits before selecting a worker. Reuse existing
 capacity before provisioning; a particular provider is not automatically faster
 or cheaper.
 
-Use disposable isolated environments for bounded tests and persistent workers
-for long recordings or renders vulnerable to eviction. Pin the source commit,
+Use disposable isolated environments. Split a long recording or render into
+units that survive losing one box, and pull each result back as it finishes. Pin the source commit,
 configuration and synthetic fixture manifest; isolate writable files, databases
 and test resources. Export and verify required artifacts and logs before cleaning
 up task-created compute. These execution preferences do not expand spending or

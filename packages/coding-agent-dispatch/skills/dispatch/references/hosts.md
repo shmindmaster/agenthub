@@ -142,6 +142,8 @@ Factory smokes re-verified 2026-11-14 (SH-4676) through `Invoke-CodingAgent.ps1`
 - A Factory `custom:` id is `custom:` + the BYOK entry's `model` field in `~/.factory/settings.json`, stable under reordering (droid 1.10.0/1.12.1; the earlier "array index suffix" claim was wrong). The canonical entries are reproducible from AgentHub: `packages/coding-agent-dispatch/factory/custom-models.json` + `Install-FactoryCustomModels.ps1` (audit/apply, `${ENV}` key references only, owner-authored entries untouched).
 - A BYOK entry whose `model` field collides with a Factory built-in id (`qwen3.8-max`, `glm-5.3`) gets accounted at the built-in multiplier even though inference goes to the BYOK endpoint; the canonical entries therefore use renamed ids with `extraArgs.model` carrying the real upstream name. Detail: `dispatchPolicy.factory.byokCreditsNote` in `registry/fleet-profile.json`.
 - Qwen Token Plan terms allow AI coding tools only; never call its endpoint from scripts or app backends.
+- Endpoints (Token Plan only; pay-as-you-go endpoints and `sk-` keys are never used): Qwen `https://token-plan.maas.qwencloudapi.com/compatible-mode/v1` (Anthropic route `/apps/anthropic`); MiMo Singapore `https://token-plan-sgp.xiaomimimo.com/v1` (Anthropic route `/anthropic`). Qwen models that passed: `qwen4-max-preview` (default for coding), `qwen3.8-max`, `qwen3.8-flash`. The Qwen `auto` model is refused on the Anthropic route that opencode and kilo can use (`auto does not support parameter(s): tool_choice`); name a model. Discount windows are in the global policy.
+- MiMo models: `mimo-v2.6-pro` (default), `mimo-v2.6-flash`. MiMo Desktop is a GUI application with no unattended contract and is not a dispatch route.
 - `custom:glm-5.3-zai` could not complete its READY smoke on 2026-11-14: the Z.ai Coding Plan returned 429 (5-hour limit, reset 2026-11-15 08:24 local) with `factory_credits: 0`, which proves routing but not a completion.
 
 ## Factory
@@ -215,11 +217,6 @@ read/edit/search tools. Shell, subagents and access outside the workspace are
 denied for these headless runs. Use a different route for tasks requiring a
 shell. The launcher must pass through the OpenCode exit code. The launcher has
 no V2 agent profiles: it refuses every `-Role` except peer and any `-ReadOnly`.
-
-On Forge, use `-Forge -HostId opencode-zai -Cwd <Forge-worktree>`. This
-opens the runner's isolated Z.ai launcher interactively; the Forge adapter
-still refuses unattended prompts. `-Forge -Auth -HostId opencode-zai` shows
-the launcher's credential source without exposing the key.
 
 `opencode acp` is the native stdio ACP server, sharing the persisted account and configuration. The ACP client owns permission handling.
 

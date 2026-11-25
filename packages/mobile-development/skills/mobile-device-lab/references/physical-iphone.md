@@ -136,7 +136,7 @@ The system Python cannot import it: use the Python of the uv tool (`uv tool dir`
 
 ## Flaky uploads from this PC
 
-Long single uploads to sh-forge and to the macOS guest are reset past a few MB. Send 2-4 MB parts, retry and hash each part, reassemble on the far side and hash the whole before using it. Rexa's `scripts/droplet.mjs` and `scripts/ios/guest-sync.sh` do this.
+Long single uploads from Windows OpenSSH to a remote host or a Mac guest were reset past a few MB (measured on the retired build droplet). Send 2-4 MB parts, retry and hash each part, reassemble on the far side and hash the whole before using it.
 
 ## Pair the UI with API fixtures
 

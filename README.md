@@ -174,8 +174,7 @@ A host whose config location differs by OS declares the macOS and Linux paths in
 
 Windows-only by design, because they depend on Windows facilities with no macOS or Linux equivalent:
 
-- **desktop-evidence** screen capture uses FFmpeg `gdigrab` and GDI. Use browser-evidence for web pages on any OS.
-- **The mobile device lab** drives a VMware Workstation macOS guest and the Android emulator from a Windows host.
+- **The mobile device lab** drives the Android emulator from a Windows host; iOS runs on Daytona v2 Mac boxes.
 
 [`tests/ci-skip.json`](./tests/ci-skip.json) lists every test CI does not run and why: tests that read the owner's own machine, and the Windows-host features above on macOS and Linux.
 

@@ -6,12 +6,12 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
-import { runFrameIntegrityGate, runIntegrityGate, runMarketingGate, runPointerGate } from '../chain-gates.mjs';
+import { runFinishedFilmGate, runFrameIntegrityGate, runIntegrityGate, runMarketingGate, runPointerGate } from '../chain-gates.mjs';
 import { assembleEvidence, buildGateWorkspace, captionsCheck, hasCapture, readReviews, releasable, requiredGates } from '../gates.mjs';
 import { measureLoudness, gateScript, runSyncGates } from '../gate-runners.mjs';
 import { loudnessTarget, run } from '../mix.mjs';
 import { runPictureGate } from '../picture-gate.mjs';
-import { normalizeCuts } from '../lint.mjs';
+import { holdSeconds, normalizeCuts } from '../lint.mjs';
 import { creativeMode } from '../creative-modes.mjs';
 import { LOCAL_AI_OFF, fileSha, readJson, writeJson } from '../util.mjs';
 import { resolveClip } from './capture.mjs';
@@ -167,6 +167,8 @@ async function qaCandidate(ctx, { cut, ratio, timeline, capture, required }) {
   const { loudPath, loud } = await avGates(ctx, { ad, srt, ws, qdir, gateSegments, target, gates });
   await syncGates(ctx, { ws, candidate, cdir, gates });
   await chainGates(ctx, { ws, qdir, ratio, candidate, sha, gates });
+  // Required when a final hold is declared (or opted into): the defects a viewer meets at the start, the end and in the gaps.
+  if (required.includes('finishedFilm')) gates.finishedFilm = await runFinishedFilmGate({ ws, candidate, sha, hold: holdSeconds(cut, ctx.spec), moduleRoot: MODULE_ROOT });
   await visionGate(ctx, { ad, qdir, ratio, cut, gateSegments, gates });
 
   const reviews = readReviews(join(qdir, 'reviews.json'), sha);

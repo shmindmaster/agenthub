@@ -11,6 +11,13 @@ This reference expands the `studio` entry point. It **does not** add a workflow,
 5. **Technical production:** choose supported browser, capture, aspect and remote render lanes automatically unless a visible tradeoff remains.
 6. **Budget and approvals:** present the priced, executable choice before spending. No extra gates or silent approvals.
 
+## Business engagement requests
+
+A request such as "make a steering committee update video", "proposal video", "pitch video", "kickoff video",
+"final readout" or "value review" names a `communicationProfile`. Pick it from [forms](forms.md), load
+[engagement formats](engagement-formats.md), and ask only what the profile needs and the request omits:
+the audience, the decision, the one ask with its owner and date, and for a status update the RAG and its date.
+
 ## Decision depth — adaptive, not three separate pipelines
 
 | Intent | Interaction | When to ask |
@@ -66,7 +73,7 @@ A requested cloned voice does not bypass existing private consent, account, spen
 - **Concept/brand/documentary:** use the existing supported animation, Remotion, still, human-world and licensed-media routes appropriate to the creative treatment. Mark proposed capabilities as proposed.
 - **Signed-in/manual capture:** only when approved access or unique workflow makes automation insufficient; preserve privacy and do not impersonate unavailable roles.
 
-Infer the appropriate remote worker from current private compute guidance: warm forge, authorized Daytona, established CI, or another approved lane. Do not surface cloud-provider names as ordinary creative choices. Never run heavy capture/render locally when private rules prohibit it. Record the chosen lane and actual source revision in the capture receipt.
+Infer the appropriate remote worker from current private compute guidance: Daytona, established CI, or another approved lane. Do not surface cloud-provider names as ordinary creative choices. Never run heavy capture/render locally when private rules prohibit it. Record the chosen lane and actual source revision in the capture receipt.
 
 ## Quality tiers
 

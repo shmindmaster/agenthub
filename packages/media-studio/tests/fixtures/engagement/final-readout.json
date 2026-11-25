@@ -1,0 +1,182 @@
+{
+  "product": "Ledger Close Programme",
+  "communicationProfile": "final-readout",
+  "targetSeconds": 200,
+  "maxDurationSeconds": 480,
+  "primaryAudience": "executive sponsor and steering committee",
+  "viewerDecision": "whether to approve the roadmap and its first phase",
+  "primaryTakeaway": "Approve the roadmap and fund the first phase.",
+  "audienceContext": {
+    "problemStatus": "fictional-scenario",
+    "sourceRefs": []
+  },
+  "nextStep": {
+    "action": "Approve the roadmap and first phase",
+    "owner": "executive sponsor",
+    "agreedDate": null
+  },
+  "captionPolicy": {
+    "mode": "sidecar",
+    "deliverySurface": "web player"
+  },
+  "audioDirection": {
+    "narratorIdentity": "approved narrator",
+    "pronunciationRefs": [],
+    "delivery": "calm and direct",
+    "emphasis": [],
+    "pauses": "hold each number for a beat",
+    "musicTreatment": "none"
+  },
+  "limitations": [
+    "Fictional example for planning. Every name and figure is invented."
+  ],
+  "narrative": {
+    "question": "what should the cooperative do next and why",
+    "viewerValue": "the committee can approve the roadmap with the case in front of it"
+  },
+  "beats": [
+    {
+      "id": "b1",
+      "section": "recommendation",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "Approve the roadmap and fund the first phase. That is our recommendation.",
+      "actionTitle": "We recommend approving the roadmap and funding phase one.",
+      "supportingArgument": "The answer leads.",
+      "proofRefs": [
+        "fictional/b1.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Recommendation: approve the roadmap and fund phase one.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/r1-recommendation.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "section": "findings",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 25,
+      "narration": "Five sheets feed the close. Three disagree on the same accounts.",
+      "actionTitle": "Three of the five sheets disagree on the same accounts.",
+      "supportingArgument": "The finding that drives the rest.",
+      "proofRefs": [
+        "fictional/b2.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Reconciliation breaks by sheet.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/r2-finding-a.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "section": "findings",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 25,
+      "narration": "Reviewers spend most of the close matching numbers by hand.",
+      "actionTitle": "Reviewers spend most of the close matching numbers by hand.",
+      "supportingArgument": "The second finding, on time.",
+      "proofRefs": [
+        "fictional/b3.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Reviewer time by activity.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/r3-finding-b.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b4",
+      "section": "roadmap",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 25,
+      "narration": "Three phases over twelve months. Each phase has an owner.",
+      "actionTitle": "Three phases over twelve months, each with a named owner.",
+      "supportingArgument": "Owners on the roadmap.",
+      "proofRefs": [
+        "fictional/b4.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Roadmap with phases, gates and owners.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/r4-roadmap.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b5",
+      "section": "business-case",
+      "storyRole": "payoff",
+      "kind": "card",
+      "minSeconds": 25,
+      "narration": "We project a two-day close and about forty reviewer days saved a year.",
+      "actionTitle": "We project a two-day close and about forty reviewer days saved.",
+      "supportingArgument": "The case in one number.",
+      "proofRefs": [
+        "fictional/b5.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Projected close time and reviewer days saved.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/r5-case.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b6",
+      "section": "next-step",
+      "storyRole": "next-step",
+      "kind": "card",
+      "minSeconds": 10,
+      "narration": "Approve the roadmap by the end of the month so phase one starts in January."
+    }
+  ]
+}

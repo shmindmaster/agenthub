@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts.
 metadata:
-  version: "0.11.7"
+  version: "0.12.0"
 ---
 
 # Dispatch to another coding agent
@@ -29,34 +29,15 @@ the missing installation; do not search credentials or guess a cache version.
 
 ## Steps
 
-For an operator session on the existing Forge droplet, run the same entry point
-with `-Forge -List` to inventory the remote clients. Then pass
-`-Forge -HostId <id> -Cwd /srv/work/agenthub-runner/worktrees/<task>` in a
-terminal. The directory must already exist on Forge. Select the authenticated
-provider and model in the native client. This route is interactive, including
-for the Xiaomi Token Plan. A binary listed as installed has not passed a
-provider, GitHub or Linear acceptance check. Use `-ShowCommand` to preview the
-SSH invocation without launching the client. Use `-Auth` or `-Forge -Auth` to
-show sign-in commands, and add `-HostId` to narrow the output. Forge Claude
-and Codex require an explicit suffix: `-qwen`, `-zai`, `-mimo`, or `-go`.
-Plan routes beyond Claude and Codex are `opencode-`, `kilo-`, `cline-`,
-`qwen-` and `mimo-code-` launchers with a `-mimo` or `-qwen` suffix; headless
-one-shot commands and smoke results are in `references/forge-plan-routes.md`.
-Grok uses its native sign-in. On Windows, keep Claude and Codex
-on their native accounts by default.
+Heavy work (test suites, builds, renders) does not run on this PC and is not
+dispatched to a remote operator droplet. Run it on Daytona:
+`node <AgentHub>/scripts/daytona-run.mjs --owner <project> -- <command>`.
+Dispatch only chooses which coding agent does the task.
 
-If already on Forge as `agenthub-runner`, use the adjacent
-`python3 forge-session.py --list` or
-`python3 forge-session.py --host <id> --cwd <Forge-worktree>`. Use a terminal
-or an attached Herdr/tmux pane for the latter. The same catalog drives both
-entry points. A listed launcher is not proof of a successful provider call.
-
-Unattended backlog work on Forge does not go through this dispatcher. The
-`forge-intake` timer (`forge-intake.mjs`, `forge-intake.json`) claims one
-eligible Linear issue at a time, implements it with headless Codex on a token
-plan, and opens a draft PR. Do not start it by hand from an operator session or
-widen its allowlist in a brief; see "Forge unattended intake" in
-`docs/runbooks/plugin-deployment.md`.
+Plan routes (Qwen, Z.ai, MiMo) for opencode, kilo, cline and factory are in
+`references/hosts.md` -> Plan routes. On Windows, keep Claude and Codex on
+their native accounts by default. Use `-Auth` to show sign-in commands, and add
+`-HostId` to narrow the output.
 
 1. List callable hosts. Take "callable" from this output, not memory.
 
@@ -90,9 +71,8 @@ widen its allowlist in a brief; see "Forge unattended intake" in
    Subscription plan routes (smoke-verified 2026-11-14) for opencode, kilo and
    factory: Qwen Token Plan, Z.ai GLM Coding Plan and MiMo Token Plan. Exact
    ids are in `references/hosts.md` -> Plan routes.
-   For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.4`
-   on Windows or `-Forge -HostId opencode-zai -Cwd <Forge-worktree>` for an
-   interactive session. See the host reference for the Windows tool limits.
+   For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.4`.
+   See the host reference for the Windows tool limits.
 
    On Windows, `-HostId zcode` uses the bundled CLI and the existing standalone
    ZCode provider profile. For native headless Browser Use, run

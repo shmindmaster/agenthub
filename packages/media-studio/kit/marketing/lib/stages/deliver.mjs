@@ -20,6 +20,12 @@ function pictureNote(ctx, clips) {
 
 // Only an OpenAI stock voice can be denied as a clone. An ElevenLabs job may be a clone that omits ownerVoice.
 function narratorNote(v) {
+  if (v.provider === 'import') {
+    const who = v.name || v.voiceId;
+    if (v.source === 'recording') return `recorded narration ${who} (${v.model}), not AI-generated${v.disclosure ? `; disclosure: ${v.disclosure}` : ''}`;
+    const nature = v.ownerVoice === true ? "an AI clone of the owner's voice, imported under the consent recorded with it" : 'AI-generated';
+    return `${v.source} ${who} (${v.model}), narration made outside this run and imported by hash, ${nature}${v.disclosure ? `; disclosure: ${v.disclosure}` : ''}`;
+  }
   const nature = v.ownerVoice === true ? "an AI clone of the owner's voice, used under this job's owner authorization"
     : v.provider === 'openai' ? 'AI-generated, not an owner voice or a celebrity-style clone' : 'AI-generated';
   return `${v.provider} ${v.name || v.voiceId} (${v.model}), ${nature}${v.disclosure ? `; disclosure: ${v.disclosure}` : ''}`;

@@ -73,6 +73,13 @@ export function resolveDevice(opts, devices) {
   return d;
 }
 
+/** The soft touch dot of a mobile recording: fill and ring colours from opts.touchRgb ("r, g, b"; default the original purple). */
+export function touchDotColors(rgb = '110,86,248') {
+  const c = String(rgb).replace(/\s+/g, '');
+  if (!/^\d{1,3},\d{1,3},\d{1,3}$/.test(c) || c.split(',').some((n) => Number(n) > 255)) throw new Error('opts.touchRgb must be "r, g, b" (three 0-255 numbers), got ' + JSON.stringify(rgb));
+  return { fill: 'rgba(' + c + ',0.35)', ring: 'rgba(' + c + ',0.85)' };
+}
+
 /** Start a fresh recording context. viewport is the delivery frame; DSF 2 is the PDS minimum. opts.device spreads a Playwright device descriptor first; explicit viewport / DSF / isMobile / hasTouch win. opts.videoSize (default: viewport) is the recorded pixel size; record-job passes viewport x DSF for a --ratio entry whose CSS viewport is smaller than its delivery frame. */
 export async function startRecording(id, opts = {}) {
   const { chromium, devices } = await import('playwright');
@@ -104,7 +111,8 @@ export async function startRecording(id, opts = {}) {
     recordVideo: { dir: rawDir, size: opts.videoSize || viewport },
   });
   if (mobile) {
-    await context.addInitScript(([cssWidth, scale]) => {
+    const dot = touchDotColors(opts.touchRgb);
+    await context.addInitScript(([cssWidth, scale, dotFill, dotRing]) => {
       const set = () => {
         let m = document.querySelector('meta[name=viewport]');
         if (!m) { m = document.createElement('meta'); m.name = 'viewport'; document.head.appendChild(m); }
@@ -115,12 +123,12 @@ export async function startRecording(id, opts = {}) {
       // A phone shows a touch, not a cursor: a soft dot where the finger lands (like the OS "show touches" option).
       document.addEventListener('pointerdown', (e) => {
         const d = document.createElement('div');
-        d.style.cssText = `position:fixed;left:${e.clientX - 22}px;top:${e.clientY - 22}px;width:44px;height:44px;border-radius:50%;background:rgba(110,86,248,0.35);border:2px solid rgba(110,86,248,0.85);pointer-events:none;z-index:2147483647;transition:transform 420ms ease-out,opacity 420ms ease-out;transform:scale(0.6);opacity:1`;
+        d.style.cssText = `position:fixed;left:${e.clientX - 22}px;top:${e.clientY - 22}px;width:44px;height:44px;border-radius:50%;background:${dotFill};border:2px solid ${dotRing};pointer-events:none;z-index:2147483647;transition:transform 420ms ease-out,opacity 420ms ease-out;transform:scale(0.6);opacity:1`;
         document.body.appendChild(d);
         requestAnimationFrame(() => { d.style.transform = 'scale(1.25)'; d.style.opacity = '0'; });
         setTimeout(() => d.remove(), 600);
       }, true);
-    }, [mobile.cssWidth, mobile.scale]);
+    }, [mobile.cssWidth, mobile.scale, dot.fill, dot.ring]);
   }
   // Likewise a desktop frame is recorded at CSS-pixel size, so the app's 14 px text reads small in a 16:9 ad. An opt-in
   // opts.pageZoom (e.g. 1.5) magnifies the page itself: the document zoom is set before the app paints and again once it

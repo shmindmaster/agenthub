@@ -4,7 +4,7 @@
  *
  * Why: the registry content hash is the trust root for "the package on disk is
  * the package the registry says it is", and the only implementation was
- * PowerShell. A host without pwsh (Forge runners, plain Linux boxes) could
+ * PowerShell. A host without pwsh (Daytona sandboxes, plain Linux boxes) could
  * neither verify nor recompute a hash, so any change to a hashed package needed
  * a human follow-up. This file produces byte-identical hashes to
  * Get-AgentHubRegistryHashBasisValue and mirrors its helpers one for one.

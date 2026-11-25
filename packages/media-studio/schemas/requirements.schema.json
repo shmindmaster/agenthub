@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/requirements.json",
+  "title": "Media studio requirements",
+  "description": "story/requirements.json: what the brief asked for, each item mapped to scenes. check_requirements.py enforces it (the script itself, and with --candidate the finished file).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "requirements"
+  ],
+  "properties": {
+    "schema": {
+      "const": "media-studio/requirements/1"
+    },
+    "narrationLanguage": {
+      "type": "string",
+      "pattern": "^([A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*|none)$"
+    },
+    "uiLanguage": {
+      "type": "string",
+      "pattern": "^([A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*|none)$"
+    },
+    "durationSeconds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "aspect": {
+      "enum": [
+        "16x9",
+        "9x16",
+        "4x5",
+        "1x1"
+      ]
+    },
+    "finalHoldSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds the last picture holds; measured only from qa/finished-film.json for the candidate's sha256."
+    },
+    "cta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "text": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        }
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "text",
+          "scenes",
+          "check"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "feature",
+              "state",
+              "language",
+              "other"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scenes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "match": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Terms that must appear (case-insensitive) in the evidence text of those scenes. Without it the item is listed as unverified."
+          },
+          "evidence": {
+            "enum": [
+              "narration",
+              "picture",
+              "both"
+            ],
+            "description": "Where the match terms must appear. Default narration."
+          },
+          "check": {
+            "type": "string",
+            "minLength": 1,
+            "description": "How the requirement is checked."
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "reviewedSilences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end",
+          "reason"
+        ],
+        "properties": {
+          "start": {
+            "type": "number",
+            "minimum": 0
+          },
+          "end": {
+            "type": "number",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "description": "Silent stretches a person has reviewed and accepted; the finished-film gate reads them."
+    }
+  }
+}

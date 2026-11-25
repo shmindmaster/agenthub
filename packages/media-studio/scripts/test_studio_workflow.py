@@ -140,6 +140,15 @@ class Lifecycle(unittest.TestCase):
         s = ps.status(self.root)
         self.assertTrue(s["complete"], s)
 
+    def test_undeclared_jobs_report_the_default_form_and_no_phase_is_not_required(self):
+        s = ps.status(self.root)
+        self.assertEqual(s["deliverable"], "narrated-video")
+        self.assertTrue(all(p["state"] != "NOT_REQUIRED" and p["notRequired"] == [] for p in s["phases"]))
+
+    def test_scaffold_with_a_deliverable_records_it_in_the_job(self):
+        root = si.init("Silent Cut", self.tmp.name, today=date(2026, 11, 6), deliverable="silent-video")
+        self.assertEqual(json.loads((root / "job.json").read_text(encoding="utf-8"))["deliverable"], "silent-video")
+
     def test_strict_exit_code(self):
         self.assertEqual(ps.main([str(self.root)]), 0)
         self.assertEqual(ps.main([str(self.root), "--strict"]), 1)

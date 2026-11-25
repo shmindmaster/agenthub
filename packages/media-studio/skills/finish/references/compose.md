@@ -14,7 +14,7 @@ Check the runtime first; repair a stale one from `MEDIA_STUDIO_PACKAGE_ROOT`; ne
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/briefing-kit'
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '4.0.5') { throw "Stale runtime: $m" } }
+foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '4.2.0') { throw "Stale runtime: $m" } }
 ```
 
 ## Pick the tool
@@ -29,7 +29,7 @@ One renderer per job:
 
 ## Placement
 
-Capture stays local. Renders run on sh-forge; report lane and cost.
+Capture stays local. Renders run on Daytona (`render-lanes.md`); report lane and cost.
 
 ## Delivery
 
@@ -47,7 +47,7 @@ Use a new id and checksum for each render; never overwrite a reviewed candidate.
 - `references/loudness.md`: Read when the target is not web or the bed needs tuning.
 - `references/render-lanes.md`: Read before every render.
 - `references/descript.md`: Read when a job wants Descript finishing.
-- `../video/references/product-picture.md`: Read when any beat is `screen`.
+- `../../studio/references/product-picture.md`: Read when any beat is `screen`.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](compose-detail.md)
 
