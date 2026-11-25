@@ -125,6 +125,7 @@ if (Test-Path -LiteralPath $grokConfig) {
     $grokAllowed = if ($grokPolicy) { @($grokPolicy.Value.PSObject.Properties.Name) } else { @() }
     $expected = @($mcpRegistry.mcpServers | Where-Object {
         @($_.hosts) -contains 'grok' -and
+        [string]$_.scope -ne 'owner-configured' -and
         ([string]$_.activationMode -ne 'on-demand-local' -or $_.id -in $persistedOnDemand) -and
         (-not $grokPolicy -or $_.id -in $grokAllowed)
     } | ForEach-Object { $_.id })

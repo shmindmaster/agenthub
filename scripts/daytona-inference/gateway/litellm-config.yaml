@@ -1,0 +1,19 @@
+general_settings:
+  store_model_in_db: true
+  allow_requests_on_db_unavailable: false
+  disable_spend_logs: false
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  num_retries: 0
+  request_timeout: 600
+  callbacks:
+    - reasoning_normalizer.proxy_handler_instance
+
+router_settings:
+  allowed_fails: 1
+  cooldown_time: 10
+  fallbacks: []
+  context_window_fallbacks: []
