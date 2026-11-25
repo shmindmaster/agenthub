@@ -6,7 +6,7 @@ import { STAGE, buildCursorTrack, cameraForBox, cameraAt, boxInView, clamp, curs
 import { clipToSlot } from './sync-lib.mjs';
 
 export const PLAN_SCHEMA = 'media-studio/screen-stage-plan/1';
-const PRESS = new Set(['click', 'tap', 'type', 'fill', 'select', 'point', 'upload']);
+export const PRESS = new Set(['click', 'tap', 'type', 'fill', 'select', 'point', 'upload']);
 const ESTIMATED_BOX = { w: 120, h: 44 }; // CSS px, for an old receipt press with no recorded target box
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -26,19 +26,22 @@ export function slotEvents(slot, clip) {
   const at = (ts) => { const s = clipToSlot(slot.edit, ts); return s === null ? null : r3(slot.startSeconds + s); };
   const out = { moves: [], presses: [], results: [] };
   let lastKind = 'arrow';
+  let approachStart = null; // film time of the first pointer move since the previous press: the camera leads this
   const actions = clip.actions || [];
+  const changesAt = (ts) => (clip.changes || []).find((c) => Math.abs(c.t - ts) < 0.02)?.boxes || [];
   for (const ev of actions) {
     if (ev.type === 'move' && Number.isFinite(ev.x) && Number.isFinite(ev.y)) {
       const t = at(ev.t);
       if (ev.cursor) lastKind = cursorKind(ev.cursor);
-      if (t !== null) out.moves.push({ t, x: ev.x, y: ev.y, kind: lastKind });
+      if (t !== null) { out.moves.push({ t, x: ev.x, y: ev.y, kind: lastKind }); if (approachStart === null) approachStart = t; }
     } else if (PRESS.has(ev.type)) {
       const tp = ev.tStart ?? ev.t;
       const t = at(tp);
       if (ev.cursor) lastKind = cursorKind(ev.cursor);
       if (t === null) continue;
       const b = pressBox(ev);
-      const press = { type: ev.type, label: ev.label || null, t, tEnd: ev.tEnd !== undefined ? at(ev.tEnd) ?? t : t, x: ev.x ?? null, y: ev.y ?? null, kind: lastKind, box: b?.box || null, estimated: b?.estimated ?? null };
+      const press = { type: ev.type, label: ev.label || null, t, tEnd: ev.tEnd !== undefined ? at(ev.tEnd) ?? t : t, x: ev.x ?? null, y: ev.y ?? null, kind: lastKind, box: b?.box || null, estimated: b?.estimated ?? null, approachStart, changes: changesAt(tp) };
+      approachStart = null;
       out.presses.push(press);
     }
   }
@@ -67,7 +70,7 @@ function clusterPresses(presses, g) {
     const cur = clusters[clusters.length - 1];
     if (cur && p.t - cur.lastEnd <= STAGE.clusterGapSeconds && p.t - cur.firstT <= STAGE.clusterSpanSeconds && zoomForBox(unionBox([...cur.boxes, sb]), g) > 1) {
       cur.boxes.push(sb); cur.presses.push(p); cur.lastEnd = Math.max(cur.lastEnd, p.tEnd);
-    } else clusters.push({ firstT: p.t, lastEnd: p.tEnd, boxes: [sb], presses: [p] });
+    } else clusters.push({ firstT: p.t, lastEnd: p.tEnd, boxes: [sb], presses: [p], approachStart: p.approachStart });
   }
   return clusters;
 }
@@ -98,9 +101,23 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     const act = unionBox(c.boxes);
     let box = act;
     // The action and its result both stay in frame when they fit together; otherwise the result is dropped before the action is.
-    if (resp.length) { const both = unionBox([act, ...resp]); if (zoomForBox(both, g) > 1) box = both; }
+    let joined = false;
+    if (resp.length) { const both = unionBox([act, ...resp]); if (zoomForBox(both, g) > 1) { box = both; joined = true; } }
+    // What changed on the page within about a second of the last press (measured from the captured frames). When it lies outside the
+    // action it must be seen: it joins the region if both fit, otherwise the camera goes to it within resultLeadSeconds of the press.
+    const lastPress = c.presses[c.presses.length - 1];
+    const near = unionBox([act]), pad = 40;
+    const outside = (lastPress.changes || []).map((b) => toStageBox(g, b)).filter((b) => b.x > near.x + near.w + pad || b.x + b.w < near.x - pad || b.y > near.y + near.h + pad || b.y + b.h < near.y - pad);
+    c.resultBox = outside.length ? unionBox(outside) : null;
+    c.resultCamera = null;
+    if (c.resultBox) {
+      const both = unionBox([box, c.resultBox]);
+      if (zoomForBox(both, g) > 1) { box = both; joined = true; }
+      else { c.resultCamera = cameraForBox(c.resultBox, g, { bias: false }); c.resultAt = lastPress.t + STAGE.resultLeadSeconds; }
+    }
     c.action = act; c.region = box;
-    c.zoom = zoomForBox(box, g);
+    // The 1.8 ceiling is for a tiny target together with a tiny result in the same view; anything else stays at the 1.5 default.
+    c.zoom = joined ? zoomForBox(box, g) : Math.min(zoomForBox(box, g), g.zoom.default);
     c.camera = cameraForBox(box, g, { bias: c.presses.length === 1 && box === act, zoom: c.zoom });
     c.resultEnd = Math.max(c.lastEnd, ...results.filter((r) => r.t >= c.firstT && r.t < limit).map((r) => r.t));
   });
@@ -121,10 +138,13 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     if (seen) return;
     if (c.zoom <= 1 && cur.z <= 1) { c.merged = true; return; }
     const earliest = i === 0 ? STAGE.openWideSeconds : lastSegT0() + 0.35;
-    const t0 = Math.max(earliest, c.firstT - STAGE.leadSeconds);
-    if (i === 0 && c.firstT - STAGE.leadSeconds < STAGE.openWideSeconds) warnings.push(`first press at ${c.firstT}s leaves under ${STAGE.openWideSeconds}s on the full page before the first move`);
+    // The camera starts a little before the pointer starts to move (so the two are not at peak speed together) and lands by the press.
+    const lead = c.approachStart != null ? c.approachStart - STAGE.cameraLeadSeconds : c.firstT - STAGE.leadSeconds;
+    const t0 = Math.max(earliest, Math.min(lead, c.firstT - STAGE.leadSeconds));
+    if (i === 0 && Math.min(lead, c.firstT - STAGE.leadSeconds) < STAGE.openWideSeconds) warnings.push(`the first move would start before ${STAGE.openWideSeconds}s of clean full page: it starts at ${r3(t0)}s`);
     segments.push({ t0: r3(t0), to: c.camera, reason: i === 0 ? 'open' : 'region' });
     cur = c.camera;
+    if (c.resultCamera) { segments.push({ t0: r3(Math.max(c.resultAt, lastSegT0() + 0.35)), to: c.resultCamera, reason: 'result' }); cur = c.resultCamera; }
   });
   if (cur.z > 1) {
     const lastEnd = clusters.length ? clusters[clusters.length - 1].resultEnd : 0;
@@ -175,6 +195,7 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     frames: Object.fromEntries([...new Set(slots.map((s) => s.clipId))].map((id) => [id, clips[id].frames])),
     camera, cursor, planned, moves: moveList, warnings,
     regions: clusters.map((c) => ({ firstT: c.firstT, resultEnd: r3(c.resultEnd), zoom: r3(c.zoom), merged: !!c.merged, labels: c.presses.map((p) => p.label || p.type), region: c.region })),
+    results: clusters.filter((c) => c.resultBox).map((c) => ({ t: c.presses[c.presses.length - 1].t, label: c.presses[c.presses.length - 1].label, boxStage: c.resultBox, mustBeSeenBy: r3(c.presses[c.presses.length - 1].t + STAGE.resultLeadSeconds + 0.7) })),
   };
 }
 

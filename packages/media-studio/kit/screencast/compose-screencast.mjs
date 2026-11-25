@@ -20,7 +20,8 @@ import { createHash } from 'node:crypto';
 import { CAMPAIGN_FORMS, frameFor, sourcePictureFilter, sourceRegionError, validateCampaign } from './campaign-contract.mjs';
 import { SYNC_DEFAULTS, planAlignment, keptRanges } from './sync-lib.mjs';
 import { STAGE } from './stage-math.mjs';
-import { buildStagePlan } from './stage-plan.mjs';
+import { buildStagePlan, PRESS } from './stage-plan.mjs';
+import { measureChanges } from './stage-changes.mjs';
 
 const [jobRoot, base] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 if (!jobRoot || !base) { console.error('usage: node compose-screencast.mjs <jobRoot> <base> [--no-voice-first]'); process.exit(2); }
@@ -321,7 +322,13 @@ stageRuns.forEach((run, n) => {
   const durationSeconds = Number(run.slots.reduce((m, s) => Math.max(m, s.startSeconds + s.durationSeconds), 0).toFixed(3));
   const clipIds = [...new Set(run.slots.map((s) => s.clipId))];
   const clipsIn = {};
-  for (const id of clipIds) { const e = receipt.clips[id]; clipsIn[id] = { actions: e.actions || [], expectations: e.expectations || [], frames: stageFrames(id), touch: !!e.hasTouch }; }
+  for (const id of clipIds) {
+    const e = receipt.clips[id], frames = stageFrames(id);
+    // What changed on the page after each press, from the captured frames: the plan frames the result as well as the target.
+    const pressTimes = (e.actions || []).filter((a) => PRESS.has(a.type)).map((a) => a.tStart ?? a.t);
+    const changes = measureChanges({ presses: pressTimes, frames: { times: frames.times, files: frames.files.map((f) => path.join(jobRoot, 'capture', 'raw', f)) }, viewport: e.viewport });
+    clipsIn[id] = { actions: e.actions || [], expectations: e.expectations || [], frames, touch: !!e.hasTouch, changes };
+  }
   const viewport = receipt.clips[clipIds[0]].viewport;
   const hideCursor = (stageCfg.hideCursor || []).map((h) => {
     if (h.beat) { const gi = groups.find((x) => x.segments.some((s) => s.id === h.beat)); if (!gi) throw new Error(`screenStage.hideCursor names unknown beat ${h.beat}`); return [gi.start - run.startSeconds, gi.start + gi.duration - run.startSeconds]; }
@@ -343,7 +350,7 @@ const outFile = path.join(jobRoot, 'output', `${base}-silent.mp4`);
 const baseFile = graphics?.length ? path.join(tmp, 'picture-before-graphics.mp4') : outFile;
 // The last picture holds (treatments.md). A fade to black is opt-in: it fails a declared final hold and a light last frame.
 const endFade = Number(job.endFadeSeconds) || 0;
-execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', `fade=t=in:st=0:d=0.5,${endFade > 0 ? `fade=t=out:st=${(tl.durationSeconds - endFade).toFixed(2)}:d=${endFade},` : ''}format=yuv420p`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-movflags', '+faststart', baseFile]);
+execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', `${stageFilm ? '' : 'fade=t=in:st=0:d=0.5,'}${endFade > 0 ? `fade=t=out:st=${(tl.durationSeconds - endFade).toFixed(2)}:d=${endFade},` : ''}format=yuv420p`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-movflags', '+faststart', baseFile]);
 if (graphics.length) {
   const assets = new Map(job.campaign.assets.map((asset) => [asset.id, asset]));
   const inputs = graphics.flatMap((graphic) => ['-loop', '1', '-i', path.resolve(jobRoot, assets.get(graphic.assetId).path)]);

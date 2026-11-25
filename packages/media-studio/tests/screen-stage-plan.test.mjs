@@ -38,13 +38,19 @@ test('spring: critically damped, no overshoot, peak speed 0.1 s, ~90% by 0.37 s,
   assert.equal(at(0).x, 0);
 });
 
-test('zoom: a small control zooms more than a wide panel, never outside 1.3-1.8, and a huge region stays on the full page', () => {
+test('zoom: 1.5 by default, 1.8 only with a tiny target and a tiny result in view, never outside 1.3-1.8, a huge region stays on the full page', () => {
   const small = M.zoomForBox(M.toStageBox(g, css(100, 100, 80, 30)), g);
   const medium = M.zoomForBox(M.toStageBox(g, css(100, 100, 560, 200)), g);
   const huge = M.zoomForBox(M.toStageBox(g, css(0, 0, 1000, 600)), g);
-  assert.equal(small, 1.8);
-  assert.ok(medium >= 1.3 && medium < 1.8, `medium ${medium}`);
+  assert.equal(small, 1.8, 'a tiny region may reach 1.8');
+  assert.ok(medium >= 1.3 && medium <= 1.5, `medium ${medium}`);
   assert.equal(huge, 1);
+  // a lone tiny control with no result stays at the 1.5 default
+  const lone = plan([click(1.5, 300, 200, css(260, 185, 80, 30), 'Lone')]);
+  assert.equal(lone.camera.segments[0].to.z, 1.5);
+  // the same control with a tiny result beside it may go to 1.8
+  const pair = plan([click(1.5, 300, 200, css(260, 185, 80, 30), 'Small')], [{ label: 'Small result', observed: true, observedAt: 1.8, at: 1.8, targetBox: css(350, 185, 60, 30) }]);
+  assert.equal(pair.camera.segments[0].to.z, 1.8);
 });
 
 test('clamp: the view never leaves the page, whatever the target', () => {
@@ -103,7 +109,7 @@ test('pan, not zoom out: two far targets pan at the same zoom with no pull back 
     click(3.2, 1100, 560, css(1060, 545, 80, 30), 'Right'),
   ]);
   const mid = M.cameraAt(p.camera, 2.6, g);
-  assert.ok(mid.z > 1.5, `still zoomed between the targets: ${mid.z}`);
+  assert.ok(mid.z >= 1.45, `still zoomed between the targets: ${mid.z}`);
   assert.deepEqual(p.moves.map((m) => m.reason), ['open', 'region', 'close']);
 });
 
@@ -150,7 +156,7 @@ test('cursor size: 40 px on the full page, 58 px at the largest zoom; press squa
   assert.equal(Math.round(M.cursorHeightFor(1.8)), 58);
   const clicks = [{ t: 2 }];
   assert.equal(M.pressScale(clicks, 1.9), 1);
-  assert.ok(M.pressScale(clicks, 2.07) < 0.9);
+  assert.ok(M.pressScale(clicks, 2.055) <= 0.905 && M.pressScale(clicks, 2.055) >= 0.89, 'the press response dips to about 0.9');
   assert.equal(M.pressScale(clicks, 2.3), 1);
 });
 
@@ -203,4 +209,26 @@ test('idle: only time with no input and no new frame is idle; compression of any
   assert.equal(P.compressionProblems({ edit: { skip: [[0, 2]], speed: 1 }, idle, label: 'S01' }).length, 1);
   assert.equal(P.compressionProblems({ edit: { skip: [[0, 2]], speed: 1 }, idle, speedReason: 'a bounded real wait', label: 'S01' }).length, 0);
   assert.equal(P.compressionProblems({ edit: { skip: [], speed: 4 }, idle, label: 'S01' }).length, 1);
+});
+
+test('camera leads the pointer: it starts 0.1 s before the first move of the approach, so the two are not at peak together', () => {
+  const p = plan([
+    { type: 'move', t: 0.9, x: 100, y: 100, cursor: 'default' }, { type: 'move', t: 1.1, x: 220, y: 150, cursor: 'default' },
+    click(1.5, 300, 200, css(260, 185, 80, 30), 'Go'),
+  ]);
+  const open = p.camera.segments.find((s) => s.reason === 'open');
+  assert.ok(Math.abs(open.t0 - (0.9 - 0.1)) < 0.02, `camera starts ${open.t0}, pointer starts 0.9`);
+  assert.ok(open.t0 >= 0.5, 'the film opens on a clean full page for at least 0.5 s');
+});
+
+test('a result elsewhere on the page is reached within 0.25 s of the press and is in the planned view', () => {
+  const changes = [{ t: 1.5, boxes: [css(900, 520, 280, 120)] }];
+  const clip = { ...clipOf([click(1.5, 300, 200, css(260, 185, 80, 30), 'Export')]), changes };
+  const p = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clip } });
+  const res = p.camera.segments.find((s) => s.reason === 'result');
+  assert.ok(res, 'a result segment exists');
+  assert.ok(res.t0 - 1.5 <= 0.25 + 1e-6 && res.t0 >= 1.5, `result move starts ${res.t0 - 1.5} s after the press`);
+  const box = M.toStageBox(g, css(900, 520, 280, 120));
+  assert.ok(M.boxInView({ ...res.to }, g, box), 'the result is inside the view the camera settles on');
+  assert.equal(p.results.length, 1);
 });

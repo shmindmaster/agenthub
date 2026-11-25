@@ -12,14 +12,16 @@
 export const STAGE = Object.freeze({
   fps: 60,
   viewport: Object.freeze({ width: 1280, height: 720 }),
-  deviceScaleFactor: 3,
+  deviceScaleFactor: 2.5,   // 3200x1800 frames: the browser delivers 60 unique frames a second while the page animates (3x manages 37-50)
   zoom: Object.freeze({ min: 1.3, default: 1.5, max: 1.8 }),         // 16:9 and wider: the page is small at wide, so the camera works harder
   zoomPortrait: Object.freeze({ min: 1.15, default: 1.25, max: 1.35 }), // 9:16, 4:5, 1:1: phone UI is already large
   omega: 10.5,              // critically damped spring: peak speed ~0.095 s, ~90% at 0.37 s, ~99% at 0.63 s, no overshoot
-  leadSeconds: 0.55,        // the camera starts this long before the press it serves
+  leadSeconds: 0.5,         // with no recorded approach, the camera starts this long before the press it serves
+  cameraLeadSeconds: 0.1,   // the camera starts this long before the pointer starts to move, so the two are not at peak speed together
+  resultLeadSeconds: 0.2,   // a result elsewhere on the page is reached within this long of the press
   fill: 0.78,               // a zoom region may fill at most this share of the view
   bias: Object.freeze({ x: 0.42, y: 0.38 }), // where a lone control sits in the view, leaving room for what it opens
-  openWideSeconds: 0.4,     // the first move starts no sooner than this
+  openWideSeconds: 0.5,     // the film opens on the full page, clean, and the first move starts no sooner than this
   closeHoldSeconds: 0.9,    // the last press and its result stay in the zoomed view this long before the pull back
   closeWideSeconds: 1.3,    // the film ends on the full page for at least this long when the run allows
   settleSeconds: 0.7,       // a move is judged settled this long after it starts (99% at omega 10.5)
@@ -28,17 +30,17 @@ export const STAGE = Object.freeze({
   clusterSpanSeconds: 3.2,
   mergeInset: 0.1,          // a target already inside the current view, inset by this share, needs no move
   cursorHeight: Object.freeze({ wide: 40, zoomed: 58 }),
-  press: Object.freeze({ seconds: 0.2, scale: 0.84 }),
+  press: Object.freeze({ seconds: 0.15, scale: 0.9 }),
   hideFadeSeconds: 0.2,
   idleHideSeconds: 2.0,     // a still cursor fades after this long (never across a pointAt) and is back before the next move
   kindDebounceSeconds: 0.12,// a cursor-type change that lasts less than this is not drawn
   restSeconds: 0.5,         // the cursor stops moving this long before the run ends
-  blur: Object.freeze({ shutterAngle: 300, samples: 10, cameraSpeed: 150, cursorSpeed: 900 }), // speeds in px/s on screen
+  blur: Object.freeze({ shutterAngle: 170, maxSamples: 48, minPx: 0.6 }), // one WebGL pass, linear light; samples follow the blur length in px
 });
 
 /** Capture viewport per delivered ratio: each ratio is recorded at its own responsive viewport and fills its frame edge to edge. */
 export const STAGE_CAPTURE = Object.freeze({
-  '16:9': Object.freeze({ width: 1280, height: 720, deviceScaleFactor: 3 }),
+  '16:9': Object.freeze({ width: 1280, height: 720, deviceScaleFactor: 2.5 }),
   '9:16': Object.freeze({ width: 405, height: 720, deviceScaleFactor: 4, isMobile: true, hasTouch: true }),
   '4:5': Object.freeze({ width: 432, height: 540, deviceScaleFactor: 4 }),
   '1:1': Object.freeze({ width: 720, height: 720, deviceScaleFactor: 3 }),
@@ -91,14 +93,16 @@ export function boxInView(cam, g, box, inset = 0) {
 }
 
 /**
- * The zoom for a region: the largest zoom (up to the maximum) at which the region fills at most STAGE.fill of the view, never below
- * the minimum. A small control zooms more, a wide panel less. Returns 1 (stay on the full page) when even the minimum zoom would
- * not hold the region, so the target can never be pushed out of frame.
+ * The zoom for a region. The default zoom, unless the region does not fit at it (then the largest zoom at which it fills at most
+ * STAGE.fill of the view, not below the minimum), or the region is tiny (under 6% of the frame: a small control with a small result),
+ * which may go up to the maximum. Returns 1 (stay on the full page) when even the minimum zoom would not hold the region, so the
+ * target can never be pushed out of frame.
  */
 export function zoomForBox(box, g) {
   const fit = Math.min((STAGE.fill * g.W) / Math.max(1, box.w), (STAGE.fill * g.H) / Math.max(1, box.h));
   if (fit < g.zoom.min) return 1;
-  return Math.min(g.zoom.max, fit);
+  if (fit < g.zoom.default) return fit;
+  return box.w * box.h <= 0.06 * g.W * g.H ? Math.min(g.zoom.max, fit) : g.zoom.default;
 }
 
 /** Camera that frames `box`. A lone control (`bias`) sits upper-left of centre so what it opens has room below and to the right. */
