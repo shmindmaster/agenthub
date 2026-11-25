@@ -58,9 +58,9 @@
     "macos": {
       "route": "packages/mobile-development/skills/mobile-device-lab/references/daytona-mac.md",
       "platform": "Daytona v2 only, region us-east-bos-1, image base-macos (documented: macOS 26.6.2, Xcode 26.6, iPhone simulator, Homebrew, Python).",
-      "purchase": "Paid 24-hour reservations. The owner directed one standing reservation on 2026-11-21 and decides its renewal. Any other reservation needs owner approval of its price. Auto-reserve is on for the organization, so always name the reservation; scripts/daytona_mac.py manages the standing boxes.",
+      "purchase": "Paid 24-hour reservations. One organization holds all Daytona work (owner direction 2026-11-24). Every reservation needs owner approval of its price, and the owner decides renewal. Auto-reserve is on for the organization, so always name the reservation; scripts/daytona_mac.py manages the standing boxes.",
       "verified": false,
-      "note": "Toolchain checked on 2026-11-21 (macOS 26.6.2, Xcode 26.6). No iOS build, signed install or USB device has been proven on it, and its current state was not visible on 2026-11-24."
+      "note": "Toolchain checked on 2026-11-21 (macOS 26.6.2, Xcode 26.6). No iOS build, signed install or USB device has been proven on it, its reservation ended on 2026-11-22 and none is held as of 2026-11-24."
     }
   },
   "agentSurface": {
