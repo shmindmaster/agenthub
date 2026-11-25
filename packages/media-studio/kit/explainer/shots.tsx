@@ -499,7 +499,7 @@ const Statement: FC<ShotProps> = ({ shot, film }) => {
     shot.visual && shot.visual.kind === 'lower-third' ? shot.visual : null;
   const title = hero ? hero.title : shot.title ?? '';
   const sub = shot.sub ?? (hero ? hero.sub : undefined);
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
 
   return (
     <ShotRoot>
@@ -1211,7 +1211,7 @@ const QuoteShot: FC<ShotProps> = ({ shot, film, index }) => {
   const visual = shot.visual && shot.visual.kind === 'quote' ? shot.visual : null;
   const text = visual ? visual.text : shot.title ?? '';
   const who = visual ? visual.attribution : shot.sub;
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
 
   return (
     <ShotRoot>
@@ -1418,7 +1418,7 @@ const MediaShot: FC<ShotProps> = ({ shot, film, index }) => {
   const src = visual && 'src' in visual ? visual.src : null;
   if (!src) return <Statement shot={shot} film={film} index={index} />;
 
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
   const push = 1 + 0.04 * progress('push', frame, fps, 0, shot.durationSeconds);
   const slideIn = (offset: number) =>
     enter('slide', progress('slide', frame, fps, (at + offset) / fps));
@@ -1509,7 +1509,8 @@ const StingShot: FC<ShotProps> = ({ shot, film }) => {
   const r = regionsFor('sting', film);
   const accent = accentOf(shot, film);
   const visual = shot.visual;
-  const at = beatAt(shot, fps);
+  // A drawn sting lands on its word; one made of words is up from the start.
+  const at = visual && visual.kind === 'lottie' ? beatAt(shot, fps) : openingAt(fps);
   const p = progress('pop', frame, fps, at / fps);
 
   if (visual && visual.kind === 'lottie') {
@@ -1565,7 +1566,7 @@ const ChapterShot: FC<ShotProps> = ({ shot, film }) => {
   const accent = accentOf(shot, film);
   const visual =
     shot.visual && shot.visual.kind === 'chapter' ? shot.visual : null;
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
   const chapterIndex = film.chapters.findIndex((c) => c.id === shot.chapterId);
   const number = two(chapterIndex >= 0 ? chapterIndex + 1 : 1);
   const label = visual
@@ -1629,7 +1630,7 @@ const EndShot: FC<ShotProps> = ({ shot, film }) => {
   const title = visual ? visual.title : shot.title ?? '';
   const next = visual ? visual.next : shot.sub ?? '';
   const kicker = visual && visual.kicker ? visual.kicker : shot.kicker;
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
   const tracking = T.type.tracking.display;
   const fitted = fitHeadline(title, {
     maxWidth: r.hero.w,

@@ -37,7 +37,10 @@ const WORD_BY_WORD = ['statement', 'quote', 'evidence'];
 const openingFrames = (shot, fps) => {
   const line = shot.visual?.text ?? (shot.visual?.kind === 'hero' ? shot.visual.title : shot.title || shot.visual?.claim) ?? '';
   const words = WORD_BY_WORD.includes(shot.family) ? String(line).split(/\s+/).filter(Boolean).length : 1;
-  return Math.round(OPENING_SECONDS * fps) + staggerFrames(Math.max(0, words - 1)) + framesOf('rise', fps);
+  // The second line of a words-only shot starts this many frames after the first.
+  const { visual } = shot;
+  const second = { statement: (shot.sub ?? visual?.sub) ? 14 : 0, quote: (visual?.attribution ?? shot.sub) ? 20 : 0, end: 10, media: 6 }[shot.family] ?? 0;
+  return Math.round(OPENING_SECONDS * fps) + Math.max(second, staggerFrames(Math.max(0, words - 1))) + framesOf('rise', fps);
 };
 
 /** What is still entering at a shot-local frame. Empty means the frame is settled. */
