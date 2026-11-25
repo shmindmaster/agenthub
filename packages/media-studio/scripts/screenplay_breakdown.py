@@ -39,7 +39,7 @@ def load(path):
     return json.loads(Path(path).read_text(encoding="utf-8-sig"))
 
 
-def scene_rows(screenplay, plan, wpm, hd_voices, identity):
+def scene_rows(screenplay, plan, wpm, hd_voices, identity, screencast=False):
     policy = route_media.load()
     plan_by_id = {s["id"]: s for s in (plan or {}).get("scenes", [])}
     rows, errors = [], []
@@ -60,7 +60,9 @@ def scene_rows(screenplay, plan, wpm, hd_voices, identity):
             if not (visual.get("prompt") or "").strip():
                 errors.append(f"scene {sc['id']}: still has no prompt; say what the photograph shows")
             row["prompt"] = visual.get("prompt")
-        if kind:
+        if screencast and kind == "screen":
+            row["lane"] = "screencast-recorder"  # kit/screencast/record-job.mjs, never a Remotion scene
+        elif kind:
             need = KIND_NEED.get(kind, "title")
             lanes = route_media.route(policy, [need], identity)
             if lanes:
@@ -85,8 +87,8 @@ def scene_rows(screenplay, plan, wpm, hd_voices, identity):
     return rows, errors
 
 
-def summarize(screenplay, plan, wpm=150, hd_voices=(), identity="any"):
-    rows, errors = scene_rows(screenplay, plan, wpm, hd_voices, identity)
+def summarize(screenplay, plan, wpm=150, hd_voices=(), identity="any", screencast=False):
+    rows, errors = scene_rows(screenplay, plan, wpm, hd_voices, identity, screencast)
     cast = {}
     for r in rows:
         c = cast.setdefault(r["speaker"], {"speaker": r["speaker"], "scenes": 0, "words": 0, "tier": r["tier"]})
@@ -111,6 +113,12 @@ def summarize(screenplay, plan, wpm=150, hd_voices=(), identity="any"):
         {"task": "T6 mix, finish loudness, run the gates", "needs": ["T5"], "parallel": False},
         {"task": "T7 review the encoded file and deliver", "needs": ["T6"], "parallel": False},
     ]
+    if screencast:
+        schedule[2:5] = [
+            {"task": "T3 prove the workflow, then record the screens", "needs": ["T2"], "parallel": False},
+            {"task": "T4 cards and overlays", "needs": ["T1"], "parallel": True},
+            {"task": "T5 cue sheet and compose the picture", "needs": ["T3", "T4"], "parallel": False},
+        ]
     return {"schema": "media-studio/breakdown/1", "title": screenplay.get("title"), "scenes": rows, "cast": list(cast.values()),
             "estimatedSeconds": seconds, "assets": [{"kind": k, "src": s} for k, s in assets], "lanes": lanes,
             "budget": {"speechUsd": round(speech, 4), "transcriptionCheckUsd": round(asr, 4), "stillsUsd": round(stills_usd, 4), "stills": images,
@@ -133,7 +141,8 @@ def main(argv=None):
     screenplay = load(root / "story" / "screenplay.json")
     plan_path = root / "story" / "picture-plan.json"
     plan = load(plan_path) if plan_path.exists() else None
-    rep = summarize(screenplay, plan, a.wpm, [v for v in a.hd_voices.split(",") if v], a.identity)
+    job = load(root / "job.json") if (root / "job.json").exists() else {}
+    rep = summarize(screenplay, plan, a.wpm, [v for v in a.hd_voices.split(",") if v], a.identity, job.get("kind") == "product-screencast")
     out = root / a.out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(rep, indent=2) + "\n", encoding="utf-8")

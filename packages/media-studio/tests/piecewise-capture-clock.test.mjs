@@ -25,7 +25,7 @@ test('sync kit gate list installs a loadable cue builder and its piecewise depen
     for(const surface of ['screencast','_shared/tools']) {
       const target=join(root,surface);mkdirSync(target,{recursive:true});
       for(const name of names) copyFileSync(join(pkg,'scripts',name),join(target,name));
-      copyFileSync(join(pkg,'kit/screencast/sync-lib.mjs'),join(target,'sync-lib.mjs'));
+      for(const lib of ['sync-lib.mjs','receipt-lib.mjs']) copyFileSync(join(pkg,'kit/screencast',lib),join(target,lib));
       const run=()=>spawnSync(process.execPath,[join(target,'build-cue-sheet.mjs')],{encoding:'utf8',windowsHide:true});
       let r=run();assert.equal(r.status,1,r.stdout+r.stderr);assert.match(r.stderr,/Usage: node build-cue-sheet/);
       unlinkSync(join(target,'piecewise-capture-clock.mjs'));

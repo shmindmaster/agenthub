@@ -501,6 +501,18 @@ const review = (root) => {
   return { code: r.status, rep, output: `${r.stdout}${r.stderr}` };
 };
 
+test("write-story-review: a screencast may open on the product, another film may not", { skip: !hasPython }, () => {
+  const root = reviewJob("sr-open-on-product");
+  assert.equal(run([root]).code, 0);
+  const sp = JSON.parse(readFileSync(join(root, "story", "screenplay.json"), "utf8"));
+  Object.assign(sp.scenes[0], { visualMode: "screen", visualArchetype: "screen-in-context" });
+  writeJson(root, "story/screenplay.json", sp);
+  assert.equal(review(root).rep.checks["designed-frames"], "pass");
+  sp.scenes[5].holdAfterSeconds = 0;
+  writeJson(root, "story/screenplay.json", sp);
+  assert.equal(review(root).rep.checks["designed-frames"], "fail", "the closing card rule stays");
+});
+
 test("write-story-review: fixture has a COMPLETE review before no-fluff matters", { skip: !hasPython }, () => {
   const root = reviewJob("sr-base");
   assert.equal(run([root]).code, 0);

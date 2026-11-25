@@ -20,6 +20,8 @@ One job root per delivered ratio, with its own cue sheet and pointer or touch pa
 
 - `job.json` `captureViewports` holds the table; `scenes.mjs` `options.viewports` uses the same keys, plus `isMobile`, `hasTouch`.
 - `record-job.mjs <jobRoot> --ratio 9:16` records that entry. `capture/receipt.json` stores `viewport`, `deviceScaleFactor`, `ratio`, `device`.
+- A viewer-facing job needs a passing `evidence/demo-scenario-proof.json` (add `personaId`, `sourceRevision`, `servedRevision`, `baseUrl`) and `scenes.mjs` exports `options.provenance = { sourceRevision }` and `identity = async (page) => ({ persona, servedRevision })`, which reads the live page after each take and never acts on it. A mismatch makes the take invalid; any invalid take exits 1.
+- `capture/receipt.json` is sealed; never edit it. A press that paints before its logged time goes in the manifest clip: `videoLead: [{ label, seconds (≤0.5), reason }]`. Finish a `--no-recast` take on another machine with `record-job.mjs <jobRoot> --recast-only`.
 - Phone viewports use `h.tap(locator, { label })`, not `h.click`.
 - Punch-in passes only at DSF ≥ 2 with `beats[id].zoom: true` in `story/cue-plan.json`. No named UI may leave the frame.
 - Responsive exception: `"responsive": false, "responsiveException": { reason, declaredBy }` in `job.json`. Footage stays unscaled, uncropped, unbarred.

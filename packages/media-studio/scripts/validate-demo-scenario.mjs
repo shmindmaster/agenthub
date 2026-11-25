@@ -10,7 +10,7 @@ if (!root || !existsSync(join(root, "job.json"))) {
   console.error("Usage: node validate-demo-scenario.mjs <jobRoot> (job.json required)");
   process.exit(1);
 }
-const json = (path) => JSON.parse(readFileSync(path, "utf8"));
+const json = (path) => JSON.parse(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
 const hash = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
 const withinRoot = (path) => {
   const rel = relative(root, path);

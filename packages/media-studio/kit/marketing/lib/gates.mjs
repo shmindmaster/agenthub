@@ -9,6 +9,7 @@ import { creativeMode } from './creative-modes.mjs';
 import { FRAMES } from './layout.mjs';
 import { holdSeconds } from './lint.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
+import { sealReceipt } from '../../screencast/receipt-lib.mjs';
 
 // integrity, pointer, frameIntegrity and marketing are the media-studio 2.0.0 film-chain gates (picture integrity, pointer path,
 // tiled-frame / luma-jump check, marketing floor).
@@ -145,7 +146,8 @@ export function buildGateWorkspace({ root, spec, brand, cut, ratio, timeline, co
   writeFileSync(join(root, 'story', 'locked-script.txt'), `${timeline.segments.map((s) => s.text).filter(Boolean).join('\n')}\n`, 'utf8');
   const cuePlan = { voiceFirst: true, beats: {} };
   const manifestClips = [];
-  const receipt = { schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: {} };
+  // A cut-down copy of the source receipts (stages/capture.mjs refuses an edited one), sealed as this workspace's own.
+  const receipt = { generator: 'media-studio/mvg', clips: {} };
   for (const beat of cut.beats.filter((b) => b.kind === 'ui')) {
     const c = clips.find((x) => x.beatId === beat.id);
     const dest = join('clips', `${beat.id}.webm`);
@@ -170,7 +172,7 @@ export function buildGateWorkspace({ root, spec, brand, cut, ratio, timeline, co
     if (Object.keys(beatPlan).length) cuePlan.beats[beat.id] = beatPlan;
   }
   writeJson(join(root, 'capture', 'manifest.json'), { clips: manifestClips });
-  writeJson(join(root, 'capture', 'receipt.json'), receipt);
+  writeJson(join(root, 'capture', 'receipt.json'), sealReceipt(receipt));
   writeJson(join(root, 'story', 'cue-plan.json'), cuePlan);
   // The cue sheet reads a line's word times as seconds from the START OF ITS SCENE, but mvg places each line after a lead-in
   // pause, so the per-line ASR is shifted by that lead; otherwise every keyword lands one lead early (a constant 300 ms miss).

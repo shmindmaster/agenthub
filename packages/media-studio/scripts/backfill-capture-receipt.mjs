@@ -13,6 +13,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const receiptLib = [path.join(scriptDir, 'receipt-lib.mjs'), path.join(scriptDir, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find((f) => fs.existsSync(f));
+if (!receiptLib) { console.error('receipt-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
+const { openReceipt, saveReceipt } = await import(pathToFileURL(receiptLib).href);
 
 const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
@@ -54,7 +60,7 @@ function summarize(events) {
 }
 
 const receiptPath = path.join(jobRoot, 'capture', 'receipt.json');
-const receipt = fs.existsSync(receiptPath) ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) : { schemaVersion: '1.0.0', generator: 'media-studio/backfill-capture-receipt', clips: {} };
+const receipt = openReceipt(receiptPath, { schemaVersion: '1.0.0', generator: 'media-studio/backfill-capture-receipt', clips: {} });
 const recordings = fs.existsSync(path.join(jobRoot, 'capture', 'recordings.json')) ? JSON.parse(fs.readFileSync(path.join(jobRoot, 'capture', 'recordings.json'), 'utf8')) : { takes: {} };
 const beatsDir = path.join(jobRoot, 'capture', 'beats');
 let written = 0, skipped = [];
@@ -94,5 +100,5 @@ for (const file of fs.existsSync(clipsRoot) ? fs.readdirSync(clipsRoot) : []) {
 }
 receipt.generator = receipt.generator || 'media-studio/backfill-capture-receipt';
 fs.mkdirSync(path.dirname(receiptPath), { recursive: true });
-fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
+saveReceipt(receiptPath, receipt);
 console.log(JSON.stringify({ ok: true, receipt: receiptPath, written, skipped }));

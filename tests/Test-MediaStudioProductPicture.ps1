@@ -95,6 +95,7 @@ try {
             repositoryWritePolicy = 'read-only'
             programForm = $Form
             intent = 'viewer-facing'
+            legacyReceiptAllowed = 'hand-written fixture receipt; sealed receipts are tested in capture-receipt.test.mjs'
         } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Dir 'job.json') -Encoding utf8
         $Board | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $Dir 'story\storyboard.json') -Encoding utf8
         $Manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $Dir 'capture\manifest.json') -Encoding utf8

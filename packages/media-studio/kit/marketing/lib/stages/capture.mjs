@@ -7,12 +7,15 @@ import { MODULE_ROOT, recordStage } from '../context.mjs';
 import { normalizeCuts } from '../lint.mjs';
 import { run } from '../mix.mjs';
 import { fileSha, readJson, writeJson } from '../util.mjs';
+import { receiptProblem } from '../../../screencast/receipt-lib.mjs';
 
 export function resolveClip(ctx, beat) {
   const source = isAbsolute(beat.ui.sourceJob) ? beat.ui.sourceJob : resolve(ctx.specDir, beat.ui.sourceJob);
   const receiptPath = join(source, 'capture', 'receipt.json');
   if (!existsSync(receiptPath)) throw new Error(`${beat.id}: capture receipt not found: ${receiptPath}`);
   const receipt = readJson(receiptPath);
+  const problem = receiptProblem(receipt, null);
+  if (problem) throw new Error(`${beat.id}: ${receiptPath}: ${problem}`);
   const entry = receipt.clips?.[beat.ui.clipId];
   if (!entry) throw new Error(`${beat.id}: clip ${beat.ui.clipId} is not in ${receiptPath}`);
   return { source, receipt, entry, file: join(source, 'capture', entry.file) };

@@ -30,9 +30,12 @@ if (!recastDir) { console.error('playwright-recast not found; pass --recast-dir 
 const { detectBlankLeadIn } = await import(pathToFileURL(path.join(recastDir, 'dist', 'render', 'renderer.js')).href);
 const recastVersion = JSON.parse(fs.readFileSync(path.join(recastDir, 'package.json'), 'utf8')).version;
 
+const receiptLib = [path.join(here, 'receipt-lib.mjs'), path.join(here, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find((f) => fs.existsSync(f));
+if (!receiptLib) { console.error('receipt-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
+const { openReceipt, saveReceipt } = await import(pathToFileURL(receiptLib).href);
 const sha256 = (f) => createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 const probe = (f) => { try { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString()) || 0; } catch { return 0; } };
-const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8').replace(/^﻿/, ''));
+const receipt = openReceipt(receiptPath, null);
 const done = [], skipped = [], refused = [];
 for (const [id, clip] of Object.entries(receipt.clips || {})) {
   if (Number.isFinite(clip.recastHeadTrimSeconds) || clip.actionClock === 'clip') { skipped.push({ id, why: 'already has a head trim' }); continue; }
@@ -51,6 +54,6 @@ for (const [id, clip] of Object.entries(receipt.clips || {})) {
   if (!dryRun) Object.assign(clip, entry);
   done.push({ id, ...entry, agreesWithLength: Math.abs(detected - lengthDelta) <= 0.15 });
 }
-if (!dryRun && done.length) fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
+if (!dryRun && done.length) saveReceipt(receiptPath, receipt);
 console.log(JSON.stringify({ ok: refused.length === 0, dryRun, receipt: receiptPath, backfilled: done, skipped, refused }, null, 2));
 process.exit(refused.length ? 1 : 0);

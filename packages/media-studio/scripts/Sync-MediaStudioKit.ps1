@@ -101,6 +101,7 @@ $files = @(
     'screencast\record-job.mjs',
     'screencast\record-lib.mjs',
     'screencast\sync-lib.mjs',
+    'screencast\receipt-lib.mjs',
     'screencast\README.md',
     'code-stage\shotlist.mjs',
     'code-stage\source.mjs',
@@ -206,7 +207,7 @@ New-Item -ItemType Directory -Force -Path $explainerTarget | Out-Null
 foreach ($item in @(Get-ChildItem -LiteralPath $explainerSource -File | Where-Object { $_.Extension -in @('.mjs', '.json', '.txt') })) {
     Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $explainerTarget $item.Name) -Force
 }
-foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
+foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs', 'receipt-lib.mjs')) {
     $from = Join-Path (Join-Path $packageKit 'screencast') $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical screencast tool missing: $from" }
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
@@ -260,7 +261,7 @@ if (Test-Path -LiteralPath $gate) {
 # The deploy list above is the whole managed content of _shared\tools. Anything else there is a one-off script,
 # backup or working copy that belongs in its job folder. It is reported, never deleted: an unmatched file may be the
 # only copy, so the move is a reviewed step (global policy: delete nothing unmatched), not a sync side effect.
-$managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs') +
+$managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs', 'receipt-lib.mjs') +
     @($mediaHelpers) +
     @('Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs', 'demo-stack.mjs', 'plugin.json', 'RELEASE-EVIDENCE.md', 'write-story-review.py',
     'model-specs-schemas',  # the model-facing schemas validate-model-specs.mjs reads beside itself
