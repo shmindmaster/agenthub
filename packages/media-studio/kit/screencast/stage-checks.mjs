@@ -38,7 +38,7 @@ export function leadProblems(plan) {
   if (segs.length && segs[0].t0 < 0.35 - 1e-6) out.push(`the first camera move starts at ${segs[0].t0}s: the film must hold the clean full page for at least 0.35 s first`);
   const starts = approachStarts(plan);
   for (const seg of segs) {
-    if (!['open', 'region'].includes(seg.reason) || seg.declared) continue;
+    if (!['open', 'region'].includes(seg.reason) || seg.declared || seg.delayedForResult) continue;
     const press = starts.find((a) => a.press >= seg.t0 - 1e-6);
     if (!press || press.start === null) continue;
     const lead = press.start - seg.t0;
@@ -75,6 +75,47 @@ export function highlightProblems(plan) {
   return out;
 }
 
-export const planProblems = (plan) => [...zoomProblems(plan), ...leadProblems(plan), ...resultProblems(plan), ...unseenResultProblems(plan), ...highlightProblems(plan)];
+/**
+ * Between the first and the last action at least STAGE.zoomCoverageMin of the film time is zoomed (1.3x on wide frames, 1.12x on the others),
+ * not counting the intervals the plan records a reason for (a region that cannot fit zoomed, a result shown once). Returns the numbers.
+ */
+export function zoomCoverage(plan) {
+  const g = plan.geometry, acts = plan.planned || [];
+  if (!acts.length || plan.zoomMode === 'off') return { applicable: false };
+  const from = Math.min(...acts.map((a) => a.t)), to = Math.max(...acts.map((a) => a.tEnd ?? a.t));
+  const thr = g.W / g.H > 1.2 ? 1.3 : 1.12;
+  const notes = plan.zoomNotes || [];
+  let total = 0, zoomed = 0;
+  const step = 0.05;
+  for (let t = from; t < to; t += step) {
+    if (notes.some((n) => t >= n.from && t < n.to)) continue;
+    total += step;
+    if (cameraAt(plan.camera, t, g).z >= thr - 0.005) zoomed += step;
+  }
+  return { applicable: true, from, to, threshold: thr, seconds: Math.round(total * 100) / 100, zoomedSeconds: Math.round(zoomed * 100) / 100, fraction: total > 0 ? Math.round((zoomed / total) * 1000) / 1000 : 1 };
+}
+
+export function zoomCoverageProblems(plan) {
+  const c = zoomCoverage(plan);
+  if (!c.applicable || c.fraction >= STAGE.zoomCoverageMin) return [];
+  return [`only ${Math.round(c.fraction * 100)}% of the film time between the first action (${c.from}s) and the last (${c.to}s) is zoomed to ${c.threshold}x or more, under ${Math.round(STAGE.zoomCoverageMin * 100)}%: the camera must stay on the action, and a region that cannot zoom must be recorded with its reason`];
+}
+
+/** A result shown elsewhere is held at least resultMinViewSeconds, and the camera leaves it within resultHoldMaxSeconds. */
+export function resultHoldProblems(plan) {
+  const out = [], segs = plan.camera.segments;
+  for (const res of plan.results || []) {
+    const i = segs.findIndex((s) => s.reason === 'result' && Math.abs(s.t0 - res.at) < 0.06);
+    if (i < 0) continue;
+    const next = segs[i + 1];
+    if (!next) continue;
+    const held = next.t0 - segs[i].t0;
+    if (held < STAGE.resultMinViewSeconds - 0.02) out.push(`the result of "${res.label || 'press'}" is shown ${r2(held)} s, under ${STAGE.resultMinViewSeconds} s: it must be seen unobstructed`);
+    if (next.reason === 'region' && held > STAGE.resultHoldMaxSeconds + 0.02) out.push(`the camera holds the result of "${res.label || 'press'}" ${r2(held)} s, over ${STAGE.resultHoldMaxSeconds} s: it goes on to the next target`);
+  }
+  return out;
+}
+
+export const planProblems = (plan) => [...zoomProblems(plan), ...leadProblems(plan), ...resultProblems(plan), ...resultHoldProblems(plan), ...unseenResultProblems(plan), ...highlightProblems(plan), ...zoomCoverageProblems(plan)];
 
 export { cameraAt, cursorAt, buildCursorTrack };

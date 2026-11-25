@@ -227,7 +227,7 @@ test('camera leads the pointer: it starts 0.1 s before the first move of the app
 
 test('a result elsewhere on the page is reached within 0.25 s of the press and is in the planned view', () => {
   const changes = [{ t: 1.5, boxes: [css(900, 520, 280, 120)] }];
-  const clip = { ...clipOf([click(1.5, 300, 200, css(260, 185, 80, 30), 'Export')]), changes };
+  const clip = { ...clipOf([click(1.5, 300, 200, css(260, 185, 80, 30), 'Export')], [{ label: 'Exported', observed: true, observedAt: 1.8, targetBox: css(900, 520, 280, 120) }]), changes };
   const p = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clip } });
   const res = p.camera.segments.find((s) => s.reason === 'result');
   assert.ok(res, 'a result segment exists');
@@ -245,7 +245,7 @@ test('plan checks pass a core-v2 plan and fail core-v1 style plans (zoom, lead, 
     click(1.5, 300, 200, css(260, 185, 80, 30), 'Go'),
   ];
   const changes = [{ t: 1.5, boxes: [css(900, 520, 280, 120)] }];
-  const good = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: { ...clipOf(actions), changes } } });
+  const good = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: { ...clipOf(actions, [{ label: 'Exported', observed: true, observedAt: 1.8, targetBox: css(900, 520, 280, 120) }]), changes } } });
   assert.deepEqual(C.planProblems(good), []);
   const v1 = JSON.parse(JSON.stringify(good));
   v1.camera.segments[0].t0 = 1.0;                       // camera starts after the pointer, not before it
@@ -417,15 +417,49 @@ test('the pointer is hidden while a field is typed into and comes back when it n
   assert.ok(M.stateAt(p, 3.0).cursor.hidden > 0.99, 'gone in the middle of the typing');
 });
 
-test('a result the next move would cut off is carried into the next region and checked there, never silently dropped', () => {
-  const acts = [click(1.5, 300, 60, css(260, 45, 80, 30), 'Go'), click(2.4, 900, 680, css(860, 665, 80, 30), 'Next')];
-  const clip = { ...clipOf(acts), changes: [{ t: 1.5, boxes: [css(1000, 300, 240, 60)] }] };
+test('a declared result that does not fit is shown once (0.6 to 1.0 s) and released; nothing is carried into the next region', () => {
+  const acts = [click(1.5, 300, 60, css(260, 45, 80, 30), 'Go'), click(4.0, 900, 680, css(860, 665, 80, 30), 'Next')];
+  const toast = css(1000, 300, 240, 60);
+  const clip = { ...clipOf(acts, [{ label: 'Done', observed: true, observedAt: 1.8, targetBox: toast }]), changes: [{ t: 1.5, boxes: [toast] }] };
   const p = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clip } });
-  assert.deepEqual((p.warnings || []).filter((w) => /is not followed/.test(w)), [], JSON.stringify(p.warnings));
-  const carried = (p.results || []).filter((r) => r.carried);
-  assert.equal(carried.length, 1, JSON.stringify(p.results));
-  assert.equal(carried[0].t, 2.4); assert.equal(carried[0].label, 'Go');
-  assert.deepEqual(C.resultProblems(p), [], 'a carried result has no result camera move to check');
-  // a plan that did drop one is refused by the check
-  assert.ok(C.unseenResultProblems({ warnings: ['the result of "Go" at 1.5s is not followed: the next approach starts 0.4 s later'] })[0].includes('never shown'));
+  const segs = p.camera.segments;
+  const i = segs.findIndex((s) => s.reason === 'result');
+  assert.ok(i >= 0, JSON.stringify(segs));
+  assert.ok(segs[i].t0 - 1.5 <= 0.25 + 1e-6, 'the camera is at the result within 0.25 s of the press');
+  const next = segs[i + 1];
+  assert.ok(next && next.t0 - segs[i].t0 >= 0.6 - 1e-6 && next.t0 - segs[i].t0 <= 1.0 + 1e-6, 'held at least 0.6 s and at most 1.0 s: ' + JSON.stringify(segs.map((s) => [s.t0, s.reason])));
+  assert.deepEqual(C.planProblems(p), []);
+  assert.equal((p.results || []).filter((r) => r.carried).length, 0, 'never carried');
+  assert.ok(p.zoomNotes.some((n) => /shown once/.test(n.why)), 'the result view is a recorded reason');
+});
+
+test('zoom coverage: at least 60% of the action time is zoomed unless the plan records why not', () => {
+  const acts = [click(1.5, 300, 200, css(260, 185, 80, 30), 'A'), click(2.5, 900, 400, css(860, 385, 80, 30), 'B'), click(6.5, 600, 300, css(560, 285, 80, 30), 'C')];
+  const good = P.buildStagePlan({ frame, viewport, slots: [slot({ durationSeconds: 10, edit: { trimStart: 0, trimEnd: 10, speed: 1, skip: [], headHold: 0, srcSeconds: 10 } })], clips: { S01: clipOf(acts) } });
+  const cov = C.zoomCoverage(good);
+  assert.ok(cov.applicable && cov.fraction >= 0.6, JSON.stringify(cov));
+  assert.deepEqual(C.zoomCoverageProblems(good), []);
+  const flat = JSON.parse(JSON.stringify(good)); flat.camera.segments = []; flat.zoomNotes = [];
+  assert.match(C.zoomCoverageProblems(flat)[0], /under 60%/);
+  flat.zoomNotes = [{ from: 0, to: 20, why: 'the region does not fit' }];
+  assert.deepEqual(C.zoomCoverageProblems(flat), [], 'a recorded reason excuses the time');
+  assert.equal(C.zoomCoverage({ ...good, zoomMode: 'off' }).applicable, false);
+});
+
+test('a phone screen inside a wide frame stays horizontally centred and may zoom to 1.6', () => {
+  const phone = { width: 405, height: 720 };
+  const geo = M.stageGeometry(frame, phone, { layout: 'phone' });
+  assert.equal(geo.zoom.max, 1.6);
+  const clip = clipOf([click(1.5, 100, 600, css(60, 585, 80, 30), 'Low')]);
+  const p = P.buildStagePlan({ frame, viewport: phone, slots: [slot()], clips: { S01: { ...clip, touch: true } }, options: { layout: 'phone', background: {} } });
+  for (const s of p.camera.segments) assert.equal(s.to.cx, 960, 'the phone stays centred: ' + JSON.stringify(s.to));
+});
+
+test('the gradient comes from the page theme colour: a navy and teal page gives a dark teal-blue, not the cream paper', () => {
+  const w = 48, h = 27, px = new Uint8Array(w * h * 3);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 3; const c = y < 3 ? [17, 48, 58] : x > 40 && y < 8 ? [14, 138, 140] : [245, 243, 236]; px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; }
+  const [r, g, b] = M.themeColour(px, w, h);
+  assert.ok(b > r && g > r && r < 60, `theme colour ${[r, g, b]} is navy/teal`);
+  const [dark, light] = M.gradientFromColour([r, g, b]);
+  assert.ok(dark[2] >= dark[0] && light[2] >= light[0], 'both tones stay in the blue-green family');
 });

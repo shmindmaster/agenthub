@@ -40,8 +40,30 @@ export class BeatTracker {
   toJSON() { return this.marks; }
 }
 
+/**
+ * Does the page scroll or spill sideways at the recorded viewport? A product that overflows its viewport shows a cut-off table or a blank
+ * strip in the film, so a take of it is refused. Looks at the document's scrollable width (hidden overflow counts) and names the first
+ * visible elements that end past the right edge. Returns null when the layout fits.
+ */
+export async function horizontalOverflow(page) {
+  return page.evaluate(() => {
+    const de = document.documentElement, b = document.body, vw = window.innerWidth;
+    const sw = Math.max(de.scrollWidth, b ? b.scrollWidth : 0);
+    if (sw <= vw + 1) return null;
+    const off = [];
+    for (const el of document.querySelectorAll('body *')) {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      if (r.width < 2 || r.height < 2 || cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) continue;
+      if (r.right > vw + 1 && r.left < vw) off.push(`${el.tagName.toLowerCase()}${el.getAttribute('data-testid') ? '[' + el.getAttribute('data-testid') + ']' : el.id ? '#' + el.id : ''} ends at ${Math.round(r.right)}px`);
+      if (off.length >= 4) break;
+    }
+    return { scrollWidth: sw, viewportWidth: vw, offenders: off };
+  });
+}
+
 export class EventLog {
-  constructor(t0) { this.t0 = t0; this.events = []; this.expectations = []; this.pointer = { x: null, y: null }; }
+  constructor(t0) { this.t0 = t0; this.events = []; this.expectations = []; this.layout = []; this.pointer = { x: null, y: null }; }
   now() { return Math.round(((Date.now() - this.t0) / 1000) * 1000) / 1000; }
   push(type, data = {}) { const ev = { t: this.now(), type, ...data }; this.events.push(ev); return ev; }
   summary() {
@@ -59,6 +81,7 @@ export class EventLog {
       expectations: this.expectations.length,
       expectationsObserved: this.expectations.filter((e) => e.observed).length,
       expectationsFailed: this.expectations.filter((e) => !e.observed).map((e) => e.label),
+      layoutProblems: this.layout,
     };
   }
 }
@@ -543,10 +566,19 @@ export function bindHelpers(page, log, beats, opts = {}) {
     if (o.readySelector) await page.locator(o.readySelector).first().waitFor({ state: 'visible', timeout: o.readyTimeout ?? 30000 });
     await wait(o.settle ?? 1500);
     opts.stageCapture?.arm();
+    await checkLayout();
+  }
+
+  /** Stage lane: the page must fit the recorded viewport sideways. The problem is logged and fails the take. */
+  async function checkLayout() {
+    if (!opts.stageCapture) return null;
+    const p = await horizontalOverflow(page).catch(() => null);
+    if (p) { log.layout.push({ url: page.url(), ...p }); console.log(`  LAYOUT: the page spills sideways at ${page.viewportSize()?.width}px: scrollWidth ${p.scrollWidth}, ${p.offenders.join('; ')}`); }
+    return p;
   }
 
   /** Result hold (≥500 ms; longer when the viewer must read). */
   const hold = (ms = 1500) => wait(ms);
 
-  return { approach, click, tap, typeText, uploadFile, fillValue, selectOption, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
+  return { approach, click, tap, typeText, uploadFile, fillValue, selectOption, pointAt, hoverHold, smoothScroll, expect, go, checkLayout, hold, wait, mark: (l, x) => beats.mark(l, x), page };
 }

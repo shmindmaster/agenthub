@@ -20,7 +20,7 @@ import { createHash } from 'node:crypto';
 import { CAMPAIGN_FORMS, frameFor, sourcePictureFilter, sourceRegionError, validateCampaign } from './campaign-contract.mjs';
 import { SYNC_DEFAULTS, planAlignment, keptRanges, editSlotSeconds } from './sync-lib.mjs';
 import { stageRamps } from './stage-ramps.mjs';
-import { STAGE, gradientFromColour } from './stage-math.mjs';
+import { STAGE, gradientFromColour, themeColour } from './stage-math.mjs';
 import { buildStagePlan, PRESS } from './stage-plan.mjs';
 import { measureChanges } from './stage-changes.mjs';
 
@@ -345,10 +345,10 @@ stageRuns.forEach((run, n) => {
   const layout = stageCfg.background ? 'phone' : null;
   let background = null;
   if (layout) {
-    // The gradient behind a phone screen is generated from the page's own colour: a dark and a lighter tone of its mean colour.
+    // The gradient behind a phone screen is generated from the page's own theme colour (its app bar and accent, not the cream paper): a dark and a lighter tone of it.
     const first = clipsIn[clipIds[0]].frames.files[0];
-    const mean = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', path.join(jobRoot, 'capture', 'raw', first), '-vf', 'scale=1:1:flags=area,format=rgb24', '-f', 'rawvideo', 'pipe:1']);
-    background = { colors: gradientFromColour([mean[0], mean[1], mean[2]]), angle: STAGE.background.angle, ...(Array.isArray(stageCfg.background.colors) ? { colors: stageCfg.background.colors } : {}) };
+    const mean = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', path.join(jobRoot, 'capture', 'raw', first), '-vf', 'scale=48:27:flags=area,format=rgb24', '-f', 'rawvideo', 'pipe:1']);
+    background = { colors: gradientFromColour(themeColour(mean, 48, 27)), angle: STAGE.background.angle, ...(Array.isArray(stageCfg.background.colors) ? { colors: stageCfg.background.colors } : {}) };
   }
   const plan = buildStagePlan({ frame: { width: W, height: H, fps: FPS }, viewport, dsf: receipt.clips[clipIds[0]].deviceScaleFactor, slots: run.slots.map(({ segments, ...s }) => s), clips: clipsIn, options: { hideCursor, idleHide: stageCfg.idleHide, zoom: stageCfg.zoom, highlights: stageCfg.highlights, layout, background } });
   plan.film = { startSeconds: run.startSeconds, segments: run.slots.map((s) => s.segments) };

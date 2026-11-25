@@ -70,12 +70,23 @@ node "$R/scripts/validate-screen-stage.mjs" "$J" "$J/output/neg-30fps-silent.mp4
 cp "$J"/qa/*.json "$OUT/qa/" 2>/dev/null
 cp "$J"/output/neg-*-silent.mp4 "$OUT/" 2>/dev/null
 cp "$J"/capture/raw/S01/frames.json "$OUT/frames.json"
-# a few source frames for the sharpness comparison against the zoomed stills
-cp "$J/capture/raw/S01/frames.json" "$OUT/frames.json"
-for f in $(ls "$J/capture/raw/S01/frames" | sed -n '1p;8p;16p;24p;33p'); do cp "$J/capture/raw/S01/frames/$f" "$OUT/frames/"; done
 # text-edge sharpness: the film at rest against the capture resampled to the same geometry (zoomed holds and the unzoomed opening)
 step "sharpness"
-TIMES=$(node -e "const p=JSON.parse(require('fs').readFileSync('$J/output/$BASE-stage-plan-0.json','utf8'));const s=p.camera.segments;const t=[0.1];s.forEach((g,i)=>{const n=i+1<s.length?s[i+1].t0:p.runSeconds;if(n-g.t0>1.2)t.push(+(g.t0+Math.min(1.0,(n-g.t0)/2)).toFixed(2));});console.log(t.join(' '))")
+# rows only where the camera is settled: 0.85 s after a segment starts and 0.15 s before the next (a move is 0.5-0.7 s); their source frames are kept for the comparison
+cat > "$OUT/sharp-times.mjs" <<'JS'
+import fs from 'node:fs'; import path from 'node:path'; import { pathToFileURL } from 'node:url';
+const [kit, planFile] = process.argv.slice(2);
+const M = await import(pathToFileURL(path.join(kit, 'stage-math.mjs')).href);
+const p = JSON.parse(fs.readFileSync(planFile, 'utf8')); const s = p.camera.segments; const t = [0.1];
+s.forEach((g, i) => { const n = i + 1 < s.length ? s[i + 1].t0 : p.runSeconds; const at = g.t0 + 0.85; if (at < n - 0.15) t.push(+at.toFixed(2)); });
+console.log(JSON.stringify({ times: t, frames: [...new Set(t.map((x) => path.basename(M.stateAt(p, x).frame)))] }));
+JS
+PLAN="$J/output/$BASE-stage-plan-0.json"
+node "$OUT/sharp-times.mjs" "$R/kit/screencast" "$PLAN" > "$OUT/sharp-times.json"
+TIMES=$(node -e "console.log(require('$OUT/sharp-times.json').times.join(' '))")
+mkdir -p "$OUT/frames"
+for f in $(node -e "console.log(require('$OUT/sharp-times.json').frames.join(' '))"); do cp "$J/capture/raw/S01/frames/$f" "$OUT/frames/"; done
+cp "$J/capture/raw/S01/frames.json" "$OUT/frames.json"
 node "$R/tests/fixtures/screen-stage/sharpness.mjs" "$J/output/$BASE-silent.mp4" "$J/output/$BASE-stage-plan-0.json" "$J/capture/raw/S01/frames" $TIMES > "$OUT/sharpness.json" 2> "$OUT/sharpness.err"; echo "sharpness exit $?"
 # click sounds: the effects stem (one synthesised click or tap per drawn press) muxed onto the silent film, and the music-bed rule
 step "click sounds"

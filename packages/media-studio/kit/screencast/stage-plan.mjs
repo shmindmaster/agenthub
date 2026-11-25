@@ -158,41 +158,32 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     if (c.manual) return;
     const next = clusters[i + 1];
     const limit = next ? next.firstT : Infinity;
-    const resp = results.filter((r) => r.t >= c.firstT - 1e-6 && r.t < limit).map((r) => toStageBox(g, r.box));
+    const declared = results.filter((r) => r.t >= c.firstT - 1e-6 && r.t < limit).map((r) => toStageBox(g, r.box));
     const act = unionBox(c.boxes);
     let box = act;
-    // The action and its result both stay in frame when they fit together; otherwise the result is dropped before the action is.
     let joined = false;
-    if (resp.length) { const both = unionBox([act, ...resp]); if (zoomForBox(both, g) >= g.zoom.min - 1e-6) { box = both; joined = true; } }
-    // What changed on the page within about a second of the last press (measured from the captured frames). When it lies outside the
-    // action it must be seen: it joins the region if both fit, otherwise the camera goes to it within resultLeadSeconds of the press.
+    // What changed on the page within about a second of the last press (measured from the captured frames), and the results the take
+    // declared (a confirmation, a toast, status text). What fits with the action at the minimum zoom joins its region, nearest first.
     const lastPress = c.presses[c.presses.length - 1];
     const near = unionBox([act]), pad = 40;
-    const outside = (lastPress.changes || []).map((b) => toStageBox(g, b)).filter((b) => b.x > near.x + near.w + pad || b.x + b.w < near.x - pad || b.y > near.y + near.h + pad || b.y + b.h < near.y - pad);
-    c.resultBox = outside.length ? unionBox(outside) : null;
-    c.resultCamera = null;
-    if (c.resultBox) {
-      const both = unionBox([box, c.resultBox]);
-      if (zoomForBox(both, g) >= g.zoom.min - 1e-6) { box = both; joined = true; }
-      else { c.resultCamera = cameraForBox(c.resultBox, g, { bias: false }); c.resultAt = lastPress.t + STAGE.resultLeadSeconds; }
+    const measured = (lastPress.changes || []).map((b) => toStageBox(g, b)).filter((b) => b.x > near.x + near.w + pad || b.x + b.w < near.x - pad || b.y > near.y + near.h + pad || b.y + b.h < near.y - pad);
+    const dist = (b) => Math.hypot(b.x + b.w / 2 - (act.x + act.w / 2), b.y + b.h / 2 - (act.y + act.h / 2));
+    const far = [];
+    for (const r of [...declared.map((b) => ({ b, declared: true })), ...measured.map((b) => ({ b, declared: false }))].sort((x, y) => dist(x.b) - dist(y.b))) {
+      if (zoomForBox(unionBox([box, r.b]), g) >= g.zoom.min - 1e-6) { box = unionBox([box, r.b]); joined = true; } else far.push(r);
     }
+    // A declared result that does not fit is shown once: the camera goes to it within resultLeadSeconds of the press, holds it for at least
+    // resultMinViewSeconds and at most resultHoldMaxSeconds, then moves on to the next target. It is released after that and never carried
+    // into another region. A change nobody declared that does not fit is not worth leaving the action for.
+    c.resultBox = far.some((r) => r.declared) ? unionBox(far.map((r) => r.b)) : null;
+    c.resultCamera = null;
+    if (c.resultBox) { c.resultCamera = cameraForBox(c.resultBox, g, { bias: false }); c.resultAt = lastPress.t + STAGE.resultLeadSeconds; }
     c.action = act; c.region = box;
     // The 1.8 ceiling is for a tiny target together with a tiny result in the same view; anything else stays at the 1.5 default.
     c.joined = joined;
     c.zoom = joined ? zoomForBox(box, g) : Math.min(zoomForBox(box, g), g.zoom.default);
     c.camera = cameraForBox(box, g, { bias: c.presses.length === 1 && box === act, zoom: c.zoom });
-    // A result the next approach would cut off (the pointer is already on its way to the next target) is not chased: the next move comes first.
-    const nxt = clusters[i + 1];
-    if (c.resultCamera && nxt) {
-      const nextStart = nxt.approachStart != null ? nxt.approachStart : nxt.firstT - leadSec;
-      if (nextStart - c.resultAt < STAGE.resultMinViewSeconds) {
-        // The pointer is already on its way: show the result in the next region when both fit at the minimum zoom, else it would be missed.
-        // The union may no longer fit zoomed: then the next region is the whole page, which shows the result as well.
-        if (!nxt.manual) { nxt.boxes.push(c.resultBox); (nxt.carried = nxt.carried || []).push({ label: lastPress.label || lastPress.type, boxStage: c.resultBox }); }
-        else warnings.push(`the result of "${lastPress.label || lastPress.type}" at ${lastPress.t}s is not followed: the next approach starts ${r3(nextStart - lastPress.t)} s later`);
-        c.resultCamera = null; c.resultBox = null;
-      }
-    }
+    if (c.zoom <= 1) c.whyWide = `the region of ${c.presses.map((p) => p.label || p.type).join(', ')} (${Math.round(box.w)}x${Math.round(box.h)} px) does not fit at ${g.zoom.min}x`;
     c.resultEnd = Math.max(c.lastEnd, ...results.filter((r) => r.t >= c.firstT && r.t < limit).map((r) => r.t));
   });
 
@@ -215,9 +206,15 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     // The camera starts a little before the pointer starts to move (so the two are not at peak speed together) and lands by the press.
     const lead = c.approachStart != null ? c.approachStart - STAGE.cameraLeadSeconds : c.firstT - leadSec;
     let t0 = c.manual ? Math.max(earliest, c.firstT) : Math.max(earliest, Math.min(lead, c.firstT - leadSec));
+    // After a result was shown the camera stays on it at least resultMinViewSeconds and leaves it after at most resultHoldMaxSeconds.
+    let delayedForResult = false;
+    if (prev?.resultCamera && !c.manual) {
+      const lo = prev.resultAt + STAGE.resultMinViewSeconds, hi = prev.resultAt + STAGE.resultHoldMaxSeconds;
+      if (t0 < lo) { t0 = lo; delayedForResult = true; } else if (t0 > hi) t0 = hi;
+    }
     if (i === 0 && !c.manual) t0 = Math.min(t0, Math.max(earliest, STAGE.openHoldMaxSeconds)); // the clean opening is held 0.35-0.6 s, however late the pointer starts
     if (i === 0 && Math.min(lead, c.firstT - leadSec) < STAGE.openWideSeconds) warnings.push(`the first move would start before ${STAGE.openWideSeconds}s of clean full page: it starts at ${r3(t0)}s`);
-    segments.push(c.instant ? { t0: r3(c.firstT), to: c.camera, reason: 'cut', instant: true } : { t0: r3(t0), to: c.camera, reason: i === 0 ? 'open' : 'region', ...(c.manual ? { declared: true } : {}) });
+    segments.push(c.instant ? { t0: r3(c.firstT), to: c.camera, reason: 'cut', instant: true } : { t0: r3(t0), to: c.camera, reason: i === 0 ? 'open' : 'region', ...(c.manual ? { declared: true } : {}), ...(delayedForResult ? { delayedForResult: true } : {}) });
     cur = c.camera;
     if (c.resultCamera) { segments.push({ t0: r3(Math.max(c.resultAt, lastSegT0() + 0.35)), to: c.resultCamera, reason: 'result' }); cur = c.resultCamera; }
   });
@@ -283,11 +280,14 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     camera, cursor, planned, moves: moveList, warnings,
     highlights: buildHighlights(options.highlights, presses, g),
     regions: clusters.map((c) => ({ firstT: c.firstT, resultEnd: r3(c.resultEnd), zoom: r3(c.zoom), merged: !!c.merged, declared: !!c.declared, withResult: !!c.joined, labels: c.presses.map((p) => p.label || p.type), region: c.region })),
-    results: [
-      ...clusters.filter((c) => c.resultBox).map((c) => ({ t: c.presses[c.presses.length - 1].t, label: c.presses[c.presses.length - 1].label, boxStage: c.resultBox, mustBeSeenBy: r3(c.presses[c.presses.length - 1].t + STAGE.resultLeadSeconds + 0.7) })),
-      // a result the next move would cut off is shown in the next region (the whole page when the union no longer fits zoomed)
-      ...clusters.flatMap((c) => (c.carried || []).map((r) => ({ t: c.firstT, label: r.label, boxStage: r.boxStage, carried: true, mustBeSeenBy: c.firstT }))),
+    results: clusters.filter((c) => c.resultBox).map((c) => ({ t: c.presses[c.presses.length - 1].t, label: c.presses[c.presses.length - 1].label, boxStage: c.resultBox, at: r3(c.resultAt), mustBeSeenBy: r3(c.resultAt + 0.5), heldUntil: r3(c.resultAt + STAGE.resultMinViewSeconds) })),
+    // the regions that cannot zoom and why, and the time they take: the zoom coverage check excludes them (a result view is one of them)
+    zoomNotes: [
+      ...clusters.filter((c) => c.whyWide).map((c) => ({ from: r3(c.firstT), to: r3(c.resultEnd), why: c.whyWide })),
+      ...segments.flatMap((sg, k) => (sg.reason === 'context' ? [{ from: sg.t0, to: segments[k + 1] ? segments[k + 1].t0 : runSeconds, why: 'a quiet gap between actions pulls back to the full page' }] : [])),
+      ...clusters.filter((c) => c.resultCamera).map((c) => ({ from: r3(c.resultAt), to: r3(c.resultAt + STAGE.resultHoldMaxSeconds), why: 'a result elsewhere on the page is shown once' })),
     ],
+    zoomMode: zmode,
   };
 }
 

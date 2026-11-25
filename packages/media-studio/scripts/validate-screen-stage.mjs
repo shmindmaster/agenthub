@@ -420,17 +420,18 @@ for (const listed of plansListed) {
     for (const l of longRuns) fail(`run ${listed.run}: the view is held unchanged for ${l.seconds} s from ${l.fromSeconds}s (limit ${LIMITS.stillSeconds} s without narration over it)`);
   }
 
-  // 9d. a result that appears elsewhere is in the measured view
+  // 9d. a result that appears elsewhere is in the measured view, and stays there (unobstructed) for at least 0.6 s
   row.results = [];
+  const inView = (t, box) => {
+    const m = measure(T0 + t);
+    return !!(m && m.ncc >= LIMITS.bindingNcc - 0.2 && M.boxInView({ cx: m.measured.cx, cy: m.measured.cy, z: m.measured.z }, g, { x: box.x + 3, y: box.y + 3, w: box.w - 6, h: box.h - 6 }));
+  };
   for (const res of (rebuilt || plan).results || []) {
-    let seen = null;
-    for (const d of res.carried ? [0, 0.1, 0.25] : [0.3, 0.55, 0.8, 1.0]) {
-      const t = res.t + d; if (t > listed.durationSeconds - 0.05) break;
-      const m = measure(T0 + t);
-      if (m && m.ncc >= LIMITS.bindingNcc - 0.2 && M.boxInView({ cx: m.measured.cx, cy: m.measured.cy, z: m.measured.z }, g, { x: res.boxStage.x + 3, y: res.boxStage.y + 3, w: res.boxStage.w - 6, h: res.boxStage.h - 6 })) { seen = r2(d); break; }
-    }
-    row.results.push({ label: res.label, t: res.t, seenAfterSeconds: seen });
-    if (seen === null) fail(`run ${listed.run}: the result of "${res.label || 'press'}" (${res.t}s) is not inside the measured view within ${LIMITS.resultSeenSeconds[1]} s`);
+    const need = [res.mustBeSeenBy, res.heldUntil].filter(Number.isFinite);
+    const checks = need.filter((t) => t <= listed.durationSeconds - 0.05).map((t) => ({ t: r2(t), seen: inView(t, res.boxStage) }));
+    row.results.push({ label: res.label, t: res.t, checked: checks });
+    const missed = checks.filter((c) => !c.seen);
+    if (!checks.length || missed.length) fail(`run ${listed.run}: the result of "${res.label || 'press'}" (${res.t}s) is not inside the measured view ${missed.length ? 'at ' + missed.map((c) => c.t + 's').join(', ') : 'within the film'}: it must be seen unobstructed for at least 0.6 s`);
   }
 
   // 9e. colour and ghosting during moves: the fastest frames of each camera move

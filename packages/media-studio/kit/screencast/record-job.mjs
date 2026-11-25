@@ -274,7 +274,13 @@ for (const id of ids) {
     const problems = viewerFacing ? provenanceProblems(id, provenance, proof) : [];
     if (problems.length) { take.error = problems.join('; '); console.log('  identity:', take.error); }
   } catch (e) { take.error = `identity() failed: ${e.message.split('\n')[0]}`; }
+  if (stageLane) await rec.h.checkLayout?.().catch(() => {});
   const fin = await finishRecording(rec, carryState ? { saveStatePath: carryPath } : {});
+  if (stageLane && fin.summary.layoutProblems?.length && !take.error) {
+    const lp = fin.summary.layoutProblems[0];
+    take.error = `the page spills sideways at the recorded ${capture.viewport.width}x${capture.viewport.height} viewport (scrollWidth ${lp.scrollWidth} > ${lp.viewportWidth}; ${lp.offenders.join('; ')}): fix the responsive layout of the product at this size, a cut-off table or a blank strip is not footage`;
+    console.log('  ' + take.error);
+  }
   take.rawSeconds = Number(((Date.now() - t0) / 1000).toFixed(1));
   fs.writeFileSync(path.join(cap, 'beats', `${id}.json`), JSON.stringify({ id, marks: fin.beats, expectations: fin.expectations }, null, 2));
   const out = stageLane ? finishStageTake(id, fin, take) : await finishTake(id, fin, take, capture.videoSize || capture.viewport);

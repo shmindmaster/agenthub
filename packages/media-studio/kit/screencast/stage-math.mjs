@@ -17,7 +17,9 @@ export const STAGE = Object.freeze({
   deviceScaleFactor: 2.5,   // 3200x1800 frames: the browser delivers 60 unique frames a second while the page animates (3x manages 37-50)
   zoom: Object.freeze({ min: 1.3, default: 1.5, max: 1.8 }),         // 16:9 and wider: the page is small at wide, so the camera works harder
   zoomPortrait: Object.freeze({ min: 1.15, default: 1.25, max: 1.35 }), // 9:16, 4:5, 1:1: phone UI is already large
-  omega: 10.5,              // critically damped spring: peak speed ~0.095 s, ~90% at 0.37 s, ~99% at 0.63 s, no overshoot
+  zoomPlaced: Object.freeze({ min: 1.3, default: 1.5, max: 1.6 }),   // a phone screen inside a wide frame: the screen fills more of the frame
+  zoomCoverageMin: 0.6,     // between the first and the last action at least this share of the film time is zoomed (unless the plan records why not)
+  omega: 11.2,              // critically damped spring: peak speed ~0.09 s, ~90% at 0.35 s, ~99% at 0.59 s, no overshoot (the owner reference: 0.5-0.7 s in all)
   touchLeadSeconds: 1.0,    // a tap has no pointer approach: the camera starts this long before it so the view is not left still
   leadSeconds: 0.5,         // with no recorded approach, the camera starts this long before the press it serves
   cameraLeadSeconds: 0.1,   // the camera starts this long before the pointer starts to move, so the two are not at peak speed together
@@ -25,11 +27,12 @@ export const STAGE = Object.freeze({
   fill: 0.78,               // a zoom region may fill at most this share of the view
   bias: Object.freeze({ x: 0.42, y: 0.38 }), // where a lone control sits in the view, leaving room for what it opens
   openHoldMaxSeconds: 0.6,  // the clean opening is held at most this long before the camera starts
-  resultMinViewSeconds: 0.9,// a result is chased only when the next approach starts at least this long after it appears
+  resultMinViewSeconds: 0.6,// a result elsewhere is shown unobstructed at least this long, once; then it is released and never carried
+  resultHoldMaxSeconds: 1.0,// and the camera leaves it for the next target after at most this long
   openWideSeconds: 0.5,     // the film opens on the full page, clean, and the first move starts no sooner than this
   closeHoldSeconds: 0.9,    // the last press and its result stay in the zoomed view this long before the pull back
   closeWideSeconds: 1.3,    // the film ends on the full page for at least this long when the run allows
-  settleSeconds: 0.7,       // a move is judged settled this long after it starts (99% at omega 10.5)
+  settleSeconds: 0.7,       // a move is judged settled this long after it starts (99% at omega 11.2: 0.59 s)
   contextGapSeconds: 3.0,   // a quiet gap this long between two targets pulls back to the full page
   clusterGapSeconds: 1.3,   // presses closer than this share one zoom region when their joint box fits
   clusterSpanSeconds: 3.2,
@@ -59,7 +62,28 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 // ------------------------------------------------------------------------------------------------ geometry
 
-/** Two sRGB colours (0-255) for the generated gradient behind a phone screen: a dark and a lighter tone of the page's own mean colour, hue shifted a little. Pure and deterministic. */
+/**
+ * The page's own theme colour from a small rgb24 raster of its first frame: the average of its colourful, not-too-light pixels, weighted by
+ * saturation (a cream or white page background has no say; the navy app bar and the teal accent do). Falls back to the plain mean.
+ * Pure and deterministic.
+ */
+export function themeColour(rgb, w, h) {
+  let sw = 0, r = 0, g = 0, b = 0, mr = 0, mg = 0, mb = 0;
+  const n = w * h;
+  for (let i = 0; i < n; i++) {
+    const R = rgb[i * 3] / 255, G = rgb[i * 3 + 1] / 255, B = rgb[i * 3 + 2] / 255;
+    mr += R; mg += G; mb += B;
+    const mx = Math.max(R, G, B), mn = Math.min(R, G, B), l = (mx + mn) / 2, d = mx - mn;
+    const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+    if (l < 0.06 || l > 0.78 || s < 0.2) continue;
+    const wt = s;
+    sw += wt; r += R * wt; g += G * wt; b += B * wt;
+  }
+  if (sw < 0.02 * n) return [Math.round((mr / n) * 255), Math.round((mg / n) * 255), Math.round((mb / n) * 255)];
+  return [Math.round((r / sw) * 255), Math.round((g / sw) * 255), Math.round((b / sw) * 255)];
+}
+
+/** Two sRGB colours (0-255) for the generated gradient behind a phone screen: a dark and a lighter tone of the page's own theme colour, hue shifted a little. Pure and deterministic. */
 export function gradientFromColour([r, g, b]) {
   const mx = Math.max(r, g, b) / 255, mn = Math.min(r, g, b) / 255, l = (mx + mn) / 2, d = mx - mn;
   const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
@@ -68,7 +92,7 @@ export function gradientFromColour([r, g, b]) {
   h = (h * 60 + 360) % 360;
   const hsl = (hh, ss, ll) => { const c = (1 - Math.abs(2 * ll - 1)) * ss, x = c * (1 - Math.abs(((hh / 60) % 2) - 1)), m = ll - c / 2; const [a, bb, cc] = hh < 60 ? [c, x, 0] : hh < 120 ? [x, c, 0] : hh < 180 ? [0, c, x] : hh < 240 ? [0, x, c] : hh < 300 ? [x, 0, c] : [c, 0, x]; return [a + m, bb + m, cc + m].map((v) => Math.round(clamp(v, 0, 1) * 255)); };
   const sat = clamp(s * 0.6 + 0.12, 0.2, 0.65);
-  return [hsl(h, sat, 0.13), hsl((h + 28) % 360, sat, 0.33)];
+  return [hsl(h, sat, 0.12), hsl((h + 12) % 360, sat, 0.32)];
 }
 
 /** Page CSS px -> stage px, and the stage frame. The viewport must have the frame's aspect: there are no bars. */
@@ -83,7 +107,7 @@ export function stageGeometry(frame, viewport, { layout = null } = {}) {
     ox = (W - viewport.width * k) / 2; oy = (H - viewport.height * k) / 2;
     placement = { x: ox, y: oy, w: viewport.width * k, h: viewport.height * k, radius: 36 * Math.min(W, H) / 1080 };
   }
-  return { W, H, k, ox, oy, placement, zoom: W / H > 1.2 ? STAGE.zoom : STAGE.zoomPortrait, unit: Math.min(W, H) / 1080 };
+  return { W, H, k, ox, oy, placement, zoom: placement ? STAGE.zoomPlaced : W / H > 1.2 ? STAGE.zoom : STAGE.zoomPortrait, unit: Math.min(W, H) / 1080 };
 }
 
 export const wideCamera = (g) => ({ cx: g.W / 2, cy: g.H / 2, z: 1 });
@@ -137,7 +161,8 @@ export function zoomForBox(box, g) {
 export function cameraForBox(box, g, { bias = false, zoom = null } = {}) {
   const z = zoom ?? zoomForBox(box, g);
   if (z <= 1) return wideCamera(g);
-  const cx = box.x + box.w / 2 + (bias ? (0.5 - STAGE.bias.x) * (g.W / z) : 0);
+  // a phone screen inside a wide frame stays horizontally centred while the camera zooms: only the height follows the target
+  const cx = g.placement ? g.W / 2 : box.x + box.w / 2 + (bias ? (0.5 - STAGE.bias.x) * (g.W / z) : 0);
   const cy = box.y + box.h / 2 + (bias ? (0.5 - STAGE.bias.y) * (g.H / z) : 0);
   return clampCamera({ cx, cy, z }, g);
 }

@@ -26,6 +26,10 @@ const have = new Set(readdirSync(framesDir));
 const rows = [];
 for (const t of times.map(Number)) {
   const cam = M.cameraAt(plan.camera, t, g), st = M.stateAt(plan, t);
+  // Only a settled camera is measured: a row taken while the camera is still easing (a move is up to 0.6 s) compares a blurred frame with a sharp reference.
+  const prev = M.cameraAt(plan.camera, t - 0.1, g), next = M.cameraAt(plan.camera, t + 0.1, g);
+  const moved = (p, q) => Math.abs(p.z - q.z) > 0.002 || Math.hypot(p.cx - q.cx, p.cy - q.cy) > 0.5;
+  if (moved(prev, cam) || moved(cam, next)) { rows.push({ t, unsettled: true, note: 'camera still moving within 0.1 s of this time; not measured' }); continue; }
   const name = basename(st.frame);
   if (!have.has(name)) { rows.push({ t, error: `frame ${name} not in ${framesDir}` }); continue; }
   const src = join(framesDir, name);

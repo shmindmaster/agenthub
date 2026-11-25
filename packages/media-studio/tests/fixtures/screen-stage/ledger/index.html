@@ -20,7 +20,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background: var(--paper); color: var(--ink); font: 15px/1.35 var(--font); cursor: default; }
   button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: left; }
-  .app { display: grid; grid-template-rows: 56px 52px 1fr 36px; width: 100vw; height: 100vh; }
+  .app { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px 52px 1fr 36px; width: 100vw; height: 100vh; }
 
   /* app bar + menu bar */
   .bar { display: flex; align-items: center; gap: 28px; padding: 0 24px; background: var(--ink); color: #eaf5f4; }
@@ -78,19 +78,23 @@
   /* phone layout: the same page, one column of cards narrower than 640 px (the 9:16 and phone-in-16:9 proof films) */
   @media (max-width: 640px) {
     .app { grid-template-rows: 52px 52px 1fr 34px; }
-    .bar { gap: 8px; padding: 0 10px; }
+    .bar { gap: 8px; padding: 0 10px; min-width: 0; overflow: visible; }
     .brand { font-size: 17px; gap: 6px; } .brand small { display: none; }
-    .menu-btn { min-width: 0; padding: 0 9px; font-size: 14px; }
-    .menu-main { left: -150px; }
+    .menubar { min-width: 0; } .menu-btn { min-width: 0; padding: 0 8px; font-size: 14px; }
+    .menu-main { left: -110px; }
     .menu-sub { top: calc(100% + 2px); left: 0; transform: translateY(-6px); } .menu-sub.open { transform: translateY(0); }
-    .toolbar { padding: 0 10px; gap: 6px; } .tool { padding: 0 10px; } .note { width: auto; flex: 1; min-width: 0; }
-    .sheet { padding: 14px 10px 0; } .sheet-head h1 { font-size: 18px; } .sheet-head span { display: none; }
-    col.c-date, col.c-acct, col.c-cat { width: 0; }
+    .toolbar { padding: 0 10px; gap: 6px; min-width: 0; } .tool { padding: 0 10px; } .tool.hide-narrow { display: none; }
+    .note { width: auto; flex: 1; min-width: 0; }
+    .sheet { padding: 14px 10px 0; min-width: 0; } .sheet-head h1 { font-size: 18px; } .sheet-head span { display: none; }
+    /* rows become two-column cards: description and amount; the other columns are dropped, so the colgroup goes too */
+    colgroup { display: none; }
+    table { table-layout: auto; }
     th:nth-child(1), td:nth-child(1), th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { display: none; }
     th, td { padding: 0 10px; height: 46px; }
-    col.c-desc { width: auto; } col.c-amt { width: 120px; }
+    th:nth-child(2), td:nth-child(2) { width: 100%; max-width: 0; }
+    th.amt, td.amt { width: 120px; }
     .toast { left: 10px; right: 10px; bottom: 46px; text-align: center; }
-    .status { padding: 0 10px; font-size: 12px; }
+    .status { padding: 0 10px; font-size: 12px; gap: 8px; } .status span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   }
 </style>
 </head>
@@ -128,8 +132,8 @@
 
   <div class="toolbar" role="toolbar" aria-label="Ledger tools">
     <button class="tool" data-testid="tool-undo">Undo</button>
-    <button class="tool" data-testid="tool-redo">Redo</button>
-    <button class="tool" data-testid="tool-filter">Filter</button>
+    <button class="tool hide-narrow" data-testid="tool-redo">Redo</button>
+    <button class="tool hide-narrow" data-testid="tool-filter">Filter</button>
     <span class="spacer"></span>
     <input class="note" type="text" placeholder="Add a note to this month" aria-label="Note" data-testid="note-field">
   </div>
