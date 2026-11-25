@@ -67,12 +67,36 @@ function userEnv(name) {
 const textOrFile = (v) => (v && fs.existsSync(v) ? fs.readFileSync(v, 'utf8') : v);
 
 class RateLimited extends Error {}
+class TimedOut extends Error {}
+
+// How long one call may take, response body included. Replies are not streamed, so a slow model sends no headers until it
+// has finished, and Node's own fetch gives up on headers after 300 s: no call here could succeed more slowly than that.
+// Sending comes on top: image and WAV bodies reach tens of MB, allowed for at 2 Mbit/s.
+const REPLY_MS = 300_000;
+const UPLOAD_BYTES_PER_MS = 250;
+const SMALL_REQUEST_MS = 120_000; // listing models, submitting or reading a transcript; the same bound as blob.mjs
+export const callDeadlineMs = (bytes) => REPLY_MS + Math.ceil(bytes / UPLOAD_BYTES_PER_MS);
+
+/** One bounded HTTP exchange: the deadline covers connecting, sending and reading the whole body. */
+async function exchange(url, init, deadlineMs) {
+  try {
+    const res = await fetch(url, { ...init, signal: AbortSignal.timeout(deadlineMs) });
+    return { res, text: await res.text() };
+  } catch (err) {
+    if (err.name !== 'TimeoutError' && !/^UND_ERR_(HEADERS|BODY)_TIMEOUT$/.test(err.cause?.code)) throw err;
+    throw new TimedOut(err.name === 'TimeoutError' ? `no complete response within ${deadlineMs / 1000} s` : err.cause.message);
+  }
+}
 
 async function postJson(url, headers, body) {
+  const payload = JSON.stringify(body);
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
-    if (res.ok) return res.json();
-    const text = await res.text();
+    // A timeout leaves this loop: the provider may still finish and charge for the first call, and a generate call has no
+    // idempotency key, so sending it again could pay twice. Only a refusal the provider answered with is retried.
+    const { res, text } = await exchange(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: payload }, callDeadlineMs(Buffer.byteLength(payload)));
+    if (res.ok) return JSON.parse(text);
+    // 504 and Cloudflare's 524 are the same timeout, seen from a gateway.
+    if (res.status === 504 || res.status === 524) throw new TimedOut(`HTTP ${res.status}`);
     // An exhausted balance never clears by waiting: stop at once (ask/align never spill to another paid provider).
     if (/insufficient_quota|credit_balance|RESOURCE_EXHAUSTED|billing/i.test(text)) throw new RateLimited(`HTTP ${res.status} quota exhausted`);
     const transient = res.status === 429 || res.status === 529 || res.status >= 500;
@@ -122,10 +146,10 @@ export async function callGemini({ system, text, images, model }) {
   const key = userEnv('GEMINI_API_KEY');
   if (!key) throw new Error('GEMINI_API_KEY is not set');
   if (!model && !geminiModel) {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
+    const { res, text: list } = await exchange('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } }, SMALL_REQUEST_MS);
     if (!res.ok) throw new Error(`Gemini models: HTTP ${res.status}`);
     const rx = /^models\/gemini-(\d+)(?:\.(\d+))?-(pro|flash)$/;
-    const ids = (await res.json()).models.map((m) => m.name).filter((n) => rx.test(n));
+    const ids = JSON.parse(list).models.map((m) => m.name).filter((n) => rx.test(n));
     ids.sort((a, b) => {
       const [, a1, a2 = 0, at] = a.match(rx);
       const [, b1, b2 = 0, bt] = b.match(rx);
@@ -190,6 +214,7 @@ function blocker(provider, err, hint) {
   const kind = /not set/.test(err.message) ? 'credential missing'
     : /quota exhausted|insufficient_quota|credit_balance/i.test(err.message) ? 'credit or quota exhausted'
     : /HTTP (401|403)\b/.test(err.message) ? 'authentication or free-tier quota refused'
+    : err instanceof TimedOut ? 'timed out, not sent again; the provider may still finish and charge for it'
     : err instanceof RateLimited ? 'still rate limited or unavailable after retries'
     : 'failed';
   return new Error(`${provider} blocked (${kind}): ${err.message}. Not falling through to another provider; ${hint}`);
@@ -401,8 +426,7 @@ async function azureWords(buf, keyVar, regionVar) {
   const fd = new FormData();
   fd.append('audio', new Blob([buf]), 'take.wav');
   fd.append('definition', JSON.stringify({ locales: ['en-US'] }));
-  const res = await fetch(`https://${region}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2024-11-15`, { method: 'POST', headers: { 'Ocp-Apim-Subscription-Key': key }, body: fd });
-  const text = await res.text();
+  const { res, text } = await exchange(`https://${region}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2024-11-15`, { method: 'POST', headers: { 'Ocp-Apim-Subscription-Key': key }, body: fd }, callDeadlineMs(buf.length));
   if (res.status === 429 || res.status === 403 || res.status >= 500) throw new RateLimited(`HTTP ${res.status}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
   const j = JSON.parse(text);
@@ -413,8 +437,7 @@ async function azureWords(buf, keyVar, regionVar) {
 async function deepgramWords(buf) {
   const key = userEnv('DEEPGRAM_API_KEY');
   if (!key) throw new Error('DEEPGRAM_API_KEY not set');
-  const res = await fetch('https://api.deepgram.com/v1/listen?model=nova-3&language=en&punctuate=false&smart_format=false', { method: 'POST', headers: { Authorization: `Token ${key}`, 'Content-Type': 'audio/wav' }, body: buf });
-  const text = await res.text();
+  const { res, text } = await exchange('https://api.deepgram.com/v1/listen?model=nova-3&language=en&punctuate=false&smart_format=false', { method: 'POST', headers: { Authorization: `Token ${key}`, 'Content-Type': 'audio/wav' }, body: buf }, callDeadlineMs(buf.length));
   if (res.status === 429 || res.status === 402 || res.status >= 500) throw new RateLimited(`HTTP ${res.status}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
   const j = JSON.parse(text);
@@ -427,21 +450,24 @@ export async function assemblyaiWords(buf, opts = {}) {
   if (!key) throw new Error('ASSEMBLYAI_API_KEY not set');
   const api = 'https://api.assemblyai.com/v2';
   // Raw key: the REST API takes no Bearer prefix.
-  const call = async (url, init = {}) => {
-    const res = await fetch(url, { ...init, headers: { Authorization: key, ...init.headers } });
-    const text = await res.text();
+  const call = async (url, init, deadlineMs) => {
+    const { res, text } = await exchange(url, { ...init, headers: { Authorization: key, ...init.headers } }, deadlineMs);
     if (res.status === 429 || res.status === 402 || res.status >= 500) throw new RateLimited(`HTTP ${res.status}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
     return JSON.parse(text);
   };
-  const { upload_url: audioUrl } = await call(`${api}/upload`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buf });
+  const { upload_url: audioUrl } = await call(`${api}/upload`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buf }, callDeadlineMs(buf.length));
   // No speech_models: inherit the vendor default and record the model it reports.
-  const { id } = await call(`${api}/transcript`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audio_url: audioUrl, language_code: 'en', punctuate: false, format_text: false }) });
+  const { id } = await call(`${api}/transcript`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audio_url: audioUrl, language_code: 'en', punctuate: false, format_text: false }) }, SMALL_REQUEST_MS);
   const pollMs = Number(opts.pollMs) || 3000;
   const timeoutMs = Number(opts.pollTimeoutMs) || 600000;
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const j = await call(`${api}/transcript/${id}`);
+    // The transcript is already paid for and reading it is free, so a stalled poll is polled again until the deadline.
+    const j = await call(`${api}/transcript/${id}`, {}, Math.max(1, Math.min(SMALL_REQUEST_MS, deadline - Date.now()))).catch((err) => {
+      if (err instanceof TimedOut) return {};
+      throw err;
+    });
     if (j.status === 'completed') {
       // words[].start and end are integer milliseconds.
       const words = (j.words || []).map((w) => ({ text: w.text, start: w.start / 1000, end: w.end / 1000 }));

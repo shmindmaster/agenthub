@@ -52,6 +52,9 @@ node cloud-ai.mjs qa     --images <contact-sheet.jpg> [...] --prompt <context> -
   resource `mt-foundary-resource`, Entra auth, key auth disabled). Rate-limit retries stay on the same provider. `--client` material never goes to Anthropic and
   defaults to Azure OpenAI in the owner's tenant. The report has score 0–100, pass, findings with fixes, provider,
   model and usage. Exit 0 means pass.
+* **Deadlines**: a model or speech call is cut off after 300 s plus the time its upload needs at 2 Mbit/s, body included. A call that times out
+  (or returns HTTP 504 or 524) stops as `timed out` and is not sent again, because the provider may still finish and charge for it:
+  check its usage before rerunning. For review and qa, other 429 and 5xx answers are retried twice, waiting at most 20 s whatever `retry-after` says.
 * Keys are read by name from the environment, then the Windows user environment, and are never printed.
 
 ### Synthetic Runware training stills

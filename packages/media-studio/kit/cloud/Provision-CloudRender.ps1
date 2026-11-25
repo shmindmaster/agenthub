@@ -110,8 +110,8 @@ for ($i = 0; $i -lt 60; $i++) {
 # The loader fetches worker.mjs + blob.mjs from runtime/ with the managed identity, then imports the worker.
 $loader = @'
 const e=process.env;const fs=await import('node:fs');fs.mkdirSync('/tmp/cr',{recursive:true});
-const t=(await(await fetch(e.IDENTITY_ENDPOINT+'?resource=https://storage.azure.com/&api-version=2019-08-01',{headers:{'X-IDENTITY-HEADER':e.IDENTITY_HEADER}})).json()).access_token;
-for(const f of ['blob.mjs','worker.mjs']){const r=await fetch('https://'+e.STORAGE_ACCOUNT+'.blob.core.windows.net/runtime/'+f,{headers:{Authorization:'Bearer '+t,'x-ms-version':'2023-11-03'}});if(!r.ok)throw new Error(f+' HTTP '+r.status);fs.writeFileSync('/tmp/cr/'+f,await r.text());}
+const t=(await(await fetch(e.IDENTITY_ENDPOINT+'?resource=https://storage.azure.com/&api-version=2019-08-01',{headers:{'X-IDENTITY-HEADER':e.IDENTITY_HEADER},signal:AbortSignal.timeout(120000)})).json()).access_token;
+for(const f of ['blob.mjs','worker.mjs']){const r=await fetch('https://'+e.STORAGE_ACCOUNT+'.blob.core.windows.net/runtime/'+f,{headers:{Authorization:'Bearer '+t,'x-ms-version':'2023-11-03'},signal:AbortSignal.timeout(120000)});if(!r.ok)throw new Error(f+' HTTP '+r.status);fs.writeFileSync('/tmp/cr/'+f,await r.text());}
 await import('/tmp/cr/worker.mjs');
 '@ -replace "`r?`n", ''
 

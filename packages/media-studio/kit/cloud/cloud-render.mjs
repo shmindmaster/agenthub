@@ -16,7 +16,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { blobClient, lockFingerprint, pool } from './blob.mjs';
+import { blobClient, lockFingerprint, pool, REQUEST_TIMEOUT_MS } from './blob.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CONFIG = path.join(process.env.LOCALAPPDATA || os.homedir(), 'AgentHub', 'media-studio', 'cloud-render.json');
@@ -250,7 +250,7 @@ function clients(cfg) {
   const armToken = tokenFor(`${ARM}/`, cfg.subscriptionId);
   const jobUrl = `${ARM}/subscriptions/${cfg.subscriptionId}/resourceGroups/${cfg.resourceGroup}/providers/Microsoft.App/jobs/${cfg.jobName}`;
   const arm = async (method, url, body) => {
-    const res = await fetch(url, { method, headers: { Authorization: `Bearer ${await armToken()}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    const res = await fetch(url, { method, headers: { Authorization: `Bearer ${await armToken()}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     const text = await res.text();
     if (!res.ok) throw new Error(`ARM ${method} ${url.replace(ARM, '')}: HTTP ${res.status} ${text.slice(0, 400)}`);
     return text ? JSON.parse(text) : {};
