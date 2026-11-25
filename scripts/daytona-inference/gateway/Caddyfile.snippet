@@ -1,0 +1,21 @@
+# Permanent inference gateway reverse-proxy block for Caddy.
+# Allow OpenAI/Anthropic-compatible API paths (/v1/*) and liveliness probes
+# from anywhere (gated by LiteLLM Bearer auth), while restricting admin/UI/DB
+# management endpoints to the owner IP.
+#
+# Replace <OWNER_IP> with the operator IP before adding to /opt/forge/caddy/Caddyfile.
+inference.shtrial.com {
+  @owner remote_ip <OWNER_IP>
+  @public_api path /v1/* /health/liveliness
+  handle @public_api {
+    reverse_proxy 127.0.0.1:4000 {
+      flush_interval -1
+    }
+  }
+  handle @owner {
+    reverse_proxy 127.0.0.1:4000 {
+      flush_interval -1
+    }
+  }
+  respond "forbidden" 403
+}

@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "provider": {
+    "id": "agenthub-daytona",
+    "displayName": "AgentHub Daytona Spot",
+    "baseUrl": "https://inference.shtrial.com/v1",
+    "anthropicBaseUrl": "https://inference.shtrial.com",
+    "credentialEnv": "AGENTHUB_INFERENCE_KEY",
+    "default": false,
+    "preserveExistingDefaults": true,
+    "protocols": {
+      "chatCompletions": true,
+      "responses": "conditional",
+      "anthropicMessages": "conditional"
+    },
+    "deploymentPolicy": {
+      "merge": true,
+      "replaceExistingProviders": false,
+      "changeDefaultModels": false,
+      "changeExistingAgentAssignments": false
+    }
+  },
+  "models": [
+    {
+      "id": "agent-fast",
+      "displayName": "Daytona Fast — Qwen3.8 27B Uncensored FP8 (Low)",
+      "role": "routine",
+      "family": "qwen3.8",
+      "contextWindow": 65536,
+      "maxInputTokens": 49152,
+      "maxOutputTokens": 16384,
+      "streaming": true,
+      "toolCalling": true,
+      "structuredOutput": true,
+      "modalities": {
+        "input": ["text"],
+        "output": ["text"]
+      },
+      "reasoning": {
+        "supported": true,
+        "default": "low",
+        "supportedEfforts": ["low", "medium", "xhigh"],
+        "aliases": {
+          "high": "medium"
+        }
+      }
+    },
+    {
+      "id": "agent-specialist",
+      "displayName": "Daytona Specialist — Qwen3.8 27B Uncensored FP8",
+      "role": "specialist",
+      "family": "qwen3.8",
+      "contextWindow": 65536,
+      "maxInputTokens": 49152,
+      "maxOutputTokens": 16384,
+      "streaming": true,
+      "toolCalling": true,
+      "structuredOutput": true,
+      "modalities": {
+        "input": ["text", "image"],
+        "output": ["text"]
+      },
+      "reasoning": {
+        "supported": true,
+        "default": "medium",
+        "supportedEfforts": ["low", "medium", "xhigh"],
+        "aliases": {
+          "high": "medium"
+        }
+      }
+    },
+    {
+      "id": "agent-vision",
+      "displayName": "Daytona Vision — Qwen3.8 27B Uncensored FP8",
+      "role": "vision",
+      "family": "qwen3.8",
+      "contextWindow": 65536,
+      "maxInputTokens": 49152,
+      "maxOutputTokens": 16384,
+      "streaming": true,
+      "toolCalling": true,
+      "structuredOutput": true,
+      "modalities": {
+        "input": ["text", "image"],
+        "output": ["text"]
+      },
+      "reasoning": {
+        "supported": true,
+        "default": "medium",
+        "supportedEfforts": ["low", "medium", "xhigh"],
+        "aliases": {
+          "high": "medium"
+        }
+      }
+    },
+    {
+      "id": "agent-turbo",
+      "displayName": "Daytona Turbo — Qwen3.8 27B Heretic MTP Q6",
+      "role": "turbo",
+      "family": "qwen3.8",
+      "contextWindow": 65536,
+      "maxInputTokens": 49152,
+      "maxOutputTokens": 16384,
+      "streaming": true,
+      "toolCalling": true,
+      "structuredOutput": true,
+      "modalities": {
+        "input": ["text"],
+        "output": ["text"]
+      },
+      "reasoning": {
+        "supported": true,
+        "default": "medium",
+        "supportedEfforts": ["low", "medium", "xhigh"],
+        "aliases": {
+          "high": "medium"
+        }
+      }
+    },
+    {
+      "id": "agent-flagship",
+      "displayName": "Daytona Flagship — Qwen3.8 Flash-Next Uncensored",
+      "role": "flagship",
+      "family": "qwen3.8",
+      "contextWindow": 131072,
+      "maxInputTokens": 114688,
+      "maxOutputTokens": 16384,
+      "streaming": true,
+      "toolCalling": true,
+      "structuredOutput": true,
+      "modalities": {
+        "input": ["text"],
+        "output": ["text"]
+      },
+      "reasoning": {
+        "supported": true,
+        "default": "medium",
+        "supportedEfforts": ["low", "medium", "xhigh"],
+        "aliases": {
+          "high": "medium"
+        }
+      }
+    }
+  ],
+  "hosts": {
+    "opencode": {
+      "integration": "native-merge",
+      "configPath": "{userHome}/.config/opencode/opencode.json",
+      "schema": "opencode-v2-providers",
+      "sharedWith": ["opencode-desktop"],
+      "credentialMode": "file-or-env-reference"
+    },
+    "codex": {
+      "integration": "native-merge",
+      "configPath": "{userHome}/.codex/config.toml",
+      "profilePattern": "{userHome}/.codex/daytona-*.config.toml",
+      "schema": "codex-toml-responses-standalone-profiles",
+      "credentialMode": "env-reference",
+      "protocolRequirement": "responses"
+    },
+    "factory": {
+      "integration": "native-merge",
+      "configPath": "{userHome}/.factory/settings.json",
+      "canonicalSource": "packages/coding-agent-dispatch/factory/custom-models.json",
+      "schema": "factory-custom-models",
+      "credentialMode": "env-reference"
+    },
+    "grok": {
+      "integration": "native-merge",
+      "configPath": "{userHome}/.grok/config.toml",
+      "schema": "grok-toml-models",
+      "credentialMode": "env-reference"
+    },
+    "copilot": {
+      "integration": "native-merge",
+      "configPath": "{userHome}/.copilot/providers.json",
+      "schema": "copilot-providers-json",
+      "credentialMode": "protected-local-file"
+    },
+    "vscode-insiders": {
+      "integration": "native-merge",
+      "configPath": "{roamingConfig}/Code - Insiders/User/chatLanguageModels.json",
+      "schema": "vscode-chat-language-models",
+      "credentialMode": "input-env-reference"
+    },
+    "kilo": {
+      "integration": "native-merge",
+      "configPath": "{userHome}/.config/kilo/kilo.jsonc",
+      "schema": "kilo-jsonc-provider",
+      "credentialMode": "env-reference"
+    },
+    "cline": {
+      "integration": "native-merge",
+      "configPath": "{userHome}/.cline/data/settings/providers.json",
+      "schema": "cline-openai-compatible-provider",
+      "credentialMode": "protected-local-file"
+    },
+    "zcode": {
+      "integration": "native-merge",
+      "configPath": "{userHome}/.zcode/v2/provider_config.json",
+      "schema": "zcode-v2-provider-config",
+      "credentialMode": "protected-local-file"
+    },
+    "amp": {
+      "integration": "native-cli-router",
+      "configPath": "{userHome}/.config/amp/settings.json",
+      "schema": "amp-custom-url-router",
+      "credentialMode": "cli-secret-store"
+    },
+    "autoclaw": {
+      "integration": "manual-ui",
+      "notes": "Standalone ZCode profile must not be copied into AutoClaw. Add https://inference.shtrial.com/v1 through Settings -> Models & API -> Add custom model."
+    },
+    "claude": {
+      "integration": "delegation-only",
+      "notes": "Preserve native Claude subscription and auth. Anthropic does not support routing Claude Code to non-Claude models globally; delegate via AgentHub."
+    },
+    "cursor": {
+      "integration": "delegation-only",
+      "sharedWith": ["cursor-agent"],
+      "notes": "BYOK overrides or conflicts with native subscription model routing across IDE/CLI surfaces. Preserve native subscription and delegate via AgentHub."
+    },
+    "devin": {
+      "integration": "delegation-only",
+      "notes": "Devin Desktop/CLI config.json does not support arbitrary OpenAI-compatible external endpoints. Preserve swe-2-medium and delegate via AgentHub."
+    },
+    "antigravity": {
+      "integration": "delegation-only",
+      "sharedWith": ["antigravity-desktop", "antigravity-ide"],
+      "notes": "No documented independent OpenAI-compatible custom-provider schema; preserve native models and delegate via AgentHub."
+    }
+  }
+}

@@ -42,3 +42,8 @@ overlays/personal/
 packages/media-studio/logs/
 # Older cloud-render builds wrote chunk scratch beside the output. Current builds use the OS temp directory.
 .cloud-render-chunks-*/
+
+# Daytona inference helper runtime state/secrets/logs (never commit)
+scripts/daytona-inference/secrets/
+scripts/daytona-inference/logs/
+scripts/daytona-inference/state.json
