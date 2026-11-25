@@ -101,6 +101,7 @@ $files = @(
     'screencast\record-job.mjs',
     'screencast\record-lib.mjs',
     'screencast\sync-lib.mjs',
+    'screencast\receipt-lib.mjs',
     'screencast\README.md',
     'code-stage\shotlist.mjs',
     'code-stage\source.mjs',
@@ -206,7 +207,7 @@ New-Item -ItemType Directory -Force -Path $explainerTarget | Out-Null
 foreach ($item in @(Get-ChildItem -LiteralPath $explainerSource -File | Where-Object { $_.Extension -in @('.mjs', '.json', '.txt') })) {
     Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $explainerTarget $item.Name) -Force
 }
-foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
+foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs', 'receipt-lib.mjs')) {
     $from = Join-Path (Join-Path $packageKit 'screencast') $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical screencast tool missing: $from" }
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force

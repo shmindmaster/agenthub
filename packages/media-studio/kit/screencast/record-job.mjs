@@ -2,7 +2,10 @@
 // This is the only path that produces the picture of a `screen` beat (product-picture.md); PNG stills are
 // diagnostic. Runs from the external job workspace; the product repository is read-only.
 //
-// Usage: node record-job.mjs <jobRoot> [S05 S06 ...] [--no-recast] [--headed] [--fresh] [--skip-preflight] [--ratio <r>]
+// Usage: node record-job.mjs <jobRoot> [S05 S06 ...] [--no-recast] [--recast-only] [--headed] [--fresh] [--skip-preflight] [--ratio <r>]
+//   Exit 1 when any requested take failed or has no scene function; the receipt still records the failed take as invalid.
+//   --recast-only opens no browser: it finishes takes recorded with --no-recast (on another machine) from their raw WebM and
+//   trace, which must hash to the receipt, and reseals the receipt.
 //   --ratio <r> records at options.viewports[r] = { width, height, deviceScaleFactor?, device?, isMobile?, hasTouch? } (a Playwright device name
 //   such as 'iPhone 13' applies its emulation) instead of options.viewport; without it the options.viewport path is unchanged.
 //   Every receipt clip records ratio, device, viewport and deviceScaleFactor, so a non-16:9 cut is captured at its own viewport.
@@ -12,11 +15,15 @@
 //   export const order = ['S05', ...];                      // default recording order
 //   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, mobileLayout?: { cssWidth, scale }, pageZoom?: 1.5, recast?: { S05: { autoZoom: false } } };
 //   export const scenes = { async S05(h, ctx) {...} };      // one function per screen beat; h = record-lib helpers
+//   options.provenance = { sourceRevision, servedRevision? }  // the product build this job records
+//   export const identity = async (page) => ({ persona, servedRevision });  // read off the live page after each take; it must not
+//                                                             // act on it. Required for a viewer-facing job. A persona, scenario or
+//                                                             // revision other than the scenario proof's makes the take invalid.
 //   ctx = { page, beats, id, jobRoot, targetSeconds }       // targetSeconds = narration length of the beat, or null
 // Writes <jobRoot>/capture/clips/<id>.webm                  (Recast: cursor approach, click ripple, punch-in zoom)
 //        <jobRoot>/capture/beats/<id>.json                  (beat marks with elapsed seconds and bounding boxes)
 //        <jobRoot>/capture/recordings.json                  (take length vs narration target, Recast status, errors)
-//        <jobRoot>/capture/receipt.json                     (hash-bound capture receipt; validate-product-picture reads it)
+//        <jobRoot>/capture/receipt.json                     (sealed, hash-bound capture receipt; receipt-lib.mjs; never edit it)
 // One Recast render at a time (it writes .recast-tmp inside the clips dir). A Recast failure retries without
 // autoZoom, then falls back to the raw WebM with recast: "fallback" recorded; the validator decides whether
 // a fallback is acceptable (only when job.json says recastFallbackAllowed with a reason). Nothing is silent.
@@ -26,6 +33,7 @@ import { createHash } from 'node:crypto';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { startRecording, finishRecording, renderRecast } from './record-lib.mjs';
+import { openReceipt, saveReceipt, isViewerFacing, provenanceProblems } from './receipt-lib.mjs';
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--')));
@@ -53,7 +61,7 @@ const options = mod.options || {};
 const covers = mod.covers || {};
 if (!options.baseUrl) throw new Error('capture/scenes.mjs must export options.baseUrl');
 const storageState = options.storageState ? path.resolve(cap, options.storageState) : null;
-if (storageState && !fs.existsSync(storageState)) throw new Error('storageState not found: ' + storageState);
+if (storageState && !flags.has('--recast-only') && !fs.existsSync(storageState)) throw new Error('storageState not found: ' + storageState);
 // options.carryState: each take saves its web storage (capture tallies, persona, drafts) and the next take starts
 // from it, so a workflow split into beats still reads as one continuous session. The first take starts clean
 // (or from options.storageState). `--fresh` discards a carried state left by an earlier run.
@@ -106,17 +114,31 @@ try { playwrightVersion = JSON.parse(fs.readFileSync(fileURLToPath(await import.
 const recPath = path.join(cap, 'recordings.json');
 const recordings = fs.existsSync(recPath) ? JSON.parse(fs.readFileSync(recPath, 'utf8')) : { jobRoot: path.basename(jobRoot), takes: {} };
 const receiptPath = path.join(cap, 'receipt.json');
-const receipt = fs.existsSync(receiptPath) ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) : { schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: {} };
+const receipt = openReceipt(receiptPath, { generator: 'media-studio/record-job', clips: {} });
 receipt.generator = 'media-studio/record-job';
 receipt.playwrightVersion = playwrightVersion;
 receipt.recastVersion = recastVersion;
 receipt.baseUrl = options.baseUrl;
-const save = () => { fs.writeFileSync(recPath, JSON.stringify(recordings, null, 2)); fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2)); };
+const save = () => { fs.writeFileSync(recPath, JSON.stringify(recordings, null, 2)); saveReceipt(receiptPath, receipt, { seal: true }); };
+
+let kitVersion = null;
+try { kitVersion = JSON.parse(fs.readFileSync(path.join(here, '..', 'package.json'), 'utf8')).version; } catch { kitVersion = null; }
+const viewerFacing = isViewerFacing(job);
+const proofPath = path.join(jobRoot, 'evidence', 'demo-scenario-proof.json');
+const proof = fs.existsSync(proofPath) ? JSON.parse(fs.readFileSync(proofPath, 'utf8').replace(/^\uFEFF/, '')) : null;
+if (viewerFacing && !flags.has('--recast-only') && typeof mod.identity !== 'function') throw new Error('capture/scenes.mjs must export identity(page) => ({ persona, servedRevision }) for a viewer-facing job: the receipt records who and what was filmed');
+const observeIdentity = async (page) => {
+  const seen = typeof mod.identity === 'function' ? (await mod.identity(page)) || {} : {};
+  return { persona: seen.persona ?? null, scenarioId: proof?.scenarioId ?? null, sourceRevision: options.provenance?.sourceRevision ?? null,
+    servedRevision: seen.servedRevision ?? options.provenance?.servedRevision ?? null, baseUrl: options.baseUrl, kitVersion };
+};
+const failed = [];
 
 // Pre-flight (static, no browser): scene ids, cue-plan keywords and typing budgets are checked against the locked narration before
 // the first take, so a mistake does not surface after a long recording. scripts/validate-capture-preflight.mjs sits beside this file
 // in the deployed kit, in the package scripts/ folder, or in _shared/tools (the deploy list).
-if (flags.has('--skip-preflight')) {
+if (flags.has('--recast-only')) { /* the takes were recorded, and their pre-flight ran, on another machine */ }
+else if (flags.has('--skip-preflight')) {
   console.log('WARNING: --skip-preflight: the capture pre-flight was bypassed; scene ids, cue-plan keywords and typing budgets are unchecked');
   recordings.preflight = 'skipped';
 } else {
@@ -127,24 +149,8 @@ if (flags.has('--skip-preflight')) {
   recordings.preflight = { ok: true, report: 'qa/capture-preflight.json' };
 }
 
-const ids = only.length ? only : order;
-for (const id of ids) {
-  if (!scenes[id]) { console.log('no scene function for', id); recordings.takes[id] = { error: 'no scene function' }; save(); continue; }
-  console.log('=== recording', id, targets[id] ? `(narration ${targets[id].toFixed(1)} s)` : '');
-  fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
-  const takeState = carryState && fs.existsSync(carryPath) ? carryPath : storageState;
-  const rec = await startRecording(id, {
-    storageState: takeState, baseUrl: options.baseUrl, viewport: capture.viewport, videoSize: capture.videoSize, deviceScaleFactor: capture.deviceScaleFactor, mobileLayout: options.mobileLayout, pageZoom: options.pageZoom,
-    device: capture.device || undefined, isMobile: capture.isMobile, hasTouch: capture.hasTouch,
-    headless: !flags.has('--headed'), colorScheme: options.colorScheme, timezoneId: options.timezoneId, extraHTTPHeaders: options.extraHTTPHeaders,
-  });
-  const t0 = Date.now();
-  const take = { startedAt: new Date(t0).toISOString(), targetSeconds: targets[id] ? Number(targets[id].toFixed(1)) : null };
-  try { await scenes[id](rec.h, { page: rec.page, beats: rec.beats, id, jobRoot, targetSeconds: targets[id] || null, targets: segmentTargets, covers: covers[id] || [id] }); }
-  catch (e) { take.error = e.message.split('\n')[0]; console.log('  scene error:', take.error); await rec.page.screenshot({ path: path.join(rec.rawDir, 'error.png') }).catch(() => {}); }
-  const fin = await finishRecording(rec, carryState ? { saveStatePath: carryPath } : {});
-  take.rawSeconds = Number(((Date.now() - t0) / 1000).toFixed(1));
-  fs.writeFileSync(path.join(cap, 'beats', `${id}.json`), JSON.stringify({ id, marks: fin.beats, expectations: fin.expectations }, null, 2));
+/** Recast (or copy) one raw take to clips/<id>.webm and measure the head trim. Sets take.recast, recastNote, clipSeconds, headTrim. */
+async function finishTake(id, fin, take, resolution) {
   const out = path.resolve('clips', `${id}.webm`);
   // A native mobile layout gets no desktop cursor, ripple or punch-in zoom (picture integrity; the page shows touches).
   const opts = { ...(options.mobileLayout ? { cursor: false, autoZoom: false } : {}), ...((options.recast || {})[id] || {}) };
@@ -154,11 +160,11 @@ for (const id of ids) {
     // movie filter with only backslashes escaped, so an absolute Windows path breaks on the drive colon. cwd is capture/.
     const rawRel = path.relative(process.cwd(), fin.rawDir);
     const outRel = path.join('clips', `${id}.webm`);
-    try { await renderRecast(rawRel, outRel, { ...opts, resolution: capture.videoSize || capture.viewport }); take.recast = opts.autoZoom === false ? 'noZoom' : 'full'; }
+    try { await renderRecast(rawRel, outRel, { ...opts, resolution }); take.recast = opts.autoZoom === false ? 'noZoom' : 'full'; }
     catch (e) {
       console.log('  recast failed:', e.message.split('\n')[0]);
       fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
-      try { await renderRecast(rawRel, outRel, { ...opts, autoZoom: false, resolution: capture.videoSize || capture.viewport }); take.recast = 'noZoom'; take.recastNote = e.message.split('\n')[0]; }
+      try { await renderRecast(rawRel, outRel, { ...opts, autoZoom: false, resolution }); take.recast = 'noZoom'; take.recastNote = e.message.split('\n')[0]; }
       catch (e2) { fs.copyFileSync(fin.webm, out); take.recast = 'fallback'; take.recastNote = e2.message.split('\n')[0]; console.log('  raw webm copied (recast fallback)'); }
     }
   }
@@ -181,9 +187,64 @@ for (const id of ids) {
   }
   take.ratio = take.targetSeconds ? Number((take.clipSeconds / take.targetSeconds).toFixed(2)) : null;
   take.short = take.ratio !== null && take.ratio < 0.85;
+  return out;
+}
+
+if (flags.has('--recast-only')) {
+  for (const id of only.length ? only : Object.keys(receipt.clips)) {
+    const entry = receipt.clips[id];
+    if (!entry) throw new Error(`--recast-only: ${id} is not in capture/receipt.json`);
+    if (entry.recast !== 'skipped') { console.log(`=== ${id}: already finished (${entry.recast})`); continue; }
+    if (!entry.valid) { console.log(`=== ${id}: invalid take, not finished`); failed.push(id); continue; }
+    const rawDir = path.resolve('raw', id);
+    const raws = fs.existsSync(rawDir) ? fs.readdirSync(rawDir).filter((f) => f.endsWith('.webm')).map((f) => path.join(rawDir, f)) : [];
+    const webm = raws.find((f) => sha256(f) === entry.rawWebmSha256);
+    if (!webm) throw new Error(`--recast-only: the raw take in capture/raw/${id} does not match the receipt`);
+    const tracePath = path.join(rawDir, 'trace.zip');
+    if (entry.traceSha256 && (!fs.existsSync(tracePath) || sha256(tracePath) !== entry.traceSha256)) throw new Error(`--recast-only: the trace in capture/raw/${id} does not match the receipt`);
+    console.log('=== finishing', id);
+    const take = recordings.takes[id] || { targetSeconds: targets[id] ? Number(targets[id].toFixed(1)) : null };
+    const out = await finishTake(id, { webm, rawDir }, take, entry.videoSize || entry.viewport);
+    recordings.takes[id] = take;
+    Object.assign(entry, { sha256: sha256(out), bytes: fs.statSync(out).size, clipSeconds: take.clipSeconds, recast: take.recast, recastNote: take.recastNote || null, recastKitVersion: kitVersion,
+      recastHeadTrimSeconds: take.headTrim.seconds, recastHeadTrimMethod: take.headTrim.method, rawMinusClipSeconds: take.headTrim.lengthDelta });
+    save();
+    console.log(`  clip ${take.clipSeconds}s recast=${take.recast}`);
+  }
+  if (failed.length) { console.log(`FAILED ${failed.join(' ')}`); process.exit(1); }
+  console.log('done (recast only)');
+  process.exit(0);
+}
+
+const ids = only.length ? only : order;
+for (const id of ids) {
+  if (!scenes[id]) { console.log('no scene function for', id); recordings.takes[id] = { error: 'no scene function' }; failed.push(id); save(); continue; }
+  console.log('=== recording', id, targets[id] ? `(narration ${targets[id].toFixed(1)} s)` : '');
+  fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
+  const takeState = carryState && fs.existsSync(carryPath) ? carryPath : storageState;
+  const rec = await startRecording(id, {
+    storageState: takeState, baseUrl: options.baseUrl, viewport: capture.viewport, videoSize: capture.videoSize, deviceScaleFactor: capture.deviceScaleFactor, mobileLayout: options.mobileLayout, pageZoom: options.pageZoom,
+    device: capture.device || undefined, isMobile: capture.isMobile, hasTouch: capture.hasTouch,
+    headless: !flags.has('--headed'), colorScheme: options.colorScheme, timezoneId: options.timezoneId, extraHTTPHeaders: options.extraHTTPHeaders,
+  });
+  const t0 = Date.now();
+  const take = { startedAt: new Date(t0).toISOString(), targetSeconds: targets[id] ? Number(targets[id].toFixed(1)) : null };
+  try { await scenes[id](rec.h, { page: rec.page, beats: rec.beats, id, jobRoot, targetSeconds: targets[id] || null, targets: segmentTargets, covers: covers[id] || [id] }); }
+  catch (e) { take.error = e.message.split('\n')[0]; console.log('  scene error:', take.error); await rec.page.screenshot({ path: path.join(rec.rawDir, 'error.png') }).catch(() => {}); }
+  let provenance = null;
+  if (!take.error) try {
+    provenance = await observeIdentity(rec.page);
+    const problems = viewerFacing ? provenanceProblems(id, provenance, proof) : [];
+    if (problems.length) { take.error = problems.join('; '); console.log('  identity:', take.error); }
+  } catch (e) { take.error = `identity() failed: ${e.message.split('\n')[0]}`; }
+  const fin = await finishRecording(rec, carryState ? { saveStatePath: carryPath } : {});
+  take.rawSeconds = Number(((Date.now() - t0) / 1000).toFixed(1));
+  fs.writeFileSync(path.join(cap, 'beats', `${id}.json`), JSON.stringify({ id, marks: fin.beats, expectations: fin.expectations }, null, 2));
+  const out = await finishTake(id, fin, take, capture.videoSize || capture.viewport);
   take.events = fin.summary;
   const valid = !take.error && (fin.summary.pointerMoves > 0 || fin.summary.taps > 0) && fin.summary.expectationsFailed.length === 0;
   take.valid = valid;
+  if (!valid) failed.push(id);
   recordings.takes[id] = take;
   receipt.clips[id] = {
     file: `clips/${id}.webm`,
@@ -194,6 +255,8 @@ for (const id of ids) {
     rawWebmSha256: sha256(fin.webm),
     traceSha256: fs.existsSync(fin.tracePath) ? sha256(fin.tracePath) : null,
     recordedAt: take.startedAt,
+    provenance,
+    ...(capture.videoSize ? { videoSize: capture.videoSize } : {}),
     viewport: rec.viewport,
     deviceScaleFactor: options.mobileLayout ? options.mobileLayout.scale : capture.deviceScaleFactor || 2,
     ...(options.mobileLayout ? { mobileLayout: options.mobileLayout } : {}),
@@ -219,4 +282,5 @@ for (const id of ids) {
   save();
   console.log(`  clip ${take.clipSeconds}s${take.targetSeconds ? ` for ${take.targetSeconds}s of narration (${take.ratio}x)` : ''} recast=${take.recast} moves=${fin.summary.pointerMoves} clicks=${fin.summary.clicks} expectations=${fin.summary.expectationsObserved}/${fin.summary.expectations}${valid ? '' : '  INVALID: ' + (take.error || fin.summary.expectationsFailed.join(',') || 'no pointer motion')}${take.short ? '  SHORT: pace the take to the narration or split the beat' : ''}`);
 }
-console.log('done', ids.join(' '));
+if (failed.length) { console.log(`FAILED ${failed.join(' ')}: an invalid take is not footage; fix the scene and record it again`); process.exitCode = 1; }
+else console.log('done', ids.join(' '));

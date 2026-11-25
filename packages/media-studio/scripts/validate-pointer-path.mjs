@@ -42,6 +42,9 @@ import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
+const receiptLibPath = [join(scriptDir, 'receipt-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find(existsSync);
+if (!receiptLibPath) { console.error('receipt-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
+const { editedReceiptProblem } = await import(pathToFileURL(receiptLibPath).href);
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
 if (!libPath) { console.error('sync-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
 const L = await import(pathToFileURL(libPath).href);
@@ -77,7 +80,7 @@ const inputs = {};
 const receiptPath = join(root, 'capture', 'receipt.json');
 let receipt = null;
 if (!existsSync(receiptPath)) errors.push('capture/receipt.json is required: record the screen beats with record-job.mjs first');
-else { receipt = readJson('capture/receipt.json'); inputs.receipt = ref(receiptPath); }
+else { receipt = readJson('capture/receipt.json'); inputs.receipt = ref(receiptPath); const edited = editedReceiptProblem(receipt); if (edited) errors.push(edited); }
 const clips = receipt?.clips && typeof receipt.clips === 'object' ? receipt.clips : {};
 if (receipt && !Object.keys(clips).length) errors.push('capture/receipt.json has no clips');
 

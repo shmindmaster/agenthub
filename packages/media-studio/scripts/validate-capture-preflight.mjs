@@ -22,12 +22,14 @@
 //         line; typing budget: sum over typeText calls of chars x delay + overhead per call exceeds the scene's narration seconds
 //         (sum of its segments and its covers; calls labelled "(pre-roll)" are off the narration clock and not counted; a
 //         per-call `delay:` option replaces --typing-ms).
+//         a viewer-facing product job without a passing evidence/demo-scenario-proof.json (validate-demo-scenario.mjs).
 // Warnings storyboard screen beat without a scene function; scene function with no label on any click / point / type; a labelled
 //         action matching no cue-plan action label of its beat; a cue-plan keyword absent while another matches; typeText text
 //         that is not a literal or a top-level string constant (not budgeted).
 // Report qa/capture-preflight.json { ok, errors, warnings, inputs, thresholds, ids, typing }. Exit 1 on errors.
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -447,6 +449,21 @@ if (model) {
       errors.push(`${sc.name}: typing takes ${seconds} s (${chars} chars at ${TYPING_MS} ms plus ${TYPING_OVERHEAD_S} s per call) but the scene's narration is ${budget} s`);
     }
   }
+}
+
+// A viewer-facing product recording needs its passing scenario proof first (gate 5). The gate itself decides what is viewer-facing.
+if (existsSync(join(root, 'job.json'))) {
+  const proofGate = join(scriptDir, 'validate-demo-scenario.mjs');
+  if (!existsSync(proofGate)) errors.push('validate-demo-scenario.mjs not found beside this script (deploy list)');
+  else {
+    const r = spawnSync(process.execPath, [proofGate, root], { encoding: 'utf8', windowsHide: true });
+    if (r.status !== 0) {
+      let found = [];
+      try { found = JSON.parse(r.stdout).errors || []; } catch { /* report the raw failure below */ }
+      errors.push(...(found.length ? found : [`scenario proof gate failed: ${String(r.stderr || r.stdout).trim().split('\n')[0]}`]).map((e) => `scenario proof: ${e}`));
+    }
+  }
+  bind('scenarioProof', 'evidence/demo-scenario-proof.json');
 }
 
 const ok = errors.length === 0;
