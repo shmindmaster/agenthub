@@ -37,9 +37,17 @@ for (const t of times.map(Number)) {
   const dims = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', src]).toString().trim().split(',').map(Number);
   const k = dims[0] / W;                                     // capture px per stage px
   const cw = (W / cam.z) * k, ch = (H / cam.z) * k, x0 = (cam.cx - W / (2 * cam.z)) * k, y0 = (cam.cy - H / (2 * cam.z)) * k;
-  const ref = gray(ff(['-i', src, '-vf', `crop=${cw.toFixed(3)}:${ch.toFixed(3)}:${x0.toFixed(3)}:${y0.toFixed(3)},scale=${W}:${H}:flags=area,format=gray`, '-frames:v', '1', '-f', 'rawvideo', 'pipe:1']), W * H);
+  // a phone screen inside a wider frame: the capture is the placed rectangle, so the reference is the capture resampled once to the film size of that rectangle and laid on black where the camera shows it
+  let place = null, ref;
+  if (g.placement) {
+    const P = g.placement, fx = (P.x - (cam.cx - W / (2 * cam.z))) * cam.z, fy = (P.y - (cam.cy - H / (2 * cam.z))) * cam.z, fw = P.w * cam.z, fh = P.h * cam.z;
+    place = { x0: Math.max(0, fx) + 12, y0: Math.max(0, fy) + 12, x1: Math.min(W, fx + fw) - 12, y1: Math.min(H, fy + fh) - 12 };
+    ref = gray(ff(['-f', 'lavfi', '-i', `color=black:s=${W}x${H}`, '-i', src, '-filter_complex', `[1:v]scale=${fw.toFixed(2)}:${fh.toFixed(2)}:flags=area[p];[0:v][p]overlay=${fx.toFixed(2)}:${fy.toFixed(2)},format=gray`, '-frames:v', '1', '-f', 'rawvideo', 'pipe:1']), W * H);
+  } else {
+    ref = gray(ff(['-i', src, '-vf', `crop=${cw.toFixed(3)}:${ch.toFixed(3)}:${x0.toFixed(3)}:${y0.toFixed(3)},scale=${W}:${H}:flags=area,format=gray`, '-frames:v', '1', '-f', 'rawvideo', 'pipe:1']), W * H);
+  }
   const fl = gray(ff(['-ss', t.toFixed(4), '-i', film, '-frames:v', '1', '-vf', `scale=${W}:${H}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1']), W * H);
-  const win = F.busiestWindow(ref, W, H, 480, 270);
+  const win = F.busiestWindow(ref, W, H, 480, 270, 60, place);
   const crop = (a) => { const o = new Float32Array(480 * 270); for (let j = 0; j < 270; j++) for (let i = 0; i < 480; i++) o[j * 480 + i] = a[(win.y0 + j) * W + win.x0 + i]; return o; };
   const a = F.highpass(crop(fl), 480, 270), b = F.highpass(crop(ref), 480, 270);
   let ea = 0, eb = 0, ab = 0;
