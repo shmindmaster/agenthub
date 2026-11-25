@@ -120,6 +120,26 @@
         "Treat code without trustworthy tests as risky: characterize its current behavior with a test before changing it.",
         "Read the repository's instructions and `git status`."
       ]
+    },
+    {
+      "skill": "route",
+      "kind": "workflow",
+      "input": "A finished invoice change in a portfolio checkout needs the right next skill.",
+      "expected": "Names the product from the repository instructions, picks the verify lane and states the checks the repository names.",
+      "evidence": [
+        "Pick one lane",
+        "State the lane"
+      ]
+    },
+    {
+      "skill": "route",
+      "kind": "recovery",
+      "input": "The repository instructions name a deferred alternative and the wanted specialist model is switched off.",
+      "expected": "Follows the current runtime, keeps the account default and reports what is blocked.",
+      "evidence": [
+        "follow the current runtime, not the alternative",
+        "Do not start a GPU, download weights, or enable a model that is switched off"
+      ]
     }
   ]
 }

@@ -16,6 +16,6 @@ Runs standalone: start from the bare repository; no earlier files are needed.
 - [ ] Keep the account model default. Do not start a GPU, download weights, or enable a model that is switched off.
 - [ ] State the lane, the checks the repository names, and anything still blocked.
 
-Read when the checkout is a portfolio product and you need its domain, boundary and check command: [portfolio routes](../../../../docs/architecture/portfolio-routes.md).
+Read when the checkout is a portfolio product and you need its domain, boundary and check command: `docs/architecture/portfolio-routes.md` in the AgentHub checkout.
 
 Next: the skill named in the lane you picked.
