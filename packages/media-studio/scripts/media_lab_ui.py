@@ -340,7 +340,7 @@ class Lab:
                 m = json.loads(meta.read_text(encoding="utf-8"))
                 if m["job"] == meta.stem and m["mode"] in SPECS:
                     t = meta.stat().st_mtime
-                    self.jobs[m["job"]] = {"id": m["job"], "mode": m["mode"], "profile": m.get("profile", ""), "model": m.get("model", ""), "state": "done", "created": t,
+                    self.jobs[m["job"]] = {"id": m["job"], "mode": m["mode"], "profile": m.get("profile", ""), "model": m.get("model", ""), "state": "done", "created": t - float(m.get("seconds") or 0),
                                            "started": t - float(m.get("seconds") or 0), "ended": t, "progress": "", "error": "", "outputs": m["files"], "dir": m["job"], "prompt": m.get("prompt", "")}
             except (OSError, ValueError, KeyError):
                 continue
