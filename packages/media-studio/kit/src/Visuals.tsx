@@ -396,7 +396,7 @@ const Layers: FC<{ v: Extract<Visual, { kind: "layers" }>; accent: string; d: nu
                 // and unveiled, because the caller sized the stack before it
                 // was drawn and a narrower band would wrap and be taller.
                 ...(staged
-                  ? { width: "100%", clipPath: interpolate(frame, [a, a + 0.5 * fps], ["inset(0% 38% 0% 0%)", "inset(0% 0% 0% 0%)"], o) }
+                  ? { width: "100%", clipPath: `inset(0 ${interpolate(frame, [a, a + 0.5 * fps], [38, 0], o)}% 0 0)` }
                   : { width: interpolate(frame, [a, a + 0.5 * fps], ["62%", "100%"], o) }),
               }}
             >
