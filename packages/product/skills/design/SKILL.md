@@ -20,7 +20,7 @@ Copy this list and tick each item.
 
 - [ ] State the user, their situation, the outcome and the evidence, labelled Observed, Implemented, Reported, Assumed or Unknown.
 - [ ] Choose the simplest thing that works, in this order: remove, simplify, combine, repair, add.
-- [ ] Inspect the affected routes, components, data, permissions and tests, and reuse what exists.
+- [ ] Inspect the affected routes, components, data, permissions and tests; reuse them.
 - [ ] Cut to the smallest slice that delivers the outcome end to end. List what is out of scope.
 - [ ] Write the target flow from entry to confirmation, including recovery.
 - [ ] Fill in every state that applies: normal, empty, loading, partial, error, offline, permission, destructive, success, return later.
@@ -32,11 +32,11 @@ Read when the feature uses AI, tools or autonomy: [agentic](../../references/age
 
 ## Rules
 
-- Do not specify a redesign as one slice because the pieces feel related. Ship one slice, then learn.
+- Do not specify a redesign as one slice. Ship one slice, then learn.
 - Do not hide a deterministic action behind chat because a model could do it. Give it a control.
 - Do not write "standard behaviour" for a state to save time. Define it.
 - Do not prescribe a new library before checking what the repository has.
-- Do not fill a gap with an invented requirement to finish the contract. Mark it Unknown and ask.
+- Do not invent a requirement to fill a gap. Mark it Unknown and ask.
 
 ## Output
 
@@ -55,4 +55,5 @@ Save to `_product-experience/02-design.md` only when the user asks for a file. T
 Next: `build`.
 
 Read for architecture, storage, workers, caching, email or product copy: [portfolio standard](../../references/portfolio-standard.md).
+Read when the change has a UI: [UI standard](../../references/ui-standard.md). Apply its control and density rules in the contract; the repository's design system wins.
 Read when applying the detailed example. [Workflow detail](references/workflow-detail.md)

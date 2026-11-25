@@ -2,7 +2,7 @@
 
 Audit, design, build, verify and demo product experiences on evidence, apply portfolio engineering rules, and route a checkout to one of those lanes. Seven skills plus one read-only reviewer agent, no MCP server and no hook.
 
-The reviewer agent issues verdicts; the context that wrote a change never does. Each skill is capped at 500 words, so the detail lives in `references/`: `agentic.md`, `authenticated-acceptance.md`, `demo-handoff.md` and `surfaces.md`.
+The reviewer agent issues verdicts; the context that wrote a change never does. Each skill is capped at 500 words, so the detail lives in `references/`: `agentic.md`, `authenticated-acceptance.md`, `demo-handoff.md`, `surfaces.md` and `ui-standard.md` (UI rules for `design`, `build` and `verify`; `scripts/check-ui-rules.mjs` is its static check).
 
 `kits/execution-controls` and `kits/demo-harness` are cross-portfolio contracts. Products vendor the first with `scripts/vendor-execution-controls.mjs` and check drift with `--check`.
 
