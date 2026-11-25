@@ -40,6 +40,8 @@ PROTECTED_SANDBOX_ID = "0075feb8-9387-43fd-85b3-ee8f2bb5930c"
 PROTECTED_SANDBOX_NAME = "qwen38-turbo-q6k"
 PROTECTED_VOLUME_NAME = "llm-models"
 MANAGED_ROLES = ["engineering", "media", "specialist", "flagship"]
+# A live check alone is not enough: MI355X spot boxes were evicted 28 and 42 minutes after a verified boot (2026-11-25).
+MIN_ENGINEERING_UPTIME_HOURS = 6
 DEFAULT_ALIVE_PATTERN = r"[v]llm serve|[l]lama-server|[s]erve-(specialist|flagship|engineering)"
 
 
@@ -1178,13 +1180,28 @@ def cmd_reconcile(_args: argparse.Namespace) -> None:
         save_state(state)
 
 
+def sandbox_age_hours(sandbox: Any, now: datetime | None = None) -> float | None:
+    """Hours since the sandbox was created, or None when the API gave no usable createdAt."""
+    raw = getattr(sandbox, "created_at", None) or getattr(sandbox, "createdAt", None)
+    if not raw:
+        return None
+    try:
+        created = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    return ((now or datetime.now(timezone.utc)) - created).total_seconds() / 3600
+
+
 def check_retire_legacy_turbo_gates(
     live_sandboxes: list[Any],
     gateway_base_url: str,
     inference_key: str,
     probe_fn: Callable[[str, str, dict[str, Any] | None], tuple[int, dict[str, Any]]] | None = None,
+    now: datetime | None = None,
 ) -> Any:
-    """Verify engineering is STARTED and live-verified on gateway before retiring legacy turbo."""
+    """Verify engineering has been STARTED for MIN_ENGINEERING_UPTIME_HOURS and is live-verified on the gateway."""
     eng_sb = next(
         (
             sb
@@ -1196,6 +1213,14 @@ def check_retire_legacy_turbo_gates(
     )
     if eng_sb is None:
         raise SystemExit("Refusing retire-legacy-turbo: agenthub-engineering sandbox is not STARTED")
+    age_hours = sandbox_age_hours(eng_sb, now)
+    if age_hours is None:
+        raise SystemExit("Refusing retire-legacy-turbo: agenthub-engineering has no readable createdAt, so its uptime is unknown")
+    if age_hours < MIN_ENGINEERING_UPTIME_HOURS:
+        raise SystemExit(
+            f"Refusing retire-legacy-turbo: agenthub-engineering has been up {age_hours:.1f} h; "
+            f"need {MIN_ENGINEERING_UPTIME_HOURS} h (spot boxes were evicted within an hour)"
+        )
     if not inference_key:
         raise SystemExit("Refusing retire-legacy-turbo: AGENTHUB_INFERENCE_KEY / secrets/inference.key is missing")
 

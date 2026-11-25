@@ -123,7 +123,8 @@ import gpu
 cat = gpu.load_catalog()
 
 class FakeSb:
-    def __init__(self, sid, name, gpu_count=1, gpu_type="H200", state="STARTED"):
+    def __init__(self, sid, name, gpu_count=1, gpu_type="H200", state="STARTED", created_at=None):
+        self.created_at = created_at
         self.id = sid
         self.name = name
         self.gpu = gpu_count
@@ -206,6 +207,8 @@ assert gpu.build_parser().parse_args(["retire-legacy-turbo", "--dry-run"]).comma
 assert gpu.build_parser().parse_args(["caddy-media", "--dry-run"]).command == "caddy-media"
 
 # Gated retire-legacy-turbo refusals + success
+from datetime import datetime, timezone
+gate_now = datetime(2026, 11, 25, 12, 0, tzinfo=timezone.utc)
 raised = False
 try:
     gpu.check_retire_legacy_turbo_gates([FakeSb("e1", "agenthub-engineering", state="STOPPED")], "https://inference.shtrial.com/v1", "k")
@@ -223,10 +226,11 @@ def failing_flagship_probe(method, path, body):
 raised = False
 try:
     gpu.check_retire_legacy_turbo_gates(
-        [FakeSb("e1", "agenthub-engineering", state="STARTED")],
+        [FakeSb("e1", "agenthub-engineering", state="STARTED", created_at="2026-11-25T01:00:00Z")],
         "https://inference.shtrial.com/v1",
         "k",
         probe_fn=failing_flagship_probe,
+        now=gate_now,
     )
 except SystemExit:
     raised = True
@@ -237,11 +241,28 @@ def passing_probe(method, path, body):
         return 200, {"data": [{"id": "agent-specialist"}, {"id": "agent-flagship"}]}
     return 200, {"choices": [{"message": {"content": "OK"}}]}
 
+# Engineering must also have been up for MIN_ENGINEERING_UPTIME_HOURS: a passing live check on a young box is not enough
+assert gpu.MIN_ENGINEERING_UPTIME_HOURS == 6
+for label, created in [("5h59m old", "2026-11-25T06:01:00Z"), ("no createdAt", None), ("unreadable createdAt", "yesterday-ish")]:
+    try:
+        gpu.check_retire_legacy_turbo_gates(
+            [FakeSb("e1", "agenthub-engineering", state="STARTED", created_at=created)],
+            "https://inference.shtrial.com/v1",
+            "k",
+            probe_fn=passing_probe,
+            now=gate_now,
+        )
+    except SystemExit as exc:
+        assert "retire-legacy-turbo" in str(exc), exc
+        continue
+    raise AssertionError(f"retire-legacy-turbo must refuse an engineering box that is {label}")
+
 eng_ok = gpu.check_retire_legacy_turbo_gates(
-    [FakeSb("e1", "agenthub-engineering", state="STARTED")],
+    [FakeSb("e1", "agenthub-engineering", state="STARTED", created_at="2026-11-25T06:00:00+00:00")],
     "https://inference.shtrial.com/v1",
     "k",
     probe_fn=passing_probe,
+    now=gate_now,
 )
 assert eng_ok.id == "e1"
 

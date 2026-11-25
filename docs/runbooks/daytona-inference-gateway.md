@@ -20,11 +20,19 @@ Permanent inference gateway and unified NVIDIA/AMD Daytona spot GPU operations f
   - `agent-turbo`: Flash-Next (`medium` default reasoning, 262144 ctx / 32768 output; legacy H200 `qwen38-turbo-q6k` until `retire-legacy-turbo` moves it to Slot 1 `:8002`)
   - `agent-flagship`: Flash-Next Q8_0 flagship reasoning (`medium` default reasoning, 262144 ctx / 32768 output; `Q8_0` on MI355X/B300/B200, explicit `--allow-q6-fallback` on H200)
 - **Hard Operating Constraints:**
-  - Maximum **2** GPU instances combined across NVIDIA and AMD, **1** GPU per instance. While `qwen38-turbo-q6k` is live it counts as one of the two, so Slot 2 cannot start until `retire-legacy-turbo` has run.
+  - Maximum **2** GPU instances combined across NVIDIA and AMD, **1** GPU per instance. While `qwen38-turbo-q6k` is live it counts as one of the two, so only one MI355X slot (engineering or media) can run next to it; both together need `retire-legacy-turbo` first.
   - **Spot-only** (`spot=True`); never falls back to on-demand. A box that comes back non-spot or on a different GPU than requested is deleted.
   - **TTL is always set** at create time and capped: `--ttl` and `extend` accept 1 to `policy.maxTtlMinutes` (480) minutes, default 120.
-  - Protected live sandbox `qwen38-turbo-q6k` and protected volume `llm-models` are never touched by `up`/`down`/`extend`/`save-cache`; `retire-legacy-turbo` refuses unless `agenthub-engineering` is `STARTED` and both `agent-specialist` and `agent-flagship` pass live verification on `https://inference.shtrial.com/v1`.
+  - Protected live sandbox `qwen38-turbo-q6k` and protected volume `llm-models` are never touched by `up`/`down`/`extend`/`save-cache`; `retire-legacy-turbo` refuses unless `agenthub-engineering` is `STARTED`, was created at least 6 hours ago (`MIN_ENGINEERING_UPTIME_HOURS`, read from `createdAt`; a missing `createdAt` also refuses) and both `agent-specialist` and `agent-flagship` pass live verification on `https://inference.shtrial.com/v1`.
   - No silent fallback to paid providers or different checkpoints on unavailable aliases.
+
+## Spot Reliability (measured 2026-11-25)
+
+- Daytona evicted both MI355X spot boxes it ran on 2026-11-25 (`020c5f08` after 42 minutes, `0876ca45` after 28 minutes) while spot MI355X capacity showed about 200 free. A `capacity` count does not predict an eviction.
+- The H200 spot box `qwen38-turbo-q6k` has run for more than 14 hours.
+- An engineering boot takes about 18 minutes from the weights volume.
+- So the MI355X slots are on-demand bursts, not an always-on lane, and the H200 box stays. `retire-legacy-turbo` has **not** been run; it needs engineering to have been up 6 hours, and a live check on a young box would have left every alias dead 20 minutes later.
+- After any eviction run `gpu.py reconcile`. It prunes aliases whose sandbox is gone (four dead aliases were pruned on 2026-11-25) and re-registers `agent-turbo` on the live H200 box.
 
 ## GPU Lifecycle Commands
 
