@@ -646,8 +646,8 @@ def update_sh_forge_caddy(
 
     updated_caddy = upsert_caddy_site_block(existing_caddy, "inference.shtrial.com", block)
     remote_cmd = (
-        "cat > /opt/forge/caddy/Caddyfile.tmp && "
-        "mv /opt/forge/caddy/Caddyfile.tmp /opt/forge/caddy/Caddyfile && "
+        # Write in place: the container bind-mounts this one file, and a rename would leave it reading the old one.
+        "cat > /opt/forge/caddy/Caddyfile && "
         "if command -v caddy >/dev/null 2>&1; then "
         "caddy validate --config /opt/forge/caddy/Caddyfile && "
         "(systemctl reload caddy 2>/dev/null || service caddy reload 2>/dev/null); "
@@ -670,7 +670,7 @@ def update_sh_forge_caddy(
         restored = False
         if existing_caddy.strip():
             restore_res = subprocess.run(
-                ["ssh", ssh_host, "cat > /opt/forge/caddy/Caddyfile.tmp && mv /opt/forge/caddy/Caddyfile.tmp /opt/forge/caddy/Caddyfile"],
+                ["ssh", ssh_host, "cat > /opt/forge/caddy/Caddyfile"],
                 input=existing_caddy.encode("utf-8"),
                 capture_output=True,
                 check=False,
@@ -1416,6 +1416,80 @@ PY"""
         app.close()
 
 
+PREFILL_IMAGE = "python:3.12-slim"
+PREFILL_POLL_SECONDS = 20
+
+
+def cmd_prefill(args: argparse.Namespace) -> None:
+    """Fill the media weights volume from Hugging Face on a throwaway CPU box (no GPU, no GPU slot used)."""
+    catalog = load_catalog()
+    vol_name, mount_path = role_volume_spec("media", catalog)
+    hf_token = read_secret_value(("HF_TOKEN",), "hf.token")
+    if len(hf_token) < 8:
+        raise SystemExit("HF_TOKEN (or secrets/hf.token) is not set")
+    models_path = media_server_dir() / "models.json"
+    if not models_path.is_file():
+        raise SystemExit(f"Missing {models_path}")
+    script = (ROOT / "recipes" / "prefill-media.py").read_bytes().replace(b"\r\n", b"\n")
+    run_id = f"media-prefill-{int(time.time())}"
+    app = get_daytona_client()
+    sandbox = None
+    try:
+        v0 = app.v0
+        from daytona.v0 import CreateSandboxFromImageParams, Resources, VolumeMount
+
+        volume_id = ensure_volume(v0, vol_name)
+        sandbox = v0.create(
+            CreateSandboxFromImageParams(
+                image=PREFILL_IMAGE,
+                public=False,
+                ephemeral=True,
+                auto_stop_interval=60,
+                ttl_minutes=args.ttl,
+                labels={"owner": "agenthub", "purpose": "media-prefill", "run": run_id},
+                volumes=[VolumeMount(volume_id=volume_id, mount_path=mount_path)],
+                resources=Resources(cpu=4, memory=8, disk=10),
+            )
+        )
+        print(f"prefill box {sandbox.id} run={run_id} ttl_minutes={args.ttl}", flush=True)
+        sandbox.fs.upload_file(hf_token.encode("utf-8"), "/tmp/hf.token")
+        sandbox.process.exec("chmod 600 /tmp/hf.token", timeout=30)
+        sandbox.fs.upload_file(script, "/tmp/prefill-media.py")
+        sandbox.fs.upload_file(models_path.read_bytes().replace(b"\r\n", b"\n"), "/tmp/models.json")
+        sandbox.process.exec(
+            "touch /tmp/pf.run; nohup sh -c 'python3 /tmp/prefill-media.py > /tmp/prefill.log 2>&1; rm -f /tmp/pf.run' "
+            ">/dev/null 2>&1 & echo started",
+            timeout=30,
+        )
+        shown = 0
+        deadline = time.time() + max(args.ttl - 5, 1) * 60
+        log = ""
+        while time.time() < deadline:
+            time.sleep(PREFILL_POLL_SECONDS)
+            res = sandbox.process.exec("cat /tmp/prefill.log; test -e /tmp/pf.run || echo NOT_RUNNING", timeout=60)
+            log = res.result or ""
+            if len(log) > shown:
+                print(log[shown:].replace("NOT_RUNNING", "").rstrip("\n"), flush=True)
+                shown = len(log)
+            if "PREFILL_DONE" in log or "NOT_RUNNING" in log:
+                break
+        else:
+            raise SystemExit("prefill did not finish before the TTL window; box deleted")
+        if "PREFILL_DONE" not in log:
+            raise SystemExit("prefill process stopped before PREFILL_DONE")
+        if not re.search(r"^bad \[\]$", log, re.MULTILINE):
+            raise SystemExit("prefill finished with failed files (see 'bad' line above); rerun to resume")
+        print(f"prefill complete volume={vol_name}")
+    finally:
+        if sandbox is not None:
+            try:
+                sandbox.delete(timeout=120)
+                print(f"deleted prefill box {sandbox.id}")
+            except Exception as exc:
+                print(f"WARNING: could not delete prefill box {sandbox.id} ({type(exc).__name__}); delete label run={run_id} by hand")
+        app.close()
+
+
 def cmd_doctor(_args: argparse.Namespace) -> None:
     catalog = load_catalog()
     checks: list[tuple[str, bool, str]] = []
@@ -1518,6 +1592,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_retire.add_argument("--dry-run", action="store_true")
 
+    p_prefill = sub.add_parser("prefill", help="Fill the media weights volume from Hugging Face on a CPU box (no GPU)")
+    p_prefill.add_argument("role", choices=["media"])
+    p_prefill.add_argument("--ttl", type=ttl_minutes, default=90)
+
     p_caddy = sub.add_parser("caddy-media", help="Update sh-forge Caddyfile /v1/media/* proxy to Slot 2 media gateway")
     p_caddy.add_argument("--preview-url", default=None)
     p_caddy.add_argument("--owner-ip", default=None)
@@ -1544,6 +1622,7 @@ def main(argv: list[str] | None = None) -> None:
         "save-cache": cmd_save_cache,
         "retire-legacy-turbo": cmd_retire_legacy_turbo,
         "caddy-media": cmd_caddy_media,
+        "prefill": cmd_prefill,
     }
     dispatch[args.command](args)
 

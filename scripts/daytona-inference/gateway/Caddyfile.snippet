@@ -1,8 +1,8 @@
 # Permanent inference gateway reverse-proxy block for Caddy.
 # Allow OpenAI/Anthropic-compatible API paths (/v1/chat/completions, /v1/responses,
 # /v1/models, etc.) and liveliness probes from anywhere (gated by LiteLLM Bearer auth),
-# proxy /v1/media/* to Slot 2 media gateway (:8189) when authorized by owner IP or
-# AGENTHUB_INFERENCE_KEY Bearer token, and restrict admin/UI/DB management endpoints
+# proxy /v1/media/* to Slot 2 media gateway (:8189) when the request carries the
+# AGENTHUB_INFERENCE_KEY Bearer token (the owner IP alone is not enough), and restrict admin/UI/DB management endpoints
 # to the owner IP.
 #
 # Replace <OWNER_IP>, <AGENTHUB_INFERENCE_KEY>, <MEDIA_PREVIEW_URL>,
@@ -16,7 +16,6 @@ inference.shtrial.com {
 
   handle_path /v1/media/* {
     @media_denied {
-      not remote_ip <OWNER_IP>
       not header Authorization "Bearer <AGENTHUB_INFERENCE_KEY>"
     }
     respond @media_denied "unauthorized" 401

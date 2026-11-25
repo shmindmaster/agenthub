@@ -357,6 +357,141 @@ with tempfile.TemporaryDirectory() as td:
         pass
     assert not (td_path / "escape.png").exists()
 
+# gpu.py prefill media: on-box script logic (offline)
+import importlib.util, io, os, types, urllib.request, contextlib, json as _json
+spec = importlib.util.spec_from_file_location("prefill_media", repo / "scripts/daytona-inference/recipes/prefill-media.py")
+pm = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(pm)
+models_doc = {"installed": [
+    {"repo": "a/whole", "revision": "r1", "files": []},
+    {"repo": "b/pick", "revision": "r2", "files": [{"path": "x/one.safetensors"}, {"path": "x/two.safetensors"}, {"path": "x/one.safetensors"}]},
+    {"repo": "c/mixed", "revision": "r3", "files": [{"path": "f.bin", "repo": "d/other", "revision": "r4"}]},
+]}
+specs = pm.build_specs(models_doc)
+assert specs == [("a/whole", "r1", ""), ("b/pick", "r2", "x/one.safetensors"), ("b/pick", "r2", "x/two.safetensors"), ("d/other", "r4", "f.bin")], specs
+picked, missing = pm.select_files("b/pick", {"x/one.safetensors": 5, "extra": 9}, ["x/one.safetensors", "x/two.safetensors"])
+assert picked == {"x/one.safetensors": 5} and missing == ["x/two.safetensors"]
+whole, none_missing = pm.select_files("Zyphra/ZONOS3-Mini", {"model.safetensors": 1, "web/index.html": 2, "gguf/a.gguf": 3, "old.bin": 4, "autoencoder/heads/full_mr/w": 5}, [""])
+assert whole == {"model.safetensors": 1} and none_missing == [], whole
+handler = pm.DropAuthOnNewHost()
+orig_req = urllib.request.Request("https://huggingface.co/a/b/resolve/r/f", headers={"Authorization": "Bearer secret-token-value"})
+cross = handler.redirect_request(orig_req, None, 302, "Found", {}, "https://cdn.example.net/signed?x=1")
+assert cross is not None and not any(k.lower() == "authorization" for k in cross.headers)
+same = handler.redirect_request(orig_req, None, 302, "Found", {}, "https://huggingface.co/other/path")
+assert same is not None and any(k.lower() == "authorization" for k in same.headers)
+
+# gpu.py prefill media: box lifecycle with a fake Daytona (offline)
+class FakeProc:
+    def __init__(self, box): self.box = box
+    def exec(self, cmd, timeout=None):
+        self.box.cmds.append(cmd)
+        if self.box.exec_error and cmd.startswith("cat /tmp/prefill.log"):
+            raise RuntimeError("exec boom")
+        if cmd.startswith("cat /tmp/prefill.log"):
+            return types.SimpleNamespace(result=self.box.log, exit_code=0)
+        return types.SimpleNamespace(result="", exit_code=0)
+
+class FakeFs:
+    def __init__(self, box): self.box = box
+    def upload_file(self, data, path): self.box.uploads[path] = data
+
+class FakeBox:
+    def __init__(self, log, exec_error=False):
+        self.id = "prefill-box-1"
+        self.log, self.exec_error = log, exec_error
+        self.cmds, self.uploads, self.deleted = [], {}, False
+        self.process, self.fs = FakeProc(self), FakeFs(self)
+    def delete(self, timeout=None): self.deleted = True
+
+class FakeV0:
+    def __init__(self, box):
+        self.box, self.params = box, None
+        self.volume = types.SimpleNamespace(get=lambda name, create=False: types.SimpleNamespace(name=name, id="vol-1", state="READY"))
+    def create(self, params, **kw):
+        self.params = params
+        return self.box
+
+class FakeApp:
+    def __init__(self, box): self.v0, self.closed = FakeV0(box), False
+    def close(self): self.closed = True
+
+class Rec:
+    def __init__(self, **kw): self.__dict__.update(kw)
+
+fake_v0_mod = types.ModuleType("daytona.v0")
+fake_v0_mod.CreateSandboxFromImageParams = Rec
+fake_v0_mod.Resources = Rec
+fake_v0_mod.VolumeMount = Rec
+saved_mods = {k: sys.modules.get(k) for k in ("daytona", "daytona.v0")}
+sys.modules["daytona"] = types.ModuleType("daytona")
+sys.modules["daytona.v0"] = fake_v0_mod
+real_client, real_sleep = gpu.get_daytona_client, gpu.time.sleep
+gpu.time.sleep = lambda s: None
+secret_value = "hf_synthetic_secret_value_123"
+os.environ["HF_TOKEN"] = secret_value
+with tempfile.TemporaryDirectory() as media_dir:
+    pathlib.Path(media_dir, "models.json").write_text(_json.dumps(models_doc))
+    os.environ["MEDIA_GPU_GEN_SERVER_DIR"] = media_dir
+
+    def run_prefill(box):
+        app = FakeApp(box)
+        gpu.get_daytona_client = lambda: app
+        out = io.StringIO()
+        err = None
+        with contextlib.redirect_stdout(out):
+            try:
+                gpu.cmd_prefill(gpu.build_parser().parse_args(["prefill", "media", "--ttl", "60"]))
+            except BaseException as exc:
+                err = exc
+        return app, out.getvalue(), err
+
+    ok_box = FakeBox("2 files 0.0 GB\nbad []\nPREFILL_DONE\n")
+    app, out, err = run_prefill(ok_box)
+    assert err is None and ok_box.deleted and app.closed, (err, out)
+    p = app.v0.params
+    assert p.ephemeral is True and p.ttl_minutes == 60 and p.labels["owner"] == "agenthub" and p.resources.cpu == 4
+    assert not hasattr(p.resources, "gpu") and p.volumes[0].mount_path == "/mnt/media-weights" and p.volumes[0].volume_id == "vol-1"
+    assert ok_box.uploads["/tmp/hf.token"].decode() == secret_value and "/tmp/models.json" in ok_box.uploads
+    assert secret_value not in out and all(secret_value not in c for c in ok_box.cmds)
+    assert any(c.startswith("chmod 600 /tmp/hf.token") for c in ok_box.cmds)
+
+    bad_box = FakeBox("bad [('a/whole', 'r1', 'f')]\nPREFILL_DONE\n")
+    app, out, err = run_prefill(bad_box)
+    assert isinstance(err, SystemExit) and bad_box.deleted and app.closed, (err, out)
+
+    dead_box = FakeBox("Traceback\nNOT_RUNNING\n")
+    app, out, err = run_prefill(dead_box)
+    assert isinstance(err, SystemExit) and dead_box.deleted
+
+    boom_box = FakeBox("", exec_error=True)
+    app, out, err = run_prefill(boom_box)
+    assert isinstance(err, RuntimeError) and boom_box.deleted and app.closed
+    assert secret_value not in out
+
+    os.environ.pop("HF_TOKEN")
+    real_secret = gpu.read_secret_value
+    gpu.read_secret_value = lambda names, file_name=None: ""
+    try:
+        gpu.cmd_prefill(gpu.build_parser().parse_args(["prefill", "media"]))
+        raise AssertionError("prefill without a token must refuse")
+    except SystemExit as exc:
+        assert "HF_TOKEN" in str(exc)
+    finally:
+        gpu.read_secret_value = real_secret
+os.environ.pop("MEDIA_GPU_GEN_SERVER_DIR", None)
+gpu.get_daytona_client, gpu.time.sleep = real_client, real_sleep
+for name, mod in saved_mods.items():
+    if mod is None:
+        sys.modules.pop(name, None)
+    else:
+        sys.modules[name] = mod
+assert gpu.build_parser().parse_args(["prefill", "media"]).ttl == 90
+
+# Caddy snippet: /v1/media needs the inference key even from the owner IP
+snippet_text = (repo / "scripts/daytona-inference/gateway/Caddyfile.snippet").read_text(encoding="utf-8")
+media_block = snippet_text.split("handle_path /v1/media/*", 1)[1].split("reverse_proxy", 1)[0]
+assert "not header Authorization" in media_block and "remote_ip" not in media_block, media_block
+
 print("PY_UNIT_PASS")
 '@
 
