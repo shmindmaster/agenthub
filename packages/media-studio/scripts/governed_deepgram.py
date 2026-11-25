@@ -43,8 +43,9 @@ def quote(text, *, workspace, revision, dictionary_revision, expressivity, voice
             or not all(isinstance(x, str) and x.strip() for x in
                        (workspace, revision, dictionary_revision))):
         raise ValueError("Explicit workspace, revision, dictionary revision and 1-2000 input characters required")
-    if type(expressivity) not in (int, float) or not 0 <= expressivity <= 1:
-        raise ValueError("Explicit finite expressivity in [0,1] required")
+    # Flux takes whole numbers from -2 (calm) to 2 (animated) and rejects the rest; 0 is its tuned default.
+    if type(expressivity) not in (int, float) or expressivity not in (-2, -1, 0, 1, 2):
+        raise ValueError("Whole-number expressivity from -2 to 2 required")
     if voice not in VOICES:
         raise ValueError("Allowlisted Deepgram Flux voice required")
     if datetime.datetime.now(datetime.timezone.utc).date() > PRICE_VALID_THROUGH:
@@ -111,8 +112,9 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 def transport(request, credential, received):
     """Fixed origin, no redirects, no SDK retry; receipt bound before reading audio."""
-    query = {k: request[k] for k in ("model", "encoding", "container", "sample_rate", "expressivity")}
-    query.update(mip_opt_out="true", tag="agenthub-media-studio")
+    query = {k: request[k] for k in ("model", "encoding", "container", "sample_rate")}
+    # The request keeps a float so existing cache keys still match.
+    query.update(expressivity=int(request["expressivity"]), mip_opt_out="true", tag="agenthub-media-studio")
     req = urllib.request.Request(ENDPOINT + "?" + urllib.parse.urlencode(query),
         data=json.dumps({"text": request["text"]}, ensure_ascii=False).encode("utf-8"),
         headers={"Authorization": "Token " + credential, "Content-Type": "application/json"}, method="POST")

@@ -3,10 +3,13 @@
 Begin here for new recorded narration in any Media Studio project. Reuse accepted
 audio. Keep explicitly approved voices and provider restrictions on existing
 jobs. Stock (non-cloned) voices default to eligible Deepgram Flux (`flux-sienna-en`
-or `flux-haley-en`) for every entity except ABACare. ABACare scripts
-(`"entity": "abacare"`) default to eligible AssemblyAI stock voices on ABACare
-credit. Outside ABACare, AssemblyAI is chosen only when the script names it
-(`"provider": "assemblyai"`), for example a consented clone. When the default
+or `flux-haley-en`) for every entity except ABACare, personal films included. ABACare scripts
+(`"entity": "abacare"`) use AssemblyAI on ABACare credit and name a voice on every
+turn: cast the clones, Syeda F. Abidi for marketing, parent-facing, social and
+general product films, Sarosh for technical and business ones. If that voice cannot run, the quote
+picks nothing; report the blocker and never swap in a stock voice. Outside ABACare,
+AssemblyAI is chosen only when the script names it (`"provider": "assemblyai"`),
+because the owner asked for it in that job. Elsewhere, when the default
 is ineligible, the least expensive eligible quoted option wins. Keep voice,
 region, performance and timing requirements ahead of list price.
 

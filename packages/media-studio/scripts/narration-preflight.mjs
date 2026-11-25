@@ -249,7 +249,8 @@ export function makeBatches(script, provider) {
   validate(script);
   if (!Object.hasOwn(models, provider)) throw new Error('Unknown narration provider');
   const speakers = new Set(script.turns.map(t => t.speaker || 'narrator'));
-  const defaults = { assemblyai: 'aai-jane', deepgram: models.deepgram, openai: 'marin' };
+  // An ABACare script names its voice; a stock default would silently replace the clone it was cast with.
+  const defaults = { assemblyai: script.entity === 'abacare' ? null : 'aai-jane', deepgram: models.deepgram, openai: 'marin' };
   const groups = [];
   for (const [index, turn] of script.turns.entries()) {
     const speaker = turn.speaker || 'narrator';
@@ -447,11 +448,11 @@ export async function preflight(script, { snapshots = {}, fetcher = fetch, now =
       requests: batches?.length ?? null, reasons };
   }));
   const eligible = candidates.filter(c => !c.reasons.length && !c.cacheError);
-  // Owner direction 2026-11-23: stock voices for ABACare films use AssemblyAI on ABACare credit;
-  // every other film defaults to Deepgram, and AssemblyAI is only chosen there when the job names it.
+  // Owner direction 2026-11-25: ABACare films use AssemblyAI only, and nothing else replaces its voice unless the job names
+  // a provider. Every other film defaults to Deepgram, and AssemblyAI is only chosen there when the job names it.
   const abacare = script.entity === 'abacare';
-  const routed = abacare ? eligible : eligible.filter(c => c.provider !== 'assemblyai');
-  const stockDefault = routed.find(c => c.provider === (abacare ? 'assemblyai' : 'deepgram'));
+  const routed = eligible.filter(c => (c.provider === 'assemblyai') === abacare);
+  const stockDefault = routed.find(c => abacare || c.provider === 'deepgram');
   const longForm = script.longForm ?? script.turns.reduce((n, t) => n + t.text.trim().split(/\s+/).length, 0) >= 1200;
   const pick = script.provider ? eligible.find(c => c.provider === script.provider) :
     stockDefault || routed.sort((a, b) => a.estimatedUsd - b.estimatedUsd)[0];

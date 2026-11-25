@@ -56,7 +56,7 @@ The recipe reference records the gated Microsoft options and their lifecycle. MA
 
 ## Voice craft
 
-1. One distinct voice per character. Voice clones run only for personal or ABACare films, made with AssemblyAI cloned voices (consented reference recording, 60 day validity, renewable) for the owner and for ABACare's co-founder, who records her own consent. Deepgram has no self-serve cloning. ElevenLabs needs a written reason in the job; the Deloitte pursuit films (Revolva, Empowera, CoLedger) stay on ElevenLabs. Azure never makes a clone.
+1. One distinct voice per character. Voice clones are for ABACare films, or a job where the owner asks for one, made with AssemblyAI cloned voices (consented reference recording, 60 day validity, renewable) for the owner and for ABACare's co-founder, who records her own consent. Deepgram has no self-serve cloning. ElevenLabs needs a written reason in the job; the Deloitte pursuit films (Revolva, Empowera, CoLedger) stay on ElevenLabs. Azure never makes a clone.
 2. Governed DragonHD voices take no style argument. Keep the existing allowlisted styles for already authorized standard Jenny, Guy and Aria jobs.
 3. Let the model infer prosody. Use SSML only for pronunciation, breaks and rate. Pronunciation comes from `scripts/pronunciation_lexicon.json` through `quote(..., pronunciations=[...])` (standard voices only; the adapter writes the `<phoneme>` markup, never the caller). Run `scripts/check_script_terms.py` on the locked script first and pass its `pin` list. HD has no `prosody`, `emphasis`, `bookmark` or `viseme`.
 4. Use HD speaking styles only on voices with English as the primary language.

@@ -7,7 +7,7 @@ Always honor `skills/produce/references/content-controls.md`.
 
 ## Responsibilities, not a universal generation provider
 
-- **AssemblyAI** generates speech: stock voices for ABACare films and consented cloned voices of Sarosh and Syeda F. Abidi for personal or ABACare films, after the [live narration preflight](narration-preflight.md). **Deepgram Flux** is the stock-voice default for every other film. AssemblyAI also supports source-audio and encoded-film understanding: transcript, word timestamps, speaker diarization, keyterms, code-switching,
+- **AssemblyAI** generates speech for ABACare films with the consented clones of Sarosh and Syeda F. Abidi, or for a job where the owner asks for it, after the [live narration preflight](narration-preflight.md). **Deepgram Flux** is the default for every other film. AssemblyAI also supports source-audio and encoded-film understanding: transcript, word timestamps, speaker diarization, keyterms, code-switching,
   checks that the final narration actually says what was scripted. Existing
   integration: `kit/cloud/cloud-ai.mjs align --provider assemblyai`.
   Its separate richer narrative/diarization QA is a **future integration**, not
