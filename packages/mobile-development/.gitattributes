@@ -4,3 +4,4 @@
 # interpreter rather than the line endings, so it reads as a missing shell.
 # Pin the guest scripts to LF so a fresh clone produces working files.
 *.sh text eol=lf
+skills/mobile-device-lab/forge/** text eol=lf
