@@ -243,7 +243,7 @@ const beats = segs.map((seg, i) => {
     result = { label, receipt_expectation_index: exp ? clipRec.expectations.indexOf(exp) : null, clip_time: expClip, visible_at: expClip !== null && mapped ? toProgram(expClip) : null, keywords, keyword: kw ? { w: kw.w, start: kw.start, end: kw.end, matched: kw.keyword } : null };
   }
   const prevGroup = i > 0 ? groupFor(segs[i - 1]) : null;
-  const cameraDefault = clipRec?.recast === 'full' ? 'Recast punch-in on clicks' : clipRec?.recast ? `Recast ${clipRec.recast}` : 'static';
+  const cameraDefault = clipRec?.finisher === 'stage' ? 'screen stage camera: springs to each action' : clipRec?.recast === 'full' ? 'Recast punch-in on clicks' : clipRec?.recast ? `Recast ${clipRec.recast}` : 'static';
   return {
     beat: seg.id,
     t_start: L.round(bw.words[0]?.start ?? seg.startSeconds),

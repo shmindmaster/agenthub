@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tally - Household ledger</title>
+<style>
+  :root {
+    --ink: #11303a;
+    --ink-soft: #3d5a64;
+    --teal: #0e8a8c;
+    --teal-deep: #0a6567;
+    --teal-wash: #d9f0ee;
+    --paper: #f5f3ec;
+    --card: #fffefb;
+    --line: #d9d5c7;
+    --amber: #e6a23c;
+    --font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background: var(--paper); color: var(--ink); font: 15px/1.35 var(--font); cursor: default; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: left; }
+  .app { display: grid; grid-template-rows: 56px 52px 1fr 36px; width: 100vw; height: 100vh; }
+
+  /* app bar + menu bar */
+  .bar { display: flex; align-items: center; gap: 28px; padding: 0 24px; background: var(--ink); color: #eaf5f4; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; letter-spacing: .02em; }
+  .brand i { width: 22px; height: 22px; border-radius: 6px; background: var(--teal); box-shadow: inset 0 -6px 0 var(--teal-deep); display: inline-block; }
+  .brand small { font-size: 14px; font-weight: 400; color: #a9c6c8; letter-spacing: 0; }
+  .menubar { display: flex; gap: 4px; }
+  .menu-wrap { position: relative; }
+  .menu-btn { height: 36px; min-width: 64px; padding: 0 14px; border-radius: 8px; display: flex; align-items: center; font-size: 15px; color: #eaf5f4; }
+  .menu-btn:hover, .menu-btn.on { background: #1f4955; }
+
+  /* menus */
+  .menu { position: absolute; z-index: 20; min-width: 230px; padding: 6px; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 34px rgba(17, 48, 58, .28);
+    opacity: 0; visibility: hidden; transform: translateY(-6px); pointer-events: none;
+    transition: opacity 120ms ease-out, transform 120ms ease-out, visibility 0s linear 120ms; }
+  .menu.open { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; transition: opacity 120ms ease-out, transform 120ms ease-out, visibility 0s; }
+  .menu-main { top: 40px; left: 0; }
+  .menu-sub { top: -7px; left: calc(100% + 4px); transform: translateX(-6px); }
+  .menu-sub.open { transform: translateX(0); }
+  .item { width: 100%; height: 38px; padding: 0 12px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 15px; }
+  .item:hover, .item.on { background: var(--teal-wash); }
+  .item .arrow { color: var(--ink-soft); font-size: 12px; margin-left: 18px; }
+  .has-sub { position: relative; }
+
+  /* toolbar */
+  .toolbar { display: flex; align-items: center; gap: 10px; padding: 0 24px; background: var(--card); border-bottom: 1px solid var(--line); }
+  .tool { height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 14px; display: flex; align-items: center; }
+  .tool:hover { border-color: var(--teal); background: var(--teal-wash); }
+  .spacer { flex: 1; }
+  .note { width: 300px; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; font: 14px var(--font); color: var(--ink); background: #fff; cursor: text; }
+  .note:focus { outline: 2px solid var(--teal); outline-offset: 0; }
+
+  /* ledger table */
+  .sheet { padding: 22px 24px 0; overflow: hidden; }
+  .sheet-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .sheet-head h1 { margin: 0; font-size: 22px; font-weight: 700; }
+  .sheet-head span { font-size: 14px; color: var(--ink-soft); }
+  table { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); }
+  th, td { height: 48px; padding: 0 16px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+  th { height: 42px; background: #ebe8dc; font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); }
+  th.col-btn { cursor: pointer; }
+  th.col-btn:hover { background: var(--teal-wash); color: var(--ink); }
+  th.sel, th.col-btn.sel:hover { background: var(--teal); color: #fff; }
+  td.amt, th.amt { text-align: right; font-variant-numeric: tabular-nums; }
+  td.sel { background: var(--teal-wash); box-shadow: inset 2px 0 0 var(--teal), inset -2px 0 0 var(--teal); font-weight: 600; }
+  tbody tr:last-child td.sel { box-shadow: inset 2px 0 0 var(--teal), inset -2px 0 0 var(--teal), inset 0 -2px 0 var(--teal); }
+  td.muted { color: var(--ink-soft); font-style: italic; }
+  col.c-date { width: 150px; } col.c-desc { width: 400px; } col.c-acct { width: 200px; } col.c-cat { width: 190px; } col.c-amt { width: auto; }
+
+  /* status strip + toast */
+  .status { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--ink); color: #cfe3e3; font-size: 14px; }
+  .toast { position: fixed; right: 24px; bottom: 54px; z-index: 30; padding: 12px 18px; border-radius: 10px; background: var(--teal-deep); color: #fff; font-size: 15px; font-weight: 600; box-shadow: 0 10px 26px rgba(10, 101, 103, .35);
+    opacity: 0; visibility: hidden; transform: translateY(8px); transition: opacity 120ms ease-out, transform 120ms ease-out, visibility 0s linear 120ms; }
+  .toast.show { opacity: 1; visibility: visible; transform: translateY(0); transition: opacity 120ms ease-out, transform 120ms ease-out, visibility 0s; }
+</style>
+</head>
+<body data-format="automatic">
+<div class="app">
+  <header class="bar">
+    <div class="brand"><i></i>Tally <small>Household ledger</small></div>
+    <nav class="menubar" role="menubar" aria-label="Main menu">
+      <div class="menu-wrap"><button class="menu-btn" role="menuitem" data-testid="menu-ledger">Ledger</button></div>
+      <div class="menu-wrap"><button class="menu-btn" role="menuitem" data-testid="menu-edit">Edit</button></div>
+      <div class="menu-wrap"><button class="menu-btn" role="menuitem" data-testid="menu-view">View</button></div>
+      <div class="menu-wrap" id="format-wrap">
+        <button class="menu-btn" id="menu-format" role="menuitem" aria-haspopup="menu" aria-expanded="false" data-testid="menu-format">Format</button>
+        <div class="menu menu-main" id="dropdown-format" role="menu" aria-label="Format" data-testid="dropdown-format">
+          <button class="item" role="menuitem" data-testid="item-theme">Theme</button>
+          <div class="has-sub">
+            <button class="item" id="item-number" role="menuitem" aria-haspopup="menu" aria-expanded="false" data-testid="item-number">Number <span class="arrow">&#9654;&#xFE0E;</span></button>
+            <div class="menu menu-sub" id="submenu-number" role="menu" aria-label="Number" data-testid="submenu-number">
+              <button class="item" role="menuitem" data-fmt="automatic" data-testid="sub-automatic">Automatic</button>
+              <button class="item" role="menuitem" data-fmt="plain" data-testid="sub-plain">Plain text</button>
+              <button class="item" role="menuitem" data-fmt="number" data-testid="sub-number">Number</button>
+              <button class="item" role="menuitem" data-fmt="percent" data-testid="sub-percent">Percent</button>
+              <button class="item" role="menuitem" data-fmt="currency" data-testid="sub-currency">Currency</button>
+              <button class="item" role="menuitem" data-fmt="accounting" data-testid="sub-accounting">Accounting</button>
+            </div>
+          </div>
+          <button class="item" role="menuitem" data-testid="item-text">Text</button>
+          <button class="item" role="menuitem" data-testid="item-alignment">Alignment</button>
+          <button class="item" role="menuitem" data-testid="item-wrapping">Wrapping</button>
+        </div>
+      </div>
+      <div class="menu-wrap"><button class="menu-btn" role="menuitem" data-testid="menu-data">Data</button></div>
+    </nav>
+  </header>
+
+  <div class="toolbar" role="toolbar" aria-label="Ledger tools">
+    <button class="tool" data-testid="tool-undo">Undo</button>
+    <button class="tool" data-testid="tool-redo">Redo</button>
+    <button class="tool" data-testid="tool-filter">Filter</button>
+    <span class="spacer"></span>
+    <input class="note" type="text" placeholder="Add a note to this month" aria-label="Note" data-testid="note-field">
+  </div>
+
+  <main class="sheet">
+    <div class="sheet-head"><h1>November household spending</h1><span>Synthetic demo data</span></div>
+    <table aria-label="Expenses">
+      <colgroup><col class="c-date"><col class="c-desc"><col class="c-acct"><col class="c-cat"><col class="c-amt"></colgroup>
+      <thead>
+        <tr>
+          <th scope="col" data-testid="col-date">Date</th>
+          <th scope="col" data-testid="col-description">Description</th>
+          <th scope="col" data-testid="col-account">Account</th>
+          <th scope="col" data-testid="col-category">Category</th>
+          <th scope="col" class="amt col-btn" id="col-amount" data-testid="col-amount">Amount</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </main>
+
+  <footer class="status" role="contentinfo">
+    <span id="status-selection" data-testid="status-selection">Selection: none</span>
+    <span id="status-format" data-testid="status-format">Format: automatic &middot; 8 entries</span>
+  </footer>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" data-testid="toast"></div>
+
+<script>
+(function () {
+  window.__ledger = { revision: "fixture-1", persona: "demo-ledger-owner" };
+
+  var ROWS = [
+    ["2026-11-02", "Weekly grocery shop", "Checking", "Food", 300],
+    ["2026-11-03", "Electric bill", "Checking", "Utilities", 100],
+    ["2026-11-04", "Coffee beans", "Card", "Food", 10],
+    ["2026-11-05", "Bus pass top-up", "Card", "Transport", 10],
+    ["2026-11-07", "Internet", "Checking", "Utilities", 100],
+    ["2026-11-09", "Pharmacy", "Card", "Health", 50],
+    ["2026-11-11", "Lunch with a friend", "Card", "Food", 45],
+    ["2026-11-12", "Water bill (invoice pending)", "Checking", "Utilities", null]
+  ];
+  var NAMES = { automatic: "Automatic", plain: "Plain text", number: "Number", percent: "Percent", currency: "Currency", accounting: "Accounting" };
+
+  function grouped(v, digits) {
+    var s = Math.abs(v).toFixed(digits), parts = s.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  }
+  var FORMATS = {
+    automatic: function (v) { return String(v); },
+    plain: function (v) { return String(v); },
+    number: function (v) { return grouped(v, 2); },
+    percent: function (v) { return v + "%"; },
+    currency: function (v) { return "$" + grouped(v, 2); },
+    accounting: function (v) { return "$ " + grouped(v, 2); }
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var tbody = $("rows");
+  var selected = false;
+  var current = "automatic";
+
+  ROWS.forEach(function (r, i) {
+    var tr = document.createElement("tr");
+    tr.setAttribute("data-testid", "row-" + (i + 1));
+    [0, 1, 2, 3].forEach(function (c) {
+      var td = document.createElement("td");
+      td.textContent = r[c];
+      tr.appendChild(td);
+    });
+    var amt = document.createElement("td");
+    amt.className = "amt";
+    amt.setAttribute("data-col", "amount");
+    amt.setAttribute("data-testid", "cell-amount-" + (i + 1));
+    if (r[4] === null) { amt.className += " muted"; amt.textContent = "pending"; }
+    else amt.setAttribute("data-value", String(r[4]));
+    tr.appendChild(amt);
+    tbody.appendChild(tr);
+  });
+
+  var amountCells = function () { return Array.prototype.slice.call(tbody.querySelectorAll("td[data-value]")); };
+
+  function render() {
+    amountCells().forEach(function (td) { td.textContent = FORMATS[current](Number(td.getAttribute("data-value"))); });
+    document.body.dataset.format = current;
+    $("status-format").innerHTML = "Format: " + current + " &middot; 8 entries";
+  }
+
+  function setSelected(on) {
+    selected = on;
+    $("col-amount").classList.toggle("sel", on);
+    amountCells().forEach(function (td) { td.classList.toggle("sel", on); });
+    $("status-selection").textContent = on ? "Selection: Amount (" + amountCells().length + " cells)" : "Selection: none";
+  }
+
+  var toast = $("toast");
+  function say(text) {
+    toast.textContent = text;
+    toast.classList.add("show");
+  }
+
+  var dropdown = $("dropdown-format"), formatBtn = $("menu-format"), sub = $("submenu-number"), numberItem = $("item-number");
+  function closeMenus() {
+    dropdown.classList.remove("open"); sub.classList.remove("open");
+    formatBtn.classList.remove("on"); numberItem.classList.remove("on");
+    formatBtn.setAttribute("aria-expanded", "false"); numberItem.setAttribute("aria-expanded", "false");
+  }
+
+  $("col-amount").addEventListener("click", function () { closeMenus(); setSelected(true); });
+
+  formatBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var open = !dropdown.classList.contains("open");
+    closeMenus();
+    if (open) { dropdown.classList.add("open"); formatBtn.classList.add("on"); formatBtn.setAttribute("aria-expanded", "true"); }
+  });
+
+  numberItem.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var open = !sub.classList.contains("open");
+    sub.classList.toggle("open", open); numberItem.classList.toggle("on", open);
+    numberItem.setAttribute("aria-expanded", String(open));
+  });
+
+  sub.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-fmt]");
+    if (!b) return;
+    e.stopPropagation();
+    var fmt = b.getAttribute("data-fmt");
+    closeMenus();
+    if (!selected) { say("Select a range first"); return; }
+    current = fmt;
+    render();
+    say(NAMES[fmt] + " format applied to " + amountCells().length + " cells");
+  });
+
+  // Inert items close the menu; other top-level menus only dismiss an open one.
+  dropdown.addEventListener("click", function (e) { if (e.target.closest(".item") && !e.target.closest("#item-number") && !e.target.closest("#submenu-number")) closeMenus(); });
+  document.querySelectorAll(".menu-btn, .tool").forEach(function (b) { if (b !== formatBtn) b.addEventListener("click", closeMenus); });
+  document.addEventListener("click", function (e) { if (!e.target.closest(".menu")) closeMenus(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeMenus(); });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -4,6 +4,7 @@ import { CalculateMetadataFunction, Composition } from "remotion";
 import { Briefing, BriefingProps, sampleScenes } from "./Briefing";
 import { MarketingAd, MarketingAdProps, sampleMarketingAd } from "./MarketingAd";
 import { Explainer } from "../explainer/Explainer";
+import { ScreenStage, ScreenStageProps } from "./ScreenStage";
 import type { ExplainerProps } from "../explainer/types";
 
 const FPS = 30;
@@ -90,9 +91,37 @@ const sampleExplainer: ExplainerProps = {
   totalSeconds: 8,
 };
 
+// ScreenStage (kit/screencast/stage-plan.mjs): frame size, rate and length come from the plan the compose step writes.
+const stageMetadata: CalculateMetadataFunction<ScreenStageProps> = ({ props }) => ({
+  durationInFrames: Math.max(1, Math.round(props.plan.runSeconds * props.plan.frame.fps)),
+  fps: props.plan.frame.fps,
+  width: props.plan.frame.width,
+  height: props.plan.frame.height,
+});
+
+const sampleStagePlan = {
+  frame: { width: 1920, height: 1080, fps: 60 },
+  geometry: { W: 1920, H: 1080, k: 1.5, unit: 1, zoom: { min: 1.3, default: 1.5, max: 1.8 } },
+  runSeconds: 1,
+  slots: [{ clipId: "none", startSeconds: 0, durationSeconds: 1, edit: { trimStart: 0, trimEnd: 1, speed: 1, skip: [], headHold: 0, srcSeconds: 1 }, hold: false }],
+  frames: {},
+  camera: { initial: { cx: 960, cy: 540, z: 1 }, segments: [] },
+  cursor: { samples: [], clicks: [], hidden: [], mode: "pointer" },
+};
+
 export const RemotionRoot: FC = () => {
   return (
     <>
+      <Composition
+        id="ScreenStage"
+        component={ScreenStage}
+        durationInFrames={60}
+        fps={60}
+        width={1920}
+        height={1080}
+        defaultProps={{ plan: sampleStagePlan, framesBase: "" }}
+        calculateMetadata={stageMetadata}
+      />
       <Composition
         id="Briefing"
         component={Briefing}

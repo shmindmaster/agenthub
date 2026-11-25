@@ -1,0 +1,206 @@
+// Screen stage plan and motion: pure logic, no browser, no ffmpeg. Run: node --test tests/screen-stage-plan.test.mjs
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const pkg = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const kit = pathToFileURL(join(pkg, 'kit', 'screencast')).href;
+const M = await import(`${kit}/stage-math.mjs`);
+const P = await import(`${kit}/stage-plan.mjs`);
+
+const frame = { width: 1920, height: 1080, fps: 60 };
+const viewport = { width: 1280, height: 720 };
+const g = M.stageGeometry(frame, viewport);
+const css = (x, y, w, h) => ({ x, y, w, h });
+const slot = (over = {}) => ({ clipId: 'S01', startSeconds: 0, durationSeconds: 8, edit: { trimStart: 0, trimEnd: 8, speed: 1, skip: [], headHold: 0, srcSeconds: 8 }, ...over });
+const clipOf = (actions, expectations = []) => ({ actions, expectations, frames: { times: [0, 1, 2], files: ['a.jpg', 'b.jpg', 'c.jpg'] } });
+const click = (t, x, y, box, label) => ({ type: 'click', t: t + 0.06, tStart: t, x, y, label, targetBox: box });
+const plan = (actions, expectations, slots = [slot()]) => P.buildStagePlan({ frame, viewport, slots, clips: { S01: clipOf(actions, expectations) } });
+
+test('geometry: 1280x720 at 1920x1080 is 1.5 film px per CSS px and a non-16:9 viewport is refused', () => {
+  assert.equal(g.k, 1.5);
+  assert.throws(() => M.stageGeometry(frame, { width: 1280, height: 860 }), /full bleed has no bars/);
+});
+
+test('spring: critically damped, no overshoot, peak speed 0.1 s, ~90% by 0.37 s, settled by 0.63 s', () => {
+  const at = (tau) => M.springAxis(0, 0, 1, tau);
+  let prev = 0, peakAt = 0, peak = 0;
+  for (let i = 1; i <= 120; i++) {
+    const tau = i / 100, s = at(tau);
+    assert.ok(s.x <= 1 + 1e-9 && s.x >= prev - 1e-9, 'monotone, never past the target');
+    if (s.v > peak) { peak = s.v; peakAt = tau; }
+    prev = s.x;
+  }
+  assert.ok(peakAt >= 0.08 && peakAt <= 0.15, `peak speed at ${peakAt}`);
+  assert.ok(at(0.35).x >= 0.88 && at(0.35).x <= 0.93, `0.35 s: ${at(0.35).x}`);
+  assert.ok(at(0.6).x >= 0.985, `0.6 s: ${at(0.6).x}`);
+  assert.equal(at(0).x, 0);
+});
+
+test('zoom: a small control zooms more than a wide panel, never outside 1.3-1.8, and a huge region stays on the full page', () => {
+  const small = M.zoomForBox(M.toStageBox(g, css(100, 100, 80, 30)), g);
+  const medium = M.zoomForBox(M.toStageBox(g, css(100, 100, 560, 200)), g);
+  const huge = M.zoomForBox(M.toStageBox(g, css(0, 0, 1000, 600)), g);
+  assert.equal(small, 1.8);
+  assert.ok(medium >= 1.3 && medium < 1.8, `medium ${medium}`);
+  assert.equal(huge, 1);
+});
+
+test('clamp: the view never leaves the page, whatever the target', () => {
+  for (const [x, y] of [[0, 0], [1900, 1060], [1900, 5], [5, 1070]]) {
+    const cam = M.cameraForBox({ x: x - 20, y: y - 10, w: 40, h: 20 }, g, { bias: true });
+    const v = M.viewRect(cam, g);
+    assert.ok(v.x >= -1e-6 && v.y >= -1e-6 && v.x + v.w <= g.W + 1e-6 && v.y + v.h <= g.H + 1e-6, JSON.stringify(v));
+  }
+});
+
+test('camera track: opens on the full page, lands before the click, holds still, closes on the full page, same framing as the start', () => {
+  const p = plan([
+    { type: 'move', t: 0.8, x: 300, y: 200, cursor: 'default' },
+    click(1.6, 300, 200, css(260, 185, 80, 30), 'Open'),
+    click(3.4, 900, 500, css(860, 485, 80, 30), 'Apply'),
+  ], [{ label: 'Done', observed: true, at: 3.5, observedAt: 3.6, targetBox: css(840, 520, 200, 60) }], [slot({ durationSeconds: 7, edit: { trimStart: 0, trimEnd: 7, speed: 1, skip: [], headHold: 0, srcSeconds: 7 } })]);
+  assert.deepEqual(M.cameraAt(p.camera, 0.2, g), { ...M.wideCamera(g), vx: 0, vy: 0, vz: 0 });
+  const first = M.cameraAt(p.camera, 1.6, g);
+  assert.ok(first.z >= 1.3, `zoomed at the first press: ${first.z}`);
+  assert.ok(p.planned.every((a) => a.inView), 'every target inside the view at its press');
+  // a hold: no motion between settle and the next start
+  const a = M.cameraAt(p.camera, 2.2, g), b = M.cameraAt(p.camera, 2.6, g);
+  assert.ok(Math.hypot(a.cx - b.cx, a.cy - b.cy, (a.z - b.z) * 100) < 1, 'camera still during the hold');
+  const end = M.cameraAt(p.camera, 6.95, g);
+  assert.ok(Math.abs(end.z - 1) < 0.01 && Math.abs(end.cx - g.W / 2) < 1 && Math.abs(end.cy - g.H / 2) < 1, JSON.stringify(end));
+  const first0 = M.cameraAt(p.camera, 0, g);
+  assert.equal(end.z > 0.99, true);
+  assert.ok(Math.abs(first0.z - end.z) < 0.01);
+});
+
+test('grouping: presses close together with a fitting joint box share one region and one camera move', () => {
+  const p = plan([
+    click(1.5, 300, 200, css(260, 185, 80, 30), 'A'),
+    click(2.3, 420, 230, css(380, 215, 80, 30), 'B'),
+    click(5.5, 900, 520, css(860, 505, 80, 30), 'C'),
+  ]);
+  assert.equal(p.regions.length, 2);
+  assert.deepEqual(p.regions[0].labels, ['A', 'B']);
+  const regionMoves = p.moves.filter((m) => m.reason === 'open' || m.reason === 'region');
+  assert.equal(regionMoves.length, 2);
+});
+
+test('merge: a later target already comfortably inside the held view needs no new move', () => {
+  const p = plan([
+    click(1.5, 600, 340, css(560, 320, 80, 30), 'A'),
+    click(3.5, 640, 350, css(600, 335, 80, 30), 'B'),
+  ]);
+  const regions = p.moves.filter((m) => m.reason === 'open' || m.reason === 'region');
+  assert.equal(regions.length, 1, JSON.stringify(p.moves));
+  assert.equal(p.regions[1].merged, true);
+});
+
+test('pan, not zoom out: two far targets pan at the same zoom with no pull back between them', () => {
+  const p = plan([
+    click(1.5, 200, 150, css(160, 135, 80, 30), 'Left'),
+    click(3.2, 1100, 560, css(1060, 545, 80, 30), 'Right'),
+  ]);
+  const mid = M.cameraAt(p.camera, 2.6, g);
+  assert.ok(mid.z > 1.5, `still zoomed between the targets: ${mid.z}`);
+  assert.deepEqual(p.moves.map((m) => m.reason), ['open', 'region', 'close']);
+});
+
+test('context: a long quiet gap pulls back to the full page and the next target zooms in again', () => {
+  const p = plan([
+    click(1.5, 200, 150, css(160, 135, 80, 30), 'Left'),
+    click(7.2, 1100, 560, css(1060, 545, 80, 30), 'Right'),
+  ], [], [slot({ durationSeconds: 10, edit: { trimStart: 0, trimEnd: 10, speed: 1, skip: [], headHold: 0, srcSeconds: 10 } })]);
+  assert.deepEqual(p.moves.map((m) => m.reason), ['open', 'context', 'region', 'close']);
+});
+
+test('typing is a zoom target: the field stays framed until the typing ends', () => {
+  const p = plan([
+    click(1.4, 500, 300, css(400, 285, 300, 32), 'Name'),
+    { type: 'type', t: 3.1, tStart: 1.9, tEnd: 3.0, chars: 18, label: 'Name' },
+  ]);
+  assert.equal(p.planned.length, 1);
+  assert.ok(p.planned[0].tEnd >= 3.0, `target held until ${p.planned[0].tEnd}`);
+  const close = p.moves.find((m) => m.reason === 'close');
+  assert.ok(close.t0 >= 3.0 + 0.9 - 0.01, `pull back at ${close.t0}`);
+});
+
+test('cursor: passes exactly through every recorded sample, never overshoots, hidden before the first one, and is on the click point at the click time', () => {
+  const p = plan([
+    { type: 'move', t: 1.0, x: 100, y: 100, cursor: 'default' },
+    { type: 'move', t: 1.1, x: 180, y: 130, cursor: 'default' },
+    { type: 'move', t: 1.25, x: 300, y: 200, cursor: 'pointer' },
+    click(1.9, 300, 200, css(260, 185, 80, 30), 'Open'),
+  ]);
+  const tr = M.buildCursorTrack(p.cursor.samples);
+  for (const s of p.cursor.samples) { const c = M.cursorAt(tr, s.t); assert.ok(Math.hypot(c.x - s.x, c.y - s.y) < 1e-6); }
+  const hidden = M.cursorAt(tr, 0.5);
+  assert.equal(hidden.visible, 0);
+  const onClick = M.cursorAt(tr, p.cursor.clicks[0].t);
+  assert.ok(Math.hypot(onClick.x - p.cursor.clicks[0].x, onClick.y - p.cursor.clicks[0].y) < 1e-6);
+  for (let t = 1.0; t <= 1.9; t += 0.01) { const c = M.cursorAt(tr, t); assert.ok(c.x >= 150 - 1e-6 && c.x <= 450 + 1e-6 && c.y >= 150 - 1e-6 && c.y <= 300 + 1e-6, `${t} ${c.x},${c.y}`); }
+  assert.equal(M.cursorAt(tr, 1.5).kind, 'hand');
+  assert.equal(M.cursorKind('text'), 'ibeam');
+  assert.equal(M.cursorKind('default'), 'arrow');
+});
+
+test('cursor size: 40 px on the full page, 58 px at the largest zoom; press squash dips and recovers', () => {
+  assert.equal(M.cursorHeightFor(1), 40);
+  assert.equal(Math.round(M.cursorHeightFor(1.8)), 58);
+  const clicks = [{ t: 2 }];
+  assert.equal(M.pressScale(clicks, 1.9), 1);
+  assert.ok(M.pressScale(clicks, 2.07) < 0.9);
+  assert.equal(M.pressScale(clicks, 2.3), 1);
+});
+
+test('edit map: headHold, speed and skip move events onto film time; a press inside a skip has no film time', () => {
+  const edit = { trimStart: 0, trimEnd: 10, speed: 1, skip: [[3, 5]], headHold: 0.5, srcSeconds: 10 };
+  const p = plan([click(2, 300, 200, css(260, 185, 80, 30), 'Early'), click(4, 300, 200, css(260, 185, 80, 30), 'Dropped'), click(6, 300, 200, css(260, 185, 80, 30), 'Late')], [], [slot({ edit })]);
+  assert.deepEqual(p.planned.map((a) => a.label), ['Early', 'Late']);
+  assert.equal(p.planned[0].t, 2.5);
+  assert.equal(p.planned[1].t, 6 - 2 + 0.5);
+  assert.equal(M.slotToSource(edit, 0.2), 0, 'frozen on the first frame during headHold');
+  assert.equal(M.slotToSource(edit, 2.5), 2);
+  assert.equal(M.slotToSource(edit, 4.5), 6, 'jumps over the skip');
+});
+
+test('continuity: adjacent slots of different clips share one camera, with no reset at the boundary', () => {
+  const clips = { A: clipOf([click(1.5, 300, 200, css(260, 185, 80, 30), 'One')]), B: clipOf([click(0.4, 330, 210, css(290, 195, 80, 30), 'Two')]) };
+  clips.B.frames = clips.A.frames;
+  const slots = [slot({ clipId: 'A', startSeconds: 0, durationSeconds: 4, edit: { trimStart: 0, trimEnd: 4, speed: 1, skip: [], headHold: 0, srcSeconds: 4 } }), slot({ clipId: 'B', startSeconds: 4, durationSeconds: 5, edit: { trimStart: 0, trimEnd: 5, speed: 1, skip: [], headHold: 0, srcSeconds: 5 } })];
+  const p = P.buildStagePlan({ frame, viewport, slots, clips });
+  const before = M.cameraAt(p.camera, 3.99, g), after = M.cameraAt(p.camera, 4.01, g);
+  assert.ok(Math.abs(before.z - after.z) < 0.02 && before.z > 1.3, `zoom ${before.z} -> ${after.z}`);
+  assert.deepEqual(p.planned.map((a) => a.label), ['One', 'Two']);
+  assert.equal(p.planned[1].t, 4.4);
+  assert.equal(p.moves.filter((m) => m.reason === 'close').length, 1);
+});
+
+test('frame lookup: the last frame at or before the source time; frames only arrive on change', () => {
+  const times = [0, 0.4, 1.9];
+  assert.equal(M.frameIndexAt(times, 0), 0);
+  assert.equal(M.frameIndexAt(times, 1.0), 1);
+  assert.equal(M.frameIndexAt(times, 1.9), 2);
+  assert.equal(M.frameIndexAt(times, 50), 2);
+});
+
+test('determinism: the same input gives byte-identical plans', () => {
+  const run = () => JSON.stringify(plan([click(1.6, 300, 200, css(260, 185, 80, 30), 'Open')]));
+  assert.equal(run(), run());
+});
+
+test('a press with no recorded target box is framed from its point and flagged', () => {
+  const p = plan([{ type: 'click', t: 1.66, tStart: 1.6, x: 300, y: 200, label: 'Old' }]);
+  assert.equal(p.planned[0].estimated, true);
+  assert.ok(p.warnings.some((w) => /no recorded target box/.test(w)));
+});
+
+test('idle: only time with no input and no new frame is idle; compression of anything else needs a declared reason', () => {
+  const idle = P.idleRanges({ actions: [{ t: 1 }, { type: 'click', t: 5.1, tStart: 5 }], frameTimes: [0, 0.5, 1, 1.2, 5, 5.2, 5.3], clipSeconds: 6 });
+  assert.deepEqual(idle, [[1.2, 5]]);
+  assert.equal(P.compressionProblems({ edit: { skip: [[2, 4]], speed: 1 }, idle, label: 'S01' }).length, 0);
+  assert.equal(P.compressionProblems({ edit: { skip: [[0, 2]], speed: 1 }, idle, label: 'S01' }).length, 1);
+  assert.equal(P.compressionProblems({ edit: { skip: [[0, 2]], speed: 1 }, idle, speedReason: 'a bounded real wait', label: 'S01' }).length, 0);
+  assert.equal(P.compressionProblems({ edit: { skip: [], speed: 4 }, idle, label: 'S01' }).length, 1);
+});
