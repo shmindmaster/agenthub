@@ -57,6 +57,15 @@ except Exception as exc:
 print("\n".join(lines))
 
 def weights_complete(d: pathlib.Path) -> bool:
+    ready = d / "ready.json"
+    if ready.is_file():
+        try:
+            meta = json.loads(ready.read_text(encoding="utf-8"))
+            files = meta.get("files") or {}
+            if meta.get("repo") == "$MODEL_REPO" and files:
+                return all((d / name).is_file() and (d / name).stat().st_size == size for name, size in files.items())
+        except Exception:
+            return False
     if not (d / "config.json").is_file():
         return False
     idx = d / "model.safetensors.index.json"
@@ -69,7 +78,7 @@ def weights_complete(d: pathlib.Path) -> bool:
 if weights_complete(persist):
     print("staging complete weights from volume", persist, "->", stage, flush=True)
     shutil.rmtree(stage, ignore_errors=True)
-    shutil.copytree(persist, stage, ignore=shutil.ignore_patterns(".cache"))
+    shutil.copytree(persist, stage, ignore=shutil.ignore_patterns(".cache", "ready.json"))
 elif weights_complete(stage):
     print("local stage already complete", stage, flush=True)
 else:
@@ -82,12 +91,21 @@ else:
     )
     print("download-complete", flush=True)
     try:
-        for item in stage.iterdir():
-            if item.name == ".cache" or not item.is_file():
-                continue
+        (persist / "ready.json").unlink(missing_ok=True)
+        persisted_files = {}
+        items = sorted(
+            [p for p in stage.iterdir() if p.name != ".cache" and p.is_file()],
+            key=lambda p: (p.name == "config.json", p.name),
+        )
+        for item in items:
+            src_size = item.stat().st_size
             dst = persist / item.name
-            if not dst.is_file() or dst.stat().st_size != item.stat().st_size:
+            if not dst.is_file() or dst.stat().st_size != src_size:
                 shutil.copyfile(item, dst)
+            if dst.stat().st_size != src_size:
+                raise RuntimeError(f"size mismatch after copy for {item.name}: {dst.stat().st_size} != {src_size}")
+            persisted_files[item.name] = src_size
+        (persist / "ready.json").write_text(json.dumps({"repo": "$MODEL_REPO", "files": persisted_files}) + "\n", encoding="utf-8")
         print("persisted weights to volume", persist, flush=True)
     except Exception as exc:
         print(f"persist_warn={type(exc).__name__}: {exc}", flush=True)

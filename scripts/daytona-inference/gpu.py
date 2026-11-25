@@ -25,9 +25,14 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 CATALOG_PATH = ROOT / "catalog.json"
-STATE_PATH = ROOT / "state.json"
-SECRET_DIR = ROOT / "secrets"
-LOG_DIR = ROOT / "logs"
+RUNTIME_DIR = (
+    Path(os.environ.get("LOCALAPPDATA") or (Path.home() / ".config")) / "AgentHub" / "daytona-inference"
+    if (ROOT.parent.parent / ".git").exists()
+    else ROOT
+)
+STATE_PATH = RUNTIME_DIR / "state.json"
+SECRET_DIR = RUNTIME_DIR / "secrets"
+LOG_DIR = RUNTIME_DIR / "logs"
 
 PROTECTED_SANDBOX_ID = "0075feb8-9387-43fd-85b3-ee8f2bb5930c"
 PROTECTED_SANDBOX_NAME = "qwen38-turbo-q6k"
@@ -544,9 +549,9 @@ def cmd_up(args: argparse.Namespace) -> None:
             )
         env_prefix = " ".join(f"{k}={json.dumps(v)}" for k, v in env_vars.items())
         log_file = f"/tmp/{role}.log"
-        # Skip re-launching if the worker server process is already alive and serving.
+        # Skip re-launching if the worker process (staging or serving) is already alive.
         already_up = sandbox.process.exec(
-            "ps -eo args | grep -E '[v]llm serve|[l]lama-server' >/dev/null && echo UP || echo DOWN",
+            "ps -eo args | grep -E '[v]llm serve|[l]lama-server|[s]erve-(specialist|flagship)' >/dev/null && echo UP || echo DOWN",
             timeout=20,
         )
         if "UP" not in (already_up.result or ""):

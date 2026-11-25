@@ -53,12 +53,28 @@ try:
 except Exception as exc:
     print(f"manifest_write_warn={type(exc).__name__}")
 
-existing_vol = sorted(persist.rglob("*.gguf"))
+import json
+def vol_gguf_complete(d: pathlib.Path) -> bool:
+    ready = d / "ready.json"
+    if not ready.is_file():
+        return False
+    try:
+        meta = json.loads(ready.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    files = meta.get("files") or {}
+    return (
+        meta.get("repo") == "$MODEL_REPO"
+        and meta.get("quant") == "$QUANT"
+        and bool(files)
+        and all((d / rel).is_file() and (d / rel).stat().st_size == size for rel, size in files.items())
+    )
+
 existing_stage = sorted(stage.rglob("*.gguf")) if stage.exists() else []
-if existing_vol:
+if vol_gguf_complete(persist):
     shutil.rmtree(stage, ignore_errors=True)
-    shutil.copytree(persist, stage, ignore=shutil.ignore_patterns(".cache"))
-elif not existing_stage:
+    shutil.copytree(persist, stage, ignore=shutil.ignore_patterns(".cache", "ready.json"))
+elif not (existing_stage and (stage / "ready.json").is_file()):
     stage.mkdir(parents=True, exist_ok=True)
     patterns = [f"*{ '$QUANT' }*.gguf", f"*{ '$QUANT'.lower() }*.gguf", "*mmproj*.gguf"]
     snapshot_download(
@@ -68,13 +84,27 @@ elif not existing_stage:
         token=token or None,
     )
     print("download-complete")
+    stage_files = {p.relative_to(stage).as_posix(): p.stat().st_size for p in sorted(stage.rglob("*.gguf"))}
+    if stage_files:
+        (stage / "ready.json").write_text(json.dumps({"repo": "$MODEL_REPO", "quant": "$QUANT", "files": stage_files}) + "\n", encoding="utf-8")
     try:
-        for item in stage.rglob("*.gguf"):
+        (persist / "ready.json").unlink(missing_ok=True)
+        persisted_files = {}
+        for item in sorted(stage.rglob("*.gguf")):
             rel = item.relative_to(stage)
+            src_size = item.stat().st_size
             dst = persist / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
-            if not dst.is_file() or dst.stat().st_size != item.stat().st_size:
+            if not dst.is_file() or dst.stat().st_size != src_size:
                 shutil.copyfile(item, dst)
+            if dst.stat().st_size != src_size:
+                raise RuntimeError(f"size mismatch after copy for {rel}: {dst.stat().st_size} != {src_size}")
+            persisted_files[rel.as_posix()] = src_size
+        if persisted_files:
+            (persist / "ready.json").write_text(
+                json.dumps({"repo": "$MODEL_REPO", "quant": "$QUANT", "files": persisted_files}) + "\n",
+                encoding="utf-8",
+            )
     except Exception as exc:
         print(f"persist_warn={type(exc).__name__}: {exc}")
 PY
