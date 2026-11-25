@@ -77,6 +77,7 @@ $files = @(
     'explainer\layout.mjs',
     'explainer\diagram.mjs',
     'explainer\fit.mjs',
+    'explainer\reveal.mjs',
     'explainer\icons.json',
     'explainer\icons-LICENSE.txt',
     'explainer\still-explainer.mjs',

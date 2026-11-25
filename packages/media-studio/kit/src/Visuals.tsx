@@ -17,6 +17,7 @@
  */
 import type { FC } from "react";
 import { Easing, Img, Interactive, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { phase, revealAt } from "../explainer/reveal.mjs";
 import { Diagram, type DiagramVisual } from "./Diagram";
 import { Chart, LottieScene, SvgScene, type ChartVisual, type LottieVisual, type SvgVisual } from "./RichVisuals";
 
@@ -363,7 +364,7 @@ const Stat: FC<{ v: Extract<Visual, { kind: "stat" }>; accent: string; d: number
 
 /* ---------------------------------------------------------------- layers -- */
 
-const Layers: FC<{ v: Extract<Visual, { kind: "layers" }>; accent: string; d: number }> = ({ v, accent, d }) => {
+const Layers: FC<{ v: Extract<Visual, { kind: "layers" }>; accent: string; d: number; staged?: boolean }> = ({ v, accent, d, staged }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const from = v.revealFrom ?? 0;
@@ -391,8 +392,12 @@ const Layers: FC<{ v: Extract<Visual, { kind: "layers" }>; accent: string; d: nu
                 borderRadius: 8,
                 padding: "20px 26px",
                 // Each layer slides out to its full width, so the stack builds
-                // rather than appearing.
-                width: interpolate(frame, [a, a + 0.5 * fps], ["62%", "100%"], o),
+                // rather than appearing. Staged, it is laid out at that width
+                // and unveiled, because the caller sized the stack before it
+                // was drawn and a narrower band would wrap and be taller.
+                ...(staged
+                  ? { width: "100%", clipPath: interpolate(frame, [a, a + 0.5 * fps], ["inset(0% 38% 0% 0%)", "inset(0% 0% 0% 0%)"], o) }
+                  : { width: interpolate(frame, [a, a + 0.5 * fps], ["62%", "100%"], o) }),
               }}
             >
               <div style={{ color, fontFamily: MONO, fontSize: 30, fontWeight: 800, minWidth: 46 }}>
@@ -1142,44 +1147,14 @@ const Still: FC<{ v: Extract<Visual, { kind: "still" }>; accent: string; d: numb
 
 /* ---------------------------------------------------------------- export -- */
 
-/**
- * Spread n default reveals across the part of the scene that is still being
- * narrated. A 28-second code block that finished appearing at 4s spent 24
- * seconds frozen — the exact defect `atSeconds` was added to the bullet board
- * to cure. `step` is derived from the scene length rather than fixed, so the
- * picture keeps arriving for as long as the voice keeps talking.
- */
-export const revealAt = (i: number, n: number, durationSeconds: number) => {
-  const start = 0.45;
-  // 0.88, not 0.66. Measured: a five-node flow on a 14.1s scene finished its
-  // last reveal at 9.3s and then held for 5.0s, which the frozen-run detector
-  // called a still — correctly. The reveals have to keep arriving for as long
-  // as the voice is talking, not for two-thirds of it.
-  const window = Math.max(1.2, durationSeconds * 0.88 - start);
-  // Cap raised from 1.9s: on a 33s scene with four items the old cap finished
-  // every reveal by ~7s and left 26s of imperceptible creep, which a frozen-run
-  // measurement correctly called a held still.
-  const step = n > 1 ? Math.min(5.0, Math.max(0.3, window / (n - 1))) : 0;
-  return start + i * step;
-};
-
-/**
- * Reveal time for item `i` of `n`, where the first `from` items are carried
- * over from the previous scene and are already on screen. A negative time means
- * "was already visible", which `rise` clamps to full opacity at frame 0.
- */
-export const phase = (i: number, n: number, durationSeconds: number, from = 0) => {
-  if (from <= 0) return revealAt(i, n, durationSeconds);
-  if (i < from) return -5;
-  return revealAt(i - from, Math.max(1, n - from), durationSeconds);
-};
+export { phase, revealAt };
 
 export const VisualBody: FC<{
   visual: Visual;
   accent: string;
   durationSeconds?: number;
   /** The room the body may fill, from a caller that composes its own frame (the explainer). A drawn kind (svg,
-   * diagram) takes all of it, and a bar chart shows its rows from the start. Without it each keeps its slide form. */
+   * diagram) takes all of it, a bar chart shows its rows from the start and a layer is unveiled at full width. Without it each keeps its slide form. */
   box?: { w: number; h: number };
 }> = ({ visual, accent, durationSeconds = 8, box }) => {
   const d = durationSeconds;
@@ -1193,7 +1168,7 @@ export const VisualBody: FC<{
     case "stat":
       return <Stat v={visual} accent={accent} d={d} />;
     case "layers":
-      return <Layers v={visual} accent={accent} d={d} />;
+      return <Layers v={visual} accent={accent} d={d} staged={Boolean(box)} />;
     case "sequence":
       return <Sequence v={visual} accent={accent} d={d} />;
     case "table":

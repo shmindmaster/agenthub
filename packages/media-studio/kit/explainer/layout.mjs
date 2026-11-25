@@ -174,7 +174,7 @@ export const wrapText = (text, maxWidth, size, tracking = 0) => {
 };
 
 /**
- * Largest size (between `min` and `max`) whose wrap fits `maxLines`.
+ * Largest size (between `min` and `max`) whose wrap fits `maxLines` and the width.
  * Returns the size and the wrapped lines; the renderer never re-measures.
  */
 export const fitHeadline = (text, options) => {
@@ -185,10 +185,12 @@ export const fitHeadline = (text, options) => {
     minSize = theme.type.s,
     tracking = theme.type.tracking.display,
   } = options;
+  // A single word cannot wrap, so a line can still be wider than its row.
+  const inRow = (lines, size) => lines.every((line) => textWidth(line, size, tracking) <= maxWidth);
   for (let size = maxSize; size >= minSize; size -= 2) {
     const lines = wrapText(text, maxWidth, size, tracking);
-    if (lines.length <= maxLines) return { size, lines, overflow: false };
+    if (lines.length <= maxLines && inRow(lines, size)) return { size, lines, overflow: false };
   }
   const lines = wrapText(text, maxWidth, minSize, tracking);
-  return { size: minSize, lines: lines.slice(0, maxLines), overflow: lines.length > maxLines };
+  return { size: minSize, lines: lines.slice(0, maxLines), overflow: lines.length > maxLines || !inRow(lines, minSize) };
 };

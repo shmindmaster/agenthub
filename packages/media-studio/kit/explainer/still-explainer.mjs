@@ -23,6 +23,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { framesOf, staggerFrames } from './motion.mjs';
 import { decodePng, encodePng } from './png.mjs';
+import { revealStarts } from './reveal.mjs';
 
 export const MOMENTS = ['open', 'beats', 'hold'];
 const OPENING_SECONDS = 0.1;
@@ -47,6 +48,12 @@ export const movingAt = (shot, localFrame, fps) => {
   for (const beat of shot.beats ?? []) {
     if (localFrame >= beat.frame && localFrame < beat.frame + span) moving.push(beat.target);
   }
+  // A part the plan gave no time arrives on the kit's own curve and makes no beat.
+  const timed = new Set((shot.beats ?? []).map((beat) => beat.frame));
+  revealStarts(shot.visual, shot.durationSeconds).forEach((start, i) => {
+    const at = Math.round(start * fps);
+    if (!timed.has(at) && localFrame >= at && localFrame < at + span) moving.push(`visual part ${i + 1}`);
+  });
   return moving;
 };
 
@@ -62,7 +69,7 @@ export const pickFrames = (props, { shots: only = null, moments = ['open', 'hold
   for (const shot of props.shots) {
     if (only && !only.includes(shot.id)) continue;
     const last = shot.durationFrames - 1;
-    const inside = (frame) => Math.min(last, Math.max(0, frame));
+    const inside = (frame) => Math.min(last, Math.max(0, Math.round(frame)));
     const wanted = [];
     if (moments.includes('open')) wanted.push(['open', inside(Math.max(fps, openingFrames(shot, fps)))]);
     if (moments.includes('beats')) {
@@ -88,11 +95,14 @@ export const pickFrames = (props, { shots: only = null, moments = ['open', 'hold
       });
     }
   }
+  if (!picked.length) throw new Error(`nothing to draw: no chosen shot has a frame for ${moments.join(', ')}`);
   return picked;
 };
 
+export const TILE_WIDTH = 480;
+
 /** Box-filter a decoded frame down to a tile width. */
-const shrink = (image, width) => {
+export const shrink = (image, width) => {
   const height = Math.max(1, Math.round((image.height * width) / image.width));
   const rgba = Buffer.alloc(width * height * 4, 255);
   for (let y = 0; y < height; y += 1) {
@@ -123,7 +133,7 @@ const MOVING = [232, 93, 93];
  * One sheet from rows of `{ image, moving }`. Every tile is framed: red when
  * something on it is still entering, grey when it is settled.
  */
-export const contactSheet = (rows, { tileWidth = 480, border = 4, gap = 8 } = {}) => {
+export const contactSheet = (rows, { tileWidth = TILE_WIDTH, border = 4, gap = 8 } = {}) => {
   const tiles = rows.map((row) => row.map(({ image, moving }) => ({ tile: shrink(image, tileWidth), moving })));
   const tileHeight = Math.max(...tiles.flat().map(({ tile }) => tile.height));
   const cellW = tileWidth + 2 * border + gap;
@@ -222,7 +232,8 @@ const main = async (argv) => {
 
   const rows = [];
   for (const still of frames) {
-    const tile = { image: decodePng(readFileSync(join(outDir, still.file))), moving: still.moving.length > 0 };
+    // Shrunk as it is read: a full frame is six megabytes and a film has hundreds.
+    const tile = { image: shrink(decodePng(readFileSync(join(outDir, still.file))), TILE_WIDTH), moving: still.moving.length > 0 };
     const last = rows[rows.length - 1];
     if (last && last.shot === still.shot) last.tiles.push(tile);
     else rows.push({ shot: still.shot, tiles: [tile] });

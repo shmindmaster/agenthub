@@ -23,7 +23,7 @@ import {
   useVideoConfig,
 } from 'remotion';
 import { Diagram } from '../src/Diagram';
-import { VisualBody, isVideoSrc, phase, type Visual } from '../src/Visuals';
+import { VisualBody, isVideoSrc, type Visual } from '../src/Visuals';
 import {
   checklistLayout,
   contrastLayout,
@@ -36,6 +36,7 @@ import {
   timelineLayout,
 } from './fit.mjs';
 import { fitHeadline, layoutFor } from './layout.mjs';
+import { phase } from './reveal.mjs';
 import { EASINGS, enter, progress, staggerFrames } from './motion.mjs';
 import {
   T,
@@ -1024,14 +1025,14 @@ const TimelineShot: FC<ShotProps> = ({ shot, film, index }) => {
             <div
               style={{
                 position: 'absolute',
-                left: x - fit.colW / 2,
-                width: fit.colW,
+                left: x - fit.inner / 2,
+                width: fit.inner,
                 bottom: film.height - railTop + 30,
                 textAlign: 'center',
                 fontSize: fit.dateSize,
                 fontWeight: 800,
                 lineHeight: 1.1,
-                whiteSpace: 'nowrap',
+                textWrap: 'balance',
                 color: lit ? tone : T.color.ink,
                 // The dates are up from the start, so the span is readable
                 // before the first event lands on it.

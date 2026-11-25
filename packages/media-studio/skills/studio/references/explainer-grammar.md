@@ -112,12 +112,13 @@ The ending is a set piece that reframes the opening, not a caption. In the refer
 
 Every shot opens on its own furniture. The kicker, the title and the outline of what is coming (dashed boxes, dim dates, empty check boxes, bar labels, the number's ring) are on screen from the first tenths of a second, whatever the first spoken beat is. An item still lands on its word. Do not add a fake early beat to avoid an empty frame.
 
-Pictures fill their region by calculation, not by hand. `kit/explainer/fit.mjs` works out how large each body, title, list and rail can be drawn, and the renderer uses the same numbers. `visualScale` below 1 makes a body smaller; above 1 it does nothing, because a larger body would leave its region.
+Pictures fill their region by calculation, not by hand. `kit/explainer/fit.mjs` works out how large each body, title, list and rail can be drawn, and the renderer uses the same numbers. `visualScale` below 1 makes a table, chart, code, sequence, map or layers body smaller; above 1 it does nothing, because a larger body would leave its region.
 
 `build-explainer.mjs` checks the layout of every shot before any render:
 
 - `layout-overflow` (refused): a title, headline, list, table or diagram does not fit even at its smallest size. Shorten it or split the shot.
-- `diagram-...` (refused): an unknown icon, an arrow that names no box, two boxes in one cell, words that do not fit their box, an arrow with no clear path, or an arrow label that covers something.
+- `diagram-...` (refused): an unknown icon, an arrow that names no box, two boxes in one cell, words that do not fit their box, an arrow with no clear path of its own, or an arrow label that covers something.
+- `sequence-step` (refused): a step that names an actor the sequence does not have.
 - `layout-small` (advice): the smallest type in the picture is under 22 px on a 1000 px high frame.
 
 ### Linked diagrams

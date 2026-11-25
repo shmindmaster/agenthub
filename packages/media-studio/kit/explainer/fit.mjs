@@ -11,14 +11,13 @@
  * The estimates repeat the sizes in kit/src/Visuals.tsx and RichVisuals.tsx.
  * Change a size there and change it here.
  */
-import { boldWidth, diagramLayout, flowAsDiagram, plainWidth, wrapBold, wrapPlain } from './diagram.mjs';
+import { CAPTION_LINE, boldWidth, captionLines, diagramLayout, flowAsDiagram, plainWidth, wrapBold, wrapPlain } from './diagram.mjs';
 import { fitHeadline, layoutFor, textWidth } from './layout.mjs';
 import { theme } from './theme.mjs';
 
 const MONO_CHAR = 0.6;
 /** Tailwind's base sheet (kit/src/index.css) sets this where a body sets no line height. */
 const LINE = 1.5;
-const CAPTION = 22 * LINE + 22;
 
 export const MAX_ZOOM = 2.6;
 /** Below this nothing on a body is readable, whatever the frame. */
@@ -47,7 +46,11 @@ const wrapMono = (text, width, size) => {
   return lines;
 };
 
-const captionHeight = (visual) => (visual.caption ? CAPTION : 0);
+/** The caption a body prints above itself, wrapped at the width it is drawn. */
+const captionHeight = (text, width) => {
+  const lines = text ? captionLines(text, width).length : 0;
+  return lines ? lines * CAPTION_LINE + 22 : 0;
+};
 
 const sum = (values) => values.reduce((total, value) => total + value, 0);
 
@@ -66,7 +69,7 @@ const MEASURES = {
       return Math.max(30 * LINE, label + sub) + 42;
     });
     return {
-      h: captionHeight(v) + sum(heights) + gaps(heights.length, 14),
+      h: captionHeight(v.caption, width) + sum(heights) + gaps(heights.length, 14),
       minW: 122 + Math.max(0, ...v.layers.map((layer) => Math.max(widestWord(layer.label, 29, boldWidth), widestWord(layer.sub, 20, monoWidth)))),
       type: v.layers.some((layer) => layer.sub) ? 20 : 29,
       bands: heights,
@@ -83,7 +86,7 @@ const MEASURES = {
       const room = 2 * Math.min(middle, width - middle);
       if (room > 0 && need > room) minW = Math.max(minW, (width * need) / room);
     }
-    return { h: captionHeight(v) + 21 * LINE + 23 + 10 + 46 * v.steps.length, minW, type: 17 };
+    return { h: captionHeight(v.caption, width) + 21 * LINE + 23 + 10 + 46 * v.steps.length, minW, type: 17 };
   },
 
   map(v, width) {
@@ -108,7 +111,7 @@ const MEASURES = {
       return 30 + 18 * LINE + 10 + height + rowH;
     });
     const hasSub = v.lanes.some((lane) => lane.nodes.some((node) => node.sub));
-    return { h: captionHeight(v) + sum(lanes) + gaps(lanes.length, 14), minW, type: hasSub ? 16 : 18 };
+    return { h: captionHeight(v.caption, width) + sum(lanes) + gaps(lanes.length, 14), minW, type: hasSub ? 16 : 18 };
   },
 
   table(v, width) {
@@ -123,7 +126,7 @@ const MEASURES = {
     );
     const need = (k, text, measure) => ((Math.max(0, ...String(text ?? '').split(/\s+/).map(measure)) + 40) * total) / weightOf(k) + 2;
     return {
-      h: captionHeight(v) + 2 + header + sum(rows),
+      h: captionHeight(v.caption, width) + 2 + header + sum(rows),
       minW: Math.max(
         ...v.headers.map((text, k) => need(k, text, headerWidth)),
         ...v.rows.flatMap((row) => row.cells.map((text, k) => need(k, text, (word) => (k === 0 ? boldWidth(word, 22) : monoWidth(word, 20))))),
@@ -132,9 +135,9 @@ const MEASURES = {
     };
   },
 
-  code(v) {
+  code(v, width) {
     return {
-      h: captionHeight(v) + 54 + (v.lang ? 17 * LINE + 14 : 0) + v.lines.length * 26 * 1.62,
+      h: captionHeight(v.caption, width) + 54 + (v.lang ? 17 * LINE + 14 : 0) + v.lines.length * 26 * 1.62,
       // A code line that wraps reads as two lines, so the block is fitted unwrapped.
       minW: 108 + Math.max(0, ...v.lines.map((line) => monoWidth(line.text, 26))),
       type: 26,
@@ -146,13 +149,13 @@ const MEASURES = {
       const notes = v.notes ?? [];
       const inner = Math.min(560, width - 394 - 56);
       const label = wrapBold(v.items[0]?.label, inner, 36).length * 36 * LINE;
-      const text = captionHeight(v) + 150 * 0.95 + 10 + label + (notes.length ? 26 + notes.length * 32 * LINE + gaps(notes.length, 12) : 0);
+      const text = captionHeight(v.caption, inner) + 150 * 0.95 + 10 + label + (notes.length ? 26 + notes.length * 32 * LINE + gaps(notes.length, 12) : 0);
       const textW = Math.max(4 * 150 * 0.62, widestWord(v.items[0]?.label, 36, boldWidth), ...notes.map((note) => boldWidth(note.text, 32) + 36));
       return { h: Math.max(394, text), minW: 394 + 56 + textW, type: 32 };
     }
     const rows = v.items.map((item) => wrapBold(item.label, width, 30).length * 30 * LINE + 8 + 34 * LINE);
     return {
-      h: captionHeight(v) + sum(rows) + gaps(rows.length, 22),
+      h: captionHeight(v.caption, width) + sum(rows) + gaps(rows.length, 22),
       minW: Math.max(420, ...v.items.map((item) => widestWord(item.label, 30, boldWidth))),
       type: 30,
     };
@@ -161,7 +164,7 @@ const MEASURES = {
   proof(v, width) {
     const inner = width - 74;
     return {
-      h: (v.kicker ? CAPTION : 0) + 66 + wrapBold(v.claim, inner, 42).length * 42 * 1.2 + 18 + wrapMono(v.evidence, inner, 24).length * 24 * 1.45,
+      h: captionHeight(v.kicker, width) + 66 + wrapBold(v.claim, inner, 42).length * 42 * 1.2 + 18 + wrapMono(v.evidence, inner, 24).length * 24 * 1.45,
       minW: 74 + Math.max(widestWord(v.claim, 42, boldWidth), widestWord(v.evidence, 24, monoWidth)),
       type: 24,
     };
@@ -209,11 +212,13 @@ const fitsBold = (lines, size, width) => lines.every((line) => boldWidth(line, s
 
 /** The line a shot is about, as large as its title row allows. */
 export const fitTitle = (text, region, maxSize = 64) => {
-  for (let size = maxSize; size >= 34; size -= 1) {
+  // Two lines always have a size on a row, however short the frame.
+  const floor = Math.min(34, Math.floor(region.h / 2.04));
+  for (let size = maxSize; size >= floor; size -= 1) {
     const lines = wrapBold(text, region.w, size);
     if (lines.length * size * 1.02 <= region.h && fitsBold(lines, size, region.w)) return { size, lines, overflow: false };
   }
-  return { size: 34, lines: wrapBold(text, region.w, 34), overflow: true };
+  return { size: floor, lines: wrapBold(text, region.w, floor), overflow: true };
 };
 
 /** Two panels either side of the seam, type as large as the fuller one allows. */
@@ -272,28 +277,29 @@ export const checklistLayout = (items, hero) => {
 export const timelineLayout = (events, hero) => {
   const colW = hero.w / Math.max(1, events.length);
   const inner = colW - 36;
-  const largest = (max, min, fits) => {
-    for (let size = Math.max(min, max); size >= min; size -= 1) if (fits(size)) return { size, overflow: false };
-    return { size: min, overflow: true };
+  const BOLD_ROW = { wrap: wrapBold, width: boldWidth };
+  const PLAIN_ROW = { wrap: wrapPlain, width: plainWidth };
+  // The largest size whose words fit the column in `limit` lines. At the floor
+  // any number of lines will do, as long as no word is wider than the column.
+  const row = (texts, { wrap, width }, max, min, limit) => {
+    const linesAt = (size) => texts.map((text) => wrap(text, inner, size));
+    const inside = (all, size) => all.every((lines) => lines.every((line) => width(line, size) <= inner));
+    let size = Math.max(min, max);
+    while (size > min && !(inside(linesAt(size), size) && linesAt(size).every((lines) => lines.length <= limit))) size -= 1;
+    const all = linesAt(size);
+    return { size, lines: Math.max(0, ...all.map((lines) => lines.length)), overflow: !inside(all, size) };
   };
-  const bold = (text, size, limit) => {
-    const lines = wrapBold(text, inner, size);
-    return lines.length <= limit && fitsBold(lines, size, inner);
-  };
-  const plain = (text, size, limit) => {
-    const lines = text ? wrapPlain(text, inner, size) : [];
-    return lines.length <= limit && lines.every((line) => plainWidth(line, size) <= inner);
-  };
+  const texts = (key) => events.map((event) => event[key]).filter((text) => text !== undefined && text !== '').map(String);
   // Each row takes the width it has; all three come down together when the
   // stack of them is taller than the region.
   const at = (share) => {
-    const date = largest(Math.round(84 * share), 24, (size) => events.every((event) => boldWidth(event.at, size) <= inner));
-    const label = largest(Math.round(56 * share), 22, (size) => events.every((event) => bold(event.label, size, 3)));
-    const sub = largest(Math.round(36 * share), 18, (size) => events.every((event) => plain(event.sub, size, 3)));
-    const labelLines = Math.max(1, ...events.map((event) => wrapBold(event.label, inner, label.size).length));
-    const subLines = Math.max(0, ...events.map((event) => (event.sub ? wrapPlain(event.sub, inner, sub.size).length : 0)));
-    const above = Math.round(date.size * 1.2) + 40;
-    const below = 44 + Math.ceil(labelLines * label.size * 1.16) + (subLines ? 14 + Math.ceil(subLines * sub.size * 1.3) : 0);
+    // A date stays on one line down to 36 px; below that two lines read better.
+    const short = row(texts('at'), BOLD_ROW, Math.round(84 * share), 36, 1);
+    const date = !short.overflow && short.lines <= 1 ? short : row(texts('at'), BOLD_ROW, 44, 24, 2);
+    const label = row(texts('label'), BOLD_ROW, Math.round(56 * share), 22, 3);
+    const sub = row(texts('sub'), PLAIN_ROW, Math.round(36 * share), 18, 3);
+    const above = Math.round(Math.max(1, date.lines) * date.size * 1.1) + 48;
+    const below = 44 + Math.ceil(Math.max(1, label.lines) * label.size * 1.16) + (sub.lines ? 14 + Math.ceil(sub.lines * sub.size * 1.3) : 0);
     return { date, label, sub, above, below, fits: above + below <= hero.h };
   };
   let chosen = at(1);
@@ -313,7 +319,7 @@ export const svgLayout = (visual, box) => {
   const numbers = String(visual.viewBox ?? '0 0 1200 520').trim().split(/[\s,]+/).map(Number);
   const usable = numbers.length === 4 && numbers.every(Number.isFinite) && numbers[2] > 0 && numbers[3] > 0;
   const [, , vw, vh] = usable ? numbers : [0, 0, 1200, 520];
-  const scale = Math.min(box.w / vw, (box.h - captionHeight(visual)) / vh);
+  const scale = Math.min(box.w / vw, (box.h - captionHeight(visual.caption, box.w)) / vh);
   const sizes = (visual.groups ?? []).flatMap((group) =>
     [...String(group.svg ?? '').matchAll(/font-size\s*[=:]\s*['"]?\s*(\d+(?:\.\d+)?)/g)].map((match) => Number(match[1])),
   );
@@ -441,6 +447,14 @@ export const checkShotLayout = (shot, canvas = theme.canvas) => {
       } else if (visual?.kind === 'svg') {
         small(svgLayout(visual, box).minType, 'the smallest text in the drawing');
       } else if (canFit(visual)) {
+        if (visual.kind === 'sequence') {
+          const actors = visual.actors.length;
+          visual.steps.forEach((step, i) => {
+            for (const end of [step.frm, step.to]) {
+              if (!Number.isInteger(end) || end < 0 || end >= actors) errors.push(`sequence-step: step ${i + 1} names actor ${end}; the sequence has actors 0 to ${actors - 1}`);
+            }
+          });
+        }
         const fitted = fitVisual(visual, box, shot.visualScale);
         if (fitted.overflow) over(`the ${visual.kind} is larger than its ${box.w}x${box.h} region at its smallest size; split it or shorten it`);
         else small(fitted.minType, `the smallest text in the ${visual.kind}`);

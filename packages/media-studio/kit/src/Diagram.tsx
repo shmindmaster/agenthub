@@ -10,9 +10,9 @@
 import type { FC } from "react";
 import { createElement, useId } from "react";
 import { Interactive, useCurrentFrame, useVideoConfig } from "remotion";
-import { ICONS, diagramLayout, flowAsDiagram, pointAlong } from "../explainer/diagram.mjs";
+import { ICONS, SLIDE_BOX, diagramLayout, flowAsDiagram, pointAlong } from "../explainer/diagram.mjs";
 import { enter, progress } from "../explainer/motion.mjs";
-import { phase } from "./Visuals";
+import { phase } from "../explainer/reveal.mjs";
 
 const SANS = 'Inter, "Segoe UI", system-ui, sans-serif';
 const TONE = { default: "#E8E4D9", good: "#3DDC84", risk: "#E85D5D", emphasis: "#F5C518" } as const;
@@ -45,11 +45,9 @@ type PlacedEdge = {
   from: string; to: string; points: Point[]; length: number;
   label: { x: number; y: number; w: number; h: number; text: string; size: number } | null;
 };
-type Layout = { nodes: PlacedNode[]; edges: PlacedEdge[]; captionHeight: number };
+type Layout = { nodes: PlacedNode[]; edges: PlacedEdge[]; captionLines: string[] };
 export type DiagramBox = { w: number; h: number };
 
-/** The size a slide gives a diagram; the explainer passes its own region. */
-const SLIDE_BOX: DiagramBox = { w: 1360, h: 560 };
 const ARROW = 15;
 const DRAW_SECONDS = 0.5;
 
@@ -125,9 +123,11 @@ export const Diagram: FC<{ v: DiagramVisual | FlowLike; accent: string; d: numbe
 
   return (
     <div style={{ position: "relative", width: box.w, height: box.h, fontFamily: SANS }}>
-      {v.caption ? (
-        <div style={{ ...enter("fade", progress("fade", frame, fps, 0.1)), color: accent, fontSize: 22, fontWeight: 700, letterSpacing: "0.18em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {v.caption.toUpperCase()}
+      {layout.captionLines.length ? (
+        <div style={{ ...enter("fade", progress("fade", frame, fps, 0.1)), color: accent, fontSize: 22, fontWeight: 700, lineHeight: 1.5, letterSpacing: "0.18em", whiteSpace: "nowrap" }}>
+          {layout.captionLines.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
         </div>
       ) : null}
       <svg width={box.w} height={box.h} style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}>

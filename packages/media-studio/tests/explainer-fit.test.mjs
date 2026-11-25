@@ -3,13 +3,13 @@
 // hold the numbers the renderer and the builder share.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ICONS, diagramLayout, flowAsDiagram, pointAlong, rectsOverlap, routeLength, suggestIcons } from '../kit/explainer/diagram.mjs';
+import { ICONS, captionLines, diagramLayout, flowAsDiagram, pointAlong, rectsOverlap, routeLength, suggestIcons } from '../kit/explainer/diagram.mjs';
 import {
   MAX_ZOOM, MIN_ZOOM, canFit, checkShotLayout, checklistLayout, contrastLayout, contrastSides, fitTitle, fitVisual, pictureBox,
   svgLayout, timelineLayout,
 } from '../kit/explainer/fit.mjs';
 import { FAMILIES } from '../kit/explainer/grammar.mjs';
-import { layoutFor } from '../kit/explainer/layout.mjs';
+import { fitHeadline, layoutFor, textWidth } from '../kit/explainer/layout.mjs';
 import { build, clone, cueSheet, plan, receipts } from './fixtures/explainer/fixture.mjs';
 
 const canvases = [{ width: 1600, height: 1000 }, { width: 1920, height: 1080 }, { width: 1280, height: 720 }];
@@ -74,6 +74,18 @@ test('a title uses its row: one short line is large, a long one wraps, an endles
   assert.equal(fitTitle('word '.repeat(120), row).overflow, true);
 });
 
+test('two lines of title have a size on every canvas, and one word too wide for the row is refused', () => {
+  for (const size of canvases) {
+    const region = layoutFor('mechanism', size).title;
+    assert.equal(fitTitle('Where the bread goes after the last customer of the day has left the shop', region).overflow, false, `${size.width}`);
+  }
+  const wide = fitHeadline('Donaudampfschifffahrtsgesellschaft', { maxWidth: 300, maxSize: 120, minSize: 60, maxLines: 2 });
+  assert.equal(wide.overflow, true);
+  const fits = fitHeadline('Donaudampfschifffahrt', { maxWidth: 900, maxSize: 120, minSize: 20, maxLines: 2 });
+  assert.equal(fits.overflow, false);
+  for (const line of fits.lines) assert.ok(textWidth(line, fits.size, -0.02) <= 900);
+});
+
 test('contrast fills its panels with large type and refuses a wall of text', () => {
   const hero = layoutFor('contrast', canvas).hero;
   const sides = contrastSides(plan.shots[3].visual);
@@ -105,6 +117,14 @@ test('timeline events are evenly spaced on one rail inside the region', () => {
   assert.ok(Math.max(...steps) - Math.min(...steps) <= 1);
   assert.ok(fitted.railY > 0 && fitted.railY < hero.h);
   assert.equal(timelineLayout([{ at: 'x'.repeat(140), label: 'y' }], hero).overflow, true);
+});
+
+test('a timeline wraps a long date and label while there is height, and refuses when there is not', () => {
+  const events = Array.from({ length: 6 }, (_, i) => ({ at: 'Wednesday evening', label: 'The second oven is switched off before closing time', sub: `step ${i + 1}` }));
+  const hero = layoutFor('timeline', canvas).hero;
+  assert.equal(timelineLayout(events, hero).overflow, false);
+  assert.equal(timelineLayout(events, { ...hero, h: 120 }).overflow, true);
+  assert.equal(timelineLayout([{ at: 'Donaudampfschifffahrtsgesellschaft', label: 'x' }], { ...hero, w: 260 }).overflow, true);
 });
 
 test('an svg scene takes the room it is left and reports its smallest text', () => {
@@ -167,12 +187,53 @@ test('an arrow that skips a box goes round it, and one with no way round is refu
   const full = { kind: 'diagram', nodes: [], edges: [{ from: 'n00', to: 'n22' }] };
   for (let r = 0; r < 3; r += 1) for (let c = 0; c < 3; c += 1) full.nodes.push({ id: `n${c}${r}`, label: 'x', col: c, row: r });
   const through = diagramLayout(full, mechanism);
-  const middle = through.nodes.find((node) => node.id === 'n11');
-  const crosses = through.edges[0].points.slice(1).some((q, i) => {
-    const p = through.edges[0].points[i];
-    return rectsOverlap({ x: Math.min(p.x, q.x), y: Math.min(p.y, q.y), w: Math.abs(p.x - q.x) + 1, h: Math.abs(p.y - q.y) + 1 }, middle);
-  });
-  assert.equal(crosses, through.problems.some((problem) => problem.code === 'diagram-edge-through'));
+  assert.deepEqual(through.problems.map((problem) => problem.code), ['diagram-edge-through']);
+});
+
+const flatRuns = (points) => points.slice(1).map((q, i) => ({ p: points[i], q })).filter(({ p, q }) => p.y === q.y);
+
+test('two arrows that skip boxes in one row never share a line', () => {
+  const nodes = ['a', 'b', 'c', 'd', 'e'].map((id, col) => ({ id, label: id, col }));
+  const placed = diagramLayout({ kind: 'diagram', nodes, edges: [{ from: 'a', to: 'c' }, { from: 'b', to: 'd' }, { from: 'c', to: 'e' }] }, mechanism);
+  assert.deepEqual(placed.problems, []);
+  const runs = placed.edges.map((edge) => flatRuns(edge.points));
+  for (let i = 0; i < runs.length; i += 1) {
+    for (let j = i + 1; j < runs.length; j += 1) {
+      for (const s of runs[i]) for (const t of runs[j]) {
+        const shared = Math.min(Math.max(s.p.x, s.q.x), Math.max(t.p.x, t.q.x)) - Math.max(Math.min(s.p.x, s.q.x), Math.min(t.p.x, t.q.x));
+        assert.ok(shared <= 4 || Math.abs(s.p.y - t.p.y) > 12, `arrows ${i} and ${j} run along one line`);
+      }
+    }
+  }
+  for (const edge of placed.edges) for (const point of edge.points) assert.ok(point.y <= mechanism.h);
+  for (const size of canvases) {
+    const box = pictureBox('mechanism', layoutFor('mechanism', size).hero);
+    assert.deepEqual(diagramLayout({ kind: 'diagram', caption: 'one after the other', nodes, edges: [{ from: 'a', to: 'c' }, { from: 'b', to: 'd' }, { from: 'c', to: 'e' }, { from: 'a', to: 'b' }] }, box).problems, [], `${size.width}`);
+  }
+});
+
+test('labels on a pair of vertical arrows stand on their own sides', () => {
+  const nodes = [{ id: 'a', label: 'Till', col: 0, row: 0 }, { id: 'b', label: 'Oven', col: 0, row: 1 }];
+  const placed = diagramLayout({ kind: 'diagram', nodes, edges: [{ from: 'a', to: 'b', label: 'order' }, { from: 'b', to: 'a', label: 'bread' }] }, mechanism);
+  assert.deepEqual(placed.problems, []);
+  const [one, two] = placed.edges;
+  assert.equal(rectsOverlap(one.label, two.label), false);
+  for (const [own, other] of [[one, two], [two, one]]) {
+    const left = own.points[0].x < other.points[0].x;
+    if (left) assert.ok(own.label.x + own.label.w < own.points[0].x);
+    else assert.ok(own.label.x > own.points[0].x);
+  }
+});
+
+test('a long caption wraps and takes its room from the picture', () => {
+  const caption = 'how a day at the bakery turns into the forecast for the next day and the day after that one';
+  assert.ok(captionLines(caption, 700).length > 1);
+  const tall = diagramLayout({ ...diagram, caption }, { w: 700, h: 700 });
+  const short = diagramLayout({ ...diagram, caption: 'how' }, { w: 700, h: 700 });
+  assert.ok(tall.captionHeight > short.captionHeight);
+  assert.equal(tall.captionLines.join(' '), caption.toUpperCase());
+  const size = { w: 700, h: 700 };
+  assert.ok(fitVisual({ ...samples.table, caption }, size).zoom <= fitVisual(samples.table, size).zoom);
 });
 
 test('two arrows between the same boxes run side by side', () => {
@@ -283,6 +344,12 @@ test('small type is advice, never a refusal', () => {
   const result = withVisual(1, { kind: 'svg', groups: [{ at: 1, svg: '<text font-size="8">tiny</text>' }] });
   assert.deepEqual(result.errors, []);
   assert.match(result.report.warnings.join('\n'), /b: layout-small/);
+});
+
+test('a sequence step must name actors the sequence has', () => {
+  const result = withVisual(1, { ...samples.sequence, steps: [{ frm: 0, to: 5, label: 'lost' }] });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /b: sequence-step: step 1 names actor 5/);
 });
 
 test('a visual missing its parts is an error, not a crash', () => {

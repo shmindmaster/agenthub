@@ -2,7 +2,7 @@
 // The picking and the sheet are pure, so they are tested without a browser.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { contactSheet, movingAt, pickFrames } from '../kit/explainer/still-explainer.mjs';
+import { TILE_WIDTH, contactSheet, movingAt, pickFrames, shrink } from '../kit/explainer/still-explainer.mjs';
 import { decodePng, encodePng } from '../kit/explainer/png.mjs';
 import { build } from './fixtures/explainer/fixture.mjs';
 
@@ -44,6 +44,28 @@ test('an opening line that lands word by word is settled only after its last wor
   const [open] = pickFrames({ film: { fps: 30 }, shots: [shot] }, { moments: ['open'] });
   assert.ok(open.frame > 40);
   assert.deepEqual(open.moving, []);
+});
+
+test('a part the plan gave no time is moving when the kit brings it in', () => {
+  const rows = Array.from({ length: 3 }, (_, i) => ({ cells: [String(i), 'x'] }));
+  const shot = { id: 's', family: 'mechanism', startFrame: 0, durationFrames: 300, durationSeconds: 10, beats: [], visual: { kind: 'table', headers: ['a', 'b'], rows } };
+  const moving = Array.from({ length: 300 }, (_, frame) => movingAt(shot, frame, 30)).flat();
+  for (const part of [1, 2, 3]) assert.ok(moving.includes(`visual part ${part}`), `row ${part}`);
+  assert.deepEqual(movingAt(shot, 60, 30), []);
+});
+
+test('no frame, no browser', () => {
+  assert.throws(() => pickFrames({ film: { fps: 30 }, shots: [{ id: 's', startFrame: 0, durationFrames: 30, beats: [] }] }, { moments: ['beats'] }), /nothing to draw/);
+});
+
+test('a fractional frame rate still asks for whole frames', () => {
+  const shot = { id: 's', family: 'statement', startFrame: 0, durationFrames: 120, beats: [{ frame: 40, target: 'x' }] };
+  for (const still of pickFrames({ film: { fps: 23.976 }, shots: [shot] }, { moments: ['open', 'beats', 'hold'] })) assert.ok(Number.isInteger(still.frame));
+});
+
+test('a frame is shrunk to its tile once', () => {
+  const tile = shrink({ width: 1600, height: 1000, rgba: Buffer.alloc(1600 * 1000 * 4, 9) }, TILE_WIDTH);
+  assert.deepEqual([tile.width, tile.height, tile.rgba[0]], [480, 300, 9]);
 });
 
 test('a wrong shot or moment is refused by name', () => {
