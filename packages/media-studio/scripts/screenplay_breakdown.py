@@ -74,8 +74,9 @@ def scene_rows(screenplay, plan, wpm, hd_voices, identity, screencast=False):
                         row["clips"] = max(1, -(-int(want * 1000) // int(clip_s * 1000)))
                         row["clipCredits"] = row["clips"] * per_clip
                 if kind == "still":
-                    lane_id = visual.get("lane") or lanes[0]["id"]
                     try:
+                        # The same gate generate_stills applies at run time (grant dates, entity), so the quote names the lane that will really run.
+                        lane_id = generate_stills.pick_lane(visual, None, identity, policy)
                         row["imageUsd"] = generate_stills.estimate_usd(lane_id, visual.get("size") or "1536x1024", visual.get("quality") or "medium")
                         row["lane"] = lane_id
                     except generate_stills.StillsError as e:
