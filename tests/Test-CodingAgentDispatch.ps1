@@ -130,7 +130,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
                 $result.ZcodeProvider.selection.providerId -eq 'account:zai-start-plan' -and $result.ZcodeProvider.selection.modelId -eq 'GLM-5.4'
             Check 'Windows ZCode runs the GLM coding-plan default through a runtime provider copy' ($zcodeSelOk -and $result.Arguments -contains '--toolsearch-mode' -and $result.Arguments -contains 'auto' -and
                 $result.ZcodeProvider.path -cne (Join-Path $personalConfig 'provider_config.json') -and -not (Test-Path -LiteralPath $result.ZcodeProvider.path) -and
-                (Get-Content -LiteralPath (Join-Path $personalConfig 'provider_config.json') -Raw) -match '^\{\}') (($result.ZcodeProvider | ConvertTo-Json -Compress) + ' ' + $r.Err)
+                (Get-Content -LiteralPath (Join-Path $personalConfig 'provider_config.json') -Raw -Encoding UTF8) -match '^\{\}') (($result.ZcodeProvider | ConvertTo-Json -Compress) + ' ' + $r.Err)
             $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','qwen-token-plan/qwen4-max')
             $result = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
             Check 'Windows ZCode routes an explicit provider/model for one run' ($null -ne $result -and $result.ZcodeProvider.selection.providerId -eq 'qwen-token-plan' -and $result.ZcodeProvider.selection.modelId -eq 'qwen4-max' -and $r.Err -match (PassNote 'zcode' 'qwen-token-plan/qwen4-max')) $r.Err

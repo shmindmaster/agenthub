@@ -386,7 +386,7 @@ function Test-LiveHostAuthenticationMetadata {
         @($openCode.allowedModels | Where-Object { [string]$_ -like 'opencode/*' }).Count -gt 0 -or
         @($openCodeHostDefaults | Where-Object { $_ -like 'opencode/*' }).Count -gt 0 -or
         @($openCodeHostDefaults | Where-Object { @($openCode.allowedModels) -notcontains $_ }).Count -gt 0 -or
-        $openCode.verifiedOn -ne '2026-10-26' -or
+        $openCode.verifiedOn -ne '2026-11-25' -or
         @($openCode.allowedModels) -notcontains $openCode.model -or
         $openCode.agent -ne 'peer' -or
         $null -ne $openCode.ownerAction) {
