@@ -230,6 +230,10 @@ test('a label on a vertical detour stands away from the boxes, and a pair of det
   const column = (edges) => diagramLayout({ kind: 'diagram', nodes, edges }, mechanism);
   assert.deepEqual(column([{ from: 'a', to: 'c', label: 'ask' }]).problems, []);
   assert.deepEqual(column([{ from: 'a', to: 'c', label: 'ask' }, { from: 'c', to: 'a', label: 'x' }]).problems, []);
+  // A full grid has no room beside the line, so a short label stays on it.
+  const grid = { kind: 'diagram', nodes: [], edges: [{ from: 'n00', to: 'n02', label: 'ok' }] };
+  for (let r = 0; r < 3; r += 1) for (let c = 0; c < 3; c += 1) grid.nodes.push({ id: `n${c}${r}`, label: 'x', col: c, row: r });
+  assert.deepEqual(diagramLayout(grid, pictureBox('mechanism', layoutFor('mechanism', canvases[2]).hero)).problems, []);
   const row = ['a', 'b', 'c'].map((id, col) => ({ id, label: id, col, icon: 'flame' }));
   for (const size of canvases) {
     const box = pictureBox('mechanism', layoutFor('mechanism', size).hero);

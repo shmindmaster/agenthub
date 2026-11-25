@@ -235,9 +235,10 @@ const runsAlong = (pointsA, pointsB) =>
 /**
  * A label sits on the longest straight run of its arrow. Beside a twin arrow on a
  * vertical run it stands outside the pair, where the two cannot cover each other,
- * and on a vertical detour it stands on the side away from the boxes.
+ * and on a vertical detour whose middle would cover a box it stands on the side
+ * away from the boxes.
  */
-const edgeLabelRect = (points, label, size, shift) => {
+const edgeLabelRect = (points, label, size, shift, boxes) => {
   const w = textWidth(label, size) + 20;
   const h = Math.round(size * 1.4);
   const run = segmentsOf(points).reduce((best, segment) => (segmentLength(segment) > segmentLength(best) ? segment : best));
@@ -245,7 +246,11 @@ const edgeLabelRect = (points, label, size, shift) => {
   const vertical = Math.abs(run.p.x - run.q.x) < 1;
   if (vertical && points.length > 2) {
     const sides = [points[0], points[points.length - 1]].map((end) => Math.sign(run.p.x - end.x));
-    if (sides[0] && sides[0] === sides[1]) return { x: sides[0] > 0 ? middle.x + 10 : middle.x - w - 10, y: middle.y, w, h };
+    if (sides[0] && sides[0] === sides[1]) {
+      const centred = { x: middle.x - w / 2, y: middle.y, w, h };
+      if (boxes.every((rect) => !rectsOverlap(centred, rect))) return centred;
+      return { x: sides[0] > 0 ? middle.x + 10 : middle.x - w - 10, y: middle.y, w, h };
+    }
   }
   if (shift && vertical) return { x: shift < 0 ? middle.x - w - 10 : middle.x + 10, y: middle.y, w, h };
   return { x: middle.x - w / 2, y: middle.y, w, h };
@@ -381,7 +386,7 @@ export const diagramLayout = (visual, box) => {
     if (!clear) fail('diagram-edge-through', `the arrow ${edge.from} → ${edge.to} has no clear path past the other boxes and arrows; move one of them to another row or column`);
     const points = clear ?? routes[0];
     drawnRoutes.push({ from: edge.from, to: edge.to, points });
-    const label = edge.label ? { ...edgeLabelRect(points, edge.label, edgeLabelSize, shift), text: edge.label, size: edgeLabelSize } : null;
+    const label = edge.label ? { ...edgeLabelRect(points, edge.label, edgeLabelSize, shift, placed), text: edge.label, size: edgeLabelSize } : null;
     return { from: edge.from, to: edge.to, points, length: routeLength(points), label };
   });
 
