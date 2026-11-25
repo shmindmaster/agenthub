@@ -112,3 +112,15 @@ authorize customer data or establish provider entitlement. Offline tests:
 ## Self-hosted Daytona AI Media Lab
 
 `scripts/daytona_media_client.py` calls the Slot 2 Daytona AI Media Lab across `image`, `image_edit`, `video`, `talk`, `tts`, `speakers`, `transcribe`, and `music`. It connects to the permanent `https://inference.shtrial.com/v1/media` endpoint (Bearer `AGENTHUB_INFERENCE_KEY`) with automatic direct Daytona preview URL fallback via `target.json` + `DAYTONA_API_KEY`, sends `authorization_profile` (`commercial` by default; `research` opt-in; the media gateway enforces it, answering 403 for a research model under the commercial profile), verifies output SHA-256 and byte sizes before deleting remote job artifacts, retries connection-level failures three times, and supports scene-manifest skip-on-complete (`run-manifest`). Existing ABACare/AssemblyAI/Deepgram narration rules above are unchanged.
+
+### AI Media Lab screen
+
+`scripts/media_lab_ui.py` (with `media_lab_ui.html`, standard library only) is a local screen for the same lab: one tab each for image, edit, video, talk, voice, transcribe and music, a commercial/research switch (commercial by default; a mode with no model in the profile is disabled), a job list with previews, download and open-folder, one-click reuse of an output as the next input, and a box strip with Start, Extend 60 min and Stop. Outputs and a small JSON (prompt, params, model, SHA-256) go to `D:\Media-Studio\gpu-gen\out\<date>\<job>`. It reuses `daytona_media_client.py` for every gateway call and runs the installed `gpu.py` (`up media --gpu MI355X`, `caddy-media`, `extend media`, `down media`) windowless, for the media role only; it refuses Start at 2/2 GPUs. It binds 127.0.0.1:8791, needs a per-run token plus Host and Origin checks, keeps the inference key server-side and masked, and exits after 30 minutes with no request and no running job. The hourly price shown is the MI355X spot rate read 2026-11-25 ($3.56/h); the installed `catalog.json` can override it with `policy.approxHourlyUsd`.
+
+```powershell
+python scripts\media_lab_ui.py --open        # serve and open the browser
+python scripts\media_lab_ui.py --install-shortcut   # Start Menu "AI Media Lab" (pythonw, no console); --remove-shortcut undoes it
+python -B -m unittest test_media_lab_ui   # offline, from scripts\
+```
+
+Media modes are not chat-model picker entries: agents use `daytona_media_client.py` or this screen.

@@ -58,6 +58,7 @@ def _secret_file_candidates(filename: str) -> list[Path]:
     if local_app:
         roots.append(Path(local_app) / "AgentHub" / "daytona-inference" / "secrets")
     roots.append(Path.home() / ".config" / "AgentHub" / "daytona-inference" / "secrets")
+    roots.append(Path.home() / ".config" / "opencode" / "daytona" / "secrets")  # beside the installed gpu.py
     return [r / filename for r in roots]
 
 

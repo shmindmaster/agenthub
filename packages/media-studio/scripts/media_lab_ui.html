@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Media Lab</title>
+<link rel="icon" href="data:,">
+<style>
+:root{color-scheme:light dark;--bg:#f5f6f7;--panel:#fff;--line:#d8dce1;--text:#1b2025;--mut:#5b6672;--acc:#0b63c5;--on:#fff;--ok:#1a7f4b;--warn:#9a5b00;--bad:#c62828;--field:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#121518;--panel:#1b1f23;--line:#2f353b;--text:#e7eaed;--mut:#9ba5b0;--acc:#4f9cf0;--on:#06121f;--ok:#4cc38a;--warn:#e2a443;--bad:#f27572;--field:#14181b}}
+*{box-sizing:border-box;letter-spacing:0}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.ic{width:18px;height:18px;flex:none}
+.strip{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.status{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 260px;flex-wrap:wrap}
+.status strong{min-width:64px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--mut);flex:none}
+.dot.ready{background:var(--ok)}.dot.starting,.dot.checking{background:var(--warn)}.dot.lost{background:var(--bad)}
+.mut{color:var(--mut)}
+.actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:0 12px;height:34px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--acc);color:var(--on)}
+.icon{display:inline-flex;align-items:center;justify-content:center;width:36px;height:34px;flex:none;border:1px solid var(--line);border-radius:6px;background:var(--panel);cursor:pointer;color:var(--text);text-decoration:none}
+.icon:hover:not(:disabled){border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:not-allowed}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.log{margin:0;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);font:12px/1.4 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+.bad{color:var(--bad)}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;max-width:1280px;margin:0 auto;padding:16px}
+@media (min-width:960px){main{grid-template-columns:minmax(0,440px) minmax(0,1fr);align-items:start}}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.tab{display:flex;align-items:center;justify-content:center;gap:6px;height:38px;min-width:42px;padding:0 10px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--mut);cursor:pointer}
+.tab[aria-selected=true]{color:var(--text);border-bottom-color:var(--acc)}
+.tab{flex:1;padding:0}.tab .lbl{display:none}
+@media (min-width:768px){.tabs{flex-wrap:wrap}.tab{flex:0 0 auto;padding:0 12px}.tab .lbl{display:inline}.mode{display:none}}
+.mode{margin:0 0 10px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.f{display:flex;flex-direction:column;gap:3px;min-width:0}.wide{grid-column:1/-1}
+.f>span{color:var(--mut);font-size:12px}
+input:not([type=file]),select,textarea{width:100%;min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--field)}
+textarea{resize:vertical}
+.file{display:flex;align-items:center;gap:8px;min-width:0}
+.chip{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--mut)}
+body:not(.research) .res{display:none}
+.row{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+.run{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border:0;border-radius:6px;background:var(--acc);color:var(--on);cursor:pointer}
+.note,.err{margin:0;overflow-wrap:anywhere}.note{color:var(--mut)}.err{color:var(--bad)}
+h2{margin:0 0 8px;font-size:15px}
+.job{border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:10px;margin-bottom:10px;min-width:0}
+.jh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{min-width:68px;text-align:center;padding:1px 8px;border-radius:4px;border:1px solid var(--line);font-size:12px}
+.badge.running,.badge.queued{color:var(--warn);border-color:var(--warn)}.badge.done{color:var(--ok);border-color:var(--ok)}.badge.error{color:var(--bad);border-color:var(--bad)}
+.el{margin-left:auto;font-variant-numeric:tabular-nums}
+.prompt{margin:6px 0;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.out{margin-top:8px;min-width:0}
+.out img,.out video{display:block;max-width:100%;max-height:260px;margin:0 auto 6px}
+.out audio{width:100%;margin-bottom:6px}
+.txt{margin:0 0 6px;padding:8px;background:var(--field);border:1px solid var(--line);border-radius:6px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow:auto;font:inherit}
+.oa{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.oa .nm{flex:1 1 140px;min-width:0;overflow-wrap:anywhere}
+.empty{color:var(--mut);margin:0}
+dialog{max-width:min(420px,calc(100% - 32px));border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog p{margin:0 0 14px;overflow-wrap:anywhere}
+.btn{height:34px;padding:0 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);cursor:pointer}
+.btn.go{background:var(--acc);border-color:var(--acc);color:var(--on)}
+</style>
+</head>
+<body>
+<header class="strip">
+  <div class="status"><span class="dot checking" id="dot"></span><strong id="st">Checking</strong><span class="mut" id="meta"></span></div>
+  <div class="actions">
+    <div class="seg" id="profile"><button type="button" data-p="commercial" aria-pressed="true">Commercial</button><button type="button" data-p="research" aria-pressed="false">Research</button></div>
+    <button class="icon" id="bStart" type="button" disabled></button>
+    <button class="icon" id="bExtend" type="button" disabled></button>
+    <button class="icon" id="bStop" type="button" disabled></button>
+  </div>
+</header>
+<pre class="log" id="log" hidden></pre>
+<main>
+  <section>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+    <div id="panels"></div>
+  </section>
+  <section>
+    <h2>Jobs</h2>
+    <div id="jobs"></div>
+    <p class="empty" id="empty">No jobs yet</p>
+  </section>
+</main>
+<dialog id="dlg"><p id="dlgText"></p><div class="row" style="margin:0;justify-content:flex-end"><button class="btn" id="dlgNo" type="button">Cancel</button><button class="btn go" id="dlgYes" type="button"></button></div></dialog>
+<script>
+const ICON={
+image:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+pencil:'<path d="M21.2 6.8a1 1 0 0 0-4-4L3.8 16.2a2 2 0 0 0-.5.8l-1.3 4.4a.5.5 0 0 0 .6.6L7 20.7a2 2 0 0 0 .8-.5z"/><path d="m15 5 4 4"/>',
+video:'<path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+user:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.7V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.7"/>',
+volume:'<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.8"/>',
+text:'<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+power:'<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+clock:'<path d="M12 6v6l3.6 1.8"/><path d="M16 19h6"/><path d="M19 16v6"/><path d="M21.9 13.3A10 10 0 1 0 13.3 21.9"/>',
+stop:'<rect width="14" height="14" x="5" y="5" rx="2"/>',
+play:'<polygon points="6 3 20 12 6 21 6 3"/>',
+down:'<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
+folder:'<path d="m6 14 1.5-2.9A2 2 0 0 1 9.2 10H20a2 2 0 0 1 1.9 2.5l-1.5 6a2 2 0 0 1-1.9 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.7.9l.8 1.2a2 2 0 0 0 1.7.9H18a2 2 0 0 1 2 2v2"/>',
+x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+use:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'};
+const ic=n=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=(s,r=document)=>r.querySelector(s);
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+const MODES=[['image','Image','image'],['image_edit','Edit','pencil'],['video','Video','video'],['talk','Talk','user'],['tts','Voice','volume'],['transcribe','Transcribe','text'],['music','Music','music']];
+const LABEL=Object.fromEntries(MODES.map(m=>[m[0],m[1]]));
+let S=null,mode='image',profile=(()=>{try{return localStorage.getItem('lab.profile')==='research'?'research':'commercial'}catch(e){return 'commercial'}})();
+const files={},cards=new Map();
+
+async function api(method,path,body){
+  const r=await fetch(path,{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+function ask(text,yes){
+  return new Promise(res=>{const d=$('#dlg');$('#dlgText').textContent=text;$('#dlgYes').textContent=yes;
+    const done=v=>{d.close();res(v)};$('#dlgYes').onclick=()=>done(true);$('#dlgNo').onclick=()=>done(false);d.oncancel=()=>res(false);d.showModal()});
+}
+const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const size=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
+
+/* ---- box strip ---- */
+function setBtn(id,icon,label,on){const b=$(id);b.innerHTML=ic(icon);b.title=label;b.setAttribute('aria-label',label);b.disabled=!on}
+function renderBox(b){
+  const idle=!b.busy;
+  $('#dot').className='dot '+b.state;
+  $('#st').textContent=b.state[0].toUpperCase()+b.state.slice(1);
+  const bits=[];
+  if(b.busy)bits.push({start:'booting',extend:'extending',stop:'stopping'}[b.busy]);
+  if(b.left_min!=null)bits.push(Math.floor(b.left_min/60)+'h '+String(b.left_min%60).padStart(2,'0')+'m left');
+  bits.push('~$'+b.usd_per_hour.toFixed(2)+'/h');
+  if(b.max)bits.push('GPUs '+b.n+'/'+b.max);
+  if(b.queue!=null&&b.state==='ready')bits.push('queue '+b.queue);
+  $('#meta').textContent=bits.join(' · ');
+  setBtn('#bStart','power','Start box',idle&&(b.state==='off'||b.state==='lost'));
+  setBtn('#bExtend','clock','Extend '+b.extend+' min',idle&&b.state==='ready');
+  setBtn('#bStop','stop','Stop box',idle&&!['off','checking'].includes(b.state));
+  const lines=[...(b.error?[b.error]:[]),...b.log];
+  const log=$('#log');
+  log.hidden=!lines.length||(b.state==='ready'&&!b.busy&&b.result!=='failed'&&!b.error);
+  log.textContent=lines.join('\n');log.classList.toggle('bad',b.result==='failed'||!!b.error);
+}
+async function box(action,body){
+  try{await api('POST','/api/box/'+action,body)}catch(e){$('#log').hidden=false;$('#log').classList.add('bad');$('#log').textContent=e.message}
+  poll();
+}
+$('#bStart').onclick=async()=>{const b=S.box;
+  if(await ask(`Start the media box? About $${b.usd_per_hour.toFixed(2)} per hour, it stops by itself after ${b.ttl} minutes, and it takes roughly ${b.boot_min} minutes to boot.`,'Start'))box('start',{confirm:true})};
+$('#bExtend').onclick=()=>box('extend',{});
+$('#bStop').onclick=async()=>{if(await ask('Stop the media box? It is deleted and any running job is lost.','Stop'))box('stop',{confirm:true})};
+$('#profile').onclick=e=>{const p=e.target.dataset.p;if(p)setProfile(p)};
+function setProfile(p){
+  profile=p;try{localStorage.setItem('lab.profile',p)}catch(e){}
+  document.body.classList.toggle('research',p==='research');
+  for(const b of document.querySelectorAll('#profile button'))b.setAttribute('aria-pressed',b.dataset.p===p);
+  if(S)renderForms();
+}
+
+/* ---- forms ---- */
+function buildForms(){
+  const tabs=$('#tabs'),panels=$('#panels');
+  for(const [m,label,icon] of MODES){
+    const t=el('button','tab',ic(icon)+`<span class="lbl">${label}</span>`);
+    t.type='button';t.dataset.mode=m;t.title=label;t.setAttribute('role','tab');t.setAttribute('aria-label',label);
+    t.onclick=()=>showMode(m);tabs.append(t);
+    const f=el('form','panel',`<h2 class="mode">${label}</h2>`);f.dataset.mode=m;files[m]={};
+    const grid=el('div','fields');
+    for(const sp of S.specs[m]){
+      const wide=['area','text','file'].includes(sp.kind)?' wide':'',res=sp.research?' res':'';
+      if(sp.kind==='file'){
+        const w=el('div','f'+wide+res,`<span>${esc(sp.label)}</span><div class="file"><button type="button" class="icon pick" title="Choose ${esc(sp.label)}" aria-label="Choose ${esc(sp.label)}">${ic('folder')}</button><span class="chip">No file</span><button type="button" class="icon clr" hidden title="Clear" aria-label="Clear ${esc(sp.label)}">${ic('x')}</button><input type="file" hidden accept="${sp.accept}"></div>`);
+        const inp=$('input',w);$('.pick',w).onclick=()=>inp.click();$('.clr',w).onclick=()=>setFile(m,sp.k,null);
+        inp.onchange=()=>{const fl=inp.files[0];if(!fl)return;const r=new FileReader();r.onload=()=>{setFile(m,sp.k,{name:fl.name,b64:String(r.result).split(',')[1]});inp.value=''};r.readAsDataURL(fl)};
+        w.dataset.k=sp.k;grid.append(w);continue;
+      }
+      const w=el('label','f'+wide+res,`<span>${esc(sp.label)}</span>`);
+      const c=sp.kind==='area'?el('textarea'):sp.kind==='select'?el('select'):el('input');
+      c.name=sp.k;
+      if(sp.kind==='area')c.rows=3;
+      if(sp.kind==='int'){c.type='number';c.min=0;c.step=1;c.inputMode='numeric'}
+      if(sp.kind==='select')for(const o of sp.opts)c.append(new Option(o,o));
+      c.value=sp.def===0?'0':(sp.def||'');
+      w.append(c);grid.append(w);
+    }
+    grid.append(el('label','f wide','<span>Model</span><select name="model"></select>'));
+    f.append(grid);
+    const row=el('div','row',`<button class="run" type="submit">${ic('play')}Run</button><p class="note" aria-live="polite"></p>`);
+    f.append(row,el('p','err'));$('.err',f).setAttribute('role','alert');f.style.marginTop='12px';
+    f.onsubmit=e=>{e.preventDefault();run(m)};
+    panels.append(f);
+  }
+  showMode(mode);
+}
+function showMode(m){
+  mode=m;
+  for(const t of document.querySelectorAll('.tab'))t.setAttribute('aria-selected',t.dataset.mode===m);
+  for(const f of document.querySelectorAll('.panel'))f.hidden=f.dataset.mode!==m;
+}
+function setFile(m,k,ref){
+  const w=$(`.panel[data-mode=${m}] [data-k=${k}]`);
+  if(ref)files[m][k]=ref;else delete files[m][k];
+  $('.chip',w).textContent=ref?(ref.job?ref.job+' / ':'')+ref.name:'No file';
+  $('.clr',w).hidden=!ref;
+}
+function renderForms(){
+  const ready=S.box.state==='ready';
+  for(const f of document.querySelectorAll('.panel')){
+    const m=f.dataset.mode,ch=S.modes[m][profile],sel=f.elements.model,sig=ch.models.join();
+    if(sel.dataset.sig!==sig){sel.innerHTML='';for(const id of ch.models)sel.append(new Option(id+(id===ch.default?' (default)':''),id));if(!ch.models.length)sel.append(new Option('-',''));sel.dataset.sig=sig}
+    sel.disabled=ch.models.length<2;
+    const note=!ready?'Box '+S.box.state+'.':!ch.default?`No ${profile} model for ${LABEL[m].toLowerCase()}.`+(profile==='commercial'?' Switch to Research.':''):'';
+    $('.note',f).textContent=note;
+    const run=$('.run',f);run.disabled=!!note;run.title=note||'Run';
+  }
+}
+async function run(m){
+  const f=$(`.panel[data-mode=${m}]`),err=$('.err',f),params={};err.textContent='';
+  for(const sp of S.specs[m])if(sp.kind!=='file')params[sp.k]=f.elements[sp.k].value;
+  try{await api('POST','/api/jobs',{mode:m,profile,model:f.elements.model.value,params,inputs:files[m]});poll()}catch(e){err.textContent=e.message}
+}
+function useAs(m,k,ref){showMode(m);setFile(m,k,ref);$(`.panel[data-mode=${m}]`).scrollIntoView({block:'nearest'})}
+
+/* ---- jobs ---- */
+function targets(kind){
+  const out=[];
+  for(const [m] of MODES)for(const sp of S.specs[m])
+    if(sp.kind==='file'&&((kind==='image'&&sp.accept==='image/*')||(kind==='audio'&&sp.accept==='audio/*')))out.push([m,sp]);
+  return out;
+}
+function renderJob(j){
+  let c=cards.get(j.id);
+  const sig=JSON.stringify([j.state,j.progress,j.error,j.outputs.length,profile]);
+  if(!c){c={root:el('article','job'),sig:''};cards.set(j.id,c)}
+  if(c.sig!==sig){
+    c.sig=sig;
+    const r=c.root;
+    r.innerHTML=`<div class="jh"><span class="badge ${j.state}">${j.state[0].toUpperCase()+j.state.slice(1)}</span><strong>${LABEL[j.mode]}</strong><span class="mut">${esc(j.model)}</span><span class="el"></span></div>`+
+      (j.prompt?`<p class="prompt" title="${esc(j.prompt)}">${esc(j.prompt)}</p>`:'')+
+      (j.state==='running'&&j.progress?`<p class="note">${esc(j.progress)}</p>`:'')+(j.error?`<p class="err">${esc(j.error)}</p>`:'');
+    for(const o of j.outputs){
+      const url=`/api/files/${encodeURIComponent(j.dir)}/${encodeURIComponent(o.name)}`,w=el('div','out');
+      if(o.kind==='image')w.innerHTML=`<img src="${url}" alt="${esc(o.name)}" loading="lazy">`;
+      else if(o.kind==='video')w.innerHTML=`<video src="${url}" controls preload="metadata"></video>`;
+      else if(o.kind==='audio')w.innerHTML=`<audio src="${url}" controls preload="metadata"></audio>`;
+      else if(o.kind==='text'&&(j.mode==='transcribe'||!j.outputs.some(x=>x.kind!=='text'))){const p=el('pre','txt','');w.append(p);fetch(url,{credentials:'same-origin'}).then(x=>x.text()).then(t=>{try{const v=JSON.parse(t);p.textContent=typeof v.text==='string'?v.text:t}catch(e){p.textContent=t}})}
+      const row=el('div','oa',`<span class="nm">${esc(o.name)} <span class="mut">${size(o.size)}</span></span>`);
+      const dl=el('a','icon',ic('down'));dl.href=url+'?dl=1';dl.download=o.name;dl.title='Download';dl.setAttribute('aria-label','Download '+o.name);row.append(dl);
+      const op=el('button','icon',ic('folder'));op.type='button';op.title='Open folder';op.setAttribute('aria-label','Open folder');
+      op.onclick=()=>api('POST','/api/open',{job:j.dir,name:o.name}).catch(e=>{$(`.panel[data-mode=${mode}] .err`).textContent=e.message});row.append(op);
+      for(const [m,sp] of targets(o.kind)){
+        const u=el('button','icon',ic(MODES.find(x=>x[0]===m)[2])),t=`Use as ${LABEL[m]} ${sp.label.toLowerCase()}`;
+        u.type='button';u.title=t;u.setAttribute('aria-label',t);u.onclick=()=>useAs(m,sp.k,{job:j.dir,name:o.name});row.append(u);
+      }
+      w.append(row);r.append(w);
+    }
+  }
+  const e=$('.el',c.root),end=j.ended||Date.now()/1000;
+  e.textContent=mmss(end-j.created);
+}
+function renderJobs(){
+  const ids=new Set(S.jobs.map(j=>j.id));
+  for(const [id,c] of cards)if(!ids.has(id)){c.root.remove();cards.delete(id)}
+  S.jobs.forEach(renderJob);
+  S.jobs.forEach((j,i)=>{const r=cards.get(j.id).root,h=$('#jobs');if(h.children[i]!==r)h.insertBefore(r,h.children[i]||null)});
+  $('#empty').hidden=S.jobs.length>0;
+}
+
+/* ---- loop ---- */
+async function poll(){
+  try{
+    S=await api('GET','/api/state');
+    if(!$('.panel'))buildForms();
+    renderBox(S.box);renderForms();renderJobs();
+  }catch(e){
+    $('#dot').className='dot lost';$('#st').textContent='Disconnected';$('#meta').textContent=e.message;
+  }
+}
+document.body.classList.toggle('research',profile==='research');
+for(const b of document.querySelectorAll('#profile button'))b.setAttribute('aria-pressed',b.dataset.p===profile);
+setInterval(()=>{if(!document.hidden)poll()},2000);
+setInterval(()=>{if(S&&!document.hidden)for(const j of S.jobs){const c=cards.get(j.id);if(c&&!j.ended)$('.el',c.root).textContent=mmss(Date.now()/1000-j.created)}},1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
+poll();
+</script>
+</body>
+</html>
