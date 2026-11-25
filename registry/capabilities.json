@@ -556,7 +556,7 @@
         },
         {
           "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills",
             "catalog"
@@ -623,7 +623,7 @@
         },
         {
           "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills",
             "catalog"
