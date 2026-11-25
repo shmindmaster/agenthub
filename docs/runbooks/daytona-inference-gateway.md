@@ -12,7 +12,7 @@ Permanent inference gateway and unified NVIDIA/AMD Daytona spot GPU operations f
 - **Dual-MI355X Spot Architecture (2/2 Max GPU Slots):**
   - **Slot 1 (`engineering` role, `agenthub-engineering`):** Single MI355X (288 GB CDNA4 `gfx950`) running both vLLM ROCm (`:8001`, `Qwen3.8-27B-Uncensored-FP8`, 262144 context, `gpu-memory-utilization` 0.40) and `llama-server` HIP (`:8002`, `Qwen3.8-Flash-Next-Uncensored-GGUF` `Q8_0`, two slots of 262144 context each, CPU PLE, 16 threads, restarted on its own if it crashes while the 27B keeps serving) on `opencode-agent-weights` (`/mnt/opencode-weights`), serving `agent-specialist`, `agent-fast`, `agent-vision`, `agent-flagship`, and (after `retire-legacy-turbo`) `agent-turbo`.
     - **Live-verified 2026-11-25 through `https://inference.shtrial.com/v1`** (operator run): all five aliases answered code and tool-call requests, vision worked, and a 112k-token recall test passed. Measured throughput: flagship 65-79 tok/s, 27B about 170 tok/s. VRAM in use was 279.6 of 308.9 GB as `rocm-smi` reports it (288 GiB).
-  - **Slot 2 (`media` role, `agenthub-media`):** Single MI355X (288 GB) on `agenthub-media-weights` (`/mnt/media-weights`), running ComfyUI (`127.0.0.2:8188`) + Media Gateway (`:8189`, `/healthz` & `/v1/info`) behind `https://inference.shtrial.com/v1/media/*` (`<MEDIA_PREVIEW_URL>` upstream). **Partly live-verified 2026-11-25 (operator run):** the box booted from the filled volume in about 9.5 minutes (257 GB staged in about 5.5 minutes, the two Python environments restored from a 2.1 GB archive on the volume), and the `/v1/media` route answered 401 with no key, 401 with a wrong key and 200 with the right key, with `/v1/models`, liveliness and `agent-turbo` unchanged. **Not yet verified:** a media job end to end through the gateway (the proof is still running). The gateway and worker sources (`gateway.py`, `audio_worker.py`, `models.json`) live outside this repository in `MEDIA_STUDIO_ROOT\gpu-gen\server`, and the client only sends `authorization_profile`; the server must enforce it.
+  - **Slot 2 (`media` role, `agenthub-media`):** Single MI355X (288 GB) on `agenthub-media-weights` (`/mnt/media-weights`), running ComfyUI (`127.0.0.2:8188`) + Media Gateway (`:8189`, `/healthz` & `/v1/info`) behind `https://inference.shtrial.com/v1/media/*` (`<MEDIA_PREVIEW_URL>` upstream). **Live-verified end to end 2026-11-25 (operator run, see "Media Lab Verification" below).** The gateway and worker sources (`gateway.py`, `audio_worker.py`, `models.json`) live outside this repository in `MEDIA_STUDIO_ROOT\gpu-gen\server`; the client only sends `authorization_profile` and the server enforces it. The box was released after the run, so `/v1/media` answers 502 until `gpu.py up media` and `gpu.py caddy-media` have run again.
 - **Permanent Model Aliases (`registry/inference-providers.json`):**
   - `agent-fast`: 27B FP8 routine/exploration (`low` default reasoning, 262144 ctx / 32768 output)
   - `agent-specialist`: 27B FP8 general engineering + vision (`medium` default reasoning, 262144 ctx / 32768 output)
@@ -33,6 +33,16 @@ Permanent inference gateway and unified NVIDIA/AMD Daytona spot GPU operations f
 - An engineering boot takes about 18 minutes from the weights volume.
 - So the MI355X slots are on-demand bursts, not an always-on lane, and the H200 box stays. `retire-legacy-turbo` has **not** been run; it needs engineering to have been up 6 hours, and a live check on a young box would have left every alias dead 20 minutes later.
 - After any eviction run `gpu.py reconcile`. It prunes aliases whose sandbox is gone (four dead aliases were pruned on 2026-11-25) and re-registers `agent-turbo` on the live H200 box.
+
+## Media Lab Verification (2026-11-25)
+
+Operator run through `https://inference.shtrial.com/v1/media` on a spot MI355X, after the box booted from the filled volume in about 9.5 minutes (257 GB staged in about 5.5 minutes, the two Python environments restored from a 2.1 GB archive on the volume).
+
+- **Every job type passed.** Gateway timings: image 28 s cold and 8 s warm; image to video 39 s (55 s the first time); text to speech 16 s; SOV-Transcribe 37 s with the exact text back; Whisper 8 s; music 9 s; talking video 67-73 s; research image 18 s; research image edit 59 s. Straight to the box (no gateway) the cold image took 71.7 s.
+- **Talk uses its reference image** (checked with a generated portrait). Its burnt-out first frame was fixed in the server's graph by repeating the first latent and dropping three frames.
+- **Authorization is enforced by the server:** no token or a wrong token 401 (`/healthz` on the gateway needs the key too, like every media path); a bad `authorization_profile` 400; a research model under the commercial profile or with no profile 403; commercial `image_edit` 400 because no commercial edit model is installed.
+- **Limits to plan for.** Video is made in fixed 77-frame chunks, so it can outlast short speech. One upload hit a transient TLS error and passed on rerun; the client retries connection-level failures (and 502/503/504 on reads) three times, but a script that uses the API directly should retry too.
+- **Run it as a burst.** MI355X spot boxes can be evicted (see Spot Reliability), so treat the media lab as a burst: `up media`, `caddy-media`, work, `down media`.
 
 ## GPU Lifecycle Commands
 
@@ -111,6 +121,7 @@ pwsh -NoProfile -File .\scripts\Sync-InferenceProviders.ps1 -Apply
 - **Standalone ZCode:** Model Settings → `AgentHub Daytona Spot` (`account:zai-start-plan` unchanged)
 - **Amp:** `openai/agent-specialist` (routes via priority 1 custom-url router; priority 0 ChatGPT subscription unchanged)
 - **AutoClaw:** Settings → Models & API → Add custom model (`https://inference.shtrial.com/v1`, `AGENTHUB_INFERENCE_KEY`)
+- **Live-verified 2026-11-25 on `agent-turbo`:** opencode, codex, droid (Factory), grok, copilot, kilo and cline each answered through the gateway.
 - **Claude Code / Cursor / Devin / Antigravity:** preserve native subscriptions; delegate to Daytona-backed hosts via AgentHub `dispatch`.
 
 ## Credentials

@@ -33,6 +33,8 @@ from typing import Any
 DEFAULT_MEDIA_URL = "https://inference.shtrial.com/v1/media"
 MEDIA_PORT = 8189
 MAX_JOB_SECONDS = 7200
+REQUEST_ATTEMPTS = 3
+RETRY_SLEEP_SECONDS = 2
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
@@ -207,12 +209,23 @@ class MediaApiClient:
             req.add_header(k, v)
         if payload is not None:
             req.add_header("Content-Type", "application/json")
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                data = resp.read()
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")[:500]
-            raise RuntimeError(f"{method} {path}: HTTP {exc.code} {detail}") from exc
+        # One upload hit a transient TLS error and passed on rerun, so connection-level failures (no HTTP answer)
+        # are retried, and so are 502/503/504 on reads. A refusal (401/403/400) is never retried.
+        for attempt in range(1, REQUEST_ATTEMPTS + 1):
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    data = resp.read()
+                break
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="replace")[:500]
+                if exc.code in (502, 503, 504) and method in ("GET", "DELETE") and attempt < REQUEST_ATTEMPTS:
+                    time.sleep(RETRY_SLEEP_SECONDS * attempt)
+                    continue
+                raise RuntimeError(f"{method} {path}: HTTP {exc.code} {detail}") from exc
+            except (urllib.error.URLError, ConnectionError) as exc:
+                if attempt == REQUEST_ATTEMPTS:
+                    raise RuntimeError(f"{method} {path}: {type(exc).__name__} after {attempt} attempts") from exc
+                time.sleep(RETRY_SLEEP_SECONDS * attempt)
         return data if raw else json.loads(data.decode("utf-8"))
 
     def info(self, timeout: int = 30) -> dict[str, Any]:

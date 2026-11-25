@@ -53,8 +53,9 @@ fi
 
 ensure_uv() {
   command -v uv >/dev/null 2>&1 && return 0
-  curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh >/dev/null 2>&1 \
-    || "$SYS_PY" -m pip install --no-cache-dir --break-system-packages uv
+  # From PyPI, not a piped install script: nothing here runs code fetched without pip's own checks.
+  "$SYS_PY" -m pip install --no-cache-dir --break-system-packages uv
+  export PATH="$("$SYS_PY" -c 'import sysconfig; print(sysconfig.get_path("scripts"))'):$PATH"
   command -v uv >/dev/null 2>&1
 }
 

@@ -321,6 +321,53 @@ except RuntimeError:
     pass
 assert mc.MediaApiClient.from_gateway("https://inference.example.test/v1/media/", "k").base_url.endswith("/v1/media")
 
+# Transient connection errors are retried; refusals and writes behind a 5xx are not
+import io
+class FakeHttpResp:
+    def __init__(self, body): self.body = body
+    def __enter__(self): return self
+    def __exit__(self, *exc): return False
+    def read(self): return self.body
+
+real_urlopen, real_retry_sleep = mc.urllib.request.urlopen, mc.RETRY_SLEEP_SECONDS
+mc.RETRY_SLEEP_SECONDS = 0
+retry_client = mc.MediaApiClient("https://inference.example.test/v1/media", "k")
+seen = {"n": 0}
+def flaky_open(req, timeout=None):
+    seen["n"] += 1
+    if seen["n"] < 3:
+        raise mc.urllib.error.URLError("tls handshake")
+    return FakeHttpResp(b'{"ok": true}')
+mc.urllib.request.urlopen = flaky_open
+assert retry_client.request("POST", "/v1/jobs", {"type": "image"}) == {"ok": True} and seen["n"] == 3
+def refused_open(req, timeout=None):
+    seen["n"] += 1
+    raise mc.urllib.error.HTTPError(req.full_url, 401, "no", {}, io.BytesIO(b"unauthorized"))
+seen["n"] = 0
+mc.urllib.request.urlopen = refused_open
+try:
+    retry_client.request("GET", "/v1/info")
+    raise AssertionError("401 must raise")
+except RuntimeError as exc:
+    assert "401" in str(exc) and seen["n"] == 1
+def bad_gateway_open(req, timeout=None):
+    seen["n"] += 1
+    raise mc.urllib.error.HTTPError(req.full_url, 502, "bad", {}, io.BytesIO(b"bad gateway"))
+mc.urllib.request.urlopen = bad_gateway_open
+seen["n"] = 0
+try:
+    retry_client.request("GET", "/v1/info")
+except RuntimeError:
+    pass
+assert seen["n"] == mc.REQUEST_ATTEMPTS
+seen["n"] = 0
+try:
+    retry_client.request("POST", "/v1/jobs", {"type": "image"})
+except RuntimeError:
+    pass
+assert seen["n"] == 1
+mc.urllib.request.urlopen, mc.RETRY_SLEEP_SECONDS = real_urlopen, real_retry_sleep
+
 class FakeMediaClient:
     def __init__(self, payload):
         self.payload = payload
