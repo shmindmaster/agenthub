@@ -2,7 +2,7 @@
 
 Read before proposing a Daytona Mac. The default iOS lane is the macOS VM (`forge-mac.md`); a Daytona Mac is the paid alternative. The local VMware macOS VM is also retired (`Invoke-MobileLabVmrunStart` refuses). A connected iPhone or Android phone on this PC stays available for device testing (`physical-iphone.md`).
 
-**Status.** Two macOS boxes ran on 2026-11-21 and were checked by command: macOS 26.6.2, Xcode 26.6, Node 24, pnpm, CocoaPods, fastlane. That proves the toolchain, not an iOS build, a signed install or a USB device. Their reservation ended on 2026-11-22 (renewal failed) and no Mac is reserved as of 2026-11-24. All Daytona work, Macs included, uses one organization (owner direction 2026-11-24): the key is `DAYTONA_API_KEY`. Identifiers and cost are in the private `guidance/daytona-mac.md`.
+**Status.** On 2026-11-24 one `m4pro-12c-24g` Mac (base-macos, 12 cores) built two Expo apps as unsigned Release Simulator apps, installed and launched them, and the results were downloaded with matching hashes: a pnpm app in 406 s and an npm app in 252 s, from a clean source archive. Verified on simulator only: no signed install, physical phone, or app flow beyond the first screen. No day is renewed without owner approval. All Daytona work, Macs included, uses one organization (owner direction 2026-11-24): the key is `DAYTONA_API_KEY`, and `scripts/daytona_mac.py` refuses when it does not match `DAYTONA_MAC_ORG`. Identifiers and cost are in the private `guidance/daytona-mac.md`.
 
 ## What Daytona gives
 
@@ -32,7 +32,7 @@ A Mac is a paid 24-hour reservation. Auto-reserve is **on** by default for the o
 ## Use it
 
 1. Check `status`. If the boxes or the reservation are gone, stop and ask the owner; do not recreate them.
-2. Send the source (`git archive` of the commit), build and run, and copy artifacts off the Mac as each finishes.
+2. Send the source (`git archive` of the commit, in 4 MB parts: this PC's link drops long single uploads), compare its hash, build detached with `nohup` and poll, and copy artifacts off the Mac as each finishes. Install dev dependencies even for a Release build (`npm ci --include=dev`), and rerun any package install script that fetches native sources if you passed `--ignore-scripts`; a missing one fails at `pod install` inside `use_native_modules!`.
 3. Report "verified on simulator" for Simulator runs, never "on device".
 
 Things Daytona's documentation does not cover, so treat them as unknown until a run shows otherwise: attaching a USB iPhone, installing a signing identity or provisioning profile, and Apple Account or Expo sessions. An agent never holds an Apple or Expo login; those stay with the owner (`mobile-mcp.md` explains the one signing step that needs a Mac).
