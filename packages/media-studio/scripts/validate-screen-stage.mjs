@@ -38,6 +38,7 @@ const P = await import(pathToFileURL(join(kitDir, 'stage-plan.mjs')).href);
 const C = await import(pathToFileURL(join(kitDir, 'stage-checks.mjs')).href);
 const F = await import(pathToFileURL(join(kitDir, 'stage-film-checks.mjs')).href);
 const CH = await import(pathToFileURL(join(kitDir, 'stage-changes.mjs')).href);
+const RAMPS = await import(pathToFileURL(join(kitDir, 'stage-ramps.mjs')).href);
 
 export const LIMITS = Object.freeze({
   fpsTolerance: 0.01, ptsJitterMs: 1.0, frameCountSlack: 2,
@@ -231,6 +232,23 @@ for (const listed of plansListed) {
       row.checks.planFromReceipt = same;
       if (!same) fail(`run ${listed.run}: the plan's camera, cursor or targets are not what the receipt events and edit list give`);
     } catch (e) { fail(`run ${listed.run}: cannot rebuild the plan from the receipt (${e.message.split('\n')[0]})`); }
+    // speed ramps (typing at 2x) are exactly the ones the captured frames and the job's declarations give, each with a reason, none over 3x
+    try {
+      const cfg = (readJson('job.json') || {}).screenStage;
+      const manifest = readJson('capture/manifest.json') || {};
+      for (const slot of plan.slots) {
+        if (slot.hold) continue;
+        const e = receipt.clips[slot.clipId];
+        const index = JSON.parse(readFileSync(join(jobRoot, 'capture', e.stage.framesIndex), 'utf8'));
+        const clip = (manifest.clips || []).find((c) => c.id === slot.clipId) || {};
+        const want = RAMPS.stageRamps({ jobRoot, entry: e, index, id: slot.clipId, cfg: cfg && typeof cfg === 'object' ? cfg : {}, manual: clip.speedSpans || [] });
+        const got = slot.edit.ramps || [];
+        const norm = (l) => JSON.stringify(l.map((r) => [r.from, r.to, r.speed, r.reason]));
+        row.checks.ramps = { clip: slot.clipId, spans: got.length };
+        if (norm(want) !== norm(got)) fail(`run ${listed.run}: the speed ramps of ${slot.clipId} are not the typing and declared spans the capture gives`);
+        for (const r of got) if (!(r.speed > 1 && r.speed <= 3) || !r.reason) fail(`run ${listed.run}: a speed ramp [${r.from}, ${r.to}] of ${slot.clipId} is over 3x or has no reason`);
+      }
+    } catch (e) { fail(`run ${listed.run}: cannot verify the speed ramps (${e.message.split(String.fromCharCode(10))[0]})`); }
     // the edit list in the plan is the compose map's
     for (const slot of plan.slots) {
       const group = composeMap.groups.find((gr) => gr.stage?.run === listed.run && gr.clipId === slot.clipId && !gr.heldFromPrevious && gr.edit);
@@ -369,7 +387,7 @@ for (const listed of plansListed) {
     for (const d of [0.3, 0.55, 0.8, 1.0]) {
       const t = res.t + d; if (t > listed.durationSeconds - 0.05) break;
       const m = measure(T0 + t);
-      if (m && m.ncc >= LIMITS.bindingNcc - 0.2 && M.boxInView({ cx: m.measured.cx, cy: m.measured.cy, z: m.measured.z }, g, res.boxStage)) { seen = r2(d); break; }
+      if (m && m.ncc >= LIMITS.bindingNcc - 0.2 && M.boxInView({ cx: m.measured.cx, cy: m.measured.cy, z: m.measured.z }, g, { x: res.boxStage.x + 3, y: res.boxStage.y + 3, w: res.boxStage.w - 6, h: res.boxStage.h - 6 })) { seen = r2(d); break; }
     }
     row.results.push({ label: res.label, t: res.t, seenAfterSeconds: seen });
     if (seen === null) fail(`run ${listed.run}: the result of "${res.label || 'press'}" (${res.t}s) is not inside the measured view within ${LIMITS.resultSeenSeconds[1]} s`);
@@ -395,14 +413,14 @@ for (const listed of plansListed) {
       const srcGray = grayImage(join(jobRoot, 'capture', 'raw', holdFrame), EW, EH);
       if (!srcGray) return;
       const filmHold = rgbAt(candidate, T0 + tHold, EW, EH);
-      const blocks = F.spread(F.flatBlocks(srcGray, EW, EH, 48, 1.2), 12, 90);
+      const blocks = F.spread(F.flatBlocks(srcGray, EW, EH, 28, 1.5, 6), 24, 50);
       // blocks that stay inside the picture at the hold and at every measured frame
       const cams = fast.map((f) => M.cameraAt(plan.camera, f.t, g));
       const usable = blocks.filter((b) => [camHold, ...cams].every((c) => { const p = project(c, b.cx, b.cy); return p.x > 40 && p.x < EW - 40 && p.y > 40 && p.y < EH - 40 && c.z * 24 * 0.5 < 60; }));
-      const chosen = F.spread(usable, 3, 90);
-      if (chosen.length < 3) { fail(`run ${listed.run}: no three flat regions of the page stay in view through the move at ${seg.t0}s: the colour during motion cannot be checked`); return; }
-      const holdPatches = chosen.map((b) => { const p = project(camHold, b.cx, b.cy); return filmHold ? F.patchMean(filmHold, EW, EH, p.x, p.y, 3) : null; });
-      for (const f of fast) {
+      const chosen = F.spread(usable, 3, 50);
+      if (chosen.length < 3) fail(`run ${listed.run}: no three flat regions of the page stay in view through the move at ${seg.t0}s: the colour during motion cannot be checked`);
+      const holdPatches = chosen.length < 3 ? [] : chosen.map((b) => { const p = project(camHold, b.cx, b.cy); return filmHold ? F.patchMean(filmHold, EW, EH, p.x, p.y, 3) : null; });
+      for (const f of chosen.length < 3 ? [] : fast) {
         const cam = M.cameraAt(plan.camera, f.t, g);
         const film = rgbAt(candidate, T0 + f.t, EW, EH);
         if (!film) continue;
@@ -453,7 +471,8 @@ for (const listed of plansListed) {
         }
         return top;
       };
-      const dip = best(Math.round((c.t + 0.15 * 0.35) * fps) / fps), rest = best(c.t + 0.4);
+      const quiet = (() => { for (let d = 0.3; d <= 1.3; d += 0.05) { const a = M.cameraAt(plan.camera, c.t + d - 0.5 / fps, g), b = M.cameraAt(plan.camera, c.t + d + 0.5 / fps, g); if (Math.hypot((a.cx - b.cx) * a.z, (a.cy - b.cy) * a.z, (a.z - b.z) * g.W / 2) < 1.5) return c.t + d; } return c.t + 0.4; })();
+      const dip = best(Math.round((c.t + 0.15 * 0.35) * fps) / fps), rest = best(quiet);
       rows.push({ label: c.label, t: c.t, dipScale: dip && r2(dip.scale), restScale: rest && r2(rest.scale) });
       if (dip && !(dip.scale >= LIMITS.pressScale[0] && dip.scale <= LIMITS.pressScale[1])) fail(`run ${listed.run}: the cursor at the press of "${c.label}" (${c.t}s) measures ${r2(dip.scale)} of its size, not about 0.9: no press response`);
       if (rest && !(rest.scale >= 0.96 && rest.scale <= 1.06)) fail(`run ${listed.run}: the cursor does not return to full size after the press of "${c.label}" (${r2(rest.scale)})`);

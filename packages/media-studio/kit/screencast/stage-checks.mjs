@@ -27,7 +27,7 @@ export function zoomProblems(plan) {
   const g = plan.geometry, out = [];
   for (const r of plan.regions || []) {
     const area = r.region ? (r.region.w * r.region.h) / (g.W * g.H) : 1;
-    if (r.zoom > g.zoom.default + 0.02 && !(r.withResult && area <= 0.06)) out.push(`the view at ${r.firstT}s is zoomed ${r2(r.zoom)}x: only a tiny target with a tiny result in view may exceed ${g.zoom.default}x`);
+    if (r.zoom > g.zoom.default + 0.02 && !r.declared && !(r.withResult && area <= 0.06)) out.push(`the view at ${r.firstT}s is zoomed ${r2(r.zoom)}x: only a tiny target with a tiny result in view may exceed ${g.zoom.default}x`);
   }
   return out;
 }
@@ -38,7 +38,7 @@ export function leadProblems(plan) {
   if (segs.length && segs[0].t0 < 0.35 - 1e-6) out.push(`the first camera move starts at ${segs[0].t0}s: the film must hold the clean full page for at least 0.35 s first`);
   const starts = approachStarts(plan);
   for (const seg of segs) {
-    if (!['open', 'region'].includes(seg.reason)) continue;
+    if (!['open', 'region'].includes(seg.reason) || seg.declared) continue;
     const press = starts.find((a) => a.press >= seg.t0 - 1e-6);
     if (!press || press.start === null) continue;
     const lead = press.start - seg.t0;

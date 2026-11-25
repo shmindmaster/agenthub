@@ -75,9 +75,52 @@ function clusterPresses(presses, g) {
   return clusters;
 }
 
+/** Manual zoom regions: [{ target: <action label> | box: {x,y,w,h} CSS px, from, to, level, instant }] -> clusters the camera code can use. */
+function manualClusters(regions, presses, g, warnings) {
+  return regions.map((r, i) => {
+    let box = null, own = [];
+    if (r.target) {
+      const p = presses.find((q) => q.label === r.target);
+      if (!p) throw new Error(`screenStage.zoom.regions[${i}]: no recorded action labelled "${r.target}"`);
+      box = toStageBox(g, p.box); own = [p];
+    } else if (r.box) box = toStageBox(g, r.box);
+    else throw new Error(`screenStage.zoom.regions[${i}] needs a target (an action label) or a box`);
+    const from = Number.isFinite(r.from) ? r.from : (own[0] ? own[0].t - STAGE.leadSeconds : 0);
+    const to = Number.isFinite(r.to) ? r.to : from + 2;
+    const level = clamp(Number(r.level) || g.zoom.default, g.zoom.min, g.zoom.max);
+    const inside = presses.filter((p) => p.t >= from - 1e-6 && p.t <= to + 1e-6);
+    if (!inside.length && !own.length) warnings.push(`zoom region ${i} (${from}s-${to}s) holds no press`);
+    const camera = cameraForBox(box, g, { zoom: level });
+    return { manual: true, declared: true, instant: r.instant === true, firstT: from, lastEnd: to, resultEnd: to, boxes: [box], presses: inside.length ? inside : own, approachStart: undefined, action: box, region: box, zoom: level, camera, joined: true, resultBox: null, resultCamera: null };
+  });
+}
+
+/** The one highlight at a time, from declared { action: <label>, start, hold, dim }: the box is the recorded element box of that press. */
+function buildHighlights(list, presses, g) {
+  const out = [];
+  for (const [i, h] of (list || []).entries()) {
+    const matches = presses.filter((p) => p.label === h.action);
+    const p = matches[Math.max(0, (h.occurrence || 1) - 1)];
+    if (!p) throw new Error(`screenStage.highlights[${i}]: no recorded action labelled "${h.action}"`);
+    if (p.estimated || !p.box) throw new Error(`screenStage.highlights[${i}]: "${h.action}" has no recorded element box: re-record with the current kit (the cutout is the recorded box, never a guess)`);
+    const pad = STAGE.highlight.padding * g.k;
+    const b = toStageBox(g, p.box);
+    const t0 = r3(Math.max(0, p.t + (Number.isFinite(h.start) ? h.start : -0.15)));
+    out.push({ t0, t1: r3(t0 + (Number(h.hold) > 0 ? Number(h.hold) : STAGE.highlight.holdSeconds)), box: { x: r3(b.x - pad), y: r3(b.y - pad), w: r3(b.w + 2 * pad), h: r3(b.h + 2 * pad) }, dim: clamp(Number(h.dim ?? STAGE.highlight.dim), 0.1, 0.8), label: h.action });
+  }
+  out.sort((a, b) => a.t0 - b.t0);
+  for (let i = 1; i < out.length; i++) if (out[i].t0 < out[i - 1].t1 - 1e-6) throw new Error(`screenStage.highlights: "${out[i - 1].label}" and "${out[i].label}" overlap: one highlight at a time`);
+  return out;
+}
+
 /** Build the plan. See the file header for the input; `slots` are contiguous from 0 and `runSeconds` is their total. */
 export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor, slots, clips, options = {} }) {
-  const g = stageGeometry(frame, viewport);
+  const g0 = stageGeometry(frame, viewport);
+  // job.screenStage.zoom: { mode: 'auto' | 'manual' | 'off', level, regions: [{ target | box, from, to, level, instant }] }
+  const zcfg = options.zoom || {};
+  const zmode = zcfg.mode === 'off' || zcfg.mode === 'manual' ? zcfg.mode : 'auto';
+  const level = clamp(Number(zcfg.level) || g0.zoom.default, g0.zoom.min, g0.zoom.max);
+  const g = { ...g0, zoom: { ...g0.zoom, default: level } };
   const runSeconds = r3(slots.reduce((n, s) => Math.max(n, s.startSeconds + s.durationSeconds), 0));
   const warnings = [];
 
@@ -93,8 +136,11 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
   presses.sort((a, b) => a.t - b.t);
 
   // ---- zoom regions
-  const clusters = clusterPresses(presses, g);
+  let clusters = zmode === 'off' ? [] : clusterPresses(presses, g);
+  const manual = zmode === 'manual' ? manualClusters(zcfg.regions || [], presses, g, warnings) : null;
+  if (manual) clusters = manual;
   clusters.forEach((c, i) => {
+    if (c.manual) return;
     const next = clusters[i + 1];
     const limit = next ? next.firstT : Infinity;
     const resp = results.filter((r) => r.t >= c.firstT - 1e-6 && r.t < limit).map((r) => toStageBox(g, r.box));
@@ -141,9 +187,9 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     const earliest = i === 0 ? STAGE.openWideSeconds : lastSegT0() + 0.35;
     // The camera starts a little before the pointer starts to move (so the two are not at peak speed together) and lands by the press.
     const lead = c.approachStart != null ? c.approachStart - STAGE.cameraLeadSeconds : c.firstT - STAGE.leadSeconds;
-    const t0 = Math.max(earliest, Math.min(lead, c.firstT - STAGE.leadSeconds));
+    const t0 = c.manual ? Math.max(earliest, c.firstT) : Math.max(earliest, Math.min(lead, c.firstT - STAGE.leadSeconds));
     if (i === 0 && Math.min(lead, c.firstT - STAGE.leadSeconds) < STAGE.openWideSeconds) warnings.push(`the first move would start before ${STAGE.openWideSeconds}s of clean full page: it starts at ${r3(t0)}s`);
-    segments.push({ t0: r3(t0), to: c.camera, reason: i === 0 ? 'open' : 'region' });
+    segments.push(c.instant ? { t0: r3(c.firstT), to: c.camera, reason: 'cut', instant: true } : { t0: r3(t0), to: c.camera, reason: i === 0 ? 'open' : 'region', ...(c.manual ? { declared: true } : {}) });
     cur = c.camera;
     if (c.resultCamera) { segments.push({ t0: r3(Math.max(c.resultAt, lastSegT0() + 0.35)), to: c.resultCamera, reason: 'result' }); cur = c.resultCamera; }
   });
@@ -159,6 +205,9 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
   const samples = [...moves];
   for (const p of presses) if (Number.isFinite(p.x) && Number.isFinite(p.y)) samples.push({ t: p.t, x: p.x, y: p.y, kind: p.kind });
   let stageSamples = debounceKinds(samples.map((s) => ({ t: s.t, x: r3(s.x * g.k), y: r3(s.y * g.k), kind: s.kind })).sort((a, b) => a.t - b.t));
+  // The cursor appears when it starts to move toward its first target: the opening is the clean page, not a pointer sitting in a corner.
+  const firstMove = stageSamples.findIndex((p) => Math.hypot(p.x - stageSamples[0].x, p.y - stageSamples[0].y) > 2);
+  if (firstMove > 1) stageSamples = stageSamples.slice(firstMove - 1);
   const clicks = presses.filter((p) => ['click', 'tap'].includes(p.type) && Number.isFinite(p.x)).map((p) => ({ t: p.t, x: r3(p.x * g.k), y: r3(p.y * g.k), label: p.label }));
   // The cursor stops moving for the last half second of the run, unless a press lands there (a press is never moved).
   const rest = runSeconds - STAGE.restSeconds;
@@ -195,7 +244,8 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     slots: slots.map((s) => ({ clipId: s.clipId, startSeconds: r3(s.startSeconds), durationSeconds: r3(s.durationSeconds), edit: s.edit, hold: !!s.hold })),
     frames: Object.fromEntries([...new Set(slots.map((s) => s.clipId))].map((id) => [id, clips[id].frames])),
     camera, cursor, planned, moves: moveList, warnings,
-    regions: clusters.map((c) => ({ firstT: c.firstT, resultEnd: r3(c.resultEnd), zoom: r3(c.zoom), merged: !!c.merged, withResult: !!c.joined, labels: c.presses.map((p) => p.label || p.type), region: c.region })),
+    highlights: buildHighlights(options.highlights, presses, g),
+    regions: clusters.map((c) => ({ firstT: c.firstT, resultEnd: r3(c.resultEnd), zoom: r3(c.zoom), merged: !!c.merged, declared: !!c.declared, withResult: !!c.joined, labels: c.presses.map((p) => p.label || p.type), region: c.region })),
     results: clusters.filter((c) => c.resultBox).map((c) => ({ t: c.presses[c.presses.length - 1].t, label: c.presses[c.presses.length - 1].label, boxStage: c.resultBox, mustBeSeenBy: r3(c.presses[c.presses.length - 1].t + STAGE.resultLeadSeconds + 0.7) })),
   };
 }

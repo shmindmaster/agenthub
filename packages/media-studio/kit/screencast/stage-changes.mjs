@@ -70,8 +70,12 @@ export function measureChanges({ presses, frames, viewport, grid = grayGrid }) {
   const cache = new Map();
   const get = (i) => { if (!cache.has(i)) cache.set(i, grid(frames.files[i])); return cache.get(i); };
   const indexAt = (t) => { let k = 0; for (let i = 0; i < frames.times.length; i++) { if (frames.times[i] <= t + 1e-6) k = i; else break; } return k; };
+  const order = [...presses].sort((a, b) => a - b);
   return presses.map((t) => {
-    const i0 = indexAt(t), i1 = indexAt(t + CHANGES.windowSeconds);
+    // the window ends where the next press begins: what the next press does is its own result
+    const next = order.find((x) => x > t + 0.05);
+    const end = next === undefined ? t + CHANGES.windowSeconds : Math.max(t + 0.15, Math.min(t + CHANGES.windowSeconds, next - 0.05));
+    const i0 = indexAt(t), i1 = indexAt(end);
     if (i1 <= i0) return { t, boxes: [] };
     const picks = new Set([i1]);
     for (let s = 1; s < CHANGES.samples; s++) picks.add(Math.round(i0 + ((i1 - i0) * s) / CHANGES.samples));
@@ -80,4 +84,33 @@ export function measureChanges({ presses, frames, viewport, grid = grayGrid }) {
     for (const i of picks) all.push(...changedBoxes(base, get(i), viewport));
     return { t, boxes: mergeBoxes(all) };
   });
+}
+
+/**
+ * Typing at 2x: for each typing burst of at least `minSeconds`, the span that may play faster. It runs from the start of the burst to
+ * 0.4 s before its end (the last words land at real speed), and stops early at the first change outside the typed field
+ * (an autocomplete list, a spinner, a validation message): those play at real speed. Spans keep the 0.15 s ramps of sync-lib.
+ * `frames` is { times, files } (absolute files); `actions` the receipt events on the clip clock.
+ */
+export function typingSpans({ actions, frames, viewport, speed = 2, minSeconds = 1.0, tailSeconds = 0.4, grid = grayGrid }) {
+  const out = [];
+  const S = Math.min(3, Math.max(1, Number(speed) || 1));
+  if (S <= 1) return out;
+  for (const a of actions || []) {
+    if (a.type !== 'type' && a.type !== 'fill') continue;
+    const t0 = a.tStart ?? a.t, t1 = a.tEnd;
+    if (!Number.isFinite(t0) || !Number.isFinite(t1) || t1 - t0 < minSeconds) continue;
+    let end = t1 - tailSeconds;
+    const field = a.targetBox ? { x: a.targetBox.x - 24, y: a.targetBox.y - 24, w: a.targetBox.w + 48, h: a.targetBox.h + 48 } : null;
+    const idx = (t) => { let k = 0; for (let i = 0; i < frames.times.length; i++) { if (frames.times[i] <= t + 1e-6) k = i; else break; } return k; };
+    let prev = grid(frames.files[idx(t0)]);
+    for (let t = t0 + 0.1; t <= t1 + 1e-6 && field; t += 0.1) {
+      const cur = grid(frames.files[idx(t)]);
+      const outside = changedBoxes(prev, cur, viewport).filter((b) => b.x < field.x || b.y < field.y || b.x + b.w > field.x + field.w || b.y + b.h > field.y + field.h);
+      if (outside.length) { end = Math.min(end, t - 0.2); break; }
+      prev = cur;
+    }
+    if (end - t0 >= 0.4) out.push({ from: Math.round(t0 * 1000) / 1000, to: Math.round(end * 1000) / 1000, speed: S, reason: 'typing' });
+  }
+  return out;
 }

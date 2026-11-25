@@ -42,6 +42,9 @@ uniform vec2 uHot;
 uniform vec4 uCurBox;
 uniform float uUnit;
 uniform float uSeed;
+uniform vec4 uHi;      // highlight cutout: centre x, centre y, half width, half height (screen px)
+uniform vec2 uHiAmt;   // dim amount, outline amount
+uniform float uHiOutline;
 out vec4 outColor;
 
 float h12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -93,6 +96,15 @@ void main() {
     }
     ca /= float(uNc); cc /= float(uNc);
   }
+  // The one highlight: the page outside a rounded cutout is dimmed, a thin outline runs round the cutout. Eased by the plan.
+  if (uHiAmt.x > 0.0) {
+    vec2 q = abs(s0 - uHi.xy) - uHi.zw + vec2(8.0 * uUnit);
+    float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 8.0 * uUnit;
+    float outside = smoothstep(-0.5, 0.5, d);
+    page *= 1.0 - uHiAmt.x * outside;
+    float ring = (1.0 - smoothstep(0.0, 1.0, abs(d) - 0.5 * uHiOutline)) * uHiAmt.y;
+    page = mix(page, vec3(1.0), ring * 0.9);
+  }
   vec3 lin = page * (1.0 - ca) + cc;
   vec3 srgb = toSrgb(lin);
   if (uMoving == 1) srgb += (h12(gl_FragCoord.xy * 0.91 + uSeed * 7.0) - 0.5) / 255.0;
@@ -130,7 +142,7 @@ function makeGL(canvas: HTMLCanvasElement): GL {
   const loc = gl.getAttribLocation(prog, "aPos");
   gl.enableVertexAttribArray(loc);
   gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  const names = ["uTex", "uStage", "uN", "uMoving", "uCam", "uNc", "uCur", "uPoly", "uPolyN", "uHot", "uCurBox", "uUnit", "uSeed"];
+  const names = ["uTex", "uStage", "uN", "uMoving", "uCam", "uNc", "uCur", "uPoly", "uPolyN", "uHot", "uCurBox", "uUnit", "uSeed", "uHi", "uHiAmt", "uHiOutline"];
   const u: Record<string, WebGLUniformLocation | null> = {};
   for (const n of names) u[n] = gl.getUniformLocation(prog, n);
   return { gl, prog, u, tex: new Map(), order: [] };
@@ -274,6 +286,13 @@ export const ScreenStage: FC<ScreenStageProps> = ({ plan, framesBase = "" }) => 
         gl.uniform2f(u.uHot, setup.shape.hot[0], setup.shape.hot[1]);
         gl.uniform4f(u.uCurBox, setup.box[0], setup.box[1], setup.box[2], setup.box[3]);
         gl.uniform1f(u.uUnit, g.unit);
+        const hi = setup.st.highlight;
+        if (hi) {
+          const b0 = projectPoint(setup.st.camera, g, { x: hi.box.x, y: hi.box.y }), b1 = projectPoint(setup.st.camera, g, { x: hi.box.x + hi.box.w, y: hi.box.y + hi.box.h });
+          gl.uniform4f(u.uHi, (b0.x + b1.x) / 2, (b0.y + b1.y) / 2, Math.abs(b1.x - b0.x) / 2, Math.abs(b1.y - b0.y) / 2);
+          gl.uniform2f(u.uHiAmt, hi.dim * hi.amount, hi.amount);
+        } else gl.uniform2f(u.uHiAmt, 0, 0);
+        gl.uniform1f(u.uHiOutline, STAGE.highlight.outline * g.unit);
         gl.uniform1f(u.uSeed, setup.moving ? (frame % 97) + 1 : 0);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         gl.finish();

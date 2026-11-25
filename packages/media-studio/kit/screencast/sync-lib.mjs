@@ -125,13 +125,55 @@ export function toClipTime(clipRec, rawSeconds) {
   return offset === null || !Number.isFinite(t) ? null : round(Math.max(0, t - offset));
 }
 
+export const RAMP_SECONDS = 0.15;
+
+/**
+ * Rate pieces of the edit's speed ramps: [{ a, b, r0, r1 }] in source seconds, sorted, rate 1 everywhere else. A ramp span
+ * { from, to, speed } speeds up linearly over RAMP_SECONDS, holds `speed`, and slows down linearly over the last RAMP_SECONDS
+ * (the time map of typing at 2x: real speed before and after, never a jump). Spans shorter than two ramps are ignored; overlapping spans throw.
+ */
+export function ratePieces(edit) {
+  const out = [];
+  let end = -Infinity;
+  for (const r of (edit.ramps || []).slice().sort((x, y) => x.from - y.from)) {
+    const from = Number(r.from), to = Number(r.to), S = Number(r.speed), ramp = Number(r.ramp ?? RAMP_SECONDS);
+    if (!(S > 1) || to - from < 2 * ramp + 0.05) continue;
+    if (from < end - 1e-9) throw new Error(`edit ramps overlap at ${from}s`);
+    out.push({ a: from, b: from + ramp, r0: 1, r1: S }, { a: from + ramp, b: to - ramp, r0: S, r1: S }, { a: to - ramp, b: to, r0: S, r1: 1 });
+    end = to;
+  }
+  return out;
+}
+
+/** Slot seconds needed to play source seconds [a, b] of the edit (no head hold): the integral of 1 / (speed x ramp rate). */
+export function slotLen(edit, a, b) {
+  const base = Number(edit.speed || 1);
+  if (!(b > a)) return 0;
+  const pieces = ratePieces(edit);
+  if (!pieces.length) return (b - a) / base;
+  let pos = a, total = 0;
+  const seg = (x, y, r0, r1) => { total += Math.abs(r1 - r0) < 1e-9 ? (y - x) / (base * r0) : ((y - x) / (base * (r1 - r0))) * Math.log(r1 / r0); };
+  for (const p of pieces) {
+    if (p.b <= pos) continue;
+    if (p.a >= b) break;
+    if (p.a > pos) { seg(pos, p.a, 1, 1); pos = p.a; }
+    const y = Math.min(b, p.b), t0 = (pos - p.a) / (p.b - p.a), t1 = (y - p.a) / (p.b - p.a);
+    seg(pos, y, p.r0 + (p.r1 - p.r0) * t0, p.r0 + (p.r1 - p.r0) * t1);
+    pos = y;
+  }
+  if (b > pos) seg(pos, b, 1, 1);
+  return total;
+}
+
+/** Slot seconds of the whole edit: head hold plus every kept range. */
+export const editSlotSeconds = (edit) => Number(edit.headHold || 0) + keptRanges(edit).reduce((n, [a, b]) => n + slotLen(edit, a, b), 0);
+
 /** Seconds into the slot at which source time `ts` plays, or null when the edit drops it. */
 export function clipToSlot(edit, ts) {
-  const sp = Number(edit.speed || 1);
   let acc = 0;
   for (const [a, b] of keptRanges(edit)) {
-    if (ts >= a - 1e-9 && ts <= b + 1e-9) return round(Number(edit.headHold || 0) + (acc + (ts - a)) / sp);
-    acc += b - a;
+    if (ts >= a - 1e-9 && ts <= b + 1e-9) return round(Number(edit.headHold || 0) + acc + slotLen(edit, a, Math.max(a, ts)));
+    acc += slotLen(edit, a, b);
   }
   return null;
 }

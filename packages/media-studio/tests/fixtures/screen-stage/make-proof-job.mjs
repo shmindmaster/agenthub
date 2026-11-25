@@ -12,12 +12,12 @@ if (!outDir) { console.error('usage: node make-proof-job.mjs <outDir> [--viewer-
 const root = resolve(outDir);
 const put = (rel, data) => { const p = join(root, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, typeof data === 'string' ? data : JSON.stringify(data, null, 2) + '\n'); };
 
-const DURATION = 7.2;
-// [word, start, end] seconds. Content-word starts are the click moments: amounts 1.0, Format 2.0, Number 3.1, Currency 4.2; Applied 4.6.
+const DURATION = 7.8;
+// [word, start, end] seconds. Content-word starts are the click moments: amounts 1.6, Format 2.6, Number 3.7, Currency 4.8; Applied 5.2.
 const WORDS = [
-  ['Select', 0.45, 0.80], ['the', 0.80, 0.95], ['amounts,', 1.00, 1.50], ['open', 1.62, 1.90], ['Format,', 2.00, 2.50], ['choose', 2.62, 3.00],
-  ['Number,', 3.10, 3.55], ['pick', 3.65, 4.05], ['Currency.', 4.20, 4.58], ['Applied', 4.60, 4.95], ['to', 4.95, 5.05], ['all', 5.05, 5.22],
-  ['seven', 5.22, 5.50], ['cells', 5.50, 5.78], ['at', 5.78, 5.86], ['once.', 5.86, 5.98],
+  ['Select', 1.05, 1.40], ['the', 1.40, 1.55], ['amounts,', 1.60, 2.10], ['open', 2.22, 2.50], ['Format,', 2.60, 3.10], ['choose', 3.22, 3.60],
+  ['Number,', 3.70, 4.15], ['pick', 4.25, 4.65], ['Currency.', 4.80, 5.18], ['Applied', 5.20, 5.55], ['to', 5.55, 5.65], ['all', 5.65, 5.82],
+  ['seven', 5.82, 6.10], ['cells', 6.10, 6.38], ['at', 6.38, 6.46], ['once.', 6.46, 6.58],
 ].map(([w, start, end]) => ({ w, start, end }));
 const TEXT = WORDS.map((x) => x.w).join(' ');
 

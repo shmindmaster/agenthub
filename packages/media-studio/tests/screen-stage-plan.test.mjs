@@ -280,3 +280,70 @@ test('film checks: colour shift is the median patch difference, still runs and c
   const r60 = F.captureRate(t), r37 = F.captureRate(t.map((v) => v * (60 / 37)));
   assert.ok(r60.uniqueFps > 55 && r37.uniqueFps < 40);
 });
+
+const SL = await import(`${kit}/sync-lib.mjs`);
+const CHG = await import(`${kit}/stage-changes.mjs`);
+
+test('time map: typing at 2x is a linear speed ramp in and out, inverts exactly, and moves every later event', () => {
+  const edit = { trimStart: 0, trimEnd: 10, speed: 1, skip: [], headHold: 0, srcSeconds: 10, ramps: [{ from: 2, to: 5, speed: 2, ramp: 0.15 }] };
+  const len = SL.slotLen(edit, 2, 5);
+  assert.ok(len > 1.5 && len < 1.7, `span plays in ${len} s`);
+  assert.ok(Math.abs(SL.slotLen(edit, 0, 2) - 2) < 1e-9, 'real speed before the span');
+  assert.ok(Math.abs(SL.slotLen(edit, 5, 10) - 5) < 1e-9, 'real speed after the span');
+  assert.ok(Math.abs(SL.editSlotSeconds(edit) - (2 + len + 5)) < 1e-9);
+  for (const ts of [0.5, 2.05, 2.3, 3.5, 4.9, 5.1, 8]) {
+    const slotT = SL.clipToSlot(edit, ts);
+    assert.ok(Math.abs(M.slotToSource(edit, slotT) - ts) < 1e-3, `${ts} -> ${slotT} -> ${M.slotToSource(edit, slotT)}`);
+  }
+  const plain = { trimStart: 1, trimEnd: 9, speed: 2, skip: [[3, 4]], headHold: 0.5, srcSeconds: 10 };
+  assert.equal(SL.clipToSlot(plain, 6), 0.5 + (2 + 2) / 2);
+  assert.equal(M.slotToSource(plain, 2.5), 6);
+  assert.throws(() => SL.ratePieces({ ramps: [{ from: 1, to: 3, speed: 2 }, { from: 2, to: 4, speed: 2 }] }), /overlap/);
+  assert.deepEqual(SL.ratePieces({ ramps: [{ from: 1, to: 1.2, speed: 2 }] }), []);
+});
+
+test('typing spans: stop 0.4 s before the end of the typing, and at the first change outside the field', () => {
+  const times = [0, 1, 1.5, 2.5, 3.5, 4.5], files = times.map((_, i) => `f${i}`);
+  const blank = new Uint8Array(320 * 180).fill(240);
+  const withMenu = blank.slice(); for (let y = 90; y < 150; y++) for (let x = 200; x < 300; x++) withMenu[y * 320 + x] = 30;
+  const grid = (f) => (f === 'f3' || f === 'f4' || f === 'f5' ? withMenu : blank);
+  const field = { x: 100, y: 100, w: 300, h: 40 };
+  const quiet = CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 3, targetBox: field }], frames: { times: [0, 1, 2], files: ['f0', 'f1', 'f2'] }, viewport, grid });
+  assert.deepEqual(quiet, [{ from: 1, to: 2.6, speed: 2, reason: 'typing' }]);
+  const popup = CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 4.5, targetBox: field }], frames: { times, files }, viewport, grid });
+  assert.ok(popup.length === 1 && popup[0].to < 2.7 && popup[0].to > 2.0, JSON.stringify(popup));
+  assert.deepEqual(CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 1.6, targetBox: field }], frames: { times, files }, viewport, grid }), [], 'a short burst plays at real speed');
+  assert.equal(CHG.typingSpans({ actions: [{ type: 'type', tStart: 1, tEnd: 3, targetBox: field }], frames: { times, files }, viewport, speed: 5, grid })[0].speed, 3, 'capped at 3x');
+});
+
+test('zoom modes: off keeps the full page, manual follows the declared regions (instant is a declared cut), level moves the default', () => {
+  const acts = [click(1.5, 300, 200, css(260, 185, 80, 30), 'Go'), click(4.5, 900, 500, css(860, 485, 80, 30), 'Later')];
+  const mk = (zoom, extra = {}) => P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts) }, options: { zoom, ...extra } });
+  assert.deepEqual(mk({ mode: 'off' }).camera.segments, []);
+  assert.equal(mk({ level: 1.3 }).camera.segments[0].to.z, 1.3);
+  const manual = mk({ mode: 'manual', regions: [{ target: 'Go', from: 1.0, to: 3.0, level: 1.7 }, { target: 'Later', from: 4.0, to: 6.0, level: 1.4, instant: true }] });
+  const open = manual.camera.segments[0];
+  assert.equal(open.to.z, 1.7); assert.equal(open.t0, 1.0); assert.equal(open.declared, true);
+  const cut = manual.camera.segments.find((s) => s.reason === 'cut');
+  assert.equal(cut.instant, true); assert.equal(cut.t0, 4.0);
+  assert.equal(M.cameraAt(manual.camera, 4.0, g).z, 1.4, 'a declared cut lands the same frame');
+  assert.deepEqual(C.zoomProblems(manual), [], 'declared zoom is the author\'s choice');
+  assert.throws(() => mk({ mode: 'manual', regions: [{ target: 'Nope' }] }), /no recorded action labelled "Nope"/);
+});
+
+test('highlight: the recorded element box, eased in and out, one at a time', () => {
+  const acts = [click(1.5, 300, 200, css(260, 185, 80, 30), 'Go'), click(4.5, 900, 500, css(860, 485, 80, 30), 'Later')];
+  const p = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts) }, options: { highlights: [{ action: 'Go', start: -0.2, hold: 1.5 }] } });
+  assert.equal(p.highlights.length, 1);
+  const h = p.highlights[0];
+  assert.equal(h.t0, 1.3); assert.equal(h.t1, 2.8); assert.equal(h.dim, 0.45);
+  const cssBox = css(260, 185, 80, 30);
+  assert.ok(h.box.x <= cssBox.x * 1.5 && h.box.y <= cssBox.y * 1.5 && h.box.x + h.box.w >= (cssBox.x + cssBox.w) * 1.5, 'the cutout holds the recorded box');
+  assert.equal(M.stateAt(p, 1.2).highlight, null);
+  assert.equal(M.stateAt(p, 1.3).highlight.amount, 0);
+  assert.ok(M.stateAt(p, 1.425).highlight.amount > 0.4 && M.stateAt(p, 1.425).highlight.amount < 0.6);
+  assert.equal(M.stateAt(p, 2.0).highlight.amount, 1);
+  assert.equal(M.stateAt(p, 3.0).highlight, null, 'gone after the hold');
+  assert.throws(() => P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts) }, options: { highlights: [{ action: 'Go', hold: 3.5 }, { action: 'Later', start: -1 }] } }), /overlap/);
+  assert.throws(() => P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf([{ type: 'click', t: 1.5, tStart: 1.5, x: 300, y: 200, label: 'Blind' }]) }, options: { highlights: [{ action: 'Blind' }] } }), /no recorded element box/);
+});

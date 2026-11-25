@@ -18,7 +18,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { CAMPAIGN_FORMS, frameFor, sourcePictureFilter, sourceRegionError, validateCampaign } from './campaign-contract.mjs';
-import { SYNC_DEFAULTS, planAlignment, keptRanges } from './sync-lib.mjs';
+import { SYNC_DEFAULTS, planAlignment, keptRanges, editSlotSeconds } from './sync-lib.mjs';
+import { stageRamps } from './stage-ramps.mjs';
 import { STAGE } from './stage-math.mjs';
 import { buildStagePlan, PRESS } from './stage-plan.mjs';
 import { measureChanges } from './stage-changes.mjs';
@@ -90,6 +91,12 @@ const stageFilm = clips.some(stageClip);
 if (stageFilm) FPS = STAGE.fps;
 const stageRuns = [];
 const stageCfg = job.screenStage && typeof job.screenStage === 'object' ? job.screenStage : {};
+// Speed ramps of a stage clip (typing at 2x and declared spans): part of the edit, so every time below sees the same map.
+function rampsFor(clip) {
+  const entry = receipt.clips[clip.id];
+  const index = JSON.parse(fs.readFileSync(path.join(jobRoot, 'capture', entry.stage.framesIndex), 'utf8'));
+  return stageRamps({ jobRoot, entry, index, id: clip.id, cfg: stageCfg, manual: clip.speedSpans || [] });
+}
 function stageFrames(clipId) {
   const entry = receipt.clips[clipId];
   const indexPath = path.join(jobRoot, 'capture', entry.stage.framesIndex);
@@ -216,22 +223,23 @@ groups.forEach((g, i) => {
       if (a) { align = { clipTime: a.clip_time, keywordStart: a.keyword.start, label: `${s.id} action "${a.label || a.target}"` }; break; }
     }
   }
-  const effEdit = { trimStart: Number(hints.trimStart || 0), trimEnd: hints.trimEnd ? Number(hints.trimEnd) : null, speed: Number(hints.speed || 1), skip: hints.skip || [], headHold: 0, srcSeconds: 0 };
-  if (!isImage && ((hints.skip && hints.skip.length) || hints.trimStart || hints.trimEnd || hints.speed || align)) {
+  const ramps = stageGroup ? rampsFor(g.clip) : [];
+  const effEdit = { trimStart: Number(hints.trimStart || 0), trimEnd: hints.trimEnd ? Number(hints.trimEnd) : null, speed: Number(hints.speed || 1), skip: hints.skip || [], ramps, headHold: 0, srcSeconds: 0 };
+  if (!isImage && ((hints.skip && hints.skip.length) || hints.trimStart || hints.trimEnd || hints.speed || align || ramps.length)) {
     // The manifest's trimStart was chosen against the narration alone; the slot also carries the pause after the beat.
     // Never trim away footage the slot needs: shrink the head trim first, so the take's own tail is used before any hold.
     const fullSrc = probe(src);
     let trimStart = Number(hints.trimStart || 0);
     const t1 = hints.trimEnd ? Number(hints.trimEnd) : fullSrc;
-    if (!hints.speed && !(hints.skip && hints.skip.length) && t1 - trimStart < g.duration) trimStart = Math.max(0, Number((t1 - g.duration).toFixed(3)));
+    if (!hints.speed && !(hints.skip && hints.skip.length) && !ramps.length && t1 - trimStart < g.duration) trimStart = Math.max(0, Number((t1 - g.duration).toFixed(3)));
     const sp = Number(hints.speed || 1);
     let headHold = 0;
     if (align) {
-      const planned = planAlignment({ edit: { trimStart, trimEnd: t1, speed: sp, skip: hints.skip || [], headHold: 0, srcSeconds: fullSrc }, actionClipTime: align.clipTime, targetSlotSeconds: align.keywordStart + clickLead - g.start, label: align.label });
+      const planned = planAlignment({ edit: { trimStart, trimEnd: t1, speed: sp, skip: hints.skip || [], ramps, headHold: 0, srcSeconds: fullSrc }, actionClipTime: align.clipTime, targetSlotSeconds: align.keywordStart + clickLead - g.start, label: align.label });
       if (planned.error) throw new Error(`segment ${g.segments.map((s) => s.id).join('+')}: ${planned.error}`);
       trimStart = planned.edit.trimStart; headHold = planned.edit.headHold;
     }
-    Object.assign(effEdit, { trimStart, trimEnd: t1, speed: sp, headHold, srcSeconds: fullSrc });
+    Object.assign(effEdit, { trimStart, trimEnd: t1, speed: sp, headHold, srcSeconds: fullSrc, ramps });
     if (!stageGroup) {
     const t0 = trimStart;
     const keep = [];
@@ -251,7 +259,7 @@ groups.forEach((g, i) => {
   if (stageGroup) {
     // The stage plays the original frames through this edit; the length the edit yields is what the slot checks below measure.
     effEdit.trimEnd = effEdit.trimEnd || effEdit.srcSeconds;
-    srcDur = keptRanges(effEdit).reduce((n, [a, b]) => n + (b - a), 0) / effEdit.speed + effEdit.headHold;
+    srcDur = editSlotSeconds(effEdit);
   }
   const fit = g.clip?.fit || (srcDur > g.duration ? 'cut' : 'hold');
   // A 'cut' whose footage still ends before the slot does (a take paced to the words, then the pause after them) may hold

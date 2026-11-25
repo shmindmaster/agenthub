@@ -9,6 +9,8 @@
 // Spring idea for the camera (critically damped, no overshoot) follows the measured owner reference; the target-grouping ideas
 // (joint bounding box, typing as a target, two-keyframe pan inside one held zoom) follow connerkward/screenstudio-alt-skill (MIT).
 
+import { keptRanges, slotLen } from './sync-lib.mjs';
+
 export const STAGE = Object.freeze({
   fps: 60,
   viewport: Object.freeze({ width: 1280, height: 720 }),
@@ -31,6 +33,7 @@ export const STAGE = Object.freeze({
   mergeInset: 0.1,          // a target already inside the current view, inset by this share, needs no move
   cursorHeight: Object.freeze({ wide: 40, zoomed: 58 }),
   press: Object.freeze({ seconds: 0.15, scale: 0.9 }),
+  highlight: Object.freeze({ dim: 0.45, easeSeconds: 0.25, holdSeconds: 1.5, padding: 6, outline: 2 }), // the one highlight: dim outside a cutout, a thin outline
   hideFadeSeconds: 0.2,
   idleHideSeconds: 2.0,     // a still cursor fades after this long (never across a pointAt) and is back before the next move
   kindDebounceSeconds: 0.12,// a cursor-type change that lasts less than this is not drawn
@@ -133,11 +136,12 @@ export function cameraAt(track, t, g) {
   for (let i = 0; i < segs.length; i++) {
     const seg = segs[i];
     if (t < seg.t0) break;
+    if (seg.instant) { s = { cx: seg.to.cx, cy: seg.to.cy, z: seg.to.z, vx: 0, vy: 0, vz: 0 }; continue; } // a declared jump cut: no spring
     const end = i + 1 < segs.length ? Math.min(t, segs[i + 1].t0) : t;
     const tau = end - seg.t0;
     const x = springAxis(s.cx, s.vx, seg.to.cx, tau), y = springAxis(s.cy, s.vy, seg.to.cy, tau), z = springAxis(s.z, s.vz, seg.to.z, tau);
     s = { cx: x.x, cy: y.x, z: z.x, vx: x.v, vy: y.v, vz: z.v };
-    if (end >= t) break;
+    if (end >= t && !(segs[i + 1]?.instant && t >= segs[i + 1].t0)) break;
   }
   const cam = clampCamera(s, g);
   return { ...cam, vx: s.vx, vy: s.vy, vz: s.vz };
@@ -243,18 +247,18 @@ export function pressScale(clicks, t) {
 
 /** Source seconds shown at `local` seconds into a slot (inverse of sync-lib clipToSlot). Freezes on the first frame during headHold and on the last after the edit ends. */
 export function slotToSource(edit, local) {
-  const sp = Number(edit.speed || 1);
-  const t0 = Number(edit.trimStart || 0), t1 = Number(edit.trimEnd || edit.srcSeconds || 0);
-  const keep = [];
-  let cur = t0;
-  for (const [a, b] of (edit.skip || []).slice().sort((x, y) => x[0] - y[0])) { if (a > cur) keep.push([cur, Math.min(a, t1)]); cur = Math.max(cur, b); }
-  if (cur < t1) keep.push([cur, t1]);
-  if (!keep.length) return t0;
+  const keep = keptRanges(edit);
+  if (!keep.length) return Number(edit.trimStart || 0);
   let rest = local - Number(edit.headHold || 0);
   if (rest <= 0) return keep[0][0];
   for (const [a, b] of keep) {
-    const len = (b - a) / sp;
-    if (rest <= len) return a + rest * sp;
+    const len = slotLen(edit, a, b);
+    if (rest <= len) {
+      if (!(edit.ramps || []).length) return a + rest * Number(edit.speed || 1);
+      let lo = a, hi = b; // slotLen is monotone in its end: bisect the source time that plays `rest` seconds in
+      for (let i = 0; i < 48; i++) { const mid = (lo + hi) / 2; if (slotLen(edit, a, mid) < rest) lo = mid; else hi = mid; }
+      return (lo + hi) / 2;
+    }
     rest -= len;
   }
   return keep[keep.length - 1][1];
@@ -275,6 +279,18 @@ export function frameIndexAt(times, ts) {
   return lo;
 }
 
+/** The one highlight active at t: { box (stage px), amount 0-1 (eased in and out over STAGE.highlight.easeSeconds), dim, label }, or null. */
+export function highlightAt(list, t) {
+  for (const h of list || []) {
+    if (t < h.t0 - 1e-9 || t > h.t1 + 1e-9) continue;
+    const e = STAGE.highlight.easeSeconds;
+    const u = Math.min(clamp((t - h.t0) / e, 0, 1), clamp((h.t1 - t) / e, 0, 1));
+    const amount = u * u * (3 - 2 * u);
+    return { box: h.box, amount, dim: h.dim, label: h.label };
+  }
+  return null;
+}
+
 const tracks = new WeakMap();
 const trackOf = (plan) => { let tr = tracks.get(plan.cursor); if (!tr) { tr = buildCursorTrack(plan.cursor.samples); tracks.set(plan.cursor, tr); } return tr; };
 
@@ -287,5 +303,5 @@ export function stateAt(plan, t) {
   const frame = f ? f.files[frameIndexAt(f.times, srcT)] : null;
   const camera = cameraAt(plan.camera, t, g);
   const cursor = plan.cursor.samples.length ? cursorAt(trackOf(plan), t, plan.cursor.hidden) : null;
-  return { t, slot, srcT, frame, camera, cursor, press: pressScale(plan.cursor.clicks, t) };
+  return { t, slot, srcT, frame, camera, cursor, press: pressScale(plan.cursor.clicks, t), highlight: highlightAt(plan.highlights, t) };
 }
