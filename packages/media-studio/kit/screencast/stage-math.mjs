@@ -18,6 +18,7 @@ export const STAGE = Object.freeze({
   zoom: Object.freeze({ min: 1.3, default: 1.5, max: 1.8 }),         // 16:9 and wider: the page is small at wide, so the camera works harder
   zoomPortrait: Object.freeze({ min: 1.15, default: 1.25, max: 1.35 }), // 9:16, 4:5, 1:1: phone UI is already large
   omega: 10.5,              // critically damped spring: peak speed ~0.095 s, ~90% at 0.37 s, ~99% at 0.63 s, no overshoot
+  touchLeadSeconds: 1.0,    // a tap has no pointer approach: the camera starts this long before it so the view is not left still
   leadSeconds: 0.5,         // with no recorded approach, the camera starts this long before the press it serves
   cameraLeadSeconds: 0.1,   // the camera starts this long before the pointer starts to move, so the two are not at peak speed together
   resultLeadSeconds: 0.2,   // a result elsewhere on the page is reached within this long of the press

@@ -369,3 +369,12 @@ test('phone screen inside a 16:9 frame: centred at 0.9 of the height over a gene
   const portrait = M.stageGeometry({ width: 1080, height: 1920, fps: 60 }, phone);
   assert.ok(Math.abs(portrait.k - 1080 / 405) < 1e-9 && portrait.zoom.default === 1.25);
 });
+
+test('changed boxes never run past the page, so a result at the bottom edge is a box the camera can show', async () => {
+  const CH = await import(`${kit}/stage-changes.mjs`);
+  const a = new Uint8Array(320 * 180), b = new Uint8Array(320 * 180);
+  for (let y = 150; y < 180; y++) for (let x = 270; x < 320; x++) b[y * 320 + x] = 200; // a change in the bottom-right corner
+  const boxes = CH.changedBoxes(a, b, viewport);
+  assert.ok(boxes.length === 1, JSON.stringify(boxes));
+  assert.ok(boxes[0].x + boxes[0].w <= viewport.width + 1e-6 && boxes[0].y + boxes[0].h <= viewport.height + 1e-6, JSON.stringify(boxes[0]));
+});

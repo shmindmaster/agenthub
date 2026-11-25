@@ -286,7 +286,7 @@ for (const listed of plansListed) {
     const t = i / fps;
     const a = M.stateAt(plan, t - T0 + T0 === t ? t : t), b = M.stateAt(plan, Math.max(0, t - 1 / fps));
     const camPx = Math.hypot((a.camera.cx - b.camera.cx) * a.camera.z, (a.camera.cy - b.camera.cy) * a.camera.z, (a.camera.z - b.camera.z) * 400);
-    const curPx = a.cursor && b.cursor && a.cursor.visible > 0.99 && !a.cursor.hidden ? Math.hypot(a.cursor.x - b.cursor.x, a.cursor.y - b.cursor.y) * a.camera.z : 0;
+    const curPx = plan.cursor.mode !== 'touch' && a.cursor && b.cursor && a.cursor.visible > 0.99 && !a.cursor.hidden ? Math.hypot(a.cursor.x - b.cursor.x, a.cursor.y - b.cursor.y) * a.camera.z : 0;
     const srcSame = a.frame === b.frame;
     if ((camPx >= LIMITS.minMovingPxPerFrame) || (curPx >= LIMITS.minMovingPxPerFrame * 2 && srcSame)) { moving++; if (diffs[i] < LIMITS.duplicateDiff) dup++; }
   }

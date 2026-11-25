@@ -123,6 +123,8 @@ function buildHighlights(list, presses, g) {
 /** Build the plan. See the file header for the input; `slots` are contiguous from 0 and `runSeconds` is their total. */
 export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor, slots, clips, options = {} }) {
   const g0 = stageGeometry(frame, viewport, { layout: options.layout });
+  // a tap has no pointer approach to lead: the camera settles on the target this long before it
+  const leadSec = slots.some((s) => clips[s.clipId]?.touch) ? STAGE.touchLeadSeconds : STAGE.leadSeconds;
   // job.screenStage.zoom: { mode: 'auto' | 'manual' | 'off', level, regions: [{ target | box, from, to, level, instant }] }
   const zcfg = options.zoom || {};
   const zmode = zcfg.mode === 'off' || zcfg.mode === 'manual' ? zcfg.mode : 'auto';
@@ -176,7 +178,7 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     // A result the next approach would cut off (the pointer is already on its way to the next target) is not chased: the next move comes first.
     const nxt = clusters[i + 1];
     if (c.resultCamera && nxt) {
-      const nextStart = nxt.approachStart != null ? nxt.approachStart : nxt.firstT - STAGE.leadSeconds;
+      const nextStart = nxt.approachStart != null ? nxt.approachStart : nxt.firstT - leadSec;
       if (nextStart - c.resultAt < STAGE.resultMinViewSeconds) { warnings.push(`the result of "${lastPress.label || lastPress.type}" at ${lastPress.t}s is not followed: the next approach starts ${r3(nextStart - lastPress.t)} s later`); c.resultCamera = null; c.resultBox = null; }
     }
     c.resultEnd = Math.max(c.lastEnd, ...results.filter((r) => r.t >= c.firstT && r.t < limit).map((r) => r.t));
@@ -199,10 +201,10 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     if (c.zoom <= 1 && cur.z <= 1) { c.merged = true; return; }
     const earliest = i === 0 ? STAGE.openWideSeconds : lastSegT0() + 0.35;
     // The camera starts a little before the pointer starts to move (so the two are not at peak speed together) and lands by the press.
-    const lead = c.approachStart != null ? c.approachStart - STAGE.cameraLeadSeconds : c.firstT - STAGE.leadSeconds;
-    let t0 = c.manual ? Math.max(earliest, c.firstT) : Math.max(earliest, Math.min(lead, c.firstT - STAGE.leadSeconds));
+    const lead = c.approachStart != null ? c.approachStart - STAGE.cameraLeadSeconds : c.firstT - leadSec;
+    let t0 = c.manual ? Math.max(earliest, c.firstT) : Math.max(earliest, Math.min(lead, c.firstT - leadSec));
     if (i === 0 && !c.manual) t0 = Math.min(t0, Math.max(earliest, STAGE.openHoldMaxSeconds)); // the clean opening is held 0.35-0.6 s, however late the pointer starts
-    if (i === 0 && Math.min(lead, c.firstT - STAGE.leadSeconds) < STAGE.openWideSeconds) warnings.push(`the first move would start before ${STAGE.openWideSeconds}s of clean full page: it starts at ${r3(t0)}s`);
+    if (i === 0 && Math.min(lead, c.firstT - leadSec) < STAGE.openWideSeconds) warnings.push(`the first move would start before ${STAGE.openWideSeconds}s of clean full page: it starts at ${r3(t0)}s`);
     segments.push(c.instant ? { t0: r3(c.firstT), to: c.camera, reason: 'cut', instant: true } : { t0: r3(t0), to: c.camera, reason: i === 0 ? 'open' : 'region', ...(c.manual ? { declared: true } : {}) });
     cur = c.camera;
     if (c.resultCamera) { segments.push({ t0: r3(Math.max(c.resultAt, lastSegT0() + 0.35)), to: c.resultCamera, reason: 'result' }); cur = c.resultCamera; }
