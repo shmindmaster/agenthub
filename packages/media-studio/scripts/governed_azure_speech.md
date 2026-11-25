@@ -6,6 +6,20 @@ microdollars. The quote conservatively charges all escaped SSML UTF-8 bytes at
 the configured Neural HD rate; it is a reservation, not a verified invoice.
 The rate expires and fails closed. No credentials are written to artifacts.
 
+Price check, 2026-11-25T02:11Z, valid one month (`VALID_THROUGH` 2026-12-24). Azure Retail Prices API
+(`prices.azure.com/api/retail/prices`, api-version `2023-01-01-preview`, `armRegionName` eastus2), USD,
+Consumption, per 1M characters, one tier from 0. $1 per 1M is 1 microdollar each, so both match the code.
+
+| Voices | Meter | Rate | Effective | Meter id |
+|---|---|---|---|---|
+| DragonHD | Neural HD Text to Speech Characters | $22 | 2026-09-01 | `ad55d150-6182-5565-acf9-364d6ed979fb` |
+| Standard neural | S1 Neural Text To Speech Characters | $15 | 2024-02-01 | `0f98e708-a16c-407b-8089-a0ed9e14ab49` |
+
+DragonHD is matched to its meter by name; Microsoft's voice pages do not print the pairing. Billing counts Unicode
+characters and all markup except `speak` and `voice`, with each Chinese character as two, so the SSML byte count is
+never below it. To renew, read the same API. If both rates hold, move `VALID_THROUGH` and this note and keep the
+policy ids, which are part of every request key. If a rate changed, change it, its id and its tests together.
+
 Use `generate(..., use_sdk=True)` with the native Azure Speech SDK. Preflight
 the SDK import and required format/property before submitting a job. One SDK
 operation returns a synthesis result ID, which is durably bound before the
