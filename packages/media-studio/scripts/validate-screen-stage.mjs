@@ -500,6 +500,13 @@ for (const listed of plansListed) {
       const ideal = F.idealBlurCrop(srcFull, g.W, g.H, cs, win.x0, win.y0, 480, 270);
       const ge = F.ghostExcess(film, ideal, 480, 270, dir, Math.max(8, Math.min(80, Math.ceil(lenEst * 1.5))));
       ghostRows.push({ move: seg.t0, t: r2(top.t), blurPx: r2(lenEst), excess: r2(ge.excess), lag: ge.lag, window: { x0: win.x0, y0: win.y0 }, avoided: avoid.length });
+      if (process.env.STAGE_GHOST_DIAG) { // temporary diagnosis: how the excess moves with the film time and the ideal's shutter
+        const diag = [];
+        for (const dt of [-1 / 120, -1 / 240, 1 / 240, 1 / 120]) { const ff2 = grayAt(candidate, T0 + top.t + dt, g.W, g.H); if (!ff2) continue; const fl = new Float32Array(480 * 270); for (let j = 0; j < 270; j++) for (let i = 0; i < 480; i++) fl[j * 480 + i] = ff2[(win.y0 + j) * g.W + win.x0 + i]; diag.push({ filmDt: r2(dt * 1000), excess: r2(F.ghostExcess(fl, ideal, 480, 270, dir, Math.max(8, Math.min(80, Math.ceil(lenEst * 1.5)))).excess) }); }
+        for (const k of [0.7, 0.85, 1.15, 1.3]) { const cs2 = []; for (let q = 0; q < 96; q++) cs2.push(M.cameraAt(plan.camera, Math.max(0, top.t + ((q + 0.5) / 96 - 0.5) * tShutter * k), g)); const id2 = F.idealBlurCrop(srcFull, g.W, g.H, cs2, win.x0, win.y0, 480, 270); diag.push({ shutterScale: k, excess: r2(F.ghostExcess(film, id2, 480, 270, dir, Math.max(8, Math.min(80, Math.ceil(lenEst * 1.5)))).excess) }); }
+        console.log('GHOST_DIAG ' + JSON.stringify({ move: seg.t0, t: r2(top.t), base: r2(ge.excess), diag }));
+      }
+
       if (ge.excess > LIMITS.ghostExcess) fail(`run ${listed.run}: repeated copies along the motion in the ${seg.reason} move at ${seg.t0}s (frame ${r2(top.t)}s: autocorrelation ${r2(ge.excess)} above an ideal blur at lag ${ge.lag}, limit ${LIMITS.ghostExcess})`);
     });
     row.checks.colourInMotion = colourRows; row.checks.ghosting = ghostRows;
