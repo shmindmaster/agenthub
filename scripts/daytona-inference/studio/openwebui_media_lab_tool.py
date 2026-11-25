@@ -8,6 +8,7 @@ license: MIT
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -122,9 +123,10 @@ class Tools:
             raise FileNotFoundError(f"Artifact ref not found: {cleaned}")
         return parts[1], target.read_bytes()
 
-    def _run_job(self, job_type: str, params: dict[str, Any], profile: str) -> str:
+    async def _run_job(self, job_type: str, params: dict[str, Any], profile: str) -> str:
         chosen_profile = self._resolve_profile(profile)
-        job = self._request(
+        job = await asyncio.to_thread(
+            self._request,
             "POST",
             "/v1/jobs",
             {"type": job_type, "authorization_profile": chosen_profile, "params": params},
@@ -137,8 +139,8 @@ class Tools:
         while job.get("state") not in ("done", "error"):
             if time.monotonic() - t0 > _MAX_JOB_SECONDS:
                 raise RuntimeError(f"Media job {jid} timed out after {_MAX_JOB_SECONDS}s (still {job.get('state')}).")
-            time.sleep(4)
-            job = self._request("GET", f"/v1/jobs/{jid}")
+            await asyncio.sleep(4)
+            job = await asyncio.to_thread(self._request, "GET", f"/v1/jobs/{jid}")
 
         if job.get("state") == "error":
             raise RuntimeError(f"Media job {jid} failed: {job.get('error', 'unknown error')}")
@@ -154,7 +156,9 @@ class Tools:
             name = str(item["name"])
             if not _SAFE_NAME.match(name) or ".." in name:
                 raise RuntimeError(f"Unsafe output name from server: {name[:80]!r}")
-            data = self._request("GET", f"/v1/files/{jid}/{urllib.parse.quote(name)}", raw=True, timeout=600)
+            data = await asyncio.to_thread(
+                self._request, "GET", f"/v1/files/{jid}/{urllib.parse.quote(name)}", raw=True, timeout=600
+            )
             digest = hashlib.sha256(data).hexdigest()
             if len(data) != int(item["size"]) or digest != item["sha256"]:
                 raise RuntimeError(f"Integrity check failed for {name}: size={len(data)} sha256={digest[:12]}")
@@ -171,7 +175,7 @@ class Tools:
                 text_previews.append(f"```{ext.lstrip('.')}\n{data.decode('utf-8', errors='replace').strip()}\n```")
 
         try:
-            self._request("DELETE", f"/v1/jobs/{jid}")
+            await asyncio.to_thread(self._request, "DELETE", f"/v1/jobs/{jid}")
         except Exception:
             pass
 
@@ -182,15 +186,15 @@ class Tools:
         sections = [header, *saved, *text_previews]
         return "\n\n".join(sections)
 
-    def media_lab_status(self) -> str:
+    async def media_lab_status(self) -> str:
         """Check whether the Daytona Media Lab GPU is online and list loaded models and VRAM telemetry."""
         try:
-            info = self._request("GET", "/v1/info", timeout=15)
+            info = await asyncio.to_thread(self._request, "GET", "/v1/info", timeout=15)
             return json.dumps(info, indent=2)
         except Exception as exc:
             return f"Media Lab offline or unreachable: {exc}"
 
-    def generate_image(
+    async def generate_image(
         self,
         prompt: str,
         profile: str = "",
@@ -208,9 +212,9 @@ class Tools:
             params["steps"] = steps
         if seed >= 0:
             params["seed"] = seed
-        return self._run_job("image", params, profile)
+        return await self._run_job("image", params, profile)
 
-    def edit_image(
+    async def edit_image(
         self,
         prompt: str,
         input_ref: str,
@@ -229,9 +233,9 @@ class Tools:
             params["steps"] = steps
         if seed >= 0:
             params["seed"] = seed
-        return self._run_job("image_edit", params, profile)
+        return await self._run_job("image_edit", params, profile)
 
-    def generate_video(
+    async def generate_video(
         self,
         prompt: str,
         start_image_ref: str,
@@ -258,9 +262,9 @@ class Tools:
             params["steps"] = steps
         if seed >= 0:
             params["seed"] = seed
-        return self._run_job("video", params, profile)
+        return await self._run_job("video", params, profile)
 
-    def generate_talking_video(
+    async def generate_talking_video(
         self,
         portrait_ref: str,
         audio_ref: str,
@@ -286,9 +290,9 @@ class Tools:
         }
         if seed >= 0:
             params["seed"] = seed
-        return self._run_job("talk", params, profile)
+        return await self._run_job("talk", params, profile)
 
-    def generate_tts(
+    async def generate_tts(
         self,
         text: str,
         speaker: str = "ryan",
@@ -300,9 +304,9 @@ class Tools:
         params: dict[str, Any] = {"text": text, "speaker": speaker, "language": language}
         if instruct:
             params["instruct"] = instruct
-        return self._run_job("tts", params, profile)
+        return await self._run_job("tts", params, profile)
 
-    def generate_music(
+    async def generate_music(
         self,
         tags: str,
         lyrics: str = "",
@@ -315,9 +319,9 @@ class Tools:
         params: dict[str, Any] = {"tags": tags, "lyrics": lyrics, "seconds": seconds, "bpm": bpm}
         if seed >= 0:
             params["seed"] = seed
-        return self._run_job("music", params, profile)
+        return await self._run_job("music", params, profile)
 
-    def transcribe_audio(
+    async def transcribe_audio(
         self,
         audio_ref: str,
         language: str = "English",
@@ -326,8 +330,8 @@ class Tools:
         """Transcribe an audio artifact ('<token>/<filename>') and return SRT + JSON transcript."""
         aud_name, aud_raw = self._resolve_ref(audio_ref)
         params: dict[str, Any] = {
-            "audio_b64": base64.b64encode(aud_raw).decode("ascii"),
-            "audio_name": aud_name,
+            "input_b64": base64.b64encode(aud_raw).decode("ascii"),
+            "input_name": aud_name,
             "language": language,
         }
-        return self._run_job("transcribe", params, profile)
+        return await self._run_job("transcribe", params, profile)
