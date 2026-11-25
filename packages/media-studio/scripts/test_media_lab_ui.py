@@ -1,5 +1,5 @@
 """Offline tests for media_lab_ui.py against a fake gateway and a fake gpu.py (no network, no GPU, no paid call)."""
-import base64, hashlib, http.client, json, os, struct, sys, tempfile, threading, time, unittest, zlib
+import base64, hashlib, http.client, json, os, struct, sys, tempfile, threading, time, unittest, urllib.error, urllib.request, zlib
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -510,6 +510,24 @@ class Box(Base):
         self.assertEqual(s.api("POST", "/api/box/stop", {"confirm": True})[0], 409)
         s.lab.runner["running"] = False
 
+    def test_a_crashing_box_command_frees_the_runner(self):
+        s = self.stack()
+        with mock.patch.object(s.lab, "exec_logged", side_effect=ValueError("boom")):
+            s.lab.run_steps("stop", [["down", "media"]])
+            end = time.time() + 10
+            while s.lab.runner["running"] and time.time() < end:
+                time.sleep(0.02)
+        self.assertEqual((s.lab.runner["running"], s.lab.runner["result"]), (False, "failed"))
+
+    def test_non_ascii_token_is_refused_not_dropped(self):
+        s = self.stack()
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{s.lab.port}/?t=%C3%A9", timeout=10)
+            self.fail("accepted")
+        except urllib.error.HTTPError as exc:
+            self.assertEqual(exc.code, 403)
+            exc.close()
+
     def test_price_comes_from_the_catalog_when_it_has_one(self):
         s = self.stack()
         self.assertEqual(s.lab.usd, ui.APPROX_USD_PER_HOUR)
@@ -520,7 +538,8 @@ class Box(Base):
     def test_shortcut_is_created_windowless_and_removed(self):
         with tempfile.TemporaryDirectory() as td:
             lnk = Path(td) / "Programs" / "AI Media Lab.lnk"
-            with mock.patch.object(ui, "SHORTCUT", lnk), mock.patch.object(ui.subprocess, "run") as run:
+            (Path(td) / "pythonw.exe").write_bytes(b"")
+            with mock.patch.object(ui, "SHORTCUT", lnk), mock.patch.object(ui.subprocess, "run") as run, mock.patch.object(ui.sys, "executable", str(Path(td) / "python.exe")):
                 ui.install_shortcut(True)
             argv, kw = run.call_args.args[0], run.call_args.kwargs
             self.assertEqual((argv[0], kw["creationflags"], kw.get("shell")), ("powershell.exe", ui.NOWIN, None))

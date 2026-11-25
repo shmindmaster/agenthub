@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import daytona_media_client as mc
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_PORT, IDLE_MINUTES = 8765, 30
+DEFAULT_PORT, IDLE_MINUTES = 8791, 30
 GPU_PY = Path.home() / ".config" / "opencode" / "daytona" / "gpu.py"
 # Spot price of one MI355X box in USD per hour, read 2026-11-25. catalog.json carries no price; set
 # policy.approxHourlyUsd in the installed catalog.json to override this when the rate changes.
@@ -181,23 +181,25 @@ class Lab:
             self.runner, self.log = {"name": name, "running": True, "result": ""}, collections.deque(maxlen=40)
 
         def work():
-            ok = True
-            for argv in steps:
-                self.log.append("$ gpu.py " + " ".join(argv))
-                try:
+            ok = False
+            try:
+                for argv in steps:
+                    self.log.append("$ gpu.py " + " ".join(argv))
                     rc = self.exec_logged(self.gpu_argv(*argv))
-                except OSError as exc:
-                    self.log.append(self.mask(exc))
-                    rc = 1
-                if rc:
-                    self.log.append(f"exit code {rc}")
-                    ok = False
-                    break
-            if name == "stop" and ok:
-                self.was_ready = False
-            self.runner.update(result="ok" if ok else "failed")
-            self.refresh()
-            self.runner["running"] = False
+                    if rc:
+                        self.log.append(f"exit code {rc}")
+                        break
+                else:
+                    ok = True
+                if name == "stop" and ok:
+                    self.was_ready = False
+                self.runner.update(result="ok" if ok else "failed")
+                self.refresh()
+            except Exception as exc:
+                self.log.append(self.mask(f"{type(exc).__name__}: {exc}"))
+                self.runner.update(result="failed")
+            finally:
+                self.runner["running"] = False
         threading.Thread(target=work, daemon=True).start()
 
     def control(self, action):
@@ -359,7 +361,7 @@ class Handler(BaseHTTPRequestHandler):
     def reply(self, code, body: bytes, ctype="application/json", extra=()):
         self.send_response(code)
         for k, v in (("Content-Type", ctype), ("Content-Length", str(len(body))), ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
-                     ("X-Frame-Options", "DENY"), ("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; connect-src 'self'; frame-ancestors 'none'"), *extra):
+                     ("X-Frame-Options", "DENY"), ("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; media-src 'self'; connect-src 'self'; frame-ancestors 'none'"), *extra):
             self.send_header(k, v)
         self.end_headers()
         self.wfile.write(body)
@@ -378,11 +380,11 @@ class Handler(BaseHTTPRequestHandler):
         if (origin and origin not in (f"http://127.0.0.1:{lab.port}", f"http://localhost:{lab.port}")) or (method == "POST" and not origin):
             return self.deny(403, "bad origin")
         if method == "GET" and url.path == "/" and "t" in parse_qs(url.query):
-            if not hmac.compare_digest(parse_qs(url.query)["t"][0], lab.token):
+            if not hmac.compare_digest(parse_qs(url.query)["t"][0].encode("utf-8", "replace"), lab.token.encode()):
                 return self.deny(403, "bad token")
             return self.reply(302, b"", "text/plain", (("Location", "/"), ("Set-Cookie", f"medialab={lab.token}; Path=/; HttpOnly; SameSite=Strict")))
         jar = cookies.SimpleCookie(self.headers.get("Cookie", ""))
-        if "medialab" not in jar or not hmac.compare_digest(jar["medialab"].value, lab.token):
+        if "medialab" not in jar or not hmac.compare_digest(jar["medialab"].value.encode("utf-8", "replace"), lab.token.encode()):
             return self.deny(403, "open the launch link")
         lab.touch()
         try:
@@ -523,7 +525,11 @@ def main(argv=None) -> int:
                 webbrowser.open(url)
             say(f"already running: {url}")
             return 0
-        say(f"cannot bind 127.0.0.1:{a.port}: {exc}")
+        msg = f"cannot bind 127.0.0.1:{a.port}: {exc}"
+        say(msg)
+        if a.open and os.name == "nt" and not sys.stdout:  # started from the shortcut: no console to print to
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, f"{msg}\nAnother program is using this port.", "AI Media Lab", 0x30)
         return 1
     url = f"http://127.0.0.1:{lab.port}/?t={lab.token}"
     state.parent.mkdir(parents=True, exist_ok=True)

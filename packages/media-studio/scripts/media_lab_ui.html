@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Media Lab</title>
+<link rel="icon" href="data:,">
 <style>
 :root{color-scheme:light dark;--bg:#f5f6f7;--panel:#fff;--line:#d8dce1;--text:#1b2025;--mut:#5b6672;--acc:#0b63c5;--on:#fff;--ok:#1a7f4b;--warn:#9a5b00;--bad:#c62828;--field:#fff}
 @media (prefers-color-scheme:dark){:root{--bg:#121518;--panel:#1b1f23;--line:#2f353b;--text:#e7eaed;--mut:#9ba5b0;--acc:#4f9cf0;--on:#06121f;--ok:#4cc38a;--warn:#e2a443;--bad:#f27572;--field:#14181b}}
@@ -240,7 +241,7 @@ function targets(kind){
 function renderJob(j){
   let c=cards.get(j.id);
   const sig=JSON.stringify([j.state,j.progress,j.error,j.outputs.length,profile]);
-  if(!c){c={root:el('article','job'),sig:''};cards.set(j.id,c);$('#jobs').append(c.root)}
+  if(!c){c={root:el('article','job'),sig:''};cards.set(j.id,c)}
   if(c.sig!==sig){
     c.sig=sig;
     const r=c.root;
@@ -252,7 +253,7 @@ function renderJob(j){
       if(o.kind==='image')w.innerHTML=`<img src="${url}" alt="${esc(o.name)}" loading="lazy">`;
       else if(o.kind==='video')w.innerHTML=`<video src="${url}" controls preload="metadata"></video>`;
       else if(o.kind==='audio')w.innerHTML=`<audio src="${url}" controls preload="metadata"></audio>`;
-      else if(o.kind==='text'){const p=el('pre','txt','');w.append(p);fetch(url,{credentials:'same-origin'}).then(x=>x.text()).then(t=>{try{const v=JSON.parse(t);p.textContent=typeof v.text==='string'?v.text:t}catch(e){p.textContent=t}})}
+      else if(o.kind==='text'&&(j.mode==='transcribe'||!j.outputs.some(x=>x.kind!=='text'))){const p=el('pre','txt','');w.append(p);fetch(url,{credentials:'same-origin'}).then(x=>x.text()).then(t=>{try{const v=JSON.parse(t);p.textContent=typeof v.text==='string'?v.text:t}catch(e){p.textContent=t}})}
       const row=el('div','oa',`<span class="nm">${esc(o.name)} <span class="mut">${size(o.size)}</span></span>`);
       const dl=el('a','icon',ic('down'));dl.href=url+'?dl=1';dl.download=o.name;dl.title='Download';dl.setAttribute('aria-label','Download '+o.name);row.append(dl);
       const op=el('button','icon',ic('folder'));op.type='button';op.title='Open folder';op.setAttribute('aria-label','Open folder');
@@ -271,6 +272,7 @@ function renderJobs(){
   const ids=new Set(S.jobs.map(j=>j.id));
   for(const [id,c] of cards)if(!ids.has(id)){c.root.remove();cards.delete(id)}
   S.jobs.forEach(renderJob);
+  S.jobs.forEach((j,i)=>{const r=cards.get(j.id).root,h=$('#jobs');if(h.children[i]!==r)h.insertBefore(r,h.children[i]||null)});
   $('#empty').hidden=S.jobs.length>0;
 }
 
