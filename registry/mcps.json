@@ -70,7 +70,6 @@
         },
         "factory": {
           "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos.",
-          "context7": "Preserve the existing user-level Context7 vendor HTTP connection and its independently managed authorization.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel-search": "Preserve Droid’s native hosted anonymous Parallel entry and its existing server name.",
           "tavily": "Preserve Droid’s native vendor-hosted HTTP entry. Authorize with /mcp and the Droid keyring.",

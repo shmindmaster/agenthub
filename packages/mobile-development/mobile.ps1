@@ -117,17 +117,14 @@ function Get-AndroidFilesCheck {
 function Get-IosFilesCheck {
     $vmware = Get-MobileDevelopmentResource -Id 'vmware-workstation'
     $vmrun = @($vmware.discovery.vmrunPaths | ForEach-Object { ([string]$_) -replace '/', '\' } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1)
-    $backup = Get-MobileDevelopmentResource -Id 'macos-guest-known-good-backup'
     $vmxFacts = Get-MobileVmxFacts
     $ssh = Resolve-ToolPath 'ssh'
     $guestScripts = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\guest'
     [pscustomobject]@{
         platform = 'ios'
-        ready = [bool]($vmrun.Count -eq 1 -and $vmxFacts.exists -and $vmxFacts.vcpu -and $vmxFacts.memoryMb -and $ssh -and (Test-Path -LiteralPath (([string]$backup.path) -replace '/', '\') -PathType Container) -and (Test-Path -LiteralPath $guestScripts -PathType Container))
+        ready = [bool]($vmrun.Count -eq 1 -and $vmxFacts.exists -and $vmxFacts.vcpu -and $vmxFacts.memoryMb -and $ssh -and (Test-Path -LiteralPath $guestScripts -PathType Container))
         vmrun = if ($vmrun.Count) { $vmrun[0] } else { $null }
         vmx = $vmxFacts
-        knownGoodBackup = ([string]$backup.path) -replace '/', '\'
-        knownGoodBackupExists = Test-Path -LiteralPath (([string]$backup.path) -replace '/', '\') -PathType Container
         ssh = $ssh
         guestScripts = $guestScripts
         startedResources = $false
