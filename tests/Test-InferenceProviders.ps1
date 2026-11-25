@@ -32,8 +32,23 @@ $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFr
 Assert-True ($catalog.policy.maxGpuInstancesTotal -eq 2) 'maxGpuInstancesTotal must be 2'
 Assert-True ($catalog.policy.spotOnly -eq $true) 'spotOnly must be true'
 Assert-True ($catalog.policy.protectedVolumeName -eq 'llm-models') 'protectedVolumeName must be llm-models'
+Assert-True ($catalog.policy.mediaVolumeName -eq 'agenthub-media-weights') 'mediaVolumeName must be agenthub-media-weights'
+Assert-True ($catalog.policy.mediaMountPath -eq '/mnt/media-weights') 'mediaMountPath must be /mnt/media-weights'
+Assert-True ($catalog.policy.gatewayMediaUrl -eq 'https://inference.shtrial.com/v1/media') 'gatewayMediaUrl mismatch'
 Assert-True ($catalog.roles.specialist.profiles.H200.snapshotName -eq 'agenthub-vllm-cuda-0-24-0-h200') 'H200 specialist snapshotName mismatch'
 Assert-True ($catalog.roles.flagship.profiles.H200.snapshotName -eq 'agenthub-llama-cuda-h200') 'H200 flagship snapshotName mismatch'
+Assert-True ($catalog.roles.engineering.engine -eq 'dual') 'engineering engine must be dual'
+Assert-True ($catalog.roles.engineering.port -eq 8001 -and $catalog.roles.engineering.flagshipPort -eq 8002) 'engineering ports must be 8001 and 8002'
+Assert-True ($catalog.roles.engineering.profiles.MI355X.maxModelLen -eq 262144 -and $catalog.roles.engineering.profiles.MI355X.ctxSize -eq 262144) 'engineering MI355X context must be 262144'
+Assert-True ($catalog.roles.engineering.profiles.MI355X.maxOutputTokens -eq 32768) 'engineering MI355X maxOutputTokens must be 32768'
+Assert-True ($catalog.roles.media.engine -eq 'media-lab' -and $catalog.roles.media.port -eq 8189) 'media engine/port mismatch'
+Assert-True ($catalog.roles.media.profiles.MI355X.backend -eq 'media-rocm-gfx950') 'media MI355X backend mismatch'
+
+$caddySnippetPath = Join-Path $repoRoot 'scripts' 'daytona-inference' 'gateway' 'Caddyfile.snippet'
+$caddySnippetRaw = Get-Content -LiteralPath $caddySnippetPath -Raw -Encoding UTF8
+Assert-True ($caddySnippetRaw -notmatch 'sk-[A-Za-z0-9_-]{12,}|\b(?!127\.0\.0\.1\b)\d{1,3}(\.\d{1,3}){3}\b') 'Caddyfile.snippet must not contain secrets or owner IP'
+Assert-True ($caddySnippetRaw -match '<OWNER_IP>' -and $caddySnippetRaw -match '<MEDIA_PREVIEW_URL>') 'Caddyfile.snippet must use <OWNER_IP> and <MEDIA_PREVIEW_URL> placeholders'
+Assert-True ($caddySnippetRaw -match 'handle_path /v1/media/\*' -and $caddySnippetRaw -match '127\.0\.0\.1:4000') 'Caddyfile.snippet must route /v1/media/* and preserve 127.0.0.1:4000'
 
 foreach ($recipeFile in @('serve-vllm-cuda.sh', 'serve-vllm-rocm-gfx950.sh')) {
     $recipeText = Get-Content -LiteralPath (Join-Path $repoRoot 'scripts' 'daytona-inference' 'recipes' $recipeFile) -Raw -Encoding UTF8
@@ -164,6 +179,88 @@ chosen_h200_q6, prof_h200_q6 = gpu.select_gpu_for_role("flagship", "H200", cap, 
 assert chosen_h200_q6 == "H200" and prof_h200_q6["quantization"] == "Q6_K"
 parsed_save = gpu.build_parser().parse_args(["save-cache", "specialist"])
 assert parsed_save.command == "save-cache" and parsed_save.role == "specialist"
+
+# Engineering & media roles (MI355X dual-slot + fallback + volume routing)
+chosen_eng, prof_eng = gpu.select_gpu_for_role("engineering", "auto", cap_amd, cat)
+assert chosen_eng == "MI355X" and prof_eng["backend"] == "engineering-rocm-gfx950"
+assert prof_eng["maxModelLen"] == 262144 and prof_eng["ctxSize"] == 262144 and prof_eng["maxOutputTokens"] == 32768
+
+chosen_media, prof_media = gpu.select_gpu_for_role("media", "auto", cap_amd, cat)
+assert chosen_media == "MI355X" and prof_media["backend"] == "media-rocm-gfx950"
+
+assert gpu.role_volume_spec("engineering", cat) == ("opencode-agent-weights", "/mnt/opencode-weights")
+assert gpu.role_volume_spec("media", cat) == ("agenthub-media-weights", "/mnt/media-weights")
+
+for argv_case, exp_cmd, exp_role in [
+    (["up", "engineering", "--gpu", "MI355X"], "up", "engineering"),
+    (["up", "media", "--gpu", "auto"], "up", "media"),
+    (["down", "engineering"], "down", "engineering"),
+    (["down", "media"], "down", "media"),
+    (["extend", "engineering", "180"], "extend", "engineering"),
+    (["extend", "media", "180"], "extend", "media"),
+    (["save-cache", "engineering"], "save-cache", "engineering"),
+]:
+    parsed = gpu.build_parser().parse_args(argv_case)
+    assert parsed.command == exp_cmd and parsed.role == exp_role
+assert gpu.build_parser().parse_args(["retire-legacy-turbo", "--dry-run"]).command == "retire-legacy-turbo"
+assert gpu.build_parser().parse_args(["caddy-media", "--dry-run"]).command == "caddy-media"
+
+# Gated retire-legacy-turbo refusals + success
+raised = False
+try:
+    gpu.check_retire_legacy_turbo_gates([FakeSb("e1", "agenthub-engineering", state="STOPPED")], "https://inference.shtrial.com/v1", "k")
+except SystemExit:
+    raised = True
+assert raised, "retire-legacy-turbo must refuse when engineering is not STARTED"
+
+def failing_flagship_probe(method, path, body):
+    if path == "/models":
+        return 200, {"data": [{"id": "agent-specialist"}, {"id": "agent-flagship"}]}
+    if body and body.get("model") == "agent-flagship":
+        return 503, {"error": "down"}
+    return 200, {"choices": [{"message": {"content": "OK"}}]}
+
+raised = False
+try:
+    gpu.check_retire_legacy_turbo_gates(
+        [FakeSb("e1", "agenthub-engineering", state="STARTED")],
+        "https://inference.shtrial.com/v1",
+        "k",
+        probe_fn=failing_flagship_probe,
+    )
+except SystemExit:
+    raised = True
+assert raised, "retire-legacy-turbo must refuse when agent-flagship fails live check"
+
+def passing_probe(method, path, body):
+    if path == "/models":
+        return 200, {"data": [{"id": "agent-specialist"}, {"id": "agent-flagship"}]}
+    return 200, {"choices": [{"message": {"content": "OK"}}]}
+
+eng_ok = gpu.check_retire_legacy_turbo_gates(
+    [FakeSb("e1", "agenthub-engineering", state="STARTED")],
+    "https://inference.shtrial.com/v1",
+    "k",
+    probe_fn=passing_probe,
+)
+assert eng_ok.id == "e1"
+
+# Caddyfile rendering and site-block upsert preserving unrelated sites
+rendered_site = gpu.render_caddyfile_site_block(
+    "203.0.113.10",
+    "inf-key-test",
+    "https://8189-test.daytonaproxy01.net",
+    "prev-tok-test",
+    "gw-tok-test",
+)
+assert "handle_path /v1/media/*" in rendered_site
+assert "x-daytona-preview-token prev-tok-test" in rendered_site
+assert 'Authorization "Bearer gw-tok-test"' in rendered_site
+assert "reverse_proxy 127.0.0.1:4000" in rendered_site
+existing_caddy = "other.example.com {\n  respond \"hi\" 200\n}\n\ninference.shtrial.com {\n  respond \"old\" 200\n}\n"
+merged_caddy = gpu.upsert_caddy_site_block(existing_caddy, "inference.shtrial.com", rendered_site)
+assert "other.example.com" in merged_caddy and "old" not in merged_caddy and "handle_path /v1/media/*" in merged_caddy
+
 print("PY_UNIT_PASS")
 '@
 
@@ -222,10 +319,15 @@ try {
             Assert-True ($null -ne $row -and $row.status -eq 'current') "Expected host $h status=current after apply, got $($row.status)"
         }
 
-        # Verify preserved defaults
+        # Verify preserved defaults and 262144 context / 32768 output across all 5 aliases
         $oc = Get-Content "$fakeHome/.config/opencode/opencode.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True ($oc.model -eq 'qwen-token-plan/qwen3.8-max') 'OpenCode default model changed'
         Assert-True ($oc.small_model -eq 'qwen-token-plan/qwen3.8-flash') 'OpenCode small_model changed'
+        foreach ($alias in @('agent-fast', 'agent-specialist', 'agent-vision', 'agent-turbo', 'agent-flagship')) {
+            $m = $oc.providers.'agenthub-daytona'.models.$alias
+            Assert-True ($null -ne $m) "Missing OpenCode alias $alias"
+            Assert-True ($m.limit.context -eq 262144 -and $m.limit.output -eq 32768) "Alias $alias context/output limit mismatch"
+        }
 
         $codexCfg = Get-Content "$fakeHome/.codex/config.toml" -Raw -Encoding UTF8
         Assert-True ($codexCfg -notmatch '\[profiles\.daytona-') 'Codex config.toml must not contain inline [profiles.daytona-*]'

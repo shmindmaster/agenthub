@@ -108,3 +108,7 @@ human review.
 See `kit/cloud/README.md` for the job and retention contract. It does not publish an asset,
 authorize customer data or establish provider entitlement. Offline tests:
 `node --test tests/runware-image.test.mjs`.
+
+## Self-hosted Daytona AI Media Lab
+
+`scripts/daytona_media_client.py` calls the Slot 2 Daytona AI Media Lab across `image`, `image_edit`, `video`, `talk`, `tts`, `speakers`, `transcribe`, and `music`. It connects to the permanent `https://inference.shtrial.com/v1/media` endpoint (Bearer `AGENTHUB_INFERENCE_KEY`) with automatic direct Daytona preview URL fallback via `target.json` + `DAYTONA_API_KEY`, enforces `authorization_profile` (`commercial` by default; `research` opt-in), verifies output SHA-256 and byte sizes before deleting remote job artifacts, and supports scene-manifest skip-on-complete (`run-manifest`). Existing ABACare/AssemblyAI/Deepgram narration rules above are unchanged.

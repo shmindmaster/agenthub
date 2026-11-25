@@ -1,21 +1,44 @@
 # Permanent inference gateway reverse-proxy block for Caddy.
-# Allow OpenAI/Anthropic-compatible API paths (/v1/*) and liveliness probes
-# from anywhere (gated by LiteLLM Bearer auth), while restricting admin/UI/DB
-# management endpoints to the owner IP.
+# Allow OpenAI/Anthropic-compatible API paths (/v1/chat/completions, /v1/responses,
+# /v1/models, etc.) and liveliness probes from anywhere (gated by LiteLLM Bearer auth),
+# proxy /v1/media/* to Slot 2 media gateway (:8189) when authorized by owner IP or
+# AGENTHUB_INFERENCE_KEY Bearer token, and restrict admin/UI/DB management endpoints
+# to the owner IP.
 #
-# Replace <OWNER_IP> with the operator IP before adding to /opt/forge/caddy/Caddyfile.
+# Replace <OWNER_IP>, <AGENTHUB_INFERENCE_KEY>, <MEDIA_PREVIEW_URL>,
+# <MEDIA_PREVIEW_TOKEN>, and <MEDIA_GATEWAY_TOKEN> before writing /opt/forge/caddy/Caddyfile.
 inference.shtrial.com {
   @owner remote_ip <OWNER_IP>
-  @public_api path /v1/* /health/liveliness
+  @public_api {
+    path /v1/* /health/liveliness
+    not path /v1/media /v1/media/*
+  }
+
+  handle_path /v1/media/* {
+    @media_denied {
+      not remote_ip <OWNER_IP>
+      not header Authorization "Bearer <AGENTHUB_INFERENCE_KEY>"
+    }
+    respond @media_denied "unauthorized" 401
+    reverse_proxy <MEDIA_PREVIEW_URL> {
+      header_up Host {upstream_hostport}
+      header_up x-daytona-preview-token <MEDIA_PREVIEW_TOKEN>
+      header_up Authorization "Bearer <MEDIA_GATEWAY_TOKEN>"
+      flush_interval -1
+    }
+  }
+
   handle @public_api {
     reverse_proxy 127.0.0.1:4000 {
       flush_interval -1
     }
   }
+
   handle @owner {
     reverse_proxy 127.0.0.1:4000 {
       flush_interval -1
     }
   }
+
   respond "forbidden" 403
 }

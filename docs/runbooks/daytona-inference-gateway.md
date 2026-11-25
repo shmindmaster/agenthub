@@ -4,21 +4,24 @@ Permanent inference gateway and unified NVIDIA/AMD Daytona spot GPU operations f
 
 ## Architecture
 
-- **Permanent HTTPS Endpoint:** `https://inference.shtrial.com/v1`
+- **Permanent HTTPS Endpoint:** `https://inference.shtrial.com/v1` (and Media Lab: `https://inference.shtrial.com/v1/media`)
   - DNS `A` record for `inference.shtrial.com` is hosted in DigitalOcean DNS (`shtrial.com`).
-  - Reverse-proxied through Caddy on `sh-forge` (`129.212.152.9`), allowing `/v1/*` and `/health/liveliness` globally (gated by LiteLLM Bearer auth) and restricting admin endpoints (`/ui`, `/model/*`, `/key/*`) to the owner IP.
+  - Reverse-proxied through Caddy on `sh-forge` (`129.212.152.9`), preserving `/v1/chat/completions`, `/v1/responses`, `/v1/models`, and `/health/liveliness` on LiteLLM (`127.0.0.1:4000`, gated by Bearer auth), proxying `handle_path /v1/media/*` to Slot 2 `:8189` (gated by owner IP `<OWNER_IP>` or `AGENTHUB_INFERENCE_KEY` Bearer token, injecting `x-daytona-preview-token` and the media gateway token), and restricting admin endpoints (`/ui`, `/model/*`, `/key/*`) to `<OWNER_IP>`.
   - Backed by LiteLLM + PostgreSQL (`scripts/daytona-inference/gateway/`), preserving model aliases without ever rewriting coding-agent configs or DNS on spot eviction.
   - Pre-`2026-12-01` migration off `sh-forge`: see [MIGRATION-2026-12-01.md](../../scripts/daytona-inference/gateway/MIGRATION-2026-12-01.md).
+- **Dual-MI355X Spot Architecture (2/2 Max GPU Slots):**
+  - **Slot 1 (`engineering` role, `agenthub-engineering`):** Single MI355X (288 GB CDNA4 `gfx950`) running both vLLM ROCm (`:8001`, `Qwen3.8-27B-Uncensored-FP8`, 262144 context) and `llama-server` HIP (`:8002`, `Qwen3.8-Flash-Next-Uncensored-GGUF` `Q8_0`, 262144 context, CPU PLE) on `opencode-agent-weights` (`/mnt/opencode-weights`), serving `agent-specialist`, `agent-fast`, `agent-vision`, `agent-flagship`, and (after `retire-legacy-turbo`) `agent-turbo`.
+  - **Slot 2 (`media` role, `agenthub-media`):** Single MI355X (288 GB) on `agenthub-media-weights` (`/mnt/media-weights`), running ComfyUI (`127.0.0.2:8188`) + Media Gateway (`:8189`, `/healthz` & `/v1/info`) behind `https://inference.shtrial.com/v1/media/*` (`<MEDIA_PREVIEW_URL>` upstream).
 - **Permanent Model Aliases (`registry/inference-providers.json`):**
-  - `agent-fast`: 27B FP8 routine/exploration (`low` default reasoning)
-  - `agent-specialist`: 27B FP8 general engineering + vision (`medium` default reasoning)
-  - `agent-vision`: 27B FP8 browser/desktop/media vision (`medium` default reasoning)
-  - `agent-turbo`: Flash-Next Q6_K (`medium` default reasoning; currently backed by protected live H200 `qwen38-turbo-q6k`)
-  - `agent-flagship`: Flash-Next Q8_0 flagship reasoning (`medium` default reasoning; `Q8_0` on MI355X/B300/B200, explicit `--allow-q6-fallback` on H200)
+  - `agent-fast`: 27B FP8 routine/exploration (`low` default reasoning, 262144 ctx / 32768 output)
+  - `agent-specialist`: 27B FP8 general engineering + vision (`medium` default reasoning, 262144 ctx / 32768 output)
+  - `agent-vision`: 27B FP8 browser/desktop/media vision (`medium` default reasoning, 262144 ctx / 32768 output)
+  - `agent-turbo`: Flash-Next (`medium` default reasoning, 262144 ctx / 32768 output; legacy H200 `qwen38-turbo-q6k` until `retire-legacy-turbo` moves it to Slot 1 `:8002`)
+  - `agent-flagship`: Flash-Next Q8_0 flagship reasoning (`medium` default reasoning, 262144 ctx / 32768 output; `Q8_0` on MI355X/B300/B200, explicit `--allow-q6-fallback` on H200)
 - **Hard Operating Constraints:**
   - Maximum **2** GPU instances combined across NVIDIA and AMD, **1** GPU per instance.
   - **Spot-only** (`spot=True`); never falls back to on-demand.
-  - Protected live sandbox `qwen38-turbo-q6k` and protected volume `llm-models` are never touched; managed weights persist on `opencode-agent-weights`.
+  - Protected live sandbox `qwen38-turbo-q6k` and protected volume `llm-models` are never touched by `up`/`down`/`extend`/`save-cache`; `retire-legacy-turbo` refuses unless `agenthub-engineering` is `STARTED` and both `agent-specialist` and `agent-flagship` pass live verification on `https://inference.shtrial.com/v1`.
   - No silent fallback to paid providers or different checkpoints on unavailable aliases.
 
 ## GPU Lifecycle Commands
@@ -29,15 +32,21 @@ Run from Windows with `DAYTONA_API_KEY` set:
 $gpu = "$env:USERPROFILE\.config\opencode\daytona\gpu.py"
 python $gpu capacity                       # live NVIDIA + AMD spot inventory
 python $gpu status                         # active GPUs (N/2) + gateway aliases
-python $gpu doctor                         # credentials, volume, protected box, gateway health
-python $gpu up specialist --gpu auto       # launch Qwen 27B FP8 (H200/MI355X/B200/B300/RTX-PRO-6000/H100)
-python $gpu up flagship --gpu auto         # launch Flash-Next Q8_0 (MI355X/B300/B200)
+python $gpu doctor                         # credentials, volumes, protected box, gateway health
+python $gpu up engineering --gpu MI355X    # Slot 1 dual vLLM (:8001) + llama-server (:8002)
+python $gpu retire-legacy-turbo            # gated cutover once Slot 1 is live-verified
+python $gpu up media --gpu MI355X          # Slot 2 media lab (:8189) on agenthub-media-weights
+python $gpu caddy-media                    # update sh-forge Caddy /v1/media/* upstream
+python $gpu up specialist --gpu auto       # legacy single-slot Qwen 27B FP8
+python $gpu up flagship --gpu auto         # legacy single-slot Flash-Next Q8_0
 python $gpu up flagship --gpu H200 --allow-q6-fallback
-python $gpu extend specialist 120          # extend wall-clock TTL
+python $gpu extend engineering 120         # extend wall-clock TTL
 python $gpu reconcile                      # prune evicted backends & re-sync live turbo
-python $gpu down specialist                # delete managed sandbox & deregister aliases
+python $gpu down media                     # delete managed sandbox
 python $gpu save-cache specialist          # persist /root/.cache/{vllm,flashinfer} to opencode-agent-weights
 ```
+
+Set `SH_FORGE_UPDATE=1` when running `gpu.py up media` to update `/opt/forge/caddy/Caddyfile` automatically using the template in `scripts/daytona-inference/gateway/Caddyfile.snippet` (`<OWNER_IP>`, `<MEDIA_PREVIEW_URL>`, `<AGENTHUB_INFERENCE_KEY>`, `<MEDIA_PREVIEW_TOKEN>`, `<MEDIA_GATEWAY_TOKEN>` placeholders are never stored in git-tracked files).
 
 ## Persisted Daytona Fast-Boot Assets
 
