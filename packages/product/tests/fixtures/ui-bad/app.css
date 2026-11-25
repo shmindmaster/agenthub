@@ -1,0 +1,8 @@
+.hero-title {
+  font-size: clamp(2rem, 6vw, 5rem);
+  letter-spacing: 0.04em;
+}
+.plan-card {
+  border-radius: 16px;
+  padding: 16px;
+}

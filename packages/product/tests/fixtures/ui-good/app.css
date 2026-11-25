@@ -1,0 +1,16 @@
+:root { --radius: 8px; }
+.hero-title {
+  font-size: 2.5rem;
+  letter-spacing: 0;
+}
+.plan-card {
+  border-radius: 8px;
+  padding: 16px;
+}
+.avatar {
+  border-radius: 9999px;
+  letter-spacing: normal;
+}
+@media (min-width: 40rem) {
+  .hero-title { font-size: 3rem; }
+}

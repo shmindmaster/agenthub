@@ -68,4 +68,30 @@ finally {
 }
 if ($noSurfacesExitCode -eq 0) { throw 'An audit without surface coverage was accepted.' }
 
-'PASS: helper scripts inventory SaaS surfaces and enforce artifact contracts.'
+# The static UI check passes a clean fixture and fails a bad one on every rule it owns.
+$uiChecker = Join-Path $pluginRoot 'scripts\check-ui-rules.mjs'
+$uiGood = Join-Path $PSScriptRoot 'fixtures\ui-good'
+$uiBad = Join-Path $PSScriptRoot 'fixtures\ui-bad'
+try {
+    $ErrorActionPreference = 'Continue'
+    & $node.Source $uiChecker $uiGood | Out-Null
+    $uiGoodExitCode = $LASTEXITCODE
+    $uiBadOutput = & $node.Source $uiChecker $uiBad 2>&1 | Out-String
+    $uiBadExitCode = $LASTEXITCODE
+    & $node.Source $uiChecker --skip viewport-font,letter-spacing,card-radius $uiBad 2>&1 | Out-Null
+    $uiSkippedExitCode = $LASTEXITCODE
+    & $node.Source $uiChecker --skip not-a-rule $uiBad 2>&1 | Out-Null
+    $uiUnknownRuleExitCode = $LASTEXITCODE
+}
+finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
+if ($uiGoodExitCode -ne 0) { throw 'A clean UI fixture was rejected.' }
+if ($uiBadExitCode -ne 1) { throw 'A UI fixture that breaks every rule was accepted.' }
+foreach ($uiRule in @('viewport-font', 'letter-spacing', 'card-radius')) {
+    if ($uiBadOutput -notmatch "(?m) $uiRule`:") { throw "The UI check missed the rule: $uiRule" }
+}
+if ($uiSkippedExitCode -ne 0) { throw 'Skipping every rule did not clear the findings.' }
+if ($uiUnknownRuleExitCode -ne 2) { throw 'An unknown --skip rule was accepted.' }
+
+'PASS: helper scripts inventory SaaS surfaces, enforce artifact contracts and check UI rules.'
