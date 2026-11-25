@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 1,
+  "policy": {
+    "maxGpuInstancesTotal": 2,
+    "gpusPerInstance": 1,
+    "spotOnly": true,
+    "neverOnDemand": true,
+    "defaultTtlMinutes": 120,
+    "protectedSandboxName": "qwen38-turbo-q6k",
+    "protectedVolumeName": "llm-models",
+    "weightsVolumeName": "opencode-agent-weights",
+    "weightsMountPath": "/mnt/opencode-weights",
+    "gatewayBaseUrl": "https://inference.shtrial.com/v1",
+    "gatewayAdminUrl": "https://inference.shtrial.com"
+  },
+  "gpus": {
+    "H200": {
+      "vendor": "nvidia",
+      "vramGb": 141,
+      "arch": "Hopper",
+      "cudaArch": "90"
+    },
+    "MI355X": {
+      "vendor": "amd",
+      "vramGb": 288,
+      "arch": "CDNA4",
+      "rocmTarget": "gfx950"
+    },
+    "B200": {
+      "vendor": "nvidia",
+      "vramGb": 180,
+      "arch": "Blackwell",
+      "cudaArch": "100"
+    },
+    "B300": {
+      "vendor": "nvidia",
+      "vramGb": 288,
+      "arch": "Blackwell Ultra",
+      "cudaArch": "100"
+    },
+    "RTX-PRO-6000": {
+      "vendor": "nvidia",
+      "vramGb": 96,
+      "arch": "Blackwell",
+      "cudaArch": "120"
+    },
+    "H100": {
+      "vendor": "nvidia",
+      "vramGb": 80,
+      "arch": "Hopper",
+      "cudaArch": "90"
+    },
+    "L40S": {
+      "vendor": "nvidia",
+      "vramGb": 48,
+      "arch": "Ada",
+      "cudaArch": "89"
+    },
+    "RTX-5090": {
+      "vendor": "nvidia",
+      "vramGb": 32,
+      "arch": "Blackwell",
+      "cudaArch": "120"
+    },
+    "RTX-4090": {
+      "vendor": "nvidia",
+      "vramGb": 24,
+      "arch": "Ada",
+      "cudaArch": "89"
+    }
+  },
+  "images": {
+    "vllm-cuda": {
+      "name": "agenthub-vllm-cuda",
+      "image": "vllm/vllm-openai:v0.24.0",
+      "manifestDigest": "sha256:251eba5cc7c12fed0b75da22a9240e582b1c9e39f6fbc064f86781b963bd814f",
+      "amd64Digest": "sha256:f9de5cd9fa907fbf6dbba691eb7db095d48ad58ea283e3eba7142f9a91e186e8",
+      "dockerfile": "docker/vllm-cuda.Dockerfile"
+    },
+    "vllm-rocm-gfx950": {
+      "name": "agenthub-vllm-rocm-gfx950",
+      "image": "rocm/vllm:rocm7.0_mi350_ubuntu24.04_py3.12_vllm_0.11.0",
+      "dockerfile": "docker/vllm-rocm-gfx950.Dockerfile"
+    },
+    "llama-cuda": {
+      "name": "agenthub-llama-cuda",
+      "image": "ghcr.io/ggml-org/llama.cpp:server-cuda",
+      "dockerfile": "docker/llama-cuda.Dockerfile"
+    },
+    "llama-hip-gfx950": {
+      "name": "agenthub-llama-hip-gfx950",
+      "image": "rocm/dev-ubuntu-24.04:7.0",
+      "dockerfile": "docker/llama-hip-gfx950.Dockerfile"
+    }
+  },
+  "roles": {
+    "specialist": {
+      "sandboxName": "agenthub-specialist",
+      "legacySandboxNames": ["opencode-specialist"],
+      "modelRepo": "orcarouter/Qwen3.8-27B-Uncensored-FP8",
+      "optionalBf16Repo": "Qwen/Qwen3.8-27B",
+      "engine": "vllm",
+      "port": 8001,
+      "diskGb": 512,
+      "ramGb": 192,
+      "cpu": 16,
+      "gpuPriority": ["H200", "MI355X", "B200", "B300", "RTX-PRO-6000", "H100"],
+      "servedAliases": ["agent-specialist", "agent-fast", "agent-vision"],
+      "primaryServedModelName": "agent-specialist",
+      "reasoningDefault": "medium",
+      "reasoningSupported": ["low", "medium", "xhigh"],
+      "vision": true,
+      "tools": true,
+      "profiles": {
+        "H200": {
+          "backend": "vllm-cuda",
+          "snapshotName": "agenthub-vllm-cuda-0-24-0-h200",
+          "recipe": "recipes/serve-vllm-cuda.sh",
+          "quantization": "FP8",
+          "maxModelLen": 131072,
+          "maxOutputTokens": 16384,
+          "maxNumSeqs": 4,
+          "gpuMemUtil": 0.90,
+          "maxNumBatchedTokens": 8192,
+          "mtpTokens": 3
+        },
+        "MI355X": {
+          "backend": "vllm-rocm-gfx950",
+          "recipe": "recipes/serve-vllm-rocm-gfx950.sh",
+          "quantization": "FP8",
+          "maxModelLen": 131072,
+          "maxOutputTokens": 16384,
+          "maxNumSeqs": 8,
+          "gpuMemUtil": 0.85,
+          "maxNumBatchedTokens": 16384,
+          "mtpTokens": 3
+        },
+        "B200": {
+          "backend": "vllm-cuda",
+          "recipe": "recipes/serve-vllm-cuda.sh",
+          "quantization": "FP8",
+          "maxModelLen": 131072,
+          "maxOutputTokens": 16384,
+          "maxNumSeqs": 8,
+          "gpuMemUtil": 0.90,
+          "maxNumBatchedTokens": 16384,
+          "mtpTokens": 3
+        },
+        "B300": {
+          "backend": "vllm-cuda",
+          "recipe": "recipes/serve-vllm-cuda.sh",
+          "quantization": "FP8",
+          "maxModelLen": 131072,
+          "maxOutputTokens": 16384,
+          "maxNumSeqs": 8,
+          "gpuMemUtil": 0.90,
+          "maxNumBatchedTokens": 16384,
+          "mtpTokens": 3
+        },
+        "RTX-PRO-6000": {
+          "backend": "vllm-cuda",
+          "recipe": "recipes/serve-vllm-cuda.sh",
+          "quantization": "FP8",
+          "maxModelLen": 65536,
+          "maxOutputTokens": 16384,
+          "maxNumSeqs": 4,
+          "gpuMemUtil": 0.85,
+          "maxNumBatchedTokens": 8192,
+          "mtpTokens": 3
+        },
+        "H100": {
+          "backend": "vllm-cuda",
+          "recipe": "recipes/serve-vllm-cuda.sh",
+          "quantization": "FP8",
+          "maxModelLen": 65536,
+          "maxOutputTokens": 16384,
+          "maxNumSeqs": 4,
+          "gpuMemUtil": 0.85,
+          "maxNumBatchedTokens": 8192,
+          "mtpTokens": 3
+        }
+      }
+    },
+    "flagship": {
+      "sandboxName": "agenthub-flagship",
+      "legacySandboxNames": ["opencode-flagship"],
+      "modelRepo": "orcarouter/Qwen3.8-Flash-Next-Uncensored-GGUF",
+      "engine": "llama.cpp",
+      "port": 8002,
+      "diskGb": 512,
+      "ramGb": 192,
+      "cpu": 16,
+      "gpuPriority": ["MI355X", "B300", "B200", "H200"],
+      "defaultQuantization": "Q8_0",
+      "servedAliases": ["agent-flagship"],
+      "primaryServedModelName": "agent-flagship",
+      "reasoningDefault": "medium",
+      "reasoningSupported": ["low", "medium", "xhigh"],
+      "vision": false,
+      "tools": true,
+      "profiles": {
+        "MI355X": {
+          "backend": "llama-hip-gfx950",
+          "recipe": "recipes/serve-llama-hip-gfx950.sh",
+          "quantization": "Q8_0",
+          "pleLocation": "CPU",
+          "ctxSize": 131072,
+          "maxOutputTokens": 16384,
+          "parallel": 2,
+          "batchSize": 4096,
+          "ubatchSize": 2048,
+          "cacheTypeK": "f16",
+          "cacheTypeV": "f16"
+        },
+        "B300": {
+          "backend": "llama-cuda",
+          "recipe": "recipes/serve-llama-cuda.sh",
+          "quantization": "Q8_0",
+          "pleLocation": "CPU",
+          "ctxSize": 131072,
+          "maxOutputTokens": 16384,
+          "parallel": 2,
+          "batchSize": 4096,
+          "ubatchSize": 2048,
+          "cacheTypeK": "f16",
+          "cacheTypeV": "f16"
+        },
+        "B200": {
+          "backend": "llama-cuda",
+          "recipe": "recipes/serve-llama-cuda.sh",
+          "quantization": "Q8_0",
+          "pleLocation": "CPU",
+          "ctxSize": 131072,
+          "maxOutputTokens": 16384,
+          "parallel": 1,
+          "batchSize": 4096,
+          "ubatchSize": 2048,
+          "cacheTypeK": "f16",
+          "cacheTypeV": "f16"
+        },
+        "H200": {
+          "backend": "llama-cuda",
+          "snapshotName": "agenthub-llama-cuda-h200",
+          "recipe": "recipes/serve-llama-cuda.sh",
+          "quantization": "Q6_K",
+          "requiresExplicitQ6Fallback": true,
+          "pleLocation": "CPU",
+          "ctxSize": 65536,
+          "maxOutputTokens": 16384,
+          "parallel": 1,
+          "batchSize": 4096,
+          "ubatchSize": 2048,
+          "cacheTypeK": "f16",
+          "cacheTypeV": "f16"
+        }
+      }
+    }
+  },
+  "optionalDormantCatalog": {
+    "inkling-2-mini": {
+      "status": "dormant",
+      "formats": ["Q8_0", "BF16", "Q6_K"],
+      "note": "Optional routine specialist; do not dedicate a GPU slot by default."
+    }
+  }
+}

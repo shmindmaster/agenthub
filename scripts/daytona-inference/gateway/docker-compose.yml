@@ -1,0 +1,58 @@
+services:
+  litellm-db:
+    image: postgres:16-alpine@sha256:f2f98726820d0342055351c6e9d36e705f5bfffb3dd53ff556325114b08afb6d
+    container_name: agenthub-litellm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-litellm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-litellm}
+    volumes:
+      - litellm_pgdata:/var/lib/postgresql/data
+    networks:
+      - inference-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-litellm} -d $${POSTGRES_DB:-litellm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  litellm:
+    image: ghcr.io/berriai/litellm-database@sha256:d1ad6e7074cb4059c52af933138eb2c79839dc99b642dba81b0ffeba38e71d28
+    container_name: agenthub-litellm
+    restart: unless-stopped
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4000:4000"
+    env_file:
+      - .env
+    environment:
+      STORE_MODEL_IN_DB: "True"
+      PYTHONPATH: "/app"
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml:ro
+      - ./reasoning_normalizer.py:/app/reasoning_normalizer.py:ro
+    command:
+      - "--config"
+      - "/app/config.yaml"
+      - "--port"
+      - "4000"
+      - "--host"
+      - "0.0.0.0"
+    networks:
+      - inference-net
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness', timeout=3)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+networks:
+  inference-net:
+    driver: bridge
+
+volumes:
+  litellm_pgdata:
