@@ -280,8 +280,9 @@ export const ScreenStage: FC<ScreenStageProps> = ({ plan, framesBase = "" }) => 
   const base = framesBase.replace(/\/$/, "");
   const track = useMemo(() => buildCursorTrack(plan.cursor.samples), [plan]);
 
+  // The hold is taken while React renders the frame, before any effect runs: nothing can look at the canvas before it is drawn.
+  const handle = useMemo(() => delayRender(`screen stage frame ${frame}`), [frame]);
   useEffect(() => {
-    const handle = delayRender(`screen stage frame ${frame}`);
     (async () => {
       try {
         const setup = frameSetup(plan, track, t, fps);
@@ -328,6 +329,9 @@ export const ScreenStage: FC<ScreenStageProps> = ({ plan, framesBase = "" }) => 
         gl.uniform1f(u.uSeed, setup.moving ? (frame % 97) + 1 : 0);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         gl.finish();
+        // Present before the frame is released: a texture loaded for the first time makes the draw late, and a screenshot taken before
+        // the canvas is presented shows the previous frame of this tab (a one-frame reversion).
+        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
         continueRender(handle);
       } catch (e) {
         cancelRender(e);

@@ -31,8 +31,25 @@ mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
 const started = Date.now();
 const args = [cli, 'render', 'src/index.ts', 'ScreenStage', path.resolve(out), `--props=${propsPath}`, `--public-dir=${path.resolve(publicDir)}`,
   '--image-format=png', '--codec=h264', '--crf=15', '--x264-preset=medium', '--pixel-format=yuv420p', '--color-space=bt709', '--muted', `--concurrency=${flag('--concurrency', '8')}`, `--gl=${process.env.STAGE_GL || (process.platform === 'linux' ? 'swangle' : 'angle')}`, '--overwrite', ...(process.env.STAGE_LOG ? [`--log=${process.env.STAGE_LOG}`] : [])];
-const r = spawnSync(process.execPath, args, { cwd: kit, stdio: 'inherit', windowsHide: true });
+// A render whose screenshot came from a canvas that had not been presented yet shows one earlier frame: a one-frame reversion (A, B, A).
+// The film is checked after every render and a bad render is made again, never edited. Pixels are never touched.
+const F = await import('./stage-film-checks.mjs');
+const reversions = (file) => {
+  const W = 480, H = 270;
+  const raw = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', file, '-vf', `scale=${W}:${H}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1'], { maxBuffer: 2 ** 31 - 1, windowsHide: true }).stdout;
+  const n = Math.floor(raw.length / (W * H));
+  return F.oneFrameReversions(Array.from({ length: n }, (_, i) => raw.subarray(i * W * H, (i + 1) * W * H)), { allowed: (plan.declaredAnimations || []).map((a) => ({ from: Math.floor(a.from * plan.frame.fps), to: Math.ceil(a.to * plan.frame.fps) })) });
+};
+let attempts = 0, r;
+for (;;) {
+  attempts++;
+  r = spawnSync(process.execPath, args, { cwd: kit, stdio: 'inherit', windowsHide: true });
+  if (r.status !== 0) { rmSync(tmp, { recursive: true, force: true }); process.exit(r.status || 1); }
+  const bad = reversions(path.resolve(out));
+  if (!bad.length) break;
+  console.error(`[render-stage] attempt ${attempts}: ${bad.length} one-frame reversion(s) at film frame ${bad.map((b) => b.i).join(', ')}: the render showed an earlier picture for a frame`);
+  if (attempts >= 3) { rmSync(tmp, { recursive: true, force: true }); console.error('[render-stage] the render still shows a one-frame reversion after 3 attempts'); process.exit(1); }
+}
 rmSync(tmp, { recursive: true, force: true });
-if (r.status !== 0) process.exit(r.status || 1);
 const seconds = Number(((Date.now() - started) / 1000).toFixed(1));
-console.log(JSON.stringify({ ok: true, out: path.resolve(out), bytes: statSync(out).size, renderSeconds: seconds, frames: Math.round(plan.runSeconds * plan.frame.fps) }));
+console.log(JSON.stringify({ ok: true, out: path.resolve(out), bytes: statSync(out).size, renderSeconds: seconds, attempts, frames: Math.round(plan.runSeconds * plan.frame.fps) }));

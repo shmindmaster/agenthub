@@ -16,11 +16,11 @@ Look: the owner's reference film `hero-recording.mp4` (style reference only; it 
 `stage-plan.mjs` turns receipt events and the compose edit list into the camera, cursor, highlight and cue times. The same input always gives the same plan; the gate rebuilds it and refuses a plan that differs.
 
 - Presses cluster by joint bounding box (gap 1.3 s, span 3.2 s, must fit at zoom above 1). Typing is a target and holds the field in frame to the end of the burst. A far target pans at the held zoom; a quiet gap of 3 s or more pulls back to the full page.
-- The region is the target box plus the pixels that changed within 1.2 s of the press (`stage-changes.mjs`, measured from the captured frames). If the result lies elsewhere it joins the region when both fit, otherwise the camera goes to it within 0.25 s of the press.
+- The region is the target box plus the pixels that changed within 1.2 s of the press (`stage-changes.mjs`, measured from the captured frames), confirmation toasts and status text included. If the result lies elsewhere it joins the region when both fit at 1.3x or more, otherwise the camera goes to it within 0.25 s of the press. When the next move is under 0.9 s away the result is carried into the next region (the whole page when the union no longer fits zoomed); a result the plan could not show at all fails the gate.
 - Zoom is 1.5. 1.8 only for a tiny target with a tiny result in the same view. Never past the page edges; the film opens and closes on the full page, clean, held 0.35 to 0.6 s before the first move.
 - The camera starts 0.1 s before the pointer starts to move, so the two are never at peak speed together. Camera: critically damped spring, peak 0.1 s, about 90 percent at 0.35 s, settled by 0.6 s, no overshoot.
-- Cursor: arrow, hand or I-beam from the real CSS cursor (type changes under 120 ms are not drawn), a PCHIP path through the recorded samples, press response 0.9 and back over 0.15 s, still for the last 0.5 s. Idle-hide (default): a still cursor fades after 2 s, never during a `pointAt`. Hide per beat or span with `screenStage.hideCursor`. Touch captures draw a touch circle and a tap ripple instead.
-- No dead time without a reason. Idle (no input and frozen pixels) may be cut; anything else needs a declared `speedReason`. Typing plays at 2x (`screenStage.typingSpeed`, cap 3x) with 0.15 s ramps; the last 0.4 s, autocomplete lists and spinners play at real speed. The speed ramps are part of the edit, so the camera, cursor, highlight, click sounds and cue times all sit on the same time map before the narration is aligned.
+- Cursor: arrow, hand or I-beam from the real CSS cursor (type changes under 120 ms are not drawn), a PCHIP path through the recorded samples, press response 0.9 and back over 0.15 s, still for the last 0.5 s. Idle-hide (default): a still cursor fades after 2 s, never during a `pointAt`. Hide per beat or span with `screenStage.hideCursor`. Touch captures draw a touch circle and a tap ripple instead. The pointer is hidden while a field is typed into (an I-beam would sit on the words) and comes back when it next moves.
+- No dead time without a reason. Idle (no input and frozen pixels) may be cut; anything else needs a declared `speedReason`. Typing is sped up by a factor picked from each burst so that it takes about 1.6 s (between 1x and 3x; `screenStage.typingSpeed` is `auto`, a fixed number, or `false`), with 0.15 s ramps; the last 0.4 s, autocomplete lists and spinners play at real speed. The speed ramps are part of the edit, so the camera, cursor, highlight, click sounds and cue times all sit on the same time map before the narration is aligned.
 
 ## Options (`job.json` `screenStage`)
 
@@ -29,10 +29,11 @@ Look: the owner's reference film `hero-recording.mp4` (style reference only; it 
 | `zoom.mode` | `auto` (default), `manual` (declared `regions`), `off` (full page) |
 | `zoom.level` | 1.3 to 1.8; the default for auto regions |
 | `zoom.regions[]` | `{ target: <action label> or box, from, to, level, instant }`; `instant` is a declared jump cut |
-| `highlights[]` | `{ action: <label>, start, hold, dim }`: one at a time, the cutout is the recorded element box, 0.25 s ease, default dim 0.45, thin outline. There is no blur-mask: sensitive data is fixed in the data and the take re-recorded |
+| `highlights[]` | `{ action: <label>, start, hold, dim }`: one at a time, the cutout is the recorded element box, 0.25 s ease, default dim 0.45, thin outline. It is an attention cue ahead of the action: it is fully faded before the click on or inside its element and before any other press, so a result is never dimmed (`start` is relative to the click; a highlight with no room is refused). There is no blur-mask: sensitive data is fixed in the data and the take re-recorded |
 | `idleHide` | `false` turns idle-hide off |
 | `hideCursor[]` | `{ beat }` or `{ from, to }` |
-| `typingSpeed` | number 1 to 3, or `false` |
+| `typingSpeed` | `auto` (default: about 1.6 s per burst), a number 1 to 3, or `false` |
+| `declaredAnimations[]` | `{ from, to }` seconds of the film where the page animates on purpose (a pulsing badge): the one-frame reversion rule skips them |
 | `background` | for a phone or native screen inside a wider frame only: a generated gradient (from the page's own colour) behind the centred screen. Every other film is full bleed: no wallpaper, presenter, window chrome, corners or shadow |
 | `clickSound` | `'off'` to omit the effects stem |
 
@@ -40,7 +41,7 @@ No burned-in captions. Subtitles stay a sidecar `.srt` (`treatments.md`).
 
 ## Render
 
-One Remotion composition (`ScreenStage`), one WebGL2 pass per frame, 60 fps in every ratio. The page frame is an sRGB texture; each output pixel averages 32 to 64 jittered samples across a 170 degree shutter in float, in linear light, and converts to sRGB once. The cursor is blurred separately, on its own on-screen path. A still view is a fixed 4x4 anti-aliasing filter, so a hold is the same picture every frame. Colour is tagged BT.709. Renders run on Daytona (`render-lanes.md`); on a box with no GPU use `--gl=swangle` (the default there).
+One Remotion composition (`ScreenStage`), one WebGL2 pass per frame, 60 fps in every ratio. The page frame is an sRGB texture; each output pixel averages 48 to 96 jittered samples (at least 2.5 per px of blur) across a 170 degree shutter in float, in linear light, and converts to sRGB once. The cursor is blurred separately, on its own on-screen path. A still view is a fixed 4x4 anti-aliasing filter, so a hold is the same picture every frame. Colour is tagged BT.709. Renders run on Daytona (`render-lanes.md`); on a box with no GPU use `--gl=swangle` (the default there).
 
 ## Sound
 
@@ -59,5 +60,7 @@ One Remotion composition (`ScreenStage`), one WebGL2 pass per frame, 60 fps in e
 7. Zoom above 1.5 only for a tiny target and result; the camera leads the pointer; a result elsewhere is reached within 0.25 s.
 8. The cursor is drawn on the click point; it presses to about 0.9 of its size and returns.
 9. The capture delivered 50 or more unique frames a second while the page animated.
+10. No one-frame reversion: no frame (of the film, and of the captured frames) differs from both neighbours while they are alike, outside a declared animation. Never smoothed over; the capture list is audited for order and for the same pattern, so the cause is named (the product, the browser, or the render).
+11. A highlight is over before the click and the press that follows it; no result is left unshown; an unchanged view is held no more than 1 s with nobody speaking over it (a blinking caret is not a change).
 
 `validate-encoded-picture.mjs` defers every stage segment to `qa/screen-stage.json` for the same candidate sha256.
