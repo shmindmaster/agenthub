@@ -483,7 +483,10 @@ for (const listed of plansListed) {
       for (const [fx, fy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) { const sp = { x: fx * g.W, y: fy * g.H }, pt = { x: (sp.x - g.W / 2) / b.z + b.cx, y: (sp.y - g.H / 2) / b.z + b.cy }; const d = { x: (pt.x - a.cx) * a.z + g.W / 2 - sp.x, y: (pt.y - a.cy) * a.z + g.H / 2 - sp.y }; if (Math.hypot(d.x, d.y) > Math.hypot(dir.x, dir.y)) dir = d; }
       const lenEst = Math.hypot(dir.x, dir.y);
       if (lenEst < 4) return; // under 4 px of blur there is nothing to compare
-      const win = F.busiestWindow(filmFull, g.W, g.H, 480, 270);
+      // a phone screen inside a wide frame: the window lies inside the screen, never over the gradient or the shadow
+      let bounds = null;
+      if (g.placement) { const p0 = M.projectPoint(camTop, g, { x: g.placement.x, y: g.placement.y }), p1 = M.projectPoint(camTop, g, { x: g.placement.x + g.placement.w, y: g.placement.y + g.placement.h }); bounds = { x0: Math.min(p0.x, p1.x) + 12, y0: Math.min(p0.y, p1.y) + 12, x1: Math.max(p0.x, p1.x) - 12, y1: Math.max(p0.y, p1.y) - 12 }; }
+      const win = F.busiestWindow(filmFull, g.W, g.H, 480, 270, bounds ? 20 : 60, bounds);
       const film = new Float32Array(480 * 270);
       for (let j = 0; j < 270; j++) for (let i = 0; i < 480; i++) film[j * 480 + i] = filmFull[(win.y0 + j) * g.W + win.x0 + i];
       const ideal = F.idealBlurCrop(srcFull, g.W, g.H, cs, win.x0, win.y0, 480, 270);

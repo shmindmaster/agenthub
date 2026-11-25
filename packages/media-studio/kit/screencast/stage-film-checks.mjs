@@ -158,11 +158,12 @@ export function idealBlurCrop(src, W, H, cams, x0, y0, w, h) {
   return out;
 }
 
-/** The w x h window of a gray raster (W wide) with the most high-pass energy on a coarse grid: where text is. Returns { x0, y0 }. */
-export function busiestWindow(gray, W, H, w, h, step = 60) {
+/** The w x h window of a gray raster (W wide) with the most high-pass energy on a coarse grid: where text is. `bounds` { x0, y0, x1, y1 } limits the search (a phone screen inside a wide frame). Returns { x0, y0 }. */
+export function busiestWindow(gray, W, H, w, h, step = 60, bounds = null) {
   const hp = highpass(Float32Array.from(gray), W, H);
   let best = { e: -1, x0: 0, y0: 0 };
-  for (let y0 = 8; y0 + h <= H - 8; y0 += step) for (let x0 = 8; x0 + w <= W - 8; x0 += step) {
+  const bx0 = Math.max(8, Math.ceil(bounds?.x0 ?? 8)), by0 = Math.max(8, Math.ceil(bounds?.y0 ?? 8)), bx1 = Math.min(W - 8, Math.floor(bounds?.x1 ?? W - 8)), by1 = Math.min(H - 8, Math.floor(bounds?.y1 ?? H - 8));
+  for (let y0 = by0; y0 + h <= by1; y0 += step) for (let x0 = bx0; x0 + w <= bx1; x0 += step) {
     let e = 0;
     for (let j = 0; j < h; j += 3) for (let i = 0; i < w; i += 3) e += hp[(y0 + j) * W + x0 + i] ** 2;
     if (e > best.e) best = { e, x0, y0 };
