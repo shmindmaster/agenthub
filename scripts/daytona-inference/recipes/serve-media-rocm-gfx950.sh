@@ -376,8 +376,9 @@ cd "$GG"
 "$PY" "$GG/server/gateway.py" > "$GG/logs/gateway.log" 2>&1 &
 GW_PID=$!
 
-wait -n "$COMFY_PID" "$GW_PID"
-RC=$?
+# `|| RC=$?`: under `set -e` a failing child would otherwise end the script before the sibling is stopped.
+RC=0
+wait -n "$COMFY_PID" "$GW_PID" || RC=$?
 echo "media_child_exited rc=$RC"
 kill "$COMFY_PID" "$GW_PID" 2>/dev/null || true
 exit "$RC"

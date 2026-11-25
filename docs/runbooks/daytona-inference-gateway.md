@@ -17,7 +17,7 @@ Permanent inference gateway and unified NVIDIA/AMD Daytona spot GPU operations f
   - `agent-fast`: 27B FP8 routine/exploration (`low` default reasoning, 262144 ctx / 32768 output)
   - `agent-specialist`: 27B FP8 general engineering + vision (`medium` default reasoning, 262144 ctx / 32768 output)
   - `agent-vision`: 27B FP8 browser/desktop/media vision (`medium` default reasoning, 262144 ctx / 32768 output)
-  - `agent-turbo`: Flash-Next (`medium` default reasoning, 262144 ctx / 32768 output; legacy H200 `qwen38-turbo-q6k` until `retire-legacy-turbo` moves it to Slot 1 `:8002`)
+  - `agent-turbo`: the legacy H200 `qwen38-turbo-q6k` (`medium` default reasoning, 65536 ctx / 49152 in / 16384 out, which is what the registry advertises). `retire-legacy-turbo` moves the alias to Slot 1 `:8002` (Flash-Next, 262144 ctx / 32768 output); raise the registry and Factory limits for `agent-turbo` in the same change that runs it, not before
   - `agent-flagship`: Flash-Next Q8_0 flagship reasoning (`medium` default reasoning, 262144 ctx / 32768 output; `Q8_0` on MI355X/B300/B200, explicit `--allow-q6-fallback` on H200)
 - **Hard Operating Constraints:**
   - Maximum **2** GPU instances combined across NVIDIA and AMD, **1** GPU per instance. While `qwen38-turbo-q6k` is live it counts as one of the two, so only one MI355X slot (engineering or media) can run next to it; both together need `retire-legacy-turbo` first.

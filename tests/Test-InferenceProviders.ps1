@@ -607,7 +607,8 @@ try {
         $oc = Get-Content "$fakeHome/.config/opencode/opencode.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True ($oc.model -eq 'qwen-token-plan/qwen3.8-max') 'OpenCode default model changed'
         Assert-True ($oc.small_model -eq 'qwen-token-plan/qwen3.8-flash') 'OpenCode small_model changed'
-        foreach ($alias in @('agent-fast', 'agent-specialist', 'agent-vision', 'agent-turbo', 'agent-flagship')) {
+        # agent-turbo stays on the legacy H200 box (65536 context, 16384 output) until retire-legacy-turbo runs.
+        foreach ($alias in @('agent-fast', 'agent-specialist', 'agent-vision', 'agent-flagship')) {
             $m = $oc.providers.'agenthub-daytona'.models.$alias
             Assert-True ($null -ne $m) "Missing OpenCode alias $alias"
             Assert-True ($m.limit.context -eq 262144 -and $m.limit.output -eq 32768) "Alias $alias context/output limit mismatch"

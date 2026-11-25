@@ -823,12 +823,11 @@
     },
     {
       "model": "daytona-turbo",
-      "displayName": "Daytona Turbo — Qwen3.8 Flash-Next Q8 (256K)",
+      "displayName": "Daytona Turbo — Qwen3.8 27B Heretic MTP Q6",
       "baseUrl": "https://inference.shtrial.com/v1",
       "apiKey": "${AGENTHUB_INFERENCE_KEY}",
       "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 32768,
-      "maxContextLimit": 262144,
+      "maxOutputTokens": 16384,
       "extraArgs": {
         "model": "agent-turbo"
       }
