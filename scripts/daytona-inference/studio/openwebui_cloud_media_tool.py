@@ -49,6 +49,10 @@ class Tools:
         assemblyai_api_key: str = Field(default="", description="ASSEMBLYAI_API_KEY (ABACare AI LLC + consented clones).")
         runware_api_key: str = Field(default="", description="RUNWARE_API_KEY (ABACare Startup API credit).")
         elevenlabs_api_key: str = Field(default="", description="ELEVENLABS_API_KEY (exception-only with written reason).")
+        openrouter_api_key: str = Field(default="", description="OPENROUTER_API_KEY for OpenRouter image models.")
+        deepseek_api_key: str = Field(default="", description="DEEPSEEK_API_KEY for live balance readback.")
+        pexels_api_key: str = Field(default="", description="PEXELS_API_KEY for free stock photos and videos.")
+        reducto_api_key: str = Field(default="", description="REDUCTO_API_KEY (ABACare) for complex PDF/document parsing.")
         default_entity: str = Field(
             default="personal",
             description="Default billing/routing entity: 'personal', 'mahumtech', or 'abacare'.",
@@ -77,6 +81,10 @@ class Tools:
             self.valves.assemblyai_api_key,
             self.valves.runware_api_key,
             self.valves.elevenlabs_api_key,
+            self.valves.openrouter_api_key,
+            self.valves.deepseek_api_key,
+            self.valves.pexels_api_key,
+            self.valves.reducto_api_key,
         ]
         for s in secrets_list:
             sv = (s or "").strip()
@@ -243,6 +251,45 @@ class Tools:
                 "key_configured": bool((self.valves.openai_api_key or "").strip()),
             }
 
+            ork = (self.valves.openrouter_api_key or "").strip()
+            if ork:
+                try:
+                    or_res = self._http_json(
+                        "https://openrouter.ai/api/v1/auth/key",
+                        headers={"Authorization": f"Bearer {ork}"},
+                        timeout=20,
+                    )
+                    d = or_res.get("data") or {}
+                    report["providers"]["openrouter"] = {
+                        "limit_monthly": d.get("limit"),
+                        "limit_remaining": d.get("limit_remaining"),
+                    }
+                except Exception as exc:
+                    report["providers"]["openrouter"] = {"error": str(exc)}
+
+            dsk = (self.valves.deepseek_api_key or "").strip()
+            if dsk:
+                try:
+                    ds_res = self._http_json(
+                        "https://api.deepseek.com/user/balance",
+                        headers={"Authorization": f"Bearer {dsk}"},
+                        timeout=20,
+                    )
+                    report["providers"]["deepseek"] = {
+                        "is_available": ds_res.get("is_available"),
+                        "balances": ds_res.get("balance_infos"),
+                    }
+                except Exception as exc:
+                    report["providers"]["deepseek"] = {"error": str(exc)}
+
+            report["providers"]["pexels"] = {
+                "key_configured": bool((self.valves.pexels_api_key or "").strip()),
+                "cost": "free stock photos & videos",
+            }
+            report["providers"]["reducto"] = {
+                "key_configured": bool((self.valves.reducto_api_key or "").strip()),
+            }
+
         await asyncio.to_thread(_probe_all)
         return json.dumps(report, indent=2)
 
@@ -255,7 +302,7 @@ class Tools:
         quality: str = "medium",
         model: str = "",
     ) -> str:
-        """Generate an image using entity credit routing (abacare->OpenAI/Runware, mahumtech/personal->Azure Foundry)."""
+        """Generate an image using entity credit routing (azure|openai|runware|openrouter)."""
         ent = self._norm_entity(entity)
         chosen = (provider or "auto").strip().lower()
         if chosen == "auto":
@@ -263,8 +310,8 @@ class Tools:
                 chosen = "openai" if date.today() <= _OPENAI_ABACARE_GRANT_UNTIL else "runware"
             else:
                 chosen = "azure"
-        if chosen not in ("azure", "openai", "runware"):
-            raise ValueError(f"provider must be auto|azure|openai|runware, got {provider!r}")
+        if chosen not in ("azure", "openai", "runware", "openrouter"):
+            raise ValueError(f"provider must be auto|azure|openai|runware|openrouter, got {provider!r}")
 
         def _work() -> tuple[bytes, str, str]:
             if chosen == "azure":
@@ -297,6 +344,37 @@ class Tools:
                 if not b64:
                     raise RuntimeError("OpenAI returned no image data.")
                 return base64.b64decode(b64), f"openai/{mdl}", "image.png"
+
+            if chosen == "openrouter":
+                ork = (self.valves.openrouter_api_key or "").strip()
+                if not ork:
+                    raise RuntimeError("OPENROUTER_API_KEY valve not configured.")
+                mdl = model.strip() or "google/gemini-nano-banana-2.1"
+                res = self._http_json(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    method="POST",
+                    headers={"Authorization": f"Bearer {ork}"},
+                    payload={"model": mdl, "messages": [{"role": "user", "content": prompt}], "modalities": ["image", "text"]},
+                    timeout=240,
+                )
+                msg = ((res.get("choices") or [{}])[0].get("message") or {})
+                imgs = msg.get("images") or []
+                img_url = ""
+                if imgs and isinstance(imgs[0], dict):
+                    img_url = (imgs[0].get("image_url") or {}).get("url") or imgs[0].get("url") or ""
+                if not img_url and isinstance(msg.get("content"), list):
+                    for part in msg["content"]:
+                        if isinstance(part, dict) and part.get("type") in ("image_url", "output_image"):
+                            img_url = (part.get("image_url") or {}).get("url") or part.get("url") or ""
+                            if img_url:
+                                break
+                if not img_url:
+                    raise RuntimeError(f"OpenRouter {mdl} returned no image payload.")
+                if img_url.startswith("data:"):
+                    _, b64_part = img_url.split(",", 1)
+                    return base64.b64decode(b64_part), f"openrouter/{mdl}", "image.png"
+                _, img_raw, _ = self._http(img_url, timeout=180)
+                return img_raw, f"openrouter/{mdl}", "image.png"
 
             rk = (self.valves.runware_api_key or "").strip()
             if not rk:
@@ -661,3 +739,98 @@ class Tools:
             s_ref, _, s_dl = self._save_output("transcript.srt", srt_bytes, tok)
             links += f"\n- [Download transcript.srt]({s_dl}) (`{s_ref}`)"
         return f"**cloud_transcribe_audio** finished (`provider={chosen}`, `source={fname}`)\n\n```text\n{transcript_text}\n```\n\n{links}"
+
+    async def search_stock_media(
+        self,
+        query: str,
+        media_type: str = "photo",
+        count: int = 4,
+    ) -> str:
+        """Search free high-resolution stock photos or videos via Pexels API."""
+        pk = (self.valves.pexels_api_key or "").strip()
+        if not pk:
+            raise RuntimeError("PEXELS_API_KEY valve not configured.")
+        mtype = (media_type or "photo").strip().lower()
+        per_page = max(1, min(10, int(count)))
+        if mtype not in ("photo", "video"):
+            raise ValueError(f"media_type must be 'photo' or 'video', got {media_type!r}")
+
+        def _work() -> list[dict[str, Any]]:
+            q = urllib.parse.urlencode({"query": query, "per_page": per_page})
+            ep = "https://api.pexels.com/v1/search" if mtype == "photo" else "https://api.pexels.com/videos/search"
+            res = self._http_json(f"{ep}?{q}", headers={"Authorization": pk, "User-Agent": "AgentHub-Studio/1.0"}, timeout=30)
+            out: list[dict[str, Any]] = []
+            if mtype == "photo":
+                for ph in res.get("photos", []):
+                    src = ph.get("src") or {}
+                    out.append({
+                        "id": ph.get("id"),
+                        "photographer": ph.get("photographer"),
+                        "alt": ph.get("alt"),
+                        "url": src.get("large2x") or src.get("original"),
+                        "pexels_page": ph.get("url"),
+                    })
+            else:
+                for vid in res.get("videos", []):
+                    files = sorted((vid.get("video_files") or []), key=lambda f: int(f.get("width") or 0), reverse=True)
+                    best = next((f for f in files if f.get("link") and int(f.get("width") or 0) <= 1920), files[0] if files else {})
+                    out.append({
+                        "id": vid.get("id"),
+                        "duration": vid.get("duration"),
+                        "width": best.get("width"),
+                        "height": best.get("height"),
+                        "url": best.get("link"),
+                        "pexels_page": vid.get("url"),
+                    })
+            return out
+
+        items = await asyncio.to_thread(_work)
+        return json.dumps({"query": query, "media_type": mtype, "results": items}, indent=2)
+
+    async def download_stock_media(
+        self,
+        url: str,
+        filename: str = "stock.jpg",
+    ) -> str:
+        """Download a stock photo/video from an allowlisted Pexels CDN URL so it gets a local /media-dl/ link and artifact ref."""
+        parsed = urllib.parse.urlparse((url or "").strip())
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme != "https" or not (host == "pexels.com" or host.endswith(".pexels.com")):
+            raise ValueError(f"Only https://*.pexels.com URLs are allowed, got {url!r}")
+        if not _SAFE_NAME.match(filename) or ".." in filename:
+            raise ValueError(f"Unsafe filename {filename!r}")
+
+        def _work() -> bytes:
+            _, raw, _ = self._http(parsed.geturl(), headers={"User-Agent": "AgentHub-Studio/1.0"}, timeout=180)
+            return raw
+
+        raw = await asyncio.to_thread(_work)
+        ref, view_url, dl_url = self._save_output(filename, raw)
+        ext = Path(filename).suffix.lower()
+        preview = f"![{filename}]({view_url})\n" if ext in (".png", ".jpg", ".jpeg", ".webp") else f"- [View {filename}]({view_url})\n"
+        return f"**download_stock_media** saved (`bytes={len(raw)}`)\n\n{preview}- [Download {filename}]({dl_url})\n- ref: `{ref}`"
+
+    async def parse_document_url(self, url: str) -> str:
+        """Parse a public PDF or document URL into structured markdown/tables using Reducto."""
+        rk = (self.valves.reducto_api_key or "").strip()
+        if not rk:
+            raise RuntimeError("REDUCTO_API_KEY valve not configured.")
+        parsed = urllib.parse.urlparse((url or "").strip())
+        if parsed.scheme not in ("https", "http") or not parsed.netloc:
+            raise ValueError(f"Valid http(s) URL required, got {url!r}")
+
+        def _work() -> dict[str, Any]:
+            return self._http_json(
+                "https://platform.reducto.ai/parse",
+                method="POST",
+                headers={"Authorization": f"Bearer {rk}"},
+                payload={"document_url": parsed.geturl()},
+                timeout=180,
+            )
+
+        res = await asyncio.to_thread(_work)
+        chunks = ((res.get("result") or {}).get("chunks") or [])
+        text = "\n\n".join(str(c.get("content") or "") for c in chunks[:20] if isinstance(c, dict)).strip()
+        ref, _, dl_url = self._save_output("reducto-parse.json", json.dumps(res, indent=2).encode("utf-8"))
+        excerpt = text[:4000] + ("\n...(truncated)..." if len(text) > 4000 else "")
+        return f"**parse_document_url** finished (`chunks={len(chunks)}`)\n\n{excerpt}\n\n- [Download reducto-parse.json]({dl_url}) (`{ref}`)"
