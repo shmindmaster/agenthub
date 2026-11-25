@@ -46,7 +46,11 @@ class Tools:
         )
         public_media_base_url: str = Field(
             default="https://studio.shtrial.com/media-out",
-            description="Public HTTPS prefix mapped to media_out_dir for inline chat previews and downloads.",
+            description="Public HTTPS prefix mapped to media_out_dir for inline chat previews.",
+        )
+        public_download_base_url: str = Field(
+            default="https://studio.shtrial.com/media-dl",
+            description="Public HTTPS prefix with Content-Disposition: attachment for direct local PC downloads.",
         )
         media_out_dir: str = Field(
             default="/app/backend/data/media_out",
@@ -149,6 +153,7 @@ class Tools:
         out_dir = Path(self.valves.media_out_dir) / run_token
         out_dir.mkdir(parents=True, exist_ok=True)
         public_base = self.valves.public_media_base_url.rstrip("/")
+        dl_base = (self.valves.public_download_base_url or public_base).rstrip("/")
 
         saved: list[str] = []
         text_previews: list[str] = []
@@ -166,11 +171,12 @@ class Tools:
 
             ref = f"{run_token}/{name}"
             url = f"{public_base}/{ref}"
+            dl_url = f"{dl_base}/{ref}"
             ext = Path(name).suffix.lower()
             if ext in (".png", ".jpg", ".jpeg", ".webp"):
-                saved.append(f"![{name}]({url})\n- ref: `{ref}`\n- url: {url}")
+                saved.append(f"![{name}]({url})\n- [Download {name}]({dl_url})\n- ref: `{ref}`")
             else:
-                saved.append(f"- [{name}]({url})\n  ref: `{ref}`")
+                saved.append(f"- [View {name}]({url}) · [Download {name}]({dl_url})\n  ref: `{ref}`")
             if ext in (".txt", ".srt", ".json") and len(data) <= 16384:
                 text_previews.append(f"```{ext.lstrip('.')}\n{data.decode('utf-8', errors='replace').strip()}\n```")
 
