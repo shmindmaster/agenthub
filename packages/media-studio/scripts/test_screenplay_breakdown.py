@@ -22,6 +22,17 @@ class Breakdown(unittest.TestCase):
         n = sum(len(s["narration"].encode()) for s in SP["scenes"])
         self.assertAlmostEqual(r["budget"]["speechUsd"], round(n * 15e-6, 4), places=4)
 
+    def test_a_screencast_plans_recorded_screens_not_remotion_scenes(self):
+        plan = {"scenes": [{"id": "a", "visual": {"kind": "screen"}}, {"id": "b", "visual": {"kind": "cta"}}]}
+        r = bd.summarize(SP, plan, screencast=True)
+        self.assertTrue(r["ok"], r["errors"])
+        self.assertEqual(r["scenes"][0]["lane"], "screencast-recorder")
+        self.assertNotEqual(r["scenes"][1]["lane"], "screencast-recorder")
+        tasks = " ".join(t["task"] for t in r["schedule"])
+        self.assertIn("record the screens", tasks)
+        self.assertNotIn("build props", tasks)
+        self.assertEqual(len(r["assets"]), 0)
+
     def test_hd_voice_costs_more_than_standard(self):
         std = bd.summarize(SP, PLAN)["budget"]["speechUsd"]
         hd = bd.summarize(SP, PLAN, hd_voices=["debbie", "sarosh"])["budget"]["speechUsd"]

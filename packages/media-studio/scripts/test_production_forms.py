@@ -54,6 +54,59 @@ class Forms(unittest.TestCase):
         w(self.root, "story/visual-bible.json", {})
         ps.approve(self.root, "plan")
 
+    def screencast_files(self):
+        self.declare("narrated-video", kind="product-screencast", intent="viewer-facing")
+        self.develop_files([{"id": "S01", "narration": "See the week."}])
+        w(self.root, "qa/narration-check.json", {"ok": True})
+        self.plan_files()
+        voice = w(self.root, "voice/S01.wav", "audio")
+        sha = lambda p: hashlib.sha256((self.root / p).read_bytes()).hexdigest()
+        w(self.root, "story/narration-timeline.json", {"segments": [{"id": "S01", "scene": "S01", "voice": "voice/S01.wav", "voiceSha256": hashlib.sha256(voice.read_bytes()).hexdigest()}]})
+        w(self.root, "plan/cue-sheet.json", {"beats": []})
+        w(self.root, "capture/receipt.json", {"clips": {}})
+        w(self.root, "capture/manifest.json", {"clips": []})
+        w(self.root, "qa/product-picture.json", {"ok": True, "inputs": {k: {"path": f"capture/{k}.json", "sha256": sha(f"capture/{k}.json")} for k in ("receipt", "manifest")}})
+        w(self.root, "output/film-compose-map.json", {"groups": []})
+
+    def finish_screencast(self):
+        film = w(self.root, "out/film.mp4", "x")
+        w(self.root, "out/film.srt", "1")
+        digest = hashlib.sha256(film.read_bytes()).hexdigest()
+        for rep in ("word-sync", "frame-integrity", "story-experience-review"):
+            w(self.root, f"qa/{rep}.json", {"ok": True})
+        for rep in ("encoded-picture", "sync", "pointer-path"):
+            w(self.root, f"qa/{rep}.json", {"ok": True, **({} if rep == "pointer-path" else {"candidate": {"sha256": digest}})})
+        ps.approve(self.root, "delivered")
+
+    def test_a_screencast_reaches_complete_without_remotion_files(self):
+        self.screencast_files()
+        self.assertEqual(self.state("production")["state"], "PASS", self.state("production")["reasons"])
+        self.finish_screencast()
+        s = ps.status(self.root)
+        self.assertTrue(s["complete"], s)
+
+    def test_each_screencast_production_file_is_needed(self):
+        for rel, says in (("voice/S01.wav", "S01"), ("plan/cue-sheet.json", "cue-sheet"), ("qa/product-picture.json", "product-picture"), ("output/film-compose-map.json", "compose-map")):
+            self.screencast_files()
+            (self.root / rel).unlink()
+            self.assertIn(says, " ".join(self.state("production")["reasons"]), rel)
+
+    def test_a_product_picture_report_for_another_receipt_is_stale(self):
+        self.screencast_files()
+        w(self.root, "capture/receipt.json", {"clips": {"S01": {}}})
+        self.assertIn("stale", " ".join(self.state("production")["reasons"]))
+
+    def test_a_screencast_post_gate_must_describe_the_current_film(self):
+        self.screencast_files()
+        self.finish_screencast()
+        w(self.root, "qa/sync.json", {"ok": True, "candidate": {"sha256": "0" * 64}})
+        self.assertIn("sync.json", " ".join(self.state("post")["reasons"]))
+
+    def test_a_briefing_still_needs_the_remotion_files(self):
+        self.screencast_files()
+        self.declare("narrated-video", kind="briefing")
+        self.assertIn("picture/video.mp4", " ".join(self.state("production")["reasons"]))
+
     def test_an_undeclared_job_derives_narrated_video_and_audio_only_derives_audio(self):
         self.assertEqual(ps.status(self.root)["deliverable"], "narrated-video")
         w(self.root, "job.json", {"kind": "audio-only"})

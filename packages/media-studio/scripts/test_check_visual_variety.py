@@ -23,6 +23,23 @@ class VarietyTests(unittest.TestCase):
         self.assertIn("are pictures", joined)
         self.assertIn("three in a row", joined)
 
+    def test_a_screencast_is_not_flagged_for_being_mostly_screen(self):
+        r = gate.judge(scenes(*["screen"] * 11, "cta"), enforce_style=True, screencast=True)
+        self.assertTrue(r["ok"], r["reasons"])
+        self.assertEqual(r["counts"]["picture"], 11)
+
+    def test_screen_still_has_the_limit_outside_a_screencast(self):
+        r = gate.judge(scenes(*["screen"] * 11, "cta"), enforce_style=True)
+        self.assertIn("'screen' fills 11 of 12", " ".join(r["reasons"]))
+
+    def test_the_job_kind_is_read_from_the_job(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "story").mkdir()
+            props = Path(d) / "story" / "picture-plan.json"
+            props.write_text(json.dumps({"scenes": scenes(*["screen"] * 11, "cta")}), encoding="utf-8")
+            (Path(d) / "job.json").write_text(json.dumps({"kind": "product-screencast"}), encoding="utf-8")
+            self.assertEqual(gate.main([str(props), "--enforce-style"]), 0)
+
     def test_no_visual_counts_as_text(self):
         self.assertEqual(gate.classify({"id": "x"}), "text")
 

@@ -9,6 +9,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { IDENTITY, putReceipt, writeProof } from './fixtures/capture-job.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = resolve(here, '..');
@@ -43,6 +44,7 @@ function writeJob(root, { screenSeconds = 16, cardSeconds = 6, clipFile = 'clips
   mkdirSync(join(root, 'capture', 'clips'), { recursive: true });
   mkdirSync(join(root, 'output'), { recursive: true });
   writeFileSync(join(root, 'job.json'), JSON.stringify({ kind, title: 't', workspace: root, repositoryWritePolicy: 'read-only', programForm: 'role-demo', intent }));
+  writeProof(root);
   writeFileSync(join(root, 'story', 'storyboard.json'), JSON.stringify({
     title: 't',
     beats: [
@@ -59,7 +61,7 @@ function writeJob(root, { screenSeconds = 16, cardSeconds = 6, clipFile = 'clips
   }));
   writeFileSync(join(root, 'capture', 'manifest.json'), JSON.stringify({ clips: [{ id: 'S02', file: clipFile, segments: ['S02'], ...extraClip }] }));
   if (plan) writeFileSync(join(root, 'story', 'capture-plan.json'), JSON.stringify({ scenes: [{ sceneId: 'S01', kind: 'card' }, { sceneId: 'S02', kind: 'interaction', action: 'click Submit', expectedResult: 'toast', startState: 'form ready', resultState: 'toast visible', provesClaim: 'submit sends the request', clip: clipFile }] }));
-  if (receipt) writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(receipt));
+  if (receipt) putReceipt(root, receipt);
 }
 const goodReceipt = (file, hash, over = {}) => ({
   schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: { S02: { file, sha256: hash, recast: 'full', valid: true, events: { pointerMoves: 24, clicks: 1, keystrokes: 0, scrolls: 0, expectations: 1, expectationsObserved: 1, expectationsFailed: [] }, ...over } },
@@ -74,7 +76,7 @@ test('plan gate: receipt-bound moving capture passes', { skip: !ffmpegAvailable 
   writeJob(root);
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 16);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   const r = run(validator, [root]);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /"ok":true/);
@@ -84,7 +86,7 @@ test('plan gate: a still looped into a .webm fails on the receipt (no live-sessi
   const root = join(scratch, 'still');
   writeJob(root);
   stillClip(join(root, 'capture', 'clips', 'S02.webm'), 12);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', 'deadbeef')));
+  putReceipt(root, goodReceipt('clips/S02.webm', 'deadbeef'));
   const r = run(validator, [root]);
   assert.notEqual(r.code, 0);
   assert.match(r.out, /not in capture\/receipt\.json/);
@@ -104,7 +106,7 @@ test('plan gate: receipt without pointer motion or observed response fails an in
   writeJob(root);
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 12);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip), { events: { pointerMoves: 0, clicks: 0, keystrokes: 0, scrolls: 0, expectations: 1, expectationsObserved: 0, expectationsFailed: ['toast'] } })));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip), { events: { pointerMoves: 0, clicks: 0, keystrokes: 0, scrolls: 0, expectations: 1, expectationsObserved: 0, expectationsFailed: ['toast'] } }));
   const r = run(validator, [root]);
   assert.notEqual(r.code, 0);
   assert.match(r.out, /no pointer motion/);
@@ -116,7 +118,7 @@ test('plan gate: a touch take (taps, no pointer moves or clicks) with an observe
   writeJob(root);
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 16);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip), { events: { pointerMoves: 0, clicks: 0, taps: 2, keystrokes: 0, scrolls: 0, expectations: 1, expectationsObserved: 1, expectationsFailed: [] } })));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip), { events: { pointerMoves: 0, clicks: 0, taps: 2, keystrokes: 0, scrolls: 0, expectations: 1, expectationsObserved: 1, expectationsFailed: [] } }));
   const r = run(validator, [root]);
   assert.equal(r.code, 0, r.out);
 });
@@ -126,7 +128,7 @@ test('plan gate: a 3s take frozen across 20s of narration fails (the 250-01 defe
   writeJob(root, { screenSeconds: 20 });
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 3);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   const r = run(validator, [root]);
   assert.notEqual(r.code, 0);
   assert.match(r.out, /would be frozen/);
@@ -137,7 +139,7 @@ test('plan gate: fit retiming beyond ±20% fails', { skip: !ffmpegAvailable }, (
   writeJob(root, { screenSeconds: 20, extraClip: { fit: 'fit' } });
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 8);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   const r = run(validator, [root]);
   assert.notEqual(r.code, 0);
   assert.match(r.out, /fit retimes/);
@@ -156,7 +158,7 @@ test('plan gate: interaction missing provesClaim or identical start/result fails
   writeJob(root);
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 12);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   writeFileSync(join(root, 'story', 'capture-plan.json'), JSON.stringify({
     scenes: [
       { sceneId: 'S01', kind: 'card' },
@@ -174,7 +176,7 @@ test('plan gate: Recast fallback fails unless the job allows it with a reason', 
   writeJob(root);
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 12);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip), { recast: 'fallback', recastNote: 'ffmpeg exit 1' })));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip), { recast: 'fallback', recastNote: 'ffmpeg exit 1' }));
   const r = run(validator, [root]);
   assert.notEqual(r.code, 0);
   assert.match(r.out, /Recast did not run/);
@@ -210,7 +212,8 @@ test('compose pads the narration lead-in so picture time is timeline time and th
   writeFileSync(join(root, 'story', 'capture-plan.json'), JSON.stringify({ scenes: ['S01', 'S02'].map((id) => ({ sceneId: id, kind: 'interaction', action: 'click', expectedResult: 'r', startState: 'a', resultState: 'b', provesClaim: 'c', clip: `clips/${id}.webm` })) }));
   writeFileSync(join(root, 'capture', 'manifest.json'), JSON.stringify({ clips: [{ id: 'S01', file: 'clips/S01.webm', segments: ['S01'] }, { id: 'S02', file: 'clips/S02.webm', segments: ['S02'] }] }));
   const rc = (file, p) => goodReceipt(file, sha(p)).clips.S02;
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify({ schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: { S01: rc('clips/S01.webm', s01), S02: rc('clips/S02.webm', s02) } }));
+  writeProof(root);
+  putReceipt(root, { schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: { S01: rc('clips/S01.webm', s01), S02: rc('clips/S02.webm', s02) } });
   const composed = run(compose, [root, 'lead']); assert.equal(composed.code, 0, composed.out);
   const map = JSON.parse(readFileSync(join(root, 'output', 'lead-compose-map.json'), 'utf8'));
   assert.equal(map.leadInSeconds, lead);
@@ -244,7 +247,7 @@ test('portrait campaign composes a bounded source reframe with timed graphic and
   writeFileSync(join(root, 'story', 'capture-plan.json'), JSON.stringify({ scenes: [{ sceneId: 'S01', kind: 'interaction', action: 'click Approve', expectedResult: 'approved state', startState: 'pending', resultState: 'approved', provesClaim: 'approval visible', clip: 'clips/S01.webm' }] }));
   writeFileSync(join(root, 'story', 'timed-graphics.json'), JSON.stringify({ overlays: [{ assetId: 'label', x: 80, y: 180, width: 200, height: 80, startSeconds: 1, endSeconds: 3 }] }));
   writeFileSync(join(root, 'capture', 'manifest.json'), JSON.stringify({ clips: [{ id: 'S01', file: 'clips/S01.webm', segments: ['S01'], sourceRegion: region }] }));
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify({ schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: { S01: { file: 'clips/S01.webm', sha256: sha(clip), recast: 'full', valid: true, events: { pointerMoves: 10, clicks: 1, expectationsObserved: 1 } } } }));
+  putReceipt(root, { schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: { S01: { file: 'clips/S01.webm', sha256: sha(clip), recast: 'full', valid: true, events: { pointerMoves: 10, clicks: 1, expectationsObserved: 1 } } } }, { ...IDENTITY, scenarioId: 'synthetic-01' });
   writeFileSync(join(root, 'evidence', 'demo-scenario-proof.json'), JSON.stringify({ scenarioId: 'synthetic-01', continuity: { entities: [{ type: 'client', id: 'record-01' }] } }));
   const composed = run(compose, [root, 'portrait']); assert.equal(composed.code, 0, composed.out);
   const mapPath = join(root, 'output', 'portrait-compose-map.json');
@@ -285,7 +288,7 @@ test('encoded gate: a master built from the capture passes; a master with a dead
   writeJob(root, { screenSeconds: 16, cardSeconds: 6 });
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 16);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   // Good master: 6s designed card (gray with text-free block) + the 12s capture.
   const card = join(root, 'capture', 'clips', 'S01-card.png');
   ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', card]);
@@ -314,7 +317,7 @@ test('encoded gate: a card spliced where the capture belongs fails source bindin
   writeJob(root, { screenSeconds: 16, cardSeconds: 6 });
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 16);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   const fake = join(root, 'output', 'fake.mp4');
   // A moving but unrelated picture (a different generator) in the S02 slot.
   ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=30:duration=6', '-f', 'lavfi', '-i', 'mandelbrot=size=1600x1000:rate=30', '-t', '22', '-filter_complex', '[0:v]format=yuv420p[a];[1:v]trim=duration=16,setpts=PTS-STARTPTS,format=yuv420p[b];[a][b]concat=n=2:v=1:a=0[v]', '-map', '[v]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', fake]);
@@ -331,7 +334,7 @@ test('encoded gate: a frame between 2 fps samples of the capture still binds (Re
   // Recast punch-in do, while the same frame survives re-encoding with its hash intact.
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   ff(['-f', 'lavfi', '-i', "nullsrc=size=18x16:rate=30:duration=17,geq=lum='mod(X*97+Y*57+N*131+X*Y*N*29\\,251)':cb=128:cr=128", '-vf', 'scale=1600:1000:flags=neighbor,format=yuv420p', '-c:v', 'libvpx', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '4M', clip]);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   const card = join(root, 'capture', 'clips', 'S01-card.png');
   ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', card]);
   // The capture enters 8 frames (0.267 s) in, so the S02 midpoint (14 s) shows clip time 8.267 s: real capture,
@@ -359,7 +362,7 @@ test('compose: a pause between segments is picture time, so the picture runs the
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 17);
   ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', join(root, 'capture', 'clips', 'S01-card.png')]);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   const r = run(compose, [root, 'p']);
   assert.equal(r.code, 0, r.out);
   const map = JSON.parse(readFileSync(join(root, 'output', 'p-compose-map.json'), 'utf8'));
@@ -380,7 +383,7 @@ test('encoded gate: a static run straddling a pause is judged as the neighbourin
   }));
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 16);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   const card = join(root, 'capture', 'clips', 'S01-card.png');
   ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', card]);
   // Card 0-6.6 (the pause is held on the card), then the moving capture 6.6-22.6.
@@ -399,7 +402,7 @@ test('encoded gate: a repeated source file binds by clip id, not by file order',
   writeJob(root, { screenSeconds: 16, cardSeconds: 6 });
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 16);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   // Two distinct edits reuse one source video, each with its own clip id and crop. The wrong (first) clip shares
   // the file, so a file-first match binds S02 to the other clip's sourceRegion.
   const full = { x: 0, y: 0, width: 1, height: 1 };
@@ -444,7 +447,7 @@ function voiceFirstJob(name, { clipSeconds = 17, keywordStart = 9.7, slotStart =
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, clipSeconds);
   ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', join(root, 'capture', 'clips', 'S01-card.png')]);
-  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  putReceipt(root, goodReceipt('clips/S02.webm', sha(clip)));
   const word = (w, start) => ({ w, start, end: start + 0.3 });
   mkdirSync(join(root, 'plan'), { recursive: true });
   writeFileSync(join(root, 'plan', 'cue-sheet.json'), JSON.stringify({
@@ -490,8 +493,7 @@ test('plan gate: native upload requires valid action evidence, matching summary,
   const clip = join(root, 'capture', 'clips', 'S02.webm'); movingClip(clip, 2);
   const upload = { type: 'upload', tStart: 0.4, tEnd: 0.5, t: 0.5, label: 'Select CSV', target: 'input[type=file]', method: 'locator.setInputFiles', file: { name: 'synthetic.csv', bytes: 12, sha256: 'a'.repeat(64), mimeType: 'text/csv' } };
   const receipt = goodReceipt('clips/S02.webm', sha(clip), { actions: [upload], events: { pointerMoves: 2, uploads: 1, expectationsObserved: 1 } });
-  const path = join(root, 'capture', 'receipt.json');
-  const check = (r) => { writeFileSync(path, JSON.stringify(r)); return run(validator, [root]); };
+  const check = (r) => { putReceipt(root, r); return run(validator, [root]); };
   let r = check(receipt); assert.equal(r.code, 0, r.out);
   for (const change of [r => delete r.clips.S02.actions, r => r.clips.S02.events.uploads = 2,
     r => r.clips.S02.actions[0].method = 'synthetic-click', r => delete r.clips.S02.actions[0].file,
@@ -507,8 +509,7 @@ test('plan gate: native fill requires matching summary, real bounds, observed re
   const clip = join(root, 'capture', 'clips', 'S02.webm'); movingClip(clip, 2);
   const fill = { type: 'fill', tStart: 0.4, tEnd: 0.5, t: 0.5, label: 'Set month', target: 'month control', method: 'locator.fill', inputType: 'month', value: '2026-09', targetBox: { x: 20, y: 40, w: 100, h: 30 } };
   const receipt = goodReceipt('clips/S02.webm', sha(clip), { actions: [fill], events: { pointerMoves: 2, fills: 1, expectationsObserved: 1 } });
-  const path = join(root, 'capture', 'receipt.json');
-  const check = (r) => { writeFileSync(path, JSON.stringify(r)); return run(validator, [root]); };
+  const check = (r) => { putReceipt(root, r); return run(validator, [root]); };
   let r = check(receipt); assert.equal(r.code, 0, r.out);
   for (const change of [r => delete r.clips.S02.actions, r => r.clips.S02.events.fills = 2,
     r => r.clips.S02.actions[0].method = 'synthetic-change', r => r.clips.S02.actions[0].inputType = 'password',
@@ -523,8 +524,7 @@ test('plan gate: native select requires paired image identities, native readback
   const clip = join(root, 'capture', 'clips', 'S02.webm'); movingClip(clip, 2);
   const selection = { type: 'select', tStart: 0.4, tEnd: 0.5, t: 0.5, label: 'Change reviewer', target: 'persona select', method: 'locator.selectOption', value: 'reviewer', beforeValue: 'learner', optionLabel: 'Content reviewer', x: 70, y: 55, targetBox: { x: 20, y: 40, w: 100, h: 30 }, beforeImage: { path: 'select-3-before.png', sha256: 'a'.repeat(64) }, afterImage: { path: 'select-3-after.png', sha256: 'b'.repeat(64) } };
   const receipt = goodReceipt('clips/S02.webm', sha(clip), { actions: [selection], events: { pointerMoves: 2, selections: 1, expectationsObserved: 1 } });
-  const path = join(root, 'capture', 'receipt.json');
-  const check = (r) => { writeFileSync(path, JSON.stringify(r)); return run(validator, [root]); };
+  const check = (r) => { putReceipt(root, r); return run(validator, [root]); };
   let r = check(receipt); assert.equal(r.code, 0, r.out);
   for (const change of [r => delete r.clips.S02.actions, r => r.clips.S02.events.selections = 2,
     r => r.clips.S02.actions[0].method = 'synthetic-change', r => r.clips.S02.actions[0].type = 'select-failed',
