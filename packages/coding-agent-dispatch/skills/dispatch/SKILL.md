@@ -61,7 +61,7 @@ their native accounts by default. Use `-Auth` to show sign-in commands, and add
    without starting anything. It does not prove that a host will execute it.
 
    `-Model <id>` picks the model for codex, grok, opencode, cline,
-   factory, devin, kilo, mimo-code, qwen, cursor-agent and zcode. Any model
+   factory, devin, kilo, mimo-code, qwen and cursor-agent. Any model
    the host can reach is
    accepted: `allowedModels` in `dispatchPolicy` records the smoke-verified
    models and does not limit the choice. An unlisted model adds one stderr
@@ -75,10 +75,9 @@ their native accounts by default. Use `-Auth` to show sign-in commands, and add
    For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.4`.
    See the host reference for the Windows tool limits.
 
-   On Windows, `-HostId zcode` uses the bundled CLI and the existing standalone
-   ZCode provider profile. For native headless Browser Use, run
-   `zcode/Install-ZCodeBrowserRuntime.ps1` beside this skill once, then add
-   `-ZCodeBrowser`. It opens a fresh headless Edge profile.
+   `-HostId zcode` is refused: ZCode's saved provider file holds provider API
+   keys the dispatcher never reads or copies, and a key-free per-run config
+   cannot select a model headless (`references/hosts.md` -> ZCode).
 
    `-Role <role>` picks an OpenCode agent or a Factory custom droid: `peer` (default), `engineer`,
    `reviewer` or `tester` (OpenCode also takes `researcher`). Factory maps `engineer`,

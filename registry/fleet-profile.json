@@ -422,9 +422,9 @@
       "allowedModels": [
         "account:zai-start-plan/GLM-5.4"
       ],
-      "modelNote": "provider/model id; provider ids carry a colon on this host. zcode.cjs has no per-run model flag, so the dispatcher writes a copy of the saved personal provider config under the runtime folder carrying config.defaultModelSelection for the run and points ZCODE_PERSONAL_PROVIDER_CONFIG_FILE at it; the owner's file under ~/.zcode is never modified and the copy is deleted after the run. -Model overrides the selection for one run. The default is the Z.ai coding-plan provider through its stored account login (zhipu-account), matching the owner's modelOrder pin for GLM-5.4.",
+      "modelNote": "provider/model id; provider ids carry a colon on this host. The dispatcher refuses this host (2026-11-25): the saved personal provider file holds provider API keys and is never read or copied, and a key-free per-run config with only config.defaultModelSelection cannot select a model headless on zcode 0.18.0 (Select a model before sending a message). Z.ai GLM runs on OpenCode (zai-coding-plan/glm-5.4).",
       "verifiedOn": "2026-11-25",
-      "reason": "2026-11-25 (CORE-7): the previous dispatch used the saved default selection, which resolved to an AgentRouter GPT route and failed headless with 'The model produced invalid content' (ToolSearch off, 23 unneeded MCP servers started). Fixed: every run now carries a per-run defaultModelSelection through a dispatch copy of the personal provider config, plus --toolsearch-mode auto. There is no per-run option to disable MCP servers (features.mcp lives only in user/project config), so none is applied. Owner authorized Windows ZCode dispatch in SH-5036; native headless Browser Use is unchanged (-ZCodeBrowser)."
+      "reason": "2026-11-25: the earlier route copied the saved personal provider file, with its literal provider API keys, into a per-run folder. Removed; the route now refuses with the reason in -List. Owner authorized Windows ZCode dispatch in SH-5036; it returns when a supported key-free route exists."
     },
     "cursor": {
       "enabled": true,

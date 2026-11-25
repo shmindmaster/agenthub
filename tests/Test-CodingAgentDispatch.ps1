@@ -60,8 +60,14 @@ try {
     $recorder = Join-Path $fixture 'record.cjs'
     @'
 const fs = require('node:fs');
-if (process.env.CAD_FIXTURE_SLEEP) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 8000);
 const args = process.argv.slice(2);
+// Cursor's shell writes its environment under the temp directory; the fixture does the same so an unisolated TEMP is caught.
+if (args.includes('--trust')) {
+  const stateDir = require('node:path').join(require('node:os').tmpdir(), 'cursor-bash-state-fixture');
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(require('node:path').join(stateDir, 'state-out'), JSON.stringify(process.env));
+}
+if (process.env.CAD_FIXTURE_SLEEP || args.includes('cad-fixture-sleep')) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 8000);
 const contents = [];
 let ampSettings = null;
 for (const arg of args) {
@@ -78,8 +84,8 @@ if (zpc) {
   try { selection = JSON.parse(fs.readFileSync(zpc, 'utf8'))?.config?.defaultModelSelection ?? null; } catch {}
   zcodeProvider = { path: zpc, isRuntimeCopy: /zcode-provider-[0-9a-f]+\.json$/i.test(zpc), selection };
 }
-console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ZcodeProvider: zcodeProvider, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','DEVIN_CLOUD_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN'].map(name => [name, Object.hasOwn(process.env, name)])), QwenRoute: { openAiKeyPresent: Object.hasOwn(process.env, 'OPENAI_API_KEY'), openAiKeyIsMimo: process.env.OPENAI_API_KEY !== undefined && process.env.OPENAI_API_KEY === process.env.MIMO_API_KEY, openAiBaseUrl: process.env.OPENAI_BASE_URL ?? null, openAiModel: process.env.OPENAI_MODEL ?? null, ghTokenPresent: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN'), gitPushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null }}));
-if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
+console.log(JSON.stringify({Arguments: args, ChildEnv: { names: Object.keys(process.env), temp: process.env.TEMP ?? process.env.TMPDIR ?? null, tempExists: fs.existsSync(process.env.TEMP ?? process.env.TMPDIR ?? '') }, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ZcodeProvider: zcodeProvider, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','DEVIN_CLOUD_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN'].map(name => [name, Object.hasOwn(process.env, name)])), QwenRoute: { openAiKeyPresent: Object.hasOwn(process.env, 'OPENAI_API_KEY'), openAiKeyIsMimo: process.env.OPENAI_API_KEY !== undefined && process.env.OPENAI_API_KEY === process.env.MIMO_API_KEY, openAiBaseUrl: process.env.OPENAI_BASE_URL ?? null, openAiModel: process.env.OPENAI_MODEL ?? null, ghTokenPresent: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN'), gitPushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null }}));
+if (process.env.CAD_FIXTURE_EXIT || args.includes('cad-fixture-exit')) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
     $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
     if ($env:OS -eq 'Windows_NT') {
@@ -104,68 +110,39 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $scratch = Join-Path $fixture 'scratch'
     # A child reports its cwd with symlinks resolved (macOS temp lives under /var -> /private/var).
     $scratchReal = (& $node -e 'process.stdout.write(require("fs").realpathSync(process.argv[1]))' $scratch)
-    if ($env:OS -eq 'Windows_NT') {
-        $userProfileBeforeZCode = $env:USERPROFILE
-        try {
-            $env:USERPROFILE = Join-Path $fixture 'zcode-user'
-            $personalConfig = Join-Path $env:USERPROFILE '.zcode/v2'
-            $resources = Join-Path $fixture 'zcode-resources'
-            foreach ($directory in @($personalConfig, (Join-Path $resources 'glm'), (Join-Path $resources 'config/provider'))) {
-                $null = New-Item -ItemType Directory -Path $directory -Force
-            }
-            '{}' | Set-Content -LiteralPath (Join-Path $personalConfig 'provider_config.json')
-            '{}' | Set-Content -LiteralPath (Join-Path $resources 'config/provider/zcode-builtin.json')
-            $bundle = Join-Path $resources 'glm/zcode.cjs'
-            Copy-Item -LiteralPath $recorder -Destination $bundle
-            $agents.activeAgents += @{ id = 'zcode'; executable = $stub; nativePaths = @{ bundledRuntime = $bundle } }
-            $fleet.dispatchPolicy['zcode'] = @{ model = 'account:zai-start-plan/GLM-5.4'; allowedModels = @('account:zai-start-plan/GLM-5.4') }
-            Save-Fixture
-            $zcodeTask = Join-Path $fixture 'zcode-task.txt'
-            $zcodePrompt = "Say `"ZCODE`" & use the given text.`nSecond line." + ('x' * 35000)
-            [IO.File]::WriteAllText($zcodeTask, $zcodePrompt, [Text.UTF8Encoding]::new($false))
-            $r = Run @('-HostId','zcode','-PromptFile',$zcodeTask,'-Cwd',$scratch)
-            $result = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-            Check 'Windows ZCode dispatch preserves a prompt beyond the OS argument limit' ($result -and $result.Arguments[-1] -ceq $zcodePrompt -and $result.Arguments -contains 'guarded') $r.Err
-            $zcodeSelOk = $null -ne $result -and $null -ne $result.ZcodeProvider -and $result.ZcodeProvider.isRuntimeCopy -and
-                $result.ZcodeProvider.selection.providerId -eq 'account:zai-start-plan' -and $result.ZcodeProvider.selection.modelId -eq 'GLM-5.4'
-            Check 'Windows ZCode runs the GLM coding-plan default through a runtime provider copy' ($zcodeSelOk -and $result.Arguments -contains '--toolsearch-mode' -and $result.Arguments -contains 'auto' -and
-                $result.ZcodeProvider.path -cne (Join-Path $personalConfig 'provider_config.json') -and -not (Test-Path -LiteralPath $result.ZcodeProvider.path) -and
-                (Get-Content -LiteralPath (Join-Path $personalConfig 'provider_config.json') -Raw -Encoding UTF8) -match '^\{\}') (($result.ZcodeProvider | ConvertTo-Json -Compress) + ' ' + $r.Err)
-            $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','qwen-token-plan/qwen4-max')
-            $result = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-            Check 'Windows ZCode routes an explicit provider/model for one run' ($null -ne $result -and $result.ZcodeProvider.selection.providerId -eq 'qwen-token-plan' -and $result.ZcodeProvider.selection.modelId -eq 'qwen4-max' -and $r.Err -match (PassNote 'zcode' 'qwen-token-plan/qwen4-max')) $r.Err
-            $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-Model','GLM-5.4')
-            Check 'Windows ZCode refuses a bare model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model') $r.Err
-            $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-Model','account:zai-start-plan/x&echo')
-            Check 'Windows ZCode refuses a shell-unsafe model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model') $r.Err
-            $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-ZCodeBrowser')
-            Check 'Windows ZCode browser refuses without its pinned runtime' ($r.Exit -eq 3 -and $r.Err -match 'Install-ZCodeBrowserRuntime')
-            $edgeBeforeZCode = ${env:ProgramFiles(x86)}
-            try {
-                ${env:ProgramFiles(x86)} = Join-Path $fixture 'zcode-edge'
-                $edgeDir = Join-Path ${env:ProgramFiles(x86)} 'Microsoft/Edge/Application'
-                $null = New-Item -ItemType Directory -Path $edgeDir -Force
-                $null = New-Item -ItemType File -Path (Join-Path $edgeDir 'msedge.exe')
-                $packageFile = Join-Path $repoRoot 'packages/coding-agent-dispatch/skills/dispatch/zcode/package.json'
-                $version = (Get-Content -LiteralPath $packageFile -Raw -Encoding UTF8 | ConvertFrom-Json).dependencies.'playwright-core'
-                $packageDir = Join-Path $env:LOCALAPPDATA "AgentHub/runtime/coding-agent-dispatch/zcode/playwright-$version/node_modules/playwright-core"
-                $null = New-Item -ItemType Directory -Path $packageDir -Force
-                '{}' | Set-Content -LiteralPath (Join-Path $packageDir 'package.json')
-                'export const verifiedLoader = true;' | Set-Content -LiteralPath (Join-Path $packageDir 'index.mjs')
-                'import("playwright-core").then(({ verifiedLoader }) => { console.log(JSON.stringify({ verifiedLoader, args: process.argv.slice(2) })); }).catch(() => process.exit(9));' |
-                    Set-Content -LiteralPath $bundle
-                $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-ZCodeBrowser')
-                $browserResult = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
-                Check 'Windows ZCode browser loads pinned Playwright and uses a fresh profile' ($browserResult.verifiedLoader -and $browserResult.args -contains '--no-browser-state' -and $browserResult.args -contains 'headless' -and $browserResult.args[-1] -eq 'ok') $r.Err
-            } finally {
-                ${env:ProgramFiles(x86)} = $edgeBeforeZCode
-            }
-            $agents.activeAgents = @($agents.activeAgents | Where-Object id -ne 'zcode')
-            $fleet.dispatchPolicy.Remove('zcode')
-            Save-Fixture
-        } finally {
-            $env:USERPROFILE = $userProfileBeforeZCode
-        }
+    # ZCode: the saved provider file holds provider API keys, so the dispatcher
+    # neither reads nor copies it and the route refuses (see ZCodeRefusal).
+    $userProfileBeforeZCode = $env:USERPROFILE
+    try {
+        $env:USERPROFILE = Join-Path $fixture 'zcode-user'
+        $personalConfig = Join-Path $env:USERPROFILE '.zcode/v2'
+        $null = New-Item -ItemType Directory -Path $personalConfig -Force
+        $fakeZcodeKey = 'sk-fake-zcode-sentinel-' + '0123456789abcdef'
+        $personalFile = Join-Path $personalConfig 'provider_config.json'
+        [IO.File]::WriteAllText($personalFile, ('{"config":{"providerConfigRules":{"providerRules":[{"providerId":"custom-a","config":{"access":{"type":"api-key","apiKey":"' + $fakeZcodeKey + '"}}}]}}}'), [Text.UTF8Encoding]::new($false))
+        $personalHash = (Get-FileHash -LiteralPath $personalFile -Algorithm SHA256).Hash
+        $agents.activeAgents += @{ id = 'zcode'; executable = $stub }
+        $fleet.dispatchPolicy['zcode'] = @{ model = 'account:zai-start-plan/GLM-5.4'; allowedModels = @('account:zai-start-plan/GLM-5.4') }
+        Save-Fixture
+        $zcodeRuns = @(
+            (Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch)),
+            (Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-Model','account:zai-start-plan/GLM-5.4')),
+            (Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-ZCodeBrowser'))
+        )
+        Check 'ZCode refuses every run: its saved provider file holds provider API keys' (@($zcodeRuns | Where-Object { $_.Exit -eq 3 -and $_.Err -match 'refused zcode' -and $_.Err -match 'API keys' }).Count -eq 3) (($zcodeRuns | ForEach-Object { $_.Err }) -join ' | ')
+        $r = Run @('-List')
+        Check 'ZCode is listed refused with the reason' ($r.Out -match "(?m)^zcode\trefused\t.*API keys") $r.Out
+        $zcodeLeaks = @(Get-ChildItem -LiteralPath $env:LOCALAPPDATA -Recurse -File -ErrorAction SilentlyContinue | Where-Object { Select-String -LiteralPath $_.FullName -SimpleMatch $fakeZcodeKey -Quiet })
+        $zcodeFiles = @(Get-ChildItem -LiteralPath $env:LOCALAPPDATA -Recurse -File -Filter 'zcode-provider-*' -ErrorAction SilentlyContinue)
+        Check 'ZCode run folder holds no provider key and no provider-config copy' ($zcodeLeaks.Count -eq 0 -and $zcodeFiles.Count -eq 0 -and (($zcodeRuns | ForEach-Object { $_.Out + $_.Err }) -join '') -notmatch [regex]::Escape($fakeZcodeKey)) (($zcodeLeaks | ForEach-Object FullName) -join ',')
+        Check 'ZCode saved provider file is left untouched' ((Get-FileHash -LiteralPath $personalFile -Algorithm SHA256).Hash -eq $personalHash)
+        $dispatcherSource = [IO.File]::ReadAllText($DispatcherPath)
+        Check 'the dispatcher names no saved ZCode provider file to read' ($dispatcherSource -notmatch 'provider_config\.json' -and $dispatcherSource -notmatch 'ZCODE_PERSONAL_PROVIDER_CONFIG_FILE\s*=')
+        $agents.activeAgents = @($agents.activeAgents | Where-Object id -ne 'zcode')
+        $fleet.dispatchPolicy.Remove('zcode')
+        Save-Fixture
+    } finally {
+        $env:USERPROFILE = $userProfileBeforeZCode
     }
     $r = Run @('-HostId','codex','-Prompt','ok','-ZCodeBrowser')
     Check 'Other hosts refuse the ZCode browser option' ($r.Exit -eq 3 -and $r.Err -match 'applies only to -HostId zcode')
@@ -761,6 +738,30 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'Cursor passes an explicit model through with a note and keeps the guard' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'claude-sonnet-5-5' -and $d.Arguments -contains '--force' -and $d.WarpGuard.gitCount -eq '3' -and -not $d.WarpGuard.ghToken -and $r.Err -match (PassNote 'cursor-agent' 'claude-sonnet-5-5')) $r.Err
     $r = Run @('-HostId','cursor-agent','-Prompt','ok','-Cwd',$scratch,'-Model','claude opus&echo')
     Check 'Cursor refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
+    # Cursor runs on an allowlisted environment and a private TEMP removed after every run.
+    $env:CAD_SENTINEL_SECRET_TOKEN = 'sentinel-secret-value'; $env:CAD_SENTINEL_PLAIN = 'sentinel-plain-value'
+    $cursorRunDir = Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch'
+    $userTemp = [IO.Path]::GetTempPath()
+    function Get-RunTemps { return @(Get-ChildItem -LiteralPath $cursorRunDir -Directory -Filter 'tmp-cursor-agent-*' -ErrorAction SilentlyContinue) }
+    function Get-UserStates { return @(Get-ChildItem -LiteralPath $userTemp -Filter 'cursor-bash-state-*' -Directory -ErrorAction SilentlyContinue).Count }
+    $stateBefore = Get-UserStates
+    try {
+        $r = Run @('-HostId','cursor-agent','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','10')
+        $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+        $names = if ($d) { @($d.ChildEnv.names) } else { @() }
+        Check 'Cursor child never receives a sentinel secret variable' ($d -and $names -notcontains 'CAD_SENTINEL_SECRET_TOKEN' -and $names -notcontains 'CAD_SENTINEL_PLAIN') $r.Err
+        Check 'Cursor child environment holds no key-, token-, secret- or password-like name' ($d -and @($names | Where-Object { $_ -notmatch '^GIT_CONFIG_(KEY|VALUE)_[0-9]$' -and $_ -match '(?i)(key|token|secret|passw|credential|auth)' }).Count -eq 0 -and $names -contains 'GIT_CONFIG_COUNT') ($names -join ',')
+        Check 'Cursor child keeps what Windows, Node and git need' ($d -and ($names | Where-Object { $_ -ieq 'PATH' }) -and ($env:OS -ne 'Windows_NT' -or ($names -contains 'SystemRoot' -and $names -contains 'LOCALAPPDATA' -and $names -contains 'USERPROFILE'))) ($names -join ',')
+        Check 'Cursor child gets its own TEMP under the run folder' ($d -and $d.ChildEnv.tempExists -and $d.ChildEnv.temp.StartsWith($cursorRunDir) -and $d.ChildEnv.temp -match 'tmp-cursor-agent-') ($d.ChildEnv | ConvertTo-Json -Compress)
+        Check 'Cursor run temp is removed after success and nothing lands in the user Temp' ($d -and -not (Test-Path -LiteralPath $d.ChildEnv.temp) -and (Get-RunTemps).Count -eq 0 -and (Get-UserStates) -eq $stateBefore) $r.Err
+        $r = Run @('-HostId','cursor-agent','-Prompt','cad-fixture-exit','-Cwd',$scratch,'-TimeoutSec','10')
+        $d = if ($r.Out) { $r.Out | ConvertFrom-Json } else { $null }
+        Check 'Cursor run temp is removed after a failing run' ($r.Exit -eq 7 -and $d -and -not (Test-Path -LiteralPath $d.ChildEnv.temp) -and (Get-RunTemps).Count -eq 0 -and (Get-UserStates) -eq $stateBefore) ([string]$r.Exit + $r.Err)
+        $r = Run @('-HostId','cursor-agent','-Prompt','cad-fixture-sleep','-Cwd',$scratch,'-TimeoutSec','1')
+        Check 'Cursor run temp is removed after a timeout' ($r.Exit -eq 4 -and (Get-RunTemps).Count -eq 0 -and (Get-UserStates) -eq $stateBefore) ([string]$r.Exit + $r.Err)
+    } finally {
+        $env:CAD_SENTINEL_SECRET_TOKEN = $null; $env:CAD_SENTINEL_PLAIN = $null
+    }
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','opencode-go/kimi-k3')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
@@ -904,7 +905,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $env:CAD_FIXTURE_SLEEP = $null
     $left = @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch') -Filter 'prompt-*.txt' -ErrorAction SilentlyContinue)
     $left += @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch') -Filter 'zcode-provider-*.json' -ErrorAction SilentlyContinue)
-    Check 'temporary prompt and provider-config files cleaned' ($left.Count -eq 0)
+    $left += @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch') -Filter 'tmp-*' -ErrorAction SilentlyContinue)
+    Check 'temporary prompt, provider-config files and run temps cleaned' ($left.Count -eq 0)
 } finally {
     $env:AGENTHUB_ROOT = $oldRoot; $env:LOCALAPPDATA = $oldLocal; $env:CAD_FIXTURE_EXIT = $null; $env:CAD_FIXTURE_SLEEP = $null
     $env:USERPROFILE = $oldWindowsHome; $env:HOME = $oldPosixHome

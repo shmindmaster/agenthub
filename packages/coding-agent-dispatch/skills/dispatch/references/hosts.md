@@ -8,9 +8,9 @@ Contents: Models, Factory and OpenCode roles, Read-only runs, Account hosts, New
 
 Owner direction 2026-11-10: a model or coding plan is allowed on any host where it can be integrated and supported.
 
-- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment), cursor-agent (`--model`) and zcode (a per-run `defaultModelSelection`; see ZCode). Other hosts take no `-Model`. Warp is retired and dispatch is disabled; it takes no `-Model`.
+- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment), and cursor-agent (`--model`). zcode is refused (see ZCode). Other hosts take no `-Model`. Warp is retired and dispatch is disabled; it takes no `-Model`.
 - `dispatchPolicy.<host>.allowedModels` records the smoke-verified models. It does not limit the choice. An unlisted model adds one stderr line, `note: <host> model '<id>' is not in the smoke-verified list; passing it through`, and the run continues. The host and its plan decide what the model costs; check the cost before routing an expensive one.
-- The id must be well formed: no whitespace or shell metacharacters; `provider/model` for opencode, kilo, mimo-code and zcode (whose provider ids themselves carry a colon, `account:zai-start-plan/GLM-5.4`); `provider:model` for cline. A malformed id is refused with exit 3.
+- The id must be well formed: no whitespace or shell metacharacters; `provider/model` for opencode, kilo and mimo-code; `provider:model` for cline. A malformed id is refused with exit 3.
 
 Both rules are recorded in `registry/fleet-profile.json` -> `dispatchModelPolicy`.
 
@@ -242,36 +242,38 @@ cursor-agent --print --output-format text --force --trust --workspace <cwd> <pro
   push rewrites to an unhandled scheme, an empty `GH_CONFIG_DIR`, and no
   `GH_TOKEN`/`GITHUB_TOKEN`. It is not a shell denylist; run cursor-agent only
   in worktrees.
+- The child does not inherit the dispatcher's environment. Cursor's shell
+  writes its whole environment to `<TEMP>\cursor-bash-state-*\state-out` (a
+  2026-11-25 run left 55 secret variables there), so only an allowlist passes
+  (Windows system and profile folders, `PATH`/`PATHEXT`, `HOME`, terminal and
+  locale names) and any name containing key, token, secret, passw, credential,
+  auth, cookie or session is dropped. `TEMP`, `TMP` and `TMPDIR` point at
+  `tmp-cursor-agent-<guid>` under the dispatch runtime folder, created for the
+  run and deleted when it ends, on success, failure and timeout, so nothing
+  lands in the user Temp. A model login that needs a variable outside the
+  allowlist is not passed; add its name to `$script:ChildEnvAllowlist`.
 
 ## ZCode
 
-`-HostId zcode` runs the installed ZCode bundle headless on Windows only: Node
-plus `zcode/launch-preload.mjs`, `zcode.cjs --cwd <dir> --no-color --mode
-guarded --toolsearch-mode auto --prompt`, with the task text on stdin.
+`-HostId zcode` is **refused** (checked 2026-11-25, zcode 0.18.0). The earlier
+route copied ZCode's saved personal provider file, which carries literal
+provider API keys, into a per-run folder. The dispatcher no longer reads or
+copies that file, and nothing in the run folder may hold a provider key.
 
-- Model: ZCode has no per-run model flag (`/model` is a session slash command).
-  The resolved default comes from `config.defaultModelSelection` in the
-  personal provider file `~/.zcode/v2/provider_config.json`; with none set the
-  first provider rule wins, which on this machine was an AgentRouter route
-  that failed headless ("The model produced invalid content"). The dispatcher
-  therefore writes a dispatch copy of the saved file under the runtime folder
-  carrying a `defaultModelSelection` for the run and points
-  `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` at it; the saved file is never
-  modified and the copy is deleted after the run. The default route is
-  `dispatchPolicy.zcode.model` (`account:zai-start-plan/GLM-5.4`, the Z.ai
-  coding-plan provider through its stored account login). `-Model
-  <provider/model>` overrides it for one run. Ambient `ZCODE_*` config and
-  credential path variables are scrubbed so they cannot retarget the run.
-- `--toolsearch-mode auto` (default off) lets the model discover its tools;
-  `off` was part of the 2026-11-25 headless failure.
-- MCP: the 2026-11-25 failure also started 23 MCP servers the task did not
-  need. `zcode.cjs` has no per-run flag or `ZCODE_*` variable that disables MCP
-  servers (`features.mcp` lives only in user/project config files), so none is
-  applied; recorded, not worked around.
-- `-ReadOnly` is refused: `guarded` is not an enforced read-only contract.
-- `-ZCodeBrowser` adds native headless Browser Use on the pinned Playwright
-  runtime (`zcode/Install-ZCodeBrowserRuntime.ps1`) and a fresh Microsoft Edge
-  profile.
+A key-free replacement was tried against the installed bundle and does not
+work headless. A per-run `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` holding only
+`schemaVersion: 1`, empty rule lists and
+`config.defaultModelSelection = account:zai-start-plan/GLM-5.4` (also with an
+enabled `account:zai-start-plan` rule carrying `personalModelIds`, and with a
+model the built-in config lists) ends with `Select a model before sending a
+message`: the account provider only becomes available from an account snapshot
+the desktop host supplies, and the CLI has no per-run model flag or keyless
+provider setting. `zcode.cjs` also has no flag that disables MCP servers. Use
+ZCode Desktop interactively, or route the work to another host (Z.ai GLM runs
+on OpenCode: `-HostId opencode -Model zai-coding-plan/glm-5.4`).
+`Get-HostRow` and the table entry both refuse, so `-List` shows the reason.
+The `zcode/` folder (preload loader, browser runtime installer) is kept for
+when a supported key-free route exists.
 
 ## Plugin installers
 

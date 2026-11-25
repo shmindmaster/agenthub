@@ -437,6 +437,18 @@ function Assert-MimoPlanEnvironment {
     }
 }
 
+# ZCode (checked 2026-11-25, zcode 0.18.0): the saved personal provider file
+# carries literal provider API keys, so the dispatcher neither reads nor copies
+# it. A per-run personal document holding only config.defaultModelSelection
+# (schemaVersion 1, empty rule lists, with or without an enabled
+# account:zai-start-plan rule and its personalModelIds) was tried against the
+# installed bundle: headless startup then finds no available model and exits
+# 'Select a model before sending a message', because the account provider only
+# becomes available from an account snapshot the desktop host supplies. The
+# bundle has no per-run model flag and no keyless provider setting, so there is
+# no supported key-free route; the host refuses until that changes.
+$script:ZCodeRefusal = 'the route needs ZCode''s saved provider file, which holds provider API keys the dispatcher never reads or copies, and a key-free per-run config cannot select a model in headless mode (zcode 0.18.0, checked 2026-11-25); use ZCode Desktop interactively or another host'
+
 # Argument prompts cannot carry quotes, newlines, or a long command line.
 # Stdin and prompt-file hosts can. 6000 leaves room for the flags under the
 # Windows 8191-character command-line limit.
@@ -451,6 +463,48 @@ function Test-ArgumentPrompt {
     return $true
 }
 
+# cursor-agent: allowlisted child environment and a private TEMP.
+# Cursor's shell writes its whole environment to
+# <TEMP>\cursor-bash-state-*\state-out (a 2026-11-25 run left 55 secret
+# variables there), so the child never inherits the dispatcher's environment:
+# only the names below that Windows, Node, git and cursor-agent need pass, and
+# any name that looks like a key, token, secret, password or credential is
+# dropped even if listed. TEMP/TMP/TMPDIR point at a folder created under the
+# run directory for this run alone and deleted when the run ends, so whatever
+# the shell writes there is removed with it and nothing lands in the user Temp.
+$script:ChildEnvAllowlist = @(
+    'PATH', 'PATHEXT', 'SystemRoot', 'SystemDrive', 'windir', 'ComSpec', 'OS',
+    'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'APPDATA', 'LOCALAPPDATA', 'ProgramData',
+    'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'CommonProgramFiles',
+    'CommonProgramFiles(x86)', 'CommonProgramW6432', 'ALLUSERSPROFILE', 'PUBLIC',
+    'USERNAME', 'USERDOMAIN', 'COMPUTERNAME', 'NUMBER_OF_PROCESSORS',
+    'PROCESSOR_ARCHITECTURE', 'PROCESSOR_IDENTIFIER', 'PROCESSOR_LEVEL', 'PROCESSOR_REVISION',
+    'HOME', 'USER', 'LOGNAME', 'SHELL', 'LANG', 'LC_ALL', 'TERM', 'NO_COLOR', 'TZ',
+    'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_RUNTIME_DIR'
+)
+$script:SecretLikeName = '(?i)(key|token|secret|passw|credential|auth|cookie|session)'
+
+function Get-AllowlistedEnvironment {
+    $result = @{}
+    foreach ($entry in [Environment]::GetEnvironmentVariables('Process').GetEnumerator()) {
+        $name = [string]$entry.Key
+        if ($name -match $script:SecretLikeName) { continue }
+        if ($script:ChildEnvAllowlist -contains $name) { $result[$name] = [string]$entry.Value }
+    }
+    return $result
+}
+
+function Remove-RunTemp {
+    param([string]$Path)
+    if (-not $Path) { return }
+    # A killed child can hold files for a moment; retry before giving up.
+    for ($attempt = 0; $attempt -lt 10 -and (Test-Path -LiteralPath $Path); $attempt++) {
+        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $Path) { Start-Sleep -Milliseconds 300 }
+    }
+    if (Test-Path -LiteralPath $Path) { [Console]::Error.WriteLine("warning: run temp could not be removed: $Path") }
+}
+
 function Get-DispatchTable {
     # mode: stdin | argument | file
     # A ~/bin or npm .cmd is started through a hidden cmd.exe. Fleet flags
@@ -460,64 +514,7 @@ function Get-DispatchTable {
             Mode = 'stdin'
             Build = {
                 param($PromptText, $Work, $File)
-                $launch = Resolve-ZCodeLaunch $targetAgent
-                $loader = Join-Path $PSScriptRoot 'zcode/launch-preload.mjs'
-                $arguments = @('--import', ([uri]::new($loader)).AbsoluteUri)
-                # zcode.cjs --help 2026-11-25: there is no per-run model flag;
-                # /model is a session slash command. The resolved default comes
-                # from config.defaultModelSelection in the personal provider
-                # file, and with none set the first provider rule wins, which on
-                # this machine is an AgentRouter route that fails headless
-                # ("The model produced invalid content"). The run therefore
-                # points ZCODE_PERSONAL_PROVIDER_CONFIG_FILE at a dispatch copy
-                # of the saved file carrying a defaultModelSelection for this
-                # run; the owner's file under ~/.zcode is never modified, and
-                # the copy is written beside the prompt files and removed in the
-                # finally block.
-                $zcodeSelection = if ($script:ZCodeModel) { $script:ZCodeModel } else { [string]$fleet.dispatchPolicy.zcode.model }
-                Assert-DispatchModelId -Id 'zcode' -ModelId $zcodeSelection -Source 'model'
-                Assert-SubscriptionRoute -Id 'zcode' -ModelId $zcodeSelection
-                Write-UnlistedModelNote -Id 'zcode' -ModelId $zcodeSelection
-                $split = $zcodeSelection.IndexOf('/')
-                $personalDoc = $null
-                try { $personalDoc = [IO.File]::ReadAllText($launch.Personal) | ConvertFrom-Json } catch { $personalDoc = $null }
-                if (-not $personalDoc) {
-                    Write-Refusal 3 "refused zcode: cannot parse the saved provider config at $($launch.Personal)"
-                }
-                if (-not $personalDoc.PSObject.Properties['config'] -or -not $personalDoc.config) {
-                    $personalDoc | Add-Member -NotePropertyName config -NotePropertyValue ([pscustomobject]@{}) -Force
-                }
-                $personalDoc.config | Add-Member -NotePropertyName defaultModelSelection -NotePropertyValue ([pscustomobject]@{
-                    providerId = $zcodeSelection.Substring(0, $split)
-                    modelId    = $zcodeSelection.Substring($split + 1)
-                }) -Force
-                $providerConfigFile = Join-Path $runDir ("zcode-provider-{0}.json" -f [guid]::NewGuid().ToString('n'))
-                $childEnv = @{
-                    ZCODE_BUILTIN_PROVIDER_CONFIG_FILE  = $launch.Builtin
-                    ZCODE_PERSONAL_PROVIDER_CONFIG_FILE = $providerConfigFile
-                }
-                if ($ZCodeBrowser) {
-                    $package = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $PSScriptRoot 'zcode/package.json') | ConvertFrom-Json
-                    $version = $package.dependencies.'playwright-core'
-                    $runtime = Join-Path (Get-AgentHubDefaultLocalData) "AgentHub/runtime/coding-agent-dispatch/zcode/playwright-$version"
-                    if (-not (Test-Path -LiteralPath (Join-Path $runtime 'node_modules/playwright-core/index.mjs') -PathType Leaf)) {
-                        Write-Refusal 3 'refused zcode: run zcode/Install-ZCodeBrowserRuntime.ps1 to install the pinned browser dependency'
-                    }
-                    $edge = Join-Path ${env:ProgramFiles(x86)} 'Microsoft/Edge/Application/msedge.exe'
-                    if (-not (Test-Path -LiteralPath $edge -PathType Leaf)) {
-                        Write-Refusal 3 'refused zcode: Microsoft Edge is absent from its Windows installation path'
-                    }
-                    $childEnv.AGENTHUB_ZCODE_PLAYWRIGHT_ROOT = $runtime
-                }
-                # --toolsearch-mode auto (default off) lets the model discover
-                # its tools; off was part of the 2026-11-25 headless failure.
-                $arguments += @($launch.Runtime, '--cwd', $Work, '--no-color', '--mode', 'guarded', '--toolsearch-mode', 'auto')
-                if ($ZCodeBrowser) {
-                    $arguments += @('--surface', 'desktop', '--browser-use', 'headless', '--browser-executable', $edge, '--no-browser-state')
-                }
-                @{ Args = $arguments + @('--prompt'); Stdin = $PromptText; Env = $childEnv
-                    ProviderConfigFile = $providerConfigFile
-                    ProviderConfigText = ($personalDoc | ConvertTo-Json -Depth 20 -Compress) }
+                Write-Refusal 3 "refused zcode: $($script:ZCodeRefusal)"
             }
         }
         'claude' = @{
@@ -577,7 +574,7 @@ function Get-DispatchTable {
                     $guard["GIT_CONFIG_KEY_$i"] = 'url.agenthub-peer-no-push://blocked/.pushInsteadOf'
                     $guard["GIT_CONFIG_VALUE_$i"] = $schemes[$i]
                 }
-                @{ Args = $args + $PromptText; Stdin = $null; PromptFile = $null; Env = $guard }
+                @{ Args = $args + $PromptText; Stdin = $null; PromptFile = $null; Env = $guard; IsolatedEnv = $true }
             }
         }
         'grok' = @{
@@ -1081,19 +1078,6 @@ function Resolve-DeclaredExecutable {
     return $null
 }
 
-function Resolve-ZCodeLaunch {
-    param($Agent)
-    if (-not $isWindowsHost -or -not $Agent.nativePaths.bundledRuntime) { return $null }
-    $runtime = Resolve-DeclaredExecutable -Declared ([string]$Agent.nativePaths.bundledRuntime)
-    $node = Resolve-DeclaredExecutable -Declared 'node.exe'
-    if (-not $runtime -or -not $node) { return $null }
-    $resources = Split-Path -Parent (Split-Path -Parent $runtime)
-    $builtin = Join-Path $resources 'config/provider/zcode-builtin.json'
-    $personal = Join-Path (Get-AgentHubDefaultHome) '.zcode/v2/provider_config.json'
-    if (-not (Test-Path -LiteralPath $builtin -PathType Leaf) -or -not (Test-Path -LiteralPath $personal -PathType Leaf)) { return $null }
-    return @{ Node = $node; Runtime = $runtime; Builtin = $builtin; Personal = $personal }
-}
-
 # -Role names a per-host profile. Only the hosts listed here have any.
 $script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'researcher')
 $script:RoleHosts = @('opencode', 'factory')
@@ -1149,8 +1133,8 @@ function Get-HostRow {
         }
         return [pscustomobject]@{ Id = $id; State = 'routed'; Detail = $target }
     }
-    if ($id -eq 'zcode' -and -not (Resolve-ZCodeLaunch $Agent)) {
-        return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = 'requires Windows, Node, and the installed ZCode bundle and provider files' }
+    if ($id -eq 'zcode') {
+        return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = $script:ZCodeRefusal }
     }
     if ($table.ContainsKey($id)) {
         $exe = Resolve-DeclaredExecutable -Declared ([string]$Agent.executable)
@@ -1356,8 +1340,7 @@ if ($ReadOnly) {
     }
 }
 $targetAgent = Get-AgentRecord -Agents $agents -Id $targetId
-$executable = if ($targetId -eq 'zcode') { (Resolve-ZCodeLaunch $targetAgent).Node }
-    else { Resolve-DeclaredExecutable -Declared ([string]$targetAgent.executable) }
+$executable = Resolve-DeclaredExecutable -Declared ([string]$targetAgent.executable)
 if (-not $executable) { Write-Refusal 2 "refused ${targetId}: executable is absent" }
 if ($targetId -eq 'opencode' -and $script:OpenCodeModel -like 'zai-coding-plan/*') {
     $zaiLauncher = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\zai\opencode-zai.ps1'
@@ -1476,7 +1459,6 @@ $stamp = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString
 $stdoutPath = Join-Path $runDir "$stamp-$targetId.out"
 $stderrPath = Join-Path $runDir "$stamp-$targetId.err"
 $settingsFile = $built.SettingsFile
-$providerConfigFile = $built.ProviderConfigFile
 $isBatch = $isWindowsHost -and $executable -match '\.(cmd|bat)$'
 $psi = [Diagnostics.ProcessStartInfo]::new()
 $psi.UseShellExecute = $false
@@ -1539,6 +1521,14 @@ if ($targetId -eq 'copilot') {
     if ($pendoahToken) { $psi.EnvironmentVariables['COPILOT_GITHUB_TOKEN'] = ([string]$pendoahToken).Trim() }
     else { Write-Refusal 3 'copilot: gh has no token for account sh-pendoah; run gh auth login for it.' }
 }
+$runTemp = $null
+if ($built.IsolatedEnv) {
+    $psi.EnvironmentVariables.Clear()
+    $allowed = Get-AllowlistedEnvironment
+    foreach ($name in $allowed.Keys) { $psi.EnvironmentVariables[$name] = $allowed[$name] }
+    $runTemp = Join-Path $runDir ("tmp-{0}-{1}" -f $targetId, ([guid]::NewGuid().ToString('n')))
+    foreach ($name in @('TEMP', 'TMP', 'TMPDIR')) { $psi.EnvironmentVariables[$name] = $runTemp }
+}
 if ($built.Env) {
     foreach ($name in $built.Env.Keys) { $psi.EnvironmentVariables[$name] = [string]$built.Env[$name] }
 }
@@ -1558,11 +1548,9 @@ if ($isBatch) {
 $process = [Diagnostics.Process]::new()
 $process.StartInfo = $psi
 try {
+    if ($runTemp) { New-Item -ItemType Directory -Force -Path $runTemp | Out-Null }
     if ($settingsFile) {
         [IO.File]::WriteAllText($settingsFile, '{"amp.mcpServers":{}}', [Text.UTF8Encoding]::new($false))
-    }
-    if ($providerConfigFile) {
-        [IO.File]::WriteAllText($providerConfigFile, [string]$built.ProviderConfigText, [Text.UTF8Encoding]::new($false))
     }
     if (-not $process.Start()) { Write-Refusal 2 "refused ${targetId}: process did not start" }
     $timer = [Diagnostics.Stopwatch]::StartNew()
@@ -1612,8 +1600,6 @@ try {
     if ($settingsFile -and (Test-Path -LiteralPath $settingsFile)) {
         Remove-Item -LiteralPath $settingsFile -Force -ErrorAction SilentlyContinue
     }
-    if ($providerConfigFile -and (Test-Path -LiteralPath $providerConfigFile)) {
-        Remove-Item -LiteralPath $providerConfigFile -Force -ErrorAction SilentlyContinue
-    }
     $process.Dispose()
+    Remove-RunTemp -Path $runTemp
 }
