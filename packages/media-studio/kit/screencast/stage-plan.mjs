@@ -117,6 +117,7 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     }
     c.action = act; c.region = box;
     // The 1.8 ceiling is for a tiny target together with a tiny result in the same view; anything else stays at the 1.5 default.
+    c.joined = joined;
     c.zoom = joined ? zoomForBox(box, g) : Math.min(zoomForBox(box, g), g.zoom.default);
     c.camera = cameraForBox(box, g, { bias: c.presses.length === 1 && box === act, zoom: c.zoom });
     c.resultEnd = Math.max(c.lastEnd, ...results.filter((r) => r.t >= c.firstT && r.t < limit).map((r) => r.t));
@@ -194,7 +195,7 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     slots: slots.map((s) => ({ clipId: s.clipId, startSeconds: r3(s.startSeconds), durationSeconds: r3(s.durationSeconds), edit: s.edit, hold: !!s.hold })),
     frames: Object.fromEntries([...new Set(slots.map((s) => s.clipId))].map((id) => [id, clips[id].frames])),
     camera, cursor, planned, moves: moveList, warnings,
-    regions: clusters.map((c) => ({ firstT: c.firstT, resultEnd: r3(c.resultEnd), zoom: r3(c.zoom), merged: !!c.merged, labels: c.presses.map((p) => p.label || p.type), region: c.region })),
+    regions: clusters.map((c) => ({ firstT: c.firstT, resultEnd: r3(c.resultEnd), zoom: r3(c.zoom), merged: !!c.merged, withResult: !!c.joined, labels: c.presses.map((p) => p.label || p.type), region: c.region })),
     results: clusters.filter((c) => c.resultBox).map((c) => ({ t: c.presses[c.presses.length - 1].t, label: c.presses[c.presses.length - 1].label, boxStage: c.resultBox, mustBeSeenBy: r3(c.presses[c.presses.length - 1].t + STAGE.resultLeadSeconds + 0.7) })),
   };
 }

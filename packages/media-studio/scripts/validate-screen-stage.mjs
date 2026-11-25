@@ -11,6 +11,11 @@
 //   6. no duplicated or frozen frame inside a camera or cursor move
 //   7. the cursor is drawn on the recorded click point at the click time
 //   8. every sampled frame is the receipt-bound capture: the source frame, warped by the measured camera, matches the film frame
+//   9. core-v2 motion rules (each fails the core-v1 picture): plan rules (1.5x default zoom, camera leads the pointer, a clean
+//      opening hold, a result elsewhere reached within 0.25 s); a flat patch keeps its colour within 2/255 during a move; no
+//      repeated copies along the motion (autocorrelation against an ideal blur); no fade in; the result of a press is in the
+//      measured view; no unchanged view held over 1.0 s; the cursor presses to about 0.9 and back; the capture delivered
+//      50+ unique frames a second while the page animated (30 fps floor)
 // Camera estimation registers the film frame against the source frame (normalised cross-correlation, pattern search from the plan).
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -30,6 +35,9 @@ const kitDir = [join(scriptDir, '..', 'kit', 'screencast'), scriptDir].find((d) 
 if (!kitDir) { console.error('stage-math.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
 const M = await import(pathToFileURL(join(kitDir, 'stage-math.mjs')).href);
 const P = await import(pathToFileURL(join(kitDir, 'stage-plan.mjs')).href);
+const C = await import(pathToFileURL(join(kitDir, 'stage-checks.mjs')).href);
+const F = await import(pathToFileURL(join(kitDir, 'stage-film-checks.mjs')).href);
+const CH = await import(pathToFileURL(join(kitDir, 'stage-changes.mjs')).href);
 
 export const LIMITS = Object.freeze({
   fpsTolerance: 0.01, ptsJitterMs: 1.0, frameCountSlack: 2,
@@ -37,6 +45,13 @@ export const LIMITS = Object.freeze({
   zoomTolerance: 0.06, centerPx: 28, settleProgressTolerance: 0.14, holdDriftPx: 5, holdDriftZoom: 0.02,
   duplicateDiff: 0.02, minMovingPxPerFrame: 1.5,
   cursorPx: 8, cursorNcc: 0.45, bindingNcc: 0.8,
+  colourShift: 2.0,            // 0-255: a flat patch during a move vs the same patch on the hold
+  ghostExcess: 0.15,           // autocorrelation excess along the motion over an ideal blur
+  openingLumaStep: 1.0,        // the opening hold's mean luma may not change more than this (no fade in)
+  stillSeconds: 1.0, stillEndSeconds: 1.5, stillStartSeconds: 0.7, // unchanged-view holds
+  pressScale: [0.86, 0.94],    // measured cursor scale at the dip of a press
+  uniqueFps: 50, floorFps: 30, // capture delivery while the page animates
+  resultSeenSeconds: [0.3, 1.0],
 });
 
 const readJson = (rel) => { const p = join(jobRoot, rel); return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8').replace(/^﻿/, '')) : null; };
@@ -59,6 +74,10 @@ function grayRun(file, t0, t1, w, h, fps) {
   const buf = ff(['-ss', t0.toFixed(4), '-t', (t1 - t0).toFixed(4), '-i', file, '-vf', `fps=${fps},scale=${w}:${h}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1']);
   const n = Math.floor(buf.length / (w * h));
   return Array.from({ length: n }, (_, i) => new Uint8Array(buf.buffer, buf.byteOffset + i * w * h, w * h));
+}
+function rgbAt(file, t, w, h) {
+  const buf = ff(['-ss', Math.max(0, t).toFixed(4), '-i', file, '-frames:v', '1', '-vf', `scale=${w}:${h}:flags=area,format=rgb24`, '-f', 'rawvideo', 'pipe:1']);
+  return buf.length >= w * h * 3 ? new Uint8Array(buf.buffer, buf.byteOffset, w * h * 3) : null;
 }
 const meanAbsDiff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
 
@@ -190,15 +209,24 @@ for (const listed of plansListed) {
   const T0 = listed.startSeconds;
 
   // 1. the plan is the pure function of its inputs
+  let rebuilt = null;
+  const captureRows = [];
+  const CH_RATE = F.captureRate;
   if (receipt) {
     try {
       const clipsIn = {};
       for (const id of new Set(plan.slots.map((s) => s.clipId))) {
         const e = receipt.clips[id];
         const index = JSON.parse(readFileSync(join(jobRoot, 'capture', e.stage.framesIndex), 'utf8'));
-        clipsIn[id] = { actions: e.actions || [], expectations: e.expectations || [], frames: { times: index.frames.map((f) => f.t), files: index.frames.map((f) => `${id}/frames/${f.file}`) }, touch: !!e.hasTouch };
+        const frames = { times: index.frames.map((f) => f.t), files: index.frames.map((f) => `${id}/frames/${f.file}`) };
+        // what changed after each press is measured again here from the captured frames: a plan that ignored it cannot match
+        const pressTimes = (e.actions || []).filter((a) => P.PRESS.has(a.type)).map((a) => a.tStart ?? a.t);
+        const changes = CH.measureChanges({ presses: pressTimes, frames: { times: frames.times, files: frames.files.map((f) => join(jobRoot, 'capture', 'raw', f)) }, viewport: e.viewport });
+        clipsIn[id] = { actions: e.actions || [], expectations: e.expectations || [], frames, touch: !!e.hasTouch, changes };
+        captureRows.push({ clip: id, deviceScaleFactor: e.deviceScaleFactor, ...CH_RATE(frames.times) });
       }
       const again = P.buildStagePlan({ frame: plan.frame, viewport: plan.viewport, dsf: plan.deviceScaleFactor, slots: plan.slots, clips: clipsIn, options: { hideCursor: plan.cursor.hiddenDeclared || [], idleHide: plan.cursor.idleHide } });
+      rebuilt = again;
       const same = JSON.stringify(again.camera) === JSON.stringify(plan.camera) && JSON.stringify(again.cursor.samples) === JSON.stringify(plan.cursor.samples) && JSON.stringify(again.planned) === JSON.stringify(plan.planned);
       row.checks.planFromReceipt = same;
       if (!same) fail(`run ${listed.run}: the plan's camera, cursor or targets are not what the receipt events and edit list give`);
@@ -303,6 +331,144 @@ for (const listed of plansListed) {
       }
     }
   });
+
+  // 9a. plan rules
+  const rules = C.planProblems(plan);
+  row.checks.planRules = rules.length === 0;
+  for (const p of rules) fail(`run ${listed.run}: ${p}`);
+
+  // 9b. the opening is a clean full-brightness page held still: no fade in
+  {
+    const hold0 = Math.min(0.35, (plan.camera.segments[0]?.t0 ?? 0.35) - 0.03);
+    const n = Math.max(2, Math.round(hold0 * fps));
+    const luma = run.slice(0, n).map(F.meanLuma);
+    const step = Math.max(...luma) - Math.min(...luma);
+    const still = F.stillRuns(run.slice(0, n));
+    row.checks.opening = { seconds: r2(hold0), lumaStep: r2(step), still: still.length === 1 && still[0].from === 0 && still[0].to === n - 1 };
+    if (step > LIMITS.openingLumaStep) fail(`run ${listed.run}: the opening is not at full brightness from the first frame (luma changes by ${r2(step)} over the first ${r2(hold0)} s): no fade in`);
+    if (!row.checks.opening.still) fail(`run ${listed.run}: the picture is not held still for the first ${r2(hold0)} s`);
+  }
+
+  // 9c. no unchanged view held for over 1.0 s
+  {
+    const longRuns = [];
+    for (const r of F.stillRuns(run)) {
+      const dur = (r.to - r.from + 1) / fps;
+      const atStart = r.from === 0, atEnd = r.to >= run.length - 2;
+      const allowed = atStart ? LIMITS.stillStartSeconds : atEnd ? LIMITS.stillEndSeconds : LIMITS.stillSeconds;
+      if (dur > allowed) longRuns.push({ fromSeconds: r2(r.from / fps), seconds: r2(dur) });
+    }
+    row.checks.longStillRuns = longRuns;
+    for (const l of longRuns) fail(`run ${listed.run}: the view is held unchanged for ${l.seconds} s from ${l.fromSeconds}s (limit ${LIMITS.stillSeconds} s without narration)`);
+  }
+
+  // 9d. a result that appears elsewhere is in the measured view
+  row.results = [];
+  for (const res of (rebuilt || plan).results || []) {
+    let seen = null;
+    for (const d of [0.3, 0.55, 0.8, 1.0]) {
+      const t = res.t + d; if (t > listed.durationSeconds - 0.05) break;
+      const m = measure(T0 + t);
+      if (m && m.ncc >= LIMITS.bindingNcc - 0.2 && M.boxInView({ cx: m.measured.cx, cy: m.measured.cy, z: m.measured.z }, g, res.boxStage)) { seen = r2(d); break; }
+    }
+    row.results.push({ label: res.label, t: res.t, seenAfterSeconds: seen });
+    if (seen === null) fail(`run ${listed.run}: the result of "${res.label || 'press'}" (${res.t}s) is not inside the measured view within ${LIMITS.resultSeenSeconds[1]} s`);
+  }
+
+  // 9e. colour and ghosting during moves: the fastest frames of each camera move
+  {
+    const tShutter = (M.STAGE.blur.shutterAngle / 360) / fps;
+    const sc = EW / g.W;
+    const speedAt = (t) => { const a = M.cameraAt(plan.camera, t - 0.5 / fps, g), b = M.cameraAt(plan.camera, t + 0.5 / fps, g); return Math.hypot((a.cx - b.cx) * a.z, (a.cy - b.cy) * a.z, (a.z - b.z) * g.W / 2); };
+    const project = (cam, bx, by) => ({ x: ((bx / sc - cam.cx) * cam.z + g.W / 2) * sc, y: ((by / sc - cam.cy) * cam.z + g.H / 2) * sc });
+    const colourRows = [], ghostRows = [];
+    let measuredFast = 0;
+    plan.camera.segments.forEach((seg, i) => {
+      const next = plan.camera.segments[i + 1]?.t0 ?? Infinity;
+      const frames = [];
+      for (let k = 1; k <= Math.round(0.55 * fps); k++) { const t = seg.t0 + k / fps; if (t >= next - 0.02 || t > listed.durationSeconds - 0.05) break; frames.push({ t, v: speedAt(t) }); }
+      const fast = frames.filter((f) => f.v >= 6).sort((a, b) => b.v - a.v).slice(0, 3);
+      if (!fast.length) return;
+      measuredFast += fast.length;
+      const tHold = Math.max(0.02, seg.t0 - 0.06), camHold = M.cameraAt(plan.camera, tHold, g);
+      const holdFrame = M.stateAt(plan, tHold).frame;
+      const srcGray = grayImage(join(jobRoot, 'capture', 'raw', holdFrame), EW, EH);
+      if (!srcGray) return;
+      const filmHold = rgbAt(candidate, T0 + tHold, EW, EH);
+      const blocks = F.spread(F.flatBlocks(srcGray, EW, EH, 48, 1.2), 12, 90);
+      // blocks that stay inside the picture at the hold and at every measured frame
+      const cams = fast.map((f) => M.cameraAt(plan.camera, f.t, g));
+      const usable = blocks.filter((b) => [camHold, ...cams].every((c) => { const p = project(c, b.cx, b.cy); return p.x > 40 && p.x < EW - 40 && p.y > 40 && p.y < EH - 40 && c.z * 24 * 0.5 < 60; }));
+      const chosen = F.spread(usable, 3, 90);
+      if (chosen.length < 3) { fail(`run ${listed.run}: no three flat regions of the page stay in view through the move at ${seg.t0}s: the colour during motion cannot be checked`); return; }
+      const holdPatches = chosen.map((b) => { const p = project(camHold, b.cx, b.cy); return filmHold ? F.patchMean(filmHold, EW, EH, p.x, p.y, 3) : null; });
+      for (const f of fast) {
+        const cam = M.cameraAt(plan.camera, f.t, g);
+        const film = rgbAt(candidate, T0 + f.t, EW, EH);
+        if (!film) continue;
+        const patches = chosen.map((b) => { const p = project(cam, b.cx, b.cy); return F.patchMean(film, EW, EH, p.x, p.y, 3); });
+        const shift = F.colourShift(patches, holdPatches);
+        colourRows.push({ move: seg.t0, t: r2(f.t), speedPxPerFrame: r2(f.v), shift: shift === null ? null : r2(shift) });
+        if (shift !== null && shift > LIMITS.colourShift) fail(`run ${listed.run}: a flat part of the page changes colour by ${r2(shift)}/255 during the ${seg.reason} move at ${seg.t0}s (frame ${r2(f.t)}s, limit ${LIMITS.colourShift}): colour cast in motion`);
+      }
+      // ghosting on the single fastest frame
+      const top = fast[0];
+      const camTop = M.cameraAt(plan.camera, top.t, g);
+      const stTop = M.stateAt(plan, top.t);
+      const src = grayImage(join(jobRoot, 'capture', 'raw', stTop.frame), EW, EH);
+      const film480 = grayAt(candidate, T0 + top.t, 480, 270);
+      if (!src || !film480) return;
+      const cs = []; for (let k = 0; k < 96; k++) cs.push(M.cameraAt(plan.camera, Math.max(0, top.t + ((k + 0.5) / 96 - 0.5) * tShutter), g));
+      const ideal = F.idealBlur(src, EW, EH, g.W, g.H, cs, 480, 270);
+      const a = cs[0], b = cs[cs.length - 1];
+      let dir = { x: 0, y: 0 };
+      for (const [fx, fy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) { const pa = project(a, EW * fx, EH * fy), pb = project(b, EW * fx, EH * fy); if (Math.hypot(pb.x - pa.x, pb.y - pa.y) > Math.hypot(dir.x, dir.y)) dir = { x: pb.x - pa.x, y: pb.y - pa.y }; }
+      const lenEst = Math.hypot(dir.x, dir.y) / 2; // px at 480 wide
+      const maxLag = Math.max(6, Math.min(60, Math.ceil(lenEst * 3)));
+      const filmF = Float32Array.from(film480);
+      const ge = F.ghostExcess(filmF, ideal, 480, 270, dir, maxLag);
+      ghostRows.push({ move: seg.t0, t: r2(top.t), blurPx480: r2(lenEst), excess: r2(ge.excess), lag: ge.lag });
+      if (ge.excess > LIMITS.ghostExcess) fail(`run ${listed.run}: repeated copies along the motion in the ${seg.reason} move at ${seg.t0}s (frame ${r2(top.t)}s: autocorrelation ${r2(ge.excess)} above an ideal blur at lag ${ge.lag}, limit ${LIMITS.ghostExcess})`);
+    });
+    row.checks.colourInMotion = colourRows; row.checks.ghosting = ghostRows;
+    if (plan.camera.segments.length && !measuredFast) fail(`run ${listed.run}: no camera move is fast enough to measure motion blur on`);
+  }
+
+  // 9f. the cursor presses: about 0.9 of its size at the dip, back to 1.0 after
+  if (plan.cursor.mode !== 'touch') {
+    const rows = [];
+    for (const c of plan.cursor.clicks.slice(0, 4)) {
+      const st0 = M.stateAt(plan, c.t);
+      if (!st0.cursor || st0.cursor.visible < 0.99 || st0.cursor.hidden > 0) continue;
+      const screenAt = (t) => { const s = M.stateAt(plan, t); return { s, p: M.projectPoint(s.camera, g, { x: c.x, y: c.y }) }; };
+      const best = (t) => {
+        const { s, p } = screenAt(t);
+        const frameFull = grayAt(candidate, T0 + t, g.W, g.H);
+        if (!frameFull) return null;
+        let top = { scale: NaN, ncc: -1 };
+        for (let sc2 = 0.76; sc2 <= 1.081; sc2 += 0.02) {
+          const tpl = cursorTemplate(s.cursor.kind, M.cursorHeightFor(s.camera.z, g) * sc2);
+          const f = findCursor(frameFull, g.W, g.H, tpl, p.x, p.y, 3);
+          if (f.ncc > top.ncc) top = { scale: sc2, ncc: f.ncc };
+        }
+        return top;
+      };
+      const dip = best(Math.round((c.t + 0.15 * 0.35) * fps) / fps), rest = best(c.t + 0.4);
+      rows.push({ label: c.label, t: c.t, dipScale: dip && r2(dip.scale), restScale: rest && r2(rest.scale) });
+      if (dip && !(dip.scale >= LIMITS.pressScale[0] && dip.scale <= LIMITS.pressScale[1])) fail(`run ${listed.run}: the cursor at the press of "${c.label}" (${c.t}s) measures ${r2(dip.scale)} of its size, not about 0.9: no press response`);
+      if (rest && !(rest.scale >= 0.96 && rest.scale <= 1.06)) fail(`run ${listed.run}: the cursor does not return to full size after the press of "${c.label}" (${r2(rest.scale)})`);
+    }
+    row.checks.pressResponse = rows;
+  }
+
+  // 9g. the capture delivered a unique frame every 20 ms or better while the page animated
+  for (const cr of captureRows) {
+    row.checks.capture = captureRows;
+    if (cr.burstGaps >= 12) {
+      if (cr.uniqueFps < LIMITS.uniqueFps) fail(`run ${listed.run}: clip ${cr.clip} delivered ${r2(cr.uniqueFps)} unique frames a second while the page animated (median gap ${r2(cr.medianGapMs)} ms), under ${LIMITS.uniqueFps}`);
+      if (cr.floorFps < LIMITS.floorFps) fail(`run ${listed.run}: clip ${cr.clip} dropped to ${r2(cr.floorFps)} fps (95th percentile gap ${r2(cr.p95GapMs)} ms), under the ${LIMITS.floorFps} fps floor`);
+    }
+  }
 
   // 7. the cursor is on the click point at the click time
   const cursorRows = [];

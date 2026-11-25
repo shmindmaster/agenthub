@@ -232,3 +232,51 @@ test('a result elsewhere on the page is reached within 0.25 s of the press and i
   assert.ok(M.boxInView({ ...res.to }, g, box), 'the result is inside the view the camera settles on');
   assert.equal(p.results.length, 1);
 });
+
+const C = await import(`${kit}/stage-checks.mjs`);
+
+test('plan checks pass a core-v2 plan and fail core-v1 style plans (zoom, lead, result, opening hold)', () => {
+  const actions = [
+    { type: 'move', t: 0.9, x: 100, y: 100, cursor: 'default' }, { type: 'move', t: 1.1, x: 220, y: 150, cursor: 'default' },
+    click(1.5, 300, 200, css(260, 185, 80, 30), 'Go'),
+  ];
+  const changes = [{ t: 1.5, boxes: [css(900, 520, 280, 120)] }];
+  const good = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: { ...clipOf(actions), changes } } });
+  assert.deepEqual(C.planProblems(good), []);
+  const v1 = JSON.parse(JSON.stringify(good));
+  v1.camera.segments[0].t0 = 1.0;                       // camera starts after the pointer, not before it
+  v1.regions[0].zoom = 1.8;                             // lone control at the 1.8 ceiling
+  v1.camera.segments = v1.camera.segments.filter((s) => s.reason !== 'result'); // result never reached
+  const problems = C.planProblems(v1).join(' | ');
+  assert.match(problems, /zoomed 1\.8x/);
+  assert.match(problems, /must lead by about 0\.1 s/);
+  assert.match(problems, /no camera move within 0\.25 s/);
+  const early = JSON.parse(JSON.stringify(good)); early.camera.segments[0].t0 = 0.1;
+  assert.match(C.planProblems(early).join(' | '), /clean full page for at least 0\.35 s/);
+});
+
+const F = await import(`${kit}/stage-film-checks.mjs`);
+
+test('film checks: a coil of discrete copies has repeated structure along the motion that a true blur does not', () => {
+  const w = 320, h = 64;
+  let seed = 7; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const stripes = new Float32Array(w); for (let x = 0; x < w;) { const run = 3 + Math.floor(rnd() * 8), v = rnd() > 0.5 ? 235 : 40; for (let i = 0; i < run && x < w; i++) stripes[x++] = v; }
+  const at = (x) => { const x0 = Math.floor(x), f = x - x0, a = stripes[Math.max(0, Math.min(w - 1, x0))], b = stripes[Math.max(0, Math.min(w - 1, x0 + 1))]; return a * (1 - f) + b * f; };
+  const shifted = (copies, span) => { const out = new Float32Array(w * h); for (let x = 0; x < w; x++) { let s = 0; for (let k = 0; k < copies; k++) s += at(x - (k / (copies - 1)) * span); for (let y = 0; y < h; y++) out[y * w + x] = s / copies; } return out; };
+  const ideal = shifted(145, 36), blurAgain = shifted(97, 36), coil = shifted(6, 36);
+  const good = F.ghostExcess(blurAgain, ideal, w, h, { x: 1, y: 0 }, 48);
+  const bad = F.ghostExcess(coil, ideal, w, h, { x: 1, y: 0 }, 48);
+  assert.ok(good.excess < 0.06, `a second sampling of the same blur: ${good.excess}`);
+  assert.ok(bad.excess > 0.15, `six copies spaced ${36 / 5} px: ${bad.excess} at lag ${bad.lag}`);
+});
+
+test('film checks: colour shift is the median patch difference, still runs and capture rate', () => {
+  assert.ok(F.colourShift([[250, 250, 250], [250, 251, 250], [249, 250, 250]], [[251, 251, 251], [251, 251, 251], [251, 251, 251]]) <= 1.01);
+  assert.ok(F.colourShift([[240, 244, 250], [240, 244, 250], [240, 244, 250]], [[251, 251, 251], [251, 251, 251], [251, 251, 251]]) >= 10, 'a cast of 11 levels is caught');
+  assert.equal(F.colourShift([null, null, [1, 1, 1]], [[1, 1, 1], [1, 1, 1], [1, 1, 1]]), null);
+  const a = new Uint8Array(100).fill(10), b = new Uint8Array(100).fill(10), c = new Uint8Array(100).fill(10); c.fill(200, 0, 40);
+  assert.deepEqual(F.stillRuns([a, b, a, c, c]), [{ from: 0, to: 2 }, { from: 3, to: 4 }]);
+  const t = []; for (let i = 0; i < 30; i++) t.push(i / 60);
+  const r60 = F.captureRate(t), r37 = F.captureRate(t.map((v) => v * (60 / 37)));
+  assert.ok(r60.uniqueFps > 55 && r37.uniqueFps < 40);
+});

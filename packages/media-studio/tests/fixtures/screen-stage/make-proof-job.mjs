@@ -63,7 +63,6 @@ put('capture/scenes.mjs', `// Synthetic ledger fixture. Serve it first: node ser
 export const options = {
   baseUrl: process.env.FIXTURE_URL || 'http://127.0.0.1:4811',
   viewport: { width: 1280, height: 720 },
-  deviceScaleFactor: 3,
   provenance: { sourceRevision: 'fixture-1' },
 };
 export const order = ['S01'];
