@@ -6,7 +6,7 @@
       "id": "zcode",
       "fleetRole": "retained",
       "name": "Z.ai ZCode",
-      "version": "3.19.1",
+      "version": "4.0.0",
       "versionProbe": "file-version",
       "versionProbeNote": "Read Windows desktop executable metadata without launching the app.",
       "executable": "{userHome}/AppData/Local/Programs/ZCode/ZCode.exe",
@@ -34,14 +34,14 @@
       "version": "2.5.3",
       "versionProbe": "file-version",
       "versionProbeNote": "Read Windows executable metadata. AutoClaw Desktop is a GUI app and must not be launched for a version probe.",
-      "executable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe",
+      "executable": "{userHome}/AppData/Local/Programs/AutoClaw/AutoClaw2/AutoClaw2.exe",
       "nativePaths": {
-        "vendorExecutable": "{userHome}/AppData/Local/Programs/AutoClaw2/AutoClaw2.exe"
+        "vendorExecutable": "{userHome}/AppData/Local/Programs/AutoClaw/AutoClaw2/AutoClaw2.exe"
       },
       "platformPaths": {
         "windows": {
           "nativePaths": {
-            "bundledRuntime": "{localData}/Programs/AutoClaw2/resources/vendor/zcode/zcode.cjs"
+            "bundledRuntime": "{localData}/Programs/AutoClaw/AutoClaw2/resources/vendor/zcode/zcode.cjs"
           }
         }
       },
@@ -196,7 +196,7 @@
       "id": "opencode",
       "fleetRole": "retained",
       "name": "OpenCode",
-      "version": "2.3.2",
+      "version": "2.4.1",
       "versionObserved": "2026-11-20: verified using the registered launcher version command.",
       "executable": "{userHome}/.local/bin/opencode.cmd",
       "nativePaths": {
@@ -231,7 +231,7 @@
       "fleetRole": "companion",
       "fleetOwner": "opencode",
       "name": "OpenCode Desktop",
-      "version": "2.3.2",
+      "version": "2.4.1",
       "versionObserved": "2026-11-20: verified executable file version without launching the desktop app.",
       "executable": "{userHome}/AppData/Local/Programs/ai.opencode.desktop/OpenCode.exe",
       "executableNote": "2026-11-03: installed executable and ProductVersion 2.2.5.0 verified on disk without launching the GUI.",
@@ -256,7 +256,7 @@
       "id": "copilot",
       "fleetRole": "supported",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.114",
+      "version": "1.0.115",
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
@@ -287,7 +287,7 @@
       "id": "antigravity",
       "fleetRole": "supported",
       "name": "Google Antigravity",
-      "version": "1.5.7",
+      "version": "1.5.13",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
@@ -328,7 +328,7 @@
       "id": "antigravity-desktop",
       "fleetRole": "supported",
       "name": "Antigravity Desktop",
-      "version": "2.33.1",
+      "version": "2.35.1",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed 2.24.0.",
@@ -420,7 +420,7 @@
       "id": "cline",
       "fleetRole": "supported",
       "name": "Cline CLI / ACP / Kanban",
-      "version": "3.0.74",
+      "version": "3.0.75",
       "versionObserved": "Observed 2026-11-20: the Windows npm launcher returned 3.0.74 after installing the official Cline CLI package.",
       "executable": "{roamingConfig}/npm/cline.cmd",
       "executableNote": "The official global npm package installed this launcher under the Windows user's npm prefix. The earlier .local/bin launcher was absent on this workstation.",
@@ -463,7 +463,7 @@
       "id": "cursor",
       "fleetRole": "supported",
       "name": "Cursor",
-      "version": "3.31.11",
+      "version": "3.31.15",
       "executable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
@@ -636,7 +636,7 @@
       "id": "factory",
       "fleetRole": "retained",
       "name": "Factory Droid",
-      "version": "1.16.0",
+      "version": "1.17.0",
       "versionObserved": "2026-11-20: verified using the registered launcher version command.",
       "versionNote": "Corrected 2026-10-14. The 2026-08-19 observation of 0.195.0 from app-0.152.0 is historical. The live binary is %USERPROFILE%\\bin\\droid.exe and `droid --version` returned 0.241.1. `droid update` reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/bin/droid.exe",

@@ -85,7 +85,7 @@ try {
 
     $lock = [IO.File]::Open("$h\.grok\sessions\C%3A%5CRepos\locked-session\chat_history.jsonl", 'Open', 'Read', 'None')
     $applyManifest = Join-Path $root 'apply.json'
-    & $script @common -ManifestPath $applyManifest -Apply *> $null
+    & $script @common -ManifestPath $applyManifest -Apply -IgnoreRunningApps *> $null
     $lock.Dispose(); $lock = $null
     $applied = Get-Content -LiteralPath $applyManifest -Raw -Encoding UTF8 | ConvertFrom-Json
 

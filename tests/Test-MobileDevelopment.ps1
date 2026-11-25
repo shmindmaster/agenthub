@@ -190,7 +190,7 @@ Report 'canonical contract has stable top-level ownership and authorities' (
 
 $expectedPrimary = @('scope.resolve','platform.expo-baseline','development.metro','build.android-apk','build.ios-simulator','device.android-emulator','device.ios-simulator','inspect.appium','test.unit-component','test.maestro','test.mobile-web','evidence.capture','guest.sync','health.check')
 $expectedSpecialty = @('build.ios-signed','device.physical','delivery.eas-store','integration.push','integration.deep-links','observability.mobile')
-$expectedResources = @('mobile-scope-registry','windows-mobile-toolchain','windows-hypervisor-platform','vmware-workstation','macos-guest-vm','macos-guest-known-good-backup','android-avd','ios-simulator')
+$expectedResources = @('mobile-scope-registry','windows-mobile-toolchain','windows-hypervisor-platform','vmware-workstation','macos-guest-vm','android-avd','ios-simulator')
 $expectedServices = @('adb','metro','ssh','guest-appium','appium-mcp')
 $expectedOutOfScope = @('detox','maestro-mcp','wsl-android-e2e','android-studio','nested-virtualization','second-vm-nic','routine-cloud-builds','cloud-device-farms')
 
@@ -441,20 +441,15 @@ Report 'health-sensitive evidence guidance is synthetic-only' (
 ) 'Capture guidance could expose PHI or private patient evidence.'
 
 $vmx = ([string]$contract.authorities.vmx) -replace '/', '\'
-$backupResource = @($contract.resources | Where-Object id -eq 'macos-guest-known-good-backup')
 $vmxText = if (Test-Path -LiteralPath $vmx) { Get-Content -LiteralPath $vmx -Raw -Encoding UTF8 } else { '' }
 $vmxCpu = if ($vmxText -match '(?m)^numvcpus\s*=\s*"([0-9]+)"') { [int]$Matches[1] } else { $null }
 $vmxMemory = if ($vmxText -match '(?m)^memsize\s*=\s*"([0-9]+)"') { [int]$Matches[1] } else { $null }
-Report 'VMX and known-good backup paths resolve without touching either tree' (
-    (Test-Path -LiteralPath $vmx -PathType Leaf) -and $backupResource.Count -eq 1 -and `
-    $backupResource[0].path -match '^D:/VMs/macOS-Tahoe-AMD-Backup-\d{4}-\d{2}-\d{2}$' -and `
-    (Test-Path -LiteralPath (([string]$backupResource[0].path -replace '/', '\')) -PathType Container)
-) "vmx=$vmx backup=$($backupResource[0].path)"
+Report 'VMX path resolves without touching the VM tree' (Test-Path -LiteralPath $vmx -PathType Leaf) "vmx=$vmx"
 $vmReadmePath = 'D:\VMs\macOS-Tahoe-AMD\README.md'
 $vmReadmeText = if (Test-Path -LiteralPath $vmReadmePath) { Get-Content -LiteralPath $vmReadmePath -Raw -Encoding UTF8 } else { '' }
 Report 'VM README is a thin canonical pointer with no copied runtime contract' (
     $vmReadmeText -match [regex]::Escape('C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1') -and `
-    $vmReadmeText -match [regex]::Escape(([string]$backupResource[0].path -replace '/', '\')) -and `
+    $vmReadmeText -match 'There is no retained external VM backup' -and `
     $vmReadmeText -match 'must not modify VM disks' -and `
     $vmReadmeText -notmatch 'D:\\Downloads|boot entry|vCPU|GB RAM|fixed IP|192\.168\.'
 ) 'The external VM document copied mutable hardware/network facts or dead operational guidance.'
