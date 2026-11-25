@@ -34,25 +34,10 @@ $marketplace = Read-Json (Join-Path $root '.agents\plugins\marketplace.json')
 $capabilities = Read-Json (Join-Path $root 'registry\capabilities.json')
 $mcps = Read-Json (Join-Path $root 'registry\mcps.json')
 $agents = Read-Json (Join-Path $root 'registry\agents.json')
-$distribution = [string]$capabilities.distribution
-$isPublicCore = $distribution -eq 'public-core'
-if ($distribution -and -not $isPublicCore) { Fail "unknown capabilities distribution: $distribution" }
 $deliveryPath = Join-Path $root 'registry\product-video-delivery.json'
-$delivery = $null
-if ($isPublicCore) {
-  # The exporter removes fleet-private inputs; a public marker must not turn
-  # validation into a bypass for a canonical checkout that still contains them.
-  foreach ($relative in @('global-agent-policy.md', 'registry\product-video-delivery.json', 'registry\repo-standard.json', 'registry\mobile-scope.json')) {
-    if (Test-Path -LiteralPath (Join-Path $root $relative)) { Fail "public-core distribution contains private fleet input: $relative" }
-  }
-  if (@($capabilities.capabilities | Where-Object { $_.visibility -eq 'private' }).Count -gt 0) {
-    Fail 'public-core distribution contains private capabilities'
-  }
-} else {
-  # Absence is not an opt-out. Canonical fleet validation still requires this
-  # registry and its eighteen-product baseline below (2026-10-21).
-  $delivery = Read-Json $deliveryPath
-}
+# Absence is not an opt-out. Validation requires this registry and its
+# baseline below (2026-10-21).
+$delivery = Read-Json $deliveryPath
 $pluginFormats = Read-Json (Join-Path $root 'registry\plugin-formats.json')
 
 $pluginRoot = Join-Path $root 'packages'
@@ -371,28 +356,26 @@ foreach ($mcpServer in @($mcps.mcpServers)) {
 if ($verifiedRevisionCount -eq 0) {
   Fail 'no MCP server has a verified protocol.revision; the registry records a protocol contract that was never established against any server'
 }
-if (-not $isPublicCore) {
-  # Delivery roots (2026-10-21): every registered product is unique, delivers under F:/My Drive/Videos, and never into a
-  # personal or restricted folder, its own subfolders included. The floor is the 2026-11-04 baseline of sixteen
-  # products, after retiring Sabhi and RepoContext; dropping a mapping is a deliberate edit to this baseline, never a silent shrink.
-  $deliveryBaseline = 16
-  $deliveryProducts = @(@($delivery.products) | Where-Object { $null -ne $_ })
-  if ($deliveryProducts.Count -lt $deliveryBaseline) { Fail "product video delivery registry must contain at least $deliveryBaseline products (lists $($deliveryProducts.Count)); it covered $deliveryBaseline on 2026-11-04 and must not shrink silently" }
-  $deliveryIds = @($deliveryProducts | ForEach-Object { [string]$_.productId })
-  $dupIds = @($deliveryIds | Group-Object | Where-Object Count -gt 1 | ForEach-Object Name)
-  if ($dupIds.Count) { Fail "product video delivery registry repeats productId: $($dupIds -join ', ')" }
-  $excludedFolders = @($delivery.excludedFolders.folders)
-  foreach ($product in $deliveryProducts) {
-    $reviewRoot = [string]$product.reviewRoot
-    if (-not $reviewRoot.StartsWith('F:/My Drive/Videos/')) { Fail "product $($product.productId) reviewRoot '$reviewRoot' is not under F:/My Drive/Videos/"; continue }
-    # Normalise separators and trailing slashes, then compare the first path segment: 'Gartner', 'Gartner/' and
-    # 'Gartner/Client' all deliver inside the restricted Gartner tree.
-    $folder = ($reviewRoot.Substring('F:/My Drive/Videos/'.Length) -replace '\\', '/').Trim('/')
-    $topFolder = ($folder -split '/')[0]
-    $excludedHit = @($excludedFolders | Where-Object { [string]::Equals(([string]$_).Trim('/'), $topFolder, [StringComparison]::OrdinalIgnoreCase) })
-    if ([string]::IsNullOrWhiteSpace($folder)) { Fail "product $($product.productId) reviewRoot '$reviewRoot' names the Videos root itself, not a product folder" }
-    elseif ($excludedHit.Count) { Fail "product $($product.productId) delivers into excluded folder '$($excludedHit[0])' ($reviewRoot)" }
-  }
+# Delivery roots (2026-10-21): every registered product is unique, delivers under F:/My Drive/Videos, and never into a
+# personal or restricted folder, its own subfolders included. The floor is the 2026-11-04 baseline of sixteen
+# products, after retiring Sabhi and RepoContext; dropping a mapping is a deliberate edit to this baseline, never a silent shrink.
+$deliveryBaseline = 16
+$deliveryProducts = @(@($delivery.products) | Where-Object { $null -ne $_ })
+if ($deliveryProducts.Count -lt $deliveryBaseline) { Fail "product video delivery registry must contain at least $deliveryBaseline products (lists $($deliveryProducts.Count)); it covered $deliveryBaseline on 2026-11-04 and must not shrink silently" }
+$deliveryIds = @($deliveryProducts | ForEach-Object { [string]$_.productId })
+$dupIds = @($deliveryIds | Group-Object | Where-Object Count -gt 1 | ForEach-Object Name)
+if ($dupIds.Count) { Fail "product video delivery registry repeats productId: $($dupIds -join ', ')" }
+$excludedFolders = @($delivery.excludedFolders.folders)
+foreach ($product in $deliveryProducts) {
+  $reviewRoot = [string]$product.reviewRoot
+  if (-not $reviewRoot.StartsWith('F:/My Drive/Videos/')) { Fail "product $($product.productId) reviewRoot '$reviewRoot' is not under F:/My Drive/Videos/"; continue }
+  # Normalise separators and trailing slashes, then compare the first path segment: 'Gartner', 'Gartner/' and
+  # 'Gartner/Client' all deliver inside the restricted Gartner tree.
+  $folder = ($reviewRoot.Substring('F:/My Drive/Videos/'.Length) -replace '\\', '/').Trim('/')
+  $topFolder = ($folder -split '/')[0]
+  $excludedHit = @($excludedFolders | Where-Object { [string]::Equals(([string]$_).Trim('/'), $topFolder, [StringComparison]::OrdinalIgnoreCase) })
+  if ([string]::IsNullOrWhiteSpace($folder)) { Fail "product $($product.productId) reviewRoot '$reviewRoot' names the Videos root itself, not a product folder" }
+  elseif ($excludedHit.Count) { Fail "product $($product.productId) delivers into excluded folder '$($excludedHit[0])' ($reviewRoot)" }
 }
 
 # Autonomy/permission model (registry/fleet-profile.json.autonomyProfiles): a host

@@ -195,8 +195,6 @@ npm run typecheck
 
 `Check-RepoStandard.ps1` checks the repositories named in `registry/repo-standard.json` against the repository standard. That roster is the author's; edit it, or pass `-ConfigPath`, to check your own.
 
-`npm run agenthub -- export <dir>` writes a stripped copy of the public tree to an empty directory, as a residue audit. It does not push anything.
-
 ## Documentation
 
 - [docs/README.md](./docs/README.md) is the map.

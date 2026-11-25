@@ -35,7 +35,7 @@ The skill name is one of four surfaces. Keep them derived from one identity rath
 | Skill `name` | equals its directory; one or two words; verb or gerund first; does not repeat the plugin name | `lookup` |
 | MCP server id / display | `id` equals the capability id; display `AH-<Title>` | `brave-search` / `AH-Brave-Search` |
 
-The `ah-*` / `AH-*` rule and the one-version authority across host projections are set in `docs/plans/active/plugin-redesign.md`. A host projection may add host-native fields but must not diverge on `name` or `version`; the allowed extra fields are listed under `canonicalPackage` in `registry/plugin-formats.json`. If a projection needs a field outside that list, amend the list deliberately rather than adding the field quietly.
+Every host projection of a package carries the same `name` and `version`. A host projection may add host-native fields but must not diverge on `name` or `version`; the allowed extra fields are listed under `canonicalPackage` in `registry/plugin-formats.json`. If a projection needs a field outside that list, amend the list deliberately rather than adding the field quietly.
 
 One capability owns one integration. Where both a package and an MCP server exist for the same thing, name the single owner in `registry/capabilities.json` and `registry/mcps.json` and keep them agreeing.
 

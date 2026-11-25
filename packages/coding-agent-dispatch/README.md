@@ -112,16 +112,15 @@ audits by default; `-Apply` installs and verifies the single global plugin file.
 It does not change permissions, credentials or the provider. CLI and Desktop
 consume the shared service; a running service needs native `opencode reload`
 after installation. Test discovery again after an SDK upgrade. Neither repair
-command installs a scheduled job. See `docs/fleet/context-reduction.md`.
+command installs a scheduled job.
 
 Account-based authentication is recorded per CLI in `registry/fleet-profile.json`
 -> `hostSettings`. The dispatcher removes
 host-specific API-key environment variables from account-authenticated
 children. OpenCode's private provider settings pin the Go-only endpoint;
-Console account OAuth is stored by the native service. Follow the owner-only checklist at
-`docs/fleet/account-logins-2026-10-21.md`; do not log in or accept paid fallback
-automatically. Other gated CLIs need verified included allowance or an explicit
-task credit budget and one smoke before enabling. Model catalogs and help
+Console account OAuth is stored by the native service. Login commands are in
+`hostSettings`; do not log in or accept paid fallback automatically. Other
+gated CLIs need verified included allowance or an explicit task credit budget and one smoke before enabling. Model catalogs and help
 output alone do not prove working inference.
 
 `-HostId claude -AnthropicApiKey` is a per-call opt-in (owner direction

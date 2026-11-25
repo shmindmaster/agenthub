@@ -42,10 +42,4 @@ Or: `npm run init` then `npm run validate`.
 pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1
 pwsh -NoProfile -File .\tests\Test-PathBinding.ps1
 pwsh -NoProfile -File .\tests\Test-CapabilityOverlay.ps1
-pwsh -NoProfile -File .\tests\Test-PublicCoreExport.ps1
 ```
-
-A public tree is produced by `scripts/Export-PublicCore.ps1` (or
-`npm run agenthub -- export <dir>`). That script does not push and does not change
-remote visibility. Private package ids come from `visibility: private` in
-`registry/capabilities.json`.

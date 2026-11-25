@@ -53,7 +53,7 @@ test('the npm package does not ship the PowerShell engine', () => {
   assert.ok(!pkg.files.some((f) => /AgentHub\.ps1|^scripts\/$/.test(f)));
 });
 
-for (const command of ['sync', 'sync --apply', 'validate', 'init', 'drift', 'inventory', 'export out']) {
+for (const command of ['sync', 'sync --apply', 'validate', 'init', 'drift', 'inventory']) {
   test(`'agenthub ${command}' from the npm package exits 1 at once with a clone hint`, () => {
     const root = packageShapedCopy();
     const r = runCli(root, command.split(' '), emptyPath());
