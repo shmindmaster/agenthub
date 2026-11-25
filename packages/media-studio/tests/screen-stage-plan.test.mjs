@@ -480,3 +480,12 @@ test('the busiest window honours an acceptance filter on its corner', () => {
   const w = F.busiestWindow(g, W, H, 100, 100, 20, null, [], (x0) => x0 >= 200);
   assert.ok(w.x0 >= 200, 'the window is where the filter allows');
 });
+
+test('the ideal blur averages in linear light, as the renderer does: a black to white edge blurs to a lighter middle', () => {
+  const W = 64, H = 8, src = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 32; x < W; x++) src[y * W + x] = 255;
+  const cams = []; for (let k = 0; k < 8; k++) cams.push({ cx: W / 2 + (k - 3.5) * 2, cy: H / 2, z: 1 });
+  const lin = F.idealBlurCrop(src, W, H, cams, 24, 2, 16, 2, true), enc = F.idealBlurCrop(src, W, H, cams, 24, 2, 16, 2, false);
+  const mid = (a) => a[8];
+  assert.ok(mid(lin) > mid(enc) + 5, `linear ${mid(lin)} vs encoded ${mid(enc)}`);
+});

@@ -147,13 +147,20 @@ export function captureRate(times, burstGapMs = 50) {
   return { frames: times.length, burstGaps: gaps.length, medianGapMs: pick(0.5), p95GapMs: pick(0.95), uniqueFps: gaps.length ? 1000 / pick(0.5) : NaN, floorFps: gaps.length ? 1000 / pick(0.95) : NaN };
 }
 
-/** The ideal blur of a crop at full stage resolution: crop (x0, y0, w, h) in stage px; `src` is the source in stage space at W x H. */
-export function idealBlurCrop(src, W, H, cams, x0, y0, w, h) {
+const toLin = (v) => { const c = Math.min(1, Math.max(0, v / 255)); return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+const fromLin = (l) => 255 * (l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055);
+
+/**
+ * The ideal blur of a crop at full stage resolution: crop (x0, y0, w, h) in stage px; `src` is the source in stage space at W x H.
+ * The renderer averages its shutter samples in linear light, so the ideal does too (`linear`, default): an edge blurred in encoded
+ * values has a different profile, and the autocorrelation compared against it would carry that difference as if it were a ghost.
+ */
+export function idealBlurCrop(src, W, H, cams, x0, y0, w, h, linear = true) {
   const out = new Float32Array(w * h);
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
     let s = 0, n = 0;
-    for (const c of cams) { const a = warpSample(src, W, H, W, H, c, x0 + i + 0.5, y0 + j + 0.5); if (a !== null && Number.isFinite(a)) { s += a; n++; } }
-    out[j * w + i] = n ? s / n : NaN;
+    for (const c of cams) { const a = warpSample(src, W, H, W, H, c, x0 + i + 0.5, y0 + j + 0.5); if (a !== null && Number.isFinite(a)) { s += linear ? toLin(a) : a; n++; } }
+    out[j * w + i] = n ? (linear ? fromLin(s / n) : s / n) : NaN;
   }
   return out;
 }
