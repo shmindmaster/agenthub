@@ -7,7 +7,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sealReceipt, receiptIntegrity, RECEIPT_SCHEMA } from '../kit/screencast/receipt-lib.mjs';
+import { leadSeconds, sealReceipt, receiptIntegrity, RECEIPT_SCHEMA, videoLeadProblems } from '../kit/screencast/receipt-lib.mjs';
 import { IDENTITY, ff, hasFfmpeg, putReceipt, readJson, sha, write, writeCaptureJob, writeProof } from './fixtures/capture-job.mjs';
 
 const pkg = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -198,6 +198,16 @@ for (const [name, lead] of [['no reason', [{ label: 'Save', seconds: 0.2 }]], ['
     assert.equal(r.code, 1); assert.match(r.out, /videoLead/);
   });
 }
+test('a videoLead corrects a press and never a pointer arrival', () => {
+  const lead = [{ label: 'Save', seconds: 0.2, reason: 'r' }];
+  const point = { type: 'point', label: 'Save', t: 1 };
+  const press = { type: 'click', label: 'Save', t: 2 };
+  assert.match(videoLeadProblems('S02', lead, [point]).join(), /videoLead label "Save" is not a recorded press/);
+  // A pointer arrival that shares the press's label keeps its recorded time: receiptSemantics matches on it.
+  assert.deepEqual(videoLeadProblems('S02', lead, [point, press]), []);
+  assert.equal(leadSeconds(lead, point), 0);
+  assert.equal(leadSeconds(lead, press), 0.2);
+});
 
 // ---- recorder, with the browser replaced and everything else real
 const GOOD_IDENTITY = "export const identity = async () => ({ persona: 'parent', servedRevision: 'f1c30ee967' });";

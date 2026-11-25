@@ -78,7 +78,9 @@ export function provenanceProblems(clipId, provenance, proof) {
 
 // ---- capture/manifest.json clips[].videoLead: [{ label, seconds, reason }]
 // The encoded video can show a press slightly before the recorder logged it. The correction names the action, its size and why.
+// A pointer arrival paints nothing and the gates match it on its recorded time, so only a press can be led.
 export const VIDEO_LEAD_MAX = 0.5;
+const isPress = (a) => ['click', 'tap', 'type', 'upload', 'fill', 'select'].includes(a?.type);
 export function videoLeadProblems(clipId, videoLead, actions = []) {
   if (videoLead === undefined) return [];
   if (!Array.isArray(videoLead)) return [`clip ${clipId}: videoLead must be a list of { label, seconds, reason }`];
@@ -87,13 +89,13 @@ export function videoLeadProblems(clipId, videoLead, actions = []) {
   for (const lead of videoLead) {
     if (!(Number.isFinite(lead?.seconds) && lead.seconds > 0 && lead.seconds <= VIDEO_LEAD_MAX)) problems.push(`clip ${clipId}: videoLead seconds must be above 0 and at most ${VIDEO_LEAD_MAX}`);
     if (typeof lead?.reason !== 'string' || !lead.reason.trim()) problems.push(`clip ${clipId}: videoLead needs a reason`);
-    if (!actions.some((a) => a.label && a.label === lead?.label)) problems.push(`clip ${clipId}: videoLead label ${JSON.stringify(lead?.label ?? null)} is not a recorded action`);
+    if (!actions.some((a) => isPress(a) && a.label && a.label === lead?.label)) problems.push(`clip ${clipId}: videoLead label ${JSON.stringify(lead?.label ?? null)} is not a recorded press`);
     if (seen.has(lead?.label)) problems.push(`clip ${clipId}: videoLead names ${JSON.stringify(lead.label)} twice`);
     seen.add(lead?.label);
   }
   return problems;
 }
 export function leadSeconds(videoLead, action) {
-  if (!Array.isArray(videoLead) || !action?.label) return 0;
+  if (!Array.isArray(videoLead) || !isPress(action) || !action.label) return 0;
   return Number(videoLead.find((l) => l?.label === action.label)?.seconds) || 0;
 }
