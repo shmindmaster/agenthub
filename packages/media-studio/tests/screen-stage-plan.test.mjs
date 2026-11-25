@@ -473,3 +473,10 @@ test('the busiest window keeps clear of drawn things: a pointer region is never 
   const kept = F.busiestWindow(g, W, H, 100, 100, 20, null, [{ x0: 90, y0: 90, x1: 170, y1: 170 }]);
   assert.ok(!(kept.x0 < 170 && kept.x0 + 100 > 90 && kept.y0 < 170 && kept.y0 + 100 > 90), 'the window avoids the rect');
 });
+
+test('the busiest window honours an acceptance filter on its corner', () => {
+  const W = 400, H = 300, g = new Float32Array(W * H);
+  for (let y = 40; y < 100; y++) for (let x = 40; x < 100; x++) g[y * W + x] = (x + y) % 2 ? 255 : 0;
+  const w = F.busiestWindow(g, W, H, 100, 100, 20, null, [], (x0) => x0 >= 200);
+  assert.ok(w.x0 >= 200, 'the window is where the filter allows');
+});

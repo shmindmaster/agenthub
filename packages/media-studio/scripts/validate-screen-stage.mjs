@@ -486,7 +486,7 @@ for (const listed of plansListed) {
       const a = cs[0], b = cs[cs.length - 1];
       let dir = { x: 0, y: 0 };
       for (const [fx, fy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) { const sp = { x: fx * g.W, y: fy * g.H }, pt = { x: (sp.x - g.W / 2) / b.z + b.cx, y: (sp.y - g.H / 2) / b.z + b.cy }; const d = { x: (pt.x - a.cx) * a.z + g.W / 2 - sp.x, y: (pt.y - a.cy) * a.z + g.H / 2 - sp.y }; if (Math.hypot(d.x, d.y) > Math.hypot(dir.x, dir.y)) dir = d; }
-      const lenEst = Math.hypot(dir.x, dir.y);
+      let lenEst = Math.hypot(dir.x, dir.y);
       if (lenEst < 4) return; // under 4 px of blur there is nothing to compare
       // a phone screen inside a wide frame: the window lies inside the screen, never over the gradient or the shadow
       let bounds = null;
@@ -494,19 +494,19 @@ for (const listed of plansListed) {
       // the pointer and a tap ring are drawn on the film, not in the capture: the window keeps clear of them
       const avoid = [];
       if (stTop.cursor && (stTop.cursor.visible ?? 1) > 0) { const pc = M.projectPoint(camTop, g, { x: stTop.cursor.x, y: stTop.cursor.y }), r = 130 * camTop.z; avoid.push({ x0: pc.x - r, y0: pc.y - r, x1: pc.x + r, y1: pc.y + r }); }
-      const win = F.busiestWindow(filmFull, g.W, g.H, 480, 270, bounds ? 20 : 60, bounds, avoid);
+      // the blur is read where the page really moves: a zoom against a pan cancels at some corners, and there what differs is the capture's own sharpness, not copies
+      const localD = (px, py) => { const pt = { x: (px - g.W / 2) / camTop.z + camTop.cx, y: (py - g.H / 2) / camTop.z + camTop.cy }; return { x: (pt.x - a.cx) * a.z - (pt.x - b.cx) * b.z, y: (pt.y - a.cy) * a.z - (pt.y - b.cy) * b.z }; };
+      let maxL = 0; for (let gx = 0.1; gx < 1; gx += 0.2) for (let gy = 0.1; gy < 1; gy += 0.2) { const d = localD(gx * g.W, gy * g.H); maxL = Math.max(maxL, Math.hypot(d.x, d.y)); }
+      const moving = (x0, y0) => { const d = localD(x0 + 240, y0 + 135); return Math.hypot(d.x, d.y) >= Math.max(6, 0.6 * maxL); };
+      let win = F.busiestWindow(filmFull, g.W, g.H, 480, 270, bounds ? 20 : 60, bounds, avoid, moving);
+      if (win.e < 0) win = F.busiestWindow(filmFull, g.W, g.H, 480, 270, bounds ? 20 : 60, bounds, avoid);
+      { const d = localD(win.x0 + 240, win.y0 + 135); if (Math.hypot(d.x, d.y) >= 4) dir = d; }
+      lenEst = Math.hypot(dir.x, dir.y);
       const film = new Float32Array(480 * 270);
       for (let j = 0; j < 270; j++) for (let i = 0; i < 480; i++) film[j * 480 + i] = filmFull[(win.y0 + j) * g.W + win.x0 + i];
       const ideal = F.idealBlurCrop(srcFull, g.W, g.H, cs, win.x0, win.y0, 480, 270);
       const ge = F.ghostExcess(film, ideal, 480, 270, dir, Math.max(8, Math.min(80, Math.ceil(lenEst * 1.5))));
       ghostRows.push({ move: seg.t0, t: r2(top.t), blurPx: r2(lenEst), excess: r2(ge.excess), lag: ge.lag, window: { x0: win.x0, y0: win.y0 }, avoided: avoid.length });
-      if (process.env.STAGE_GHOST_DIAG) { // temporary diagnosis: how the excess moves with the film time and the ideal's shutter
-        const diag = [];
-        for (const dt of [-1 / 120, -1 / 240, 1 / 240, 1 / 120]) { const ff2 = grayAt(candidate, T0 + top.t + dt, g.W, g.H); if (!ff2) continue; const fl = new Float32Array(480 * 270); for (let j = 0; j < 270; j++) for (let i = 0; i < 480; i++) fl[j * 480 + i] = ff2[(win.y0 + j) * g.W + win.x0 + i]; diag.push({ filmDt: r2(dt * 1000), excess: r2(F.ghostExcess(fl, ideal, 480, 270, dir, Math.max(8, Math.min(80, Math.ceil(lenEst * 1.5)))).excess) }); }
-        for (const k of [0.7, 0.85, 1.15, 1.3]) { const cs2 = []; for (let q = 0; q < 96; q++) cs2.push(M.cameraAt(plan.camera, Math.max(0, top.t + ((q + 0.5) / 96 - 0.5) * tShutter * k), g)); const id2 = F.idealBlurCrop(srcFull, g.W, g.H, cs2, win.x0, win.y0, 480, 270); diag.push({ shutterScale: k, excess: r2(F.ghostExcess(film, id2, 480, 270, dir, Math.max(8, Math.min(80, Math.ceil(lenEst * 1.5)))).excess) }); }
-        console.log('GHOST_DIAG ' + JSON.stringify({ move: seg.t0, t: r2(top.t), base: r2(ge.excess), diag }));
-      }
-
       if (ge.excess > LIMITS.ghostExcess) fail(`run ${listed.run}: repeated copies along the motion in the ${seg.reason} move at ${seg.t0}s (frame ${r2(top.t)}s: autocorrelation ${r2(ge.excess)} above an ideal blur at lag ${ge.lag}, limit ${LIMITS.ghostExcess})`);
     });
     row.checks.colourInMotion = colourRows; row.checks.ghosting = ghostRows;
