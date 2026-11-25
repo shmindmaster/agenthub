@@ -71,7 +71,7 @@ their native accounts by default. Use `-Auth` to show sign-in commands, and add
    Subscription plan routes (smoke-verified 2026-11-14) for opencode, kilo and
    factory: Qwen Token Plan, Z.ai GLM Coding Plan and MiMo Token Plan. Exact
    ids are in `references/hosts.md` -> Plan routes.
-   For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.3`.
+   For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.4`.
    See the host reference for the Windows tool limits.
 
    On Windows, `-HostId zcode` uses the bundled CLI and the existing standalone

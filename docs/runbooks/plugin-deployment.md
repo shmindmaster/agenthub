@@ -161,7 +161,7 @@ Prefer each plan's native client integration when it is available. Clients
 can also use the Anthropic or OpenAI compatible endpoint documented for the
 plan. Keep native Claude and Codex logins on Windows. Grok uses its native
 account login. On Windows, select the Z.ai Coding Plan with
-`-HostId opencode -Model zai-coding-plan/glm-5.3`; this route supports
+`-HostId opencode -Model zai-coding-plan/glm-5.4`; this route supports
 workspace edits and Z.ai MCPs, with shell tools disabled. Use
 `codex --profile qwen` with the user environment reference for the Qwen Token
 Plan. The Token Plan model ids that dispatch accepts for opencode, kilo and

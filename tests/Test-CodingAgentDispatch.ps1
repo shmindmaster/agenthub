@@ -731,15 +731,15 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
     Check 'OpenCode passes an unlisted provider/model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'opencode-go/kimi-k3' -and -not $d.ApiKeyVars.OPENCODE_GO_API_KEY -and $r.Err -match (PassNote 'opencode' 'opencode-go/kimi-k3')) $r.Err
-    $zaiArgs = @('-HostId','opencode','-Model','zai-coding-plan/glm-5.3','-ShowCommand','-Cwd',$scratch)
+    $zaiArgs = @('-HostId','opencode','-Model','zai-coding-plan/glm-5.4','-ShowCommand','-Cwd',$scratch)
     $r = Run $zaiArgs
     Check 'Windows Z.ai refuses a missing launcher rather than falling back to Go' ($r.Exit -eq 3 -and $r.Err -match 'launcher is absent')
     $zaiFixture = Join-Path $env:LOCALAPPDATA 'AgentHub\zai'
     $null = New-Item -ItemType Directory -Path $zaiFixture -Force
     Set-Content -LiteralPath (Join-Path $zaiFixture 'opencode-zai.ps1') -Value 'exit 7'
     $r = Run $zaiArgs
-    Check 'Windows Z.ai uses the isolated launcher without the Go peer auto-approval' ($r.Exit -eq 0 -and $r.Out -match 'opencode-zai\.ps1' -and $r.Out -match '--model zai-coding-plan/glm-5\.3' -and $r.Out -match 'OPENCODE_CONFIG_CONTENT' -and $r.Out -notmatch '--auto')
-    $r = Run @('-HostId','opencode','-Model','zai-coding-plan/glm-5.3','-Cwd',$scratch,'-Prompt','ok','-TimeoutSec','5')
+    Check 'Windows Z.ai uses the isolated launcher without the Go peer auto-approval' ($r.Exit -eq 0 -and $r.Out -match 'opencode-zai\.ps1' -and $r.Out -match '--model zai-coding-plan/glm-5\.4' -and $r.Out -match 'OPENCODE_CONFIG_CONTENT' -and $r.Out -notmatch '--auto')
+    $r = Run @('-HostId','opencode','-Model','zai-coding-plan/glm-5.4','-Cwd',$scratch,'-Prompt','ok','-TimeoutSec','5')
     Check 'Windows Z.ai propagates its launcher exit status' ($r.Exit -eq 7)
     # Subscriptions only: the opencode/ provider is the pay-as-you-go Zen wallet.
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','opencode/kimi-k3')
