@@ -8,7 +8,7 @@ Cheapest first, in `scripts/`. `all` is every kind, `screen` is `product-screenc
 | 2 | `validate-narration.mjs` | all | `qa/narration-check.json` | Fluff, repeats, hook past 5 s | Writer |
 | 3 | `write-story-review.py` | all | `qa/story-review.json` | Lint score below 85 | Named scenes |
 | 4 | `Test-SpeechIntegrity.ps1` | Each voice take | Nothing | Dead air, low level, duration skew | Re-render take |
-| 5 | `validate-demo-scenario.mjs` | screen, in the recorder's pre-flight | Nothing | Unproven workflow | Readiness handoff |
+| 5 | `validate-demo-scenario.mjs` | screen, in the recorder's pre-flight | Nothing | Unproven workflow | Rerun `write-scenario-proof.mjs` |
 | 6 | `validate-capture-preflight.mjs` | screen, in `record-job.mjs` | `qa/capture-preflight.json` | Scene id, keyword, typing faults | Capture plan |
 | 7 | `validate-capture-manifest.mjs` | Only a job with per-shot capture metadata (`captures`). Not applicable to the clips manifest of a `screen` job, which order 8 checks | Nothing | Bad per-shot metadata | Capture |
 | 8 | `validate-product-picture.mjs` | screen, in compose | `qa/product-picture.json` | Not live WebM, no Recast, hidden freeze, edited or unknown receipt, wrong persona, scenario or build, a manifest file that is not there | Recapture |

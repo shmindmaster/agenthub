@@ -35,12 +35,12 @@ successful host-configuration sync as a release check.
 
 ## Before capture
 
-1. Create `evidence/source-scenario.json` from a current synthetic demo-readiness handoff. It must record the actual authenticated workflow checks and visible states the recording will prove. Do not use a planned route, a hard-coded identifier, or a static fixture as source proof.
-2. Create `evidence/demo-scenario-proof.json` with `synthetic: true`, one `scenarioId`, persona, problem, `hero` (`segmentId`, `beforeState`, `action`, `visibleResult`), outcome (`statement`, `evidence`), and generic continuity entities (`type`, `id`). Its `source` must be a `DEMO-READY` `product-readiness-handoff`, with a relative path, SHA-256, verification time, authenticated workflow, and an observed, hash-bound runtime outcome. The source file must live in this external job workspace.
-3. Put the same `scenarioId` and an explicit CTA on the storyboard. A beat may reference only the proven entity type/id pairs. Run:
+1. Put one `scenarioId` and an explicit CTA on the storyboard. A beat may reference only the proven entity type/id pairs.
+2. Write `capture/scenario.mjs`: `synthetic: true`, the same `scenarioId`, persona, `personaId`, problem, `start`, `hero` (`segmentId`, `beforeState`, `action`, `visibleResult`), outcome (`statement`, `evidence`) and continuity entities (`type`, `id`), plus `guarded`, `signIn` and `prove`. No planned route or static fixture is proof.
+3. Run it against the running product. It writes the runtime outcome, the readiness handoff and the proof, then runs `validate-demo-scenario.mjs`:
 
 ```powershell
-node <media-studio>/scripts/validate-demo-scenario.mjs <jobRoot>
+node <kit>/screencast/write-scenario-proof.mjs <jobRoot>
 ```
 
 This is a pre-capture gate. A failed picker, contract mismatch, missing approval criteria, or a dashboard state without a visible resolution belongs in the source readiness handoff; repair the product in its separately authorized engineering task before recording.

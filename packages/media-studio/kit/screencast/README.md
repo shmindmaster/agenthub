@@ -8,6 +8,7 @@ Shared tooling for screencast-led films (product screencasts, technical stories)
 | `../../scripts/build-cue-sheet.mjs <jobRoot>` | `plan/cue-sheet.json` — one row per narration beat: words with times, screen, cursor action and time, expected UI state, camera, transition. Run before compose (plan) and again after it (mapped). |
 | `../../scripts/validate-sync.mjs <jobRoot> <candidate.mp4>` | `qa/sync.json` — narration-to-visual sync gate on the encoded file, bound to its SHA-256. |
 | `sync-lib.mjs` | Shared timing rules (keyword match, voice-first alignment, edit-list mapping, encoded measurements) used by the three tools above. |
+| `write-scenario-proof.mjs <jobRoot>` | `evidence/demo-scenario-proof.json` with its readiness handoff and runtime outcome, from a live run of `capture/scenario.mjs`. Run before `record-job.mjs`. |
 | `render-overlay.mjs <out.png> '<spec>'` | Transparent 1600×1000 annotation PNG: dim-with-cutout box, outline, labels, arrows, notes |
 | `render-code.mjs <out.png> '<spec>'` | Code-reveal card: real source excerpt with line numbers and highlight bands, provenance in the footer |
 | `render-html.mjs <out.png> <file.html>` | Typeset card or flow diagram from an HTML body |
