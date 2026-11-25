@@ -89,7 +89,10 @@ export async function startRecording(id, opts = {}) {
   const rawDir = path.resolve(opts.rawRoot || 'raw', id);
   fs.rmSync(rawDir, { recursive: true, force: true });
   fs.mkdirSync(rawDir, { recursive: true });
-  const browser = await chromium.launch({ headless: opts.headless !== false, args: ['--hide-scrollbars=false'] });
+  // Stage lane: Chrome's screencast returns CSS-size frames under Playwright's device-scale emulation (measured: 1280x720 at DSF 3), but
+  // true device-pixel frames when the browser itself runs at that scale. So the scale is a launch flag and the context sets none.
+  const stageScale = opts.stage ? opts.deviceScaleFactor || device?.deviceScaleFactor || 2 : null;
+  const browser = await chromium.launch({ headless: opts.headless !== false, args: ['--hide-scrollbars=false', ...(stageScale ? ['--force-device-scale-factor=' + stageScale] : [])] });
   // Playwright records video at CSS-pixel size whatever the device scale, so a phone or tablet layout recorded the
   // ordinary way comes out at 360-540 px and has to be upscaled. opts.mobileLayout = { cssWidth, scale } instead opens a
   // mobile context the size of the delivery frame and sets the page's viewport meta to cssWidth at that page scale: the
@@ -100,7 +103,7 @@ export async function startRecording(id, opts = {}) {
     ...(device || {}),
     viewport,
     // mobileLayout (native-resolution phone/tablet layout) wins over device emulation: it rasterises at DSF 1 by design.
-    deviceScaleFactor: mobile ? 1 : opts.deviceScaleFactor || device?.deviceScaleFactor || 2,
+    ...(opts.stage ? { deviceScaleFactor: undefined } : { deviceScaleFactor: mobile ? 1 : opts.deviceScaleFactor || device?.deviceScaleFactor || 2 }),
     ...(mobile ? { isMobile: true, hasTouch: true } : {}),
     ...(!mobile && opts.isMobile !== undefined ? { isMobile: opts.isMobile } : {}),
     ...(!mobile && opts.hasTouch !== undefined ? { hasTouch: opts.hasTouch } : {}),
@@ -188,6 +191,7 @@ async function finishStageRecording(rec, opts, tracePath) {
   await rec.browser.close();
   if (!stop.frames.length) throw new Error('screen stage: the screencast delivered no frame in ' + rec.rawDir);
   const size = { width: Math.round(rec.viewport.width * rec.deviceScaleFactor), height: Math.round(rec.viewport.height * rec.deviceScaleFactor) };
+  if (!stop.frameSize || Math.abs(stop.frameSize.width - size.width) > 2 || Math.abs(stop.frameSize.height - size.height) > 2) throw new Error('screen stage: the screencast delivered ' + (stop.frameSize ? stop.frameSize.width + 'x' + stop.frameSize.height : 'unreadable') + ' frames, not the ' + size.width + 'x' + size.height + ' device pixels the take needs');
   const index = frameIndex({ id: rec.id, size, deviceScaleFactor: rec.deviceScaleFactor, viewport: rec.viewport, stop });
   const indexPath = path.join(rec.rawDir, 'frames.json');
   fs.writeFileSync(indexPath, JSON.stringify(index));

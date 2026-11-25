@@ -55,7 +55,7 @@ cp "$J"/qa/*.json "$OUT/qa/" 2>/dev/null
 cp "$J/capture/raw/S01/frames.json" "$OUT/frames.json"
 for f in $(ls "$J/capture/raw/S01/frames" | sed -n '1p;40p;80p;120p'); do cp "$J/capture/raw/S01/frames/$f" "$OUT/frames/"; done
 T4=$(t)
-echo "{\"setupSeconds\":$(echo "$T1 - $T0" | bc),\"captureSeconds\":$(echo "$T2 - $T1" | bc),\"composeRenderSeconds\":$(echo "$T3 - $T2" | bc),\"gatesSeconds\":$(echo "$T4 - $T3" | bc)}" | tee "$OUT/timing.json"
+python3 -c "import json,sys; a=[float(x) for x in sys.argv[1:]]; print(json.dumps({'setupSeconds':round(a[1]-a[0],1),'captureSeconds':round(a[2]-a[1],1),'composeRenderSeconds':round(a[3]-a[2],1),'gatesSeconds':round(a[4]-a[3],1)}))" "$T0" "$T1" "$T2" "$T3" "$T4" | tee "$OUT/timing.json"
 echo "nproc: $(nproc)  mem: $(free -g | awk '/Mem/{print $2}') GiB" | tee -a "$OUT/timing.txt"
 tar -C /work -cf /work/out.tar out
 ls -la /work/out.tar

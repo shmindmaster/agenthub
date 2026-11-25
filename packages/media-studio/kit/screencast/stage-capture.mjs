@@ -17,12 +17,13 @@ export async function startStageCapture(context, page, { dir, size, t0, quality 
   const cdp = await context.newCDPSession(page);
   const frames = [];
   const writes = [];
-  let n = 0, armedAt = null, stopped = false;
+  let n = 0, armedAt = null, stopped = false, dims = null;
   cdp.on('Page.screencastFrame', (ev) => {
     if (stopped) return;
     const t = ev.metadata?.timestamp ? ev.metadata.timestamp * 1000 - t0 : Date.now() - t0;
     const file = `f${String(++n).padStart(6, '0')}.jpg`;
     const buf = Buffer.from(ev.data, 'base64');
+    if (!dims) dims = jpegSize(buf);
     frames.push({ t: t / 1000, file, bytes: buf.length, sha256: sha256(buf) });
     writes.push(fs.promises.writeFile(path.join(dir, file), buf));
     cdp.send('Page.screencastFrameAck', { sessionId: ev.sessionId }).catch(() => {});
@@ -43,9 +44,21 @@ export async function startStageCapture(context, page, { dir, size, t0, quality 
       frames.forEach((f, i) => { if (f.t <= origin + 1e-3) keepFrom = i; });
       const kept = frames.slice(keepFrom).map((f, i) => ({ ...f, t: i === 0 ? 0 : Number(Math.max(0, f.t - origin).toFixed(4)) }));
       for (const f of frames.slice(0, keepFrom)) fs.rmSync(path.join(dir, f.file), { force: true });
-      return { origin, frames: kept, endSeconds: Number(endSeconds.toFixed(3)) };
+      return { origin, frames: kept, endSeconds: Number(endSeconds.toFixed(3)), frameSize: dims };
     },
   };
+}
+
+/** Width and height of a JPEG (its SOF marker). */
+export function jpegSize(buf) {
+  let i = 2;
+  while (i + 9 < buf.length) {
+    if (buf[i] !== 0xff) { i++; continue; }
+    const m = buf[i + 1];
+    if (m >= 0xc0 && m <= 0xc3) return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+    i += 2 + buf.readUInt16BE(i + 2);
+  }
+  return null;
 }
 
 /** The per-take frames record written beside the frames: the receipt binds its hash. */
