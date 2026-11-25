@@ -39,7 +39,7 @@ export type ChartVisual = {
   notes?: { text: string; at?: number }[];
 };
 
-export const Chart: FC<{ v: ChartVisual; accent: string; d: number }> = ({ v, accent, d }) => {
+export const Chart: FC<{ v: ChartVisual; accent: string; d: number; staged?: boolean }> = ({ v, accent, d, staged }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   if (v.form === "waffle") {
@@ -86,12 +86,14 @@ export const Chart: FC<{ v: ChartVisual; accent: string; d: number }> = ({ v, ac
           const color = TONE[it.mark ?? "default"] === TONE.default ? accent : TONE[it.mark ?? "default"];
           const w = interpolate(frame, [at * fps, (at + 0.9) * fps], [0, (it.value / top) * 100], ease);
           const op = interpolate(frame, [at * fps, (at + 0.3) * fps], [0, 1], ease);
+          // Staged, the rows and their empty tracks are up from the start and each one lights on its word.
+          const waiting = staged ? 0.42 * interpolate(frame, [0.1 * fps, 0.5 * fps], [0, 1], ease) : 0;
           return (
-            <div key={i} style={{ opacity: op }}>
+            <div key={i} style={{ opacity: Math.max(op, waiting) }}>
               <div style={{ color: "#EFEBE0", fontFamily: SANS, fontSize: 30, fontWeight: 700, marginBottom: 8 }}>{it.label}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 18, background: staged ? "#E8E4D90D" : undefined, borderRadius: 6 }}>
                 <div style={{ height: 38, width: `${w}%`, background: color, borderRadius: 6, minWidth: w > 0 ? 6 : 0 }} />
-                <div style={{ color, fontFamily: MONO, fontSize: 34, fontWeight: 700 }}>
+                <div style={{ color, fontFamily: MONO, fontSize: 34, fontWeight: 700, opacity: op }}>
                   {Math.round(interpolate(frame, [at * fps, (at + 0.9) * fps], [0, it.value], ease) * 10) / 10}
                   {v.unit ?? ""}
                 </div>
@@ -118,15 +120,19 @@ export type SvgVisual = {
   }[];
 };
 
-export const SvgScene: FC<{ v: SvgVisual; accent: string; d: number }> = ({ v, accent, d }) => {
+export const SvgScene: FC<{ v: SvgVisual; accent: string; d: number; box?: { w: number; h: number } }> = ({ v, accent, d, box }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const n = v.groups.length;
   const lastFrame = Math.max(1, Math.floor(d * fps) - 1);
+  // Given a box, the drawing takes all of it; on a slide it keeps its own height.
+  const size = box
+    ? { display: "block", width: "100%", flex: 1, minHeight: 0 }
+    : { width: "100%", height: "auto", maxHeight: 560 };
   return (
-    <div>
+    <div style={box ? { width: box.w, height: box.h, display: "flex", flexDirection: "column" } : undefined}>
       <Heading text={v.caption} accent={accent} />
-      <svg viewBox={v.viewBox ?? "0 0 1200 520"} style={{ width: "100%", height: "auto", maxHeight: 560 }} fontFamily={SANS}>
+      <svg viewBox={v.viewBox ?? "0 0 1200 520"} style={size} fontFamily={SANS}>
         {v.groups.map((g, i) => {
           const at = g.at ?? 0.4 + (i * Math.max(0.5, d * 0.8 - 0.4)) / Math.max(1, n);
           const a = at * fps;

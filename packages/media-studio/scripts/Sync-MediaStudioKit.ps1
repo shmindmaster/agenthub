@@ -54,6 +54,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $RuntimeKit 'src') | Out-Nu
 $files = @(
     'src\Visuals.tsx',
     'src\RichVisuals.tsx',
+    'src\Diagram.tsx',
     'public\lottie\check.json',
     'public\lottie\pulse.json',
     'public\lottie\arrow.json',
@@ -74,6 +75,11 @@ $files = @(
     'explainer\motion.mjs',
     'explainer\grammar.mjs',
     'explainer\layout.mjs',
+    'explainer\diagram.mjs',
+    'explainer\fit.mjs',
+    'explainer\icons.json',
+    'explainer\icons-LICENSE.txt',
+    'explainer\still-explainer.mjs',
     'explainer\anchor.mjs',
     'explainer\frame-metrics.mjs',
     'explainer\png.mjs',
@@ -84,7 +90,8 @@ $files = @(
     'explainer\Stage.tsx',
     'explainer\Chrome.tsx',
     'explainer\shots.tsx',
-    'explainer\Explainer.tsx',    'screencast\compose-screencast.mjs',
+    'explainer\Explainer.tsx',
+    'screencast\compose-screencast.mjs',
     'screencast\campaign-contract.mjs',
     'screencast\render-overlay.mjs',
     'screencast\render-code.mjs',
@@ -195,9 +202,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $explainerSource 'Explainer.tsx'))) 
 }
 $explainerTarget = Join-Path $sharedTools 'explainer'
 New-Item -ItemType Directory -Force -Path $explainerTarget | Out-Null
-foreach ($item in @(Get-ChildItem -LiteralPath $explainerSource -File | Where-Object { $_.Extension -in @('.mjs', '.json') })) {
+foreach ($item in @(Get-ChildItem -LiteralPath $explainerSource -File | Where-Object { $_.Extension -in @('.mjs', '.json', '.txt') })) {
     Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $explainerTarget $item.Name) -Force
-}foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
+}
+foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
     $from = Join-Path (Join-Path $packageKit 'screencast') $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical screencast tool missing: $from" }
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force

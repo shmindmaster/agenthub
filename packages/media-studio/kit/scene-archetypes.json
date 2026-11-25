@@ -1,5 +1,5 @@
 {
-  "version": "4.2.0",
+  "version": "4.3.0",
   "composition": "Briefing",
   "compositions": { "deck": "Briefing", "film": "Explainer" },
   "explainerGrammar": "explainer/grammar.mjs",
@@ -21,9 +21,9 @@
     { "id": "kinetic-number", "kit": ["stat"], "roleHint": ["proof", "hero"] },
     { "id": "before-after", "kit": ["beforeafter"], "roleHint": ["reveal", "payoff"] },
     { "id": "comparison", "kit": ["split"], "roleHint": ["tension", "proof"] },
-    { "id": "diagram-build", "kit": ["flow", "layers", "map"], "roleHint": ["reveal", "proof"] },
+    { "id": "diagram-build", "kit": ["flow", "diagram", "layers", "map"], "roleHint": ["reveal", "proof"] },
     { "id": "timeline", "kit": ["timeline"], "roleHint": ["before", "proof"] },
-    { "id": "process-flow", "kit": ["flow", "sequence"], "roleHint": ["reveal"] },
+    { "id": "process-flow", "kit": ["flow", "diagram", "sequence"], "roleHint": ["reveal"] },
     { "id": "screen-in-context", "kit": ["screen-in-context"], "roleHint": ["proof", "hero"] },
     { "id": "talking-head-sidecar", "kit": ["sidecar"], "roleHint": ["trust", "cta"] },
     { "id": "quote-problem", "kit": ["quote"], "roleHint": ["before", "tension"] },

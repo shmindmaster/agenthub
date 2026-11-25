@@ -17,6 +17,7 @@
  */
 import type { FC } from "react";
 import { Easing, Img, Interactive, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { Diagram, type DiagramVisual } from "./Diagram";
 import { Chart, LottieScene, SvgScene, type ChartVisual, type LottieVisual, type SvgVisual } from "./RichVisuals";
 
 const MONO = '"JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace';
@@ -53,7 +54,7 @@ export type Visual = (
   | { kind: "layers"; caption?: string; layers: { label: string; sub?: string; at?: number; mark?: MarkTone }[] }
   | { kind: "sequence"; caption?: string; actors: string[]; steps: SeqStep[] }
   | { kind: "table"; caption?: string; headers: string[]; rows: { cells: string[]; mark?: MarkTone }[] }
-  | { kind: "timeline"; caption?: string; events: { at: string; label: string; sub?: string; mark?: MarkTone }[] }
+  | { kind: "timeline"; caption?: string; events: { at: string; label: string; sub?: string; mark?: MarkTone; /** When the event lands; `at` is the date it prints. Explainer only. */ beat?: number }[] }
   | { kind: "beforeafter"; caption?: string; before: StackSide; after: StackSide }
   | { kind: "map"; caption?: string; lanes: { name: string; mark?: MarkTone; nodes: { label: string; sub?: string }[] }[] }
   | { kind: "still"; src: string; caption?: string; layout?: "frame" | "bleed"; focus?: "center" | "left" | "right" | "top" | "bottom"; prompt?: string; lane?: string }
@@ -67,6 +68,7 @@ export type Visual = (
   | { kind: "screen-in-context"; src: string; caption?: string }
   | { kind: "chapter"; kicker?: string; title: string }
   | { kind: "lower-third"; name: string; title?: string }
+  | DiagramVisual
   | ChartVisual
   | SvgVisual
   | LottieVisual
@@ -1176,7 +1178,10 @@ export const VisualBody: FC<{
   visual: Visual;
   accent: string;
   durationSeconds?: number;
-}> = ({ visual, accent, durationSeconds = 8 }) => {
+  /** The room the body may fill, from a caller that composes its own frame (the explainer). A drawn kind (svg,
+   * diagram) takes all of it, and a bar chart shows its rows from the start. Without it each keeps its slide form. */
+  box?: { w: number; h: number };
+}> = ({ visual, accent, durationSeconds = 8, box }) => {
   const d = durationSeconds;
   switch (visual.kind) {
     case "code":
@@ -1221,9 +1226,11 @@ export const VisualBody: FC<{
     case "lower-third":
       return <LowerThird v={visual} accent={accent} d={d} />;
     case "chart":
-      return <Chart v={visual} accent={accent} d={d} />;
+      return <Chart v={visual} accent={accent} d={d} staged={Boolean(box)} />;
     case "svg":
-      return <SvgScene v={visual} accent={accent} d={d} />;
+      return <SvgScene v={visual} accent={accent} d={d} box={box} />;
+    case "diagram":
+      return <Diagram v={visual} accent={accent} d={d} box={box} revealFrom={visual.revealFrom} />;
     case "lottie":
       return <LottieScene v={visual} accent={accent} />;
     default:

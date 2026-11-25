@@ -80,17 +80,25 @@ export const anchorSeconds = ({ spec, cueStart, words, sceneStart, fps = 30, sna
 /**
  * Resolve every `at` string inside a visual tree. Numbers pass through; a
  * missing word is a hard error, never a guessed time.
+ *
+ * A timeline event prints its `at` as the date, so an event carries its time in
+ * `beat` instead.
  */
+const inEvent = (path) => /\.events\[\d+\]$/.test(path);
+
+/** The field that carries time at this place in a visual tree. */
+export const timeKeyAt = (path) => (inEvent(path) ? 'beat' : 'at');
+
 export const resolveAnchors = (node, resolveOne, errors, path = 'visual') => {
   if (Array.isArray(node)) return node.map((item, index) => resolveAnchors(item, resolveOne, errors, `${path}[${index}]`));
   if (node && typeof node === 'object') {
     const out = {};
     for (const [key, value] of Object.entries(node)) {
-      if (key === 'at' && typeof value === 'string' && !/\.events\[\d+\]$/.test(path)) {
+      if (key === timeKeyAt(path) && typeof value === 'string') {
         try {
           out[key] = resolveOne(value);
         } catch (error) {
-          errors.push(`${path}.at: ${error.message}`);
+          errors.push(`${path}.${key}: ${error.message}`);
           out[key] = FLOOR_SECONDS;
         }
       } else {

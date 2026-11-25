@@ -1,6 +1,6 @@
 # Kit visuals (Briefing composition)
 
-Read this when writing `briefing-props.json`. One scene: `{ id, kicker, title, bullets: [], accent, visual, visualScale?, durationSeconds }`. `at` is seconds from scene start, taken from the word boundaries so a part arrives on the word that names it. Kit source: `kit/src/Visuals.tsx` and `kit/src/RichVisuals.tsx`.
+Read this when writing `briefing-props.json`. One scene: `{ id, kicker, title, bullets: [], accent, visual, visualScale?, durationSeconds }`. `at` is seconds from scene start, taken from the word boundaries so a part arrives on the word that names it. Kit source: `kit/src/Visuals.tsx`, `kit/src/RichVisuals.tsx` and `kit/src/Diagram.tsx`. In the `Explainer` composition the engine sizes every body itself (`explainer-grammar.md`, Openings and size); `visualScale` advice here is for `Briefing`. `diagram` icons are the names in `kit/explainer/icons.json`.
 
 ## Picture kinds
 
@@ -10,6 +10,7 @@ Read this when writing `briefing-props.json`. One scene: `{ id, kicker, title, b
 {"kind":"svg","caption":"Equipment path","viewBox":"0 0 1200 520","groups":[{"at":0.4,"svg":"<rect x='60' y='180' width='260' height='120' rx='14' fill='none' stroke='#8B6BFF' stroke-width='5'/><text x='190' y='250' text-anchor='middle' font-size='38' fill='#EFEBE0'>Penske</text>"}]}
 {"kind":"lottie","src":"lottie/check.json","loop":false,"at":0.4,"caption":"Written answer sent"}
 {"kind":"flow","caption":"...","nodes":[{"label":"...","sub":"...","at":1.2,"mark":"risk"}]}
+{"kind":"diagram","nodes":[{"id":"a","label":"...","icon":"user","col":0,"row":0,"at":1.2},{"id":"b","label":"...","col":1,"row":0}],"edges":[{"from":"a","to":"b","label":"...","dashed":true}]}
 {"kind":"layers","layers":[...]}   {"kind":"sequence","actors":[...],"steps":[...]}
 {"kind":"timeline","events":[{"at":"Nov 5","label":"..."}]}   {"kind":"beforeafter","before":{...},"after":{...}}
 {"kind":"map","lanes":[...]}   {"kind":"code","lines":[{"text":"...","at":1.0}]}

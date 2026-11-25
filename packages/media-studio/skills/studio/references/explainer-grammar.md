@@ -39,9 +39,9 @@ Every archetype in `kit/scene-archetypes.json` maps to a family in `kit/explaine
 | `statement` | cold-open, kinetic-statement, hero-reveal, lower-third | Type is the picture. Left-aligned, vertically centred, no kicker row, no rule, no scene number. | XL |
 | `number` | kinetic-number | One number owns the frame: 300–360 px, tabular, accent, label beneath, halo behind. Counts up over 20 frames. | XL |
 | `contrast` | before-after, comparison | A vertical seam wipes in; the left state is desaturated, the right is lit. Two states, one difference. | L |
-| `mechanism` | diagram-build (flow or map visual), process-flow, drawn-mechanism | The diagram bleeds: nodes and edges fill the frame, each landing on its word, a focus ring moving with the voice. | L |
+| `mechanism` | diagram-build (flow, diagram or map visual), process-flow, drawn-mechanism | The diagram bleeds: nodes and arrows fill the frame, each landing on its word, a focus ring moving with the voice. | L |
 | `layers` | diagram-build + `layers` visual | A stack rises; the active layer lifts and takes the light. | L |
-| `timeline` | timeline | One rail, events dropping on their beats, a playhead sweeping with the voice. Needs a hero number or a magnified tick. | L |
+| `timeline` | timeline | One horizontal rail with the dates evenly spaced, each event landing on its word, the current one lit, and a playhead that reaches each event as it is spoken. | L |
 | `evidence` | evidence-proof, speaker-slide, data-chart, talking-head-sidecar + `sidecar` | Claim above at 52–64 px, evidence large below, source in the footer at 22 px. A hairline ties claim to evidence. | M |
 | `quote` | quote-problem | One sentence, 64–88 px, no furniture; an oversized quote glyph at 12% opacity; attribution small and low. | L |
 | `checklist` | checklist-build | Items land one at a time with a drawn check; a dot rail shows progress. Five visible at most. | M |
@@ -104,8 +104,37 @@ The ending is a set piece that reframes the opening, not a caption. In the refer
 - The shot `id` **is** the cue id. One cue, one shot, in cue order; chapters partition the film in that order.
 - `title` is the line the shot is about, not the narration repeated. It is what the viewer reads if they watch on mute.
 - `at` is seconds from the shot start, or an anchor: `@word`, `@word#2`, `@word+0.3`. Anchors resolve against the accepted take's word boundaries; an anchor that finds no word fails the build and never guesses.
+- A timeline event prints its `at` as the date, so its time goes in `beat`: `{ "at": "Week 3", "label": "Run side by side", "beat": "@three" }`.
 - The last beat must land at least 1.0 s before the shot ends. `build-explainer.mjs` refuses a film that lands and cuts.
 - Themes, accents and visual payloads come from `kit/explainer/theme.json` and the existing `Visual` union in `kit/src/Visuals.tsx`. Do not invent a second content model.
+
+### Openings and size
+
+Every shot opens on its own furniture. The kicker, the title and the outline of what is coming (dashed boxes, dim dates, empty check boxes, bar labels, the number's ring) are on screen from the first tenths of a second, whatever the first spoken beat is. An item still lands on its word. Do not add a fake early beat to avoid an empty frame.
+
+Pictures fill their region by calculation, not by hand. `kit/explainer/fit.mjs` works out how large each body, title, list and rail can be drawn, and the renderer uses the same numbers. `visualScale` below 1 makes a body smaller; above 1 it does nothing, because a larger body would leave its region.
+
+`build-explainer.mjs` checks the layout of every shot before any render:
+
+- `layout-overflow` (refused): a title, headline, list, table or diagram does not fit even at its smallest size. Shorten it or split the shot.
+- `diagram-...` (refused): an unknown icon, an arrow that names no box, two boxes in one cell, words that do not fit their box, an arrow with no clear path, or an arrow label that covers something.
+- `layout-small` (advice): the smallest type in the picture is under 22 px on a 1000 px high frame.
+
+### Linked diagrams
+
+Use `diagram` when the relation between parts is not a straight line: things that join, split, loop or report back.
+
+```json
+{ "kind": "diagram",
+  "nodes": [
+    { "id": "sky", "label": "Weather", "icon": "cloud-sun", "col": 0, "row": 0, "at": "@weather" },
+    { "id": "orders", "label": "Orders", "icon": "clipboard-list", "col": 0, "row": 1, "at": "@orders" },
+    { "id": "fc", "label": "Forecast", "icon": "chart-line", "col": 1, "row": 0, "at": "@forecast", "mark": "emphasis" }
+  ],
+  "edges": [ { "from": "sky", "to": "fc" }, { "from": "orders", "to": "fc", "label": "by noon", "dashed": true } ] }
+```
+
+`col` and `row` start at 0 and place a box on the grid. An arrow names its ends by `id`, is routed round the other boxes, and draws as its target lands unless it has its own `at`. `icon` is a name from `kit/explainer/icons.json` (204 Lucide icons, ISC); a wrong name is refused with the closest ones. A `flow` is drawn the same way in reading order.
 
 ### Choosing the family
 
@@ -145,9 +174,14 @@ Motion quantity is not on this list. Adding animation to a badly composed frame 
 
 ```powershell
 node <package>/kit/explainer/build-explainer.mjs <jobRoot> --cue-sheet story/cue-sheet.json
+node <kit>/explainer/still-explainer.mjs <jobRoot>            # on the render box, before the film: one sheet of openings and holds
 node <package>/kit/explainer/measure-explainer-frames.mjs --props <jobRoot>/picture/explainer-props.json --frames <jobRoot>/frames --encoded <candidate.mp4>
 node <package>/kit/explainer/validate-explainer-release.mjs <jobRoot> --encoded <candidate.mp4> --require-metrics
 ```
+
+`still-explainer.mjs` draws single frames without rendering the film: `--at open,beats,hold`, `--shots S02,S03`, `--public-dir`. It writes `sheet.png` and `stills.json`; a frame caught while something is entering is framed red and listed, so a half-drawn word is not read as a defect. It needs the kit's own install, so it runs on the render lane (`render-lanes.md`).
+
+Remotion downloads the headless browser pinned to its own version. A film rendered on two hosts is frame-identical only when both use that browser and the same fonts, so do not point Remotion at another Chrome.
 
 The explainer uses the same narration cue sheet as `build-picture.mjs`: `{ totalSeconds, cues: [{ id, start, end, gapAfter, text }] }`. The product action EDL generated by `build-cue-sheet.mjs` serves a different purpose. Export all candidate frames at native size in order starting at 1, and pass that exact candidate to measurement and release.
 
@@ -156,7 +190,7 @@ The release validator checks renderable inputs, exact cue and frame coverage, th
 
 ## What this is not
 
-- Not a second content model. `kit/src/Visuals.tsx` still draws the diagrams, charts, code and tables.
+- Not a second content model. `kit/src/Visuals.tsx` and `kit/src/Diagram.tsx` still draw the diagrams, charts, code and tables.
 - Not a caption system. Captions stay a sidecar `.srt`; nothing is burned into the picture.
 - Not a licence to copy the reference implementation. Anything2Explainer is PolyForm Noncommercial; this is an independent implementation of a published method, with its own code, tokens and sample fixture.
 - Use real product capture as proof of verified current behavior (`product-picture.md`). Use designed diagrams, illustrative UI and simulations where they help explain the product, with visible context when needed.

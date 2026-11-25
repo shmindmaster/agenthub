@@ -36,7 +36,7 @@ const errors = [];
 const readJson = (p) => JSON.parse(readFileSync(p, "utf8").replace(/^﻿/, ""));
 
 // Default zoom per visual kind, so short bodies fill the 1600x1000 frame. A scene can override with visualScale.
-export const DEFAULT_SCALE = { svg: 1.15, sequence: 1.5, flow: 1.4, chart: 1.0, lottie: 1.0, layers: 1.5, checklist: 1.9,
+export const DEFAULT_SCALE = { svg: 1.15, sequence: 1.5, flow: 1.4, diagram: 1.0, chart: 1.0, lottie: 1.0, layers: 1.5, checklist: 1.9,
   proof: 1.9, timeline: 1.7, split: 1.8, stat: 1.15, hero: 1.6, table: 1.6, cta: 1.6 };
 
 export function makeResolver(cs, receipts, edges, fps = FPS) {
