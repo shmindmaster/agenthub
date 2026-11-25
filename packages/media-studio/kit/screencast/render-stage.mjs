@@ -40,6 +40,7 @@ const reversions = (file) => {
   const n = Math.floor(raw.length / (W * H));
   return F.oneFrameReversions(Array.from({ length: n }, (_, i) => raw.subarray(i * W * H, (i + 1) * W * H)), { allowed: (plan.declaredAnimations || []).map((a) => ({ from: Math.floor(a.from * plan.frame.fps), to: Math.ceil(a.to * plan.frame.fps) })) });
 };
+const maxAttempts = Math.max(1, Number(process.env.STAGE_RENDER_ATTEMPTS) || 3); // 1 measures the render without the second chance
 let attempts = 0, r;
 for (;;) {
   attempts++;
@@ -48,7 +49,7 @@ for (;;) {
   const bad = reversions(path.resolve(out));
   if (!bad.length) break;
   console.error(`[render-stage] attempt ${attempts}: ${bad.length} one-frame reversion(s) at film frame ${bad.map((b) => b.i).join(', ')}: the render showed an earlier picture for a frame`);
-  if (attempts >= 3) { rmSync(tmp, { recursive: true, force: true }); console.error('[render-stage] the render still shows a one-frame reversion after 3 attempts'); process.exit(1); }
+  if (attempts >= maxAttempts) { rmSync(tmp, { recursive: true, force: true }); console.error('[render-stage] the render still shows a one-frame reversion after ' + attempts + ' attempt(s)'); process.exit(1); }
 }
 rmSync(tmp, { recursive: true, force: true });
 const seconds = Number(((Date.now() - started) / 1000).toFixed(1));
