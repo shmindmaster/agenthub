@@ -225,6 +225,18 @@ test('labels on a pair of vertical arrows stand on their own sides', () => {
   }
 });
 
+test('a label on a vertical detour stands away from the boxes, and a pair of detours nests', () => {
+  const nodes = ['a', 'b', 'c'].map((id, row) => ({ id, label: id, col: 0, row }));
+  const column = (edges) => diagramLayout({ kind: 'diagram', nodes, edges }, mechanism);
+  assert.deepEqual(column([{ from: 'a', to: 'c', label: 'ask' }]).problems, []);
+  assert.deepEqual(column([{ from: 'a', to: 'c', label: 'ask' }, { from: 'c', to: 'a', label: 'x' }]).problems, []);
+  const row = ['a', 'b', 'c'].map((id, col) => ({ id, label: id, col, icon: 'flame' }));
+  for (const size of canvases) {
+    const box = pictureBox('mechanism', layoutFor('mechanism', size).hero);
+    assert.deepEqual(diagramLayout({ kind: 'diagram', caption: 'there and back', nodes: row, edges: [{ from: 'a', to: 'c' }, { from: 'c', to: 'a' }] }, box).problems, [], `${size.width}`);
+  }
+});
+
 test('a long caption wraps and takes its room from the picture', () => {
   const caption = 'how a day at the bakery turns into the forecast for the next day and the day after that one';
   assert.ok(captionLines(caption, 700).length > 1);
@@ -350,6 +362,20 @@ test('a sequence step must name actors the sequence has', () => {
   const result = withVisual(1, { ...samples.sequence, steps: [{ frm: 0, to: 5, label: 'lost' }] });
   assert.equal(result.ok, false);
   assert.match(result.errors.join('\n'), /b: sequence-step: step 1 names actor 5/);
+});
+
+test('a single word may use the whole headline row', () => {
+  const small = { width: 1280, height: 720 };
+  const word = clone(plan);
+  word.shots[0].title = 'order_confirmation_webhook';
+  assert.deepEqual(build({ plan: word, ...small }).errors, []);
+  word.shots[0].title = 'order_confirmation_webhook_and_then_some_more';
+  assert.match(build({ plan: word, ...small }).errors.join('\n'), /a: layout-overflow/);
+});
+
+test('a proof shot is checked for the title it opens on', () => {
+  const result = withVisual(2, samples.proof, { title: 'an overlong title here '.repeat(20) });
+  assert.match(result.errors.join('\n'), /c: layout-overflow: "an overlong title/);
 });
 
 test('a visual missing its parts is an error, not a crash', () => {

@@ -23,7 +23,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { framesOf, staggerFrames } from './motion.mjs';
 import { decodePng, encodePng } from './png.mjs';
-import { revealStarts } from './reveal.mjs';
+import { revealParts } from './reveal.mjs';
 
 export const MOMENTS = ['open', 'beats', 'hold'];
 const OPENING_SECONDS = 0.1;
@@ -35,7 +35,7 @@ const entranceFrames = (fps) => framesOf('draw', fps);
 const WORD_BY_WORD = ['statement', 'quote', 'evidence'];
 
 const openingFrames = (shot, fps) => {
-  const line = shot.visual?.text ?? shot.visual?.claim ?? (shot.visual?.kind === 'hero' ? shot.visual.title : shot.title) ?? '';
+  const line = shot.visual?.text ?? (shot.visual?.kind === 'hero' ? shot.visual.title : shot.title || shot.visual?.claim) ?? '';
   const words = WORD_BY_WORD.includes(shot.family) ? String(line).split(/\s+/).filter(Boolean).length : 1;
   return Math.round(OPENING_SECONDS * fps) + staggerFrames(Math.max(0, words - 1)) + framesOf('rise', fps);
 };
@@ -48,11 +48,13 @@ export const movingAt = (shot, localFrame, fps) => {
   for (const beat of shot.beats ?? []) {
     if (localFrame >= beat.frame && localFrame < beat.frame + span) moving.push(beat.target);
   }
-  // A part the plan gave no time arrives on the kit's own curve and makes no beat.
-  const timed = new Set((shot.beats ?? []).map((beat) => beat.frame));
-  revealStarts(shot.visual, shot.durationSeconds).forEach((start, i) => {
+  // A part the plan gave no time arrives on the kit's own curve and makes no
+  // beat, and some parts move for longer than the beat they land on.
+  const told = new Set((shot.beats ?? []).filter((beat) => localFrame < beat.frame + span).map((beat) => beat.frame));
+  revealParts(shot.visual, shot.durationSeconds).forEach(({ at: start, seconds }, i) => {
     const at = Math.round(start * fps);
-    if (!timed.has(at) && localFrame >= at && localFrame < at + span) moving.push(`visual part ${i + 1}`);
+    const until = at + Math.max(span, Math.ceil(seconds * fps));
+    if (!told.has(at) && localFrame >= at && localFrame < until) moving.push(`visual part ${i + 1}`);
   });
   return moving;
 };

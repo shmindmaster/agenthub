@@ -127,9 +127,11 @@ export const pointAlong = (points, t) => {
 
 /**
  * Candidate routes for one arrow, best first. `lanes` are the distances a detour
- * may stand off the boxes, so two detours need not share one line.
+ * may stand off the boxes, so two detours need not share one line. `second` is
+ * true for the return half of a pair: its detour takes the other side of centre
+ * at both boxes and so goes round the outside of the first.
  */
-const routesFor = (a, b, shift, lanes) => {
+const routesFor = (a, b, shift, lanes, second) => {
   const ca = centre(a);
   const cb = centre(b);
   const right = cb.x > ca.x;
@@ -138,7 +140,7 @@ const routesFor = (a, b, shift, lanes) => {
   const sideY = (rect, toBottom) => (toBottom ? rect.y + rect.h : rect.y);
   // A detour leaves and arrives off centre, on the side that faces the other
   // box, so one that ends at a box does not run along one that starts there.
-  const off = (size) => Math.min(40, size / 4);
+  const off = (size) => Math.min(40, size / 4) * (second ? -1 : 1);
 
   if (Math.abs(ca.y - cb.y) < 1) {
     const y = ca.y + shift;
@@ -174,8 +176,9 @@ const routesFor = (a, b, shift, lanes) => {
     };
     return [
       [{ x, y: sideY(a, down) }, { x, y: sideY(b, !down) }],
-      ...lanes.map((lane) => detour(true, lane)),
-      ...lanes.map((lane) => detour(false, lane)),
+      // The return half goes up the other side, so both can carry a label.
+      ...lanes.map((lane) => detour(!second, lane)),
+      ...lanes.map((lane) => detour(second, lane)),
     ];
   }
   const between = (from, to, share) => from + (to - from) * share + shift;
@@ -231,7 +234,8 @@ const runsAlong = (pointsA, pointsB) =>
 
 /**
  * A label sits on the longest straight run of its arrow. Beside a twin arrow on a
- * vertical run it stands outside the pair, where the two cannot cover each other.
+ * vertical run it stands outside the pair, where the two cannot cover each other,
+ * and on a vertical detour it stands on the side away from the boxes.
  */
 const edgeLabelRect = (points, label, size, shift) => {
   const w = textWidth(label, size) + 20;
@@ -239,6 +243,10 @@ const edgeLabelRect = (points, label, size, shift) => {
   const run = segmentsOf(points).reduce((best, segment) => (segmentLength(segment) > segmentLength(best) ? segment : best));
   const middle = { x: (run.p.x + run.q.x) / 2, y: (run.p.y + run.q.y) / 2 - h / 2 };
   const vertical = Math.abs(run.p.x - run.q.x) < 1;
+  if (vertical && points.length > 2) {
+    const sides = [points[0], points[points.length - 1]].map((end) => Math.sign(run.p.x - end.x));
+    if (sides[0] && sides[0] === sides[1]) return { x: sides[0] > 0 ? middle.x + 10 : middle.x - w - 10, y: middle.y, w, h };
+  }
   if (shift && vertical) return { x: shift < 0 ? middle.x - w - 10 : middle.x + 10, y: middle.y, w, h };
   return { x: middle.x - w / 2, y: middle.y, w, h };
 };
@@ -367,7 +375,8 @@ export const diagramLayout = (visual, box) => {
       });
     const ownLine = (points) =>
       drawnRoutes.every((other) => other.from === edge.from || other.to === edge.to || !runsAlong(points, other.points));
-    const routes = routesFor(rectOf.get(edge.from), rectOf.get(edge.to), shift, lanes);
+    const second = drawnRoutes.some((other) => other.from === edge.to && other.to === edge.from);
+    const routes = routesFor(rectOf.get(edge.from), rectOf.get(edge.to), shift, lanes, second);
     const clear = routes.find((points) => isClear(points) && ownLine(points));
     if (!clear) fail('diagram-edge-through', `the arrow ${edge.from} → ${edge.to} has no clear path past the other boxes and arrows; move one of them to another row or column`);
     const points = clear ?? routes[0];

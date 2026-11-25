@@ -1120,10 +1120,8 @@ const Evidence: FC<ShotProps> = ({ shot, film, index }) => {
   const open = openingAt(fps);
   if (!visual) return <Statement shot={shot} film={film} index={index} />;
 
-  const claim =
-    visual.kind === 'proof' || visual.kind === 'sidecar'
-      ? visual.claim
-      : shot.title ?? '';
+  // The body prints its own claim, so the row above it is the shot's title.
+  const claim = shot.title || ('claim' in visual ? String(visual.claim ?? '') : '');
   // Fit here as well as inside Headline so the connector can start at the real
   // baseline. Same input, same computation, same lines — nothing is measured.
   const fitted = fitHeadline(claim, {

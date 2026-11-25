@@ -54,6 +54,16 @@ test('a part the plan gave no time is moving when the kit brings it in', () => {
   assert.deepEqual(movingAt(shot, 60, 30), []);
 });
 
+test('an arrow, a filling waffle and a long trace count as movement', () => {
+  const at = (visual, frame, beats = []) => movingAt({ id: 's', family: 'mechanism', durationFrames: 300, durationSeconds: 10, beats, visual }, frame, 30);
+  const nodes = [{ id: 'a', label: 'A', at: 1 }, { id: 'b', label: 'B', at: 70 / 30 }];
+  assert.notDeepEqual(at({ kind: 'diagram', nodes, edges: [{ from: 'a', to: 'b' }] }, 60, [{ frame: 30, target: 'a' }, { frame: 70, target: 'b' }]), []);
+  const waffle = { kind: 'chart', form: 'waffle', items: [{ label: 'x', value: 37, at: 1 }] };
+  assert.notDeepEqual(at(waffle, 66, [{ frame: 30, target: 'x' }]), []);
+  assert.deepEqual(at(waffle, 80, [{ frame: 30, target: 'x' }]), []);
+  assert.notDeepEqual(at({ kind: 'svg', groups: [{ at: 1, svg: '', trace: { path: 'M0 0', durationSeconds: 3 } }] }, 75, [{ frame: 30, target: 'x' }]), []);
+});
+
 test('no frame, no browser', () => {
   assert.throws(() => pickFrames({ film: { fps: 30 }, shots: [{ id: 's', startFrame: 0, durationFrames: 30, beats: [] }] }, { moments: ['beats'] }), /nothing to draw/);
 });

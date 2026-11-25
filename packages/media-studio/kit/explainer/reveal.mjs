@@ -39,11 +39,36 @@ export const phase = (i, n, durationSeconds, from = 0) => {
 /** The default start of chart bars and svg groups, which use their own spacing. */
 export const spreadAt = (i, n, durationSeconds) => 0.4 + (i * Math.max(0.5, durationSeconds * 0.8 - 0.4)) / Math.max(1, n);
 
+/** How long an arrow takes to draw. */
+export const DRAW_SECONDS = 0.5;
+
+/** When an arrow starts: it finishes as its box lands, and never starts before its source. */
+export const edgeStart = (edge, startOf) =>
+  edge.at ?? Math.max(startOf(edge.from), startOf(edge.to) - (startOf(edge.to) > startOf(edge.from) ? DRAW_SECONDS : 0));
+
 /**
- * Every start, in seconds, that a shot's picture has, whether the plan gave the
- * part a time or left it to the curve.
+ * Every part of a shot's picture that arrives: when, and for how long it moves
+ * where that is longer than an ordinary entrance.
  */
-export const revealStarts = (visual, durationSeconds) => {
+export const revealParts = (visual, durationSeconds) => {
+  const parts = revealStarts(visual, durationSeconds).map((at) => ({ at, seconds: 0 }));
+  if (visual?.kind === 'chart') {
+    const bars = visual.form === 'waffle' ? 1 : (visual.items ?? []).length;
+    parts.slice(0, bars).forEach((part) => Object.assign(part, { seconds: visual.form === 'waffle' ? 1.6 : 0.9 }));
+  }
+  if (visual?.kind === 'svg') {
+    parts.forEach((part, i) => Object.assign(part, { seconds: visual.groups[i].trace ? visual.groups[i].trace.durationSeconds ?? 0.65 : 0.45 }));
+  }
+  if (visual?.kind === 'diagram' || visual?.kind === 'flow') {
+    const key = (node, i) => node.id ?? i;
+    const starts = new Map((visual.nodes ?? []).map((node, i) => [key(node, i), parts[i].at]));
+    const edges = visual.kind === 'diagram' ? visual.edges ?? [] : (visual.nodes ?? []).slice(1).map((node, i) => ({ from: key(visual.nodes[i], i), to: key(node, i + 1) }));
+    for (const edge of edges) parts.push({ at: edgeStart(edge, (id) => starts.get(id) ?? 0), seconds: DRAW_SECONDS });
+  }
+  return parts;
+};
+
+const revealStarts = (visual, durationSeconds) => {
   if (!visual) return [];
   const from = visual.revealFrom ?? 0;
   const curve = (items) => (items ?? []).map((item, i, all) => item?.beat ?? (typeof item?.at === 'number' ? item.at : phase(i, all.length, durationSeconds, from)));

@@ -12,7 +12,7 @@ import { createElement, useId } from "react";
 import { Interactive, useCurrentFrame, useVideoConfig } from "remotion";
 import { ICONS, SLIDE_BOX, diagramLayout, flowAsDiagram, pointAlong } from "../explainer/diagram.mjs";
 import { enter, progress } from "../explainer/motion.mjs";
-import { phase } from "../explainer/reveal.mjs";
+import { edgeStart, phase } from "../explainer/reveal.mjs";
 
 const SANS = 'Inter, "Segoe UI", system-ui, sans-serif';
 const TONE = { default: "#E8E4D9", good: "#3DDC84", risk: "#E85D5D", emphasis: "#F5C518" } as const;
@@ -49,7 +49,6 @@ type Layout = { nodes: PlacedNode[]; edges: PlacedEdge[]; captionLines: string[]
 export type DiagramBox = { w: number; h: number };
 
 const ARROW = 15;
-const DRAW_SECONDS = 0.5;
 
 /** One icon from the vendored set, drawn in `color`. */
 export const Icon: FC<{ name: string; size: number; color: string }> = ({ name, size, color }) => {
@@ -115,10 +114,7 @@ export const Diagram: FC<{ v: DiagramVisual | FlowLike; accent: string; d: numbe
   const now = frame / fps;
   const landed = diagram.nodes.filter((node) => startOf(node.id) <= now);
   const newest = landed.reduce<string | null>((best, node) => (best === null || startOf(node.id) >= startOf(best) ? node.id : best), null);
-  // The line into a box finishes as the box lands, and never before its source.
-  const edgeStart = (edge: DiagramEdge) =>
-    edge.at ?? Math.max(startOf(edge.from), startOf(edge.to) - (startOf(edge.to) > startOf(edge.from) ? DRAW_SECONDS : 0));
-  const edgeTimes = layout.edges.map((_, i) => edgeStart(edges[i]));
+  const edgeTimes = layout.edges.map((_, i) => edgeStart(edges[i], startOf) as number);
   const liveEdge = edgeTimes.reduce((best, at, i) => (at <= now && (best < 0 || at >= edgeTimes[best]) ? i : best), -1);
 
   return (

@@ -12,7 +12,7 @@
  * Change a size there and change it here.
  */
 import { CAPTION_LINE, boldWidth, captionLines, diagramLayout, flowAsDiagram, plainWidth, wrapBold, wrapPlain } from './diagram.mjs';
-import { fitHeadline, layoutFor, textWidth } from './layout.mjs';
+import { fitHeadline, layoutFor, textWidth, wrapText } from './layout.mjs';
 import { theme } from './theme.mjs';
 
 const MONO_CHAR = 0.6;
@@ -394,10 +394,13 @@ export const checkShotLayout = (shot, canvas = theme.canvas) => {
   const title = () => {
     if (r.title && shot.title && fitTitle(shot.title, r.title).overflow) over(`the title "${shot.title}" does not fit its row; shorten it`);
   };
-  // The renderer fits a headline to 88% of its row, so the check does too.
+  // The renderer wraps a headline at 88% of its row. A single word may use the rest.
   const headline = (text, options) => {
     const fitted = text && fitHeadline(text, { ...options, maxWidth: Math.floor(options.maxWidth * 0.88) });
-    if (fitted && fitted.overflow) over(`"${text}" is cut at the smallest headline size; shorten it`);
+    const { tracking = theme.type.tracking.display, maxLines, minSize } = options;
+    if (!fitted || !fitted.overflow) return;
+    const lines = wrapText(text, Math.floor(options.maxWidth * 0.88), minSize, tracking);
+    if (lines.length > maxLines || lines.some((line) => textWidth(line, minSize, tracking) > options.maxWidth)) over(`"${text}" is cut at the smallest headline size; shorten it`);
   };
 
   switch (shot.family) {
@@ -436,7 +439,7 @@ export const checkShotLayout = (shot, canvas = theme.canvas) => {
     case 'layers':
     case 'evidence': {
       if (shot.family === 'evidence') {
-        const claim = visual?.kind === 'proof' || visual?.kind === 'sidecar' ? visual.claim : shot.title;
+        const claim = shot.title || visual?.claim;
         headline(claim, { maxWidth: r.title.w, maxLines: 2, maxSize: 64, minSize: 52 });
       } else title();
       const box = pictureBox(shot.family, r.hero);
