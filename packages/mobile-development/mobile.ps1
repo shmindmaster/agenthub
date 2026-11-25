@@ -327,7 +327,7 @@ try {
         'remote' {
             # The remote Android emulator worker ran on the retired DigitalOcean build droplet.
             # Daytona has no /dev/kvm, so no remote emulator lane replaces it.
-            throw 'The remote Android worker is retired (2026-11-24): Daytona has no KVM, so no remote emulator exists. Build the APK on a Daytona v2 Linux box with scripts/daytona-run.mjs, or use the Windows emulator (mobile.ps1 start android) or a USB device. iOS: references/daytona-mac.md.'
+            throw 'The remote Android worker is retired (2026-11-24): Daytona has no KVM, so no remote emulator exists. Build the APK on a Daytona v2 Linux box with scripts/daytona-run.mjs, or use the Windows emulator (mobile.ps1 start android) or a USB device. iOS: references/forge-mac.md.'
         }
         default { throw "Unknown command '$command'." }
     }

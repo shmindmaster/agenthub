@@ -1,6 +1,6 @@
 # macOS on Daytona
 
-Read before any iOS build, Simulator or Xcode work. Since 2026-11-24 the DigitalOcean build droplet is retired and Daytona is the lane. The local VMware macOS VM is also retired (`Invoke-MobileLabVmrunStart` refuses). A connected iPhone or Android phone on this PC stays available for device testing (`physical-iphone.md`).
+Read before proposing a Daytona Mac. The default iOS lane is the macOS VM (`forge-mac.md`); a Daytona Mac is the paid alternative. The local VMware macOS VM is also retired (`Invoke-MobileLabVmrunStart` refuses). A connected iPhone or Android phone on this PC stays available for device testing (`physical-iphone.md`).
 
 **Status.** Two macOS boxes ran on 2026-11-21 and were checked by command: macOS 26.6.2, Xcode 26.6, Node 24, pnpm, CocoaPods, fastlane. That proves the toolchain, not an iOS build, a signed install or a USB device. Their reservation ended on 2026-11-22 (renewal failed) and no Mac is reserved as of 2026-11-24. All Daytona work, Macs included, uses one organization (owner direction 2026-11-24): the key is `DAYTONA_API_KEY`. Identifiers and cost are in the private `guidance/daytona-mac.md`.
 

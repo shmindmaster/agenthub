@@ -1,0 +1,81 @@
+#!/bin/bash
+# mac: on-demand macOS VM (container "macos", /opt/macos/compose.yml) on sh-forge.
+#   mac status            show container state, leases and SSH readiness
+#   mac up [--keep]       start the VM and wait for SSH (--keep: stay up MAC_KEEP_MIN minutes, default 720, or until "mac down")
+#   mac run <cmd...>      start if needed, run <cmd> in the guest over SSH, hold a lease while it runs
+#   mac shell             interactive guest shell (holds a lease while open)
+#   mac proxy             ProxyCommand for the PC's "ssh forge-mac": start if needed, hold a lease for the connection
+#   mac down [--force]    stop the VM (refuses while other leases are active unless --force)
+# The VM never auto-starts on boot (restart: "no"). It stops MAC_IDLE_MIN minutes (default 15)
+# after the last lease ends, or after a plain "mac up" if no lease is taken; --keep skips that.
+# Leases live in /run/mac-leases, one file per holding PID; stale ones (dead PID) are ignored.
+# Canonical copy: AgentHub packages/mobile-development/skills/mobile-device-lab/forge/mac.
+set -euo pipefail
+L=${MAC_LEASES:-/run/mac-leases}; mkdir -p "$L"
+IDLE_MIN=${MAC_IDLE_MIN:-15}
+KEEP_MIN=${MAC_KEEP_MIN:-720}
+SSH=(ssh -p 2222 -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 maclab@127.0.0.1)
+running(){ [ "$(docker inspect -f "{{.State.Running}}" macos 2>/dev/null)" = true ]; }
+ready(){ "${SSH[@]}" true 2>/dev/null; }
+# Docker's port forwarder accepts on 2222 before the guest's sshd is up, so wait for its banner.
+port_open(){ timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/2222; head -c 4 <&3' 2>/dev/null | grep -q '^SSH-'; }
+# A keep nobody ended held 22 GB of forge for six days (2026-11-18 to 24), so it expires.
+keep_active(){ [ -e "$L/keep" ] && (( $(date +%s) - $(stat -c %Y "$L/keep") < KEEP_MIN * 60 )); }
+leases(){ local n=0; for f in "$L"/*; do [ -e "$f" ] || continue; p=${f##*/}; if [ "$p" = keep ]; then if keep_active; then n=$((n+1)); fi; continue; fi; if kill -0 "$p" 2>/dev/null; then n=$((n+1)); else rm -f "$f"; fi; done; echo $n; }
+# Stop later, not now: a series of runs reuses the booted VM. Each reaper rechecks before stopping.
+reap_later(){ setsid nohup "$0" "${1:-_reap}" >/dev/null 2>&1 < /dev/null & }
+start_vm() (
+  # Concurrent callers share the boot and check headroom only for a cold start.
+  exec 9>/run/lock/forge-mac-start.lock
+  flock -w 30 9 || { echo "mac: timed out waiting for the VM startup lock" >&2; return 75; }
+  if running; then
+    return 0
+  fi
+
+  local guest_ram available_kib required_kib
+  guest_ram=$(timeout 10 docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' macos | sed -n 's/^RAM_SIZE=//p') || return
+  available_kib=$(awk '/^MemAvailable:/ { print $2; exit }' /proc/meminfo)
+  if [[ ! $guest_ram =~ ^[1-9][0-9]{0,2}G$ || ! $available_kib =~ ^[1-9][0-9]*$ ]]; then
+    echo "mac: could not verify the guest RAM and host memory headroom" >&2
+    return 1
+  fi
+  required_kib=$(( (${guest_ram%G} + 8) * 1024 * 1024 ))
+  if (( available_kib < required_kib )); then
+    echo "mac: cold boot needs $((required_kib / 1024)) MiB available (guest plus 8 GiB for the host); found $((available_kib / 1024)) MiB. Retry when capacity frees up." >&2
+    return 75
+  fi
+
+  echo "mac: starting VM (about 2 min)..." >&2
+  timeout 30 docker start macos >/dev/null
+)
+up(){
+  start_vm || return
+  if [[ ${1:-} == --keep ]]; then
+    touch "$L/keep"
+    reap_later _reap_keep
+  fi
+  for i in $(seq 1 60); do ready && return 0; sleep 5; done
+  echo "mac: VM is running but SSH (maclab@127.0.0.1:2222) did not answer in 5 min." >&2
+  [ "$(du -sm /opt/macos/storage | cut -f1)" -lt 10000 ] && echo "mac: macOS does not look installed (storage < 10 GB). Install via the web viewer: ssh -L 8006:127.0.0.1:8006 forge, open http://localhost:8006" >&2
+  return 1
+}
+# The proxy only needs the guest's sshd to accept a TCP connection; host keys are the PC's business.
+up_port(){
+  start_vm || return
+  for i in $(seq 1 60); do port_open && return 0; sleep 5; done
+  echo "mac: VM is running but its SSH port did not open in 5 min (is macOS installed with Remote Login on?)." >&2
+  return 1
+}
+down(){ running && { echo "mac: stopping VM" >&2; docker stop -t 120 macos >/dev/null; }; rm -f "$L/keep"; }
+release(){ rm -f "$L/$$"; [ "$(leases)" -eq 0 ] && reap_later || true; }
+case "${1:-status}" in
+  status) echo "container: $(docker inspect -f "{{.State.Status}}" macos)"; echo "leases: $(leases)"; if keep_active; then echo "keep: $(( KEEP_MIN - ($(date +%s) - $(stat -c %Y "$L/keep")) / 60 )) min left"; fi; echo "idle stop: ${IDLE_MIN} min after the last lease"; running && { ready && echo "ssh: ready" || echo "ssh: not ready"; }; echo "storage: $(du -sh /opt/macos/storage | cut -f1)";;
+  up) shift; if [ "${1:-}" != --keep ]; then reap_later; fi; up "$@";;
+  down) shift; if [ "${1:-}" != --force ] && [ "$(rm -f "$L/keep"; leases)" -gt 0 ]; then echo "mac: $(leases) active lease(s); not stopping (use --force)" >&2; exit 1; fi; down;;
+  run|shell) cmd=$1; shift; touch "$L/$$"; trap release EXIT; up; if [ "$cmd" = shell ]; then ssh -t -p 2222 -o StrictHostKeyChecking=accept-new maclab@127.0.0.1; else "${SSH[@]}" "$@"; fi;;
+  proxy) touch "$L/$$"; trap release EXIT; up_port; nc 127.0.0.1 2222;;
+  _reap) sleep $((IDLE_MIN * 60)); [ "$(leases)" -gt 0 ] || down;;
+  # No keep file: that keep already ended, and this VM is someone else's.
+  _reap_keep) sleep $((KEEP_MIN * 60 + 1)); [ ! -e "$L/keep" ] || [ "$(leases)" -gt 0 ] || down;;
+  *) sed -n "2,11p" "$0"; exit 2;;
+esac
