@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -21,10 +22,11 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parent
 CATALOG_PATH = ROOT / "catalog.json"
+CADDY_SNIPPET_PATH = ROOT / "gateway" / "Caddyfile.snippet"
 RUNTIME_DIR = (
     Path(os.environ.get("LOCALAPPDATA") or (Path.home() / ".config")) / "AgentHub" / "daytona-inference"
     if (ROOT.parent.parent / ".git").exists()
@@ -37,10 +39,41 @@ LOG_DIR = RUNTIME_DIR / "logs"
 PROTECTED_SANDBOX_ID = "0075feb8-9387-43fd-85b3-ee8f2bb5930c"
 PROTECTED_SANDBOX_NAME = "qwen38-turbo-q6k"
 PROTECTED_VOLUME_NAME = "llm-models"
+MANAGED_ROLES = ["engineering", "media", "specialist", "flagship"]
+# A live check alone is not enough: MI355X spot boxes were evicted 28 and 42 minutes after a verified boot (2026-11-25).
+MIN_ENGINEERING_UPTIME_HOURS = 6
+DEFAULT_ALIVE_PATTERN = r"[v]llm serve|[l]lama-server|[s]erve-(specialist|flagship|engineering)"
+
+
+def media_server_dir() -> Path:
+    override = os.environ.get("MEDIA_GPU_GEN_SERVER_DIR", "").strip()
+    if override:
+        return Path(override)
+    media_root = os.environ.get("MEDIA_STUDIO_ROOT", "").strip() or r"D:\Media-Studio"
+    return Path(media_root) / "gpu-gen" / "server"
+
+
+def role_volume_spec(role: str, catalog: dict[str, Any]) -> tuple[str, str]:
+    policy = catalog["policy"]
+    if role == "media":
+        return str(policy["mediaVolumeName"]), str(policy["mediaMountPath"])
+    return str(policy["weightsVolumeName"]), str(policy["weightsMountPath"])
 
 
 def load_catalog() -> dict[str, Any]:
     return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+
+
+def ttl_minutes(value: str) -> int:
+    """argparse type: every managed sandbox gets a wall-clock TTL between 1 minute and the catalog cap."""
+    cap = int(load_catalog()["policy"].get("maxTtlMinutes", 480))
+    try:
+        minutes = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"TTL must be whole minutes, got {value!r}") from exc
+    if not 1 <= minutes <= cap:
+        raise argparse.ArgumentTypeError(f"TTL must be 1-{cap} minutes (policy.maxTtlMinutes), got {minutes}")
+    return minutes
 
 
 def load_state() -> dict[str, Any]:
@@ -274,12 +307,15 @@ def gateway_list_models() -> list[dict[str, Any]]:
     return list(body.get("data", []))
 
 
-def gateway_delete_by_role_or_alias(aliases: list[str]) -> int:
+def gateway_delete_by_role_or_alias(aliases: list[str], exclude_sandbox_id: str | None = None) -> int:
     models = gateway_list_models()
     deleted = 0
     for item in models:
         mname = item.get("model_name")
-        mid = (item.get("model_info") or {}).get("id")
+        info = item.get("model_info") or {}
+        mid = info.get("id")
+        if exclude_sandbox_id and info.get("sandbox_id") == exclude_sandbox_id:
+            continue
         if mname in aliases and mid:
             code, _ = litellm_request("POST", "/model/delete", {"id": mid}, require_master=True)
             if code == 200:
@@ -341,7 +377,13 @@ def upload_runtime_keys(sandbox: Any) -> str:
     return worker_key
 
 
-def wait_for_sandbox_models(sandbox: Any, port: int, expected_model: str, log_file: str) -> list[str]:
+def wait_for_sandbox_models(
+    sandbox: Any,
+    port: int,
+    expected_model: str,
+    log_file: str,
+    alive_pattern: str = DEFAULT_ALIVE_PATTERN,
+) -> list[str]:
     started_at = time.time()
     deadline = started_at + 50 * 60
     last_marker = ""
@@ -369,12 +411,12 @@ def wait_for_sandbox_models(sandbox: Any, port: int, expected_model: str, log_fi
         ids = lines[1:] if len(lines) > 1 else []
         marker = f"{code}:{','.join(ids)}"
         if marker != last_marker:
-            print(f"worker_models http={code} ids={','.join(ids) if ids else '-'}", flush=True)
+            print(f"worker_models port={port} http={code} ids={','.join(ids) if ids else '-'}", flush=True)
             last_marker = marker
         if code == 200 and expected_model in ids:
             return ids
         alive = sandbox.process.exec(
-            "ps -eo args | grep -E '[v]llm serve|[l]lama-server|[s]erve-(specialist|flagship)' >/dev/null && echo UP || echo DOWN",
+            f"ps -eo args | grep -E '{alive_pattern}' >/dev/null && echo UP || echo DOWN",
             timeout=20,
         )
         if "UP" in (alive.result or ""):
@@ -389,6 +431,259 @@ def wait_for_sandbox_models(sandbox: Any, port: int, expected_model: str, log_fi
     tail = sandbox.process.exec(f"tail -n 30 {log_file} 2>/dev/null || true", timeout=30)
     print(tail.result or "")
     raise SystemExit(f"Worker did not publish {expected_model} before timeout")
+
+
+def upload_media_server_files(sandbox: Any) -> list[str]:
+    src_dir = media_server_dir()
+    required = ("models.json", "gateway.py", "audio_worker.py")
+    missing = [name for name in required if not (src_dir / name).is_file()]
+    if missing:
+        raise SystemExit(f"Missing media server files in {src_dir}: {', '.join(missing)}")
+    sandbox.process.exec("mkdir -p /opt/gpu-gen/server /run /opt", timeout=30)
+    uploaded: list[str] = []
+    for name in required:
+        payload = (src_dir / name).read_bytes().replace(b"\r\n", b"\n")
+        sandbox.fs.upload_file(payload, f"/opt/gpu-gen/server/{name}")
+        uploaded.append(name)
+    print(f"media_server uploaded={','.join(uploaded)} from={src_dir}")
+    return uploaded
+
+
+def wait_for_media_gateway(sandbox: Any, port: int, fallback_token: str, log_file: str) -> tuple[str, dict[str, Any]]:
+    started_at = time.time()
+    deadline = started_at + 50 * 60
+    last_marker = ""
+    down_streak = 0
+    while time.time() < deadline:
+        cmd = (
+            "python3 - <<'PY'\n"
+            "import json, pathlib, urllib.request\n"
+            "tok_path = pathlib.Path('/opt/gpu-gen/token')\n"
+            f"tok = tok_path.read_text().strip() if tok_path.is_file() else {json.dumps(fallback_token)}\n"
+            "try:\n"
+            f"    with urllib.request.urlopen('http://127.0.0.1:{port}/healthz', timeout=10) as hz:\n"
+            "        hz_code = hz.status\n"
+            f"    req = urllib.request.Request('http://127.0.0.1:{port}/v1/info', headers={{'Authorization': 'Bearer ' + tok}})\n"
+            "    with urllib.request.urlopen(req, timeout=15) as inf:\n"
+            "        info_body = json.load(inf)\n"
+            "        print(f'{hz_code}:{inf.status}')\n"
+            "        print(tok)\n"
+            "        print(json.dumps(info_body))\n"
+            "except Exception as exc:\n"
+            "    print('0:0')\n"
+            "    print(type(exc).__name__)\n"
+            "PY"
+        )
+        res = sandbox.process.exec(cmd, timeout=30)
+        lines = [line.strip() for line in (res.result or "").splitlines() if line.strip()]
+        status_pair = lines[0] if lines else "0:0"
+        if status_pair != last_marker:
+            detail = lines[1] if status_pair == "0:0" and len(lines) > 1 else "ready"
+            print(f"media_gateway port={port} healthz_info={status_pair} ({detail})", flush=True)
+            last_marker = status_pair
+        if status_pair == "200:200" and len(lines) >= 3:
+            media_token = lines[1]
+            info_json = json.loads(lines[2])
+            return media_token, info_json
+        alive = sandbox.process.exec(
+            "ps -eo args | grep -E '[s]erve-media|[g]ateway\\.py|[C]omfyUI' >/dev/null && echo UP || echo DOWN",
+            timeout=20,
+        )
+        if "UP" in (alive.result or ""):
+            down_streak = 0
+        elif time.time() - started_at > 20:
+            down_streak += 1
+            if down_streak >= 2:
+                tail = sandbox.process.exec(f"tail -n 30 {log_file} 2>/dev/null || true", timeout=20)
+                print(tail.result or "")
+                raise SystemExit("Media gateway process exited before passing /healthz and /v1/info")
+        time.sleep(20)
+    tail = sandbox.process.exec(f"tail -n 30 {log_file} 2>/dev/null || true", timeout=30)
+    print(tail.result or "")
+    raise SystemExit("Media gateway did not pass /healthz and /v1/info before timeout")
+
+
+def write_media_target_json(
+    sandbox: Any,
+    gpu_name: str,
+    preview_origin: str,
+    port: int,
+    gateway_media_url: str,
+    target_path: Path | None = None,
+) -> Path:
+    dest = target_path or (media_server_dir() / "target.json")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "sandbox_id": str(sandbox.id),
+        "name": str(sandbox.name),
+        "gpu": gpu_name,
+        "gpu_type": gpu_name,
+        "preview_origin": preview_origin.rstrip("/"),
+        "port": int(port),
+        "gg_root": "/opt/gpu-gen",
+        "gateway_url": gateway_media_url.rstrip("/"),
+        "updated_at": utc_now(),
+        "note": "Managed by AgentHub gpu.py media role (Slot 2 Daytona Spot GPU). No secrets stored here.",
+    }
+    dest.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return dest
+
+
+def render_caddyfile_site_block(
+    owner_ip: str,
+    inference_key: str,
+    media_preview_url: str,
+    media_preview_token: str,
+    media_gateway_token: str,
+    template_path: Path | None = None,
+) -> str:
+    src = template_path or CADDY_SNIPPET_PATH
+    text = src.read_text(encoding="utf-8")
+    replacements = {
+        "<OWNER_IP>": owner_ip.strip(),
+        "<AGENTHUB_INFERENCE_KEY>": inference_key.strip(),
+        "<MEDIA_PREVIEW_URL>": media_preview_url.strip().rstrip("/"),
+        "<MEDIA_PREVIEW_TOKEN>": media_preview_token.strip(),
+        "<MEDIA_GATEWAY_TOKEN>": media_gateway_token.strip(),
+    }
+    for placeholder, val in replacements.items():
+        if not val:
+            raise SystemExit(f"Cannot render Caddyfile block: missing value for {placeholder}")
+        text = text.replace(placeholder, val)
+    lines = [line for line in text.splitlines() if not line.lstrip().startswith("#")]
+    return "\n".join(lines).strip() + "\n"
+
+
+def upsert_caddy_site_block(existing_caddyfile: str, site_host: str, new_block: str) -> str:
+    pattern = re.compile(rf"(?m)^[ \t]*{re.escape(site_host)}[ \t]*\{{")
+    match = pattern.search(existing_caddyfile)
+    if not match:
+        sep = "" if not existing_caddyfile or existing_caddyfile.endswith("\n") else "\n"
+        prefix = existing_caddyfile + sep + ("\n" if existing_caddyfile.strip() else "")
+        return prefix + new_block.strip() + "\n"
+    start = match.start()
+    depth = 0
+    idx = match.end() - 1
+    end = len(existing_caddyfile)
+    while idx < len(existing_caddyfile):
+        ch = existing_caddyfile[idx]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                end = idx + 1
+                break
+        idx += 1
+    while end < len(existing_caddyfile) and existing_caddyfile[end] in "\r\n":
+        end += 1
+    before = existing_caddyfile[:start].rstrip()
+    after = existing_caddyfile[end:].lstrip("\r\n")
+    parts = []
+    if before:
+        parts.append(before)
+    parts.append(new_block.strip())
+    if after:
+        parts.append(after.rstrip())
+    return "\n\n".join(parts) + "\n"
+
+
+def update_sh_forge_caddy(
+    preview_origin: str | None = None,
+    preview_token: str | None = None,
+    media_token: str | None = None,
+    owner_ip: str | None = None,
+    dry_run: bool = False,
+) -> None:
+    state = load_state()
+    media_worker = state.get("workers", {}).get("media", {})
+    url = (preview_origin or media_worker.get("preview_origin") or "").strip().rstrip("/")
+    if not url:
+        target_file = media_server_dir() / "target.json"
+        if target_file.is_file():
+            url = str(json.loads(target_file.read_text(encoding="utf-8")).get("preview_origin", "")).strip().rstrip("/")
+    if not url:
+        raise SystemExit("Media preview URL unavailable; run `gpu.py up media` or pass --preview-url")
+    p_tok = (preview_token or read_secret_value(("MEDIA_PREVIEW_TOKEN",), "media.preview")).strip()
+    g_tok = (media_token or read_secret_value(("MEDIA_GATEWAY_TOKEN", "INFERENCE_WORKER_API_KEY", "H100_LLM_API_KEY"), "media.token")).strip()
+    inf_key = read_secret_value(("AGENTHUB_INFERENCE_KEY",), "inference.key").strip()
+    if not p_tok:
+        raise SystemExit("Missing media.preview secret; run `gpu.py up media` first")
+    if not g_tok:
+        raise SystemExit("Missing media.token secret; run `gpu.py up media` first")
+    if not inf_key:
+        raise SystemExit("Missing AGENTHUB_INFERENCE_KEY / secrets/inference.key")
+
+    ssh_host = os.environ.get("SH_FORGE_SSH_HOST", "forge").strip() or "forge"
+    resolved_ip = (owner_ip or os.environ.get("OWNER_IP", "")).strip()
+    existing_caddy = ""
+    if not dry_run:
+        read_res = subprocess.run(
+            ["ssh", ssh_host, "cat /opt/forge/caddy/Caddyfile"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if read_res.returncode != 0:
+            raise SystemExit(f"Failed to read /opt/forge/caddy/Caddyfile on {ssh_host}: {read_res.stderr.strip()[:240]}")
+        existing_caddy = read_res.stdout
+        if not resolved_ip:
+            m = re.search(r"@owner\s+remote_ip\s+([0-9A-Fa-f:./]+)", existing_caddy)
+            if m:
+                resolved_ip = m.group(1)
+    if not resolved_ip:
+        resolved_ip = "127.0.0.1" if dry_run else ""
+    if not resolved_ip:
+        raise SystemExit("Unable to determine owner IP from --owner-ip, OWNER_IP, or remote Caddyfile @owner rule")
+
+    block = render_caddyfile_site_block(resolved_ip, inf_key, url, p_tok, g_tok)
+    if dry_run:
+        print(
+            f"dry_run caddy-media upstream={url} owner_ip={resolved_ip} "
+            f"preview_token={mask_secret(p_tok)} media_token={mask_secret(g_tok)} inference_key={mask_secret(inf_key)}"
+        )
+        return
+
+    updated_caddy = upsert_caddy_site_block(existing_caddy, "inference.shtrial.com", block)
+    remote_cmd = (
+        # Write in place: the container bind-mounts this one file, and a rename would leave it reading the old one.
+        "cat > /opt/forge/caddy/Caddyfile && "
+        "if command -v caddy >/dev/null 2>&1; then "
+        "caddy validate --config /opt/forge/caddy/Caddyfile && "
+        "(systemctl reload caddy 2>/dev/null || service caddy reload 2>/dev/null); "
+        "elif docker ps --format '{{.Names}}' 2>/dev/null | grep -qi caddy; then "
+        "CCTR=$(docker ps --format '{{.Names}}' | grep -i caddy | head -n1); "
+        "docker exec \"$CCTR\" caddy validate --config /etc/caddy/Caddyfile && "
+        "docker exec \"$CCTR\" caddy reload --config /etc/caddy/Caddyfile; "
+        "else echo 'no caddy binary or caddy container found' >&2; exit 1; "
+        "fi"
+    )
+    # Send bytes: text-mode stdin would turn every newline into CRLF on Windows.
+    write_res = subprocess.run(
+        ["ssh", ssh_host, remote_cmd],
+        input=updated_caddy.encode("utf-8"),
+        capture_output=True,
+        check=False,
+    )
+    if write_res.returncode != 0:
+        # The new file is already in place when validate/reload fails; put the previous content back (no reload).
+        restored = False
+        if existing_caddy.strip():
+            restore_res = subprocess.run(
+                ["ssh", ssh_host, "cat > /opt/forge/caddy/Caddyfile"],
+                input=existing_caddy.encode("utf-8"),
+                capture_output=True,
+                check=False,
+            )
+            restored = restore_res.returncode == 0
+        raise SystemExit(
+            f"Failed to update Caddy on {ssh_host} (previous Caddyfile restored={restored}): "
+            f"{(write_res.stderr or write_res.stdout).decode('utf-8', errors='replace').strip()[:300]}"
+        )
+    print(
+        f"caddy_updated host={ssh_host} upstream={url} "
+        f"preview_token={mask_secret(p_tok)} media_token={mask_secret(g_tok)}"
+    )
 
 
 def resolve_active_snapshot(v0: Any, snapshot_name: str | None) -> str | None:
@@ -419,6 +714,7 @@ def cmd_up(args: argparse.Namespace) -> None:
     catalog = load_catalog()
     role = args.role
     role_cfg = catalog["roles"][role]
+    vol_name, mount_path = role_volume_spec(role, catalog)
     app = get_daytona_client()
     try:
         v0 = app.v0
@@ -428,7 +724,7 @@ def cmd_up(args: argparse.Namespace) -> None:
         names = {role_cfg["sandboxName"], *role_cfg.get("legacySandboxNames", [])}
         enforce_gpu_limit(live, names, catalog["policy"]["maxGpuInstancesTotal"])
 
-        volume_id = ensure_volume(v0, catalog["policy"]["weightsVolumeName"])
+        volume_id = ensure_volume(v0, vol_name)
         existing = find_role_sandbox(v0, role, catalog)
         if existing is not None:
             protect_sandbox(existing)
@@ -469,7 +765,7 @@ def cmd_up(args: argparse.Namespace) -> None:
                             "purpose": role_cfg["primaryServedModelName"],
                             "role": role,
                         },
-                        volumes=[VolumeMount(volume_id=volume_id, mount_path=catalog["policy"]["weightsMountPath"])],
+                        volumes=[VolumeMount(volume_id=volume_id, mount_path=mount_path)],
                     ),
                     timeout=0,
                 )
@@ -489,7 +785,7 @@ def cmd_up(args: argparse.Namespace) -> None:
                             "purpose": role_cfg["primaryServedModelName"],
                             "role": role,
                         },
-                        volumes=[VolumeMount(volume_id=volume_id, mount_path=catalog["policy"]["weightsMountPath"])],
+                        volumes=[VolumeMount(volume_id=volume_id, mount_path=mount_path)],
                         resources=Resources(
                             cpu=role_cfg["cpu"],
                             memory=role_cfg["ramGb"],
@@ -509,7 +805,7 @@ def cmd_up(args: argparse.Namespace) -> None:
                 raise SystemExit(f"created sandbox spot={sandbox.spot} gpu={actual_gpu} did not match requested spot {gpu_name}; deleted")
             gpu_name = actual_gpu
 
-        port = role_cfg["port"]
+        port = int(role_cfg["port"])
         origin, preview_token = preview_origin_and_token(sandbox, port, role)
         worker_key = upload_runtime_keys(sandbox)
 
@@ -518,40 +814,119 @@ def cmd_up(args: argparse.Namespace) -> None:
         remote_script = f"/opt/serve-{role}.sh"
         sandbox.fs.upload_file(recipe_bytes, remote_script)
 
-        env_vars = {
-            "MODEL_REPO": role_cfg["modelRepo"],
-            "SERVED_MODEL_NAME": role_cfg["primaryServedModelName"],
-            "PORT": str(port),
-            "WEIGHTS_ROOT": catalog["policy"]["weightsMountPath"],
-            "GPU_TYPE": gpu_name,
-        }
-        if role == "specialist":
-            env_vars.update(
-                {
-                    "MAX_MODEL_LEN": str(profile["maxModelLen"]),
-                    "MAX_NUM_SEQS": str(profile["maxNumSeqs"]),
-                    "GPU_MEM_UTIL": str(profile["gpuMemUtil"]),
-                    "MAX_NUM_BATCHED_TOKENS": str(profile["maxNumBatchedTokens"]),
-                    "MTP_TOKENS": str(profile["mtpTokens"]),
-                }
+        if role == "media":
+            upload_media_server_files(sandbox)
+            env_vars = {
+                "PORT": str(port),
+                "WEIGHTS_ROOT": mount_path,
+                "GPU_TYPE": gpu_name,
+            }
+            env_prefix = " ".join(f"{k}={json.dumps(v)}" for k, v in env_vars.items())
+            log_file = "/tmp/media.log"
+            already_up = sandbox.process.exec(
+                "ps -eo args | grep -E '[s]erve-media|[g]ateway\\.py' >/dev/null && echo UP || echo DOWN",
+                timeout=20,
             )
+            if "UP" not in (already_up.result or ""):
+                sandbox.process.exec(
+                    f"mkdir -p /run /opt && chmod 755 {remote_script} && "
+                    f"setsid -f env {env_prefix} bash {remote_script} </dev/null >/tmp/media.nohup 2>&1",
+                    timeout=30,
+                )
+            media_token, media_info = wait_for_media_gateway(sandbox, port, worker_key, log_file)
+            write_secret("media.token", media_token)
+            sandbox.set_ttl(args.ttl)
+            sandbox.refresh_data()
+            target_path = write_media_target_json(sandbox, gpu_name, origin, port, catalog["policy"]["gatewayMediaUrl"])
+
+            state = load_state()
+            state["media_volume_id"] = volume_id
+            state["media_volume_name"] = vol_name
+            state.setdefault("workers", {})["media"] = {
+                "sandbox_id": sandbox.id,
+                "name": sandbox.name,
+                "spot": True,
+                "gpu_type": gpu_name,
+                "backend": profile["backend"],
+                "image": catalog["images"][profile["backend"]]["image"],
+                "volume_id": volume_id,
+                "volume_name": vol_name,
+                "mount_path": mount_path,
+                "preview_origin": origin,
+                "gateway_media_url": catalog["policy"]["gatewayMediaUrl"],
+                "target_json": str(target_path),
+                "media_gpu_info": media_info.get("gpu"),
+                "ttl_minutes": args.ttl,
+                "auto_destroy_at": sandbox.auto_destroy_at,
+                "status": "serving",
+                "checked_at": utc_now(),
+            }
+            save_state(state)
+            print(f"serving role=media gpu={gpu_name} preview={origin} target={target_path}")
+            if os.environ.get("SH_FORGE_UPDATE", "").strip() == "1":
+                update_sh_forge_caddy(preview_origin=origin, preview_token=preview_token, media_token=media_token)
+            return
+
+        is_dual = role == "engineering" and profile.get("backend") == "engineering-rocm-gfx950"
+        if is_dual:
+            flag_quant = str(args.quant or "Q8_0")
+            flag_port = int(role_cfg["flagshipPort"])
+            env_vars = {
+                "WEIGHTS_ROOT": mount_path,
+                "GPU_TYPE": gpu_name,
+                "SPEC_REPO": role_cfg["modelRepo"],
+                "FLAG_REPO": role_cfg["flagshipRepo"],
+                "FLAG_QUANT": flag_quant,
+                "SPEC_PORT": str(port),
+                "FLAG_PORT": str(flag_port),
+                "MAX_MODEL_LEN": str(profile["maxModelLen"]),
+                "CTX_SIZE": str(profile["ctxSize"]),
+                "MAX_NUM_SEQS": str(profile["maxNumSeqs"]),
+                "GPU_MEM_UTIL": str(profile["gpuMemUtil"]),
+                "MAX_NUM_BATCHED_TOKENS": str(profile["maxNumBatchedTokens"]),
+                "MTP_TOKENS": str(profile["mtpTokens"]),
+                "PARALLEL": str(profile["parallel"]),
+                "BATCH_SIZE": str(profile["batchSize"]),
+                "UBATCH_SIZE": str(profile["ubatchSize"]),
+                "CACHE_TYPE_K": str(profile["cacheTypeK"]),
+                "CACHE_TYPE_V": str(profile["cacheTypeV"]),
+            }
         else:
-            env_vars.update(
-                {
-                    "QUANT": str(profile["quantization"]),
-                    "CTX_SIZE": str(profile["ctxSize"]),
-                    "PARALLEL": str(profile["parallel"]),
-                    "BATCH_SIZE": str(profile["batchSize"]),
-                    "UBATCH_SIZE": str(profile["ubatchSize"]),
-                    "CACHE_TYPE_K": str(profile["cacheTypeK"]),
-                    "CACHE_TYPE_V": str(profile["cacheTypeV"]),
-                }
-            )
+            env_vars = {
+                "MODEL_REPO": role_cfg["modelRepo"],
+                "SERVED_MODEL_NAME": role_cfg["primaryServedModelName"],
+                "PORT": str(port),
+                "WEIGHTS_ROOT": mount_path,
+                "GPU_TYPE": gpu_name,
+            }
+            if role in ("specialist", "engineering"):
+                env_vars.update(
+                    {
+                        "MAX_MODEL_LEN": str(profile["maxModelLen"]),
+                        "MAX_NUM_SEQS": str(profile["maxNumSeqs"]),
+                        "GPU_MEM_UTIL": str(profile["gpuMemUtil"]),
+                        "MAX_NUM_BATCHED_TOKENS": str(profile["maxNumBatchedTokens"]),
+                        "MTP_TOKENS": str(profile["mtpTokens"]),
+                    }
+                )
+            else:
+                env_vars.update(
+                    {
+                        "QUANT": str(profile["quantization"]),
+                        "CTX_SIZE": str(profile["ctxSize"]),
+                        "PARALLEL": str(profile["parallel"]),
+                        "BATCH_SIZE": str(profile["batchSize"]),
+                        "UBATCH_SIZE": str(profile["ubatchSize"]),
+                        "CACHE_TYPE_K": str(profile["cacheTypeK"]),
+                        "CACHE_TYPE_V": str(profile["cacheTypeV"]),
+                    }
+                )
+
         env_prefix = " ".join(f"{k}={json.dumps(v)}" for k, v in env_vars.items())
-        log_file = f"/tmp/{role}.log"
+        log_file = "/tmp/specialist.log" if is_dual else f"/tmp/{role}.log"
         # Skip re-launching if the worker process (staging or serving) is already alive.
         already_up = sandbox.process.exec(
-            "ps -eo args | grep -E '[v]llm serve|[l]lama-server|[s]erve-(specialist|flagship)' >/dev/null && echo UP || echo DOWN",
+            f"ps -eo args | grep -E '{DEFAULT_ALIVE_PATTERN}' >/dev/null && echo UP || echo DOWN",
             timeout=20,
         )
         if "UP" not in (already_up.result or ""):
@@ -561,17 +936,20 @@ def cmd_up(args: argparse.Namespace) -> None:
                 timeout=30,
             )
         wait_for_sandbox_models(sandbox, port, role_cfg["primaryServedModelName"], log_file)
+        if is_dual:
+            wait_for_sandbox_models(sandbox, int(role_cfg["flagshipPort"]), role_cfg["flagshipServedModelName"], "/tmp/flagship.log")
         sandbox.set_ttl(args.ttl)
         sandbox.refresh_data()
 
         api_base = origin.rstrip("/") + "/v1"
         upstream_model = f"openai/{role_cfg['primaryServedModelName']}"
         gateway_ids: dict[str, str] = {}
+        spec_ctx = int(profile.get("maxModelLen") or profile.get("ctxSize"))
         for alias in role_cfg["servedAliases"]:
             info = {
                 "id": f"{alias}-{sandbox.id[:8]}",
                 "mode": "chat",
-                "max_input_tokens": int(profile.get("maxModelLen") or profile.get("ctxSize")) - int(profile["maxOutputTokens"]),
+                "max_input_tokens": spec_ctx - int(profile["maxOutputTokens"]),
                 "max_output_tokens": int(profile["maxOutputTokens"]),
                 "supports_function_calling": bool(role_cfg["tools"]),
                 "supports_vision": bool(role_cfg["vision"] and alias != "agent-fast"),
@@ -583,10 +961,40 @@ def cmd_up(args: argparse.Namespace) -> None:
             }
             gateway_ids[alias] = gateway_register_alias(alias, upstream_model, api_base, worker_key, preview_token, info)
 
+        registered_aliases = list(role_cfg["servedAliases"])
+        flag_origin = ""
+        if is_dual:
+            flag_port = int(role_cfg["flagshipPort"])
+            flag_origin, flag_preview_token = preview_origin_and_token(sandbox, flag_port, "engineering-flagship")
+            flag_api_base = flag_origin.rstrip("/") + "/v1"
+            flag_upstream = f"openai/{role_cfg['flagshipServedModelName']}"
+            flag_ctx = int(profile.get("ctxSize") or profile.get("maxModelLen"))
+            live_now = list(v0.list())
+            turbo_live = any(sb.id == PROTECTED_SANDBOX_ID and "STARTED" in str(sb.state).upper() for sb in live_now)
+            for alias in role_cfg.get("flagshipAliases", []):
+                if alias == "agent-turbo" and turbo_live:
+                    print("preserving agent-turbo on live legacy qwen38-turbo-q6k until retire-legacy-turbo")
+                    continue
+                info = {
+                    "id": f"{alias}-{sandbox.id[:8]}",
+                    "mode": "chat",
+                    "max_input_tokens": flag_ctx - int(profile["maxOutputTokens"]),
+                    "max_output_tokens": int(profile["maxOutputTokens"]),
+                    "supports_function_calling": bool(role_cfg["tools"]),
+                    "supports_vision": False,
+                    "supports_reasoning": True,
+                    "gpu_type": gpu_name,
+                    "quantization": profile["quantization"],
+                    "sandbox_id": sandbox.id,
+                    "spot": True,
+                }
+                gateway_ids[alias] = gateway_register_alias(alias, flag_upstream, flag_api_base, worker_key, flag_preview_token, info)
+                registered_aliases.append(alias)
+
         state = load_state()
         state["volume_id"] = volume_id
-        state["volume_name"] = catalog["policy"]["weightsVolumeName"]
-        state.setdefault("workers", {})[role] = {
+        state["volume_name"] = vol_name
+        worker_state: dict[str, Any] = {
             "sandbox_id": sandbox.id,
             "name": sandbox.name,
             "spot": True,
@@ -595,21 +1003,26 @@ def cmd_up(args: argparse.Namespace) -> None:
             "image": catalog["images"][profile["backend"]]["image"],
             "model_repo": role_cfg["modelRepo"],
             "quantization": profile["quantization"],
-            "context_limit": int(profile.get("maxModelLen") or profile.get("ctxSize")),
+            "context_limit": spec_ctx,
             "max_output_tokens": int(profile["maxOutputTokens"]),
             "vision": bool(role_cfg["vision"]),
             "tools": bool(role_cfg["tools"]),
             "preview_origin": origin,
             "base_url": api_base,
-            "served_aliases": role_cfg["servedAliases"],
+            "served_aliases": registered_aliases,
             "gateway_model_ids": gateway_ids,
             "ttl_minutes": args.ttl,
             "auto_destroy_at": sandbox.auto_destroy_at,
             "status": "serving",
             "checked_at": utc_now(),
         }
+        if is_dual and flag_origin:
+            worker_state["flagship_repo"] = role_cfg["flagshipRepo"]
+            worker_state["flagship_preview_origin"] = flag_origin
+            worker_state["flagship_base_url"] = flag_origin.rstrip("/") + "/v1"
+        state.setdefault("workers", {})[role] = worker_state
         save_state(state)
-        print(f"serving role={role} gpu={gpu_name} aliases={','.join(role_cfg['servedAliases'])} gateway={catalog['policy']['gatewayBaseUrl']}")
+        print(f"serving role={role} gpu={gpu_name} aliases={','.join(registered_aliases)} gateway={catalog['policy']['gatewayBaseUrl']}")
     finally:
         app.close()
 
@@ -639,8 +1052,9 @@ def cmd_down(args: argparse.Namespace) -> None:
     finally:
         app.close()
 
-    removed = gateway_delete_by_role_or_alias(role_cfg["servedAliases"])
-    print(f"gateway_deregistered aliases={','.join(role_cfg['servedAliases'])} count={removed}")
+    aliases = [*role_cfg.get("servedAliases", []), *role_cfg.get("flagshipAliases", [])]
+    removed = gateway_delete_by_role_or_alias(aliases, exclude_sandbox_id=PROTECTED_SANDBOX_ID) if aliases else 0
+    print(f"gateway_deregistered aliases={','.join(aliases) or '-'} count={removed}")
     if worker:
         worker["status"] = "deleted"
         worker["checked_at"] = utc_now()
@@ -648,7 +1062,7 @@ def cmd_down(args: argparse.Namespace) -> None:
 
 
 def cmd_extend(args: argparse.Namespace) -> None:
-    catalog = load_catalog()
+    load_catalog()
     role = args.role
     state = load_state()
     worker = state.get("workers", {}).get(role)
@@ -694,7 +1108,7 @@ def cmd_status(_args: argparse.Namespace) -> None:
 
 
 def cmd_reconcile(_args: argparse.Namespace) -> None:
-    catalog = load_catalog()
+    load_catalog()
     app = get_daytona_client()
     try:
         live = {
@@ -715,7 +1129,7 @@ def cmd_reconcile(_args: argparse.Namespace) -> None:
             code, _ = litellm_request("POST", "/model/delete", {"id": mid}, require_master=True)
             print(f"pruned stale alias={mname} sandbox={sid} http={code}")
 
-    # Ensure protected turbo sandbox stays registered as agent-turbo when live.
+    # Ensure protected turbo sandbox stays registered as agent-turbo when live and not superseded by a live worker.
     if PROTECTED_SANDBOX_ID in live:
         turbo_sb = live[PROTECTED_SANDBOX_ID]
         worker_key = read_secret_value(("H100_LLM_API_KEY", "INFERENCE_WORKER_API_KEY"))
@@ -723,11 +1137,11 @@ def cmd_reconcile(_args: argparse.Namespace) -> None:
             link = turbo_sb.get_preview_link(8000)
             api_base = str(link.url).rstrip("/") + "/v1"
             preview_tok = str(link.token or "") or None
-            already = [
+            already_live_turbo = [
                 m for m in gateway_list_models()
-                if m.get("model_name") == "agent-turbo" and (m.get("model_info") or {}).get("sandbox_id") == PROTECTED_SANDBOX_ID
+                if m.get("model_name") == "agent-turbo" and (m.get("model_info") or {}).get("sandbox_id") in live
             ]
-            if not already:
+            if not already_live_turbo:
                 gateway_register_alias(
                     "agent-turbo",
                     "openai/qwen3.8-27b-turbo-heretic-mtp-q6",
@@ -750,7 +1164,8 @@ def cmd_reconcile(_args: argparse.Namespace) -> None:
                 )
                 print("registered agent-turbo -> qwen38-turbo-q6k")
             else:
-                print("ok agent-turbo -> qwen38-turbo-q6k")
+                owner_sid = (already_live_turbo[0].get("model_info") or {}).get("sandbox_id")
+                print(f"ok agent-turbo -> sandbox={owner_sid}")
 
     state = load_state()
     changed = False
@@ -765,12 +1180,184 @@ def cmd_reconcile(_args: argparse.Namespace) -> None:
         save_state(state)
 
 
+def sandbox_age_hours(sandbox: Any, now: datetime | None = None) -> float | None:
+    """Hours since the sandbox was created, or None when the API gave no usable createdAt."""
+    raw = getattr(sandbox, "created_at", None) or getattr(sandbox, "createdAt", None)
+    if not raw:
+        return None
+    try:
+        created = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    return ((now or datetime.now(timezone.utc)) - created).total_seconds() / 3600
+
+
+def check_retire_legacy_turbo_gates(
+    live_sandboxes: list[Any],
+    gateway_base_url: str,
+    inference_key: str,
+    probe_fn: Callable[[str, str, dict[str, Any] | None], tuple[int, dict[str, Any]]] | None = None,
+    now: datetime | None = None,
+) -> Any:
+    """Verify engineering has been STARTED for MIN_ENGINEERING_UPTIME_HOURS and is live-verified on the gateway."""
+    eng_sb = next(
+        (
+            sb
+            for sb in live_sandboxes
+            if getattr(sb, "name", "") == "agenthub-engineering"
+            and "STARTED" in str(getattr(sb, "state", "")).upper()
+        ),
+        None,
+    )
+    if eng_sb is None:
+        raise SystemExit("Refusing retire-legacy-turbo: agenthub-engineering sandbox is not STARTED")
+    age_hours = sandbox_age_hours(eng_sb, now)
+    if age_hours is None:
+        raise SystemExit("Refusing retire-legacy-turbo: agenthub-engineering has no readable createdAt, so its uptime is unknown")
+    if age_hours < MIN_ENGINEERING_UPTIME_HOURS:
+        raise SystemExit(
+            f"Refusing retire-legacy-turbo: agenthub-engineering has been up {age_hours:.1f} h; "
+            f"need {MIN_ENGINEERING_UPTIME_HOURS} h (spot boxes were evicted within an hour)"
+        )
+    if not inference_key:
+        raise SystemExit("Refusing retire-legacy-turbo: AGENTHUB_INFERENCE_KEY / secrets/inference.key is missing")
+
+    base = gateway_base_url.rstrip("/")
+
+    def default_probe(method: str, path: str, body: dict[str, Any] | None) -> tuple[int, dict[str, Any]]:
+        data = json.dumps(body).encode("utf-8") if body is not None else None
+        headers = {"Authorization": f"Bearer {inference_key}"}
+        if data is not None:
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(base + path, data=data, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+                return resp.status, json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as exc:
+            raw = exc.read().decode("utf-8", errors="replace")
+            try:
+                parsed = json.loads(raw) if raw else {}
+            except Exception:
+                parsed = {"raw": raw[:200]}
+            return exc.code, parsed
+        except Exception as exc:
+            return 0, {"error": type(exc).__name__}
+
+    call = probe_fn or default_probe
+    status_models, body_models = call("GET", "/models", None)
+    if status_models != 200:
+        raise SystemExit(f"Refusing retire-legacy-turbo: {base}/models returned HTTP {status_models}")
+    listed_ids = {str(item.get("id", "")) for item in body_models.get("data", []) if isinstance(item, dict)}
+    for required_alias in ("agent-specialist", "agent-flagship"):
+        if required_alias not in listed_ids:
+            raise SystemExit(f"Refusing retire-legacy-turbo: {required_alias} missing from {base}/models")
+        status_chat, body_chat = call(
+            "POST",
+            "/chat/completions",
+            {
+                "model": required_alias,
+                "messages": [{"role": "user", "content": "Reply with OK"}],
+                "max_tokens": 8,
+            },
+        )
+        choices = body_chat.get("choices") or []
+        if status_chat != 200 or not choices:
+            raise SystemExit(
+                f"Refusing retire-legacy-turbo: live {required_alias} check on {base} failed (http={status_chat})"
+            )
+    return eng_sb
+
+
+def cmd_retire_legacy_turbo(args: argparse.Namespace) -> None:
+    catalog = load_catalog()
+    inf_key = read_secret_value(("AGENTHUB_INFERENCE_KEY",), "inference.key")
+    gateway_base = catalog["policy"]["gatewayBaseUrl"]
+    eng_cfg = catalog["roles"]["engineering"]
+    worker_key = read_secret_value(("INFERENCE_WORKER_API_KEY", "H100_LLM_API_KEY"))
+
+    app = get_daytona_client()
+    try:
+        live = list(app.v0.list())
+        eng_sb = check_retire_legacy_turbo_gates(live, gateway_base, inf_key)
+        gpu_name = gpu_value(eng_sb.gpu_type)
+        profile = dict(eng_cfg["profiles"].get(gpu_name) or next(iter(eng_cfg["profiles"].values())))
+        flag_port = int(eng_cfg.get("flagshipPort") or eng_cfg["port"])
+        flag_origin, flag_preview_token = preview_origin_and_token(eng_sb, flag_port, "engineering-flagship")
+        if args.dry_run:
+            print(f"dry_run retire-legacy-turbo READY engineering={eng_sb.id} flagship_origin={flag_origin}")
+            return
+        if not worker_key:
+            raise SystemExit("Refusing retire-legacy-turbo: INFERENCE_WORKER_API_KEY / H100_LLM_API_KEY is missing")
+        ctx = int(profile.get("ctxSize") or profile.get("maxModelLen"))
+        max_out = int(profile["maxOutputTokens"])
+        turbo_id = gateway_register_alias(
+            "agent-turbo",
+            f"openai/{eng_cfg['flagshipServedModelName']}",
+            flag_origin.rstrip("/") + "/v1",
+            worker_key,
+            flag_preview_token,
+            {
+                "id": f"agent-turbo-{eng_sb.id[:8]}",
+                "mode": "chat",
+                "max_input_tokens": ctx - max_out,
+                "max_output_tokens": max_out,
+                "supports_function_calling": bool(eng_cfg["tools"]),
+                "supports_vision": False,
+                "supports_reasoning": True,
+                "gpu_type": gpu_name,
+                "quantization": profile["quantization"],
+                "sandbox_id": eng_sb.id,
+                "spot": True,
+            },
+        )
+        print(f"routed agent-turbo -> {eng_sb.name} ({eng_sb.id}) id={turbo_id}")
+
+        legacy_sb = next(
+            (
+                sb
+                for sb in live
+                if (getattr(sb, "id", "") == PROTECTED_SANDBOX_ID or getattr(sb, "name", "") == PROTECTED_SANDBOX_NAME)
+                and "DESTROY" not in str(getattr(sb, "state", "")).upper()
+            ),
+            None,
+        )
+        if legacy_sb is not None:
+            legacy_sb.delete(timeout=120, wait=True)
+            print(f"retired legacy turbo sandbox {legacy_sb.id} ({legacy_sb.name}); protected volume {PROTECTED_VOLUME_NAME} untouched")
+        else:
+            print(f"legacy turbo sandbox {PROTECTED_SANDBOX_NAME} already absent")
+
+        state = load_state()
+        eng_worker = state.get("workers", {}).get("engineering")
+        if eng_worker:
+            aliases = list(eng_worker.get("served_aliases") or [])
+            if "agent-turbo" not in aliases:
+                aliases.append("agent-turbo")
+            eng_worker["served_aliases"] = aliases
+            eng_worker.setdefault("gateway_model_ids", {})["agent-turbo"] = turbo_id
+            eng_worker["checked_at"] = utc_now()
+            save_state(state)
+    finally:
+        app.close()
+
+
+def cmd_caddy_media(args: argparse.Namespace) -> None:
+    update_sh_forge_caddy(
+        preview_origin=args.preview_url,
+        owner_ip=args.owner_ip,
+        dry_run=args.dry_run,
+    )
+
+
 def cmd_save_cache(args: argparse.Namespace) -> None:
     catalog = load_catalog()
     role = args.role
     role_cfg = catalog["roles"][role]
-    if role_cfg["engine"] != "vllm":
-        raise SystemExit(f"save-cache is only supported for vllm roles (got engine={role_cfg['engine']})")
+    if role_cfg["engine"] not in ("vllm", "dual"):
+        raise SystemExit(f"save-cache is only supported for vllm/dual roles (got engine={role_cfg['engine']})")
     state = load_state()
     worker = state.get("workers", {}).get(role)
     app = get_daytona_client()
@@ -829,6 +1416,80 @@ PY"""
         app.close()
 
 
+PREFILL_IMAGE = "python:3.12-slim"
+PREFILL_POLL_SECONDS = 20
+
+
+def cmd_prefill(args: argparse.Namespace) -> None:
+    """Fill the media weights volume from Hugging Face on a throwaway CPU box (no GPU, no GPU slot used)."""
+    catalog = load_catalog()
+    vol_name, mount_path = role_volume_spec("media", catalog)
+    hf_token = read_secret_value(("HF_TOKEN",), "hf.token")
+    if len(hf_token) < 8:
+        raise SystemExit("HF_TOKEN (or secrets/hf.token) is not set")
+    models_path = media_server_dir() / "models.json"
+    if not models_path.is_file():
+        raise SystemExit(f"Missing {models_path}")
+    script = (ROOT / "recipes" / "prefill-media.py").read_bytes().replace(b"\r\n", b"\n")
+    run_id = f"media-prefill-{int(time.time())}"
+    app = get_daytona_client()
+    sandbox = None
+    try:
+        v0 = app.v0
+        from daytona.v0 import CreateSandboxFromImageParams, Resources, VolumeMount
+
+        volume_id = ensure_volume(v0, vol_name)
+        sandbox = v0.create(
+            CreateSandboxFromImageParams(
+                image=PREFILL_IMAGE,
+                public=False,
+                ephemeral=True,
+                auto_stop_interval=60,
+                ttl_minutes=args.ttl,
+                labels={"owner": "agenthub", "purpose": "media-prefill", "run": run_id},
+                volumes=[VolumeMount(volume_id=volume_id, mount_path=mount_path)],
+                resources=Resources(cpu=4, memory=8, disk=10),
+            )
+        )
+        print(f"prefill box {sandbox.id} run={run_id} ttl_minutes={args.ttl}", flush=True)
+        sandbox.fs.upload_file(hf_token.encode("utf-8"), "/tmp/hf.token")
+        sandbox.process.exec("chmod 600 /tmp/hf.token", timeout=30)
+        sandbox.fs.upload_file(script, "/tmp/prefill-media.py")
+        sandbox.fs.upload_file(models_path.read_bytes().replace(b"\r\n", b"\n"), "/tmp/models.json")
+        sandbox.process.exec(
+            "touch /tmp/pf.run; nohup sh -c 'python3 /tmp/prefill-media.py > /tmp/prefill.log 2>&1; rm -f /tmp/pf.run' "
+            ">/dev/null 2>&1 & echo started",
+            timeout=30,
+        )
+        shown = 0
+        deadline = time.time() + max(args.ttl - 5, 1) * 60
+        log = ""
+        while time.time() < deadline:
+            time.sleep(PREFILL_POLL_SECONDS)
+            res = sandbox.process.exec("cat /tmp/prefill.log; test -e /tmp/pf.run || echo NOT_RUNNING", timeout=60)
+            log = res.result or ""
+            if len(log) > shown:
+                print(log[shown:].replace("NOT_RUNNING", "").rstrip("\n"), flush=True)
+                shown = len(log)
+            if "PREFILL_DONE" in log or "NOT_RUNNING" in log:
+                break
+        else:
+            raise SystemExit("prefill did not finish before the TTL window; box deleted")
+        if "PREFILL_DONE" not in log:
+            raise SystemExit("prefill process stopped before PREFILL_DONE")
+        if not re.search(r"^bad \[\]$", log, re.MULTILINE):
+            raise SystemExit("prefill finished with failed files (see 'bad' line above); rerun to resume")
+        print(f"prefill complete volume={vol_name}")
+    finally:
+        if sandbox is not None:
+            try:
+                sandbox.delete(timeout=120)
+                print(f"deleted prefill box {sandbox.id}")
+            except Exception as exc:
+                print(f"WARNING: could not delete prefill box {sandbox.id} ({type(exc).__name__}); delete label run={run_id} by hand")
+        app.close()
+
+
 def cmd_doctor(_args: argparse.Namespace) -> None:
     catalog = load_catalog()
     checks: list[tuple[str, bool, str]] = []
@@ -845,6 +1506,13 @@ def cmd_doctor(_args: argparse.Namespace) -> None:
             vol = app.v0.volume.get(catalog["policy"]["weightsVolumeName"], create=False)
             checks.append(("daytona.api", True, f"sandboxes={len(sbs)}"))
             checks.append(("daytona.weights_volume", True, f"{vol.name} {vol.state}"))
+            media_vol_name = catalog["policy"].get("mediaVolumeName")
+            if media_vol_name:
+                try:
+                    mvol = app.v0.volume.get(media_vol_name, create=False)
+                    checks.append(("daytona.media_volume", True, f"{mvol.name} {mvol.state}"))
+                except Exception as exc:
+                    checks.append(("daytona.media_volume", False, type(exc).__name__))
             turbo_live = any(sb.id == PROTECTED_SANDBOX_ID and "STARTED" in str(sb.state).upper() for sb in sbs)
             checks.append(("daytona.protected_turbo", turbo_live, PROTECTED_SANDBOX_ID))
             configured_snaps = sorted({
@@ -902,21 +1570,36 @@ def build_parser() -> argparse.ArgumentParser:
 
     for cmd_name in ("up", "recover"):
         p = sub.add_parser(cmd_name, help=f"{cmd_name} a managed spot GPU role")
-        p.add_argument("role", choices=["specialist", "flagship"])
-        p.add_argument("--gpu", default="auto", help="auto or explicit GPU type (H200, MI355X, B200, B300, RTX-PRO-6000, H100)")
+        p.add_argument("role", choices=MANAGED_ROLES)
+        p.add_argument("--gpu", default="auto", help="auto or explicit GPU type (MI355X, B300, B200, H200, RTX-PRO-6000, H100)")
         p.add_argument("--quant", choices=["Q8_0", "Q6_K"], default=None)
         p.add_argument("--allow-q6-fallback", action="store_true")
-        p.add_argument("--ttl", type=int, default=120)
+        p.add_argument("--ttl", type=ttl_minutes, default=120)
 
     p_down = sub.add_parser("down", help="Delete a managed GPU sandbox and deregister its aliases")
-    p_down.add_argument("role", choices=["specialist", "flagship"])
+    p_down.add_argument("role", choices=MANAGED_ROLES)
 
     p_ext = sub.add_parser("extend", help="Reset wall-clock TTL minutes on a managed GPU sandbox")
-    p_ext.add_argument("role", choices=["specialist", "flagship"])
-    p_ext.add_argument("minutes", nargs="?", type=int, default=120)
+    p_ext.add_argument("role", choices=MANAGED_ROLES)
+    p_ext.add_argument("minutes", nargs="?", type=ttl_minutes, default=120)
 
     p_save = sub.add_parser("save-cache", help="Persist vLLM/FlashInfer JIT cache from a live GPU sandbox onto weights volume")
-    p_save.add_argument("role", choices=["specialist"])
+    p_save.add_argument("role", choices=["specialist", "engineering"])
+
+    p_retire = sub.add_parser(
+        "retire-legacy-turbo",
+        help="Gated retirement of legacy qwen38-turbo-q6k once engineering is STARTED and live-verified on gateway",
+    )
+    p_retire.add_argument("--dry-run", action="store_true")
+
+    p_prefill = sub.add_parser("prefill", help="Fill the media weights volume from Hugging Face on a CPU box (no GPU)")
+    p_prefill.add_argument("role", choices=["media"])
+    p_prefill.add_argument("--ttl", type=ttl_minutes, default=90)
+
+    p_caddy = sub.add_parser("caddy-media", help="Update sh-forge Caddyfile /v1/media/* proxy to Slot 2 media gateway")
+    p_caddy.add_argument("--preview-url", default=None)
+    p_caddy.add_argument("--owner-ip", default=None)
+    p_caddy.add_argument("--dry-run", action="store_true")
 
     return parser
 
@@ -937,6 +1620,9 @@ def main(argv: list[str] | None = None) -> None:
         "down": cmd_down,
         "extend": cmd_extend,
         "save-cache": cmd_save_cache,
+        "retire-legacy-turbo": cmd_retire_legacy_turbo,
+        "caddy-media": cmd_caddy_media,
+        "prefill": cmd_prefill,
     }
     dispatch[args.command](args)
 

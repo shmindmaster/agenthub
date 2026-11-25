@@ -791,7 +791,8 @@
       "baseUrl": "https://inference.shtrial.com/v1",
       "apiKey": "${AGENTHUB_INFERENCE_KEY}",
       "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 16384,
+      "maxOutputTokens": 32768,
+      "maxContextLimit": 262144,
       "extraArgs": {
         "model": "agent-fast"
       }
@@ -802,7 +803,8 @@
       "baseUrl": "https://inference.shtrial.com/v1",
       "apiKey": "${AGENTHUB_INFERENCE_KEY}",
       "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 16384,
+      "maxOutputTokens": 32768,
+      "maxContextLimit": 262144,
       "extraArgs": {
         "model": "agent-specialist"
       }
@@ -813,7 +815,8 @@
       "baseUrl": "https://inference.shtrial.com/v1",
       "apiKey": "${AGENTHUB_INFERENCE_KEY}",
       "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 16384,
+      "maxOutputTokens": 32768,
+      "maxContextLimit": 262144,
       "extraArgs": {
         "model": "agent-vision"
       }
@@ -831,11 +834,12 @@
     },
     {
       "model": "daytona-flagship",
-      "displayName": "Daytona Flagship — Qwen3.8 Flash-Next Uncensored",
+      "displayName": "Daytona Flagship — Qwen3.8 Flash-Next Uncensored (256K)",
       "baseUrl": "https://inference.shtrial.com/v1",
       "apiKey": "${AGENTHUB_INFERENCE_KEY}",
       "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 16384,
+      "maxOutputTokens": 32768,
+      "maxContextLimit": 262144,
       "extraArgs": {
         "model": "agent-flagship"
       }

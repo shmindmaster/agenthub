@@ -6,11 +6,15 @@
     "spotOnly": true,
     "neverOnDemand": true,
     "defaultTtlMinutes": 120,
+    "maxTtlMinutes": 480,
     "protectedSandboxName": "qwen38-turbo-q6k",
     "protectedVolumeName": "llm-models",
     "weightsVolumeName": "opencode-agent-weights",
     "weightsMountPath": "/mnt/opencode-weights",
+    "mediaVolumeName": "agenthub-media-weights",
+    "mediaMountPath": "/mnt/media-weights",
     "gatewayBaseUrl": "https://inference.shtrial.com/v1",
+    "gatewayMediaUrl": "https://inference.shtrial.com/v1/media",
     "gatewayAdminUrl": "https://inference.shtrial.com"
   },
   "gpus": {
@@ -79,7 +83,7 @@
     },
     "vllm-rocm-gfx950": {
       "name": "agenthub-vllm-rocm-gfx950",
-      "image": "rocm/vllm:rocm7.0_mi350_ubuntu24.04_py3.12_vllm_0.11.0",
+      "image": "rocm/vllm:rocm10.2.0_ubuntu24.04_py3.14-pytorch_2.14.0_vllm-0.32.0",
       "dockerfile": "docker/vllm-rocm-gfx950.Dockerfile"
     },
     "llama-cuda": {
@@ -89,11 +93,82 @@
     },
     "llama-hip-gfx950": {
       "name": "agenthub-llama-hip-gfx950",
-      "image": "rocm/dev-ubuntu-24.04:7.0",
+      "image": "rocm/dev-ubuntu-24.04:10.2.0-full",
       "dockerfile": "docker/llama-hip-gfx950.Dockerfile"
+    },
+    "engineering-rocm-gfx950": {
+      "image": "rocm/vllm:rocm10.2.0_ubuntu24.04_py3.14-pytorch_2.14.0_vllm-0.32.0"
+    },
+    "media-rocm-gfx950": {
+      "image": "rocm/pytorch:rocm10.2.0_ubuntu24.04_py3.12_pytorch_release_2.15.0"
     }
   },
   "roles": {
+    "engineering": {
+      "sandboxName": "agenthub-engineering",
+      "legacySandboxNames": [],
+      "modelRepo": "orcarouter/Qwen3.8-27B-Uncensored-FP8",
+      "flagshipRepo": "orcarouter/Qwen3.8-Flash-Next-Uncensored-GGUF",
+      "engine": "dual",
+      "port": 8001,
+      "flagshipPort": 8002,
+      "diskGb": 512,
+      "ramGb": 192,
+      "cpu": 16,
+      "gpuPriority": ["MI355X"],
+      "servedAliases": ["agent-specialist", "agent-fast", "agent-vision"],
+      "flagshipAliases": ["agent-flagship", "agent-turbo"],
+      "primaryServedModelName": "agent-specialist",
+      "flagshipServedModelName": "agent-flagship",
+      "reasoningDefault": "medium",
+      "reasoningSupported": ["low", "medium", "xhigh"],
+      "vision": true,
+      "tools": true,
+      "profiles": {
+        "MI355X": {
+          "backend": "engineering-rocm-gfx950",
+          "recipe": "recipes/serve-engineering-rocm-gfx950.sh",
+          "quantization": "FP8+Q8_0",
+          "maxModelLen": 262144,
+          "ctxSize": 262144,
+          "maxOutputTokens": 32768,
+          "maxNumSeqs": 8,
+          "gpuMemUtil": 0.40,
+          "maxNumBatchedTokens": 16384,
+          "mtpTokens": 3,
+          "parallel": 2,
+          "batchSize": 4096,
+          "ubatchSize": 2048,
+          "cacheTypeK": "f16",
+          "cacheTypeV": "f16",
+          "pleLocation": "CPU"
+        }
+      }
+    },
+    "media": {
+      "sandboxName": "agenthub-media",
+      "legacySandboxNames": [],
+      "modelRepo": "chatrlabs/Qwen-Image-2.1-Uncensored-Omni-Quantized",
+      "engine": "media-lab",
+      "port": 8189,
+      "diskGb": 512,
+      "ramGb": 192,
+      "cpu": 16,
+      "gpuPriority": ["MI355X"],
+      "servedAliases": [],
+      "primaryServedModelName": "agenthub-media",
+      "vision": false,
+      "tools": false,
+      "profiles": {
+        "MI355X": {
+          "backend": "media-rocm-gfx950",
+          "recipe": "recipes/serve-media-rocm-gfx950.sh",
+          "quantization": "BF16/FP8",
+          "maxModelLen": 262144,
+          "maxOutputTokens": 32768
+        }
+      }
+    },
     "specialist": {
       "sandboxName": "agenthub-specialist",
       "legacySandboxNames": ["opencode-specialist"],
@@ -126,10 +201,11 @@
         },
         "MI355X": {
           "backend": "vllm-rocm-gfx950",
+          "snapshotName": "agenthub-vllm-rocm-gfx950",
           "recipe": "recipes/serve-vllm-rocm-gfx950.sh",
           "quantization": "FP8",
-          "maxModelLen": 131072,
-          "maxOutputTokens": 16384,
+          "maxModelLen": 262144,
+          "maxOutputTokens": 32768,
           "maxNumSeqs": 8,
           "gpuMemUtil": 0.85,
           "maxNumBatchedTokens": 16384,
@@ -139,8 +215,8 @@
           "backend": "vllm-cuda",
           "recipe": "recipes/serve-vllm-cuda.sh",
           "quantization": "FP8",
-          "maxModelLen": 131072,
-          "maxOutputTokens": 16384,
+          "maxModelLen": 262144,
+          "maxOutputTokens": 32768,
           "maxNumSeqs": 8,
           "gpuMemUtil": 0.90,
           "maxNumBatchedTokens": 16384,
@@ -150,8 +226,8 @@
           "backend": "vllm-cuda",
           "recipe": "recipes/serve-vllm-cuda.sh",
           "quantization": "FP8",
-          "maxModelLen": 131072,
-          "maxOutputTokens": 16384,
+          "maxModelLen": 262144,
+          "maxOutputTokens": 32768,
           "maxNumSeqs": 8,
           "gpuMemUtil": 0.90,
           "maxNumBatchedTokens": 16384,
@@ -201,11 +277,12 @@
       "profiles": {
         "MI355X": {
           "backend": "llama-hip-gfx950",
+          "snapshotName": "agenthub-llama-hip-gfx950",
           "recipe": "recipes/serve-llama-hip-gfx950.sh",
           "quantization": "Q8_0",
           "pleLocation": "CPU",
-          "ctxSize": 131072,
-          "maxOutputTokens": 16384,
+          "ctxSize": 262144,
+          "maxOutputTokens": 32768,
           "parallel": 2,
           "batchSize": 4096,
           "ubatchSize": 2048,
@@ -217,8 +294,8 @@
           "recipe": "recipes/serve-llama-cuda.sh",
           "quantization": "Q8_0",
           "pleLocation": "CPU",
-          "ctxSize": 131072,
-          "maxOutputTokens": 16384,
+          "ctxSize": 262144,
+          "maxOutputTokens": 32768,
           "parallel": 2,
           "batchSize": 4096,
           "ubatchSize": 2048,
@@ -230,8 +307,8 @@
           "recipe": "recipes/serve-llama-cuda.sh",
           "quantization": "Q8_0",
           "pleLocation": "CPU",
-          "ctxSize": 131072,
-          "maxOutputTokens": 16384,
+          "ctxSize": 262144,
+          "maxOutputTokens": 32768,
           "parallel": 1,
           "batchSize": 4096,
           "ubatchSize": 2048,
@@ -253,6 +330,172 @@
           "cacheTypeK": "f16",
           "cacheTypeV": "f16"
         }
+      }
+    }
+  },
+  "mediaCatalog": {
+    "authorizationProfiles": {
+      "research": {
+        "description": "Aug-Nov 2026 community uncensored/abliterated checkpoints for lab/personal/evaluation outputs.",
+        "commercialAllowed": false,
+        "models": {
+          "image": "qwen-image-2.1-omni",
+          "image_edit": "qwen-image-2.1-omni",
+          "video": "ltx-2.5-uncensored",
+          "talk": "ltx-2.5-uncensored",
+          "tts": "lfm3-omni-2b-heretic",
+          "transcribe": "lfm3-omni-2b-heretic",
+          "music": "ace-step-1.5-turbo"
+        }
+      },
+      "commercial": {
+        "description": "Apache-2.0 / MIT commercial-safe checkpoints only.",
+        "commercialAllowed": true,
+        "models": {
+          "image": "qwen-image-2512",
+          "image_edit": "qwen-image-2512",
+          "video": "wan2.2-i2v-a14b",
+          "talk": "wan2.2-s2v-14b",
+          "tts": "zonos3-mini",
+          "transcribe": "sov-transcribe-1",
+          "music": "ace-step-1.5-turbo"
+        }
+      }
+    },
+    "checkpoints": {
+      "qwen-image-2.1-omni": {
+        "repo": "chatrlabs/Qwen-Image-2.1-Uncensored-Omni-Quantized",
+        "revision": "af0343c25951",
+        "license": "other: qwen-research",
+        "authorizationProfile": "research",
+        "defaultPrecision": "BF16",
+        "runtime": "ComfyUI",
+        "modalities": ["image", "image_edit"],
+        "vramAllowGb": 40
+      },
+      "ltx-2.5-uncensored": {
+        "repo": "ChrisColeTech/LTX-2.5-uncensored-v1.1-FP8",
+        "revision": "592aaa11f13a",
+        "license": "unknown (LTX-2.x Community derivative)",
+        "authorizationProfile": "research",
+        "defaultPrecision": "fp8_scaled",
+        "runtime": "ComfyUI",
+        "modalities": ["video", "talk"],
+        "vramAllowGb": 120
+      },
+      "lfm3-omni-2b-heretic": {
+        "repo": "rodrigomt/LFM3-Omni-2B-heretic",
+        "revision": "ecd80dae8705",
+        "license": "other: lfm1.0",
+        "authorizationProfile": "research",
+        "defaultPrecision": "BF16",
+        "runtime": "transformers",
+        "modalities": ["tts", "transcribe"],
+        "vramAllowGb": 12,
+        "evaluatedAlternative": {
+          "repo": "NeosQ/LFM3-Omni-2B-Uncensored-abliterated",
+          "revision": "1a2783b4681d",
+          "note": "Lower adoption (35 vs 92 downloads) and explicit research-only warning; rodrigomt Trial 169 preserves 630/665 tensors byte-identical including Liquid Audio Codec."
+        }
+      },
+      "flux-3-image-klein": {
+        "repo": "black-forest-labs/flux-3-image-klein-comfy",
+        "revision": "09192d1abae1",
+        "license": "other: flux-3-klein-noncommercial-or-bfl",
+        "authorizationProfile": "evaluated-not-installed",
+        "defaultPrecision": "BF16",
+        "modalities": ["image"],
+        "note": "Upstream non-abliterated release (2026-10-14); deferred in favor of chatrlabs/Qwen-Image-2.1-Uncensored-Omni-Quantized (research) and Apache-2.0 Qwen-Image-2512 (commercial)."
+      },
+      "qwen-image-2512": {
+        "repo": "Comfy-Org/Qwen-Image_ComfyUI",
+        "revision": "1f12b17be14c",
+        "license": "Apache-2.0",
+        "authorizationProfile": "commercial",
+        "defaultPrecision": "BF16",
+        "runtime": "ComfyUI",
+        "modalities": ["image"],
+        "vramAllowGb": 42
+      },
+      "z-image-turbo": {
+        "repo": "Comfy-Org/Z-Image-Turbo",
+        "revision": "6fc90a3b1b65",
+        "license": "Apache-2.0",
+        "authorizationProfile": "commercial",
+        "defaultPrecision": "BF16",
+        "runtime": "ComfyUI",
+        "modalities": ["image"],
+        "vramAllowGb": 26
+      },
+      "wan2.2-i2v-a14b": {
+        "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        "revision": "ee6f4a40737a",
+        "license": "Apache-2.0",
+        "authorizationProfile": "commercial",
+        "defaultPrecision": "fp8_scaled",
+        "runtime": "ComfyUI",
+        "modalities": ["video"],
+        "vramAllowGb": 45
+      },
+      "wan2.2-s2v-14b": {
+        "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        "revision": "ee6f4a40737a",
+        "license": "Apache-2.0",
+        "authorizationProfile": "commercial",
+        "defaultPrecision": "fp8_scaled",
+        "runtime": "ComfyUI",
+        "modalities": ["talk"],
+        "vramAllowGb": 45
+      },
+      "ace-step-1.5-turbo": {
+        "repo": "Comfy-Org/ACE-Step-1.5",
+        "revision": "371bb1680f8c",
+        "license": "MIT/Apache-2.0",
+        "authorizationProfile": "commercial",
+        "defaultPrecision": "BF16",
+        "runtime": "ComfyUI",
+        "modalities": ["music"],
+        "vramAllowGb": 16
+      },
+      "zonos3-mini": {
+        "repo": "Zyphra/ZONOS3-Mini",
+        "revision": "2921b8821772",
+        "license": "Apache-2.0",
+        "authorizationProfile": "commercial",
+        "defaultPrecision": "BF16",
+        "runtime": "zonos3/transformers",
+        "modalities": ["tts"],
+        "vramAllowGb": 10
+      },
+      "qwen3-tts-1.7b-customvoice": {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        "revision": "0c0e3051f131",
+        "license": "Apache-2.0",
+        "authorizationProfile": "commercial",
+        "defaultPrecision": "BF16",
+        "runtime": "qwen-tts",
+        "modalities": ["tts"],
+        "vramAllowGb": 8
+      },
+      "sov-transcribe-1": {
+        "repo": "salesforce-sovereign-intelligence/SOV-Transcribe-1",
+        "revision": "505d8fae2439",
+        "license": "Apache-2.0",
+        "authorizationProfile": "commercial",
+        "defaultPrecision": "BF16",
+        "runtime": "transformers",
+        "modalities": ["transcribe"],
+        "vramAllowGb": 64
+      },
+      "whisper-large-v3-turbo": {
+        "repo": "openai/whisper-large-v3-turbo",
+        "revision": "41f01f3fe87f",
+        "license": "MIT",
+        "authorizationProfile": "commercial",
+        "defaultPrecision": "FP16",
+        "runtime": "transformers",
+        "modalities": ["transcribe"],
+        "vramAllowGb": 6
       }
     }
   },
