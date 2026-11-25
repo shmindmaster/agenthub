@@ -23,5 +23,6 @@ Use official spoken clips and owner recordings as pronunciation guides. Compare 
 - Voice and narration: run the [current rates and funding preflight](references/narration-preflight.md) before new synthesis. Deepgram Flux is the default. AssemblyAI and ElevenLabs are for ABACare films, or a job where the owner asks for them by name. Keep accepted takes and explicitly pinned casts. Use the chosen governed adapter. [voice recipes](references/voice-recipes.md), [Azure](references/azure.md), [generate](references/generate.md).
 - Pictures: charts, diagrams, Lottie, stills and captured screens. [visuals](references/visuals.md), [ladder](references/ladder.md).
 - For animation that serves the brief, use a [narration-led explainer shot](references/explainer-shots.md), the shot clock, the existing kit and the accepted assets.
+- Self-hosted GPU lab (image, edit, video, talk, voice, transcribe, music): not chat-model picker entries; use `scripts/daytona_media_client.py` or `scripts/media_lab_ui.py`.
 - Providers and cost: [provider routing](references/provider-cost-quality-routing.md), [provider plugins](references/provider-plugins.md).
 Read when executing a lane for its commands and gates: [capture detail](references/capture-detail.md), [generate detail](references/generate-detail.md).
