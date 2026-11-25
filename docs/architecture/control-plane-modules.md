@@ -40,7 +40,7 @@ must not invent a second rebase.
    not reimplement writers.
 6. **Policy split.** The tracked `global-agent-policy.md` is the public,
    generic policy (no owner identity, career material or personal paths);
-   `policy-core.md` is the smaller portable core used by public exports. A
+   `policy-core.md` is the smaller portable core. A
    machine with owner-specific rules keeps the complete effective policy in
    the gitignored `overlays/personal/global-agent-policy.md`, which replaces
    the public file whenever an overlay resolves (including from a linked

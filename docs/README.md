@@ -45,9 +45,6 @@ stranger-safe first run. For this private fleet checkout, also use
 
 - [runbooks/desktop-integrations.md](./runbooks/desktop-integrations.md) — Windows inventory and app-owned connector verification for AutoClaw, Grok Bot, and Manus Studio.
 - [runbooks/zcode.md](./runbooks/zcode.md) — Standalone ZCode inventory, native marketplace deployment, MCP, and browser setup.
-- [runbooks/claude-gateway-tools.md](./runbooks/claude-gateway-tools.md) — deferred
-  tool loading, offline Chat translation checks and local schema-size refusal.
-
 - [runbooks/clerk-auth.md](./runbooks/clerk-auth.md) — official Clerk fleet rollout,
   host OAuth lifecycle, genuine user and tenant/resource authorization acceptance.
 
@@ -72,32 +69,8 @@ stranger-safe first run. For this private fleet checkout, also use
   build and demo factory workflow: Daytona v2 by default, `platform=v0`
   fallback, pilot budget and cleanup controls.
 
-## Verification
-
-- [verification/README.md](./verification/README.md) — implemented, tested and
-  verified state per surface, with coverage, readiness and test logs.
-
 ## Execution
 
 - [plans/PLANS.md](./plans/PLANS.md) — when and how to write resumable plans.
 - [plans/active/](./plans/active/) — active complex work.
 - [plans/completed/](./plans/completed/) — required directory; finished plans are deleted, not retained.
-
-## Fleet
-
-- [context-reduction.md](./fleet/context-reduction.md) — manual context audits,
-  reversible skill cleanup and native on-demand tool discovery.
-- [usage-diet-2026-10-26.md](./fleet/usage-diet-2026-10-26.md) — Claude Code
-  startup-context measurements, plugins/connectors cut, rollback per change.
-- [retired-hosts-2026-10-21.md](./fleet/retired-hosts-2026-10-21.md) — retired
-  host record: Qoder, Hermes, Gemini CLI, Kiro, Warp, MiMo Code and Qwen Code.
-- [account-logins-2026-10-21.md](./fleet/account-logins-2026-10-21.md) — host
-  account-authentication commands and verified gates.
-- [goal-setting-by-host-2026-10-21.md](./fleet/goal-setting-by-host-2026-10-21.md) — per-host
-  goal and persistent-objective mechanisms, verified versions and sources.
-
-## Proposals
-
-- [proposals/media-studio-2.1-sync-and-build.md](./proposals/media-studio-2.1-sync-and-build.md) —
-  proposed media-studio 2.1: word-synced text, diagrams that build on narration
-  beats, emphasis role tokens, and the word-sync gate (review only).

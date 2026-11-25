@@ -3,7 +3,7 @@
 // TUI/Desktop sessions keep their normal approvals. --auto-approve true
 // approves every tool call; this hook is the deny list that replaces the
 // approvals an attended session would have asked for. It mirrors the
-// OpenCode `peer` agent (docs/plans/active/opencode-peer-orchestration.md).
+// OpenCode `peer` agent.
 // Shell matching is literal text, so briefs repeat the rules.
 
 const active = () => process.env.AGENTHUB_PEER_GUARD === "1";

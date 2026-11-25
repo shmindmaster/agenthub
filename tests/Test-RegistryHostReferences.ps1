@@ -282,7 +282,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # 2026-11-19 (SH-4969) the owner authorized Devin Cloud and its API with a recorded
     # budget, so devin-cloud joins the list; the cloud-surface guard below still has
     # to clear on its cloudBudgetAuthorization.
-    # Warp was decommissioned 2026-11-19 (docs/fleet/retired-hosts-2026-10-21.md): it was
+    # Warp was decommissioned 2026-11-19 (docs/current-state.md): it was
     # uninstalled and moved to inactiveAgents, so it left the owner-authorized list; its
     # dispatch policy record must stay disabled and is pinned below beside windsurf.
     # 2026-11-21 (SH-5036) explicitly authorized the verified local ZCode route.
@@ -325,7 +325,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     if (($Policy.PSObject.Properties.Name -contains 'windsurf') -and $Policy.windsurf.enabled -ne $false) {
         $violations.Add('windsurf must stay disabled while registry/agents.json lists it as an inactive agent')
     }
-    # Warp was decommissioned 2026-11-19 (docs/fleet/retired-hosts-2026-10-21.md); its
+    # Warp was decommissioned 2026-11-19 (docs/current-state.md); its
     # policy record is retained as history and must stay disabled while it is inactive.
     if (($Policy.PSObject.Properties.Name -contains 'warp') -and $Policy.warp.enabled -ne $false) {
         $violations.Add('warp must stay disabled while registry/agents.json lists it as an inactive, retired agent')
@@ -367,7 +367,7 @@ function Test-LiveHostAuthenticationMetadata {
             $violations.Add("$id has no hostSettings authentication record")
         }
     }
-    # Gemini CLI was retired on 2026-11-10 (docs/fleet/retired-hosts-2026-10-21.md).
+    # Gemini CLI was retired on 2026-11-10 (docs/current-state.md).
     if ($profile.hostSettings.PSObject.Properties.Name -contains 'gemini' -or
         $profile.dispatchPolicy.PSObject.Properties.Name -contains 'gemini') {
         $violations.Add('Gemini CLI is retired and must have no hostSettings or dispatchPolicy record')
