@@ -76,3 +76,9 @@ test('a download reaches its destination only when hash and size match', async (
     assert.equal(readFileSync(local, 'utf8'), 'good');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+// daytona-run.mjs builds this path in pieces, so no search for the path finds its reader.
+test('the default image has its Dockerfile', () => {
+  const dockerfile = join(import.meta.dirname, '..', 'ci', 'daytona', 'Dockerfile');
+  assert.match(readFileSync(dockerfile, 'utf8'), /^FROM /m);
+});

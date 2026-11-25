@@ -13,14 +13,16 @@ What is true of AgentHub now. Keep this page to one screen: replace a line when 
 
 - `scripts/lib/FleetRoles.ps1` and `registry/agents.json` own which hosts are retained or supported. `registry/fleet-profile.json` owns what may be dispatched and why a host is refused.
 - Install, refresh and remove commands per host: [runbooks/plugin-deployment.md](./runbooks/plugin-deployment.md).
-- Retired, do not restore: Warp, Kiro, Qoder, Hermes, Gemini CLI, Windsurf (now Devin Desktop).
+- Retired, do not restore: Warp, Kiro, Qoder, Hermes, Gemini CLI, CodeRabbit, MiMo Desktop, Windsurf (now Devin Desktop). MiMo Code and Qwen Code carry no capability deployments; the dispatch policy still allows them.
+- Owner rule (2026-11-09): custom models such as MiMo are extra selectable options and never replace a host's default.
 - Cursor imports the plugins enabled in Claude; AgentHub installs no second copy there.
 
 ## Retired, do not reintroduce
 
 - RepoWise (SH-4670). Use native source search and committed `openwiki/` pages.
 - Local AI on this PC: models, embedders, speech and local gateways.
-- Railway, Firecrawl, Supabase, Slack and Chrome DevTools packages or routes.
+- Railway, Firecrawl, Supabase and Chrome DevTools packages or routes. The Slack package is retired too; its plan stays only as the design record that `registry/bundles.json` cites.
+- `.vscode/mcp.json` as AgentHub-authored state.
 
 ## Compute and CI
 
@@ -33,7 +35,7 @@ What is true of AgentHub now. Keep this page to one screen: replace a line when 
 
 - Installed and list-verified is not the same as exercised in a fresh host session. Say which one was checked.
 - A `Run-AllTests.ps1` hang at `Test-SyncAgentHubRegistryRoot` was seen twice on 2026-08-11 and not since. Run that file alone before treating it as a failure.
-- `tests/ci-skip.json` lists the tests that need this PC.
+- `tests/ci-skip.json` lists the tests that need this PC or one operating system.
 
 ## Verify
 
