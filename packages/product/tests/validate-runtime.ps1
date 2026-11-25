@@ -91,6 +91,11 @@ if ($uiBadExitCode -ne 1) { throw 'A UI fixture that breaks every rule was accep
 foreach ($uiRule in @('viewport-font', 'letter-spacing', 'card-radius')) {
     if ($uiBadOutput -notmatch "(?m) $uiRule`:") { throw "The UI check missed the rule: $uiRule" }
 }
+# One bad line per parsing case: universal selector with !important, multi-line selector list, nested at-rule,
+# a viewport unit inside clamp() in a Tailwind size, and a unitless React radius.
+foreach ($uiCase in @('letter-spacing: 0.05em !important', 'border-radius: 12px !important', 'border-radius: 24px', 'text-[clamp(1rem,5vw,3rem)]', 'borderRadius: 16')) {
+    if (-not $uiBadOutput.Contains($uiCase)) { throw "The UI check missed a bad line: $uiCase" }
+}
 if ($uiSkippedExitCode -ne 0) { throw 'Skipping every rule did not clear the findings.' }
 if ($uiUnknownRuleExitCode -ne 2) { throw 'An unknown --skip rule was accepted.' }
 

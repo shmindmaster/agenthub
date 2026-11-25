@@ -6,3 +6,15 @@
   border-radius: 16px;
   padding: 16px;
 }
+* {
+  letter-spacing: 0.05em !important;
+}
+.summary-card,
+.panel {
+  border-radius: 12px !important;
+}
+@media (min-width: 40rem) {
+  .promo-card {
+    border-radius: 24px;
+  }
+}

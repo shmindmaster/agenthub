@@ -14,3 +14,20 @@
 @media (min-width: 40rem) {
   .hero-title { font-size: 3rem; }
 }
+* {
+  box-sizing: border-box;
+  letter-spacing: 0 !important;
+}
+.summary-card,
+.panel {
+  border-radius: 8px !important;
+}
+.plan-card {
+  padding: 16px;
+}
+@media (min-width: 40rem) {
+  .badge
+{
+    border-radius: 16px;
+  }
+}
