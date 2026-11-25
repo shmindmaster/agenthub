@@ -20,6 +20,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { anchorSeconds, parseAnchor, sceneEdges, wordsOf } from "../kit/explainer/anchor.mjs";
+import { SLIDE_BOX, diagramLayout } from "../kit/explainer/diagram.mjs";
 
 export { parseAnchor, sceneEdges };
 
@@ -36,7 +37,7 @@ const errors = [];
 const readJson = (p) => JSON.parse(readFileSync(p, "utf8").replace(/^﻿/, ""));
 
 // Default zoom per visual kind, so short bodies fill the 1600x1000 frame. A scene can override with visualScale.
-export const DEFAULT_SCALE = { svg: 1.15, sequence: 1.5, flow: 1.4, chart: 1.0, lottie: 1.0, layers: 1.5, checklist: 1.9,
+export const DEFAULT_SCALE = { svg: 1.15, sequence: 1.5, flow: 1.4, diagram: 1.0, chart: 1.0, lottie: 1.0, layers: 1.5, checklist: 1.9,
   proof: 1.9, timeline: 1.7, split: 1.8, stat: 1.15, hero: 1.6, table: 1.6, cta: 1.6 };
 
 export function makeResolver(cs, receipts, edges, fps = FPS) {
@@ -96,6 +97,8 @@ export function build(JOBROOT) {
     const mediaError = checkMediaSource(d.visual);
     if (mediaError) errors.push(`scene ${c.id}: ${mediaError}`);
     const visual = resolveAnchors(d.visual, c.id, resolve1, counter);
+    // A diagram with a bad icon, arrow or cell draws nothing, so it is refused here rather than shipped blank.
+    if (visual?.kind === "diagram") for (const p of diagramLayout(visual, SLIDE_BOX).problems) errors.push(`scene ${c.id}: ${p.code}: ${p.message}`);
     return { id: c.id, kicker: d.kicker ?? "", title: d.actionTitle ?? d.title ?? "", bullets: [], accent: d.accent ?? "#3DDC84", visual,
       visualScale: d.visualScale ?? DEFAULT_SCALE[visual?.kind] ?? 1,
       durationSeconds: +((Math.round(edges[i + 1] * FPS) - Math.round(edges[i] * FPS)) / FPS).toFixed(6) };

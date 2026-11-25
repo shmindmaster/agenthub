@@ -23,34 +23,34 @@ const WIDE = {
     hero: { x: 0.075, y: 0.17, w: 0.85, h: 0.6, align: 'center', valign: 'center' },
     kicker: { x: 0.075, y: 0.09, w: 0.85, h: 0.07, align: 'center' },
     title: null,
-    sub: { x: 0.15, y: 0.72, w: 0.7, h: 0.12, align: 'center' },
+    sub: { x: 0.15, y: 0.765, w: 0.7, h: 0.13, align: 'center' },
   },
   contrast: {
-    hero: { x: 0.06, y: 0.24, w: 0.88, h: 0.58, align: 'left', valign: 'top' },
+    hero: { x: 0.06, y: 0.255, w: 0.88, h: 0.6, align: 'left', valign: 'top' },
     kicker: { x: 0.075, y: 0.085, w: 0.85, h: 0.06, align: 'left' },
     title: { x: 0.075, y: 0.14, w: 0.85, h: 0.1, align: 'left' },
     sub: null,
   },
   mechanism: {
-    hero: { x: 0.045, y: 0.24, w: 0.91, h: 0.56, align: 'left', valign: 'top' },
+    hero: { x: 0.045, y: 0.24, w: 0.91, h: 0.62, align: 'left', valign: 'top' },
     kicker: { x: 0.075, y: 0.075, w: 0.85, h: 0.055, align: 'left' },
     title: { x: 0.075, y: 0.13, w: 0.85, h: 0.095, align: 'left' },
     sub: null,
   },
   layers: {
-    hero: { x: 0.18, y: 0.25, w: 0.64, h: 0.55, align: 'left', valign: 'center' },
+    hero: { x: 0.15, y: 0.25, w: 0.7, h: 0.6, align: 'left', valign: 'center' },
     kicker: { x: 0.075, y: 0.085, w: 0.85, h: 0.06, align: 'left' },
     title: { x: 0.075, y: 0.135, w: 0.85, h: 0.09, align: 'left' },
     sub: null,
   },
   timeline: {
-    hero: { x: 0.075, y: 0.3, w: 0.85, h: 0.42, align: 'left', valign: 'center' },
+    hero: { x: 0.06, y: 0.28, w: 0.88, h: 0.56, align: 'left', valign: 'center' },
     kicker: { x: 0.075, y: 0.1, w: 0.85, h: 0.06, align: 'left' },
     title: { x: 0.075, y: 0.155, w: 0.85, h: 0.1, align: 'left' },
     sub: null,
   },
   evidence: {
-    hero: { x: 0.075, y: 0.36, w: 0.85, h: 0.4, align: 'left', valign: 'top' },
+    hero: { x: 0.075, y: 0.34, w: 0.85, h: 0.51, align: 'left', valign: 'top' },
     kicker: { x: 0.075, y: 0.075, w: 0.6, h: 0.05, align: 'left' },
     title: { x: 0.075, y: 0.13, w: 0.85, h: 0.19, align: 'left' },
     sub: null,
@@ -62,9 +62,9 @@ const WIDE = {
     sub: { x: 0.125, y: 0.73, w: 0.6, h: 0.08, align: 'left' },
   },
   checklist: {
-    hero: { x: 0.19, y: 0.23, w: 0.62, h: 0.52, align: 'left', valign: 'top' },
-    kicker: { x: 0.19, y: 0.08, w: 0.62, h: 0.06, align: 'left' },
-    title: { x: 0.19, y: 0.135, w: 0.62, h: 0.08, align: 'left' },
+    hero: { x: 0.12, y: 0.25, w: 0.78, h: 0.58, align: 'left', valign: 'top' },
+    kicker: { x: 0.12, y: 0.08, w: 0.78, h: 0.06, align: 'left' },
+    title: { x: 0.12, y: 0.135, w: 0.78, h: 0.095, align: 'left' },
     sub: null,
   },
   media: {
@@ -174,7 +174,7 @@ export const wrapText = (text, maxWidth, size, tracking = 0) => {
 };
 
 /**
- * Largest size (between `min` and `max`) whose wrap fits `maxLines`.
+ * Largest size (between `min` and `max`) whose wrap fits `maxLines` and the width.
  * Returns the size and the wrapped lines; the renderer never re-measures.
  */
 export const fitHeadline = (text, options) => {
@@ -185,10 +185,12 @@ export const fitHeadline = (text, options) => {
     minSize = theme.type.s,
     tracking = theme.type.tracking.display,
   } = options;
+  // A single word cannot wrap, so a line can still be wider than its row.
+  const inRow = (lines, size) => lines.every((line) => textWidth(line, size, tracking) <= maxWidth);
   for (let size = maxSize; size >= minSize; size -= 2) {
     const lines = wrapText(text, maxWidth, size, tracking);
-    if (lines.length <= maxLines) return { size, lines, overflow: false };
+    if (lines.length <= maxLines && inRow(lines, size)) return { size, lines, overflow: false };
   }
   const lines = wrapText(text, maxWidth, minSize, tracking);
-  return { size: minSize, lines: lines.slice(0, maxLines), overflow: lines.length > maxLines };
+  return { size: minSize, lines: lines.slice(0, maxLines), overflow: lines.length > maxLines || !inRow(lines, minSize) };
 };

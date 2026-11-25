@@ -47,7 +47,7 @@ export const FAMILIES = {
     maxBeats: 10,
     cap: 0.45,
     visual: 'required',
-    kinds: ['flow', 'map', 'svg', 'sequence'],
+    kinds: ['flow', 'diagram', 'map', 'svg', 'sequence'],
     note: 'The diagram is the picture: full-bleed, nodes land on their words.',
   },
   layers: {

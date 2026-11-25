@@ -22,8 +22,21 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
-import { VisualBody, isVideoSrc, phase, type Visual } from '../src/Visuals';
-import { fitHeadline, layoutFor, textWidth } from './layout.mjs';
+import { Diagram } from '../src/Diagram';
+import { VisualBody, isVideoSrc, type Visual } from '../src/Visuals';
+import {
+  checklistLayout,
+  contrastLayout,
+  contrastSides,
+  fitTitle,
+  fitVisual,
+  numberSize,
+  numberWords,
+  pictureBox,
+  timelineLayout,
+} from './fit.mjs';
+import { fitHeadline, layoutFor } from './layout.mjs';
+import { phase } from './reveal.mjs';
 import { EASINGS, enter, progress, staggerFrames } from './motion.mjs';
 import {
   T,
@@ -78,8 +91,8 @@ const regionsFor = (family: string, film: ExplainerFilm): Regions =>
 const two = (value: number) => (value < 10 ? `0${value}` : String(value));
 
 /** The frame the hero lands: the shot's own heroAtSeconds, local to its
- * Sequence. Every family sets its first entrance from here so the picture and
- * the light arrive on the same frame. */
+ * Sequence, and the frame the light arrives on. A family with a title row opens
+ * on that row before this (OPENING_SECONDS). */
 const beatAt = (shot: ExplainerShot, fps: number): number =>
   Math.round((shot.heroAtSeconds ?? 0) * fps);
 
@@ -126,32 +139,6 @@ const accentIndexFor = (words: string[], emphasis?: string | null): number => {
   return -1;
 };
 
-const CAPTIONED_KINDS = [
-  'code',
-  'flow',
-  'layers',
-  'sequence',
-  'table',
-  'timeline',
-  'beforeafter',
-  'map',
-  'checklist',
-  'still',
-  'broll',
-  'screen-in-context',
-  'lower-third',
-  'chart',
-  'svg',
-];
-
-/** VisualBody prints `caption` itself for these kinds. A shell that places a
- * caption of its own asks first, so the same words never appear twice. */
-const bodyPrintsCaption = (visual: Visual | undefined): boolean =>
-  Boolean(visual && CAPTIONED_KINDS.indexOf(visual.kind) >= 0);
-
-const captionOf = (visual: Visual | undefined): string | undefined =>
-  visual && 'caption' in visual ? visual.caption : undefined;
-
 type StatSpec = {
   prefix: string;
   suffix: string;
@@ -188,15 +175,6 @@ const formatStat = (spec: StatSpec, t: number): string => {
     ? whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
     : whole;
   return `${spec.prefix}${grouped}${fraction ? `.${fraction}` : ''}${spec.suffix}`;
-};
-
-/** Fit on the final string, never on the counted-up frame: sizing from "0"
- * would grow the type mid-count and push the halo off centre. */
-const numberSize = (value: string, maxWidth: number): number => {
-  for (let size = T.type.number; size > 160; size -= 8) {
-    if (textWidth(value, size, -0.03) <= maxWidth) return size;
-  }
-  return 160;
 };
 
 const recentBeat = (beats: Beat[], seconds: number): Beat | null => {
@@ -433,6 +411,82 @@ const HeroFrame: FC<{ accent: string; at: number }> = ({ accent, at }) => {
   );
 };
 
+/** Every shot opens on its own furniture: the kicker, the title and the frame
+ * the picture will fill are up at this moment, whatever the first spoken beat
+ * is. Waiting for the beat left two or three seconds of empty frame. */
+const OPENING_SECONDS = 0.1;
+
+const openingAt = (fps: number): number => Math.round(OPENING_SECONDS * fps);
+
+/** The kicker and the line a shot is about, the same on every family that has
+ * a title row. The size comes from fit.mjs, so the builder has already refused
+ * a title that does not fit. */
+const ShotHead: FC<{ shot: ExplainerShot; r: Regions }> = ({ shot, r }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const open = openingAt(fps);
+  const fit = r.title ? fitTitle(shot.title ?? '', r.title) : null;
+  return (
+    <>
+      {r.kicker ? (
+        <Box r={r.kicker}>
+          <Kicker text={shot.kicker} at={open} />
+        </Box>
+      ) : null}
+      {r.title && fit ? (
+        <Box r={r.title}>
+          <div
+            style={{
+              ...enter('rise', progress('rise', frame, fps, open / fps)),
+              fontSize: fit.size,
+              fontWeight: 800,
+              lineHeight: 1.02,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {fit.lines.map((line: string, i: number) => (
+              <div key={i}>{line}</div>
+            ))}
+          </div>
+        </Box>
+      ) : null}
+    </>
+  );
+};
+
+/** A kit body at the largest size its region holds, centred in that region. */
+const FittedBody: FC<{
+  visual: Visual;
+  box: { x: number; y: number; w: number; h: number };
+  accent: string;
+  shot: ExplainerShot;
+}> = ({ visual, box, accent, shot }) => {
+  const fit = fitVisual(visual, box, shot.visualScale);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: box.x,
+        top: box.y,
+        width: box.w,
+        height: box.h,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }}
+    >
+      <div style={{ zoom: fit.zoom, width: fit.width }}>
+        <VisualBody
+          visual={visual}
+          accent={accent}
+          durationSeconds={shot.durationSeconds}
+          box={{ w: box.w, h: box.h }}
+        />
+      </div>
+    </div>
+  );
+};
+
 /* ------------------------------------------------------------- statement -- */
 
 const Statement: FC<ShotProps> = ({ shot, film }) => {
@@ -445,7 +499,7 @@ const Statement: FC<ShotProps> = ({ shot, film }) => {
     shot.visual && shot.visual.kind === 'lower-third' ? shot.visual : null;
   const title = hero ? hero.title : shot.title ?? '';
   const sub = shot.sub ?? (hero ? hero.sub : undefined);
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
 
   return (
     <ShotRoot>
@@ -534,29 +588,35 @@ const NumberShot: FC<ShotProps> = ({ shot, film, index }) => {
   const label = stat ? stat.label : shot.sub ?? '';
   const extra = stat ? stat.sub : undefined;
   const at = beatAt(shot, fps);
+  const open = openingAt(fps);
   const spec = parseStat(value);
   const size = numberSize(value, r.hero.w);
   const counted = spec
     ? formatStat(spec, EASINGS.out(clamp01((frame - at) / 20)))
     : value;
   const entryP = progress(spec ? 'settle' : 'pop', frame, fps, at / fps);
-  const ringP = progress('bloom', frame, fps, at / fps);
+  // The ring and the words are up before the number is spoken, so the frame
+  // says what is about to be counted instead of standing empty.
+  const ringP = progress('bloom', frame, fps, open / fps);
   // Consecutive number shots breathe out of phase, so a cut never lands on the
   // same point of the cycle twice.
   const breath = 1 + 0.02 * Math.sin(((frame - at) / 30 + index) * Math.PI * 2);
+  const ring = Math.round(r.hero.h * 0.93);
+  const words = numberWords(label, extra, r.sub ?? r.hero);
 
   return (
     <ShotRoot>
-      <Box r={r.hero} style={{ position: 'relative' }}>
+      <Box r={r.hero}>
         <div
           style={{
             position: 'absolute',
             left: '50%',
             top: '50%',
-            width: 560,
-            height: 560,
-            marginLeft: -280,
-            marginTop: -280,
+            width: ring,
+            height: ring,
+            marginLeft: -ring / 2,
+            marginTop: -ring / 2,
+            boxSizing: 'border-box',
             borderRadius: T.radius.pill,
             border: `2px solid ${alpha(accent, 0.32)}`,
             ...enter('bloom', ringP),
@@ -583,8 +643,8 @@ const NumberShot: FC<ShotProps> = ({ shot, film, index }) => {
         <Box r={r.sub}>
           <div
             style={{
-              ...enter('rise', progress('rise', frame, fps, (at + 10) / fps)),
-              fontSize: T.type.caption,
+              ...enter('rise', progress('rise', frame, fps, open / fps)),
+              fontSize: words.labelSize,
               fontWeight: 700,
               color: T.color.ink,
               textAlign: 'center',
@@ -595,9 +655,10 @@ const NumberShot: FC<ShotProps> = ({ shot, film, index }) => {
           {extra ? (
             <div
               style={{
+                ...enter('rise', progress('rise', frame, fps, (at + 16) / fps)),
                 marginTop: 12,
                 maxWidth: Math.round(r.sub.w * 0.8),
-                fontSize: 28,
+                fontSize: words.extraSize,
                 lineHeight: 1.3,
                 color: T.color.muted,
                 textAlign: 'center',
@@ -610,7 +671,7 @@ const NumberShot: FC<ShotProps> = ({ shot, film, index }) => {
       ) : null}
       {r.kicker ? (
         <Box r={r.kicker}>
-          <Kicker text={shot.kicker} at={at} align="center" />
+          <Kicker text={shot.kicker} at={open} align="center" />
         </Box>
       ) : null}
     </ShotRoot>
@@ -621,144 +682,120 @@ const NumberShot: FC<ShotProps> = ({ shot, film, index }) => {
 
 type Side = { title: string; items: { text: string; at?: number }[] };
 
-/** Two states the visual already describes. Split keeps its two sides; a
- * before/after becomes the same left/right pair, because the seam is what makes
- * the frame legible at a glance. */
-const sidesOf = (shot: ExplainerShot): { left: Side; right: Side } | null => {
-  const v = shot.visual;
-  if (!v) return null;
-  if (v.kind === 'split') {
-    return {
-      left: { title: v.left.title, items: v.left.items },
-      right: { title: v.right.title, items: v.right.items },
-    };
-  }
-  if (v.kind === 'beforeafter') {
-    return {
-      left: {
-        title: v.before.title,
-        items: v.before.items.map((text) => ({ text })),
-      },
-      right: {
-        title: v.after.title,
-        items: v.after.items.map((text) => ({ text })),
-      },
-    };
-  }
-  return null;
-};
-
 const Contrast: FC<ShotProps> = ({ shot, film, index }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const r = regionsFor('contrast', film);
   const accent = accentOf(shot, film);
-  const at = beatAt(shot, fps);
-  const sides = sidesOf(shot);
+  // Split keeps its two sides; a before/after becomes the same left/right pair,
+  // because the seam is what makes the frame legible at a glance.
+  const sides = contrastSides(shot.visual) as { left: Side; right: Side } | null;
   if (!sides) return <Statement shot={shot} film={film} index={index} />;
 
-  const visual = shot.visual;
-  const from = visual?.revealFrom ?? 0;
+  const from = shot.visual?.revealFrom ?? 0;
+  const open = openingAt(fps);
+  const fit = contrastLayout(sides, r.hero);
+  const top = r.hero.y + Math.round((r.hero.h - fit.panelH) / 2);
   const mid = r.hero.x + Math.round(r.hero.w / 2);
-  const colW = Math.round(r.hero.w / 2 - 46);
-  const seamP = progress('wipe', frame, fps, (at + 4) / fps);
+  const seamP = progress('wipe', frame, fps, (open + 4) / fps);
 
-  const column = (side: Side, lit: boolean, x: number) => (
-    <div
-      style={{
-        position: 'absolute',
-        left: x,
-        top: r.hero.y,
-        width: colW,
-        height: r.hero.h,
-        opacity: lit ? 1 : 0.55,
-        color: lit ? T.color.ink : T.color.muted,
-      }}
-    >
-      {/* The rule sits in its own layer so the lit title keeps the same
-          baseline as the dim one; pushing it down would read as a mistake. */}
-      {lit ? (
-        <div style={{ position: 'absolute', left: 0, top: 0 }}>
-          <Rule accent={accent} at={at + 6} width={56} thickness={2} />
-        </div>
-      ) : null}
+  const panel = (side: Side, lit: boolean, x: number) => {
+    const p = progress('rise', frame, fps, (open + (lit ? 6 : 2)) / fps);
+    return (
       <div
         style={{
-          marginTop: 18,
-          ...enter(
-            'rise',
-            progress('rise', frame, fps, (at + (lit ? 6 : 2)) / fps),
-          ),
-          fontSize: T.type.s,
-          fontWeight: 800,
-          letterSpacing: '-0.01em',
-          color: lit ? T.color.ink : T.color.muted,
-        }}
-      >
-        {side.title}
-      </div>
-      <div
-        style={{
-          marginTop: 26,
+          ...enter('rise', p),
+          position: 'absolute',
+          left: x,
+          top,
+          width: fit.panelW,
+          height: fit.panelH,
+          boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
-          gap: 18,
+          padding: fit.pad,
+          borderRadius: T.radius.card,
+          border: `2px solid ${lit ? alpha(accent, 0.75) : alpha(T.color.ink, 0.16)}`,
+          background: lit
+            ? `linear-gradient(180deg, ${alpha(accent, 0.12)} 0%, ${alpha(accent, 0.02)} 100%)`
+            : alpha(T.color.ink, 0.03),
+          boxShadow: lit ? `0 0 60px ${alpha(accent, 0.1)}` : undefined,
+          color: lit ? T.color.ink : T.color.inkSoft,
+          opacity: (lit ? 1 : 0.8) * p,
         }}
       >
-        {side.items.map((item, i) => {
-          const start = landAt(item, i, side.items.length, shot, from, fps);
-          return (
-            <div
-              key={i}
-              style={{
-                ...enter('rise', progress('rise', frame, fps, start / fps)),
-                fontSize: T.type.body,
-                lineHeight: 1.3,
-                fontWeight: 600,
-              }}
-            >
-              {item.text}
-            </div>
-          );
-        })}
+        <div
+          style={{
+            fontSize: fit.titleSize,
+            fontWeight: 800,
+            lineHeight: 1.1,
+            color: lit ? accent : T.color.inkSoft,
+          }}
+        >
+          {side.title}
+        </div>
+        <div
+          style={{
+            marginTop: 28,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: Math.round(fit.itemSize * 0.5),
+            // The lines sit in the middle of what the panel has left, so a
+            // short side does not hang from its title.
+            flex: 1,
+            justifyContent: 'center',
+          }}
+        >
+          {side.items.map((item, i) => {
+            const start = landAt(item, i, side.items.length, shot, from, fps);
+            return (
+              <div
+                key={i}
+                style={{
+                  ...enter('rise', progress('rise', frame, fps, start / fps)),
+                  position: 'relative',
+                  paddingLeft: fit.bullet,
+                  fontSize: fit.itemSize,
+                  lineHeight: 1.24,
+                  fontWeight: 600,
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: Math.round(fit.itemSize * 0.5),
+                    width: 12,
+                    height: 12,
+                    borderRadius: T.radius.pill,
+                    background: lit ? accent : T.color.muted,
+                  }}
+                />
+                {item.text}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <ShotRoot>
-      {r.kicker ? (
-        <Box r={r.kicker}>
-          <Kicker text={shot.kicker} at={at} />
-        </Box>
-      ) : null}
-      {r.title ? (
-        <Box r={r.title}>
-          <div
-            style={{
-              ...enter('rise', progress('rise', frame, fps, 0.15)),
-              fontSize: Math.floor(Math.min(T.type.m, r.title.h / 2.15)),
-              fontWeight: 800,
-              lineHeight: 1.02,
-            }}
-          >
-            {shot.title ?? ''}
-          </div>
-        </Box>
-      ) : null}
+      <ShotHead shot={shot} r={r} />
       <div
         style={{
           position: 'absolute',
           left: mid,
-          top: r.hero.y - 10,
+          top: top - 10,
           width: 1,
-          height: r.hero.h + 20,
-          background: alpha(T.color.ink, 0.25),
+          height: fit.panelH + 20,
+          background: alpha(T.color.ink, 0.3),
           ...wipeDown(seamP),
         }}
       />
-      {column(sides.left, false, r.hero.x)}
-      {column(sides.right, true, mid + 46)}
+      {panel(sides.left, false, r.hero.x)}
+      {panel(sides.right, true, r.hero.x + r.hero.w - fit.panelW)}
     </ShotRoot>
   );
 };
@@ -771,38 +808,18 @@ const Mechanism: FC<ShotProps> = ({ shot, film, index }) => {
   const r = regionsFor('mechanism', film);
   const accent = accentOf(shot, film);
   const visual = shot.visual;
-  const at = beatAt(shot, fps);
   if (!visual) return <Statement shot={shot} film={film} index={index} />;
 
-  const zoom = Math.min(1.8, Math.max(1, (shot.visualScale ?? 1) * 1.15));
+  const box = pictureBox('mechanism', r.hero);
   const beat = recentBeat(shot.beats, Math.max(0, frame) / fps);
   const ringP = beat
     ? clamp01((frame - Math.round(beat.atSeconds * fps)) / 12)
     : 0;
-  const intro = progress('settle', frame, fps, at / fps);
-  const caption = captionOf(visual);
+  const intro = progress('settle', frame, fps, openingAt(fps) / fps);
 
   return (
     <ShotRoot>
-      {r.kicker ? (
-        <Box r={r.kicker}>
-          <Kicker text={shot.kicker} at={at} />
-        </Box>
-      ) : null}
-      {r.title ? (
-        <Box r={r.title}>
-          <div
-            style={{
-              ...enter('rise', progress('rise', frame, fps, 0.15)),
-              fontSize: Math.floor(Math.min(T.type.m, r.title.h / 2.15)),
-              fontWeight: 800,
-              lineHeight: 1.02,
-            }}
-          >
-            {shot.title ?? ''}
-          </div>
-        </Box>
-      ) : null}
+      <ShotHead shot={shot} r={r} />
       <div
         style={{
           position: 'absolute',
@@ -810,6 +827,7 @@ const Mechanism: FC<ShotProps> = ({ shot, film, index }) => {
           top: r.hero.y + 4,
           width: r.hero.w - 8,
           height: r.hero.h - 8,
+          boxSizing: 'border-box',
           borderRadius: 22,
           border: `2px solid ${alpha(accent, 0.55)}`,
           opacity: intro * (0.9 - 0.5 * ringP),
@@ -817,41 +835,19 @@ const Mechanism: FC<ShotProps> = ({ shot, film, index }) => {
           pointerEvents: 'none',
         }}
       />
-      <div
-        style={{
-          position: 'absolute',
-          left: r.hero.x,
-          top: r.hero.y,
-          width: r.hero.w / zoom,
-          height: r.hero.h / zoom,
-          zoom,
-        }}
-      >
-        <VisualBody
-          visual={visual}
-          accent={accent}
-          durationSeconds={shot.durationSeconds}
-        />
-      </div>
-      {caption && !bodyPrintsCaption(visual) ? (
-        <div
-          style={{
-            position: 'absolute',
-            left: r.hero.x,
-            top: r.hero.y + r.hero.h + 10,
-            width: r.hero.w,
-            fontSize: 28,
-            lineHeight: 1.2,
-            color: T.color.muted,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            ...enter('fade', progress('fade', frame, fps, (at + 24) / fps)),
-          }}
-        >
-          {caption}
+      {visual.kind === 'flow' ? (
+        <div style={{ position: 'absolute', left: box.x, top: box.y }}>
+          <Diagram
+            v={visual}
+            accent={accent}
+            d={shot.durationSeconds}
+            box={box}
+            revealFrom={visual.revealFrom}
+          />
         </div>
-      ) : null}
+      ) : (
+        <FittedBody visual={visual} box={box} accent={accent} shot={shot} />
+      )}
     </ShotRoot>
   );
 };
@@ -864,91 +860,79 @@ const LayersShot: FC<ShotProps> = ({ shot, film, index }) => {
   const r = regionsFor('layers', film);
   const accent = accentOf(shot, film);
   const visual = shot.visual;
-  const at = beatAt(shot, fps);
   if (!visual || visual.kind !== 'layers') {
     return <Statement shot={shot} film={film} index={index} />;
   }
 
-  const zoom = 1.5;
   const from = visual.revealFrom ?? 0;
   const layers = visual.layers;
+  const fit = fitVisual(visual, r.hero, shot.visualScale);
+  const stackH = Math.min(r.hero.h, fit.height * fit.zoom);
   let active = 0;
   layers.forEach((layer, i) => {
     const start = landAt(layer, i, layers.length, shot, from, fps);
     if (Math.round(frame) >= start) active = i;
   });
-  const bandY = layers.length
-    ? ((active + 0.5) / layers.length) * 100
-    : 50;
+  const bandY = layers.length ? ((active + 0.5) / layers.length) * 100 : 50;
+  const outline = progress('fade', frame, fps, openingAt(fps) / fps);
+  const stackNatural = fit.bands.reduce(
+    (total: number, height: number) => total + height + 14,
+    -14,
+  );
+  const bandTops = fit.bands.map(
+    (_: number, i: number) =>
+      r.hero.y +
+      (r.hero.h - stackH) / 2 +
+      (fit.height - stackNatural) * fit.zoom +
+      fit.bands
+        .slice(0, i)
+        .reduce((total: number, height: number) => total + height + 14, 0) *
+        fit.zoom,
+  );
 
   return (
     <ShotRoot>
-      {r.kicker ? (
-        <Box r={r.kicker}>
-          <Kicker text={shot.kicker} at={at} />
-        </Box>
-      ) : null}
-      {r.title ? (
-        <Box r={r.title}>
-          <div
-            style={{
-              ...enter('rise', progress('rise', frame, fps, 0.15)),
-              fontSize: Math.floor(Math.min(T.type.m, r.title.h / 2.15)),
-              fontWeight: 800,
-              lineHeight: 1.02,
-            }}
-          >
-            {shot.title ?? ''}
-          </div>
-        </Box>
-      ) : null}
+      <ShotHead shot={shot} r={r} />
+      {/* The pool of light follows the band whose `at` has passed most recently.
+          Band heights are even, so the index places it inside the stack. */}
       <div
         style={{
           position: 'absolute',
           left: r.hero.x,
-          top: r.hero.y,
+          top: r.hero.y + (r.hero.h - stackH) / 2,
           width: r.hero.w,
-          height: r.hero.h,
+          height: stackH,
+          background: `radial-gradient(44% 26% at 46% ${bandY.toFixed(1)}%, ${alpha(accent, 0.1)} 0%, transparent 72%)`,
+          pointerEvents: 'none',
         }}
-      >
-        {/* The pool of light follows the band whose `at` has passed most
-            recently. Band heights are even, so the index places it without
-            measuring the stack. */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: `radial-gradient(44% 26% at 46% ${bandY.toFixed(1)}%, ${alpha(accent, 0.1)} 0%, transparent 72%)`,
-            pointerEvents: 'none',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'linear-gradient(to bottom, rgba(0,0,0,0) 58%, rgba(0,0,0,0.55) 100%)',
-            pointerEvents: 'none',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            width: r.hero.w / zoom,
-            height: r.hero.h / zoom,
-            zoom,
-            filter: 'drop-shadow(0 16px 22px rgba(0,0,0,0.45))',
-          }}
-        >
-          <VisualBody
-            visual={visual}
-            accent={accent}
-            durationSeconds={shot.durationSeconds}
+      />
+      {/* Every band is outlined from the start, so the depth of the stack is on
+          screen before its first layer is named. */}
+      {fit.bands.map((height: number, i: number) => {
+        const start = landAt(layers[i], i, layers.length, shot, from, fps);
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: r.hero.x,
+              top: bandTops[i],
+              width: r.hero.w,
+              height: height * fit.zoom,
+              boxSizing: 'border-box',
+              borderRadius: 8 * fit.zoom,
+              border: `2px dashed ${alpha(T.color.ink, 0.2)}`,
+              opacity:
+                outline * (1 - progress('rise', frame, fps, start / fps)),
+            }}
           />
-        </div>
-      </div>
+        );
+      })}
+      <AbsoluteFill
+        style={{ filter: 'drop-shadow(0 16px 22px rgba(0,0,0,0.45))' }}
+      >
+        <FittedBody visual={visual} box={r.hero} accent={accent} shot={shot} />
+      </AbsoluteFill>
     </ShotRoot>
   );
 };
@@ -961,87 +945,166 @@ const TimelineShot: FC<ShotProps> = ({ shot, film, index }) => {
   const r = regionsFor('timeline', film);
   const accent = accentOf(shot, film);
   const visual = shot.visual;
-  const at = beatAt(shot, fps);
   if (!visual || visual.kind !== 'timeline') {
     return <Statement shot={shot} film={film} index={index} />;
   }
 
-  const zoom = 1.35;
-  const sweep = progress('push', frame, fps, 0, shot.durationSeconds);
-  // Above the event column: the primitive's spine runs down, so a playhead drawn
-  // left-to-right across the body would cut through the labels.
-  const railY = r.hero.y - 22;
+  const from = visual.revealFrom ?? 0;
+  const events = visual.events;
+  const fit = timelineLayout(events, r.hero);
+  const open = openingAt(fps);
+  const starts = events.map((event, i) =>
+    landAt({ at: event.beat }, i, events.length, shot, from, fps),
+  );
+  let current = -1;
+  starts.forEach((start, i) => {
+    if (frame >= start && (current < 0 || start >= starts[current])) current = i;
+  });
+  // The playhead reaches each event on the frame that event lands, then runs on
+  // to the end of the rail with the rest of the line.
+  const stops = [
+    { f: Math.min(0, ...starts), x: 0 },
+    ...starts.map((f, i) => ({ f, x: fit.centres[i] })),
+    { f: Math.max(shot.durationFrames, ...starts.map((f) => f + 1)), x: r.hero.w },
+  ].sort((m, n) => m.f - n.f || m.x - n.x);
+  const next = stops.findIndex((stop) => stop.f > frame);
+  const past = stops[next < 0 ? stops.length - 1 : Math.max(0, next - 1)];
+  const ahead = next < 0 ? past : stops[next];
+  const head =
+    past.x +
+    (ahead.f > past.f
+      ? ((frame - past.f) / (ahead.f - past.f)) * (ahead.x - past.x)
+      : 0);
+  const railTop = r.hero.y + fit.railY;
+  const toneOf = (mark?: string) =>
+    mark === 'good'
+      ? T.color.good
+      : mark === 'risk'
+        ? T.color.risk
+        : mark === 'emphasis'
+          ? T.color.accent
+          : accent;
 
   return (
     <ShotRoot>
-      {r.kicker ? (
-        <Box r={r.kicker}>
-          <Kicker text={shot.kicker} at={at} />
-        </Box>
-      ) : null}
-      {r.title ? (
-        <Box r={r.title}>
-          <div
-            style={{
-              ...enter('rise', progress('rise', frame, fps, 0.15)),
-              fontSize: Math.floor(Math.min(T.type.m, r.title.h / 2.15)),
-              fontWeight: 800,
-              lineHeight: 1.02,
-            }}
-          >
-            {shot.title ?? ''}
-          </div>
-        </Box>
-      ) : null}
+      <ShotHead shot={shot} r={r} />
       <div
         style={{
           position: 'absolute',
           left: r.hero.x,
-          top: railY,
+          top: railTop - 2,
           width: r.hero.w,
-          height: 2,
-          background: alpha(T.color.ink, 0.14),
-          ...enter('wipe', progress('wipe', frame, fps, at / fps)),
+          height: 4,
+          borderRadius: 2,
+          background: alpha(T.color.ink, 0.16),
+          ...enter('wipe', progress('wipe', frame, fps, open / fps)),
         }}
       />
       <div
         style={{
           position: 'absolute',
-          left: Math.round(r.hero.x + r.hero.w * sweep) - 1,
-          top: railY - 5,
-          width: 2,
-          height: 12,
+          left: r.hero.x,
+          top: railTop - 2,
+          width: Math.max(0, head),
+          height: 4,
+          borderRadius: 2,
           background: accent,
         }}
       />
+      {events.map((event, i) => {
+        const x = r.hero.x + fit.centres[i];
+        const landed = frame >= starts[i];
+        const p = progress('rise', frame, fps, starts[i] / fps);
+        const grow = progress('pop', frame, fps, starts[i] / fps);
+        const shown = progress('fade', frame, fps, (open + 4 * i) / fps);
+        const lit = i === current;
+        const tone = toneOf(event.mark);
+        const dot = 18 + (lit ? 14 * grow : 0);
+        return (
+          <div key={i}>
+            <div
+              style={{
+                position: 'absolute',
+                left: x - fit.inner / 2,
+                width: fit.inner,
+                bottom: film.height - railTop + 30,
+                textAlign: 'center',
+                fontSize: fit.dateSize,
+                fontWeight: 800,
+                lineHeight: 1.1,
+                textWrap: 'balance',
+                color: lit ? tone : T.color.ink,
+                // The dates are up from the start, so the span is readable
+                // before the first event lands on it.
+                opacity: shown * (lit ? 1 : landed ? 0.78 : 0.4),
+              }}
+            >
+              {event.at}
+            </div>
+            <div
+              style={{
+                position: 'absolute',
+                left: x - dot / 2,
+                top: railTop - dot / 2,
+                width: dot,
+                height: dot,
+                boxSizing: 'border-box',
+                borderRadius: T.radius.pill,
+                background: landed ? tone : T.color.base,
+                border: `3px solid ${landed ? tone : alpha(T.color.ink, 0.35)}`,
+                boxShadow: lit ? `0 0 34px ${alpha(tone, 0.6)}` : undefined,
+                opacity: shown,
+              }}
+            />
+            <div
+              style={{
+                ...enter('rise', p),
+                position: 'absolute',
+                left: x - fit.inner / 2,
+                top: railTop + 44,
+                width: fit.inner,
+                textAlign: 'center',
+                opacity: p * (lit ? 1 : 0.72),
+              }}
+            >
+              <div
+                style={{
+                  fontSize: fit.labelSize,
+                  textWrap: 'balance',
+                  fontWeight: 700,
+                  lineHeight: 1.16,
+                  color: lit ? T.color.ink : T.color.inkSoft,
+                }}
+              >
+                {event.label}
+              </div>
+              {event.sub ? (
+                <div
+                  style={{
+                    marginTop: 14,
+                    fontSize: fit.subSize,
+                    lineHeight: 1.3,
+                    color: T.color.inkSoft,
+                  }}
+                >
+                  {event.sub}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        );
+      })}
       <div
         style={{
           position: 'absolute',
-          left: Math.round(r.hero.x + r.hero.w * sweep) - 5,
-          top: railY - 4,
-          width: 10,
-          height: 10,
-          borderRadius: T.radius.pill,
+          left: r.hero.x + Math.round(head) - 1,
+          top: railTop - 16,
+          width: 2,
+          height: 32,
           background: accent,
           boxShadow: `0 0 18px ${alpha(accent, 0.55)}`,
         }}
       />
-      <div
-        style={{
-          position: 'absolute',
-          left: r.hero.x,
-          top: r.hero.y,
-          width: r.hero.w / zoom,
-          height: r.hero.h / zoom,
-          zoom,
-        }}
-      >
-        <VisualBody
-          visual={visual}
-          accent={accent}
-          durationSeconds={shot.durationSeconds}
-        />
-      </div>
     </ShotRoot>
   );
 };
@@ -1054,36 +1117,31 @@ const Evidence: FC<ShotProps> = ({ shot, film, index }) => {
   const r = regionsFor('evidence', film);
   const accent = accentOf(shot, film);
   const visual = shot.visual;
-  const at = beatAt(shot, fps);
+  const open = openingAt(fps);
   if (!visual) return <Statement shot={shot} film={film} index={index} />;
 
-  const claim =
-    visual.kind === 'proof' || visual.kind === 'sidecar'
-      ? visual.claim
-      : shot.title ?? '';
-  const tracking = T.type.tracking.display;
+  // The body prints its own claim, so the row above it is the shot's title.
+  const claim = shot.title || ('claim' in visual ? String(visual.claim ?? '') : '');
   // Fit here as well as inside Headline so the connector can start at the real
   // baseline. Same input, same computation, same lines — nothing is measured.
   const fitted = fitHeadline(claim, {
-    maxWidth: r.title ? r.title.w : r.hero.w,
+    maxWidth: Math.floor((r.title ? r.title.w : r.hero.w) * 0.88),
     maxLines: 2,
     maxSize: 64,
     minSize: 52,
-    tracking,
+    tracking: T.type.tracking.display,
   });
   const claimBottom =
     (r.title ? r.title.y : r.hero.y - 60) +
     Math.round(fitted.lines.length * fitted.size * T.type.lineHeight.display);
-  const connectorTop = claimBottom + 6;
+  const connectorTop = claimBottom + 12;
   const connectorLen = Math.max(12, r.hero.y - 10 - connectorTop);
-  const caption = captionOf(visual);
-  const zoom = Math.min(1.3, Math.max(1, shot.visualScale ?? 1));
 
   return (
     <ShotRoot>
       {r.kicker ? (
         <Box r={r.kicker}>
-          <Kicker text={shot.kicker} at={at} />
+          <Kicker text={shot.kicker} at={open} />
         </Box>
       ) : null}
       {r.title ? (
@@ -1091,7 +1149,7 @@ const Evidence: FC<ShotProps> = ({ shot, film, index }) => {
           <Headline
             text={claim}
             accent={accent}
-            at={at}
+            at={open}
             maxWidth={r.title.w}
             maxSize={64}
             minSize={52}
@@ -1119,7 +1177,7 @@ const Evidence: FC<ShotProps> = ({ shot, film, index }) => {
           strokeWidth={1}
           pathLength={1}
           strokeDasharray={1}
-          {...enter('draw', progress('draw', frame, fps, (at + 6) / fps))}
+          {...enter('draw', progress('draw', frame, fps, (open + 6) / fps))}
         />
       </svg>
       <div
@@ -1127,34 +1185,18 @@ const Evidence: FC<ShotProps> = ({ shot, film, index }) => {
           position: 'absolute',
           left: r.hero.x,
           top: r.hero.y,
-          width: r.hero.w / zoom,
-          height: r.hero.h / zoom,
-          zoom,
+          width: r.hero.w,
+          height: r.hero.h,
         }}
       >
-        <HeroFrame accent={accent} at={at} />
-        <VisualBody
-          visual={visual}
-          accent={accent}
-          durationSeconds={shot.durationSeconds}
-        />
+        <HeroFrame accent={accent} at={open} />
       </div>
-      {caption && !bodyPrintsCaption(visual) ? (
-        <div
-          style={{
-            position: 'absolute',
-            left: r.hero.x,
-            top: Math.round(film.height * 0.8),
-            width: r.hero.w,
-            fontSize: T.type.label,
-            letterSpacing: '0.04em',
-            color: T.color.muted,
-            ...enter('fade', progress('fade', frame, fps, (at + 24) / fps)),
-          }}
-        >
-          {caption}
-        </div>
-      ) : null}
+      <FittedBody
+        visual={visual}
+        box={pictureBox('evidence', r.hero)}
+        accent={accent}
+        shot={shot}
+      />
     </ShotRoot>
   );
 };
@@ -1169,7 +1211,7 @@ const QuoteShot: FC<ShotProps> = ({ shot, film, index }) => {
   const visual = shot.visual && shot.visual.kind === 'quote' ? shot.visual : null;
   const text = visual ? visual.text : shot.title ?? '';
   const who = visual ? visual.attribution : shot.sub;
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
 
   return (
     <ShotRoot>
@@ -1228,15 +1270,16 @@ const Checklist: FC<ShotProps> = ({ shot, film, index }) => {
   const r = regionsFor('checklist', film);
   const accent = accentOf(shot, film);
   const visual = shot.visual;
-  const at = beatAt(shot, fps);
+  const open = openingAt(fps);
   if (!visual || visual.kind !== 'checklist') {
     return <Statement shot={shot} film={film} index={index} />;
   }
 
   const from = visual.revealFrom ?? 0;
   const items = visual.items;
-  const rowH = 82;
-  const visible = 5;
+  const fit = checklistLayout(items, r.hero);
+  const { rowH, visible } = fit;
+  const listY = r.hero.y + Math.round((r.hero.h - rowH * visible) / 2);
   const lift = items
     .slice(visible)
     .reduce(
@@ -1253,25 +1296,7 @@ const Checklist: FC<ShotProps> = ({ shot, film, index }) => {
 
   return (
     <ShotRoot>
-      {r.kicker ? (
-        <Box r={r.kicker}>
-          <Kicker text={shot.kicker} at={at} />
-        </Box>
-      ) : null}
-      {r.title ? (
-        <Box r={r.title}>
-          <div
-            style={{
-              ...enter('rise', progress('rise', frame, fps, 0.15)),
-              fontSize: Math.floor(Math.min(64, r.title.h / 2.15)),
-              fontWeight: 800,
-              lineHeight: 1.02,
-            }}
-          >
-            {shot.title ?? ''}
-          </div>
-        </Box>
-      ) : null}
+      <ShotHead shot={shot} r={r} />
       {/* Rail: one dot per item, filled as each is spoken. It stays put while
           the list scrolls, so it reads as progress rather than as an index. */}
       {items.map((item, i) => {
@@ -1282,7 +1307,7 @@ const Checklist: FC<ShotProps> = ({ shot, film, index }) => {
         // still reads as progress rather than as a second, wrong index.
         const step =
           items.length <= visible ? rowH : (rowH * visible) / items.length;
-        const top = r.hero.y + i * step + Math.min(step, rowH) / 2 - 3;
+        const top = listY + i * step + Math.min(step, rowH) / 2 - 3;
         return (
           <div
             key={`rail-${i}`}
@@ -1294,7 +1319,9 @@ const Checklist: FC<ShotProps> = ({ shot, film, index }) => {
               height: 7,
               borderRadius: T.radius.pill,
               background: done ? accent : alpha(T.color.ink, 0.18),
-              opacity: done ? 1 : 0.8,
+              opacity:
+                (done ? 1 : 0.8) *
+                progress('fade', frame, fps, (open + 3 * i) / fps),
             }}
           />
         );
@@ -1303,7 +1330,7 @@ const Checklist: FC<ShotProps> = ({ shot, film, index }) => {
         style={{
           position: 'absolute',
           left: r.hero.x,
-          top: r.hero.y,
+          top: listY,
           width: r.hero.w,
           height: rowH * visible,
           overflow: 'hidden',
@@ -1325,25 +1352,29 @@ const Checklist: FC<ShotProps> = ({ shot, film, index }) => {
                 name={`Item ${i + 1}`}
                 style={{
                   height: rowH,
+                  flexShrink: 0,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 22,
-                  ...enter('rise', progress('rise', frame, fps, start / fps)),
+                  gap: fit.gap,
                 }}
               >
                 <div
                   style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: 7,
-                    border: `1px solid ${alpha(check > 0 ? accent : T.color.ink, check > 0 ? 0.7 : 0.3)}`,
+                    // The empty boxes are up from the start: the viewer sees
+                    // how many checks there are before the first is named.
+                    opacity: progress('fade', frame, fps, (open + 3 * i) / fps),
+                    boxSizing: 'border-box',
+                    width: fit.boxSize,
+                    height: fit.boxSize,
+                    borderRadius: Math.round(fit.boxSize * 0.24),
+                    border: `2px solid ${alpha(check > 0 ? accent : T.color.ink, check > 0 ? 0.7 : 0.3)}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
                   }}
                 >
-                  <svg width={18} height={18} viewBox="0 0 18 18">
+                  <svg width="70%" height="70%" viewBox="0 0 18 18">
                     <polyline
                       points="3,9 7,13 15,4"
                       fill="none"
@@ -1359,8 +1390,9 @@ const Checklist: FC<ShotProps> = ({ shot, film, index }) => {
                 </div>
                 <div
                   style={{
-                    fontSize: T.type.caption,
-                    lineHeight: 1.25,
+                    ...enter('rise', progress('rise', frame, fps, start / fps)),
+                    fontSize: fit.size,
+                    lineHeight: 1.2,
                     fontWeight: 600,
                   }}
                 >
@@ -1386,7 +1418,7 @@ const MediaShot: FC<ShotProps> = ({ shot, film, index }) => {
   const src = visual && 'src' in visual ? visual.src : null;
   if (!src) return <Statement shot={shot} film={film} index={index} />;
 
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
   const push = 1 + 0.04 * progress('push', frame, fps, 0, shot.durationSeconds);
   const slideIn = (offset: number) =>
     enter('slide', progress('slide', frame, fps, (at + offset) / fps));
@@ -1477,7 +1509,8 @@ const StingShot: FC<ShotProps> = ({ shot, film }) => {
   const r = regionsFor('sting', film);
   const accent = accentOf(shot, film);
   const visual = shot.visual;
-  const at = beatAt(shot, fps);
+  // A drawn sting lands on its word; one made of words is up from the start.
+  const at = visual && visual.kind === 'lottie' ? beatAt(shot, fps) : openingAt(fps);
   const p = progress('pop', frame, fps, at / fps);
 
   if (visual && visual.kind === 'lottie') {
@@ -1533,7 +1566,7 @@ const ChapterShot: FC<ShotProps> = ({ shot, film }) => {
   const accent = accentOf(shot, film);
   const visual =
     shot.visual && shot.visual.kind === 'chapter' ? shot.visual : null;
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
   const chapterIndex = film.chapters.findIndex((c) => c.id === shot.chapterId);
   const number = two(chapterIndex >= 0 ? chapterIndex + 1 : 1);
   const label = visual
@@ -1597,7 +1630,7 @@ const EndShot: FC<ShotProps> = ({ shot, film }) => {
   const title = visual ? visual.title : shot.title ?? '';
   const next = visual ? visual.next : shot.sub ?? '';
   const kicker = visual && visual.kicker ? visual.kicker : shot.kicker;
-  const at = beatAt(shot, fps);
+  const at = openingAt(fps);
   const tracking = T.type.tracking.display;
   const fitted = fitHeadline(title, {
     maxWidth: r.hero.w,
