@@ -141,7 +141,8 @@ test('record-job --ratio picks options.viewports[r] and writes ratio, device, vi
   assert.match(src, /ratio: ratioOpt \|\| reducedRatio\(rec\.viewport\)/);
   assert.match(src, /device: capture\.device/);
   assert.match(src, /deviceScaleFactor: (?:options\.mobileLayout \? options\.mobileLayout\.scale : )?capture\.deviceScaleFactor \|\| 2/);
-  assert.match(src, /resolution: capture\.videoSize \|\| capture\.viewport/);
+  assert.match(src, /finishTake(id, fin, take, capture.videoSize || capture.viewport)/);
+  assert.equal(src.match(/renderRecast(rawRel, outRel, {[^}]*bresolution })/g)?.length, 2, "both Recast passes use that frame");
   // A --ratio entry is a CSS viewport: it records and Recasts at viewport x DSF (Playwright records at the size it is given).
   assert.match(src, /capture\.videoSize = \{ width: Math\.round\(vp\.width \* dsf\), height: Math\.round\(vp\.height \* dsf\) \}/);
   assert.match(src, /videoSize: capture\.videoSize/);
