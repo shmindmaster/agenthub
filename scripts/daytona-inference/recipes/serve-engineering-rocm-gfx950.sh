@@ -19,6 +19,7 @@ GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.40}"
 MAX_NUM_BATCHED_TOKENS="${MAX_NUM_BATCHED_TOKENS:-16384}"
 MTP_TOKENS="${MTP_TOKENS:-3}"
 PARALLEL="${PARALLEL:-2}"
+THREADS="${THREADS:-16}"  # the box has 16 vCPUs, but llama-server counts the host's 192
 BATCH_SIZE="${BATCH_SIZE:-4096}"
 UBATCH_SIZE="${UBATCH_SIZE:-2048}"
 CACHE_TYPE_K="${CACHE_TYPE_K:-f16}"
@@ -58,7 +59,11 @@ if [[ ! -x "$LLAMA_LOCAL_BIN/llama-server" ]] && [[ -s "$LLAMA_CACHE_TGZ" ]]; th
   tar -xzf "$LLAMA_CACHE_TGZ" -C "$LLAMA_LOCAL_BIN"
 fi
 
-for libdir in "$LLAMA_LOCAL_BIN" "$LLAMA_CACHE_DIR" /opt/rocm/lib "$ROCM_PY_LIB"; do
+# The devel wheel has no rocBLAS kernels; without this the first request aborts llama-server.
+ROCBLAS_KERNELS="${ROCM_PY_LIB%/*/*}/_rocm_sdk_libraries/lib/rocblas/library"
+[[ -d "$ROCBLAS_KERNELS" ]] && export ROCBLAS_TENSILE_LIBPATH="$ROCBLAS_KERNELS"
+
+for libdir in "$LLAMA_CACHE_DIR" /opt/rocm/lib "$ROCM_PY_LIB/rocm_sysdeps/lib" "$ROCM_PY_LIB" "$LLAMA_LOCAL_BIN"; do
   if [[ -n "$libdir" && -d "$libdir" ]]; then
     export LD_LIBRARY_PATH="${libdir}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   fi
@@ -267,8 +272,9 @@ LLAMA_ARGS=(
   --host 0.0.0.0
   --port "$FLAG_PORT"
   --n-gpu-layers 999
-  --ctx-size "$CTX_SIZE"
+  --ctx-size "$((CTX_SIZE * PARALLEL))"  # llama-server splits this between the slots
   --parallel "$PARALLEL"
+  --threads "$THREADS"
   --lazy-mode off
   --override-tensor 'per_layer_token_embd.weight=CPU'
   --flash-attn on
@@ -288,11 +294,13 @@ LLAMA_ARGS=(
 )
 
 echo "launching_llama_server_on_port=$FLAG_PORT shard=$FIRST_SHARD"
-"$LLAMA_BIN" "${LLAMA_ARGS[@]}" > /tmp/flagship.log 2>&1 &
+# A flagship crash restarts the flagship only; the 27B keeps serving.
+( while true; do "$LLAMA_BIN" "${LLAMA_ARGS[@]}" >> /tmp/flagship.log 2>&1 || true; echo "flagship_exited, restarting"; sleep 10; done ) &
 LLAMA_PID=$!
 
-wait -n "$VLLM_PID" "$LLAMA_PID"
-RC=$?
-echo "engineering_child_exited rc=$RC"
-kill "$VLLM_PID" "$LLAMA_PID" 2>/dev/null || true
+RC=0
+wait "$VLLM_PID" || RC=$?
+echo "vllm_exited rc=$RC"
+kill "$LLAMA_PID" 2>/dev/null || true
+pkill -f "[l]lama-server" 2>/dev/null || true
 exit "$RC"

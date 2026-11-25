@@ -10,8 +10,9 @@ Permanent inference gateway and unified NVIDIA/AMD Daytona spot GPU operations f
   - Backed by LiteLLM + PostgreSQL (`scripts/daytona-inference/gateway/`), preserving model aliases without ever rewriting coding-agent configs or DNS on spot eviction.
   - Pre-`2026-12-01` migration off `sh-forge`: see [MIGRATION-2026-12-01.md](../../scripts/daytona-inference/gateway/MIGRATION-2026-12-01.md).
 - **Dual-MI355X Spot Architecture (2/2 Max GPU Slots):**
-  - **Slot 1 (`engineering` role, `agenthub-engineering`):** Single MI355X (288 GB CDNA4 `gfx950`) running both vLLM ROCm (`:8001`, `Qwen3.8-27B-Uncensored-FP8`, 262144 context) and `llama-server` HIP (`:8002`, `Qwen3.8-Flash-Next-Uncensored-GGUF` `Q8_0`, 262144 context, CPU PLE) on `opencode-agent-weights` (`/mnt/opencode-weights`), serving `agent-specialist`, `agent-fast`, `agent-vision`, `agent-flagship`, and (after `retire-legacy-turbo`) `agent-turbo`.
-  - **Slot 2 (`media` role, `agenthub-media`):** Single MI355X (288 GB) on `agenthub-media-weights` (`/mnt/media-weights`), running ComfyUI (`127.0.0.2:8188`) + Media Gateway (`:8189`, `/healthz` & `/v1/info`) behind `https://inference.shtrial.com/v1/media/*` (`<MEDIA_PREVIEW_URL>` upstream).
+  - **Slot 1 (`engineering` role, `agenthub-engineering`):** Single MI355X (288 GB CDNA4 `gfx950`) running both vLLM ROCm (`:8001`, `Qwen3.8-27B-Uncensored-FP8`, 262144 context, `gpu-memory-utilization` 0.40) and `llama-server` HIP (`:8002`, `Qwen3.8-Flash-Next-Uncensored-GGUF` `Q8_0`, two slots of 262144 context each, CPU PLE, 16 threads, restarted on its own if it crashes while the 27B keeps serving) on `opencode-agent-weights` (`/mnt/opencode-weights`), serving `agent-specialist`, `agent-fast`, `agent-vision`, `agent-flagship`, and (after `retire-legacy-turbo`) `agent-turbo`.
+    - **Live-verified 2026-11-25 through `https://inference.shtrial.com/v1`** (operator run): all five aliases answered code and tool-call requests, vision worked, and a 112k-token recall test passed. Measured throughput: flagship 65-79 tok/s, 27B about 170 tok/s. VRAM in use was 279.6 of 308.9 GB as `rocm-smi` reports it (288 GiB).
+  - **Slot 2 (`media` role, `agenthub-media`):** Single MI355X (288 GB) on `agenthub-media-weights` (`/mnt/media-weights`), running ComfyUI (`127.0.0.2:8188`) + Media Gateway (`:8189`, `/healthz` & `/v1/info`) behind `https://inference.shtrial.com/v1/media/*` (`<MEDIA_PREVIEW_URL>` upstream). **Not yet live-verified:** no media job has been run end to end through the gateway, the gateway and worker sources (`gateway.py`, `audio_worker.py`, `models.json`) live outside this repository in `MEDIA_STUDIO_ROOT\gpu-gen\server`, and the client only sends `authorization_profile`; the server must enforce it.
 - **Permanent Model Aliases (`registry/inference-providers.json`):**
   - `agent-fast`: 27B FP8 routine/exploration (`low` default reasoning, 262144 ctx / 32768 output)
   - `agent-specialist`: 27B FP8 general engineering + vision (`medium` default reasoning, 262144 ctx / 32768 output)
@@ -19,8 +20,9 @@ Permanent inference gateway and unified NVIDIA/AMD Daytona spot GPU operations f
   - `agent-turbo`: Flash-Next (`medium` default reasoning, 262144 ctx / 32768 output; legacy H200 `qwen38-turbo-q6k` until `retire-legacy-turbo` moves it to Slot 1 `:8002`)
   - `agent-flagship`: Flash-Next Q8_0 flagship reasoning (`medium` default reasoning, 262144 ctx / 32768 output; `Q8_0` on MI355X/B300/B200, explicit `--allow-q6-fallback` on H200)
 - **Hard Operating Constraints:**
-  - Maximum **2** GPU instances combined across NVIDIA and AMD, **1** GPU per instance.
-  - **Spot-only** (`spot=True`); never falls back to on-demand.
+  - Maximum **2** GPU instances combined across NVIDIA and AMD, **1** GPU per instance. While `qwen38-turbo-q6k` is live it counts as one of the two, so Slot 2 cannot start until `retire-legacy-turbo` has run.
+  - **Spot-only** (`spot=True`); never falls back to on-demand. A box that comes back non-spot or on a different GPU than requested is deleted.
+  - **TTL is always set** at create time and capped: `--ttl` and `extend` accept 1 to `policy.maxTtlMinutes` (480) minutes, default 120.
   - Protected live sandbox `qwen38-turbo-q6k` and protected volume `llm-models` are never touched by `up`/`down`/`extend`/`save-cache`; `retire-legacy-turbo` refuses unless `agenthub-engineering` is `STARTED` and both `agent-specialist` and `agent-flagship` pass live verification on `https://inference.shtrial.com/v1`.
   - No silent fallback to paid providers or different checkpoints on unavailable aliases.
 
@@ -40,15 +42,21 @@ python $gpu caddy-media                    # update sh-forge Caddy /v1/media/* u
 python $gpu up specialist --gpu auto       # legacy single-slot Qwen 27B FP8
 python $gpu up flagship --gpu auto         # legacy single-slot Flash-Next Q8_0
 python $gpu up flagship --gpu H200 --allow-q6-fallback
-python $gpu extend engineering 120         # extend wall-clock TTL
+python $gpu extend engineering 120         # reset wall-clock TTL (1-480 minutes)
 python $gpu reconcile                      # prune evicted backends & re-sync live turbo
 python $gpu down media                     # delete managed sandbox
 python $gpu save-cache specialist          # persist /root/.cache/{vllm,flashinfer} to opencode-agent-weights
 ```
 
-Set `SH_FORGE_UPDATE=1` when running `gpu.py up media` to update `/opt/forge/caddy/Caddyfile` automatically using the template in `scripts/daytona-inference/gateway/Caddyfile.snippet` (`<OWNER_IP>`, `<MEDIA_PREVIEW_URL>`, `<AGENTHUB_INFERENCE_KEY>`, `<MEDIA_PREVIEW_TOKEN>`, `<MEDIA_GATEWAY_TOKEN>` placeholders are never stored in git-tracked files).
+Set `SH_FORGE_UPDATE=1` when running `gpu.py up media` (or run `gpu.py caddy-media`, `--dry-run` first) to rewrite the `inference.shtrial.com` block of `/opt/forge/caddy/Caddyfile` from the template in `scripts/daytona-inference/gateway/Caddyfile.snippet`. The `<OWNER_IP>`, `<MEDIA_PREVIEW_URL>`, `<AGENTHUB_INFERENCE_KEY>`, `<MEDIA_PREVIEW_TOKEN>` and `<MEDIA_GATEWAY_TOKEN>` placeholders are filled at run time and never stored in git-tracked files; the rendered keys do sit in the Caddyfile on `sh-forge`. The whole site block is replaced, so any hand-added directive in it is lost. If `caddy validate` or the reload fails, the previous Caddyfile is written back without a reload.
 
-## Persisted Daytona Fast-Boot Assets
+`/v1/media/*` is open to the owner IP or to a request carrying `Authorization: Bearer <AGENTHUB_INFERENCE_KEY>`, which is the same key every coding agent holds; anyone with that key can queue media jobs on the GPU.
+
+## Boot Path and Persisted Assets
+
+- **Boxes boot from stock registry images, not custom snapshots.** Daytona cannot build a custom snapshot over 20 GB, so the AMD roles use `rocm/vllm` (engineering) and `rocm/pytorch` (media) and the recipes install what is missing at boot: `llama-server` is built once for `gfx950` and cached as a tarball under `/mnt/opencode-weights/bin/`, and ComfyUI plus its Python environment are bootstrapped on the media box. Only the H200 CUDA roles have snapshots, listed below. `catalog.json` carries no Dockerfile for the engineering or media images because none is built.
+- **Weights are staged to local disk first, in parallel.** On the first boot a model downloads from Hugging Face to local disk (`/opt/models/...` for engineering, `/opt/gpu-gen/weights` for media, symlinked into ComfyUI), then a copy is written to the S3-backed volume (`/mnt/media-weights/weights`; the media recipe lists which files each pinned revision holds in `ready-<rev>.json`). On later boots the files are copied from the volume to local disk, 8 at a time, skipping any file whose size already matches, so an interrupted boot resumes. A volume copy is only trusted when its `ready.json` size manifest matches; a failed copy to the volume is a warning, and the next boot downloads again.
+- **The volume holds a copy, not the working set.** Servers read from local disk; the volume (about 100 MB/s per read stream) exists to avoid re-downloading.
 
 To minimize Spot recovery startup time (avoiding cold container image pulls, 29 GB Hugging Face weight downloads, and ~4.5 minutes of `torch.compile` + DeepGEMM SM90a kernel compilation):
 
@@ -58,11 +66,11 @@ To minimize Spot recovery startup time (avoiding cold container image pulls, 29 
 - **Reusable `ACTIVE` Daytona GPU Snapshots (in ABACare AI LLC org):**
   - `agenthub-vllm-cuda-0-24-0-h200` (`vllm/vllm-openai:v0.24.0` + `huggingface_hub` + `hf_xet`, entrypoint `sleep infinity`)
   - `agenthub-llama-cuda-h200` (`ghcr.io/ggml-org/llama.cpp:server-cuda` + `python3` + `hf_xet`, entrypoint `sleep infinity`)
-  - `gpu.py up` checks `resolve_active_snapshot()` first and boots directly via `CreateSandboxFromSnapshotParams`, falling back automatically to `CreateSandboxFromImageParams` for GPUs/backends without an active snapshot (such as AMD `MI355X`).
+  - `gpu.py up` checks `resolve_active_snapshot()` first and boots directly via `CreateSandboxFromSnapshotParams`, falling back automatically to `CreateSandboxFromImageParams` for GPUs/backends without an active snapshot (all AMD `MI355X` roles and the media role). Engineering and media are MI355X-only: the CUDA variants of those two roles were removed because their recipes cannot boot from the stock images (the engineering fallback never started the flagship, and `nvidia/cuda` ships no Python or PyTorch for the media bootstrap).
 
 ## What Changes Next Time (Zero-DNS Spot Recovery vs. Gateway Migration)
 
-- **Spot GPU eviction or expiry:** Requires **zero DNS updates** and **zero coding-agent configuration changes**. Run `python $gpu up specialist --gpu auto` (or `recover specialist`), which boots from snapshot/persisted weights/JIT cache and updates LiteLLM's PostgreSQL route table behind `https://inference.shtrial.com/v1`.
+- **Spot GPU eviction or expiry:** Requires **zero DNS updates** and **zero coding-agent configuration changes**. Run `python $gpu up engineering --gpu MI355X` (or `recover engineering`; `specialist` for the legacy single-slot role), which boots from snapshot/persisted weights/JIT cache and updates LiteLLM's PostgreSQL route table behind `https://inference.shtrial.com/v1`.
 - **Gateway host migration (before `2026-12-01` `sh-forge` teardown):** Copy `/opt/forge/inference-gateway/` + `pg_dump` to the new persistent CPU host, start Compose + Caddy, and update **one** DigitalOcean DNS `A` record (`inference.shtrial.com -> <NEW_IP>`). Still **zero coding-agent changes**.
 
 ## Daytona Environment Keys

@@ -21,15 +21,33 @@ import base64
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
 
 DEFAULT_MEDIA_URL = "https://inference.shtrial.com/v1/media"
 MEDIA_PORT = 8189
+MAX_JOB_SECONDS = 7200
+_SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def _safe_name(value: Any, what: str) -> str:
+    """The server names job ids and output files; never let that name leave the output directory."""
+    name = str(value)
+    if not _SAFE_ID.match(name) or ".." in name:
+        raise RuntimeError(f"refusing unsafe {what} from media server: {name[:80]!r}")
+    return name
+
+
+def _write_json_atomic(path: Path, data: Any) -> None:
+    tmp = path.with_suffix(path.suffix + ".part")
+    tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(path)
 
 
 def _secret_file_candidates(filename: str) -> list[Path]:
@@ -102,7 +120,10 @@ class MediaApiClient:
     @classmethod
     def from_gateway(cls, base_url: str | None = None, token: str | None = None) -> "MediaApiClient":
         url = (base_url or os.environ.get("AGENTHUB_MEDIA_URL") or DEFAULT_MEDIA_URL).rstrip("/")
-        key = (token or _read_secret(("AGENTHUB_INFERENCE_KEY", "LITELLM_MASTER_KEY"), "inference.key")).strip()
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme != "https" and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
+            raise RuntimeError(f"gateway URL must be https (the Bearer key is sent to it): {url}")
+        key = (token or _read_secret(("AGENTHUB_INFERENCE_KEY",), "inference.key")).strip()
         if not key:
             raise RuntimeError("Missing AGENTHUB_INFERENCE_KEY (or secrets/inference.key) for gateway mode")
         return cls(url, key, mode="gateway")
@@ -212,9 +233,11 @@ class MediaApiClient:
             "/v1/jobs",
             {"type": job_type, "authorization_profile": authorization_profile, "params": params},
         )
-        jid = job["id"]
+        jid = _safe_name(job["id"], "job id")
         t0 = time.time()
         while job["state"] not in ("done", "error"):
+            if time.time() - t0 > MAX_JOB_SECONDS:
+                raise RuntimeError(f"media job {jid} still {job['state']} after {MAX_JOB_SECONDS}s; left on the server")
             time.sleep(poll_interval)
             job = self.request("GET", f"/v1/jobs/{jid}")
             if verbose:
@@ -241,12 +264,14 @@ class MediaApiClient:
 def pull_verified_outputs(client: MediaApiClient, job: dict[str, Any], out_dir: Path) -> list[dict[str, Any]]:
     out_dir.mkdir(parents=True, exist_ok=True)
     accepted: list[dict[str, Any]] = []
+    jid = _safe_name(job["id"], "job id")
     for item in job.get("outputs", []):
-        dest = out_dir / item["name"]
+        name = _safe_name(item["name"], "output name")
+        dest = out_dir / name
         if dest.is_file() and dest.stat().st_size == item["size"] and _sha256_file(dest) == item["sha256"]:
             accepted.append({**item, "path": str(dest), "note": "already_verified"})
             continue
-        data = client.request("GET", f"/v1/files/{job['id']}/{item['name']}", raw=True, timeout=600)
+        data = client.request("GET", f"/v1/files/{jid}/{urllib.parse.quote(name)}", raw=True, timeout=600)
         digest = _sha256_bytes(data)
         if len(data) != int(item["size"]) or digest != item["sha256"]:
             raise RuntimeError(
@@ -342,10 +367,10 @@ def run_scene_manifest(
         executed += 1
         results.append({"id": sid, "status": "done", **record})
         if isinstance(manifest, dict):
-            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+            _write_json_atomic(manifest_path, manifest)
 
     if isinstance(manifest, dict):
-        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        _write_json_atomic(manifest_path, manifest)
     return {"executed": executed, "skipped": skipped, "scenes": results}
 
 
@@ -397,7 +422,7 @@ def main(argv: list[str] | None = None) -> int:
             authorization_profile=args.authorization_profile,
             verbose=args.verbose,
         )
-        (out_dir / f"{rec['job']}.json").write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
+        _write_json_atomic(out_dir / f"{rec['job']}.json", rec)
         print(json.dumps(rec, indent=2))
         return 0
     if args.cmd == "run-manifest":

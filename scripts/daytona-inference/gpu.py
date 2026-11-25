@@ -62,6 +62,18 @@ def load_catalog() -> dict[str, Any]:
     return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
 
 
+def ttl_minutes(value: str) -> int:
+    """argparse type: every managed sandbox gets a wall-clock TTL between 1 minute and the catalog cap."""
+    cap = int(load_catalog()["policy"].get("maxTtlMinutes", 480))
+    try:
+        minutes = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"TTL must be whole minutes, got {value!r}") from exc
+    if not 1 <= minutes <= cap:
+        raise argparse.ArgumentTypeError(f"TTL must be 1-{cap} minutes (policy.maxTtlMinutes), got {minutes}")
+    return minutes
+
+
 def load_state() -> dict[str, Any]:
     if not STATE_PATH.exists():
         return {"volume_id": None, "organization_id": None, "workers": {}}
@@ -641,17 +653,31 @@ def update_sh_forge_caddy(
         "CCTR=$(docker ps --format '{{.Names}}' | grep -i caddy | head -n1); "
         "docker exec \"$CCTR\" caddy validate --config /etc/caddy/Caddyfile && "
         "docker exec \"$CCTR\" caddy reload --config /etc/caddy/Caddyfile; "
+        "else echo 'no caddy binary or caddy container found' >&2; exit 1; "
         "fi"
     )
+    # Send bytes: text-mode stdin would turn every newline into CRLF on Windows.
     write_res = subprocess.run(
         ["ssh", ssh_host, remote_cmd],
-        input=updated_caddy,
+        input=updated_caddy.encode("utf-8"),
         capture_output=True,
-        text=True,
         check=False,
     )
     if write_res.returncode != 0:
-        raise SystemExit(f"Failed to update Caddy on {ssh_host}: {(write_res.stderr or write_res.stdout).strip()[:300]}")
+        # The new file is already in place when validate/reload fails; put the previous content back (no reload).
+        restored = False
+        if existing_caddy.strip():
+            restore_res = subprocess.run(
+                ["ssh", ssh_host, "cat > /opt/forge/caddy/Caddyfile.tmp && mv /opt/forge/caddy/Caddyfile.tmp /opt/forge/caddy/Caddyfile"],
+                input=existing_caddy.encode("utf-8"),
+                capture_output=True,
+                check=False,
+            )
+            restored = restore_res.returncode == 0
+        raise SystemExit(
+            f"Failed to update Caddy on {ssh_host} (previous Caddyfile restored={restored}): "
+            f"{(write_res.stderr or write_res.stdout).decode('utf-8', errors='replace').strip()[:300]}"
+        )
     print(
         f"caddy_updated host={ssh_host} upstream={url} "
         f"preview_token={mask_secret(p_tok)} media_token={mask_secret(g_tok)}"
@@ -785,10 +811,6 @@ def cmd_up(args: argparse.Namespace) -> None:
         recipe_bytes = (ROOT / recipe_rel).read_bytes().replace(b"\r\n", b"\n")
         remote_script = f"/opt/serve-{role}.sh"
         sandbox.fs.upload_file(recipe_bytes, remote_script)
-        if role == "media" and recipe_rel != "recipes/serve-media-rocm-gfx950.sh":
-            base_recipe = (ROOT / "recipes/serve-media-rocm-gfx950.sh").read_bytes().replace(b"\r\n", b"\n")
-            sandbox.fs.upload_file(base_recipe, "/opt/serve-media-rocm-gfx950.sh")
-            sandbox.process.exec("chmod 755 /opt/serve-media-rocm-gfx950.sh", timeout=20)
 
         if role == "media":
             upload_media_server_files(sandbox)
@@ -1453,14 +1475,14 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--gpu", default="auto", help="auto or explicit GPU type (MI355X, B300, B200, H200, RTX-PRO-6000, H100)")
         p.add_argument("--quant", choices=["Q8_0", "Q6_K"], default=None)
         p.add_argument("--allow-q6-fallback", action="store_true")
-        p.add_argument("--ttl", type=int, default=120)
+        p.add_argument("--ttl", type=ttl_minutes, default=120)
 
     p_down = sub.add_parser("down", help="Delete a managed GPU sandbox and deregister its aliases")
     p_down.add_argument("role", choices=MANAGED_ROLES)
 
     p_ext = sub.add_parser("extend", help="Reset wall-clock TTL minutes on a managed GPU sandbox")
     p_ext.add_argument("role", choices=MANAGED_ROLES)
-    p_ext.add_argument("minutes", nargs="?", type=int, default=120)
+    p_ext.add_argument("minutes", nargs="?", type=ttl_minutes, default=120)
 
     p_save = sub.add_parser("save-cache", help="Persist vLLM/FlashInfer JIT cache from a live GPU sandbox onto weights volume")
     p_save.add_argument("role", choices=["specialist", "engineering"])

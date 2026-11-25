@@ -58,7 +58,7 @@ foreach ($recipeFile in @('serve-vllm-cuda.sh', 'serve-vllm-rocm-gfx950.sh')) {
 
 # 2. Python syntax + unit tests for reasoning_normalizer.py and gpu.py
 $pyUnit = @'
-import py_compile, sys, pathlib
+import argparse, py_compile, sys, pathlib
 repo = pathlib.Path(sys.argv[1])
 for rel in [
     "scripts/sync_inference_providers.py",
@@ -261,10 +261,91 @@ existing_caddy = "other.example.com {\n  respond \"hi\" 200\n}\n\ninference.shtr
 merged_caddy = gpu.upsert_caddy_site_block(existing_caddy, "inference.shtrial.com", rendered_site)
 assert "other.example.com" in merged_caddy and "old" not in merged_caddy and "handle_path /v1/media/*" in merged_caddy
 
+# Spend guards: TTL is always set and capped; media boxes never adopt another sandbox or a snapshot that cannot exist
+assert gpu.ttl_minutes("1") == 1 and gpu.ttl_minutes("480") == 480
+for bad_ttl in ("0", "-5", "481", "abc"):
+    try:
+        gpu.ttl_minutes(bad_ttl)
+    except argparse.ArgumentTypeError:
+        continue
+    raise AssertionError(f"ttl {bad_ttl} must be refused")
+try:
+    gpu.build_parser().parse_args(["up", "media", "--ttl", "0"])
+    raise AssertionError("up --ttl 0 must be refused")
+except SystemExit:
+    pass
+assert gpu.build_parser().parse_args(["up", "media"]).ttl == cat["policy"]["defaultTtlMinutes"]
+assert cat["roles"]["media"]["legacySandboxNames"] == []
+assert all("snapshotName" not in prof for prof in cat["roles"]["media"]["profiles"].values())
+for image_key, image_spec in cat["images"].items():
+    if "dockerfile" in image_spec:
+        assert (pathlib.Path(gpu.__file__).parent / image_spec["dockerfile"]).is_file(), f"{image_key} dockerfile missing"
+
+# Media client: server-chosen names cannot leave the output directory; the Bearer key only goes to https
+sys.path.insert(0, str(repo / "packages/media-studio/scripts"))
+import tempfile
+import daytona_media_client as mc
+
+for bad_name in ("../x.png", "..\\x.png", "/etc/passwd", "C:\\x.png", "a/b.png", "", ".hidden", "x..png"):
+    try:
+        mc._safe_name(bad_name, "output name")
+    except RuntimeError:
+        continue
+    raise AssertionError(f"unsafe name accepted: {bad_name!r}")
+assert mc._safe_name("scene-01_v2.png", "output name") == "scene-01_v2.png"
+try:
+    mc.MediaApiClient.from_gateway("http://inference.example.test/v1/media", "k")
+    raise AssertionError("plain http gateway must be refused")
+except RuntimeError:
+    pass
+assert mc.MediaApiClient.from_gateway("https://inference.example.test/v1/media/", "k").base_url.endswith("/v1/media")
+
+class FakeMediaClient:
+    def __init__(self, payload):
+        self.payload = payload
+        self.calls = 0
+    def request(self, method, path, body=None, raw=False, timeout=120):
+        self.calls += 1
+        return self.payload
+
+with tempfile.TemporaryDirectory() as td:
+    td_path = pathlib.Path(td)
+    good = b"media-bytes"
+    import hashlib
+    item = {"name": "a.png", "size": len(good), "sha256": hashlib.sha256(good).hexdigest()}
+    fake = FakeMediaClient(good)
+    job = {"id": "job1", "outputs": [item]}
+    accepted = mc.pull_verified_outputs(fake, job, td_path / "o")
+    assert (td_path / "o" / "a.png").read_bytes() == good and not list((td_path / "o").glob("*.part"))
+    assert mc.scene_is_complete({"status": "done", "files": accepted}, td_path / "o")
+    (td_path / "o" / "a.png").write_bytes(b"tampered")
+    assert not mc.scene_is_complete({"status": "done", "files": accepted}, td_path / "o")
+    # a corrupt download is refused and leaves nothing behind
+    bad_fake = FakeMediaClient(b"wrong")
+    (td_path / "o" / "a.png").unlink()
+    try:
+        mc.pull_verified_outputs(bad_fake, job, td_path / "o")
+        raise AssertionError("size/hash mismatch must raise")
+    except RuntimeError:
+        pass
+    assert not (td_path / "o" / "a.png").exists()
+    try:
+        mc.pull_verified_outputs(fake, {"id": "job1", "outputs": [{**item, "name": "../escape.png"}]}, td_path / "o")
+        raise AssertionError("traversal name must raise")
+    except RuntimeError:
+        pass
+    assert not (td_path / "escape.png").exists()
+
 print("PY_UNIT_PASS")
 '@
 
-$pyOut = $pyUnit | python - $repoRoot
+$pyUnitFile = Join-Path ([IO.Path]::GetTempPath()) ("agenthub-inf-unit-" + [Guid]::NewGuid().ToString('N') + '.py')
+try {
+    [IO.File]::WriteAllText($pyUnitFile, $pyUnit)
+    $pyOut = & python -I $pyUnitFile $repoRoot 2>&1 | Out-String
+} finally {
+    Remove-Item -LiteralPath $pyUnitFile -Force -ErrorAction SilentlyContinue
+}
 Assert-True ($LASTEXITCODE -eq 0 -and ($pyOut -match 'PY_UNIT_PASS')) "Python unit tests failed: $pyOut"
 
 # 3. Synthetic UserProfile end-to-end test for Sync-InferenceProviders.ps1

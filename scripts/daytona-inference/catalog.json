@@ -6,6 +6,7 @@
     "spotOnly": true,
     "neverOnDemand": true,
     "defaultTtlMinutes": 120,
+    "maxTtlMinutes": 480,
     "protectedSandboxName": "qwen38-turbo-q6k",
     "protectedVolumeName": "llm-models",
     "weightsVolumeName": "opencode-agent-weights",
@@ -96,19 +97,10 @@
       "dockerfile": "docker/llama-hip-gfx950.Dockerfile"
     },
     "engineering-rocm-gfx950": {
-      "name": "agenthub-engineering-rocm-gfx950",
-      "image": "rocm/vllm:rocm10.2.0_ubuntu24.04_py3.14-pytorch_2.14.0_vllm-0.32.0",
-      "dockerfile": "docker/engineering-rocm-gfx950.Dockerfile"
+      "image": "rocm/vllm:rocm10.2.0_ubuntu24.04_py3.14-pytorch_2.14.0_vllm-0.32.0"
     },
     "media-rocm-gfx950": {
-      "name": "agenthub-media-rocm-gfx950",
-      "image": "rocm/pytorch:rocm10.2.0_ubuntu24.04_py3.12_pytorch_release_2.15.0",
-      "dockerfile": "docker/media-rocm-gfx950.Dockerfile"
-    },
-    "media-cuda": {
-      "name": "agenthub-media-cuda",
-      "image": "nvidia/cuda:12.8.1-runtime-ubuntu24.04",
-      "dockerfile": "docker/media-cuda.Dockerfile"
+      "image": "rocm/pytorch:rocm10.2.0_ubuntu24.04_py3.12_pytorch_release_2.15.0"
     }
   },
   "roles": {
@@ -123,7 +115,7 @@
       "diskGb": 512,
       "ramGb": 192,
       "cpu": 16,
-      "gpuPriority": ["MI355X", "B300", "B200", "H200"],
+      "gpuPriority": ["MI355X"],
       "servedAliases": ["agent-specialist", "agent-fast", "agent-vision"],
       "flagshipAliases": ["agent-flagship", "agent-turbo"],
       "primaryServedModelName": "agent-specialist",
@@ -150,53 +142,19 @@
           "cacheTypeK": "f16",
           "cacheTypeV": "f16",
           "pleLocation": "CPU"
-        },
-        "B300": {
-          "backend": "vllm-cuda",
-          "recipe": "recipes/serve-vllm-cuda.sh",
-          "quantization": "FP8",
-          "maxModelLen": 262144,
-          "maxOutputTokens": 32768,
-          "maxNumSeqs": 8,
-          "gpuMemUtil": 0.90,
-          "maxNumBatchedTokens": 16384,
-          "mtpTokens": 3
-        },
-        "B200": {
-          "backend": "vllm-cuda",
-          "recipe": "recipes/serve-vllm-cuda.sh",
-          "quantization": "FP8",
-          "maxModelLen": 262144,
-          "maxOutputTokens": 32768,
-          "maxNumSeqs": 8,
-          "gpuMemUtil": 0.90,
-          "maxNumBatchedTokens": 16384,
-          "mtpTokens": 3
-        },
-        "H200": {
-          "backend": "vllm-cuda",
-          "snapshotName": "agenthub-vllm-cuda-0-24-0-h200",
-          "recipe": "recipes/serve-vllm-cuda.sh",
-          "quantization": "FP8",
-          "maxModelLen": 131072,
-          "maxOutputTokens": 16384,
-          "maxNumSeqs": 4,
-          "gpuMemUtil": 0.90,
-          "maxNumBatchedTokens": 8192,
-          "mtpTokens": 3
         }
       }
     },
     "media": {
       "sandboxName": "agenthub-media",
-      "legacySandboxNames": ["qwen38-race-rtx"],
+      "legacySandboxNames": [],
       "modelRepo": "chatrlabs/Qwen-Image-2.1-Uncensored-Omni-Quantized",
       "engine": "media-lab",
       "port": 8189,
       "diskGb": 512,
       "ramGb": 192,
       "cpu": 16,
-      "gpuPriority": ["MI355X", "B300", "B200", "H200"],
+      "gpuPriority": ["MI355X"],
       "servedAliases": [],
       "primaryServedModelName": "agenthub-media",
       "vision": false,
@@ -208,30 +166,6 @@
           "quantization": "BF16/FP8",
           "maxModelLen": 262144,
           "maxOutputTokens": 32768
-        },
-        "B300": {
-          "backend": "media-cuda",
-          "snapshotName": "agenthub-media-cuda",
-          "recipe": "recipes/serve-media-cuda.sh",
-          "quantization": "BF16/FP8",
-          "maxModelLen": 262144,
-          "maxOutputTokens": 32768
-        },
-        "B200": {
-          "backend": "media-cuda",
-          "snapshotName": "agenthub-media-cuda",
-          "recipe": "recipes/serve-media-cuda.sh",
-          "quantization": "BF16/FP8",
-          "maxModelLen": 262144,
-          "maxOutputTokens": 32768
-        },
-        "H200": {
-          "backend": "media-cuda",
-          "snapshotName": "agenthub-media-cuda",
-          "recipe": "recipes/serve-media-cuda.sh",
-          "quantization": "BF16/FP8",
-          "maxModelLen": 131072,
-          "maxOutputTokens": 16384
         }
       }
     },
