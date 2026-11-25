@@ -2,46 +2,799 @@
   "$comment": "SH-4676: canonical BYOK customModels for Factory droid dispatch. Install-FactoryCustomModels.ps1 merges these into ~/.factory/settings.json customModels. The model field is the stable custom id (custom:<model>). Fields that collide with a Factory built-in model id are renamed and carry extraArgs.model with the real upstream name, because a collision makes Factory account the run at the built-in multiplier even though inference goes to the BYOK endpoint (fleet-profile.json dispatchPolicy.factory.byokCreditsNote). apiKey is always an ${ENV} reference; never a value.",
   "customModels": [
     {
-      "model": "qwen3.8-max-tp",
-      "displayName": "Qwen 38 Max Token Plan",
-      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
-      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
-      "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 32768,
-      "extraArgs": { "model": "qwen3.8-max" }
-    },
-    {
-      "model": "qwen4-max-preview",
-      "displayName": "Qwen 4 Max Preview Token Plan",
-      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
-      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
-      "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 32768
-    },
-    {
       "model": "glm-5.3-zai",
       "displayName": "GLM 53 Zai Coding Plan",
       "baseUrl": "https://api.z.ai/api/coding/paas/v4",
       "apiKey": "${ZAI_CODING_PLAN_API_KEY}",
       "provider": "generic-chat-completion-api",
       "maxOutputTokens": 32768,
-      "extraArgs": { "model": "glm-5.3" }
+      "extraArgs": {
+        "model": "glm-5.3"
+      }
     },
     {
       "model": "mimo-v2.6-pro",
-      "displayName": "MiMo V26 Pro Token Plan",
+      "displayName": "MiMo V2.6 Pro [MiMo Token Plan]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
       "baseUrl": "https://token-plan-sgp.xiaomimimo.com/v1",
       "apiKey": "${MIMO_API_KEY}",
       "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 131072
+      "enableThinking": true
     },
     {
       "model": "mimo-v2.6-flash",
-      "displayName": "MiMo V26 Flash Token Plan",
+      "displayName": "MiMo V2.6 Flash [MiMo Token Plan]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
       "baseUrl": "https://token-plan-sgp.xiaomimimo.com/v1",
       "apiKey": "${MIMO_API_KEY}",
       "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 131072
+      "enableThinking": true
+    },
+    {
+      "model": "mimo-v2.6-pro-ultraspeed",
+      "displayName": "MiMo V2.6 Pro UltraSpeed [MiMo Token Plan]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "baseUrl": "https://token-plan-sgp.xiaomimimo.com/v1",
+      "apiKey": "${MIMO_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "enableThinking": true
+    },
+    {
+      "model": "qwen4-max",
+      "displayName": "Qwen4 Max [Qwen Token Plan]",
+      "maxOutputTokens": 262144,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
+      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high"
+    },
+    {
+      "model": "qwen4-max-preview",
+      "displayName": "Qwen4 Max Preview [Qwen Token Plan]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
+      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium"
+    },
+    {
+      "model": "qwen3.8-max-tp",
+      "displayName": "Qwen3.8 Max [Qwen Token Plan]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
+      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "qwen3.8-max"
+      }
+    },
+    {
+      "model": "qwen3.8-flash",
+      "displayName": "Qwen3.8 Flash [Qwen Token Plan]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
+      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium"
+    },
+    {
+      "model": "go-glm-5.3",
+      "displayName": "GLM 5.3 [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": true,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "glm-5.3"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-glm-5.3-flash",
+      "displayName": "GLM 5.3 Flash [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "glm-5.3-flash"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-kimi-k3.1-pro",
+      "displayName": "Kimi K3.1 Pro [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "kimi-k3.1-pro"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-kimi-k3",
+      "displayName": "Kimi K3 [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "max",
+      "extraArgs": {
+        "model": "kimi-k3"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-kimi-k2.7-code",
+      "displayName": "Kimi K2.7 Code [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 262144,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "extraArgs": {
+        "model": "kimi-k2.7-code"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-deepseek-v4.1-flash",
+      "displayName": "DeepSeek V4.1 Flash 1017 [OpenCode Go]",
+      "maxOutputTokens": 384000,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "deepseek-v4.1-flash"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-deepseek-v4-pro",
+      "displayName": "DeepSeek V4 Pro [OpenCode Go]",
+      "maxOutputTokens": 384000,
+      "maxContextLimit": 1000000,
+      "noImageSupport": true,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "deepseek-v4-pro"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-mimo-v2.6-pro",
+      "displayName": "MiMo V2.6 Pro [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "extraArgs": {
+        "model": "mimo-v2.6-pro"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-mimo-v2.6-flash",
+      "displayName": "MiMo V2.6 Flash [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "extraArgs": {
+        "model": "mimo-v2.6-flash"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-minimax-m3.1-flash",
+      "displayName": "MiniMax M3.1 Flash [OpenCode Go]",
+      "maxOutputTokens": 512000,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "minimax-m3.1-flash"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-hy4",
+      "displayName": "Hy4 [OpenCode Go]",
+      "maxOutputTokens": 65536,
+      "maxContextLimit": 983040,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "hy4"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-hy4-preview",
+      "displayName": "Hy4 Preview [OpenCode Go]",
+      "maxOutputTokens": 65536,
+      "maxContextLimit": 983040,
+      "noImageSupport": true,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "hy4-preview"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-hy3",
+      "displayName": "Hy3 [OpenCode Go]",
+      "maxOutputTokens": 128000,
+      "maxContextLimit": 192000,
+      "noImageSupport": true,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "hy3"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-step-5-preview",
+      "displayName": "Step 5 Preview [OpenCode Go]",
+      "maxOutputTokens": 65536,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "step-5-preview"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-longcat-2.5",
+      "displayName": "LongCat 2.5 [OpenCode Go]",
+      "maxOutputTokens": 262144,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "extraArgs": {
+        "model": "longcat-2.5"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-gemini-4-argon",
+      "displayName": "Gemini 4 Argon [OpenCode Go]",
+      "maxOutputTokens": 65536,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "gemini-4-argon"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-beam-free",
+      "displayName": "Beam (free) [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": true,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "beam-free"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-hy4-flash-free",
+      "displayName": "Hy4 Flash (free) [OpenCode Go]",
+      "maxOutputTokens": 65536,
+      "maxContextLimit": 983040,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "hy4-flash-free"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-hungerg-free",
+      "displayName": "HungerG (free) [OpenCode Go]",
+      "maxOutputTokens": 65536,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "generic-chat-completion-api",
+      "extraArgs": {
+        "model": "hungerg-free"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-gpt-6-luna",
+      "displayName": "GPT-6 Luna [OpenCode Go]",
+      "maxOutputTokens": 128000,
+      "maxContextLimit": 922000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "openai",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "gpt-6-luna"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-gpt-5.6-luna",
+      "displayName": "GPT-5.6 Luna [OpenCode Go]",
+      "maxOutputTokens": 128000,
+      "maxContextLimit": 922000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "openai",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "gpt-5.6-luna"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-grok-4.7",
+      "displayName": "Grok 4.7 [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 500000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "provider": "openai",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "grok-4.7"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-claude-haiku-5-5",
+      "displayName": "Claude Haiku 5.5 [OpenCode Go]",
+      "maxOutputTokens": 128000,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/anthropic",
+      "provider": "anthropic",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "claude-haiku-5-5"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-qwen4-max",
+      "displayName": "Qwen4 Max [OpenCode Go]",
+      "maxOutputTokens": 262144,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/anthropic",
+      "provider": "anthropic",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "qwen4-max"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-qwen3.8-max",
+      "displayName": "Qwen3.8 Max [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/anthropic",
+      "provider": "anthropic",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "qwen3.8-max"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-qwen3.8-flash",
+      "displayName": "Qwen3.8 Flash [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/anthropic",
+      "provider": "anthropic",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "qwen3.8-flash"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-qwen3.7-plus",
+      "displayName": "Qwen3.7 Plus [OpenCode Go]",
+      "maxOutputTokens": 65536,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/anthropic",
+      "provider": "anthropic",
+      "extraArgs": {
+        "model": "qwen3.7-plus"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "go-minimax-m3",
+      "displayName": "MiniMax M3 [OpenCode Go]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${OPENCODE_GO_API_KEY}",
+      "baseUrl": "https://opencode.ai/inference/go/anthropic",
+      "provider": "anthropic",
+      "extraArgs": {
+        "model": "minimax-m3"
+      },
+      "extraHeaders": {
+        "x-opencode-session": "droid-sh-desktop"
+      }
+    },
+    {
+      "model": "clinepass-deepseek-v4.1-flash-1017",
+      "displayName": "DeepSeek V4.1 Flash 1017 [ClinePass]",
+      "maxOutputTokens": 393216,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "cline-pass/deepseek-v4.1-flash-1017"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-deepseek-v4.1-flash",
+      "displayName": "DeepSeek V4.1 Flash [ClinePass]",
+      "maxOutputTokens": 384000,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "cline-pass/deepseek-v4.1-flash"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-deepseek-v4-pro",
+      "displayName": "DeepSeek V4 Pro [ClinePass]",
+      "maxOutputTokens": 384000,
+      "maxContextLimit": 1000000,
+      "noImageSupport": true,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "cline-pass/deepseek-v4-pro"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-glm-5.3",
+      "displayName": "GLM 5.3 [ClinePass]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": true,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "cline-pass/glm-5.3"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-glm-5.3-flash",
+      "displayName": "GLM 5.3 Flash [ClinePass]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "cline-pass/glm-5.3-flash"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-kimi-k3.1-pro",
+      "displayName": "Kimi K3.1 Pro [ClinePass]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "cline-pass/kimi-k3.1-pro"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-kimi-k3",
+      "displayName": "Kimi K3 [ClinePass]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "high",
+      "extraArgs": {
+        "model": "cline-pass/kimi-k3"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-minimax-m3.1-flash",
+      "displayName": "MiniMax M3.1 Flash [ClinePass]",
+      "maxOutputTokens": 524288,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "cline-pass/minimax-m3.1-flash"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-minimax-m3",
+      "displayName": "MiniMax M3 [ClinePass]",
+      "maxOutputTokens": 512000,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "extraArgs": {
+        "model": "cline-pass/minimax-m3"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-mimo-v2.6-pro",
+      "displayName": "MiMo V2.6 Pro [ClinePass]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "cline-pass/mimo-v2.6-pro"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-mimo-v2.6-flash",
+      "displayName": "MiMo V2.6 Flash [ClinePass]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1048576,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "cline-pass/mimo-v2.6-flash"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-qwen3.7-max",
+      "displayName": "Qwen3.7 Max [ClinePass]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": true,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "extraArgs": {
+        "model": "cline-pass/qwen3.7-max"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-qwen3.7-plus",
+      "displayName": "Qwen3.7 Plus [ClinePass]",
+      "maxOutputTokens": 64000,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "extraArgs": {
+        "model": "cline-pass/qwen3.7-plus"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
+    },
+    {
+      "model": "clinepass-qwen3.8-max",
+      "displayName": "Qwen3.8 Max [ClinePass]",
+      "maxOutputTokens": 131072,
+      "maxContextLimit": 1000000,
+      "noImageSupport": false,
+      "apiKey": "${CLINE_API_KEY}",
+      "baseUrl": "https://api.cline.bot/api/v1",
+      "provider": "generic-chat-completion-api",
+      "reasoningEffort": "medium",
+      "extraArgs": {
+        "model": "cline-pass/qwen3.8-max"
+      },
+      "extraHeaders": {
+        "X-Response-Format": "openai"
+      }
     }
   ]
 }
