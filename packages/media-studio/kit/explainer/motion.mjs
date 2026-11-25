@@ -40,8 +40,6 @@ export const MOTION = {
 /** Siblings land this far apart, at 30 fps. */
 export const STAGGER_FRAMES = 5;
 
-export const motionNames = () => Object.keys(MOTION);
-
 const spec = (name) => {
   const found = MOTION[name];
   if (!found) throw new Error(`unknown motion "${name}"`);
@@ -54,9 +52,6 @@ export const framesOf = (name, fps = REFERENCE_FPS) => {
   if (!frames) return 0;
   return Math.max(1, Math.round((frames * fps) / REFERENCE_FPS));
 };
-
-/** Seconds cost of a motion at a given fps. */
-export const secondsOf = (name, fps = REFERENCE_FPS) => framesOf(name, fps) / fps;
 
 /**
  * Progress 0..1 for a motion that starts at `atSeconds`.

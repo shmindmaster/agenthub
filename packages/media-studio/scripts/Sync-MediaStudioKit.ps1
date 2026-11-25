@@ -110,14 +110,7 @@ $files = @(
     'code-stage\editor.html',
     'code-stage\diagram.html',
     'code-stage\README.md',
-    # Shared cloud render path (Azure Container Apps job): upload -> render -> download.
-    'cloud\cloud-render.mjs',
-    'cloud\blob.mjs',
-    'cloud\worker.mjs',
-    'cloud\recast-run.mjs',
     'cloud\cloud-ai.mjs',
-    'cloud\chunk-render.mjs',
-    'cloud\Provision-CloudRender.ps1',
     'cloud\README.md'
 )
 foreach ($rel in $files) {
@@ -170,7 +163,7 @@ if (Test-Path -LiteralPath $marketingSource) {
 # Capture and product-picture gates travel with the compositor so each host resolves the same scripts.
 # A missing validator is a hard stop, never a silent skip. The existing scripts are copied
 # beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
-$gateScripts = @('queue-qwen-alignment-clock.mjs', 'derived-audio-clock.mjs', 'hosted-alignment-clock.mjs', 'validate-edit-map.mjs', 'edit-map-clock.mjs', 'validate-word-sync.mjs', 'validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
+$gateScripts = @('derived-audio-clock.mjs', 'hosted-alignment-clock.mjs', 'validate-edit-map.mjs', 'edit-map-clock.mjs', 'validate-word-sync.mjs', 'validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
     # video standard (2026-10-20): record-job.mjs resolves validate-capture-preflight.mjs from _shared\tools; the rest are the release gates the skills cite
     'validate-narration.mjs', 'marketing-cut.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-finished-film.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'speech-only-readiness.mjs', 'build-contact-sheet.mjs',
     'check_visual_variety.py', 'check_picture_relevance.py', 'check_requirements.py',
@@ -243,6 +236,12 @@ if (Test-Path -LiteralPath $stills) { Remove-Item -LiteralPath $stills -Force; W
 foreach ($retired in @('Generate-OwnerVoice.ps1', 'ReGate-OwnerVoice.ps1', 'OwnerVoice-TakeReuse.ps1')) {
     $retiredPath = Join-Path $sharedTools $retired
     if (Test-Path -LiteralPath $retiredPath) { Remove-Item -LiteralPath $retiredPath -Force; Write-Host "Removed $retiredPath (local AI runtime is retired)" }
+}
+# CORE-136: the Azure render job (Daytona replaced it) and the Qwen queue clock were deployed by earlier syncs.
+$retiredKit = @('cloud-render.mjs', 'blob.mjs', 'worker.mjs', 'recast-run.mjs', 'chunk-render.mjs', 'Provision-CloudRender.ps1' | ForEach-Object { Join-Path (Join-Path $RuntimeKit 'cloud') $_ }) +
+    @((Join-Path (Join-Path $RuntimeKit 'screencast') 'queue-qwen-alignment-clock.mjs'), (Join-Path $sharedTools 'queue-qwen-alignment-clock.mjs'))
+foreach ($retiredPath in $retiredKit) {
+    if (Test-Path -LiteralPath $retiredPath) { Remove-Item -LiteralPath $retiredPath -Force; Write-Host "Removed $retiredPath (retired)" }
 }
 
 

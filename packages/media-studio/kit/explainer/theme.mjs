@@ -24,15 +24,6 @@ export const tone = (name = 'default') => {
   return color(key);
 };
 
-/** `#RRGGBB` + alpha 0..1 -> `#RRGGBBAA`. */
-export const withAlpha = (hex, alpha) => {
-  const value = color(hex).replace('#', '');
-  const a = Math.round(Math.min(1, Math.max(0, alpha)) * 255)
-    .toString(16)
-    .padStart(2, '0');
-  return `#${value.slice(0, 6)}${a}`;
-};
-
 export const canvas = theme.canvas;
 export const type = theme.type;
 export const space = theme.space;

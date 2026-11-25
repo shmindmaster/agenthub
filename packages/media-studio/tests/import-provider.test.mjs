@@ -411,11 +411,9 @@ test('imported rows stay zero-cost but record what was paid elsewhere', async ()
   assert.deepEqual(c2.ledger.summary().paidElsewhere, { usdMicros: 0, estimated: true, unknownRows: 2 });
 });
 
-test('an unpriced provider is a lint error except the injected local hook', () => {
-  const local = planCost({ ...fixture().spec, voice: { provider: 'local', voiceId: 'v', model: 'm' } }, brand);
-  assert.deepEqual(local.unknownProviders, ['local']);
-  assert.deepEqual(costErrors(local), []);
-  const other = { ...local, unknownProviders: ['mystery'], unknown: ['voice provider mystery has no price table'] };
+test('an unpriced provider is a lint error', () => {
+  const other = planCost({ ...fixture().spec, voice: { provider: 'mystery', voiceId: 'v', model: 'm' } }, brand);
+  assert.deepEqual(other.unknownProviders, ['mystery']);
   assert.equal(costErrors(other)[0].code, 'cost-unknown');
   assert.deepEqual(costErrors(planCost(fixture().spec, brand)), []);
 });

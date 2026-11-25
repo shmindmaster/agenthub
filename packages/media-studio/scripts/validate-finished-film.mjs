@@ -17,7 +17,7 @@
 // durationSeconds ({min,max}; any other shape is a duration-invalid error) and reviewedSilences [{start,end,reason}] (reason required), at its top level or one object down. The
 // deliverable comes from --deliverable, else job.json (deliverable, or kind audio-only), else narrated-video; stills and
 // storyboard are not applicable (ok:true, notApplicable:true, nothing measured).
-import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, openSync, readSync, closeSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';

@@ -1,8 +1,7 @@
 // Stage 3: timing. The forced aligner clocks each accepted narration take against its authored script, then builds the
 // voice-first timeline (scene length = narration span), caption chunks and an SRT. Whisper timing is an explicit
 // compatibility fallback for jobs without an aligner. With edit.beatGrid every boundary is held to the next music beat.
-// Local AI is off: the aligner and local Whisper are injected (ctx.providers.alignWords / localWhisper); the defaults refuse
-// and name the hosted route. Receipts already on disk are reused, so existing jobs still rebuild their timelines.
+// Local AI is off: the aligner is injected (ctx.providers.alignWords); the default refuses and names the hosted route. Receipts already on disk are reused, so existing jobs still rebuild their timelines.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { recordStage } from '../context.mjs';
@@ -17,15 +16,6 @@ import { forcedWordOnsets, textWords } from '../../../screencast/sync-lib.mjs';
 import { run } from '../mix.mjs';
 import { fileSha, localAiOff, readJson, round, writeJson } from '../util.mjs';
 
-/** Seconds of leading silence before speech (ffmpeg silencedetect at -42 dB), less a 30 ms guard; 0 when speech starts at once. */
-export async function speechOnset(file) {
-  const r = await run('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-af', 'silencedetect=n=-42dB:d=0.1', '-f', 'null', '-']);
-  const text = `${r.stdout || ''}${r.stderr || ''}`;
-  const start = /silence_start: ([\d.]+)/.exec(text);
-  const end = /silence_end: ([\d.]+)/.exec(text);
-  return start && Number(start[1]) <= 0.02 && end ? Math.max(0, round(Number(end[1]) - 0.03, 3)) : 0;
-}
-
 export async function probeDuration(file) {
   const r = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]);
   const d = parseFloat(r.stdout);
@@ -33,32 +23,17 @@ export async function probeDuration(file) {
   return d;
 }
 
-export function timingWordSource(flags = {}, brand = {}) {
+export function timingWordSource(flags = {}) {
   if (flags.whisperTiming) {
-    return { clock: 'whisper', provider: flags.hostedOnly ? 'openai-whisper' : brand.timing?.provider || 'openai-whisper' };
+    return { clock: 'whisper', provider: 'openai-whisper' };
   }
   // 'local-aligner' is the historical receipt label: it keys existing timing caches and timing/<cut>/asr file names.
   return { clock: 'forced-aligner', provider: 'local-aligner' };
 }
 
-async function whisperWordsFor(ctx, { audio, asrPath, duration, provider }) {
+async function whisperWordsFor(ctx, { audio, asrPath, duration }) {
   if (existsSync(asrPath)) return { payload: readJson(asrPath), cached: true };
   mkdirSync(join(asrPath, '..'), { recursive: true });
-  if (provider === 'local-whisper') {
-    const local = ctx.providers.localWhisper || localAiOff('local whisper timing');
-    await local({ file: audio, jsonOut: asrPath, txtOut: asrPath.replace(/\.json$/, '.txt') });
-    // Whisper without VAD pins a line's first word at 0 s whatever silence precedes it; move it to the measured speech
-    // onset (the film pipeline's fix_asr_onset), so cue words match what the encoded-file ASR hears.
-    const payload = readJson(asrPath);
-    const onset = await (ctx.providers.speechOnset || speechOnset)(audio);
-    const first = (payload.segments || []).flatMap((x) => x.words || [])[0];
-    if (first && first.start < onset) {
-      first.start = round(Math.min(onset, first.end - 0.05), 3);
-      writeFileSync(asrPath, `${JSON.stringify(payload, null, 2)}\n`);
-    }
-    ctx.ledger.charge({ stage: 'timing', provider: 'openai', service: 'whisper', units: 0, cached: true, note: 'local whisper' });
-    return { payload, cached: false };
-  }
   const usd = estimateWhisperUsd(duration);
   ctx.ledger.check('openai', usd, 'hosted word timing');
   const transcribe = ctx.providers.transcribeWords || (await import('../providers/openai.mjs')).transcribeWords;
@@ -87,9 +62,9 @@ async function alignedWordsFor(ctx, { audio, asrPath, script, acceptedTakeSha256
 }
 
 export async function wordsFor(ctx, options) {
-  const source = options.source || timingWordSource(ctx.flags, ctx.brand);
+  const source = options.source || timingWordSource(ctx.flags);
   if (source.clock === 'forced-aligner') return alignedWordsFor(ctx, options);
-  const result = await whisperWordsFor(ctx, { ...options, provider: source.provider });
+  const result = await whisperWordsFor(ctx, options);
   return { ...result, words: alignScriptToAsr(options.script, parseAsrWords(result.payload), options.duration) };
 }
 
@@ -113,7 +88,7 @@ export function holdFinalBeat(timeline, finalHoldSeconds, fps = FPS) {
 
 export async function timingStage(ctx) {
   const out = {};
-  const source = timingWordSource(ctx.flags, ctx.brand);
+  const source = timingWordSource(ctx.flags);
   // edit.beatGrid keys the stage only when set, so a spec without it keeps its cache; the music asset never sees it (spec.music).
   const grid = ctx.spec.edit?.beatGrid ? { bpm: ctx.spec.edit.beatGrid.bpm, offsetSeconds: ctx.spec.edit.beatGrid.offsetSeconds } : null;
   for (const cut of normalizeCuts(ctx.spec)) {

@@ -8,7 +8,7 @@ import { recordStage } from '../context.mjs';
 import { checkStage, stageKey, writeStage } from '../cache.mjs';
 import { NARRATION_IMPORT_SCHEMA, importLineFor, importPolicyProblems, normalizeCuts } from '../lint.mjs';
 import { estimateTtsCredits, realtimeUsdFromUsage } from '../prices.mjs';
-import { fileSha, hashOf, localAiOff, readJson, sha256, writeJson } from '../util.mjs';
+import { fileSha, hashOf, readJson, sha256, writeJson } from '../util.mjs';
 
 const AUDIO_EXT = new Set(['.wav', '.mp3', '.m4a']);
 
@@ -78,7 +78,7 @@ export function lineKey(spec, text, prev, next, take = 0, audioSha256 = null) {
   });
 }
 
-export const lineExt = (provider) => (provider === 'local' || provider === 'openai' ? 'wav' : 'mp3');
+export const lineExt = (provider) => (provider === 'openai' ? 'wav' : 'mp3');
 
 async function renderLine(ctx, { text, prev, next, out, key, take }, openaiPlan) {
   const v = ctx.spec.voice;
@@ -119,11 +119,6 @@ async function renderLine(ctx, { text, prev, next, out, key, take }, openaiPlan)
     return { receipt: { provider: 'openai', model: openaiPlan.model, voice: v.voiceId, aiGenerated: true,
       usage: res.usage ?? null, billedUsd: billed, rateEvidence: openaiPlan.rateEvidence,
       fundingObservedAt: openaiPlan.funding.observedAt, reservedUsd: usd } };
-  }
-  if (v.provider === 'local') {
-    const local = P.localVoice || localAiOff('local voice');
-    await local({ speaker: v.voiceId, instruction: v.instructions || '', text, out });
-    return { receipt: { provider: 'local', speaker: v.voiceId } };
   }
   throw new Error(`unsupported voice provider ${v.provider}`);
 }

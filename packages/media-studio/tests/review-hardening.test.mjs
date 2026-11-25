@@ -89,17 +89,12 @@ test('Local AI is off: default aligner and transcript refuse with the hosted rou
   assert.equal(skipped.transcript, undefined);
 });
 
-test('Local AI is off: a local voice provider refuses before rendering instead of starting Qwen', async () => {
+test('the retired local voice provider is refused before rendering', async () => {
   const job = join(root, 'local-voice');
   const ctx = { jobDir: job, flags: {}, providers: {}, log() {},
     spec: { id: 'v', ratios: ['9x16'], beats: [{ id: 'b1', kind: 'card', narration: 'Open the queue.' }], voice: { provider: 'local', voiceId: 'role' } },
     ledger: { check() {}, charge() {}, summary: () => ({}) } };
-  await assert.rejects(voiceStage(ctx), /local voice: Local AI is off; use the hosted route/);
-  let rendered = 0;
-  ctx.providers.localVoice = async ({ out }) => { rendered++; writeFileSync(out, 'synthetic wav'); };
-  const result = await voiceStage(ctx);
-  assert.equal(rendered, 1, 'the injected seam still works');
-  assert.equal(result.main.lines.length, 1);
+  await assert.rejects(voiceStage(ctx), /unsupported voice provider local/);
 });
 
 test('QA publishes pending gates for an unencoded prepared candidate without a hash receipt or compose metadata', async () => {

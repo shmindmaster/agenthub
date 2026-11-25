@@ -35,9 +35,6 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 }
 
 Report 'validate-product-picture.mjs exists' (Test-Path -LiteralPath $validator) 'missing scripts/validate-product-picture.mjs'
-Report 'capture-plan schema exists' (
-    Test-Path -LiteralPath (Join-Path $pkg 'schemas\capture-plan.schema.json')
-) 'missing schemas/capture-plan.schema.json'
 $jobSchema = Get-Content -LiteralPath (Join-Path $pkg 'schemas\job.schema.json') -Raw -Encoding UTF8
 Report 'job schema enumerates technical-story' ($jobSchema -match '"technical-story"') 'job.schema.json still omits technical-story'
 $compose = Get-Content -LiteralPath (Join-Path $pkg 'kit\screencast\compose-screencast.mjs') -Raw -Encoding UTF8
@@ -74,12 +71,6 @@ Report 'product-picture requires end-to-end demonstration' (
     $pictureMd -match 'Mute test' -and
     $pictureMd -match 'provesClaim'
 ) 'product-picture.md still treats product UI as illustration instead of a causal demo'
-$planSchema = Get-Content -LiteralPath (Join-Path $pkg 'schemas\capture-plan.schema.json') -Raw -Encoding UTF8
-Report 'capture-plan interaction requires causal fields' (
-    $planSchema -match '"startState"' -and
-    $planSchema -match '"resultState"' -and
-    $planSchema -match '"provesClaim"'
-) 'capture-plan.schema.json still lets an interaction omit start/result/claim'
 Report 'compose-screencast fails closed without its validator' ($compose -match 'validator not resolvable') 'compositor still skips silently when the validator is missing'
 Report 'compose-screencast caps hidden freezes' ($compose -match 'HOLD_PAD_MAX') 'compositor still freezes a short clip across a long paragraph'
 

@@ -8,29 +8,6 @@ or the existing offset and drift thresholds.
 
 Use this external-workspace contract for every viewer-facing product screencast. It does not impose title or sequence rules on non-product media.
 
-## Media Studio 4.0 explainer engine — verification status (2026-11-22)
-
-`kit/explainer/` is new: a shot grammar, a stage and light layer, per-family layouts, a builder, a frame-measurement tool and a release gate, plus the `Explainer` composition. The method is adapted from a published reference; its toolkit is PolyForm Noncommercial, so nothing was copied — the code, tokens, fixture and thresholds are this repository's own.
-
-**Run and observed on 2026-11-22 (offline, no render):**
-
-- `node --test packages/media-studio/tests/explainer-grammar.test.mjs packages/media-studio/tests/explainer-layout.test.mjs` — 22 pass, including two invariants that close a hole found after the first pass: every composition family is reachable from the catalogue, and every visual kind an archetype may carry is either composed by the family it resolves to or refused at build time rather than dropped at render time.
-- `node --test packages/media-studio/tests/explainer-builder.test.mjs` — 11 pass, including the CLI writing props, refusing to write them on a broken plan, and a polyglot archetype taking the composition its visual asks for (`diagram-build` + a `layers` visual builds as the layer stack).
-- `node --test packages/media-studio/tests/explainer-gate.test.mjs` — 14 pass; every rule fires on a one-thing mutation of a passing film.
-- `node --test packages/media-studio/tests/explainer-metrics.test.mjs` — 21 pass, including PNG round-trip, component labelling, static-run and landing-hold detection, and the measurement CLI writing a report.
-- The whole package suite, all 28 test files in one run: 854 tests, 852 pass, 2 fail. Both failures are in `elevenlabs-provider.test.mjs`, which needs a Python module (`governed_elevenlabs`) this machine does not have; they fail the same way on the tree before this change.
-- `pwsh -NoProfile -File scripts/Validate-AgentHub.ps1` run from a clean worktree at the committed tip: `PASS: 9 capability packages, 8 installable plugins, 16 MCP servers, 18 active agents, 3 inventory-only agents.` In the working checkout the same script fails only on the pre-existing `coding-agent-dispatch` hash drift, which is another session's uncommitted change.
-- Deployed, then exercised from the deploy destination rather than the source tree: `_shared\tools\explainer\build-explainer.mjs` built the test fixture through the real job layout (6 shots, 2 chapters, 780 frames, 26 s) and `validate-explainer-release.mjs` accepted it (0 failed, 1 warning). The same deployed pair then built the fixture with one shot rewritten to a `diagram-build` + `layers` visual; the built shot carries `family: layers`, and the gate accepted that film too. That is the route the first pass left unreachable.
-- `node --test packages/media-studio/tests/build-picture.test.mjs` — 6 pass after the word-anchor logic moved to `kit/explainer/anchor.mjs` and `build-picture.mjs` re-exported it.
-
-**Forge acceptance and remaining limits:**
-
-- **Typecheck.** Run against the dependencies the deployed kit actually has: `node D:\AgentHub\media-studio\briefing-kit\node_modules\typescript\bin\tsc -p packages/media-studio/kit/tsconfig.json --noEmit` with `kit/node_modules` junctioned to that install for the length of the run, then removed. Strict, `noUnusedLocals`, `allowJs`; exit 0, no errors, covering `kit/src` and `kit/explainer`. It caught a real break first: `Root.tsx` imported `./explainer/Explainer` while the module lives at `kit/explainer/`, so the `Explainer` composition could not have bundled. Fixed to `../explainer/…` and re-run clean.
-- **Forge pilot.** The first actual bundle failed because the browser imported a Node filesystem module via the shared theme. The JSON import fixed it. The encoded pilot also exposed clipped and overlapping headings. After correcting the title geometry, strict kit typecheck and full video decode passed and the sampled headings fit. The second pilot is 780 frames at 1600×1000 (26 seconds), SHA-256 `7a9ce0e53d8af2206bce7497706ba2f1adeb2f0c727b5396f1849c7e66e9ea32`. The first pilot measured 52 high flags concentrated near entrances, with no empty run and a 0.6-second longest static run. These results do not establish a measured release pass.
-- **Deployment to hosts is partial.** The kit and _shared\tools\explainer are deployed. Eleven of thirteen host mappings read back 4.0.0 (claude, codex, cursor, devin, factory, amp, antigravity, grok, cline, kilo, opencode); Copilot and VS Code Insiders cannot, because the copilot CLI on this machine is a shim with no installed runtime (exit 9009).
-- **Threshold calibration.** Hero / empty-run / debris / static thresholds are the reference method's measurements expressed as fractions of frame height. The first delivered film measured with `measure-explainer-frames.mjs` is the calibration record; until then the numbers are a starting point, not a proven line.
-- **PR #215 interaction.** Codex owns narration pricing and spend controls on `media/narration-preflight`. When this branch was finished #215 was still open with one unresolved review finding, so this branch was cut from `main` as it stood and does not contain those changes; #215 rebases onto this work, not the other way round.
-- **Repository promotion.** The branch is under review in [PR #216](https://github.com/shmindmaster/agenthub/pull/216). The clean published tree is the source for the release sync.
 ## Fleet deployment
 
 Native Claude/Codex installation alone does not update Cursor, Grok, Hermes, or

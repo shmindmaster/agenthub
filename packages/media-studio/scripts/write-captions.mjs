@@ -3,7 +3,7 @@
 // A pause, or a scene cut passed as --breaks <seconds,...>, always ends a cue. Exits 1 when a cue shows a word early.
 // Usage: node write-captions.mjs <jobRoot> [--words story/narration-words.json] [--out qa/captions.srt] [--breaks 10.2,20.1]
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { captionCues, cuesToSrt, normalizeAlignWords } from './picture-gates.mjs';
 
 const argv = process.argv.slice(2);

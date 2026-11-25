@@ -123,8 +123,8 @@ test('external paid QA is refused before a call or source-ledger write', () => {
 });
 
 test('local-only planning has no vision or transcript API cost; explicit paid overrides are planned', () => {
-  const spec = { id: 'one', ratios: ['9x16'], beats: [{ id: 'one', narration: 'Open the screen.' }], voice: { provider: 'local' } };
-  const brand = { timing: { provider: 'local-whisper' } };
+  const spec = { id: 'one', ratios: ['9x16'], beats: [{ id: 'one', narration: 'Open the screen.' }], voice: { provider: 'import' } };
+  const brand = {};
   assert.equal(planCost(spec, brand).openaiUsd, 0);
   assert.equal(planCost(spec, { ...brand, vision: { provider: 'local' } }).openaiUsd, 0);
   assert.equal(planCost(spec, brand, { visionProvider: 'openai' }).openaiUsd, 0.35);
