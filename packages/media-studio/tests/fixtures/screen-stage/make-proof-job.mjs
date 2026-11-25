@@ -16,7 +16,7 @@ const root = resolve(outDir);
 const put = (rel, data) => { const p = join(root, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, typeof data === 'string' ? data : JSON.stringify(data, null, 2) + '\n'); };
 
 const TOUCH = args.includes('--touch'), PHONE_IN_FRAME = args.includes('--phone-in-frame');
-const DURATION = TOUCH || PHONE_IN_FRAME ? 7.8 : 12.6;
+const DURATION = TOUCH || PHONE_IN_FRAME ? 7.8 : 14.6;
 // [word, start, end] seconds. Content-word starts are the click moments: amounts 1.6, Format 2.6, Number 3.7, Currency 4.8; Applied 5.2.
 const WORDS = [
   ['Select', 1.05, 1.40], ['the', 1.40, 1.55], ['amounts,', 1.60, 2.10], ['open', 2.22, 2.50], ['Format,', 2.60, 3.10], ['choose', 3.22, 3.60],
@@ -85,7 +85,7 @@ export const scenes = {
     await press(h.page.getByTestId('item-number'), { label: 'Open number', ms: 400, settle: 250, hold: 390 });
     await press(h.page.getByTestId('sub-currency'), { label: 'Apply currency', ms: 400, settle: 250, hold: 100 });
     await h.expect(h.page.getByTestId('toast'), 'Currency format applied', { text: 'Currency format applied to 7 cells', hold: 300 });
-    if (!${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) await h.typeText(h.page.getByTestId('note-field'), 'Currency applied to the Amount column, checked against October', { label: 'Type a note', ms: 400, settle: 250, delay: 85, hold: 900 });
+    if (!${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) { await h.hold(1800); await h.typeText(h.page.getByTestId('note-field'), 'Currency applied to the Amount column, checked against October', { label: 'Type a note', ms: 400, settle: 250, delay: 85, hold: 900 }); }
     await h.hold(${TOUCH || PHONE_IN_FRAME ? 1300 : 2600});
   },
 };

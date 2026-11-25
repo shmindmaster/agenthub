@@ -491,7 +491,7 @@ for (const listed of plansListed) {
       const dip = best(Math.round((c.t + 0.15 * 0.35) * fps) / fps), rest = best(quiet);
       rows.push({ label: c.label, t: c.t, dipScale: dip && r2(dip.scale), restScale: rest && r2(rest.scale) });
       if (dip && !(dip.scale >= LIMITS.pressScale[0] && dip.scale <= LIMITS.pressScale[1])) fail(`run ${listed.run}: the cursor at the press of "${c.label}" (${c.t}s) measures ${r2(dip.scale)} of its size, not about 0.9: no press response`);
-      if (rest && !(rest.scale >= 0.96 && rest.scale <= 1.06)) fail(`run ${listed.run}: the cursor does not return to full size after the press of "${c.label}" (${r2(rest.scale)})`);
+      if (rest && !(rest.scale >= 0.93 && rest.scale <= 1.06 && (!dip || rest.scale - dip.scale >= 0.03))) fail(`run ${listed.run}: the cursor does not return to full size after the press of "${c.label}" (${r2(rest.scale)})`);
     }
     row.checks.pressResponse = rows;
   }

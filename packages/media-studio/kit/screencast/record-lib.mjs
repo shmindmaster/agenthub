@@ -103,7 +103,9 @@ export async function startRecording(id, opts = {}) {
     ...(device || {}),
     viewport,
     // mobileLayout (native-resolution phone/tablet layout) wins over device emulation: it rasterises at DSF 1 by design.
-    ...(opts.stage ? { deviceScaleFactor: undefined } : { deviceScaleFactor: mobile ? 1 : opts.deviceScaleFactor || device?.deviceScaleFactor || 2 }),
+    deviceScaleFactor: mobile ? 1 : opts.deviceScaleFactor || device?.deviceScaleFactor || 2,
+    // the stage lane sets the scale on the browser itself (--force-device-scale-factor), so the context must not
+    ...(opts.stage ? { deviceScaleFactor: undefined } : {}),
     ...(mobile ? { isMobile: true, hasTouch: true } : {}),
     ...(!mobile && opts.isMobile !== undefined ? { isMobile: opts.isMobile } : {}),
     ...(!mobile && opts.hasTouch !== undefined ? { hasTouch: opts.hasTouch } : {}),
