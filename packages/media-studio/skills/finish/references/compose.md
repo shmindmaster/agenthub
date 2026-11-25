@@ -14,7 +14,7 @@ Check the runtime first; repair a stale one from `MEDIA_STUDIO_PACKAGE_ROOT`; ne
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/briefing-kit'
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub/media-studio/_shared/tools'
-foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '4.0.5') { throw "Stale runtime: $m" } }
+foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m -Raw | ConvertFrom-Json).version -ne '4.3.4') { throw "Stale runtime: $m" } }
 ```
 
 ## Pick the tool
@@ -22,14 +22,14 @@ foreach ($m in "$kit/package.json", "$tools/plugin.json") { if ((Get-Content $m 
 One renderer per job:
 
 - Archetype kit, parametrised templates: Remotion via the official `remotion-dev/skills` (board 1600×1000, 30 fps). Render only after `validate-picture-inputs.mjs` passes.
-- Viewer-facing explainer or training film: the `Explainer` composition in `kit/explainer/`. Props come from `build-explainer.mjs` (never hand-written), the picture is measured by `measure-explainer-frames.mjs`, and `validate-explainer-release.mjs --require-metrics` must pass. `Briefing` is for decks and legacy jobs, not for a new film.
+- Viewer-facing explainer or training film: the `Explainer` composition in `kit/explainer/`. Props come from `build-explainer.mjs` (never hand-written), which refuses words that would be cut and arrows that would cross a box; `still-explainer.mjs` draws a sheet of frames before the film is rendered; the picture is measured by `measure-explainer-frames.mjs`, and `validate-explainer-release.mjs --require-metrics` must pass. `Briefing` is for decks and legacy jobs, not for a new film.
 - Paused GSAP timeline HTML: HyperFrames, when the job names it.
 - Captured product: Recast, then `compose-screencast.mjs`.
 - Concat, mux, format: FFmpeg, finished by `Finish-Media.ps1`.
 
 ## Placement
 
-Capture stays local. Renders run on sh-forge; report lane and cost.
+Capture stays local. Renders run on Daytona (`render-lanes.md`); report lane and cost.
 
 ## Delivery
 
@@ -47,7 +47,7 @@ Use a new id and checksum for each render; never overwrite a reviewed candidate.
 - `references/loudness.md`: Read when the target is not web or the bed needs tuning.
 - `references/render-lanes.md`: Read before every render.
 - `references/descript.md`: Read when a job wants Descript finishing.
-- `../video/references/product-picture.md`: Read when any beat is `screen`.
+- `../../studio/references/product-picture.md`: Read when any beat is `screen`.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](compose-detail.md)
 

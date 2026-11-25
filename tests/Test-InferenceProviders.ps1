@@ -174,7 +174,7 @@ Assert-True ($LASTEXITCODE -eq 0 -and ($pyOut -match 'PY_UNIT_PASS')) "Python un
 $tmpRoot = Join-Path ([IO.Path]::GetTempPath()) ("agenthub-inf-test-" + [Guid]::NewGuid().ToString('N'))
 $fakeHome = Join-Path $tmpRoot 'home'
 $fakeRoaming = Join-Path $tmpRoot 'roaming'
-$sentinelKey = 'sk-synthetic-test-key-never-print-9999'
+$sentinelKey = 'synthetic-sentinel-key-never-print-9999'
 
 try {
     $dirs = @(

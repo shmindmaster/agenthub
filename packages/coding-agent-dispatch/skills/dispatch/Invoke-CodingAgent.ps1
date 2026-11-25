@@ -158,7 +158,6 @@ param(
     [string]$SchemaFile,
     [switch]$List,
     [switch]$ShowCommand,
-    [switch]$Forge,
     [switch]$Auth
 )
 
@@ -213,11 +212,7 @@ function Join-WindowsArguments {
     return (($ArgumentList | ForEach-Object { Format-WindowsArgument $_ }) -join ' ')
 }
 
-if ($Forge) {
-    $forgeCatalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'forge-hosts.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-}
-
-if ($ZCodeBrowser -and ($Forge -or $Auth -or $List -or ([string]$HostId).Trim() -ne 'zcode')) {
+if ($ZCodeBrowser -and ($Auth -or $List -or ([string]$HostId).Trim() -ne 'zcode')) {
     Write-Refusal 3 '-ZCodeBrowser applies only to -HostId zcode on the local dispatcher.'
 }
 
@@ -226,48 +221,23 @@ if ($Auth) {
         $Role -or $Title -or $SessionId -or $Model -or $AnthropicApiKey -or
         $RunId -or $Repo -or $SchemaFile -or $PSBoundParameters.ContainsKey('MaxAcu') -or
         $PSBoundParameters.ContainsKey('TimeoutSec')) {
-        Write-Refusal 3 'Use -Auth with only optional -Forge and -HostId.'
+        Write-Refusal 3 'Use -Auth with only optional -HostId.'
     }
-    $authCommands = if ($Forge) {
-        [ordered]@{
-            grok = '/srv/work/agenthub-runner/.grok/bin/grok login --device-auth'
-            codex = 'Use a codex-qwen, codex-zai, codex-mimo or codex-go launcher; no personal OpenAI login on Forge.'
-            claude = 'Use a claude-qwen, claude-zai, claude-mimo or claude-go launcher; no personal Anthropic login on Forge.'
-            qwen = '/srv/work/agenthub-runner/.local/bin/qwen; run /auth and choose QwenCloud Token Plan'
-            cline = '/srv/work/agenthub-runner/.local/bin/cline auth'
-            opencode = '/srv/work/agenthub-runner/.local/bin/opencode; run /connect and choose the intended provider'
-            github = 'gh auth status; gh auth login --hostname github.com --git-protocol https --web; gh auth setup-git'
-            linear = '/srv/work/agenthub-runner/.local/bin/codex mcp login linear'
-            'opencode-qwen' = '/srv/work/agenthub-runner/.local/bin/opencode-qwen; uses the Forge Qwen runtime credential'
-            'opencode-zai' = '/srv/work/agenthub-runner/.local/bin/opencode-zai; uses the Forge Z.ai Coding Plan runtime credential'
-        }
-    } else {
-        [ordered]@{
-            grok = 'grok login'
-            codex = 'codex login; check with codex login status'
-            claude = 'claude auth login; check with claude auth status'
-            qwen = 'qwen; run /auth and choose QwenCloud Token Plan'
-            mimo = 'mimo providers; select the MiMo Token Plan'
-            zcode = 'In ZCode Desktop, use Connect to sign in to the intended Z.ai Coding Plan and select its model.'
-            cline = 'cline auth'
-            opencode = 'opencode; run /connect and choose the intended provider'
-            'opencode-zai' = 'Use -HostId opencode -Model zai-coding-plan/glm-5.3; the Windows launcher reads ZAI_CODING_PLAN_API_KEY.'
-            github = 'gh auth status; gh auth login if needed'
-            'codex-qwen' = 'codex --profile qwen; uses QWEN_TOKEN_PLAN_API_KEY'
-        }
-    }
-    if ($Forge) {
-        foreach ($entry in $forgeCatalog.PSObject.Properties) {
-            if ($entry.Value.plan) {
-                $authCommands[$entry.Name] = "/srv/work/agenthub-runner/$($entry.Value.argv[0]); uses the Forge $($entry.Value.plan) runtime credential."
-            }
-        }
+    $authCommands = [ordered]@{
+        grok = 'grok login'
+        codex = 'codex login; check with codex login status'
+        claude = 'claude auth login; check with claude auth status'
+        qwen = 'qwen; run /auth and choose QwenCloud Token Plan'
+        mimo = 'mimo providers; select the MiMo Token Plan'
+        zcode = 'In ZCode Desktop, use Connect to sign in to the intended Z.ai Coding Plan and select its model.'
+        cline = 'cline auth'
+        opencode = 'opencode; run /connect and choose the intended provider'
+        'opencode-zai' = 'Use -HostId opencode -Model zai-coding-plan/glm-5.4; the Windows launcher reads ZAI_CODING_PLAN_API_KEY.'
+        github = 'gh auth status; gh auth login if needed'
+        'codex-qwen' = 'codex --profile qwen; uses QWEN_TOKEN_PLAN_API_KEY'
     }
     if ($HostId -and -not $authCommands.Contains($HostId)) {
         Write-Refusal 3 'No sign-in command recorded for this host. Run -Auth to list supported entries.'
-    }
-    if ($Forge) {
-        Write-Output 'Run these on Forge as agenthub-runner with HOME=/srv/work/agenthub-runner.'
     }
     foreach ($entry in $authCommands.GetEnumerator()) {
         if (-not $HostId -or $entry.Key -eq $HostId) {
@@ -275,71 +245,6 @@ if ($Auth) {
         }
     }
     exit 0
-}
-
-if ($Forge) {
-    # This route opens an operator session. Prompt-based jobs and reviewer
-    # roles require a separate Linux worker contract and provider acceptance.
-    if ($Prompt -or $PromptFile -or $ReadOnly -or $Role -or $Title -or $SessionId -or
-        $Model -or $AnthropicApiKey -or $RunId -or $Repo -or $SchemaFile -or
-        $PSBoundParameters.ContainsKey('MaxAcu') -or $PSBoundParameters.ContainsKey('TimeoutSec')) {
-        Write-Refusal 3 'Forge supports interactive sessions only. Select the provider and model inside the agent.'
-    }
-    $forgeHosts = [ordered]@{}
-    foreach ($entry in $forgeCatalog.PSObject.Properties) {
-        $forgeHosts[$entry.Name] = $entry.Value.argv -join ' '
-    }
-    $forgeHome = '/srv/work/agenthub-runner'
-    $runner = "runuser -u agenthub-runner -- env -i HOME=$forgeHome TERM=xterm-256color PATH=$forgeHome/.local/bin:/usr/bin:/bin"
-    if ($List) {
-        if ($HostId -or $Cwd -or $ShowCommand) { Write-Refusal 3 'Use -Forge -List without a host, directory, or preview flag.' }
-        $commands = foreach ($entry in $forgeHosts.GetEnumerator()) {
-            $binary = ($entry.Value -split ' ')[0]
-            "if test -x $forgeHome/$binary; then printf '%s\tinteractive\t%s\n' '$($entry.Key)' 'installed; auth unverified'; else printf '%s\trefused\t%s\n' '$($entry.Key)' 'executable absent'; fi"
-        }
-        $inventory = [Diagnostics.ProcessStartInfo]::new()
-        $inventory.FileName = (Get-Command ssh -CommandType Application).Source
-        $inventory.UseShellExecute = $false
-        $inventory.CreateNoWindow = $true
-        $inventory.RedirectStandardOutput = $true
-        $inventory.RedirectStandardError = $true
-        $inventoryArgs = @('-nT', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', 'forge', ($commands -join '; '))
-        if ($env:OS -eq 'Windows_NT') {
-            $inventory.Arguments = Join-WindowsArguments $inventoryArgs
-        } else {
-            foreach ($argument in $inventoryArgs) { $inventory.ArgumentList.Add($argument) }
-        }
-        $process = [Diagnostics.Process]::Start($inventory)
-        try {
-            $output = $process.StandardOutput.ReadToEndAsync()
-            $errors = $process.StandardError.ReadToEndAsync()
-            if (-not $process.WaitForExit(15000)) {
-                $process.Kill()
-                Write-Refusal 4 'Forge inventory timed out.'
-            }
-            [Console]::Error.Write($errors.GetAwaiter().GetResult())
-            Write-Output ($output.GetAwaiter().GetResult().TrimEnd())
-            exit $process.ExitCode
-        } finally {
-            $process.Dispose()
-        }
-    }
-    if (-not $HostId -or -not $forgeHosts.Contains($HostId)) {
-        if ($HostId -in @('codex', 'claude')) {
-            Write-Refusal 3 "Select a Forge provider explicitly, for example '$HostId-zai'. Run -Forge -List."
-        }
-        Write-Refusal 3 'Use -Forge -List to see supported Forge hosts.'
-    }
-    if ($Cwd -cnotmatch '^/srv/work/agenthub-runner/worktrees/[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\z') {
-        Write-Refusal 3 'Pass a Forge worktree path under /srv/work/agenthub-runner/worktrees using letters, digits, underscores or hyphens.'
-    }
-    $command = "$runner bash --noprofile --norc -c 'cd -- $Cwd && test `"`$(pwd -P)`" = $Cwd && exec $forgeHome/$($forgeHosts[$HostId])'"
-    if ($ShowCommand) {
-        Write-Output "ssh -t -o BatchMode=yes -o ConnectTimeout=10 forge $command"
-        exit 0
-    }
-    & ssh -t -o BatchMode=yes -o ConnectTimeout=10 forge $command
-    exit $LASTEXITCODE
 }
 
 # A model id only has to be safe on the command line and in the shape the host

@@ -12,7 +12,7 @@ description: "Drives real iPhones and Android devices (Mobile MCP) and emulators
 3. Return the device, app identity, smoke verdict, evidence path, and cleanup result.
 4. If preflight, lease, or app identity fails, stop before driving the device and record the blocker.
 
-Android builds and Maestro runs go to the remote Linux worker by default (`mobile.ps1 remote run <productId>`); it keeps Gradle and the emulator off this PC. The Windows emulator remains for interactive Appium sessions. iOS runs in the macOS VM on sh-forge, which starts on demand (`ssh forge mac run <cmd>`, `ssh forge-mac`) and stops itself 15 minutes after the last use; never start it any other way. Report results as "verified on simulator" or "verified on emulator", never "on device".
+Android emulator and Maestro runs use the Windows emulator or a USB device: Daytona has no KVM, so there is no remote emulator (`mobile.ps1 remote` refuses). Gradle and APK builds can run on a Daytona v2 Linux box (`node scripts/daytona-run.mjs --owner <project> -- <command>`; expected to work, not yet run). iOS runs in the macOS VM on the DigitalOcean droplet (owner direction 2026-11-24: for now, because a Daytona Mac day is expensive). It starts on demand (`ssh forge mac run <cmd>`, `ssh forge-mac`) and stops itself 15 minutes after the last use; never start it any other way. Read `references/forge-mac.md` first. Everything else stays off that droplet. Never create a Daytona macOS sandbox or buy a reservation without owner approval of the price (`references/daytona-mac.md`). Report results as "verified on simulator" or "verified on emulator", never "on device".
 
 ```powershell
 $mobile = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1"
@@ -48,11 +48,11 @@ Hold the lease around anything that mutates a shared emulator or Simulator: buil
 
 ## References
 
-- `references/forge-mac.md`. Read before any iOS, Simulator or Xcode work: starting, using and releasing the macOS VM on sh-forge.
+- `references/forge-mac.md`. Read before any iOS, Simulator or Xcode work: starting, using and releasing the macOS VM.
+- `references/daytona-mac.md`. Read before proposing a paid Daytona Mac day: the rules, what was proven there, and why there is no remote Android emulator.
 - `references/inner-loop.md`. Read when choosing rebuild vs reload, building or syncing the app under test, build speed, test tools, or web targets.
 - `references/lab-operations.md`. Read for the lease and idle-check commands, a guest that will not start, Gradle builds on this host, guest and Appium setup, WDA, signing certificates, or Maestro on Android.
-- `references/mobile-mcp.md`. Read before driving a real iPhone or Android device with Mobile MCP, or before iOS build and log work with MobileBuildMCP in the forge guest.
+- `references/mobile-mcp.md`. Read before driving a real iPhone or Android device with Mobile MCP, or before iOS build and log work with MobileBuildMCP on the Mac VM.
 - `references/physical-iphone.md`. Read when driving or provisioning the iPhone attached to Windows over USB: tap, type, swipe and read any app's screen through WebDriverAgent (`scripts/wda_client.py`), install and confirm a build, push a file into an app's Documents, and before saying a phone task cannot be done. Also lists the other iPhone-automation routes already evaluated.
-- `references/remote-android.md`. Read when building, running or testing Android without loading this PC, registering another app, or letting the owner view the emulator.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)

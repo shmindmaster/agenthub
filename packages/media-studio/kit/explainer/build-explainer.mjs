@@ -18,7 +18,8 @@
 // No network, no spend.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { anchorSeconds, resolveAnchors, sceneEdges, wordsOf } from './anchor.mjs';
+import { anchorSeconds, resolveAnchors, sceneEdges, timeKeyAt, wordsOf } from './anchor.mjs';
+import { checkShotLayout } from './fit.mjs';
 import { familyOf, FAMILIES, RULES, validateShot, beatFitsShot } from './grammar.mjs';
 import { theme } from './theme.mjs';
 
@@ -32,13 +33,13 @@ const flag = (argv, name, fallback = null) => {
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
 
-/** Every numeric `at` inside the resolved visual, with the path that carries it. */
+/** Every beat inside the resolved visual, with the path that carries it. */
 export const collectBeats = (node, path = 'visual', out = []) => {
   if (Array.isArray(node)) {
     node.forEach((item, index) => collectBeats(item, `${path}[${index}]`, out));
   } else if (node && typeof node === 'object') {
     for (const [key, value] of Object.entries(node)) {
-      if (key === 'at' && typeof value === 'number') out.push({ target: path, atSeconds: value });
+      if (key === timeKeyAt(path) && typeof value === 'number') out.push({ target: path, atSeconds: value });
       else collectBeats(value, `${path}.${key}`, out);
     }
   }
@@ -163,6 +164,17 @@ export const buildExplainer = ({ cueSheet, receipts, plan, fps = 30, width = the
       advisory: (rule, message) => warnings.push([cue.id, rule, message].join(': ')),
     });
     for (const problem of structural) errors.push(`${cue.id}: ${problem.rule}: ${problem.message}`);
+
+    // Only a shot the grammar accepts has a composition to measure.
+    if (!structural.length) {
+      try {
+        const layout = checkShotLayout({ ...planShot, family, visual: resolved }, { width, height });
+        for (const message of layout.errors) errors.push(`${cue.id}: ${message}`);
+        for (const message of layout.warnings) warnings.push(`${cue.id}: ${message}`);
+      } catch (error) {
+        errors.push(`${cue.id}: layout: the ${resolved?.kind ?? family} cannot be laid out: ${error.message}`);
+      }
+    }
 
     return {
       id: cue.id,

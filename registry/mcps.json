@@ -37,6 +37,7 @@
       "note": "Owner direction 2026-11-04: no direct MCP entries beyond what a host needs, on every coding host. Each key under hosts is a plugin-only host, and its value lists the only direct entries allowed there, with the reason. pluginOwnersByHost on each server records which plugin carries it. tests/Test-PluginOnlyMcp.ps1 fails on any other entry. Hosts not listed here keep the older write-everything behaviour.",
       "hosts": {
         "claude": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos. Private indexes stay on the authenticated devin server.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel": "Preserve the native anonymous fallback while the marketplace Parallel Search entry is independently verified.",
           "tavily": "Tavily documents native Streamable HTTP and account OAuth in Claude Code. Preserve the user-level connection.",
@@ -44,26 +45,31 @@
           "devin": "No vendor plugin carries the official Devin MCP server. Owner-configured remote entry whose native headersHelper runs packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1, which reads the key with op read through the 1Password service account at connect time; no key or key-bearing variable is stored in the config (SH-4969)."
         },
         "codex": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos. Private indexes stay on the authenticated devin server.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel": "Preserve the native anonymous search and fetch route. Keep vendor Parallel skills distinct from MCP delivery.",
           "tavily": "Preserve the vendor-documented native Codex MCP and its OAuth consent.",
           "node_repl": "Written by Codex itself; its bundled browser, chrome and computer-use plugins need it.",
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint. Keep the vendor AWS plugin and disable its bundled aws-mcp through plugin-scoped MCP policy when the hosted connection owns this server.",
-          "devin": "No vendor plugin carries the official Devin MCP server. Preserve the owner-configured remote entry using the native Codex http_headers_helper with AgentHub's 1Password-backed Get-DevinMcpHeaders.ps1. Fleet sync never generates this entry."
+          "devin": "No vendor plugin carries the official Devin MCP server. Preserve the owner-configured remote entry using the native Codex http_headers_helper. On Windows the live command is Get-DevinMcpHeadersForStrippedHost.ps1, which copies the User-scope 1Password token into the process and then runs Get-DevinMcpHeaders.ps1, because the helper child drops OP_SERVICE_ACCOUNT_TOKEN (openai/codex issue 46244). Fleet sync never generates this entry."
         },
         "cursor": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve the Cursor native hosted MCP with Tavily OAuth.",
           "parallel": "Use Parallel's official hosted MCP through Cursor's native remote MCP configuration and keep the anonymous tool subset.",
           "aws-mcp": "AWS documents a direct hosted OAuth endpoint for Cursor. Use its native remote MCP configuration and consent flow, with no local proxy."
         },
         "grok": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos. Private indexes stay on the authenticated devin server.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel": "Preserve the existing native hosted Parallel route when Grok imports Claude plugins.",
           "tavily": "Preserve the native Grok Build Streamable HTTP entry and its OAuth consent.",
-          "aws-mcp": "A native remote override selects AWS's hosted OAuth endpoint while vendor skills remain installed. Preserve the existing disabled state and verify that the effective source replaces the bundled proxy before enabling."
+          "aws-mcp": "A native remote override selects AWS's hosted OAuth endpoint while vendor skills remain installed. Preserve the existing disabled state and verify that the effective source replaces the bundled proxy before enabling.",
+          "devin": "No vendor plugin carries the official Devin MCP server. Owner-configured remote entry whose headers_helper is Get-DevinMcpHeadersForStrippedHost.ps1. That script copies the User-scope 1Password token into the process, because Grok's headers_helper starts with a cleaned environment, and then runs Get-DevinMcpHeaders.ps1. No key or key-bearing variable is stored in the config (SH-4969)."
         },
         "factory": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos.",
           "context7": "Preserve the existing user-level Context7 vendor HTTP connection and its independently managed authorization.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel-search": "Preserve Droid’s native hosted anonymous Parallel entry and its existing server name.",
@@ -73,19 +79,23 @@
           "zread": "Preserve the existing Z.ai Coding Plan hosted repository documentation connection in Droid's native HTTP configuration. Sync does not provision credentials or register the server."
         },
         "zcode": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos.",
           "exa-anonymous": "Preserve the keyless Exa route while the separate account entry stays disabled.",
           "exa": "Allow standalone ZCode’s native hosted Exa entry. Use the existing account configuration if present.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Use ZCode’s native hosted MCP with OAuth enabled in its MCP settings."
         },
         "antigravity": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Antigravity stores the remote as serverUrl.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve Antigravity’s native serverUrl entry and native OAuth for the hosted Tavily endpoint."
         },
         "copilot": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos.",
           "tavily": "Preserve the Copilot CLI user-level HTTP registration. Check OAuth support in the installed CLI before relying on tools."
         },
         "vscode-insiders": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve the native VS Code Insiders HTTP entry and OAuth consent.",
           "parallel": "Use Parallel's official hosted MCP through VS Code's native HTTP server configuration and keep the anonymous tool subset.",
@@ -93,6 +103,7 @@
           "clerk": "Clerk CLI targets stable VS Code, so Insiders uses its own remote entry with Copilot official skills."
         },
         "cline": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Cline uses Streamable HTTP with empty tool auto-approval.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "parallel": "Use Cline Streamable HTTP configuration for anonymous Parallel search and fetch. Keep tool auto-approval empty.",
           "adobe-for-creativity": "Cline's official MCP Marketplace entry. Cline CLI can load ah-* servers through ~/.agents/plugins, but the VS Code extension reads only this file, so this is the one form both surfaces share.",
@@ -110,6 +121,7 @@
           "tavily": "Preserve the Tavily-hosted Streamable HTTP entry and native OAuth state in Cline CLI and the extension. Authorize each surface in Cline."
         },
         "opencode": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. OpenCode stores it as a remote MCP server.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve the OpenCode native hosted remote MCP and its OAuth settings.",
           "parallel": "Use Parallel's official hosted search and fetch endpoint through OpenCode's native remote MCP configuration. The vendor npm plugin is a separate integration that requires personal authorization.",
@@ -128,11 +140,13 @@
           "google-drive": "Preserve the existing Google-hosted Drive MCP in OpenCode's native remote configuration. Google Workspace OAuth is independent."
         },
         "amp": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve the Amp CLI hosted remote entry and its native OAuth state.",
           "parallel": "Use the vendor hosted anonymous HTTP endpoint through the native Amp client."
         },
         "devin": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. Devin Desktop also has the native private wiki. This entry adds the public door and stores no API key.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve Devin CLI’s hosted user-scope entry and native MCP login."
         },
@@ -145,6 +159,7 @@
           "clerk": "Warp has no plugin format; official Clerk CLI configures the hosted endpoint, no local process."
         },
         "kilo": {
+          "deepwiki": "Public DeepWiki at https://mcp.deepwiki.com/mcp. No API key. Shared repository index for public repos.",
           "parallel-research": "Preserve the optional native OAuth registration for Parallel research. Keep it disabled while consent and account attribution are pending.",
           "tavily": "Preserve Kilo’s remote MCP entry in kilo.jsonc and its native OAuth state.",
           "parallel": "Use kilo mcp add to register the vendor hosted anonymous HTTP endpoint in kilo.jsonc."
@@ -597,11 +612,11 @@
         "-y",
         "@mobilenext/mobile-mcp@1.0.17"
       ],
-      "credentialPolicy": "none-in-config; no account or token. mobile_login_to_cloud_provider and the remote-device tools reach Mobile Next Cloud and are never used: devices are local or on sh-forge only.",
+      "credentialPolicy": "none-in-config; no account or token. mobile_login_to_cloud_provider and the remote-device tools reach Mobile Next Cloud and are never used: devices are local only.",
       "providesCapabilities": [
         "mobile.android.local"
       ],
-      "providesCapabilitiesNote": "One API for iOS and Android: real devices on USB, Android emulators, iOS Simulators. On Windows it sees the USB iPhone through Apple Mobile Device Service with no Mac. Reading or tapping an iPhone screen needs its on-device agent installed once, re-signed on macOS (the forge guest) because re-signing calls /usr/bin/security; see packages/mobile-development/skills/mobile-device-lab/references/mobile-mcp.md.",
+      "providesCapabilitiesNote": "One API for iOS and Android: real devices on USB, Android emulators, iOS Simulators. On Windows it sees the USB iPhone through Apple Mobile Device Service with no Mac. Reading or tapping an iPhone screen needs its on-device agent installed once, re-signed on a macOS host (a Daytona v2 Mac reservation, not yet run) because re-signing calls /usr/bin/security; see packages/mobile-development/skills/mobile-device-lab/references/mobile-mcp.md.",
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-11-11",
@@ -619,7 +634,7 @@
         "claude",
         "codex"
       ],
-      "notes": "Added 2026-11-11 (SH-4412) beside appium-mobile, which stays until mobile-mcp has proven the Android emulator and Simulator routes it would replace. MobileBuildMCP (getsentry) is macOS-only and runs inside the forge guest; it is documented in references/mobile-mcp.md and not registered until Xcode is installed there and a run is verified."
+      "notes": "Added 2026-11-11 (SH-4412) beside appium-mobile, which stays until mobile-mcp has proven the Android emulator and Simulator routes it would replace. MobileBuildMCP (getsentry) is macOS-only and runs inside a Daytona v2 Mac reservation (not yet run); it is documented in references/mobile-mcp.md and not registered until a run there is verified."
     },
     {
       "id": "assemblyai",
@@ -733,6 +748,7 @@
       "headersHelper": {
         "claude": "pwsh -NoProfile -NonInteractive -File \"{registryRoot}/packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1\"",
         "codex": "pwsh -NoProfile -NonInteractive -File \"{registryRoot}/packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeaders.ps1\"",
+        "grok": "pwsh -NoProfile -NonInteractive -File \"{registryRoot}/packages/coding-agent-dispatch/skills/dispatch/Get-DevinMcpHeadersForStrippedHost.ps1\"",
         "claudeNote": "Claude Code headersHelper (https://code.claude.com/docs/en/mcp#use-dynamic-headers-for-custom-authentication): the command prints {\"Authorization\": \"Bearer <key>\", \"X-Org-Id\": \"<org>\"} as JSON. {registryRoot} is the AgentHub checkout; give the host an absolute path. The helper reads dispatchPolicy.devin-cloud.cloudBudgetAuthorization (keyOpRef, orgId) and refuses with exit 3 when the policy is disabled or no key resolves."
       },
       "protocol": {
@@ -746,10 +762,48 @@
       },
       "hosts": [
         "claude",
-        "codex"
+        "codex",
+        "grok"
       ],
-      "hostScopeNote": "Claude and Codex preserve an owner-configured native dynamic header hook. Use headersHelper for Claude and http_headers_helper for Codex. Other hosts remain outside this scope.",
+      "hostScopeNote": "Claude, Codex and Grok preserve an owner-configured native dynamic header hook. Use headersHelper for Claude, http_headers_helper for Codex, and headers_helper for Grok. Codex on Windows and Grok start Get-DevinMcpHeadersForStrippedHost.ps1, which restores the User-scope 1Password token and then runs Get-DevinMcpHeaders.ps1. Hosts whose MCP schema accepts only a static header or an environment-variable expansion stay unwired, because the Devin key is not persisted. Other hosts remain outside this scope.",
       "notes": "Official Devin MCP server (https://docs.devin.ai/work-with-devin/devin-mcp): Streamable HTTP at https://mcp.devin.ai/mcp, bearer service-user key (cog_). An org-scoped service-user key resolves its organization automatically; the helper still sends X-Org-Id org-d986482cea0c49689c6c9a590ecbdf7b so an enterprise key or PAT targets the same org. Tools cover session create/search/interact/gather, playbooks, knowledge, schedules, integrations, Devin Review and DeepWiki. Spend guard: the MCP client receives the raw key, so the ACU cap and the concurrency cap in dispatchPolicy.devin-cloud are enforced only by the dispatcher adapter, never on this lane. Sessions created through devin_session_create must pass max_acu_limit 10 and the agenthub tag by convention. Beyond that, the documented Devin-side controls are organization-level ACU limits (https://docs.devin.ai/admin/billing/org-acu-limits), user-level ACU limits (https://docs.devin.ai/admin/billing/user-acu-limits), both monthly caps, and the v3 Organization max_session_acu_limit field, a per-session limit on the organization. The owner has not yet set an org-level per-session limit. Nothing in AgentHub enforces any of these on MCP-created sessions. Deployed 2026-11-19 as a user-scope Claude entry with the headersHelper command; see protocol.verification. The service-user key expires 2027-02-17."
+    },
+    {
+      "id": "deepwiki",
+      "name": "DeepWiki public repository index",
+      "scope": "owner-configured",
+      "scopeNote": "Fleet sync skips owner-configured entries. The pluginOnly deepwiki reason keeps the live no-auth registration during pruning. This is the same DeepWiki index the devin server exposes for public repositories, with no API key.",
+      "transport": "http",
+      "activationMode": "shared-remote",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "credentialPolicy": "none",
+      "protocol": {
+        "revision": "2025-06-18",
+        "verifiedOn": "2026-11-24",
+        "verification": "Anonymous POST initialize to https://mcp.deepwiki.com/mcp returned HTTP 200 and protocolVersion 2025-06-18."
+      },
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
+      "hosts": [
+        "amp",
+        "antigravity",
+        "claude",
+        "cline",
+        "codex",
+        "copilot",
+        "cursor",
+        "devin",
+        "factory",
+        "grok",
+        "kilo",
+        "opencode",
+        "vscode-insiders",
+        "zcode"
+      ],
+      "hostScopeNote": "One public index for every host that can store a remote MCP URL. No Devin key is stored. Private repository indexes remain on the devin server for Claude, Codex, Grok, and on Devin Desktop's native wiki. Kiro has the same public URL in its own MCP file and is outside pluginOnly.",
+      "notes": "Official public server: https://docs.devin.ai/work-with-devin/deepwiki-mcp. Tools are read_wiki_structure, read_wiki_contents, and ask_wiki_question. Public GitHub repositories only. Wiki generation stays at the default Low effort, which is free. Do not add a Devin CLI install, a second plugin, or a persisted DEVIN_API_KEY to duplicate this."
     }
   ]
 }

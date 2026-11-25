@@ -25,32 +25,59 @@ function apiKey() {
   return key;
 }
 
-async function call(path, init, { retries = 3, fetchImpl = fetch } = {}) {
-  let last;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    let res;
-    try {
-      res = await fetchImpl(BASE + path, { ...init, headers: { Authorization: `Bearer ${apiKey()}`, ...(init.headers || {}) } });
-    } catch (e) { last = new OpenAiError(`OpenAI request failed: ${e.cause?.code || e.message}`); await sleep(500 * 2 ** attempt); continue; }
-    if (res.ok) return res;
-    const body = await res.text().catch(() => '');
-    let code = '';
-    try { const j = JSON.parse(body); code = j.error?.code || j.error?.type || ''; } catch { /* not json */ }
-    // The message can echo prompt text; report only the status and the machine code.
-    last = new OpenAiError(`OpenAI ${path} returned HTTP ${res.status}${code ? ` (${String(code).slice(0, 60)})` : ''}`, res.status);
-    if (res.status === 429 || res.status >= 500) { await sleep(800 * 2 ** attempt); continue; }
-    throw last;
+// The deadline of kit/cloud/cloud-ai.mjs, repeated here because marketing/ is deployed as its own tree: a reply is
+// not streamed, so it takes at most the 300 s Node waits for headers, plus sending time at 2 Mbit/s.
+const REPLY_MS = 300_000;
+const UPLOAD_BYTES_PER_MS = 250;
+const MAX_WAIT_MS = 20_000;
+const UNKNOWN_OUTCOME = 'not sent again; the provider may still finish and charge for it, so check its usage before rerunning';
+
+const bodyBytes = (body) => (typeof body === 'string' ? Buffer.byteLength(body)
+  : [...body.values()].reduce((n, v) => n + (v.size ?? Buffer.byteLength(v)), 0));
+
+/** One bounded POST: the deadline covers connecting, sending and reading the whole body. Nothing here sends twice. */
+async function post(what, url, init, fetchImpl) {
+  const deadlineMs = REPLY_MS + Math.ceil(bodyBytes(init.body) / UPLOAD_BYTES_PER_MS);
+  try {
+    const res = await fetchImpl(url, { ...init, method: 'POST', redirect: 'error', signal: AbortSignal.timeout(deadlineMs) });
+    return { res, text: await res.text() };
+  } catch (e) { // never e.message: an invalid header error repeats the key
+    const why = e.name === 'TimeoutError' ? `no complete response within ${deadlineMs / 1000} s` : `request failed: ${e.cause?.code || e.code || e.name}`;
+    throw new OpenAiError(`${what}: ${why} (${UNKNOWN_OUTCOME})`);
   }
-  throw last;
+}
+
+function parsed(what, text) {
+  try { return JSON.parse(text); } catch { throw new OpenAiError(`${what}: the paid answer is not JSON`); }
+}
+
+/** A paid OpenAI call has no idempotency key, so only a refusal OpenAI answered before generating (429, its own 503) is retried. */
+async function call(path, init, { retries = 3, fetchImpl = fetch } = {}) {
+  const headers = { Authorization: `Bearer ${apiKey()}`, ...(init.headers || {}) };
+  const what = `OpenAI ${path}`;
+  for (let attempt = 0; ; attempt++) {
+    const { res, text } = await post(what, BASE + path, { ...init, headers }, fetchImpl);
+    if (res.ok) return parsed(what, text);
+    let code = '';
+    try { const j = JSON.parse(text); code = String(j.error?.code || j.error?.type || ''); } catch { /* not json */ }
+    const refused = res.status === 429 || (res.status === 503 && code !== '');
+    // An exhausted balance never clears by waiting.
+    if (refused && attempt < retries && !/insufficient_quota|billing/.test(code)) {
+      const seconds = Number(res.headers.get('retry-after'));
+      await sleep(Math.min(seconds > 0 ? seconds * 1000 : 800 * 2 ** attempt, MAX_WAIT_MS));
+      continue;
+    }
+    // The message can echo prompt text; report only the status and the machine code.
+    throw new OpenAiError(`${what} returned HTTP ${res.status}${code ? ` (${code.slice(0, 60)})` : ''}${res.status >= 500 && !refused ? ` (${UNKNOWN_OUTCOME})` : ''}`, res.status);
+  }
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function generateImage({ prompt, model = OPENAI_MODELS.imageDefault, size = '1536x1024', quality = 'medium', fetchImpl }) {
-  const res = await call('/images/generations', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+  const json = await call('/images/generations', {
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, prompt, size, quality, n: 1, output_format: 'png' }),
   }, { fetchImpl });
-  const json = await res.json();
   const b64 = json.data?.[0]?.b64_json;
   if (!b64) throw new OpenAiError('image response carried no image data');
   return { bytes: Buffer.from(b64, 'base64'), usage: json.usage || null, model, size, quality };
@@ -117,7 +144,9 @@ function pcmToWav(pcm, rate) {
  */
 export async function transcribeWords() {
   throw new OpenAiError('No current OpenAI model returns word timestamps; use the forced aligner (kit/cloud/cloud-ai.mjs align)');
-}/**
+}
+
+/**
  * Azure OpenAI speech-to-text through the MahumTech resource (mt-foundary-resource), deployment gpt-transcribe. It returns
  * text, not word timestamps, so word timing stays on the forced aligner. Endpoint and key come from
  * AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY by name; neither is printed.
@@ -128,9 +157,10 @@ export async function transcribeAzure(file, { deployment = 'gpt-transcribe', fet
   form.append('file', new Blob([readFileSync(file)]), basename(file));
   form.append('response_format', 'json');
   const url = `${endpoint.replace(/\/$/, '')}/openai/deployments/${encodeURIComponent(deployment)}/audio/transcriptions?api-version=2025-04-01-preview`;
-  const res = await fetchImpl(url, { method: 'POST', headers: { 'api-key': key }, body: form });
-  if (!res.ok) throw new OpenAiError(`Azure transcription returned HTTP ${res.status}`, res.status);
-  return res.json();
+  const what = 'Azure transcription';
+  const { res, text } = await post(what, url, { headers: { 'api-key': key }, body: form }, fetchImpl);
+  if (!res.ok) throw new OpenAiError(`${what} returned HTTP ${res.status}${res.status >= 500 ? ` (${UNKNOWN_OUTCOME})` : ''}`, res.status);
+  return parsed(what, text);
 }
 
 /** Vision over sampled frames with a strict JSON schema. Returns { json, usage, text }. */
@@ -140,15 +170,14 @@ export async function visionJson({ model, system, instructions, frames, schema, 
     content.push({ type: 'input_text', text: `Frame ${f.label} (t=${f.t}s)` });
     content.push({ type: 'input_image', image_url: f.dataUrl, detail });
   }
-  const res = await call('/responses', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+  const body = await call('/responses', {
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model, max_output_tokens: 6000,
       input: [{ role: 'system', content: [{ type: 'input_text', text: system }] }, { role: 'user', content }],
       text: { format: { type: 'json_schema', name: schemaName, schema, strict: true } },
     }),
   }, { fetchImpl });
-  const body = await res.json();
   const text = body.output_text || (body.output || []).flatMap((o) => o.content || []).filter((c) => c.type === 'output_text').map((c) => c.text).join('');
   if (!text) throw new OpenAiError('vision response carried no text');
   return { text, usage: body.usage || null, model: body.model || model };
@@ -183,8 +212,7 @@ export async function generateText({ role = 'creative', model, stable = '', dyna
   input.push({ role: 'user', content: [{ type: 'input_text', text: dynamic }] });
   const body = { model: m, input, max_output_tokens: maxOutputTokens };
   if (schema) body.text = { format: { type: 'json_schema', name: schemaName, schema, strict: true } };
-  const res = await call('/responses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, { fetchImpl });
-  const json = await res.json();
+  const json = await call('/responses', { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, { fetchImpl });
   const text = json.output_text ?? (json.output || []).flatMap((o) => o.content || []).filter((c) => c.type === 'output_text').map((c) => c.text).join('');
   return { text, usage: json.usage || null, model: json.model || m, cachedTokens: json.usage?.input_tokens_details?.cached_tokens ?? 0 };
 }
@@ -194,14 +222,12 @@ export async function transcribeText(file, { model = OPENAI_MODELS.transcribe, f
   const form = new FormData();
   form.append('model', model);
   form.append('file', new Blob([readFileSync(file)]), basename(file));
-  const res = await call('/audio/transcriptions', { method: 'POST', body: form }, { fetchImpl });
-  const json = await res.json();
+  const json = await call('/audio/transcriptions', { body: form }, { fetchImpl });
   return { text: json.text || '', usage: json.usage || null, model };
 }
 
 /** Free moderation check for text and images before publishing generated media. */
 export async function moderate(input, { fetchImpl } = {}) {
-  const res = await call('/moderations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: OPENAI_MODELS.moderation, input }) }, { fetchImpl });
-  const json = await res.json();
+  const json = await call('/moderations', { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: OPENAI_MODELS.moderation, input }) }, { fetchImpl });
   return { flagged: (json.results || []).some((r) => r.flagged), results: json.results || [] };
 }

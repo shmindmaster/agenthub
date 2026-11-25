@@ -54,9 +54,9 @@ Run after a package or marketplace change. Version bumps matter only for hosts t
 | Amp | real folders in `~/.config/amp/plugins` | Run `scripts/Install-AmpPlugins.py`, and again after a package changes. It builds `<name>/index.ts` and puts each server in a `mcp.json` beside the plugin's skill. Amp has no catalog, rejects links out of the folder, expands `${VAR}` and sends `${env:VAR}` literally. A plugin's tools stay hidden until its skill loads, but third-party docs say the server still starts, so the installer leaves local servers out. |
 | Kilo | host-local skill junctions | Kilo has no `ah-*` plugin format. `Sync-Plugins` links `skills/*` of a mapped package through `Install-WarpSkills.ps1 -WarpHome ~/.kilocode` (native skill projection; the root is documented in Kilo's vendor migration doc). `ah-coding-agent-dispatch`, `ah-funding` and `ah-media-studio` are mapped this way, because none needs an MCP server (Media Studio's tools are read from `%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools`, which `Sync-MediaStudioKit.ps1` fills for every host); a package with a server stays unmapped until a direct MCP exception is approved for Kilo. |
 
-## OpenCode Go on Forge
+## OpenCode Go
 
-On Forge, OpenCode 2.2.7 successfully ran `opencode-go/deepseek-v4.1-flash` with `OPENCODE_API_KEY` supplied at runtime. For a provider-only smoke test, use a synthetic prompt with tools and MCP servers disabled. Keep the key out of configuration files and logs.
+OpenCode 2.2.7 ran `opencode-go/deepseek-v4.1-flash` with `OPENCODE_API_KEY` supplied at runtime. For a provider-only smoke test, use a synthetic prompt with tools and MCP servers disabled. Keep the key out of configuration files and logs.
 
 If you test OpenCode 1.19.5 alongside 2.x, use separate XDG data, state, and cache directories. The two versions use incompatible session databases.
 
@@ -75,7 +75,7 @@ A host that copies a plugin ignores a content change at the same version: `claud
 
 Daytona reaches every host. Claude and Factory use `daytona-skills` from their catalog, Devin installs `daytona/skills` with `devin plugins install daytona/skills --yes --local`, and Grok imports Claude's copy. Codex installs `daytona@daytona` after `codex plugin marketplace add https://github.com/daytona/skills.git`, and Antigravity runs `agy plugin install https://github.com/daytona/skills.git`. AgentHub no longer ships `ah-daytona`.
 
-Clerk also reaches every host, but only ever from its own upstream: there is no `ah-clerk` package and there must not be one. Run `python scripts/Install-ClerkFleet.py` for a read-only plan, add `--apply` to install, or pass `--host <id>` to repair one host. `--audit` reads back the official skill texts against the upstream checkout and checks that each host's entry names `https://mcp.clerk.com/mcp` exactly. Claude, Codex, Copilot, Factory and Devin install the vendor's own plugin through the host's plugin command; Grok and Antigravity install the upstream checkout; Cursor, Cline, Amp, VS Code Insiders, OpenCode and Warp get host-local adapters. Kilo and MiMo Code get the official skills only, with no Clerk server. The Clerk installer still targets Warp and MiMo Code although both were retired on 2026-11-19; see [clerk-auth.md](./clerk-auth.md). Desktop and CLI aliases share their primary host's configuration, and nothing is written into `~/.agents/skills`. [clerk-auth.md](clerk-auth.md) carries the rollout detail and the acceptance contract.
+Clerk also reaches every host, but only ever from its own upstream: there is no `ah-clerk` package and there must not be one. Run `python scripts/Install-ClerkFleet.py` for a read-only plan, add `--apply` to install, or pass `--host <id>` to repair one host. `--audit` reads back the official skill texts against the upstream checkout and checks that each host's entry names `https://mcp.clerk.com/mcp` exactly. Claude, Codex, Copilot, Factory and Devin install the vendor's own plugin through the host's plugin command; Grok and Antigravity install the upstream checkout; Cursor, Cline, Amp, VS Code Insiders, OpenCode and Warp get host-local adapters. Kilo and MiMo Code get the official skills only, with no Clerk server. The installer skips every host in `inactiveAgents` (Warp and MiMo Code, retired 2026-11-19) in plan, apply and `--audit`, and `--audit` lists blocked hosts under `blocked` instead of counting them for or against the result; see [clerk-auth.md](./clerk-auth.md). Desktop and CLI aliases share their primary host's configuration, and nothing is written into `~/.agents/skills`. [clerk-auth.md](clerk-auth.md) carries the rollout detail and the acceptance contract.
 
 OpenCode has no plugin format here and `~/.agents/skills` holds no skills, so run `scripts/Install-WarpSkills.ps1 -WarpHome "$HOME\.config\opencode"` to link its skills.
 
@@ -142,211 +142,52 @@ The plugin audit includes a `cleanup` list. Apply runs cleanup after native read
 A version referenced by any Claude scope stays in use. Linked paths, unrelated marketplaces, and registrations whose ownership is ambiguous are reported and preserved. Disk cache and Copilot registration cleanup defer while their host may be using them and retry on the next apply. Native AutoClaw and ZCode installations use their own updater and refuse ambiguous duplicate IDs. Copied hosts outside these cleanup routes retain their native updater's cache behavior. No scheduled job or app shutdown is added.
 
 
-## Forge operator sessions
+## Client sign-in and plan routes
 
-From a terminal with the existing `forge` SSH alias, run
-`Invoke-CodingAgent.ps1 -Forge -List` to see the installed Forge clients.
-Use `-Forge -HostId <id> -Cwd /srv/work/agenthub-runner/worktrees/<task>`
-to open a client as the unprivileged runner. Provision the worktree on Forge
-from a claimed Linear issue before launching. OpenClaw opens its local
-terminal UI, whose workspace is controlled by its native configuration.
-The SSH route does not forward workstation credentials. Complete provider
-and MCP authorization in the runner's native profile before using a client.
-An installed binary or registered MCP endpoint is not an authenticated smoke.
+Use `Invoke-CodingAgent.ps1 -Auth` for sign-in commands, and add `-HostId grok`
+or another listed ID to narrow the output. The command lists each client's
+native sign-in command. When operating for the user, start the login in the
+target client and open the provider's authorization URL in the user's browser.
+Leave sign-in and consent to the user. Keep the login process running until it
+confirms completion. An installed binary or registered MCP endpoint is not an
+authenticated smoke.
 
-Use `-Auth` for local sign-in commands, or `-Forge -Auth` for runner
-commands. Add `-HostId grok` or another listed ID to narrow the output.
-The command lists each client's native sign-in command. When operating for
-the user, start the login in the target client and open the provider's
-authorization URL in the user's browser. Leave sign-in and consent to the
-user. Keep the login process running until it confirms completion.
-
-For GitHub, authorize the runner with `gh auth login --hostname github.com
+For GitHub, authorize with `gh auth login --hostname github.com
 --git-protocol https --web` and run `gh auth setup-git`. Verify repository
-access under the runner account before pushing. Git and `gh` cover branch
-and pull request operations for clients with a shell.
+access before pushing. Git and `gh` cover branch and pull request operations
+for clients with a shell.
 
-Choose `grok-browser` for Forge QA with an isolated local Chrome profile.
-Prefer each plan’s native client integration when it is available. Clients
+Prefer each plan's native client integration when it is available. Clients
 can also use the Anthropic or OpenAI compatible endpoint documented for the
-plan. On Forge, use an explicit `claude-*` or `codex-*`
-route: `qwen`, `zai`, `mimo`, or `go` selects the corresponding
-subscription. Keep native Claude and Codex logins on Windows. Grok
-uses its native account login on both hosts. In OpenCode, use
-`opencode-qwen` for Qwen or `opencode-go` for the Forge Go workspace and
-DeepSeek V4.1 Flash.
-Choose `opencode-zai` for the runner's Z.ai Coding Plan and its four Z.ai
-MCPs. On Windows, select that plan with
-`-HostId opencode -Model zai-coding-plan/glm-5.3`. This Windows route
-supports workspace edits and Z.ai MCPs, with shell tools disabled.
-On Windows use `codex --profile qwen` with the user environment reference.
-To keep an interactive task alive across SSH disconnects, start Herdr or
-tmux as `agenthub-runner` on Forge and launch the client inside its pane.
-From an existing Forge terminal, run the installed dispatch skill's
-`python3 forge-session.py --list` or
-`python3 forge-session.py --host <id> --cwd <Forge-worktree>`.
+plan. Keep native Claude and Codex logins on Windows. Grok uses its native
+account login. On Windows, select the Z.ai Coding Plan with
+`-HostId opencode -Model zai-coding-plan/glm-5.4`; this route supports
+workspace edits and Z.ai MCPs, with shell tools disabled. Use
+`codex --profile qwen` with the user environment reference for the Qwen Token
+Plan. The Token Plan model ids that dispatch accepts for opencode, kilo and
+factory are in `skills/dispatch/references/hosts.md` -> Plan routes.
 
 The official [Z.ai Cursor guide](https://docs.z.ai/devpack/tool/cursor) and
 [Qwen Cursor guide](https://docs.qwencloud.com/developer-guides/clients-and-developer-tools/cursor)
-describe Cursor editor model settings for vendor-compatible endpoints. Forge
-Cursor CLI does not consume those editor settings and instead requires Cursor
+describe Cursor editor model settings for vendor-compatible endpoints. Cursor
+CLI does not consume those editor settings and instead requires Cursor
 credentials through its [native CLI authentication](https://cursor.com/docs/cli/reference/authentication).
 
-The Forge Codex sandbox uses the Ubuntu `bubblewrap` package. On Ubuntu
-24.04, allow user namespaces only for the root-owned `/usr/bin/bwrap` via
-AppArmor. Verify a read and a denied write with `codex sandbox -- <command>`;
-leave the system-wide AppArmor restriction enabled. In the MiMo Codex
-profile set `web_search = "disabled"`: its Responses gateway rejects the
-built-in web search tool. This does not disable browser QA or MCPs.
+In the MiMo Codex profile set `web_search = "disabled"`: its Responses gateway
+rejects the built-in web search tool. This does not disable browser QA or MCPs.
 
-OpenCode v2 stores remote MCP servers under `mcp.servers`. Forge Linear
-OAuth is per client: use `opencode mcp auth linear` for OpenCode and
-`codex mcp login linear` for Codex. If a Forge client uses a loopback
-callback, relay it to that client's active listener over SSH or use the
-client's callback input when supported. Keep the listener private; never
-put the callback URL in chat, logs, or an issue. Verify the resulting
-session by reading a Linear issue from the client that signed in.
+OpenCode v2 stores remote MCP servers under `mcp.servers`. Linear OAuth is per
+client: use `opencode mcp auth linear` for OpenCode and `codex mcp login linear`
+for Codex. If a client uses a loopback callback, relay it to that client's
+active listener or use the client's callback input when supported. Keep the
+listener private; never put the callback URL in chat, logs, or an issue. Verify
+the resulting session by reading a Linear issue from the client that signed in.
 
-Forge operator sessions are interactive. Use the
+Heavy work (test suites, builds, renders) runs on Daytona, not on a client
+session here: `node scripts/daytona-run.mjs --owner <project> -- <command>`.
+Use the
 [AgentHub project in ABACARE](https://linear.app/abacare/project/agenthub-portfolio-engineering-and-knowledge-a780cf63463d)
 for Linux tool isolation and code review acceptance work.
-
-## Forge unattended intake
-
-`skills/dispatch/forge-intake.mjs` turns one eligible Linear issue into one
-draft pull request without any workstation online. A systemd timer on Forge
-(`forge-intake.timer`, 30 minutes after the previous run ends) starts
-`forge-intake.service` as `agenthub-runner`. It runs from a root-owned
-catalog or intake-only release. The release's `forge-intake.json` defines
-allowlists, caps and routes. The root-owned `forge-intake-linear.json`
-binds the deployment to its workspace, team and project. The Forge host
-uses the AgentHub project in ABACARE's Shared Platform team (`CORE`).
-
-A run uses isolated headless Codex sessions on a token plan and keeps GitHub
-credentials in the wrapper:
-
-1. **Select and claim**. Forge reads from the team and project bound on the
-   host. Opt in an unassigned issue suitable for the public repository by
-   moving it to Ready and applying `app:agenthub` with `Bug`, `Maintenance`,
-   or `Improvement`. Forge returns stale `agent:forge` claims (8 h) to Ready.
-   The read-only selector calls Linear MCP for the configured team UUID and
-   queries its project for each mapped app label. The wrapper verifies the team,
-   project, state, assignee and labels from the actual tool response, then
-   checks the issue again by UUID. It sends only the fixed claim transition
-   and `agent:forge` label to Linear.
-2. **Implement** (permission profile, network off, Linear read-only). The
-   agent works in a fresh clone, follows the repository's AGENTS.md, and leaves
-   its edits uncommitted: the wrapper commits.
-3. **Verify, push, open the PR** (wrapper only). Before committing it checks
-   that the agent left `.git` hooks and config untouched, and every wrapper git
-   call runs with hooks, fsmonitor, external diff, textconv and global config
-   disabled. It refuses an empty diff, more than 30 files or 1200 changed lines,
-   binary files, symlinks, submodules, mode changes, changes under `.github/`,
-   `registry/`, `.agents/`, `.claude-plugin/`, `AGENTS.md`, `CLAUDE.md`, any
-   `.mcp.json` or package `hooks/`, secret-shaped paths or added lines,
-   uncommitted leftovers and `git diff --check` failures. Agent-written text is
-   redacted for secret-shaped content before it reaches the PR or Linear, and the
-   issue ID must match the configured team prefix before it becomes a path or
-   branch. The draft uses a generated headline and body with no Linear title,
-   issue body or agent-written summary.
-   It pushes `forge/<issue>-<slug>`, opens a **draft** PR, and removes the clone.
-   The agent never edits `registry/capabilities.json` or any version: both are
-   protected, and a hand-computed hash failed CI on #125. When the diff touches
-   `packages/<name>/` the PR body ends with a note naming those packages, and
-   the reviewer bumps each version (`scripts/Bump-PackageVersion.ps1`, plus
-   `metadata.version` in that package's SKILL.md by hand) and recomputes the
-   contentHash with `scripts/RegistryContentHash.ps1` or, where there is no
-   `pwsh`, with `node scripts/registry-content-hash.mjs packages/<name>`: a
-   Node port that produces the same hash and is test-enforced by
-   `scripts/registry-content-hash.test.mjs`. CI fails on drift until then.
-4. **Close out** (wrapper only). Revalidates the issue, comments the PR link, removes
-   `agent:forge`, and sets In Review, or on failure restores the earlier state
-   with the reason. It never sets Done. CI on the PR is the verification.
-   A person or a different host reviews and marks it ready; nothing is merged
-   or deployed.
-
-The model runs under a Codex permission profile built per run: read the machine,
-write only the workspace (`.git` read-only), network off, and `deny` on every
-credential-bearing entry of the runner's home (the GitHub token, the Linear
-OAuth login, the plan keys, every other client's login). Measured on Forge on
-2026-11-12: before the profile, a sandboxed session could read `gh/hosts.yml`,
-`.codex/.credentials.json` and the plan key; with it, all three are denied, a
-write outside the workspace fails, and Codex itself is unaffected (its helper
-binaries under `.local/bin` and `.local/lib` stay readable). A profile cannot be
-mixed with `-s`, and `-c` cannot take quoted dotted keys, so it is passed as one
-inline table. The Linear OAuth session belongs to the service account's login.
-Model sessions receive only read tools. The wrapper verifies the workspace
-binding and issue scope before any write.
-
-Codex exposes only a handful of the Linear server's 78 tools to the model
-unless an allowlist names them, so each phase passes
-`mcp_servers.linear_<workspace>.enabled_tools`. Selection and implementation
-are read-only. The wrapper alone writes through the official Linear MCP
-endpoint. It reads the dedicated, launcher-managed OAuth entry from the
-service account's private credential file and uses fixed mutation arguments.
-On an authentication failure during close-out, a read-only Codex session
-refreshes the connection so the wrapper can finish the transition.
-
-Limits: one issue per run, 6 runs a day, 2 attempts per issue (a PR or a second
-failure retires it from selection), one run at a time, free memory of at least
-4 GiB. Routes rotate least-recently-used over the enabled plans, and every
-enabled route has a proven full cycle now: `codex-zai` (Z.ai Coding Plan)
-produced SH-4512 (#125), `codex-qwen` (Qwen Token Plan) produced SH-4576
-(#127) and `codex-go` (OpenCode Go) produced SH-4583 (#128); each was claimed,
-implemented and opened as a draft PR unattended, and merged after review.
-`codex-mimo` stays disabled: its turns end without a reply (SH-4421). A plan
-that reports a usage or rate limit cools down for 3 hours and the attempt is not
-charged to the issue (Z.ai's 5-hour limit was hit on 2026-11-12 during testing).
-Logs and the ledger live in `~/.local/state/agenthub/forge-intake-<workspace>`, pruned
-after 14 days.
-`node forge-intake.mjs --status` prints runs today, the cap, draft PRs,
-failures, retired issues, per-route use, cooling routes, Linear close-outs that
-were not confirmed, and the lock: `lockHeldBy` is the PID of a live run, or
-null, and `staleLock` is a dead or unreadable PID that the next run takes over.
-
-Operate it as root over the `forge` alias:
-
-~~~bash
-systemctl status forge-intake.timer
-systemctl start forge-intake.service            # one run now
-touch /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled   # stop
-rm /srv/work/agenthub-runner/.config/agenthub/forge-intake.disabled      # resume
-~~~
-
-Install the root-owned `/etc/agenthub/forge-intake-linear.json` with fields
-`workspace` (slug), `teamKey` (issue prefix), `teamId` (UUID) and `projectId`
-(UUID). Authenticate the corresponding `linear_<workspace>` MCP server as
-`agenthub-runner` with `HOME=/srv/work/agenthub-runner`. For a workspace named
-`example`, run
-`codex -c 'mcp_oauth_credentials_store="file"' -c 'mcp_servers.linear_example.url="https://mcp.linear.app/mcp"' mcp login linear_example --scopes write`.
-Confirm a live run resolves the configured team and queries its project.
-
-For an intake-only release, place the three `forge-intake.mjs`,
-`forge-intake.json` and `forge-linear.mjs` files in a root-owned directory
-under `/opt/agenthub/forge-releases/<revision>`. Set the service's `ExecStart`
-to the released script with a systemd drop-in, reload the daemon, and
-verify a manual service run before enabling the timer.
-
-Install or update (root): put the released tree at
-`/opt/agenthub/catalogs/<sha>` and point `/opt/agenthub/current` at it. Then
-update the clients as `agenthub-runner`, with `HOME=/srv/work/agenthub-runner`
-and `~/.local/bin` on `PATH`. Removing a marketplace also uninstalls its
-plugins, so the reinstall step is required. For Claude:
-`claude plugin marketplace remove agenthub`,
-`claude plugin marketplace add /opt/agenthub/catalogs/<sha>`, then
-`claude plugin install <name>@agenthub` for each of ah-browser,
-ah-coding-agent-dispatch and ah-product. For Codex:
-`codex plugin marketplace remove agenthub`,
-`codex plugin marketplace add /opt/agenthub/catalogs/<sha>`, then
-`codex plugin add <name>@agenthub` for each of ah-product, ah-browser
-and ah-coding-agent-dispatch. Copy
-`forge-intake.service` and `forge-intake.timer` to `/etc/systemd/system` again
-only when they changed (`cmp` them against the installed copies): a new catalog
-alone needs no timer restart. After a unit change run
-`systemctl daemon-reload && systemctl enable --now forge-intake.timer`. This is
-a standing schedule that the owner directed on 2026-11-12 for Forge only, so
-the "no scheduled jobs" rule for the workstation is unchanged. When Forge
-retires after 2026-12-01, move the same script to the successor host.
 
 ## Provider removal and presentation
 

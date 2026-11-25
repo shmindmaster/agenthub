@@ -43,6 +43,6 @@ Possible shapes include a worked example for a lesson, question-and-answer chapt
 
 `story/screenplay.json` per `schemas/screenplay.schema.json`: `title`, `kind`, `hook`, `audience`, `viewerPromise`, and `scenes` each with `id`, `speaker`, `narration`, and `sceneRole`, `wiifm`, `emphasis` where useful. One scene per beat or per turn of a conversation.
 
-Write for the ear (`../../video/references/story.md`): short sentences, concrete nouns, one idea per line, numbers said once. No fluff: no greeting, no recap, no talk about how the film was made. For a dialogue or simulated call, one scene per turn, one voice per character, the spoken thing in the picture and not the speakers (`../../video/references/scenes.md`).
+Write for the ear (`../../studio/references/story.md`): short sentences, concrete nouns, one idea per line, numbers said once. No fluff: no greeting, no recap, no talk about how the film was made. For a dialogue or simulated call, one scene per turn, one voice per character, the spoken thing in the picture and not the speakers (`../../studio/references/scenes.md`).
 
 Represent real people, reported results and current product behavior accurately. Invent characters, dialogue and events when the brief calls for fiction or illustration.

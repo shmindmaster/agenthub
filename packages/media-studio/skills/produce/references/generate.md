@@ -66,7 +66,7 @@ credit is not an authorization. Higgsfield and Runway credits are frozen until t
 
 Use each beat's `direction.register` to guide the performance. Pass style controls only where the governed voice supports them, and shape the rest with script phrasing and edit silence.
 
-Use `references/voice-recipes.md` to select one voice per film or series. Stock narration uses governed Deepgram Flux batch synthesis (Sienna or Haley) except for ABACare films, which use AssemblyAI stock voices. When Azure is the fallback, choose DragonHD Emma2 or Andrew2, with Ava as fallback; the Azure Speech adapter takes no style argument for these voices. Haley also serves prepared support prompts. The reference distinguishes callable choices from gated candidates, including Azure OpenAI Marin for directed narration. Reuse accepted takes. If the governed route cannot run, deliver the cut silent with the lines on screen. Desktop speech and HeyGen stock avatar voices are forbidden at every stage. No Sarosh voice clone. Each new line passes the take loop. Speaker similarity is advisory. Add pauses in the edit and use measured word timing.
+Use `references/voice-recipes.md` to select one voice per film or series. Stock narration uses governed Deepgram Flux batch synthesis (Sienna or Haley) except for ABACare films, which use AssemblyAI stock voices. When Azure is the fallback, choose DragonHD Emma2 or Andrew2, with Ava as fallback; the Azure Speech adapter takes no style argument for these voices. Haley also serves prepared support prompts. The reference distinguishes callable choices from gated candidates, including Azure OpenAI Marin for directed narration. Reuse accepted takes. If the governed route cannot run, deliver the cut silent with the lines on screen. Desktop speech and HeyGen stock avatar voices are forbidden at every stage. For a personal or ABACare film spoken by Sarosh or Syeda F. Abidi, use their AssemblyAI clone with the job's `privateVoiceApprovals` entry (`narration-preflight.md`; `ah-assemblyai` lists the voice IDs and consent check). No clone on other films except the manifest-named Deloitte films, which stay on ElevenLabs. Each new line passes the take loop. Speaker similarity is advisory. Add pauses in the edit and use measured word timing.
 
 ## References
 
@@ -79,6 +79,6 @@ Use `references/voice-recipes.md` to select one voice per film or series. Stock 
 - `scripts/route_media.py --catalog`: Run first when planning any generation; it prints every lane, scripted or by hand, with mode, cost and how.
 - `references/stills.md`: Read when a scene needs a generated photograph: quote, lanes, cache, ledger.
 - `references/irukadark.md`: Read when a scene needs a generated clip (approved hero shot) or a by-hand picture or track from IrukaDark.
-- `../capture/references/abacare-lexicon.json`: Read when pronouncing ABACare film names.
+- `abacare-lexicon.json`: Read when pronouncing ABACare film names.
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](generate-detail.md)

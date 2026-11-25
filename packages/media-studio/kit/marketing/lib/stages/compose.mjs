@@ -3,11 +3,13 @@
 // the loudness-normalized encode with FFmpeg. `--prepare-only` stops after the props, map and plans (no render).
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { extname, isAbsolute, join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
 import { alignBeat } from '../align.mjs';
 import { cameraKeyframes, focusWindows, pointerTrack, readability, windowAt } from '../crop.mjs';
 import { FRAMES, layoutFor, safeZoneErrors } from '../layout.mjs';
+import { FILM_TYPES, rolesOf } from '../story-profiles.mjs';
+import { finalHoldOf } from './timing.mjs';
 import { pictureIntegrity } from '../integrity.mjs';
 import { normalizeCuts } from '../lint.mjs';
 import { buildMixArgs, encodeArgs, loudnessTarget, loudnormMeasureArgs, parseLoudnorm, run } from '../mix.mjs';
@@ -18,6 +20,14 @@ import { fileSha, readJson, round, writeJson } from '../util.mjs';
 import { candidatePaths, reserveCandidate, selectedCuts } from '../candidate.mjs';
 
 export const HOLD_PAD_MAX = 2.0;
+
+/** The end card draws spec.cta unless the cut's own film type has no cta slot and no beat of the cut has the cta role. */
+export function cutHasCta(spec, cut) {
+  if (!spec.cta) return false;
+  const type = cut.filmType || spec.filmType;
+  if (!type || !FILM_TYPES[type]) return true;
+  return FILM_TYPES[type].slots.includes('cta') || cut.beats.some((b) => rolesOf(b).includes('cta'));
+}
 
 const recorded = new Map();
 /** Pixel size of a recording (ffprobe), cached per file. */
@@ -130,6 +140,8 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
   const sfxPlan = [];
   const integrityRows = [];
   const lastIndex = cut.beats.length - 1;
+  const hasCta = cutHasCta(ctx.spec, cut);
+  const finalHold = finalHoldOf(ctx.spec, cut);
   cut.beats.forEach((beat, i) => {
     const seg = timeline.segments.find((s) => s.id === beat.id);
     const base = { id: beat.id, kind: beat.kind, startSec: seg.startSeconds, durationSec: seg.durationSeconds, headline: beat.actionTitle || beat.onScreenText };
@@ -159,6 +171,7 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
       if (!(available > 0)) throw new Error(`${beat.id}: trim leaves no clip`);
       const playSec = Math.min(seg.durationSeconds, available);
       const hold = seg.durationSeconds - playSec;
+      if (hold > HOLD_PAD_MAX && i === lastIndex && finalHold) throw new Error(`${beat.id}: finalHoldSeconds ${finalHold}s would freeze this clip for ${hold.toFixed(1)}s (> ${HOLD_PAD_MAX}s); end on a closing card beat (kind "card") so the hold is a designed picture`);
       if (hold > HOLD_PAD_MAX) throw new Error(`${beat.id}: the clip covers ${playSec.toFixed(1)}s of the ${seg.durationSeconds.toFixed(1)}s beat (hold ${hold.toFixed(1)}s > ${HOLD_PAD_MAX}s); shorten the narration, adjust trims, or recapture`);
       const track = pointerTrack(entry.actions, { headTrim: clip.headTrimSeconds, viewport: clip.viewport });
       const windows = focusWindows({ explicit: beat.ui.focus, track, clipStart: trimStart, clipEnd: trimStart + playSec, srcW: clip.viewport.width, srcH: clip.viewport.height, band: layout.uiBand, zoom: layout.zoom, contentLeft: ctx.brand.capture?.contentLeft || 0, contentInsetPx: ctx.brand.capture?.contentInsetPx ?? 24 });
@@ -183,13 +196,17 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
     } else if (beat.kind === 'broll') {
       const asset = assets.items.find((a) => a.kind === 'broll' && a.beat === `${cut.id}/${beat.id}`);
       if (!asset) throw new Error(`${beat.id}: b-roll not generated (run the assets stage)`);
-      const file = asset.provider === 'stock' ? asset.path : join(ctx.jobDir, asset.path);
-      beats.push({ ...base, image: { src: addMedia(file, 'png') } });
+      // Stock and imported pictures may sit outside the job folder (absolute path); imported ones keep their own extension.
+      const file = asset.provider === 'stock' || isAbsolute(asset.path) ? asset.path : join(ctx.jobDir, asset.path);
+      beats.push({ ...base, image: { src: addMedia(file, asset.provider === 'import' ? extname(file).slice(1).toLowerCase() || 'png' : 'png') } });
       gateSegments.push({ id: beat.id, kind: 'broll', startSeconds: seg.startSeconds, durationSeconds: seg.durationSeconds });
       groups.push({ segments: [beat.id], startSeconds: seg.startSeconds, needSeconds: seg.durationSeconds, clipId: beat.id, file: asset.path, heldFromPrevious: false, sourceRegion: null, srcSeconds: 0, fit: 'hold', trimStart: 0, speed: 1, edit: null, extras: false, overlay: null, isImage: true });
       for (const s of beat.sfx || []) sfxPlan.push({ beatId: beat.id, file: join(ctx.jobDir, assets.items.find((a) => a.kind === 'sfx' && a.key === sfxKey(s.prompt, s.durationSeconds || 1)).path), startSec: cueTime(s.cue, seg, { duration: s.durationSeconds || 1 }), gainDb: s.gainDb ?? -14 });
     } else {
-      beats.push({ ...base, isCta: beat.kind === 'card' && i === lastIndex });
+      const closing = beat.kind === 'card' && i === lastIndex;
+      // Without a cta the last card closes on its outcome: the headline plus an optional supporting line, no button and no URL.
+      const support = !hasCta && closing && beat.actionTitle && beat.onScreenText && beat.onScreenText !== beat.actionTitle ? beat.onScreenText : null;
+      beats.push({ ...base, isCta: closing && hasCta, ...(closing && !hasCta ? { isClosing: true, ...(support ? { support } : {}) } : {}) });
       gateSegments.push({ id: beat.id, kind: beat.kind, startSeconds: seg.startSeconds, durationSeconds: seg.durationSeconds });
       groups.push({ segments: [beat.id], startSeconds: seg.startSeconds, needSeconds: seg.durationSeconds, clipId: beat.id, file: `cards/${beat.id}.png`, heldFromPrevious: false, sourceRegion: null, srcSeconds: 0, fit: 'hold', trimStart: 0, speed: 1, edit: null, extras: false, overlay: null, isImage: true });
       for (const s of beat.sfx || []) sfxPlan.push({ beatId: beat.id, file: join(ctx.jobDir, assets.items.find((a) => a.kind === 'sfx' && a.key === sfxKey(s.prompt, s.durationSeconds || 1)).path), startSec: cueTime(s.cue, seg, { duration: s.durationSeconds || 1 }), gainDb: s.gainDb ?? -14 });
@@ -200,18 +217,18 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
   const props = {
     ratio, width: frame.width, height: frame.height, fps: 30, durationSec: timeline.durationSeconds,
     layout: { uiBand: layout.uiBand, captionBox: layout.captionBox, captionBoxTop: layout.captionBoxTop, ctaBox: layout.ctaBox, ctaPillFont: layout.ctaPillFont, ctaFootFont: layout.ctaFootFont },
-    brand: { productName: ctx.brand.product, colors: { primary: c.primary, foreground: c.foreground, background: c.background, accent: c.accent, onPrimary: c.onPrimary || '#ffffff', ...(c.emphasis ? { emphasis: c.emphasis } : {}) }, fontDisplay: ctx.brand.fonts.display, fontBody: ctx.brand.fonts.body, fontFiles },
+    brand: { productName: ctx.brand.product, colors: { primary: c.primary, foreground: c.foreground, background: c.background, accent: c.accent, onPrimary: c.onPrimary || '#ffffff', ...(c.emphasis ? { emphasis: c.emphasis } : {}), ...(c.captionPlate ? { captionPlate: c.captionPlate } : {}) }, fontDisplay: ctx.brand.fonts.display, fontBody: ctx.brand.fonts.body, fontFiles },
     // The synthetic-data label and the AI-voice disclosure are end-card lines, not a chip over the product picture.
     label: ctx.spec.labels, disclosure: ctx.spec.voice.disclosure || undefined,
     logo: ctx.brand.logo ? addMedia(ctx.brand.logo, ctx.brand.logo.split('.').pop()) : undefined,
     beats, captions: renderCaptions(ctx, placeCaptions(captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words, lines: lineBreaks(k.words, { maxWidthPx: Math.min(layout.captionBox.w, Math.round(0.82 * frame.width)), fontSize: layout.captionBox.fontSize }) })), cut.beats, timeline.segments)),
     emphasis: [...new Set(cut.beats.flatMap((b) => b.emphasis || []))],
-    cta: { text: ctx.spec.cta.text, displayUrl: ctx.spec.cta.displayUrl || ctx.spec.cta.url.replace(/^https?:\/\//, '') },
+    ...(hasCta ? { cta: { text: ctx.spec.cta.text, displayUrl: ctx.spec.cta.displayUrl || ctx.spec.cta.url.replace(/^https?:\/\//, '') } } : {}),
   };
   const lines = voice.lines.map((l) => ({ file: join(ctx.jobDir, l.file), startSec: timeline.segments.find((s) => s.id === l.beatId).lineStartSeconds }));
   const musicAsset = assets.items.find((a) => a.kind === 'music');
   const music = musicAsset ? { file: join(ctx.jobDir, musicAsset.path), bedDb: ctx.spec.music?.bedDb ?? -12 } : null;
-  return { layout, props, groups, gateSegments, media, sfxPlan, lines, music, warnings, integrity: integrityRows };
+  return { layout, props, durationSeconds: timeline.durationSeconds, groups, gateSegments, media, sfxPlan, lines, music, warnings, integrity: integrityRows };
 }
 
 export async function composeStage(ctx) {
@@ -234,18 +251,18 @@ export async function composeStage(ctx) {
       const propErrors = validateProps(plan.props, join(dir, 'public'));
       if (propErrors.length) throw new Error(`MarketingAd props for ${ratio} are invalid: ${propErrors.slice(0, 4).join('; ')}`);
       writeJson(join(dir, 'props.json'), plan.props);
-      writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, wordClock: timeline.wordClock || 'legacy-whisper', deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: timeline.durationSeconds, pictureSeconds: timeline.durationSeconds, leadInSeconds: 0, ...(timeline.beatGrid ? { beatGrid: { bpm: timeline.beatGrid.bpm, offsetSeconds: timeline.beatGrid.offsetSeconds } } : {}), timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups, integrity: plan.integrity, warnings: plan.warnings });
-      writeJson(join(dir, 'gate-segments.json'), { band: plan.layout.uiBand, durationSeconds: timeline.durationSeconds, segments: plan.gateSegments });
+      writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, wordClock: timeline.wordClock || 'legacy-whisper', deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: plan.durationSeconds, pictureSeconds: plan.durationSeconds, leadInSeconds: 0, ...(timeline.beatGrid ? { beatGrid: { bpm: timeline.beatGrid.bpm, offsetSeconds: timeline.beatGrid.offsetSeconds } } : {}), timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups, integrity: plan.integrity, warnings: plan.warnings });
+      writeJson(join(dir, 'gate-segments.json'), { band: plan.layout.uiBand, durationSeconds: plan.durationSeconds, segments: plan.gateSegments });
       const target = loudnessTarget(ratio, ctx.spec, ctx.brand);
       const mixOut = join(dir, 'mix.wav');
-      const mixArgs = buildMixArgs({ lines: plan.lines, sfx: plan.sfxPlan, music: plan.music, durationSec: timeline.durationSeconds, out: mixOut });
+      const mixArgs = buildMixArgs({ lines: plan.lines, sfx: plan.sfxPlan, music: plan.music, durationSec: plan.durationSeconds, out: mixOut });
       writeJson(join(dir, 'mix-plan.json'), { target, lines: plan.lines, sfx: plan.sfxPlan, music: plan.music, ffmpegArgs: mixArgs });
       writeFileSync(join(dir, 'ad.srt'), toSrt(captionsAll), 'utf8');
       const kit = ctx.flags.kit || join(MODULE_ROOT, '..');
       const silent = join(dir, 'silent.mp4');
       const renderArgs = [join(kit, 'node_modules', '@remotion', 'cli', 'remotion-cli.js'), 'render', 'src/index.ts', 'MarketingAd', silent, `--props=${join(dir, 'props.json')}`, `--public-dir=${join(dir, 'public')}`, '--codec=h264', '--muted', '--crf=17', '--concurrency=2', '--log=error', '--timeout=180000'];
       writeJson(join(dir, 'render-command.json'), { cwd: kit, node: process.execPath, args: renderArgs });
-      summary[ratio] = { dir, durationSeconds: timeline.durationSeconds, windows: plan.groups.filter((g) => g.windows).map((g) => ({ beat: g.segments[0], windows: g.windows.length })), sfx: plan.sfxPlan.length, music: !!plan.music, warnings: plan.warnings, target };
+      summary[ratio] = { dir, durationSeconds: plan.durationSeconds, windows: plan.groups.filter((g) => g.windows).map((g) => ({ beat: g.segments[0], windows: g.windows.length })), sfx: plan.sfxPlan.length, music: !!plan.music, warnings: plan.warnings, target };
       if (ctx.flags.prepareOnly || ctx.flags.dryRun) { ctx.log(`compose/${ratio}: prepared (no render)`); continue; }
       ctx.log(`compose/${ratio}: rendering picture`);
       const r1 = await run(process.execPath, renderArgs, { timeoutMs: 1800000 });

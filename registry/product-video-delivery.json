@@ -135,5 +135,5 @@
     ],
     "reason": "Personal or restricted (Gartner recordings are licensed and restricted). Never a delivery review root; validation fails if one is registered."
   },
-  "registrationNote": "2026-11-04: destinations are Area/Customer or company, two folder levels at most; media-studio compose/references/library.md owns the layout. Portfolio introductions, proof clips and showreels share Sarosh - Portfolio. Interview preparation goes in Interview Prep/<Company>. Upwork service introductions use the portfolio root; private interview preparation uses privatePreparationRoot. File presence does not imply review approval. GentleNext remains registered before first delivery."
+  "registrationNote": "2026-11-04: destinations are Area/Customer or company, two folder levels at most; media-studio skills/finish/references/library.md owns the layout. Portfolio introductions, proof clips and showreels share Sarosh - Portfolio. Interview preparation goes in Interview Prep/<Company>. Upwork service introductions use the portfolio root; private interview preparation uses privatePreparationRoot. File presence does not imply review approval. GentleNext remains registered before first delivery."
 }

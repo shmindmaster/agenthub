@@ -1,7 +1,7 @@
 # cloud-render: shared cloud rendering for media-studio films
 
 Owner direction (2026-10-26): voice and rendering run in the cloud; screen capture and mouse movement stay local.
-Placement is capacity-based (see the `compose` skill): local NVENC when the PC is not taxed, this Azure job when it is or when work can run in parallel, Daytona only with the orchestrator's OK. Verified 2026-10-29: an ffmpeg transcode through this lane took 62 s wall time and $0.0065.
+Renders run on Daytona (see `skills/finish/references/render-lanes.md`, owner direction 2026-11-24), never on this PC. This Azure job stays available for work that already uses it. Verified 2026-10-29: an ffmpeg transcode through this lane took 62 s wall time and $0.0065.
 
 `cloud-render.mjs` is the one render path every film session calls: it uploads the inputs from this machine,
 renders in Azure, and downloads the result into your job folder.
@@ -52,6 +52,9 @@ node cloud-ai.mjs qa     --images <contact-sheet.jpg> [...] --prompt <context> -
   resource `mt-foundary-resource`, Entra auth, key auth disabled). Rate-limit retries stay on the same provider. `--client` material never goes to Anthropic and
   defaults to Azure OpenAI in the owner's tenant. The report has score 0–100, pass, findings with fixes, provider,
   model and usage. Exit 0 means pass.
+* **Deadlines**: a model or speech call is cut off after 300 s plus the time its upload needs at 2 Mbit/s, body included. A call that times out
+  (or returns HTTP 504 or 524) stops as `timed out` and is not sent again, because the provider may still finish and charge for it:
+  check its usage before rerunning. For review and qa, other 429 and 5xx answers are retried twice, waiting at most 20 s whatever `retry-after` says.
 * Keys are read by name from the environment, then the Windows user environment, and are never printed.
 
 ### Synthetic Runware training stills

@@ -184,3 +184,11 @@ test('native fill records no success or beat after native failure or mismatched 
     assert.equal(log.summary().fills, 0); assert.deepEqual(beats.marks, []);
   }
 });
+
+test('the touch dot colour is overridable and defaults to the original purple', async () => {
+  const { touchDotColors } = await import(pathToFileURL(libFile).href);
+  assert.deepEqual(touchDotColors(), { fill: 'rgba(110,86,248,0.35)', ring: 'rgba(110,86,248,0.85)' });
+  assert.deepEqual(touchDotColors('16, 32, 48'), { fill: 'rgba(16,32,48,0.35)', ring: 'rgba(16,32,48,0.85)' });
+  assert.throws(() => touchDotColors('purple'), /touchRgb/);
+  assert.throws(() => touchDotColors('1, 2, 300'), /touchRgb/);
+});

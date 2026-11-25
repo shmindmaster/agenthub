@@ -21,10 +21,27 @@ Cheapest first, in `scripts/`. `all` is every kind, `screen` is `product-screenc
 | 15 | `validate-sync.mjs` | screen | `qa/sync.json` | Action off 300 ms, hold under 1.5 s | Recut beat |
 | 16 | `validate-marketing-readiness.mjs` | marketing | `qa/marketing-readiness-check.json` | Below floor | Recut |
 | 17 | `validate-viewer-release.mjs` | all, every recut | Nothing | See below | Owning gate |
+| 18 | `validate-finished-film.mjs` | all, on the encoded file, before order 17 is written. The mvg driver requires `finishedFilm` automatically when `finalHoldSeconds` is declared; otherwise opt in through `qa.required` | `qa/finished-film.json` | Black or blank open or gap, silence of 5 s or more, silent tail, unmet final hold, wrong aspect | Recut |
 
 Order 17 reads `qa/viewer-release-evidence.json`. It refuses a missing, stale or loosened report, and checks captions (2 lines, 42 per line, 84 per cue, 20 per second), audio (-16 LUFS ±1.5 or `loudnessTargetLufs`, at most -1 dBTP), `pronunciation` (`authored-script`, `releaseEligible`), title, action-result, `storyReview` and the single opening title treatment and CTA for legacy verified and marketing cuts, frame size, duration and campaign forms.
 
 It binds candidate reports to the exact SHA-256 and bytes, reviews to the SHA-256, the narration check to its script and pointer path to `capture/receipt.json`. A recut voids every candidate-bound report. For explicitly illustrative educational, explanation, fiction or abstract work without enacted product actions or completed product claims, set `noEnactedActions` and `noCompletedResultClaims` to true. If the job does not require an action-result review, record the candidate-specific representation assessment in `storyReview.representation`. Verify any current-product claim against source evidence. An mvg job may file `media-studio/mvg-picture-gate` for order 11.
+
+## Finished film
+
+`scripts/validate-finished-film.mjs <candidate> [--requirements story/requirements.json] [--deliverable narrated-video|silent-video|audio] [--reviewed-silence a-b[:reason]]...` measures only the encoded file with ffmpeg, so it is quick on a long film. Errors: black or single-colour first frame of 0.2 s or more; a near-uniform span over 0.5 s anywhere (a closing fade of 1 s or less is allowed); audio silence of 5 s or more mid-film unless listed as reviewed (one range per `--reviewed-silence` flag, or `reviewedSilences: [{start,end,reason}]` in requirements, reason required); trailing silence over 6 s when no `finalHoldSeconds` is declared, or over `finalHoldSeconds` + 3 s when one is; a declared `finalHoldSeconds` that the final picture does not meet (it must stay stable, not fade, not be black); a narrated film with no audio; an aspect (`16x9`; `16:9` is tolerated) or a `durationSeconds` `{min,max}` the film falls outside (any other shape is a `duration-invalid` error), or a `--deliverable` that contradicts `job.json`. The deliverable defaults from `job.json` (`deliverable`, or kind `audio-only` for audio), else narrated video; `stills` and `storyboard` return `ok` with `notApplicable` and measure nothing. The report carries `deliverable` and `requirementsSha256`. Advisories need a look and never block: still picture through the first 3 s, a final picture that is still under 2 s with no hold declared, silence of 3 to 5 s, trailing silence of 3 to 6 s with no hold declared (a held outcome card is wanted, so the advisory says whether the final picture was stable), a near-empty frame between busier ones (a possible loading or empty page: one whose edge detail is under 5% of pixels between frames above 8%), and a blurred-fill band on a vertical film. Each advisory names the timecode to open.
+
+Calibration: blurred fill fired on the one real vertical cut tried (21 of 45 seconds) and on none of the landscape films. The low-detail advisory found a full-page spinner in a screen-recording film but not the spinner in a film with an in-app spinner, and a spinner inside an app shell with its own page content is not detected: it stays on the human checklist below. Tuning it further added false positives, so it was left there.
+
+It does not read text, so these stay a human review of the contact sheet and the encoded file:
+
+- No half line of text at any frame edge, in a product screen or a terminal.
+- The smallest UI text the viewer must read is at least 22 px at 1080p (2% of frame height).
+- No spinner, skeleton or blank page is left in the cut.
+- The UI language matches the declared `uiLanguage` in every localized shot. Product text the app has not translated is Product-Readiness Feedback and is not re-labelled in the film.
+- The last 5 s is a designed outcome state that names what changed, not a cropped page.
+- A caption never covers the text being discussed.
+- A 9:16 cut is recomposed from source captures at native framing, never a blurred fill or a side crop of a 16:9 master.
 
 ## Picture
 

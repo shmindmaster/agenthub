@@ -26,8 +26,8 @@
       "file": "~/.claude/settings.json",
       "format": "json",
       "key": ["skillListingBudgetFraction"],
-      "value": 0.005,
-      "why": "Halves the default 1% budget. Over budget, the least-used skills lose their description and keep their name.",
+      "value": 0.01,
+      "why": "The vendor default. At 0.005 a fresh session (2026-11-24, 258 skills) listed the media-studio script and finish skills by name only; at 0.01 all four kept their descriptions, for about 6K more tokens per session. Over budget, the least-used skills lose their description and keep their name.",
       "source": "https://code.claude.com/docs/en/settings-reference.md"
     },
     {

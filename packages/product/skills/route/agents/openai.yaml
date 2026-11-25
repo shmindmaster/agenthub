@@ -1,0 +1,4 @@
+interface:
+  display_name: "Route"
+  short_description: "Pick the specialist, skills and checks for this repository"
+  default_prompt: "Use $route to choose the lane, skills and checks for this repository."

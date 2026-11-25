@@ -26,7 +26,7 @@ import posixpath
 import sys
 from urllib.parse import urlsplit, urlunsplit
 
-PICTURE = {"flow", "layers", "sequence", "timeline", "beforeafter", "map", "chart", "svg", "lottie", "still", "broll", "screen-in-context", "code"}
+PICTURE = {"flow", "diagram", "layers", "sequence", "timeline", "beforeafter", "map", "chart", "svg", "lottie", "still", "broll", "screen-in-context", "code"}
 TYPOGRAPHIC = {"stat", "table", "split", "proof"}
 SOURCE_KINDS = {"broll", "still", "screen-in-context"}
 

@@ -76,3 +76,14 @@ test("a cue with no scene, and a scene with no cue, both fail", () => {
   assert.match(r.stdout, /cue b/);
   assert.match(r.stdout, /zz/);
 });
+
+test("a diagram that cannot be drawn fails the build", () => {
+  const diagram = (icon) => ({ scenes: [
+    { id: "a", title: "Trucks", visual: { kind: "diagram", nodes: [{ id: "x", label: "Carrier", icon, at: "@Penske" }, { id: "y", label: "Dock", col: 1, at: "@trucks" }], edges: [{ from: "x", to: "y" }] } },
+    { id: "b", title: "Share", visual: { kind: "chart", form: "waffle", items: [{ label: "of the volume", value: 37, at: "@37" }] } } ] });
+  const bad = run(job(diagram("no-such-icon")));
+  assert.notEqual(bad.status, 0);
+  assert.match(bad.stdout + bad.stderr, /diagram-icon/);
+  const good = run(job(diagram("truck")));
+  assert.equal(good.status, 0, good.stdout + good.stderr);
+});

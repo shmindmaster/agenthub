@@ -1,6 +1,6 @@
 # macOS VM on sh-forge
 
-Until 2026-12-01 iOS builds, Simulator runs and Xcode work run in the macOS VM on sh-forge: container `macos`, compose file `/opt/macos/compose.yml`. When it runs, it holds 32 GB of RAM and 16 cores of the 64 GB, 32-core droplet, so it starts only when work needs it and stops by itself afterwards. The local VMware VM is retired (`Invoke-MobileLabVmrunStart` refuses).
+iOS builds, Simulator runs and Xcode work run in the macOS VM on sh-forge (owner direction 2026-11-24: use it for now; a Daytona Mac day costs $60 and up). This is the only work that goes to that droplet: container `macos`, compose file `/opt/macos/compose.yml`. When it runs, it holds 32 GB of RAM and 16 cores of the 64 GB, 32-core droplet, so it starts only when work needs it and stops by itself afterwards. The local VMware VM is retired (`Invoke-MobileLabVmrunStart` refuses).
 
 ## Use it
 

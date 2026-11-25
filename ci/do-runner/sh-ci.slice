@@ -1,9 +1,0 @@
-# CI lane on the shared build droplet: at most 12 CPUs and 24 GB for every sh-ci container together
-# (three concurrent 4-CPU / 8 GB jobs). Install: cp to /etc/systemd/system/, systemctl daemon-reload.
-[Unit]
-Description=sh-ci GitHub Actions runners and their test sidecars
-
-[Slice]
-CPUQuota=1200%
-MemoryMax=24G
-MemoryHigh=22G

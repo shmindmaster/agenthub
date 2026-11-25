@@ -11,6 +11,13 @@ This reference expands the `studio` entry point. It **does not** add a workflow,
 5. **Technical production:** choose supported browser, capture, aspect and remote render lanes automatically unless a visible tradeoff remains.
 6. **Budget and approvals:** present the priced, executable choice before spending. No extra gates or silent approvals.
 
+## Business engagement requests
+
+A request such as "make a steering committee update video", "proposal video", "pitch video", "kickoff video",
+"final readout" or "value review" names a `communicationProfile`. Pick it from [forms](forms.md), load
+[engagement formats](engagement-formats.md), and ask only what the profile needs and the request omits:
+the audience, the decision, the one ask with its owner and date, and for a status update the RAG and its date.
+
 ## Decision depth — adaptive, not three separate pipelines
 
 | Intent | Interaction | When to ask |
@@ -43,7 +50,7 @@ Cast by **delivery quality** (clear instructional, warm conversational, confiden
 - **Azure Speech DragonHD:** the next route after Deepgram. Approved voices such as Emma2/Andrew2 for conversational walkthroughs; Ava/Andrew where suitable.
 - **Azure OpenAI / OpenAI speech:** directed narration including Marin/Cedar **only when the specific governed route is enabled for this task**.
 - **ElevenLabs:** premium speech, dialogue and effects are candidates **only under the applicable authorization and frozen-lane policy**, including the Deloitte pursuit films (Revolva, Empowera, CoLedger), and only with a written reason in the job.
-- **AssemblyAI:** TTS for ABACare films and the only clone route (personal and ABACare films), callable only once `assemblyai-tts` is not frozen in `policy/provider-routing.json` and a governed adapter runs it; until then deliver the ABACare cut with the next eligible stock route and note the gap, plus transcription, timing, alignment and independent quality checks. Clones use a consented reference recording with 60 day validity, renewable.
+- **AssemblyAI:** TTS for ABACare films and the only clone route (personal and ABACare films), run by `scripts/narration-preflight.mjs`, plus transcription, timing, alignment and independent quality checks. Recommend `sarosh-hussain` first for a personal film with no other voice named; the job uses it once the owner asks for his voice on that film (`privateVoiceApprovals` quotes the request), and otherwise gets the stock default. On ABACare films each clone speaks for its own person. `ah-assemblyai` lists both voice IDs and the consent check; consent lasts 60 days and is renewable.
 - Other providers: candidates only after checking `route_media.py --catalog`, actual model/voice compatibility, authorization, and pricing.
 
 Do not promise that any named voice is currently callable merely because its documentation exists. Never generate fake audio previews or describe an unplayed sample as heard.
@@ -66,7 +73,7 @@ A requested cloned voice does not bypass existing private consent, account, spen
 - **Concept/brand/documentary:** use the existing supported animation, Remotion, still, human-world and licensed-media routes appropriate to the creative treatment. Mark proposed capabilities as proposed.
 - **Signed-in/manual capture:** only when approved access or unique workflow makes automation insufficient; preserve privacy and do not impersonate unavailable roles.
 
-Infer the appropriate remote worker from current private compute guidance: warm forge, authorized Daytona, established CI, or another approved lane. Do not surface cloud-provider names as ordinary creative choices. Never run heavy capture/render locally when private rules prohibit it. Record the chosen lane and actual source revision in the capture receipt.
+Infer the appropriate remote worker from current private compute guidance: Daytona, established CI, or another approved lane. Do not surface cloud-provider names as ordinary creative choices. Never run heavy capture/render locally when private rules prohibit it. Record the chosen lane and actual source revision in the capture receipt.
 
 ## Quality tiers
 

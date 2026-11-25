@@ -15,6 +15,18 @@ import datetime
 
 import governed_azure_speech as az
 
+# The price check has its own test; every other test is about something else and
+# must not start failing on the day the checked price lapses.
+_price_is_current = patch.object(az, "VALID_THROUGH", datetime.date.max)
+
+
+def setUpModule():
+    _price_is_current.start()
+
+
+def tearDownModule():
+    _price_is_current.stop()
+
 
 class AzureTests(unittest.TestCase):
     def setUp(self):
@@ -34,6 +46,25 @@ class AzureTests(unittest.TestCase):
     def tearDown(self):
         self.env.stop()
         self.tmp.cleanup()
+
+    def test_price_policy_lapse_fails_closed(self):
+        today = datetime.datetime.now(datetime.timezone.utc).date()
+        with patch.object(az, "VALID_THROUGH", today - datetime.timedelta(days=1)):
+            with self.assertRaisesRegex(RuntimeError, "Price policy expired"):
+                az.quote("Synthetic.", workspace="synthetic-job", revision="v1", dictionary_revision="v1")
+
+    def test_policy_ids_name_the_charged_rate_and_keep_existing_request_keys(self):
+        # A policy id is inside the request key: renaming one while its rate holds orphans bought audio and owner grants.
+        options = dict(workspace="synthetic-job", revision="v1", dictionary_revision="v1")
+        hd = az.quote("Synthetic line.", **options)
+        standard = az.quote("Synthetic line.", voice=az.STANDARD_VOICE, style="friendly", **options)
+        for plan, rate, key in (
+                (hd, 22, "fe118955a85fa80baaf68553af4d7eb21cbf3bc1ede4ae33f07fcbe19bd862b6"),
+                (standard, 15, "2f123287ffe24a07a881c4f83d0d947fdcd3cab433aa3d85de857e4d6687248e")):
+            with self.subTest(policy=plan["request"]["price_policy"]):
+                self.assertIn(f"-{rate}-microusd-per-utf8-byte", plan["request"]["price_policy"])
+                self.assertEqual(plan["maximum_usd_micros"], len(plan["request"]["ssml"].encode()) * rate)
+                self.assertEqual(plan["cache_key"], key)
 
     def save(self):
         self.manifest.write_text(json.dumps(self.policy))

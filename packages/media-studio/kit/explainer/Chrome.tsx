@@ -25,9 +25,10 @@ const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
  * open is type only, and absent whenever the shot asked for no chrome.
  *
  * It sits at the frame edge rather than inside the safe area: every family's
- * first type row starts at 7.5% of the height, so a HUD placed at the 8% mark
- * would land on the kicker. Like the progress bar, this is chrome on the edge
- * of the picture, not content. */
+ * first type row starts at 7.5% of the height, and the HUD ends by 5% so the two
+ * never read as one block. Like the progress bar, this is chrome on the edge of
+ * the picture, not content. A film whose one chapter carries the film's own
+ * title prints it once. */
 export const Hud: FC<{ film: ExplainerFilm; shots: ExplainerShot[] }> = ({
   film,
   shots,
@@ -48,7 +49,7 @@ export const Hud: FC<{ film: ExplainerFilm; shots: ExplainerShot[] }> = ({
         position: 'absolute',
         left: inset,
         right: inset,
-        top: Math.round(film.height * 0.042),
+        top: Math.round(film.height * 0.026),
         display: 'flex',
         alignItems: 'baseline',
         justifyContent: 'space-between',
@@ -81,7 +82,7 @@ export const Hud: FC<{ film: ExplainerFilm; shots: ExplainerShot[] }> = ({
           flexShrink: 0,
         }}
       >
-        {chapter ? chapter.label : ''}
+        {chapter && chapter.label !== film.title ? chapter.label : ''}
       </div>
     </div>
   );

@@ -33,9 +33,6 @@ mobile.ps1 test deep [-Json]
 mobile.ps1 sync <productId> -RepoPath <path> -GuestPath <path> [Sync-RepoToGuest options] [-Json]
 mobile.ps1 metro <productId> -ProjectPath <path> [Start-MobileLabMetro options] [-Json]
 mobile.ps1 web <productId> -ProjectPath <path> -Url <url> [Open-MobileLabWebTarget options] [-Json]
-mobile.ps1 remote status|start|stop|view [-Check] [-Json]
-mobile.ps1 remote run|sync|clean <productId> [-Profile <name>] [-Ref <commit>] [-WorkingTree] [-Json]
-mobile.ps1 remote provision [-HostName <address> -IdentityFile <key path>]
 
 Use `catalog` to discover the closed primary/specialty surface. Physical
 devices, signing, push, deep links, observability, EAS, and stores remain
@@ -328,12 +325,9 @@ try {
             Invoke-MobileDelegate -Script $script -Arguments $forward
         }
         'remote' {
-            # The remote Linux Android worker. Scope and the per-app lab profile
-            # are resolved inside the delegate from the registries.
-            $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Invoke-MobileLabRemote.ps1'
-            $forward = @($tokens)
-            if ($Json) { $forward += '-Json' }
-            Invoke-MobileDelegate -Script $script -Arguments $forward
+            # The remote Android emulator worker ran on the retired DigitalOcean build droplet.
+            # Daytona has no /dev/kvm, so no remote emulator lane replaces it.
+            throw 'The remote Android worker is retired (2026-11-24): Daytona has no KVM, so no remote emulator exists. Build the APK on a Daytona v2 Linux box with scripts/daytona-run.mjs, or use the Windows emulator (mobile.ps1 start android) or a USB device. iOS: references/forge-mac.md.'
         }
         default { throw "Unknown command '$command'." }
     }

@@ -27,7 +27,7 @@ import route_media
 STANDARD_USD_PER_BYTE = 15e-6
 HD_USD_PER_BYTE = 22e-6
 ASR_USD_PER_HOUR = 0.36
-KIND_NEED = {"svg": "diagram", "flow": "diagram", "layers": "diagram", "sequence": "diagram", "map": "diagram", "timeline": "diagram",
+KIND_NEED = {"svg": "diagram", "flow": "diagram", "diagram": "diagram", "layers": "diagram", "sequence": "diagram", "map": "diagram", "timeline": "diagram",
              "chart": "chart", "stat": "stat", "table": "diagram", "split": "diagram", "beforeafter": "diagram", "code": "code",
              "lottie": "motion", "still": "image", "broll": "video-generation", "screen-in-context": "screen",
              "hero": "title", "quote": "title", "proof": "title", "checklist": "title", "cta": "title", "sidecar": "title",

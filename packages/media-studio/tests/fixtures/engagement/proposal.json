@@ -1,0 +1,258 @@
+{
+  "product": "Ledger Close Programme",
+  "communicationProfile": "proposal",
+  "targetSeconds": 150,
+  "maxDurationSeconds": 300,
+  "primaryAudience": "executive sponsor at a regional cooperative",
+  "viewerDecision": "whether to approve the three-phase close programme",
+  "primaryTakeaway": "Approve a three-phase programme that halves the close.",
+  "audienceContext": {
+    "problemStatus": "fictional-scenario",
+    "sourceRefs": []
+  },
+  "nextStep": {
+    "action": "Sign the statement of work",
+    "owner": "executive sponsor",
+    "agreedDate": null
+  },
+  "captionPolicy": {
+    "mode": "sidecar",
+    "deliverySurface": "web player"
+  },
+  "audioDirection": {
+    "narratorIdentity": "approved narrator",
+    "pronunciationRefs": [],
+    "delivery": "calm and direct",
+    "emphasis": [],
+    "pauses": "hold each number for a beat",
+    "musicTreatment": "none"
+  },
+  "limitations": [
+    "Fictional example for planning. Every name and figure is invented."
+  ],
+  "narrative": {
+    "question": "what will the programme deliver, for how long and at what cost",
+    "viewerValue": "the sponsor can approve with the scope, team and price in front of them"
+  },
+  "beats": [
+    {
+      "id": "b1",
+      "section": "recommendation",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "Approve a three-phase programme that halves the close. It runs twenty weeks.",
+      "actionTitle": "We recommend a twenty-week programme that halves the monthly close.",
+      "supportingArgument": "The recommendation leads so the sponsor can decide early.",
+      "proofRefs": [
+        "fictional/b1.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Recommended programme: three phases over twenty weeks.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/p1-summary.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "section": "understanding",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "You told us the close takes four days and the numbers rarely agree.",
+      "actionTitle": "You asked for a close that finishes in two days with numbers that agree.",
+      "supportingArgument": "Playing the problem back in their words shows we listened.",
+      "proofRefs": [
+        "fictional/b2.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "The cooperative described a four-day close with mismatched sheets.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/p2-playback.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "section": "approach",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "Three phases: map the close, build one ledger, hand it over.",
+      "actionTitle": "Three phases take the close from map to handover.",
+      "supportingArgument": "Each phase ends in a deliverable the sponsor can inspect.",
+      "proofRefs": [
+        "fictional/b3.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Phases: map, build, hand over.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/p3-approach.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b4",
+      "section": "team",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "Your lead is Mira Voss. She has run three closes like this one.",
+      "actionTitle": "Named leads run each phase and stay for the whole programme.",
+      "supportingArgument": "Named people make the proposal credible.",
+      "proofRefs": [
+        "fictional/b4.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Fictional team of three with named roles.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/p4-team.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b5",
+      "section": "timeline",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "Twenty weeks, with a go or no-go gate after each phase.",
+      "actionTitle": "A gate after each phase lets you stop or continue.",
+      "supportingArgument": "Gates cap the commitment at every step.",
+      "proofRefs": [
+        "fictional/b5.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Timeline with three gates.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/p5-timeline.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ]
+    },
+    {
+      "id": "b6",
+      "section": "options",
+      "storyRole": "explanation",
+      "kind": "card",
+      "minSeconds": 15,
+      "narration": "You can take the whole programme, the first two phases, or the map alone.",
+      "actionTitle": "Three scopes let you commit as far as you wish.",
+      "supportingArgument": "Choice lowers the cost of saying yes.",
+      "proofRefs": [
+        "fictional/b6.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Three scopes, one recommended.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/p6-options.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ],
+      "options": [
+        {
+          "label": "Map only",
+          "recommended": false
+        },
+        {
+          "label": "Map and build",
+          "recommended": false
+        },
+        {
+          "label": "Full programme",
+          "recommended": true
+        }
+      ]
+    },
+    {
+      "id": "b7",
+      "section": "investment",
+      "storyRole": "takeaway",
+      "kind": "card",
+      "minSeconds": 20,
+      "narration": "The full programme is a fixed fee. It assumes your team joins weekly reviews and excludes licence costs.",
+      "actionTitle": "The fixed fee states what it assumes and what it leaves out.",
+      "supportingArgument": "Stating limits now prevents surprises later.",
+      "proofRefs": [
+        "fictional/b7.md"
+      ],
+      "evidenceClaims": [
+        {
+          "text": "Fixed fee range with assumptions and exclusions.",
+          "scope": "illustrative-scenario",
+          "sourceRefs": [
+            "fictional/p7-investment.md"
+          ],
+          "implementationState": "proposed",
+          "dataType": "synthetic",
+          "aiExecutionMode": "none",
+          "businessValidation": "unvalidated",
+          "visibleLabel": "Illustrative example"
+        }
+      ],
+      "assumptions": [
+        "A named finance owner joins a weekly review",
+        "Source data is available in week one"
+      ],
+      "exclusions": [
+        "Third-party licence costs",
+        "Changes to the chart of accounts"
+      ]
+    },
+    {
+      "id": "b8",
+      "section": "next-step",
+      "storyRole": "next-step",
+      "kind": "card",
+      "minSeconds": 10,
+      "narration": "Sign the statement of work by the fifteenth to start in January."
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
-import { blobClient, lockFingerprint, pool } from './blob.mjs';
+import { blobClient, lockFingerprint, pool, REQUEST_TIMEOUT_MS, TRANSFER_TIMEOUT_MS } from './blob.mjs';
 
 const { JOB_ID, STORAGE_ACCOUNT, IDENTITY_ENDPOINT, IDENTITY_HEADER } = process.env;
 const RT = '/opt/rt';
@@ -18,7 +18,7 @@ const FFMPEG_FALLBACK = 'https://github.com/BtbN/FFmpeg-Builds/releases/download
 
 async function ffmpegUrl() {
   try {
-    const rel = await (await fetch(FFMPEG_RELEASE, { headers: { 'User-Agent': 'media-studio-cloud-render' } })).json();
+    const rel = await (await fetch(FFMPEG_RELEASE, { headers: { 'User-Agent': 'media-studio-cloud-render' }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })).json();
     const ver = (n) => n.match(/-n(\d+)\.(\d+)-latest-linux64-gpl-/).slice(1).map(Number);
     const best = rel.assets.filter((a) => /^ffmpeg-n\d+\.\d+-latest-linux64-gpl-[\d.]+\.tar\.xz$/.test(a.name)).sort((a, b) => {
       const [x, y] = [ver(a.name), ver(b.name)];
@@ -34,7 +34,7 @@ async function ffmpegUrl() {
 let token = null;
 async function getToken() {
   if (token && token.expires - 300 > Date.now() / 1000) return token.value;
-  const res = await fetch(`${IDENTITY_ENDPOINT}?resource=https://storage.azure.com/&api-version=2019-08-01`, { headers: { 'X-IDENTITY-HEADER': IDENTITY_HEADER } });
+  const res = await fetch(`${IDENTITY_ENDPOINT}?resource=https://storage.azure.com/&api-version=2019-08-01`, { headers: { 'X-IDENTITY-HEADER': IDENTITY_HEADER }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`managed identity token: HTTP ${res.status}`);
   const j = await res.json();
   token = { value: j.access_token, expires: Number(j.expires_on) };
@@ -149,7 +149,7 @@ async function bootstrap(manifest) {
   fs.mkdirSync(ffDir, { recursive: true });
   const url = manifest.ffmpegUrl || (await ffmpegUrl());
   log(`ffmpeg: ${url}`);
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(TRANSFER_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`ffmpeg download: HTTP ${res.status}`);
   fs.writeFileSync('/tmp/ffmpeg.tar.xz', Buffer.from(await res.arrayBuffer()));
   if ((await sh('sh', ['-c', 'command -v xz'])).code !== 0) {
@@ -162,7 +162,7 @@ async function bootstrap(manifest) {
   const fontDir = path.join(RT, 'fonts');
   fs.mkdirSync(fontDir, { recursive: true });
   for (const [file, url] of Object.entries(FONTS)) {
-    const r = await fetch(url);
+    const r = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     if (!r.ok) throw new Error(`font ${file}: HTTP ${r.status}`);
     fs.writeFileSync(path.join(fontDir, file), Buffer.from(await r.arrayBuffer()));
   }

@@ -54,6 +54,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $RuntimeKit 'src') | Out-Nu
 $files = @(
     'src\Visuals.tsx',
     'src\RichVisuals.tsx',
+    'src\Diagram.tsx',
     'public\lottie\check.json',
     'public\lottie\pulse.json',
     'public\lottie\arrow.json',
@@ -74,6 +75,12 @@ $files = @(
     'explainer\motion.mjs',
     'explainer\grammar.mjs',
     'explainer\layout.mjs',
+    'explainer\diagram.mjs',
+    'explainer\fit.mjs',
+    'explainer\reveal.mjs',
+    'explainer\icons.json',
+    'explainer\icons-LICENSE.txt',
+    'explainer\still-explainer.mjs',
     'explainer\anchor.mjs',
     'explainer\frame-metrics.mjs',
     'explainer\png.mjs',
@@ -84,7 +91,8 @@ $files = @(
     'explainer\Stage.tsx',
     'explainer\Chrome.tsx',
     'explainer\shots.tsx',
-    'explainer\Explainer.tsx',    'screencast\compose-screencast.mjs',
+    'explainer\Explainer.tsx',
+    'screencast\compose-screencast.mjs',
     'screencast\campaign-contract.mjs',
     'screencast\render-overlay.mjs',
     'screencast\render-code.mjs',
@@ -164,8 +172,8 @@ if (Test-Path -LiteralPath $marketingSource) {
 # beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
 $gateScripts = @('queue-qwen-alignment-clock.mjs', 'derived-audio-clock.mjs', 'hosted-alignment-clock.mjs', 'validate-edit-map.mjs', 'edit-map-clock.mjs', 'validate-word-sync.mjs', 'validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
     # video standard (2026-10-20): record-job.mjs resolves validate-capture-preflight.mjs from _shared\tools; the rest are the release gates the skills cite
-    'validate-narration.mjs', 'marketing-cut.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'speech-only-readiness.mjs', 'build-contact-sheet.mjs',
-    'check_visual_variety.py', 'check_picture_relevance.py',
+    'validate-narration.mjs', 'marketing-cut.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-finished-film.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'speech-only-readiness.mjs', 'build-contact-sheet.mjs',
+    'check_visual_variety.py', 'check_picture_relevance.py', 'check_requirements.py',
     'picture-gates.mjs', 'piecewise-capture-clock.mjs', 'physical-result-observations.mjs', 'final-encoder-transform.mjs', 'product-panel-geometry.mjs', 'action-result-review.mjs', 'validate-picture-inputs.mjs', 'render-program.mjs', 'lock-facts.mjs', 'write-captions.mjs', 'merge-designed-cuts.mjs',
     # model-written layers (SH-4317): the gate and its resolver; the gate reads the model-facing schemas from model-specs-schemas beside it
     'validate-model-specs.mjs', 'model-specs-resolve.mjs',
@@ -195,9 +203,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $explainerSource 'Explainer.tsx'))) 
 }
 $explainerTarget = Join-Path $sharedTools 'explainer'
 New-Item -ItemType Directory -Force -Path $explainerTarget | Out-Null
-foreach ($item in @(Get-ChildItem -LiteralPath $explainerSource -File | Where-Object { $_.Extension -in @('.mjs', '.json') })) {
+foreach ($item in @(Get-ChildItem -LiteralPath $explainerSource -File | Where-Object { $_.Extension -in @('.mjs', '.json', '.txt') })) {
     Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $explainerTarget $item.Name) -Force
-}foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
+}
+foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
     $from = Join-Path (Join-Path $packageKit 'screencast') $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical screencast tool missing: $from" }
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force

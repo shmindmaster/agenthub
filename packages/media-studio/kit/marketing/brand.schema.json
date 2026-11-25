@@ -10,6 +10,7 @@
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,40}$" },
     "product": { "type": "string" },
     "label": { "type": "string" },
+    "entity": { "enum": ["abacare", "mahumtech", "personal"], "description": "The entity this brand's films are made for. Imported narration and stills that name a different entity fail unless an entityException is recorded." },
     "logo": { "type": "string", "description": "Absolute path to the logo lockup (SVG or PNG) drawn on the end card." },
     "colors": {
       "type": "object",
@@ -22,7 +23,8 @@
         "surface": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
         "muted": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
         "onPrimary": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
-        "emphasis": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+        "emphasis": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "captionPlate": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
       }
     },
     "fonts": {
@@ -84,7 +86,11 @@
       "properties": {
         "elevenlabsCredits": { "type": "integer", "minimum": 0, "description": "Cumulative cap across all mvg runs for this brand." },
         "openaiUsd": { "type": "number", "minimum": 0, "description": "Cumulative cap across all mvg runs for this brand." },
-        "perRun": { "type": "object", "properties": { "elevenlabsCredits": { "type": "integer", "minimum": 0 }, "openaiUsd": { "type": "number", "minimum": 0 } } }
+        "assemblyaiUsd": { "type": "number", "minimum": 0, "description": "Cumulative cap for AssemblyAI. Without a cap (cumulative or per run) new AssemblyAI spend is refused." },
+        "deepgramUsd": { "type": "number", "minimum": 0, "description": "Cumulative cap for Deepgram; same rule." },
+        "runwareUsd": { "type": "number", "minimum": 0, "description": "Cumulative cap for Runware; same rule." },
+        "azureUsd": { "type": "number", "minimum": 0, "description": "Cumulative cap for Azure; same rule." },
+        "perRun": { "type": "object", "properties": { "elevenlabsCredits": { "type": "integer", "minimum": 0 }, "openaiUsd": { "type": "number", "minimum": 0 }, "assemblyaiUsd": { "type": "number", "minimum": 0 }, "deepgramUsd": { "type": "number", "minimum": 0 }, "runwareUsd": { "type": "number", "minimum": 0 }, "azureUsd": { "type": "number", "minimum": 0 } } }
       }
     },
     "loudness": {
