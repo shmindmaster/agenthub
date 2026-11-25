@@ -36,6 +36,9 @@ import { piecewiseCaptureClock } from './piecewise-capture-clock.mjs';
 import { readPhysicalResultObservations, applyPhysicalResultObservations } from './physical-result-observations.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
+const receiptLibPath = [join(scriptDir, 'receipt-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find(existsSync);
+if (!receiptLibPath) { console.error('receipt-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
+const { receiptProblem, leadSeconds, videoLeadProblems } = await import(pathToFileURL(receiptLibPath).href);
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
 if (!libPath) { console.error('sync-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
 const L = await import(pathToFileURL(libPath).href);
@@ -65,6 +68,8 @@ const capturePlan = readJson('story/capture-plan.json');
 const storyboard = readJson('story/storyboard.json');
 const manifest = readJson('capture/manifest.json') || {};
 const receipt = readJson('capture/receipt.json');
+const editedReceipt = receiptProblem(receipt, existsSync(join(root, 'job.json')) ? readJson('job.json') : null);
+if (editedReceipt) errors.push(editedReceipt);
 const sbBeats = storyboard ? (storyboard.beats || storyboard.scenes || []) : [];
 const cpScenes = capturePlan ? (capturePlan.scenes || []) : [];
 
@@ -195,7 +200,10 @@ const beats = segs.map((seg, i) => {
     if (problems.length) errors.push(`${seg.id}: invalid ${e.type} receipt event: ${problems.join('; ')}`);
     return problems.length === 0;
   });
-  const owned = events.map((e) => { const clipTime = L.toClipTime(clipRec, e.tStart ?? e.t); return { e, clipTime, program: toProgram(clipTime) }; }).filter((x) => x.clipTime !== null).filter((x) => g.segments.length === 1 || (x.program !== null ? inBeat(x.program) : g.segments[0] === seg.id));
+  // capture/manifest.json videoLead: the press paints before it was logged. The receipt keeps the recorded time.
+  const videoLead = manifestClips.find((c) => c.id === g.clipId)?.videoLead;
+  if (clipRec) errors.push(...videoLeadProblems(g.clipId, videoLead, clipRec.actions || []));
+  const owned = events.map((e) => { const logged = L.toClipTime(clipRec, e.tStart ?? e.t); const clipTime = logged === null ? null : round(Math.max(0, logged - leadSeconds(videoLead, e))); return { e, clipTime, program: toProgram(clipTime) }; }).filter((x) => x.clipTime !== null).filter((x) => g.segments.length === 1 || (x.program !== null ? inBeat(x.program) : g.segments[0] === seg.id));
   const planned = Array.isArray(cp.actions) ? cp.actions : null;
   const actions = [];
   const take = (x, spec) => {

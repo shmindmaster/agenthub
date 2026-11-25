@@ -38,7 +38,7 @@ remains a defect; the visual subjects themselves are not.
 | silence-hero | L | `silenceOnReveal`, or `musicCue` silence, sting or duck |
 | before-state | L | `before` or `problem` scene precedes the hero |
 | archetype-diversity | L | No accidental repeat |
-| designed-frames | L | Card or `cold-open` first, card last held 1.0 s |
+| designed-frames | L | Card or `cold-open` first (a product screencast may open on a screen), card last held 1.0 s |
 | filler | L | `sceneRole`: hook before bridge tension reveal proof trust hero payoff mechanism explain problem close cta |
 | narration-vs-type | L | Voice does not read the card |
 | type-density | L | Cards under 8 rows and 60 words |

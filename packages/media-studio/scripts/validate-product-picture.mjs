@@ -13,8 +13,13 @@
 //      storyboard beat declares resultHoldSeconds covering the gap (≤ RESULT_HOLD_MAX). `fit` retiming beyond ±20%
 //      fails (it misrepresents product speed). `speed` > 1 needs speedReason.
 //   6. ≥70% of the timeline is screen; cards ≤ 8 s each.
+//   7. The receipt is sealed, unedited and of a known schema, and every screen clip was recorded as the persona, scenario,
+//      source revision, served revision and base URL the scenario proof names. An unsealed receipt from an older kit needs
+//      job.legacyReceiptAllowed = "<reason>".
+//   8. Every file the manifest names (clip, card, overlay) exists, and a videoLead names a recorded action and a reason.
+// Report qa/product-picture.json { ok, errors, warnings, inputs }, bound to the receipt, manifest and proof it read.
 // The encoded master is checked separately by validate-encoded-picture.mjs (QA). intent=draft never skips this gate.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { dirname, extname, join, resolve } from 'node:path';
@@ -23,6 +28,9 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
 if (!libPath) { console.error('sync-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
 const { uploadEventProblems, fillEventProblems, selectEventProblems } = await import(pathToFileURL(libPath).href);
+const receiptLibPath = [join(scriptDir, 'receipt-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find(existsSync);
+if (!receiptLibPath) { console.error('receipt-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
+const { receiptIntegrity, legacyReason: legacyReasonOf, proofProblems, provenanceProblems, videoLeadProblems } = await import(pathToFileURL(receiptLibPath).href);
 
 export const SCREEN_DURATION_MIN = 0.7;
 export const CARD_MAX_SECONDS = 8;
@@ -49,8 +57,9 @@ function readJson(rel) {
   return JSON.parse(readFileSync(p, 'utf8').replace(/^﻿/, ''));
 }
 let errorCount = 0;
+const errors = [];
 const warnings = [];
-function fail(message) { console.error(`[product-picture] ${message}`); errorCount += 1; }
+function fail(message) { console.error(`[product-picture] ${message}`); errors.push(message); errorCount += 1; }
 function warn(message) { console.error(`[product-picture] warning: ${message}`); warnings.push(message); }
 const isVideoName = (f) => typeof f === 'string' && VIDEO_EXT.has(extname(f).toLowerCase());
 const isImageName = (f) => typeof f === 'string' && IMAGE_EXT.has(extname(f).toLowerCase());
@@ -81,6 +90,16 @@ const timeline = readJson('story/narration-timeline.json');
 const manifest = readJson('capture/manifest.json');
 const plan = readJson('story/capture-plan.json');
 const receipt = readJson('capture/receipt.json');
+const proof = readJson('evidence/demo-scenario-proof.json');
+function writeReport(extra = {}) {
+  const inputs = {};
+  for (const [key, rel] of [['receipt', 'capture/receipt.json'], ['manifest', 'capture/manifest.json'], ['proof', 'evidence/demo-scenario-proof.json'], ['timeline', 'story/narration-timeline.json']]) {
+    const p = join(jobRoot, rel);
+    if (existsSync(p)) inputs[key] = { path: rel, sha256: sha256(p) };
+  }
+  mkdirSync(join(jobRoot, 'qa'), { recursive: true });
+  writeFileSync(join(jobRoot, 'qa', 'product-picture.json'), JSON.stringify({ generator: 'media-studio/validate-product-picture', schemaVersion: '1.0.0', ok: errorCount === 0, errors, warnings, inputs, ...extra }, null, 2));
+}
 if (!board) fail('missing story/storyboard.json');
 if (!manifest) fail('missing capture/manifest.json');
 
@@ -160,6 +179,22 @@ if (totalSeconds > 0) {
 const receiptBySha = new Map();
 for (const [id, entry] of Object.entries(receipt?.clips || {})) if (entry?.sha256) receiptBySha.set(entry.sha256, { id, ...entry });
 if (needByClip.size && !receipt) fail('missing capture/receipt.json; screen clips must come from kit/screencast/record-job.mjs (live Playwright session, hash-bound receipt)');
+const integrity = receipt ? receiptIntegrity(receipt) : null;
+const legacyReason = legacyReasonOf(job);
+if (integrity?.state === 'edited' || integrity?.state === 'unknown-schema') fail(integrity.message);
+else if (integrity?.state === 'unsealed') {
+  if (draft) warn(integrity.message);
+  else if (legacyReason) warn(`unsealed receipt accepted (job.legacyReceiptAllowed): ${legacyReason}`);
+  else fail(`${integrity.message}, or give the reason in job.legacyReceiptAllowed`);
+}
+const checkProvenance = integrity?.state === 'sealed' && !draft;
+if (checkProvenance && !proof) fail('missing evidence/demo-scenario-proof.json; the takes cannot be checked against a proven workflow');
+if (checkProvenance && proof) for (const problem of proofProblems(proof)) fail(problem);
+for (const c of clips) {
+  for (const named of [c.file, c.overlay]) {
+    if (typeof named === 'string' && named && !existsSync(resolve(jobRoot, 'capture', named))) fail(`manifest clip ${c.id} names ${named}, which does not exist under capture/`);
+  }
+}
 const clipReport = [];
 for (const [clip, { need, segments: segIds }] of needByClip) {
   if (!isVideoName(clip.file)) continue;
@@ -176,6 +211,9 @@ for (const [clip, { need, segments: segIds }] of needByClip) {
   if (receipt && !entry) {
     fail(`clip ${label}: sha256 ${hash.slice(0, 12)} is not in capture/receipt.json; the encoded picture must be the receipt-bound clip from record-job.mjs (no re-encode, no substitution)`);
   } else if (entry) {
+    if (checkProvenance && proof) for (const problem of provenanceProblems(label, entry.provenance, proof)) fail(problem);
+    if (checkProvenance && entry.preflight === 'skipped') fail(`clip ${label}: recorded with --skip-preflight, which a viewer-facing film cannot use`);
+    for (const problem of videoLeadProblems(label, clip.videoLead, entry.actions || [])) fail(problem);
     if (entry.valid === false) fail(`clip ${label}: receipt marks the take invalid (${entry.error || (entry.events?.expectationsFailed || []).join(',') || 'no pointer motion'})`);
     const ev = entry.events || {};
     const uploads = (entry.actions || []).filter((e) => e.type === 'upload');
@@ -267,6 +305,7 @@ if (plan?.scenes) {
   }
 }
 
+writeReport({ clips: clipReport });
 if (errorCount > 0) { console.error(`[product-picture] ${errorCount} error(s)`); process.exit(1); }
 console.log(JSON.stringify({
   ok: true,

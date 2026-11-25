@@ -57,6 +57,9 @@ function probeDuration(p) {
   try { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', p]).toString()) || 0; } catch { return 0; }
 }
 const scriptDir = dirname(fileURLToPath(import.meta.url));
+const receiptLibPath = [join(scriptDir, 'receipt-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'receipt-lib.mjs')].find(existsSync);
+if (!receiptLibPath) { console.error('receipt-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
+const { receiptProblem } = await import(pathToFileURL(receiptLibPath).href);
 const helper = existsSync(join(scriptDir, 'campaign-contract.mjs')) ? join(scriptDir, 'campaign-contract.mjs') : join(scriptDir, '..', 'kit', 'screencast', 'campaign-contract.mjs');
 const { CAMPAIGN_FORMS, frameFor, sourcePictureFilter, sourceRegionError } = await import(pathToFileURL(helper).href);
 function grayFrames(file, w, h, fps, extra = []) {
@@ -87,6 +90,8 @@ const tl = readJson('story/narration-timeline.json');
 const board = readJson('story/storyboard.json') || readJson('storyboard.json');
 const manifest = readJson('capture/manifest.json');
 const receipt = readJson('capture/receipt.json');
+const editedReceipt = receiptProblem(receipt, job);
+if (editedReceipt) fail(editedReceipt);
 const base = basename(candidate, extname(candidate));
 const composeMap = readJson(`output/${base}-compose-map.json`) || readJson(`output/${base.replace(/-final$|-master$|-silent$/, '')}-compose-map.json`);
 if (Object.hasOwn(CAMPAIGN_FORMS, job.programForm) && deliveryFrame.height > deliveryFrame.width && !composeMap) fail('portrait campaign requires a compose map preserving sourceRegion.');

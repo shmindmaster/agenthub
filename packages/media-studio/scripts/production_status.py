@@ -16,7 +16,9 @@ A phase is PASS, FAIL (its own checks fail), BLOCKED (an earlier phase has not p
 placeholder (TODO) is a fail, a report older than the thing it checks is stale, a missing required approval is a fail. --approve records
 `approvals.<name>` with today's date; run it only after the owner has said yes in the conversation. A job may declare `deliverable` (narrated-video, silent-video, audio, stills, storyboard) in job.json; each form requires only
 what it produces (references/phases.md), and a phase none of whose checks apply is NOT_REQUIRED and counts as complete. Undeclared
-jobs derive narrated-video, or audio for kind audio-only. When story/requirements.json exists, develop needs a passing, fresh
+jobs derive narrated-video, or audio for kind audio-only. A product-screencast is judged on its own files: the narration
+timeline's voice, plan/cue-sheet.json, qa/product-picture.json for the current receipt and manifest, the compose map, and the
+encoded-picture, sync and pointer-path reports, not on the Remotion briefing files. When story/requirements.json exists, develop needs a passing, fresh
 qa/requirements-check.json and post needs it run on the current finished file plus a passing qa/finished-film.json. Free and offline; never calls
 a provider. Record explicit internal delegation with reviewAuthority "delegated" in production.json. Keep owner
 review for any named requiredReviews. This status does not authorize spend or external publication. Exit 0 always, 1 with --strict when any phase is not PASS.
@@ -284,8 +286,50 @@ def check_pre(root, prod, form=None):
     return r
 
 
+def is_screencast(root):
+    p = root / "job.json"
+    return p.exists() and jload(p).get("kind") == "product-screencast"
+
+
+def screencast_prod(root, narrated):
+    r = []
+    if narrated:
+        tl = root / "story/narration-timeline.json"
+        segments = jload(tl).get("segments", []) if tl.exists() else []
+        sp = root / "story/screenplay.json"
+        scenes = [s["id"] for s in jload(sp).get("scenes", []) if (s.get("narration") or "").strip()] if sp.exists() else []
+        scene_of = lambda g: g.get("scene") or re.sub(r"[a-z]$", "", str(g.get("id")))
+        bad = [s for s in scenes if s not in {scene_of(g) for g in segments}]
+        for g in segments:  # a segment names its own voice file, or the scene has a take receipt (import-narration.mjs)
+            f = root / str(g.get("voice") or "")
+            if g.get("voice"):
+                current = f.is_file() and (not g.get("voiceSha256") or creq.sha256(f) == g["voiceSha256"])
+            else:
+                current = any((root / "takes" / f"{i}.receipt.json").exists() for i in (g.get("id"), scene_of(g)))
+            if not current:
+                bad.append(str(g.get("id")))
+        if bad:
+            r.append(f"no current voice in story/narration-timeline.json for: {', '.join(bad[:6])}")
+        if not (root / "plan/cue-sheet.json").exists():
+            r.append("missing plan/cue-sheet.json")
+    e = ok_report(root / "qa/product-picture.json")
+    if e:
+        r.append(f"{e}: run validate-product-picture.mjs")
+    else:
+        inputs = jload(root / "qa/product-picture.json").get("inputs") or {}
+        for key in ("receipt", "manifest"):
+            f = root / f"capture/{key}.json"
+            if not f.exists() or (inputs.get(key) or {}).get("sha256") != creq.sha256(f):
+                r.append(f"qa/product-picture.json is stale: capture/{key}.json is missing or changed since it ran")
+    if not list((root / "output").glob("*-compose-map.json")):
+        r.append("missing output/*-compose-map.json: compose the picture")
+    return r
+
+
 def check_prod(root, prod, form=None):
     form = form_of(root, form)
+    if is_screencast(root) and form in ("narrated-video", "silent-video"):
+        return screencast_prod(root, form == "narrated-video")
     r = []
     sp = root / "story/screenplay.json"
     ids = [s["id"] for s in jload(sp).get("scenes", [])] if sp.exists() else []
@@ -318,6 +362,13 @@ def check_post(root, prod, form=None):
             r.append(e)
         elif mp4s and newer(root / rep, mp4s[-1]):
             r.append(f"{rep} is older than the finished file: rerun the gate on it")
+    if is_screencast(root) and form in ("narrated-video", "silent-video"):
+        for rep in ("qa/encoded-picture.json", "qa/sync.json", "qa/pointer-path.json")[: 3 if form == "narrated-video" else 1]:
+            e = ok_report(root / rep)
+            if e:
+                r.append(e)
+            elif rep != "qa/pointer-path.json" and mp4s and (jload(root / rep).get("candidate") or {}).get("sha256") != creq.sha256(mp4s[-1]):
+                r.append(f"{rep} describes a different file than the finished file: rerun the gate on it")
     job = jload(root / "job.json") if (root / "job.json").exists() else {}
     if job.get("intent") == "viewer-facing" and form != "stills":
         e = ok_report(root / "qa/story-experience-review.json")

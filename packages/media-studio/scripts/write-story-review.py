@@ -430,7 +430,9 @@ def main() -> int:
 
     # ---- designed frames ------------------------------------------------------------------------------------------
     last = scenes[-1] if scenes else {}
-    first_card = s1.get("visualMode") == "card" or s1.get("visualArchetype") == "cold-open"
+    # A product screencast prefers to open on the running product; every other form opens on a designed card.
+    first_card = (s1.get("visualMode") == "card" or s1.get("visualArchetype") == "cold-open"
+                  or (job.get("kind") == "product-screencast" and not marketing and s1.get("visualMode") == "screen"))
     last_ok = last.get("visualMode") == "card" and float(last.get("holdAfterSeconds") or 0) >= LAST_MIN_HOLD
     checks["designed-frames"] = "pass" if first_card and last_ok else "fail"
     evidence["designed-frames"] = (f"first {s1.get('id')} {s1.get('visualMode')}/{s1.get('visualArchetype')}; "

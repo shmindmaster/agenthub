@@ -6,13 +6,14 @@
 Free and offline. Run it on the storyboard's props BEFORE rendering. Every scene's visual kind falls in one class:
 
   picture       a drawing, motion, real image or captured screen: flow, layers, sequence, timeline, beforeafter, map,
-                chart, svg, lottie, still, broll, screen-in-context, code
+                chart, svg, lottie, still, broll, screen-in-context, screen, code
   typographic   words arranged as a figure: stat, table, split, proof
   text          words on a card: hero, quote, checklist, cta, sidecar, chapter, lower-third (or no visual)
 
 Flags when: fewer than --min-picture of the scenes are pictures; more than --max-text are text cards; three scenes in a
 row are not pictures; one visual kind fills more than --max-same of a program of five or more scenes;
-or a picture source returns without a documented editorial purpose.
+or a picture source returns without a documented editorial purpose. A product screencast (job.json kind, read from the props'
+job folder) is meant to be mostly screen, so the one-kind limit does not apply to screen kinds there.
 
 This counts what kind of thing is on screen. check_picture_relevance.py judges whether it is about the line, and the
 review vision pass judges whether it looks good. Use --enforce-style when the brief requires these thresholds.
@@ -26,7 +27,8 @@ import posixpath
 import sys
 from urllib.parse import urlsplit, urlunsplit
 
-PICTURE = {"flow", "diagram", "layers", "sequence", "timeline", "beforeafter", "map", "chart", "svg", "lottie", "still", "broll", "screen-in-context", "code"}
+PICTURE = {"flow", "diagram", "layers", "sequence", "timeline", "beforeafter", "map", "chart", "svg", "lottie", "still", "broll", "screen-in-context", "screen", "code"}
+SCREEN_KINDS = {"screen", "screen-in-context"}
 TYPOGRAPHIC = {"stat", "table", "split", "proof"}
 SOURCE_KINDS = {"broll", "still", "screen-in-context"}
 
@@ -64,7 +66,7 @@ def classify(scene):
     return "text"
 
 
-def judge(scenes, min_picture=0.4, max_text=0.25, max_same=0.4, *, enforce_style=False):
+def judge(scenes, min_picture=0.4, max_text=0.25, max_same=0.4, *, enforce_style=False, screencast=False):
     n = len(scenes)
     classes = [classify(s) for s in scenes]
     kinds = [(s.get("visual") or {}).get("kind") or "none" for s in scenes]
@@ -84,7 +86,7 @@ def judge(scenes, min_picture=0.4, max_text=0.25, max_same=0.4, *, enforce_style
             reasons.append(f"scenes {scenes[i - 2].get('id')}..{scenes[i].get('id')} are three in a row with no picture")
     if n >= 5:
         for k in sorted(set(kinds)):
-            if kinds.count(k) / n > max_same:
+            if kinds.count(k) / n > max_same and not (screencast and k in SCREEN_KINDS):
                 reasons.append(f"'{k}' fills {kinds.count(k)} of {n} scenes, limit {max_same:.0%}")
     reasons.extend(repeated_sources(scenes))
     return {"ok": not (enforce_style and reasons), "reasons": reasons if enforce_style else [],
@@ -104,7 +106,9 @@ def main(argv=None):
     ap.add_argument("--out")
     args = ap.parse_args(argv)
     scenes = json.loads(Path(args.props).read_text(encoding="utf-8")).get("scenes") or []
-    rep = judge(scenes, args.min_picture, args.max_text, args.max_same, enforce_style=args.enforce_style)
+    job = next((p / "job.json" for p in list(Path(args.props).resolve().parents)[:2] if (p / "job.json").exists()), None)
+    screencast = bool(job) and json.loads(job.read_text(encoding="utf-8-sig")).get("kind") == "product-screencast"
+    rep = judge(scenes, args.min_picture, args.max_text, args.max_same, enforce_style=args.enforce_style, screencast=screencast)
     rep = {"schema": "media-studio/visual-variety/1", **rep}
     if args.advisory and scenes:
         rep.update(advisory=True, observations=rep["advisories"])

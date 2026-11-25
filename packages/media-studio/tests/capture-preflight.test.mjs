@@ -57,7 +57,7 @@ const STORYBOARD = { kind: 'product-screencast', beats: [{ id: 'S05', visualMode
 
 function job(name, over = {}) {
   const root = join(scratch, name);
-  write(join(root, 'job.json'), { kind: 'product-screencast', repositoryWritePolicy: 'read-only' });
+  write(join(root, 'job.json'), { kind: 'product-screencast', intent: 'draft', repositoryWritePolicy: 'read-only' }); // the scenario-proof rule has its own tests (capture-receipt.test.mjs)
   write(join(root, 'capture', 'scenes.mjs'), over.scenes ?? SCENES);
   write(join(root, 'story', 'narration-timeline.json'), over.timeline ?? TIMELINE);
   if (over.capturePlan !== null) write(join(root, 'story', 'capture-plan.json'), over.capturePlan ?? CAPTURE_PLAN);
