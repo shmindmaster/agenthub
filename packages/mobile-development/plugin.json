@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ah-mobile-development",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "Plan mobile development, then drive real iPhones and Android devices with Mobile MCP, emulators and simulators with Appium, and iOS builds in an on-demand macOS VM, each started only when a task needs it.",
   "author": {
     "name": "Sarosh Hussain"
