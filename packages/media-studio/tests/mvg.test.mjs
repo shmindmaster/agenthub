@@ -389,7 +389,7 @@ test('Azure transcription posts to the deployment path with the pinned api-versi
   const dir = mkdtempSync(join(tmpdir(), 'stt-'));
   const f = join(dir, 'a.wav'); writeFileSync(f, 'x');
   let seen;
-  const out = await transcribeAzure(f, { endpoint: 'https://example.invalid/', key: 'k', fetchImpl: async (url, init) => { seen = { url, key: init.headers['api-key'] }; return { ok: true, json: async () => ({ text: 'hi' }) }; } });
+  const out = await transcribeAzure(f, { endpoint: 'https://example.invalid/', key: 'k', fetchImpl: async (url, init) => { seen = { url, key: init.headers['api-key'] }; return Response.json({ text: 'hi' }); } });
   rmSync(dir, { recursive: true, force: true });
   assert.equal(seen.url, 'https://example.invalid/openai/deployments/gpt-transcribe/audio/transcriptions?api-version=2025-04-01-preview');
   assert.equal(out.text, 'hi');

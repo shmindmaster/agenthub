@@ -44,6 +44,9 @@ No copying to the delivery library occurs in QA.
 Local AI is off (owner direction 2026-10-29): there is no local vision model, and the `local` vision default fails
 closed (the gate stays pending). Vision QA uses paid OpenAI through `--vision-provider openai` or explicit
 `brand.vision.provider: "openai"` and the normal budget ledger.
+OpenAI and Azure transcription calls end after 300 s plus upload time at 2 Mbit/s, body included. A call that times out,
+drops or returns an uncertain 5xx is not sent again, because it may still be charged: check usage before rerunning. Only a
+429 (not an exhausted balance) or OpenAI's own 503 retries, up to three times, waiting at most 20 s.
 
 QA containment resolves symlinks/junctions, even for a new output directory. Its receipt binds the sidecar SRT hash
 as well as the MP4; changed or missing subtitles block delivery. An unencoded prepared candidate writes pending gates.
