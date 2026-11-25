@@ -7,7 +7,7 @@ $cursorManifestPath = Join-Path $pluginRoot '.cursor-plugin\plugin.json'
 $portableManifestPath = Join-Path $pluginRoot 'plugin.json'
 $expectedAgents = @('reviewer.agent.md')
 $expectedSkills = @('audit', 'design', 'build', 'verify', 'demo', 'engineer', 'route')
-$expectedReferences = @('agentic.md', 'authenticated-acceptance.md', 'demo-handoff.md', 'portfolio-standard.md', 'surfaces.md')
+$expectedReferences = @('agentic.md', 'authenticated-acceptance.md', 'demo-handoff.md', 'portfolio-standard.md', 'surfaces.md', 'ui-standard.md')
 $maxSkillWords = 500
 $maxSkillBytes = 5120
 $maxDescriptionLength = 300
@@ -153,7 +153,7 @@ $demoText = Read-WorkflowText (Join-Path $pluginRoot 'skills\demo\SKILL.md')
 Assert-True ($demoText -match 'product-fix-required' -and $demoText -match 'capture-fixable') 'Demo must keep the product-fix and capture-fix split.'
 
 $actualReferences = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot 'references') -File | Select-Object -ExpandProperty Name | Sort-Object)
-Assert-True (($actualReferences -join '|') -eq (($expectedReferences | Sort-Object) -join '|')) 'Reference set does not match the expected five files.'
+Assert-True (($actualReferences -join '|') -eq (($expectedReferences | Sort-Object) -join '|')) 'Reference set does not match the expected six files.'
 foreach ($reference in $expectedReferences) {
     Assert-True ($linkedReferences.Contains($reference)) "No skill loads this reference: $reference"
     $referenceLines = @(Get-Content -LiteralPath (Join-Path $pluginRoot "references\$reference") -Encoding UTF8)
@@ -164,6 +164,9 @@ foreach ($reference in $expectedReferences) {
 $agenticText = Read-Text (Join-Path $pluginRoot 'references\agentic.md')
 Assert-True ($agenticText -match '(?m)^\| Consequence and reversibility \|') 'The agentic reference must keep the autonomy table.'
 Assert-True ($agenticText -match 'Do not hide deterministic actions behind chat') 'The agentic reference must keep the deterministic-actions rule.'
+$uiStandardText = Read-Text (Join-Path $pluginRoot 'references\ui-standard.md')
+Assert-True ($uiStandardText -match "(?m)design system, tokens, components and ``AGENTS\.md`` win over every rule here") 'The UI standard must keep the design-system precedence rule.'
+Assert-True ($uiStandardText -match 'check-ui-rules\.mjs') 'The UI standard must name its static check.'
 
 $allTextFiles = Get-ChildItem -LiteralPath $pluginRoot -Recurse -File |
     Where-Object { $_.Extension -in @('.md', '.json', '.yaml', '.yml', '.mjs', '.ps1', '.svg') }

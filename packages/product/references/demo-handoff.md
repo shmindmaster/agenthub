@@ -15,7 +15,7 @@ Use each `id` exactly. Any failed criterion blocks the demo and is Now priority 
 |---|---|---|
 | `single-clear-outcome` | One visible, valuable result fits in three minutes | Complete the job inside the product |
 | `fast-to-value` | Little navigation or setup before value | Safe defaults, draft before configure, remove re-entry |
-| `clean-believable-states` | States look finished and realistic data seeds cleanly | Build every state, seed sparse and dense fixtures |
+| `clean-believable-states` | States look finished and realistic data seeds cleanly; any picture shows the real thing (an actual screen, person, company or diagram), not a placeholder or stock mood | Build every state, seed sparse and dense fixtures with real-looking names, companies and images |
 | `visual-stability` | No shift, overflow or clipping on the happy path | Reserve space, matching skeletons, fixed-width pending buttons |
 | `legibility` | Key text reads at demo resolution or reasonable zoom | Type roles, contrast in every state, calm density |
 | `bounded-feedback-rich-waits` | Each wait is fast, cuttable or shows progress | Truthful progress, pending limited to the affected region |

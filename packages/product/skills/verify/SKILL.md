@@ -16,7 +16,7 @@ Step 4 of 4: ground, decide, build, prove. Start from the request, the diff and 
 
 The builder never issues the verdict. If this context wrote the change, start `product:reviewer`, or a new session on a host without subagents.
 
-Use the repository's Playwright, axe and Lighthouse. If one is missing, mark its check Blocked.
+Use the repository's Playwright, axe and Lighthouse; a missing one is Blocked.
 
 ## Checklist
 
@@ -27,16 +27,17 @@ Copy this list and tick each item. Report the command and its output for every c
 - [ ] Read when a journey needs a session: [authenticated acceptance](../../references/authenticated-acceptance.md). Prove sign-in, each role and denial backend-side.
 - [ ] Run the repository's type, lint, test and build commands.
 - [ ] Drive each in-scope journey with Playwright, using role locators and ARIA snapshots. Capture console and network output.
-- [ ] Run axe, then test by hand with keyboard, zoom and a screen reader. Axe finds about 57% of issues.
+- [ ] Run axe, then test by hand with keyboard, zoom and a screen reader.
 - [ ] Compare visuals with `toHaveScreenshot`: animations disabled, dynamic content masked, fixed viewports. A reviewer approves every baseline diff.
+- [ ] UI change: run `node ../../scripts/check-ui-rules.mjs <repo>` and the measured checks. Name any rule the design system exempts.
 - [ ] Measure with Lighthouse and a trace, plus field data: LCP 2.5 s, INP 200 ms, CLS 0.1 or below.
 - [ ] Compare outcome metrics with their thresholds.
 
 ## Rules
 
-- Do not fix what you find because it is small. Report it with reproduction steps.
-- Do not infer runtime behaviour from code because the app is hard to start. That check is Blocked.
-- Do not claim causality from an uncontrolled before-and-after comparison because the number moved.
+- Do not fix what you find. Report it with reproduction steps.
+- Do not infer runtime behaviour from code. If the app will not start, that check is Blocked.
+- Do not claim causality from an uncontrolled before-and-after comparison.
 
 ## Output
 
@@ -52,5 +53,6 @@ Save to `_product-experience/05-verify.md` only when asked. Then run `node ../..
 
 Next: `build` on Fail, `demo` when a Pass is headed for a recording.
 
+Read when a change has a UI: [UI standard](../../references/ui-standard.md).
 Read when a change makes product or architecture claims: [portfolio standard](../../references/portfolio-standard.md). Prove each claim against the implementation; never report demo fixtures as production behaviour.
 Read when executing this skill for its detailed commands and gates. [Workflow detail](references/workflow-detail.md)
