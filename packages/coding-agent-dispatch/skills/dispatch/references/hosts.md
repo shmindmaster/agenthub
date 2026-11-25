@@ -2,15 +2,15 @@
 
 Read when: choosing a model, a Factory or OpenCode role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo, MiMo or Qwen eligibility, resuming a Cline session, or auditing a host plugin.
 
-Contents: Models, Factory and OpenCode roles, Read-only runs, Account hosts, New plan hosts, Plan routes, Qwen, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
+Contents: Models, Factory and OpenCode roles, Read-only runs, Account hosts, New plan hosts, Plan routes, Qwen, Factory, Devin, Warp, Cline, OpenCode, Cursor Agent, ZCode, Plugin installers.
 
 ## Models
 
 Owner direction 2026-11-10: a model or coding plan is allowed on any host where it can be integrated and supported.
 
-- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment). Other hosts take no `-Model`. Warp is retired and dispatch is disabled; it takes no `-Model`.
+- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment), cursor-agent (`--model`) and zcode (a per-run `defaultModelSelection`; see ZCode). Other hosts take no `-Model`. Warp is retired and dispatch is disabled; it takes no `-Model`.
 - `dispatchPolicy.<host>.allowedModels` records the smoke-verified models. It does not limit the choice. An unlisted model adds one stderr line, `note: <host> model '<id>' is not in the smoke-verified list; passing it through`, and the run continues. The host and its plan decide what the model costs; check the cost before routing an expensive one.
-- The id must be well formed: no whitespace or shell metacharacters; `provider/model` for opencode, kilo and mimo-code; `provider:model` for cline. A malformed id is refused with exit 3.
+- The id must be well formed: no whitespace or shell metacharacters; `provider/model` for opencode, kilo, mimo-code and zcode (whose provider ids themselves carry a colon, `account:zai-start-plan/GLM-5.4`); `provider:model` for cline. A malformed id is refused with exit 3.
 
 Both rules are recorded in `registry/fleet-profile.json` -> `dispatchModelPolicy`.
 
@@ -46,12 +46,13 @@ writable run starts. `-List -ReadOnly` prints the supported hosts.
 | --- | --- |
 | claude | `--print --permission-mode plan --permission-prompts none` in place of `--permission-mode bypassPermissions` |
 | codex | `exec --sandbox read-only --skip-git-repo-check -` |
+| cursor-agent | `--print --output-format text --mode plan` in place of `--force` (help 2026-11-25 lists plan as the read-only mode; `--mode ask` is Q&A only) |
 | factory | `exec` without `--auto`, which is Droid's read-only default |
 | qwen | `--approval-mode plan` in place of `--approval-mode yolo` (help 0.27.1: "Analyze only, do not modify files or execute commands") |
 
 `-ReadOnly` cannot be combined with `-SessionId`. No host's read-only mode
 has been exercised with a model run; the commands come from each CLI's help
-text on 2026-11-11.
+text (cursor-agent flags verified 2026-11-25, the rest on 2026-11-11).
 
 ## Account hosts
 
@@ -219,6 +220,58 @@ shell. The launcher must pass through the OpenCode exit code. The launcher has
 no V2 agent profiles: it refuses every `-Role` except peer and any `-ReadOnly`.
 
 `opencode acp` is the native stdio ACP server, sharing the persisted account and configuration. The ACP client owns permission handling.
+
+## Cursor Agent
+
+`cursor-agent` (`-HostId cursor-agent`, alias `cursor`) runs the vendor CLI on
+its stored account login; `CURSOR_API_KEY` is scrubbed so a key cannot override
+it. Verified against `cursor-agent --help` on 2026-11-25:
+
+```
+cursor-agent --print --output-format text --force --trust --workspace <cwd> <prompt>
+```
+
+- `--print` runs headless with every tool; `--force` runs them without asking.
+  `--mode ask` (the former dispatch command) is Q&A only and cannot edit, so it
+  is never emitted.
+- `-ReadOnly` runs `--mode plan`, the enforced read-only mode, in place of
+  `--force` (recorded in `dispatchPolicy.cursor-agent.readOnly`).
+- `-Model` passes through to `--model`.
+- `--force` runs every tool call and the host has no agent-profile denylist, so
+  the child environment carries the same guard as qwen and warp: `GIT_CONFIG_*`
+  push rewrites to an unhandled scheme, an empty `GH_CONFIG_DIR`, and no
+  `GH_TOKEN`/`GITHUB_TOKEN`. It is not a shell denylist; run cursor-agent only
+  in worktrees.
+
+## ZCode
+
+`-HostId zcode` runs the installed ZCode bundle headless on Windows only: Node
+plus `zcode/launch-preload.mjs`, `zcode.cjs --cwd <dir> --no-color --mode
+guarded --toolsearch-mode auto --prompt`, with the task text on stdin.
+
+- Model: ZCode has no per-run model flag (`/model` is a session slash command).
+  The resolved default comes from `config.defaultModelSelection` in the
+  personal provider file `~/.zcode/v2/provider_config.json`; with none set the
+  first provider rule wins, which on this machine was an AgentRouter route
+  that failed headless ("The model produced invalid content"). The dispatcher
+  therefore writes a dispatch copy of the saved file under the runtime folder
+  carrying a `defaultModelSelection` for the run and points
+  `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` at it; the saved file is never
+  modified and the copy is deleted after the run. The default route is
+  `dispatchPolicy.zcode.model` (`account:zai-start-plan/GLM-5.4`, the Z.ai
+  coding-plan provider through its stored account login). `-Model
+  <provider/model>` overrides it for one run. Ambient `ZCODE_*` config and
+  credential path variables are scrubbed so they cannot retarget the run.
+- `--toolsearch-mode auto` (default off) lets the model discover its tools;
+  `off` was part of the 2026-11-25 headless failure.
+- MCP: the 2026-11-25 failure also started 23 MCP servers the task did not
+  need. `zcode.cjs` has no per-run flag or `ZCODE_*` variable that disables MCP
+  servers (`features.mcp` lives only in user/project config files), so none is
+  applied; recorded, not worked around.
+- `-ReadOnly` is refused: `guarded` is not an enforced read-only contract.
+- `-ZCodeBrowser` adds native headless Browser Use on the pinned Playwright
+  runtime (`zcode/Install-ZCodeBrowserRuntime.ps1`) and a fresh Microsoft Edge
+  profile.
 
 ## Plugin installers
 

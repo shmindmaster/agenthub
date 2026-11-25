@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts.
 metadata:
-  version: "0.13.4"
+  version: "0.13.5"
 ---
 
 # Dispatch to another coding agent
@@ -61,7 +61,8 @@ their native accounts by default. Use `-Auth` to show sign-in commands, and add
    without starting anything. It does not prove that a host will execute it.
 
    `-Model <id>` picks the model for codex, grok, opencode, cline,
-   factory, devin, kilo, mimo-code and qwen. Any model the host can reach is
+   factory, devin, kilo, mimo-code, qwen, cursor-agent and zcode. Any model
+   the host can reach is
    accepted: `allowedModels` in `dispatchPolicy` records the smoke-verified
    models and does not limit the choice. An unlisted model adds one stderr
    note and runs. Only a malformed id is refused, plus the two
@@ -87,7 +88,8 @@ their native accounts by default. Use `-Auth` to show sign-in commands, and add
    `peer`.
 
    `-ReadOnly` runs the task in a read-only mode the host itself enforces.
-   It works on claude, codex, factory and qwen; every other host refuses it
+   It works on claude, codex, cursor-agent (and the cursor alias), factory,
+   opencode and qwen; every other host refuses it
    with exit 3 and never falls back to a writable run. Use it for reviews and
    audits, and never rely on prompt wording to keep a run read-only.
    `-List -ReadOnly` prints the hosts that support it. Details are in

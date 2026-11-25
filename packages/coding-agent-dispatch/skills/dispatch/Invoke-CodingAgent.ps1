@@ -255,6 +255,10 @@ function Get-DispatchModelShape {
     if ($Id -in @('opencode', 'kilo', 'mimo-code')) {
         return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a provider/model id' }
     }
+    if ($Id -eq 'zcode') {
+        # ZCode provider ids carry a colon (account:zai-start-plan).
+        return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.:-]*/[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a provider/model id' }
+    }
     if ($Id -eq 'cline') {
         return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.-]*:[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a provider:model id' }
     }
@@ -459,9 +463,38 @@ function Get-DispatchTable {
                 $launch = Resolve-ZCodeLaunch $targetAgent
                 $loader = Join-Path $PSScriptRoot 'zcode/launch-preload.mjs'
                 $arguments = @('--import', ([uri]::new($loader)).AbsoluteUri)
+                # zcode.cjs --help 2026-11-25: there is no per-run model flag;
+                # /model is a session slash command. The resolved default comes
+                # from config.defaultModelSelection in the personal provider
+                # file, and with none set the first provider rule wins, which on
+                # this machine is an AgentRouter route that fails headless
+                # ("The model produced invalid content"). The run therefore
+                # points ZCODE_PERSONAL_PROVIDER_CONFIG_FILE at a dispatch copy
+                # of the saved file carrying a defaultModelSelection for this
+                # run; the owner's file under ~/.zcode is never modified, and
+                # the copy is written beside the prompt files and removed in the
+                # finally block.
+                $zcodeSelection = if ($script:ZCodeModel) { $script:ZCodeModel } else { [string]$fleet.dispatchPolicy.zcode.model }
+                Assert-DispatchModelId -Id 'zcode' -ModelId $zcodeSelection -Source 'model'
+                Assert-SubscriptionRoute -Id 'zcode' -ModelId $zcodeSelection
+                Write-UnlistedModelNote -Id 'zcode' -ModelId $zcodeSelection
+                $split = $zcodeSelection.IndexOf('/')
+                $personalDoc = $null
+                try { $personalDoc = [IO.File]::ReadAllText($launch.Personal) | ConvertFrom-Json } catch { $personalDoc = $null }
+                if (-not $personalDoc) {
+                    Write-Refusal 3 "refused zcode: cannot parse the saved provider config at $($launch.Personal)"
+                }
+                if (-not $personalDoc.PSObject.Properties['config'] -or -not $personalDoc.config) {
+                    $personalDoc | Add-Member -NotePropertyName config -NotePropertyValue ([pscustomobject]@{}) -Force
+                }
+                $personalDoc.config | Add-Member -NotePropertyName defaultModelSelection -NotePropertyValue ([pscustomobject]@{
+                    providerId = $zcodeSelection.Substring(0, $split)
+                    modelId    = $zcodeSelection.Substring($split + 1)
+                }) -Force
+                $providerConfigFile = Join-Path $runDir ("zcode-provider-{0}.json" -f [guid]::NewGuid().ToString('n'))
                 $childEnv = @{
-                    ZCODE_BUILTIN_PROVIDER_CONFIG_FILE = $launch.Builtin
-                    ZCODE_PERSONAL_PROVIDER_CONFIG_FILE = $launch.Personal
+                    ZCODE_BUILTIN_PROVIDER_CONFIG_FILE  = $launch.Builtin
+                    ZCODE_PERSONAL_PROVIDER_CONFIG_FILE = $providerConfigFile
                 }
                 if ($ZCodeBrowser) {
                     $package = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $PSScriptRoot 'zcode/package.json') | ConvertFrom-Json
@@ -476,11 +509,15 @@ function Get-DispatchTable {
                     }
                     $childEnv.AGENTHUB_ZCODE_PLAYWRIGHT_ROOT = $runtime
                 }
-                $arguments += @($launch.Runtime, '--cwd', $Work, '--no-color', '--mode', 'guarded')
+                # --toolsearch-mode auto (default off) lets the model discover
+                # its tools; off was part of the 2026-11-25 headless failure.
+                $arguments += @($launch.Runtime, '--cwd', $Work, '--no-color', '--mode', 'guarded', '--toolsearch-mode', 'auto')
                 if ($ZCodeBrowser) {
                     $arguments += @('--surface', 'desktop', '--browser-use', 'headless', '--browser-executable', $edge, '--no-browser-state')
                 }
-                @{ Args = $arguments + @('--prompt'); Stdin = $PromptText; Env = $childEnv }
+                @{ Args = $arguments + @('--prompt'); Stdin = $PromptText; Env = $childEnv
+                    ProviderConfigFile = $providerConfigFile
+                    ProviderConfigText = ($personalDoc | ConvertTo-Json -Depth 20 -Compress) }
             }
         }
         'claude' = @{
@@ -517,9 +554,30 @@ function Get-DispatchTable {
         }
         'cursor-agent' = @{
             Mode = 'argument'
+            ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('--print', '--output-format', 'text', '--mode', 'ask', '--trust', '--workspace', $Work, $PromptText); Stdin = $null; PromptFile = $null }
+                # cursor-agent --help 2026-11-25: --print runs headless with all
+                # tools, --force runs them without asking, and --mode plan is the
+                # enforced read-only mode (the help documents it as read-only).
+                # --mode ask is Q&A only and cannot edit, so it is never emitted.
+                $args = @('--print', '--output-format', 'text')
+                if ($ReadOnly) { $args += @('--mode', 'plan') } else { $args += '--force' }
+                $args += @('--trust', '--workspace', $Work)
+                if ($script:CursorAgentModel) { $args += @('--model', $script:CursorAgentModel) }
+                # --force runs every tool call and this host has no agent-profile
+                # denylist, so the child environment repeats the qwen/warp guard:
+                # pushes fail on an unhandled scheme and gh reads an empty config
+                # directory while fetch and local git keep working.
+                $ghDir = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\runtime\coding-agent-dispatch\cursor-peer-gh'
+                New-Item -ItemType Directory -Force -Path $ghDir | Out-Null
+                $guard = @{ GH_CONFIG_DIR = $ghDir; GIT_CONFIG_COUNT = '3' }
+                $schemes = @('https://', 'git@', 'ssh://')
+                for ($i = 0; $i -lt $schemes.Count; $i++) {
+                    $guard["GIT_CONFIG_KEY_$i"] = 'url.agenthub-peer-no-push://blocked/.pushInsteadOf'
+                    $guard["GIT_CONFIG_VALUE_$i"] = $schemes[$i]
+                }
+                @{ Args = $args + $PromptText; Stdin = $null; PromptFile = $null; Env = $guard }
             }
         }
         'grok' = @{
@@ -1227,8 +1285,8 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
     # can be integrated and supported. -Model is passed through to every host
     # whose CLI takes a model flag; allowedModels records the smoke-verified
     # models and no longer restricts the choice. Only the shape is enforced.
-    if ($requested -notin @('codex', 'grok', 'opencode', 'cline', 'warp', 'factory', 'devin', 'kilo', 'mimo-code', 'qwen')) {
-        Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or to Codex, Grok, OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo or Qwen.'
+    if ($requested -notin @('codex', 'grok', 'opencode', 'cline', 'warp', 'factory', 'devin', 'kilo', 'mimo-code', 'qwen', 'cursor-agent', 'zcode')) {
+        Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or to Codex, Grok, OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo, Qwen, Cursor Agent or ZCode.'
     }
     $choice = $Model.Trim()
     Assert-DispatchModelId -Id $requested -ModelId $choice
@@ -1244,6 +1302,8 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
         'kilo'      { $script:KiloModel = $choice }
         'mimo-code' { $script:MimoCodeModel = $choice }
         'qwen'      { $script:QwenModel = $choice }
+        'cursor-agent' { $script:CursorAgentModel = $choice }
+        'zcode'     { $script:ZCodeModel = $choice }
         'cline'     {
             $split = $choice.IndexOf(':')
             $script:ClineProvider = $choice.Substring(0, $split)
@@ -1416,6 +1476,7 @@ $stamp = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString
 $stdoutPath = Join-Path $runDir "$stamp-$targetId.out"
 $stderrPath = Join-Path $runDir "$stamp-$targetId.err"
 $settingsFile = $built.SettingsFile
+$providerConfigFile = $built.ProviderConfigFile
 $isBatch = $isWindowsHost -and $executable -match '\.(cmd|bat)$'
 $psi = [Diagnostics.ProcessStartInfo]::new()
 $psi.UseShellExecute = $false
@@ -1442,9 +1503,13 @@ $accountScrub = @{
     'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'warp'         = @('WARP_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'grok'         = @('XAI_API_KEY')
-    'zcode'        = @('ZAI_API_KEY', 'Z_AI_API_KEY', 'BIGMODEL_API_KEY', 'GLM_API_KEY', 'ZCODE_HOME', 'ZCODE_PROVIDER_OPTIONS', 'ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE', 'AGENTHUB_ZCODE_PLAYWRIGHT_ROOT', 'NODE_OPTIONS')
+    # The dispatcher sets the provider config paths itself; ambient variables
+    # must not retarget the config, credentials or data directory.
+    'zcode'        = @('ZAI_API_KEY', 'Z_AI_API_KEY', 'BIGMODEL_API_KEY', 'GLM_API_KEY', 'ZCODE_HOME', 'ZCODE_PROVIDER_OPTIONS', 'ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE', 'ZCODE_BUILTIN_PROVIDER_CONFIG_FILE', 'ZCODE_PERSONAL_PROVIDER_CONFIG_FILE', 'ZCODE_DATA_BASE_DIR', 'ZCODE_CREDENTIALS_FILE', 'AGENTHUB_ZCODE_PLAYWRIGHT_ROOT', 'NODE_OPTIONS')
     'factory'      = @('FACTORY_API_KEY')
-    'cursor-agent' = @('CURSOR_API_KEY')
+    # --force runs every tool call; the GitHub tokens sit behind the same
+    # GIT_CONFIG_*/GH_CONFIG_DIR push guard qwen and warp carry.
+    'cursor-agent' = @('CURSOR_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'amp'          = @('AMP_API_KEY')
     'copilot'      = @('GH_TOKEN', 'GITHUB_TOKEN')
     'opencode'     = @('OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY', 'ZAI_API_KEY', 'Z_AI_API_KEY')
@@ -1496,6 +1561,9 @@ try {
     if ($settingsFile) {
         [IO.File]::WriteAllText($settingsFile, '{"amp.mcpServers":{}}', [Text.UTF8Encoding]::new($false))
     }
+    if ($providerConfigFile) {
+        [IO.File]::WriteAllText($providerConfigFile, [string]$built.ProviderConfigText, [Text.UTF8Encoding]::new($false))
+    }
     if (-not $process.Start()) { Write-Refusal 2 "refused ${targetId}: process did not start" }
     $timer = [Diagnostics.Stopwatch]::StartNew()
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
@@ -1543,6 +1611,9 @@ try {
     }
     if ($settingsFile -and (Test-Path -LiteralPath $settingsFile)) {
         Remove-Item -LiteralPath $settingsFile -Force -ErrorAction SilentlyContinue
+    }
+    if ($providerConfigFile -and (Test-Path -LiteralPath $providerConfigFile)) {
+        Remove-Item -LiteralPath $providerConfigFile -Force -ErrorAction SilentlyContinue
     }
     $process.Dispose()
 }

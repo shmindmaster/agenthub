@@ -71,7 +71,14 @@ for (const arg of args) {
 }
 const settingsIndex = args.indexOf('--settings-file');
 if (settingsIndex >= 0 && fs.existsSync(args[settingsIndex + 1])) ampSettings = JSON.parse(fs.readFileSync(args[settingsIndex + 1], 'utf8'));
-console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','DEVIN_CLOUD_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN'].map(name => [name, Object.hasOwn(process.env, name)])), QwenRoute: { openAiKeyPresent: Object.hasOwn(process.env, 'OPENAI_API_KEY'), openAiKeyIsMimo: process.env.OPENAI_API_KEY !== undefined && process.env.OPENAI_API_KEY === process.env.MIMO_API_KEY, openAiBaseUrl: process.env.OPENAI_BASE_URL ?? null, openAiModel: process.env.OPENAI_MODEL ?? null, ghTokenPresent: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN'), gitPushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null }}));
+const zpc = process.env.ZCODE_PERSONAL_PROVIDER_CONFIG_FILE;
+let zcodeProvider = null;
+if (zpc) {
+  let selection = null;
+  try { selection = JSON.parse(fs.readFileSync(zpc, 'utf8'))?.config?.defaultModelSelection ?? null; } catch {}
+  zcodeProvider = { path: zpc, isRuntimeCopy: /zcode-provider-[0-9a-f]+\.json$/i.test(zpc), selection };
+}
+console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ZcodeProvider: zcodeProvider, WarpGuard: {gitCount: process.env.GIT_CONFIG_COUNT ?? null, pushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null, ghToken: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN')}, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','ANTHROPIC_BASE_URL','DEVIN_API_KEY','DEVIN_CLOUD_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','DASHSCOPE_API_KEY','MODELSCOPE_API_KEY','QWEN_API_KEY','OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_MODEL','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','MIMO_API_KEY','GH_TOKEN','GITHUB_TOKEN'].map(name => [name, Object.hasOwn(process.env, name)])), QwenRoute: { openAiKeyPresent: Object.hasOwn(process.env, 'OPENAI_API_KEY'), openAiKeyIsMimo: process.env.OPENAI_API_KEY !== undefined && process.env.OPENAI_API_KEY === process.env.MIMO_API_KEY, openAiBaseUrl: process.env.OPENAI_BASE_URL ?? null, openAiModel: process.env.OPENAI_MODEL ?? null, ghTokenPresent: Object.hasOwn(process.env, 'GH_TOKEN') || Object.hasOwn(process.env, 'GITHUB_TOKEN'), gitPushRewrite: process.env.GIT_CONFIG_KEY_0 ?? null, ghConfigDir: process.env.GH_CONFIG_DIR ?? null }}));
 if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
     $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
@@ -111,6 +118,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             $bundle = Join-Path $resources 'glm/zcode.cjs'
             Copy-Item -LiteralPath $recorder -Destination $bundle
             $agents.activeAgents += @{ id = 'zcode'; executable = $stub; nativePaths = @{ bundledRuntime = $bundle } }
+            $fleet.dispatchPolicy['zcode'] = @{ model = 'account:zai-start-plan/GLM-5.4'; allowedModels = @('account:zai-start-plan/GLM-5.4') }
             Save-Fixture
             $zcodeTask = Join-Path $fixture 'zcode-task.txt'
             $zcodePrompt = "Say `"ZCODE`" & use the given text.`nSecond line." + ('x' * 35000)
@@ -118,6 +126,18 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             $r = Run @('-HostId','zcode','-PromptFile',$zcodeTask,'-Cwd',$scratch)
             $result = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
             Check 'Windows ZCode dispatch preserves a prompt beyond the OS argument limit' ($result -and $result.Arguments[-1] -ceq $zcodePrompt -and $result.Arguments -contains 'guarded') $r.Err
+            $zcodeSelOk = $null -ne $result -and $null -ne $result.ZcodeProvider -and $result.ZcodeProvider.isRuntimeCopy -and
+                $result.ZcodeProvider.selection.providerId -eq 'account:zai-start-plan' -and $result.ZcodeProvider.selection.modelId -eq 'GLM-5.4'
+            Check 'Windows ZCode runs the GLM coding-plan default through a runtime provider copy' ($zcodeSelOk -and $result.Arguments -contains '--toolsearch-mode' -and $result.Arguments -contains 'auto' -and
+                $result.ZcodeProvider.path -cne (Join-Path $personalConfig 'provider_config.json') -and -not (Test-Path -LiteralPath $result.ZcodeProvider.path) -and
+                (Get-Content -LiteralPath (Join-Path $personalConfig 'provider_config.json') -Raw) -match '^\{\}') (($result.ZcodeProvider | ConvertTo-Json -Compress) + ' ' + $r.Err)
+            $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','qwen-token-plan/qwen4-max')
+            $result = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+            Check 'Windows ZCode routes an explicit provider/model for one run' ($null -ne $result -and $result.ZcodeProvider.selection.providerId -eq 'qwen-token-plan' -and $result.ZcodeProvider.selection.modelId -eq 'qwen4-max' -and $r.Err -match (PassNote 'zcode' 'qwen-token-plan/qwen4-max')) $r.Err
+            $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-Model','GLM-5.4')
+            Check 'Windows ZCode refuses a bare model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model') $r.Err
+            $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-Model','account:zai-start-plan/x&echo')
+            Check 'Windows ZCode refuses a shell-unsafe model id' ($r.Exit -eq 3 -and $r.Err -match 'provider/model') $r.Err
             $r = Run @('-HostId','zcode','-Prompt','ok','-Cwd',$scratch,'-ZCodeBrowser')
             Check 'Windows ZCode browser refuses without its pinned runtime' ($r.Exit -eq 3 -and $r.Err -match 'Install-ZCodeBrowserRuntime')
             $edgeBeforeZCode = ${env:ProgramFiles(x86)}
@@ -141,6 +161,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
                 ${env:ProgramFiles(x86)} = $edgeBeforeZCode
             }
             $agents.activeAgents = @($agents.activeAgents | Where-Object id -ne 'zcode')
+            $fleet.dispatchPolicy.Remove('zcode')
             Save-Fixture
         } finally {
             $env:USERPROFILE = $userProfileBeforeZCode
@@ -195,7 +216,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'Factory never requests unsafe permissions' ($d.Arguments -notcontains 'high' -and $d.Arguments -notcontains '--skip-permissions-unsafe')
         }
         if ($id -eq 'cursor-agent') {
-            Check 'Cursor uses print text mode, read-only Q&A and trusted workspace' ($d.Arguments -contains '--print' -and $d.Arguments -contains '--output-format' -and $d.Arguments -contains 'text' -and $d.Arguments -contains '--mode' -and $d.Arguments -contains 'ask' -and $d.Arguments -contains '--trust' -and $d.Arguments -contains '--workspace' -and $d.Arguments -contains $scratch)
+            Check 'Cursor runs writable print mode with force and trusted workspace' ($d.Arguments -contains '--print' -and $d.Arguments -contains '--output-format' -and $d.Arguments -contains 'text' -and $d.Arguments -contains '--force' -and $d.Arguments -notcontains 'ask' -and $d.Arguments -notcontains '--mode' -and $d.Arguments -contains '--trust' -and $d.Arguments -contains '--workspace' -and $d.Arguments -contains $scratch)
+            Check 'Cursor child cannot push or call gh under the peer guard env' ($d.WarpGuard.gitCount -eq '3' -and $d.WarpGuard.pushRewrite -match 'pushInsteadOf$' -and $d.WarpGuard.ghConfigDir -match 'cursor-peer-gh$' -and -not $d.WarpGuard.ghToken)
         }
         if ($id -eq 'devin') { Check 'Devin receives prompt file and policy model' ($d.PromptContents -contains 'ok' -and $d.Arguments -contains '--prompt-file' -and $d.Arguments -contains 'swe-2-medium') }
         if ($id -eq 'devin') { Check 'Devin uses account auth without its API key' (-not $d.ApiKeyVars.DEVIN_API_KEY) }
@@ -274,6 +296,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $readOnlyFixture = @{
         claude  = @{ flags = @('--permission-mode', 'plan', '--permission-prompts', 'none'); omits = @('bypassPermissions') }
         codex   = @{ flags = @('--sandbox', 'read-only'); omits = @() }
+        'cursor-agent' = @{ flags = @('--mode', 'plan'); omits = @('--force', 'ask') }
         factory = @{ flags = @(); omits = @('--auto') }
         opencode = @{ flags = @('--agent', 'readonly'); omits = @('peer') }
         qwen    = @{ flags = @('--approval-mode', 'plan'); omits = @('yolo') }
@@ -466,12 +489,17 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'OpenCode refuses -ReadOnly when the readonly agent is not installed' ($r.Exit -eq 3 -and $r.Err -match 'readonly\.md' -and $r.Err -match 'missing') ($r.Out + $r.Err)
     [IO.File]::WriteAllText($ocReadonlyProfile, $ocReadonlyText)
 
-    foreach ($id in @('cursor-agent','grok','antigravity','cline','copilot','amp','devin','kilo','mimo-code','cursor','windsurf')) {
+    foreach ($id in @('grok','antigravity','cline','copilot','amp','devin','kilo','mimo-code','windsurf')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
         Check "$id refuses -ReadOnly: no enforced read-only mode, no command" ($r.Exit -eq 3 -and $r.Err -match 'has no enforced read-only mode' -and $r.Err -match 'never falls back to a writable run' -and $r.Out -notmatch 'args=') ($r.Out + $r.Err)
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
         Check "$id starts no child under -ReadOnly" ($r.Exit -eq 3 -and $r.Out -notmatch '"Arguments"') ($r.Out + $r.Err)
     }
+    $r = Run @('-HostId','cursor-agent','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
+    Check 'Cursor -ReadOnly swaps --force for the enforced plan mode' ($r.Exit -eq 0 -and (ShowArgs $r) -match '--mode plan' -and (ShowArgs $r) -notmatch '--force' -and (ShowArgs $r) -notmatch 'ask') ($r.Out + $r.Err)
+    $r = Run @('-HostId','cursor','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-ReadOnly')
+    $d = if ($r.Exit -eq 0) { (($r.Out -split '\r?\n' | Where-Object { $_ -notmatch '^routed:' }) -join "`n") | ConvertFrom-Json } else { $null }
+    Check 'the cursor alias -ReadOnly child receives plan mode and the guard env' ($null -ne $d -and $d.Arguments -contains '--mode' -and $d.Arguments -contains 'plan' -and $d.Arguments -notcontains '--force' -and $d.WarpGuard.gitCount -eq '3' -and $d.WarpGuard.ghConfigDir -match 'cursor-peer-gh$') $r.Err
     $r = Run @('-HostId','amp','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
     Check 'a recorded false is reported as checked, none' ($r.Exit -eq 3 -and $r.Err -match 'readOnly is false: checked, none') $r.Err
     $r = Run @('-HostId','grok','-Prompt','ok','-Cwd',$scratch,'-ShowCommand','-ReadOnly')
@@ -512,7 +540,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check '-List still prints one three-column row per registered host' ($r.Exit -eq 0 -and $listRows.Count -eq ($ids.Count + 1) -and $r.Out -match "(?m)^devin-cloud\t" -and @($listRows | Where-Object { @($_ -split "`t").Count -ne 3 }).Count -eq 0 -and $r.Out -match "(?m)^grok\tcallable\tfile") $r.Out
     $r = Run @('-List','-ReadOnly')
     $readOnlyRows = @(($r.Out -split '\r?\n') | Where-Object { $_ } | ForEach-Object { ($_ -split "`t")[0] })
-    Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,factory,opencode,qwen') ($r.Out + $r.Err)
+    Check '-List -ReadOnly prints exactly the read-only hosts' ($r.Exit -eq 0 -and (($readOnlyRows | Sort-Object) -join ',') -ceq 'claude,codex,cursor,cursor-agent,factory,opencode,qwen') ($r.Out + $r.Err)
     $fleet.dispatchPolicy['codex']['enabled'] = $false; Save-Fixture
     $r = Run @('-List','-ReadOnly')
     Check '-List -ReadOnly leaves out a read-only host that policy disables' ($r.Exit -eq 0 -and $r.Out -notmatch '(?m)^codex\t' -and $r.Out -match '(?m)^claude\t') $r.Out
@@ -727,6 +755,12 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'Grok passes an explicit model through with a note' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'grok-4.7-code' -and $d.Arguments -contains '--prompt-file' -and $d.PromptContents -contains 'ok' -and $r.Err -match (PassNote 'grok' 'grok-4.7-code')) $r.Err
     $r = Run @('-HostId','grok','-Prompt','ok','-Cwd',$scratch,'-Model','grok;echo')
     Check 'Grok refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
+    $r = Run @('-HostId','cursor-agent','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','claude-sonnet-5-5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'Cursor passes an explicit model through with a note and keeps the guard' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'claude-sonnet-5-5' -and $d.Arguments -contains '--force' -and $d.WarpGuard.gitCount -eq '3' -and -not $d.WarpGuard.ghToken -and $r.Err -match (PassNote 'cursor-agent' 'claude-sonnet-5-5')) $r.Err
+    $r = Run @('-HostId','cursor-agent','-Prompt','ok','-Cwd',$scratch,'-Model','claude opus&echo')
+    Check 'Cursor refuses a malformed model id' ($r.Exit -eq 3 -and $r.Err -match 'malformed')
     $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','opencode-go/kimi-k3')
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
@@ -869,7 +903,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'timeout kills hidden process tree promptly' ($r.Exit -eq 4 -and $timer.Elapsed.TotalSeconds -lt 10 -and $r.Err -match 'process tree killed') $r.Err
     $env:CAD_FIXTURE_SLEEP = $null
     $left = @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch') -Filter 'prompt-*.txt' -ErrorAction SilentlyContinue)
-    Check 'temporary prompt files cleaned' ($left.Count -eq 0)
+    $left += @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch') -Filter 'zcode-provider-*.json' -ErrorAction SilentlyContinue)
+    Check 'temporary prompt and provider-config files cleaned' ($left.Count -eq 0)
 } finally {
     $env:AGENTHUB_ROOT = $oldRoot; $env:LOCALAPPDATA = $oldLocal; $env:CAD_FIXTURE_EXIT = $null; $env:CAD_FIXTURE_SLEEP = $null
     $env:USERPROFILE = $oldWindowsHome; $env:HOME = $oldPosixHome
