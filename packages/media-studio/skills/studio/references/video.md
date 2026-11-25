@@ -39,4 +39,4 @@ A whole film from an idea starts with `studio` (it runs every phase and keeps th
 
 Read when executing this skill for its detailed commands and gates. [Workflow detail](video-detail.md)
 
-For consulting product proof, technical walkthroughs or release highlights, load [consulting communication](consulting-communication.md). Select the communicationProfile in the existing brief and pass it through development, capture and review; reuse accepted proof for audience variants while retaining limitations.
+For consulting product proof, technical walkthroughs or release highlights, load [consulting communication](consulting-communication.md). For a pitch, proposal, status update, kickoff, final readout or value review, also load [engagement formats](engagement-formats.md). Select the communicationProfile in the existing brief and pass it through development, capture and review; reuse accepted proof for audience variants while retaining limitations.

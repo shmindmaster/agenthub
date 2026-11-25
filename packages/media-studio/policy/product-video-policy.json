@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "media-studio",
-  "capabilityVersion": "4.1.1",
+  "capabilityVersion": "4.2.0",
   "canonicalOwner": "personal-media",
   "toolRouting": {
     "productReadiness": "product:demo",

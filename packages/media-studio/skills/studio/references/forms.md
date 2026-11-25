@@ -63,6 +63,21 @@ Campaign forms are enforced by `job.schema.json`: `kind` `product-screencast`, e
 - Derivatives: set `sourceJobId`; recut the capture, never re-fake UI.
 - A product-demo-studio.config.yaml in a product repository is read-only input. Job config is `job.json` in the external workspace.
 
+## Engagement forms
+
+A business request is a `communicationProfile` on the brief, with the usual `kind` of `briefing`
+(`product-screencast` when the film records a live tracker or dashboard). Sections, checks and fixtures:
+[engagement formats](engagement-formats.md).
+
+| The request says | `communicationProfile` |
+| --- | --- |
+| pitch video, win the room | `pitch` |
+| proposal video, proposal on a page, RFP companion | `proposal` |
+| status update, steering committee update, progress report | `status-update` (`cadence: "steering"` for the committee cut) |
+| kickoff video | `kickoff` |
+| final readout, findings and roadmap | `final-readout` |
+| value review, benefits against the business case | `value-review` |
+
 ## Delivery profiles
 
 `youtube-16x9`, `linkedin`, `presentation`, `webcast` are 1920×1080; `vertical-9x16` 1080×1920; `linkedin-4x5` 1080×1350; `onboarding`, `briefing-board` 1600×1000. All 30 fps. Loudness is `Finish-Media.ps1` two-pass linear I=-16 unless `-Integrated` is passed. Portrait campaigns declare `sourceRegion` and `captionRegion`; `kit/screencast/campaign-contract.mjs` holds the safe areas.
