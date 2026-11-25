@@ -16,14 +16,16 @@ const root = resolve(outDir);
 const put = (rel, data) => { const p = join(root, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, typeof data === 'string' ? data : JSON.stringify(data, null, 2) + '\n'); };
 
 const TOUCH = args.includes('--touch'), PHONE_IN_FRAME = args.includes('--phone-in-frame');
-const DURATION = TOUCH || PHONE_IN_FRAME ? 7.3 : 14.0;
+const DURATION = TOUCH || PHONE_IN_FRAME ? 6.8 : 14.0;
 // [word, start, end] seconds. Content-word starts are the click moments: amounts 1.6, Format 2.6, Number 3.7, Currency 4.8; Applied 5.2.
+// A tap has no pointer approach, so a touch film starts its narration 0.5 s sooner: the opening hold stays short.
+const SHIFT = TOUCH || PHONE_IN_FRAME ? -0.5 : 0;
 const WORDS = [
   ['Select', 1.05, 1.40], ['the', 1.40, 1.55], ['amounts,', 1.60, 2.10], ['open', 2.22, 2.50], ['Format,', 2.60, 3.10], ['choose', 3.22, 3.60],
   ['Number,', 3.70, 4.15], ['pick', 4.25, 4.65], ['Currency.', 4.80, 5.18], ['Applied', 5.20, 5.55], ['to', 5.55, 5.65], ['all', 5.65, 5.82],
   ['seven', 5.82, 6.10], ['cells', 6.10, 6.38], ['at', 6.38, 6.46], ['once.', 6.46, 6.58],
   ...(TOUCH || PHONE_IN_FRAME ? [] : [['Then', 7.30, 7.55], ['add', 7.55, 7.75], ['a', 7.75, 7.80], ['note.', 7.85, 8.30]]),
-].map(([w, start, end]) => ({ w, start, end }));
+].map(([w, start, end]) => ({ w, start: Number((start + SHIFT).toFixed(2)), end: Number((end + SHIFT).toFixed(2)) }));
 const TEXT = WORDS.map((x) => x.w).join(' ');
 
 put('job.json', {
@@ -80,7 +82,7 @@ export const scenes = {
   async S01(h) {
     await h.go('/', { readySelector: '[data-testid="col-amount"]', settle: 800 });
     const press = (loc, o) => (${JSON.stringify(TOUCH || PHONE_IN_FRAME)} ? h.tap(loc, { ...o, hold: 1000 }) : h.click(loc, o));
-    if (${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) await h.hold(700); // a tap has no pointer approach: the first press waits for its word
+    if (${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) await h.hold(150); // a tap has no pointer approach: the first press waits a moment for its word
     await press(h.page.getByTestId('col-amount'), { label: 'Select amounts', ms: 400, settle: 250, hold: 290 });
     await press(h.page.getByTestId('menu-format'), { label: 'Open format', ms: 400, settle: 250, hold: 390 });
     await press(h.page.getByTestId('item-number'), { label: 'Open number', ms: 400, settle: 250, hold: 390 });

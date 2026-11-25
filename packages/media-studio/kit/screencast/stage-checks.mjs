@@ -51,6 +51,7 @@ export function leadProblems(plan) {
 export function resultProblems(plan) {
   const out = [];
   for (const res of plan.results || []) {
+    if (res.carried) continue; // shown in the next region, checked on the film at the next press
     const seg = plan.camera.segments.find((s) => s.reason === 'result' && s.t0 >= res.t - 1e-6 && s.t0 - res.t <= 0.3);
     if (!seg) out.push(`the result of "${res.label || 'press'}" at ${res.t}s has no camera move within 0.25 s`);
     else if (seg.t0 - res.t > STAGE.resultLeadSeconds + 0.05 + 1e-6) out.push(`the camera reaches the result of "${res.label || 'press'}" ${r2(seg.t0 - res.t)} s after the press, not within 0.25 s`);

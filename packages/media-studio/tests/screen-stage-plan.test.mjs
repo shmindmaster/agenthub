@@ -417,9 +417,15 @@ test('the pointer is hidden while a field is typed into and comes back when it n
   assert.ok(M.stateAt(p, 3.0).cursor.hidden > 0.99, 'gone in the middle of the typing');
 });
 
-test('a result the next move would cut off is carried into the next region when both fit, never silently dropped', () => {
-  const acts = [click(1.5, 300, 200, css(260, 185, 80, 30), 'Go'), click(2.4, 900, 400, css(860, 385, 80, 30), 'Next')];
-  const p = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts, [{ label: 'Done', observed: true, observedAt: 1.9, targetBox: css(980, 600, 200, 60) }]) } });
-  const dropped = (p.warnings || []).some((w) => /is not followed/.test(w));
-  assert.ok(!dropped || C.unseenResultProblems(p).length > 0, 'a dropped result is reported as a problem');
+test('a result the next move would cut off is carried into the next region and checked there, never silently dropped', () => {
+  const acts = [click(1.5, 300, 60, css(260, 45, 80, 30), 'Go'), click(2.4, 900, 680, css(860, 665, 80, 30), 'Next')];
+  const clip = { ...clipOf(acts), changes: [{ t: 1.5, boxes: [css(1000, 300, 240, 60)] }] };
+  const p = P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clip } });
+  assert.deepEqual((p.warnings || []).filter((w) => /is not followed/.test(w)), [], JSON.stringify(p.warnings));
+  const carried = (p.results || []).filter((r) => r.carried);
+  assert.equal(carried.length, 1, JSON.stringify(p.results));
+  assert.equal(carried[0].t, 2.4); assert.equal(carried[0].label, 'Go');
+  assert.deepEqual(C.resultProblems(p), [], 'a carried result has no result camera move to check');
+  // a plan that did drop one is refused by the check
+  assert.ok(C.unseenResultProblems({ warnings: ['the result of "Go" at 1.5s is not followed: the next approach starts 0.4 s later'] })[0].includes('never shown'));
 });

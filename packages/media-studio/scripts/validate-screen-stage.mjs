@@ -424,7 +424,7 @@ for (const listed of plansListed) {
   row.results = [];
   for (const res of (rebuilt || plan).results || []) {
     let seen = null;
-    for (const d of [0.3, 0.55, 0.8, 1.0]) {
+    for (const d of res.carried ? [0, 0.1, 0.25] : [0.3, 0.55, 0.8, 1.0]) {
       const t = res.t + d; if (t > listed.durationSeconds - 0.05) break;
       const m = measure(T0 + t);
       if (m && m.ncc >= LIMITS.bindingNcc - 0.2 && M.boxInView({ cx: m.measured.cx, cy: m.measured.cy, z: m.measured.z }, g, { x: res.boxStage.x + 3, y: res.boxStage.y + 3, w: res.boxStage.w - 6, h: res.boxStage.h - 6 })) { seen = r2(d); break; }

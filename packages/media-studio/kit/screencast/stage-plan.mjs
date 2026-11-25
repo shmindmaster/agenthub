@@ -187,8 +187,8 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
       const nextStart = nxt.approachStart != null ? nxt.approachStart : nxt.firstT - leadSec;
       if (nextStart - c.resultAt < STAGE.resultMinViewSeconds) {
         // The pointer is already on its way: show the result in the next region when both fit at the minimum zoom, else it would be missed.
-        const withNext = unionBox([...nxt.boxes, c.resultBox]);
-        if (!nxt.manual && zoomForBox(withNext, g) >= g.zoom.min - 1e-6) { nxt.boxes.push(c.resultBox); nxt.carriedResult = c.resultBox; }
+        // The union may no longer fit zoomed: then the next region is the whole page, which shows the result as well.
+        if (!nxt.manual) { nxt.boxes.push(c.resultBox); (nxt.carried = nxt.carried || []).push({ label: lastPress.label || lastPress.type, boxStage: c.resultBox }); }
         else warnings.push(`the result of "${lastPress.label || lastPress.type}" at ${lastPress.t}s is not followed: the next approach starts ${r3(nextStart - lastPress.t)} s later`);
         c.resultCamera = null; c.resultBox = null;
       }
@@ -283,7 +283,11 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     camera, cursor, planned, moves: moveList, warnings,
     highlights: buildHighlights(options.highlights, presses, g),
     regions: clusters.map((c) => ({ firstT: c.firstT, resultEnd: r3(c.resultEnd), zoom: r3(c.zoom), merged: !!c.merged, declared: !!c.declared, withResult: !!c.joined, labels: c.presses.map((p) => p.label || p.type), region: c.region })),
-    results: clusters.filter((c) => c.resultBox).map((c) => ({ t: c.presses[c.presses.length - 1].t, label: c.presses[c.presses.length - 1].label, boxStage: c.resultBox, mustBeSeenBy: r3(c.presses[c.presses.length - 1].t + STAGE.resultLeadSeconds + 0.7) })),
+    results: [
+      ...clusters.filter((c) => c.resultBox).map((c) => ({ t: c.presses[c.presses.length - 1].t, label: c.presses[c.presses.length - 1].label, boxStage: c.resultBox, mustBeSeenBy: r3(c.presses[c.presses.length - 1].t + STAGE.resultLeadSeconds + 0.7) })),
+      // a result the next move would cut off is shown in the next region (the whole page when the union no longer fits zoomed)
+      ...clusters.flatMap((c) => (c.carried || []).map((r) => ({ t: c.firstT, label: r.label, boxStage: r.boxStage, carried: true, mustBeSeenBy: c.firstT }))),
+    ],
   };
 }
 
