@@ -42,6 +42,51 @@
       "apiKey": "${MIMO_API_KEY}",
       "provider": "generic-chat-completion-api",
       "maxOutputTokens": 131072
+    },
+    {
+      "model": "daytona-fast",
+      "displayName": "Daytona Fast — Qwen3.8 27B Uncensored FP8 (Low)",
+      "baseUrl": "https://inference.shtrial.com/v1",
+      "apiKey": "${AGENTHUB_INFERENCE_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 16384,
+      "extraArgs": { "model": "agent-fast" }
+    },
+    {
+      "model": "daytona-specialist",
+      "displayName": "Daytona Specialist — Qwen3.8 27B Uncensored FP8",
+      "baseUrl": "https://inference.shtrial.com/v1",
+      "apiKey": "${AGENTHUB_INFERENCE_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 16384,
+      "extraArgs": { "model": "agent-specialist" }
+    },
+    {
+      "model": "daytona-vision",
+      "displayName": "Daytona Vision — Qwen3.8 27B Uncensored FP8",
+      "baseUrl": "https://inference.shtrial.com/v1",
+      "apiKey": "${AGENTHUB_INFERENCE_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 16384,
+      "extraArgs": { "model": "agent-vision" }
+    },
+    {
+      "model": "daytona-turbo",
+      "displayName": "Daytona Turbo — Qwen3.8 27B Heretic MTP Q6",
+      "baseUrl": "https://inference.shtrial.com/v1",
+      "apiKey": "${AGENTHUB_INFERENCE_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 16384,
+      "extraArgs": { "model": "agent-turbo" }
+    },
+    {
+      "model": "daytona-flagship",
+      "displayName": "Daytona Flagship — Qwen3.8 Flash-Next Uncensored",
+      "baseUrl": "https://inference.shtrial.com/v1",
+      "apiKey": "${AGENTHUB_INFERENCE_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 16384,
+      "extraArgs": { "model": "agent-flagship" }
     }
   ]
 }
