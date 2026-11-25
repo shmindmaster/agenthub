@@ -711,7 +711,7 @@ $savedAllow = $env:AGENTHUB_ALLOW_LOCAL_VM
 try {
     Remove-Item Env:AGENTHUB_ALLOW_LOCAL_VM -ErrorAction SilentlyContinue
     $refused = & $guestModule { Invoke-MobileLabVmrunStart -VmrunPath 'C:\does-not-exist\vmrun.exe' -Vmx 'C:\does-not-exist\x.vmx' }
-    Report 'the retired local VM is never started without AGENTHUB_ALLOW_LOCAL_VM=1' ($refused.ExitCode -eq 3 -and "$($refused.Output)" -match 'Daytona') "exit=$($refused.ExitCode) output=$($refused.Output)"
+    Report 'the retired local VM is never started without AGENTHUB_ALLOW_LOCAL_VM=1' ($refused.ExitCode -eq 3 -and "$($refused.Output)" -match 'forge-mac') "exit=$($refused.ExitCode) output=$($refused.Output)"
 } finally {
     if ($null -ne $savedAllow) { $env:AGENTHUB_ALLOW_LOCAL_VM = $savedAllow }
     Remove-Module $guestModule -Force -ErrorAction SilentlyContinue

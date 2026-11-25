@@ -48,7 +48,7 @@
   },
   "daytonaLane": {
     "recordedOn": "2026-11-24",
-    "supersedes": "The retired DigitalOcean build droplet's lanes (macOS container, remote Android worker, Android build lane), retired by owner direction 2026-11-24.",
+    "supersedes": "The DigitalOcean build droplet's remote Android worker and Android build lane, retired by owner direction 2026-11-24. Its macOS VM stays the iOS lane for now (owner direction later the same day).",
     "linux": {
       "route": "node scripts/daytona-run.mjs --owner <project> -- <command>",
       "platform": "Daytona v2 (api.daytona.com, @daytona/sdk 2.x). DAYTONA_API_KEY also works on the older platform (app.daytona.io) for non-Mac work.",
@@ -56,7 +56,8 @@
       "androidEmulator": "No lane. Daytona has no /dev/kvm (v1 answered: KVM sandboxes are not enabled for this organization; v2 has no /dev/kvm, Enterprise plan only). Emulator and Maestro runs use the Windows emulator or a USB device."
     },
     "macos": {
-      "route": "packages/mobile-development/skills/mobile-device-lab/references/daytona-mac.md",
+      "current": "packages/mobile-development/skills/mobile-device-lab/references/forge-mac.md (the droplet's on-demand macOS VM)",
+      "route": "packages/mobile-development/skills/mobile-device-lab/references/daytona-mac.md (paid alternative, owner approval of the price each time)",
       "platform": "Daytona v2 only, region us-east-bos-1, image base-macos (documented: macOS 26.6.2, Xcode 26.6, iPhone simulator, Homebrew, Python).",
       "purchase": "Paid 24-hour reservations. One organization holds all Daytona work (owner direction 2026-11-24). Every reservation needs owner approval of its price, and the owner decides renewal. Auto-reserve is on for the organization, so always name the reservation; scripts/daytona_mac.py manages the standing boxes.",
       "verified": false,

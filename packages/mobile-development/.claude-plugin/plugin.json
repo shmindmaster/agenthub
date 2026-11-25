@@ -1,7 +1,7 @@
 {
   "name": "ah-mobile-development",
   "displayName": "AH-Mobile-Development",
-  "description": "Plan mobile development, then drive real iPhones and Android devices with Mobile MCP, emulators and simulators with Appium, and iOS builds on a Daytona v2 Mac reservation, each started only when a task needs it.",
+  "description": "Plan mobile development, then drive real iPhones and Android devices with Mobile MCP, emulators and simulators with Appium, and iOS builds in an on-demand macOS VM, each started only when a task needs it.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -17,6 +17,6 @@
     "iphone",
     "xcode"
   ],
-  "version": "2.6.1",
+  "version": "2.7.0",
   "icon": "./assets/icon.svg"
 }
