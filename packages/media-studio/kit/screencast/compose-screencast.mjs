@@ -4,7 +4,7 @@
 //   story/narration-timeline.json  { durationSeconds, segments: [{ id, scene, text, startSeconds, durationSeconds }] }
 //   capture/manifest.json          { clips: [{ id, file: "clips/x.webm|mp4|png", segments: ["S03","S04"], ...hints }] }
 //   story/storyboard.json          optional; beats supply kicker/title/subtitle/footer for auto cards
-//   job.json                       optional; `title` and `cardFooter` feed auto cards
+//   job.json                       optional; `title` and `cardFooter` feed auto cards; `endFadeSeconds` fades the end to black (default none)
 // Per-clip hints (see README.md): trimStart, trimEnd, speed, skip, fit: cut|hold|fit|fitpad, overlay.
 // A segment with no clip holds the previous clip's last frame. A png is a card, looped.
 // Output: output/<base>-silent.mp4 at the job delivery profile, 30 fps, yuv420p.
@@ -273,7 +273,9 @@ const list = path.join(tmp, 'concat.txt');
 fs.writeFileSync(list, parts.map((p) => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
 const outFile = path.join(jobRoot, 'output', `${base}-silent.mp4`);
 const baseFile = graphics?.length ? path.join(tmp, 'picture-before-graphics.mp4') : outFile;
-execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', `fade=t=in:st=0:d=0.5,fade=t=out:st=${(tl.durationSeconds - 0.8).toFixed(2)}:d=0.8,format=yuv420p`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-movflags', '+faststart', baseFile]);
+// The last picture holds (treatments.md). A fade to black is opt-in: it fails a declared final hold and a light last frame.
+const endFade = Number(job.endFadeSeconds) || 0;
+execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', `fade=t=in:st=0:d=0.5,${endFade > 0 ? `fade=t=out:st=${(tl.durationSeconds - endFade).toFixed(2)}:d=${endFade},` : ''}format=yuv420p`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-movflags', '+faststart', baseFile]);
 if (graphics.length) {
   const assets = new Map(job.campaign.assets.map((asset) => [asset.id, asset]));
   const inputs = graphics.flatMap((graphic) => ['-loop', '1', '-i', path.resolve(jobRoot, assets.get(graphic.assetId).path)]);
