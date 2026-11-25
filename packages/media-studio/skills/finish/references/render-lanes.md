@@ -16,4 +16,6 @@ Split a long program across boxes by scene and join the parts; each part is acce
 
 The kit's Briefing composition was rendered this way on 2026-11-24 (90 frames at 1600x1000 in 3 s on 8 cores). A full program with narration and product clips has not been.
 
+Screen-stage runs (`kit/screencast/render-stage.mjs`) use the same lane: one WebGL2 pass per frame, `--gl=swangle` on a box with no GPU, 60 fps. Measured 2026-11-25 on 8 vCPU: 432 frames at 1920x1080 in about 90 s. Capture and gates run on the box too (`tests/fixtures/screen-stage/proof-box.sh` is the whole proof).
+
 If Daytona is unavailable, stop and report it. Do not start a droplet or VM, and do not render on this PC.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs on a Daytona box (scripts/daytona-run.mjs --script): capture the synthetic ledger page with the screen stage, compose the
 # film, run the gates, and leave everything worth pulling back under /work/out. Never run on the owner's PC.
-# Env: PROOF_JOB_FLAGS (extra make-proof-job flags), PROOF_BASE (film base name, default proof)
+# Env: PROOF_JOB_FLAGS (extra make-proof-job flags), PROOF_RECORD_FLAGS (extra record-job flags, e.g. "--ratio 9:16"), PROOF_BASE (film base name, default proof)
 set -uo pipefail
 R=/work/repo/packages/media-studio
 J=/work/job
@@ -24,7 +24,7 @@ SERVE=$!
 sleep 1
 step "capture (screen stage)"
 cd "$J"
-node "$R/kit/screencast/record-job.mjs" "$J" 2>&1 | tee "$OUT/record.log"
+node "$R/kit/screencast/record-job.mjs" "$J" ${PROOF_RECORD_FLAGS:-} 2>&1 | tee "$OUT/record.log"
 RC=$?
 T2=$(t)
 kill "$SERVE" 2>/dev/null
@@ -73,6 +73,19 @@ cp "$J"/capture/raw/S01/frames.json "$OUT/frames.json"
 # a few source frames for the sharpness comparison against the zoomed stills
 cp "$J/capture/raw/S01/frames.json" "$OUT/frames.json"
 for f in $(ls "$J/capture/raw/S01/frames" | sed -n '1p;8p;16p;24p;33p'); do cp "$J/capture/raw/S01/frames/$f" "$OUT/frames/"; done
+# click sounds: the effects stem (one synthesised click or tap per drawn press) muxed onto the silent film, and the music-bed rule
+step "click sounds"
+node "$R/kit/screencast/stage-effects.mjs" "$J" "$BASE" > "$OUT/effects.log" 2>&1; echo "stage-effects exit $?"
+if [ -f "$J/output/$BASE-effects.wav" ]; then
+  ffmpeg -hide_banner -loglevel error -y -i "$J/output/$BASE-silent.mp4" -i "$J/output/$BASE-effects.wav" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest "$OUT/$BASE-clicks.mp4"
+  cp "$J/output/$BASE-effects.wav" "$J/output/$BASE-effects.json" "$OUT/"
+  DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$J/output/$BASE-silent.mp4" | cut -d. -f1)
+  node "$R/tests/fixtures/screen-stage/pad.mjs" "$OUT/pad.wav" $((DUR + 2)) > /dev/null 2>&1
+  node "$R/tests/fixtures/screen-stage/pad.mjs" "$OUT/pad-bright.wav" $((DUR + 2)) --bright > /dev/null 2>&1
+  node "$R/scripts/validate-effects-mix.mjs" "$J" "$J/output/$BASE-effects.wav" "$OUT/pad.wav" --out qa/effects-mix.json > "$OUT/qa/effects-mix.log" 2>&1; echo "effects-mix (pad) exit $?"
+  node "$R/scripts/validate-effects-mix.mjs" "$J" "$J/output/$BASE-effects.wav" "$OUT/pad-bright.wav" --out qa/effects-mix-bright.json > "$OUT/qa/effects-mix-bright.log" 2>&1; echo "effects-mix (bright bed, must fail) exit $?"
+  cp "$J"/qa/effects-mix*.json "$OUT/qa/" 2>/dev/null
+fi
 T4=$(t)
 python3 -c "import json,sys; a=[float(x) for x in sys.argv[1:]]; print(json.dumps({'setupSeconds':round(a[1]-a[0],1),'captureSeconds':round(a[2]-a[1],1),'composeRenderSeconds':round(a[3]-a[2],1),'gatesSeconds':round(a[4]-a[3],1)}))" "$T0" "$T1" "$T2" "$T3" "$T4" | tee "$OUT/timing.json"
 echo "nproc: $(nproc)  mem: $(free -g | awk '/Mem/{print $2}') GiB" | tee -a "$OUT/timing.txt"

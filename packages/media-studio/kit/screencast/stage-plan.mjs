@@ -2,7 +2,7 @@
 // receipt events, the compose edit list (headHold, speed, skip, trim) and the frame geometry. No rendering, no filesystem: the same
 // input always gives the same plan, and the plan is what the renderer draws and what validate-screen-stage.mjs measures the encoded
 // film against. Contract: skills/studio/references/screen-stage.md.
-import { STAGE, buildCursorTrack, cameraForBox, cameraAt, boxInView, clamp, cursorKind, stageGeometry, toStageBox, unionBox, viewRect, wideCamera, zoomForBox } from './stage-math.mjs';
+import { STAGE, toStagePoint, buildCursorTrack, cameraForBox, cameraAt, boxInView, clamp, cursorKind, stageGeometry, toStageBox, unionBox, viewRect, wideCamera, zoomForBox } from './stage-math.mjs';
 import { clipToSlot } from './sync-lib.mjs';
 
 export const PLAN_SCHEMA = 'media-studio/screen-stage-plan/1';
@@ -75,6 +75,13 @@ function clusterPresses(presses, g) {
   return clusters;
 }
 
+/** The generated gradient behind a phone or native screen inside a wide frame (colours in sRGB 0-255), or null for a full-bleed film. */
+function placementBackground(g, cfg) {
+  if (!g.placement) return null;
+  const base = Array.isArray(cfg?.colors) && cfg.colors.length === 2 ? cfg.colors : STAGE.background.colors;
+  return { kind: 'gradient', colors: base, angle: Number.isFinite(cfg?.angle) ? cfg.angle : STAGE.background.angle };
+}
+
 /** Manual zoom regions: [{ target: <action label> | box: {x,y,w,h} CSS px, from, to, level, instant }] -> clusters the camera code can use. */
 function manualClusters(regions, presses, g, warnings) {
   return regions.map((r, i) => {
@@ -115,7 +122,7 @@ function buildHighlights(list, presses, g) {
 
 /** Build the plan. See the file header for the input; `slots` are contiguous from 0 and `runSeconds` is their total. */
 export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor, slots, clips, options = {} }) {
-  const g0 = stageGeometry(frame, viewport);
+  const g0 = stageGeometry(frame, viewport, { layout: options.layout });
   // job.screenStage.zoom: { mode: 'auto' | 'manual' | 'off', level, regions: [{ target | box, from, to, level, instant }] }
   const zcfg = options.zoom || {};
   const zmode = zcfg.mode === 'off' || zcfg.mode === 'manual' ? zcfg.mode : 'auto';
@@ -166,6 +173,12 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     c.joined = joined;
     c.zoom = joined ? zoomForBox(box, g) : Math.min(zoomForBox(box, g), g.zoom.default);
     c.camera = cameraForBox(box, g, { bias: c.presses.length === 1 && box === act, zoom: c.zoom });
+    // A result the next approach would cut off (the pointer is already on its way to the next target) is not chased: the next move comes first.
+    const nxt = clusters[i + 1];
+    if (c.resultCamera && nxt) {
+      const nextStart = nxt.approachStart != null ? nxt.approachStart : nxt.firstT - STAGE.leadSeconds;
+      if (nextStart - c.resultAt < STAGE.resultMinViewSeconds) { warnings.push(`the result of "${lastPress.label || lastPress.type}" at ${lastPress.t}s is not followed: the next approach starts ${r3(nextStart - lastPress.t)} s later`); c.resultCamera = null; c.resultBox = null; }
+    }
     c.resultEnd = Math.max(c.lastEnd, ...results.filter((r) => r.t >= c.firstT && r.t < limit).map((r) => r.t));
   });
 
@@ -187,7 +200,8 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     const earliest = i === 0 ? STAGE.openWideSeconds : lastSegT0() + 0.35;
     // The camera starts a little before the pointer starts to move (so the two are not at peak speed together) and lands by the press.
     const lead = c.approachStart != null ? c.approachStart - STAGE.cameraLeadSeconds : c.firstT - STAGE.leadSeconds;
-    const t0 = c.manual ? Math.max(earliest, c.firstT) : Math.max(earliest, Math.min(lead, c.firstT - STAGE.leadSeconds));
+    let t0 = c.manual ? Math.max(earliest, c.firstT) : Math.max(earliest, Math.min(lead, c.firstT - STAGE.leadSeconds));
+    if (i === 0 && !c.manual) t0 = Math.min(t0, Math.max(earliest, STAGE.openHoldMaxSeconds)); // the clean opening is held 0.35-0.6 s, however late the pointer starts
     if (i === 0 && Math.min(lead, c.firstT - STAGE.leadSeconds) < STAGE.openWideSeconds) warnings.push(`the first move would start before ${STAGE.openWideSeconds}s of clean full page: it starts at ${r3(t0)}s`);
     segments.push(c.instant ? { t0: r3(c.firstT), to: c.camera, reason: 'cut', instant: true } : { t0: r3(t0), to: c.camera, reason: i === 0 ? 'open' : 'region', ...(c.manual ? { declared: true } : {}) });
     cur = c.camera;
@@ -204,11 +218,11 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
   // ---- cursor
   const samples = [...moves];
   for (const p of presses) if (Number.isFinite(p.x) && Number.isFinite(p.y)) samples.push({ t: p.t, x: p.x, y: p.y, kind: p.kind });
-  let stageSamples = debounceKinds(samples.map((s) => ({ t: s.t, x: r3(s.x * g.k), y: r3(s.y * g.k), kind: s.kind })).sort((a, b) => a.t - b.t));
+  let stageSamples = debounceKinds(samples.map((s) => { const q = toStagePoint(g, s.x, s.y); return { t: s.t, x: r3(q.x), y: r3(q.y), kind: s.kind }; }).sort((a, b) => a.t - b.t));
   // The cursor appears when it starts to move toward its first target: the opening is the clean page, not a pointer sitting in a corner.
   const firstMove = stageSamples.findIndex((p) => Math.hypot(p.x - stageSamples[0].x, p.y - stageSamples[0].y) > 2);
   if (firstMove > 1) stageSamples = stageSamples.slice(firstMove - 1);
-  const clicks = presses.filter((p) => ['click', 'tap'].includes(p.type) && Number.isFinite(p.x)).map((p) => ({ t: p.t, x: r3(p.x * g.k), y: r3(p.y * g.k), label: p.label }));
+  const clicks = presses.filter((p) => ['click', 'tap'].includes(p.type) && Number.isFinite(p.x)).map((p) => { const q = toStagePoint(g, p.x, p.y); return { t: p.t, x: r3(q.x), y: r3(q.y), label: p.label }; });
   // The cursor stops moving for the last half second of the run, unless a press lands there (a press is never moved).
   const rest = runSeconds - STAGE.restSeconds;
   if (!clicks.some((c) => c.t > rest) && stageSamples.some((s) => s.t > rest)) {
@@ -225,7 +239,7 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
   const planned = presses.map((p) => {
     const c = clusters.find((cl) => cl.presses.includes(p));
     const cam = cameraAt(camera, p.t, g);
-    return { t: p.t, tEnd: p.tEnd, type: p.type, label: p.label, boxCss: p.box, boxStage: toStageBox(g, p.box), estimated: p.estimated, pointStage: Number.isFinite(p.x) ? { x: r3(p.x * g.k), y: r3(p.y * g.k) } : null,
+    return { t: p.t, tEnd: p.tEnd, type: p.type, label: p.label, boxCss: p.box, boxStage: toStageBox(g, p.box), estimated: p.estimated, pointStage: Number.isFinite(p.x) ? (({ x, y }) => ({ x: r3(x), y: r3(y) }))(toStagePoint(g, p.x, p.y)) : null,
       cluster: clusters.indexOf(c), cameraAtPress: { cx: r3(cam.cx), cy: r3(cam.cy), z: r3(cam.z) }, zoomed: cam.z > 1.05, inView: boxInView(cam, g, toStageBox(g, p.box)) };
   });
   const moveList = segments.map((s, i) => ({ t0: s.t0, settledBy: r3(s.t0 + STAGE.settleSeconds), reason: s.reason, to: { cx: r3(s.to.cx), cy: r3(s.to.cy), z: r3(s.to.z) }, nextStart: segments[i + 1]?.t0 ?? null }));
@@ -243,6 +257,7 @@ export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor,
     runSeconds,
     slots: slots.map((s) => ({ clipId: s.clipId, startSeconds: r3(s.startSeconds), durationSeconds: r3(s.durationSeconds), edit: s.edit, hold: !!s.hold })),
     frames: Object.fromEntries([...new Set(slots.map((s) => s.clipId))].map((id) => [id, clips[id].frames])),
+    background: placementBackground(g, options.background),
     camera, cursor, planned, moves: moveList, warnings,
     highlights: buildHighlights(options.highlights, presses, g),
     regions: clusters.map((c) => ({ firstT: c.firstT, resultEnd: r3(c.resultEnd), zoom: r3(c.zoom), merged: !!c.merged, declared: !!c.declared, withResult: !!c.joined, labels: c.presses.map((p) => p.label || p.type), region: c.region })),

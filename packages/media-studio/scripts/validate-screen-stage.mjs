@@ -46,8 +46,8 @@ export const LIMITS = Object.freeze({
   zoomTolerance: 0.06, centerPx: 28, settleProgressTolerance: 0.14, holdDriftPx: 5, holdDriftZoom: 0.02,
   duplicateDiff: 0.02, minMovingPxPerFrame: 1.5,
   cursorPx: 8, cursorNcc: 0.45, bindingNcc: 0.8,
-  colourShift: 2.0,            // 0-255: a flat patch during a move vs the same patch on the hold
-  ghostExcess: 0.15,           // autocorrelation excess along the motion over an ideal blur
+  colourShift: 1.0,            // 0-255: a flat patch during a move vs the same patch on the hold (core-v1 measures 2, core-v2 0)
+  ghostExcess: 0.08,           // autocorrelation excess along the motion over an ideal blur
   openingLumaStep: 1.0,        // the opening hold's mean luma may not change more than this (no fade in)
   stillSeconds: 1.0, stillEndSeconds: 1.5, stillStartSeconds: 0.7, // unchanged-view holds
   pressScale: [0.86, 0.94],    // measured cursor scale at the dip of a press
@@ -55,6 +55,7 @@ export const LIMITS = Object.freeze({
   resultSeenSeconds: [0.3, 1.0],
 });
 
+const jobCfg = (() => { try { const j = JSON.parse(readFileSync(join(jobRoot, 'job.json'), 'utf8').replace(/^﻿/, '')); return j.screenStage && typeof j.screenStage === 'object' ? j.screenStage : {}; } catch { return {}; } })();
 const readJson = (rel) => { const p = join(jobRoot, rel); return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8').replace(/^﻿/, '')) : null; };
 const sha256 = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
 const errors = [];
@@ -80,6 +81,17 @@ function rgbAt(file, t, w, h) {
   const buf = ff(['-ss', Math.max(0, t).toFixed(4), '-i', file, '-frames:v', '1', '-vf', `scale=${w}:${h}:flags=area,format=rgb24`, '-f', 'rawvideo', 'pipe:1']);
   return buf.length >= w * h * 3 ? new Uint8Array(buf.buffer, buf.byteOffset, w * h * 3) : null;
 }
+/** The captured frame as a gray raster in stage/2 space (EW x EH). A phone screen inside a wide frame is placed where the stage draws it; the rest is NaN and never compared. */
+function stageSource(file, g, ew = EW, eh = EH) {
+  if (!g.placement) return grayImage(file, ew, eh);
+  const sc = ew / g.W, pw = Math.round(g.placement.w * sc), ph = Math.round(g.placement.h * sc);
+  const part = grayImage(file, pw, ph);
+  if (!part) return null;
+  const out = new Float32Array(ew * eh).fill(NaN);
+  const ox = Math.round(g.placement.x * sc), oy = Math.round(g.placement.y * sc);
+  for (let y = 0; y < ph; y++) for (let x = 0; x < pw; x++) out[(oy + y) * ew + ox + x] = part[y * pw + x];
+  return out;
+}
 const meanAbsDiff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
 
 // ---------------------------------------------------------------------------------------------------- camera registration
@@ -98,6 +110,7 @@ function warpNcc(film, src, c, W, H) {
       if (x < 0 || x >= EW - 1) continue;
       const x0 = Math.floor(x), fx = x - x0, i = y0 * EW + x0;
       const b = (src[i] * (1 - fx) + src[i + 1] * fx) * (1 - fy) + (src[i + EW] * (1 - fx) + src[i + EW + 1] * fx) * fy;
+      if (b !== b) continue;
       const a = film[v * EW + u];
       n++; sa += a; sb += b; saa += a * a; sbb += b * b; sab += a * b;
     }
@@ -226,7 +239,7 @@ for (const listed of plansListed) {
         clipsIn[id] = { actions: e.actions || [], expectations: e.expectations || [], frames, touch: !!e.hasTouch, changes };
         captureRows.push({ clip: id, deviceScaleFactor: e.deviceScaleFactor, ...CH_RATE(frames.times) });
       }
-      const again = P.buildStagePlan({ frame: plan.frame, viewport: plan.viewport, dsf: plan.deviceScaleFactor, slots: plan.slots, clips: clipsIn, options: { hideCursor: plan.cursor.hiddenDeclared || [], idleHide: plan.cursor.idleHide } });
+      const again = P.buildStagePlan({ frame: plan.frame, viewport: plan.viewport, dsf: plan.deviceScaleFactor, slots: plan.slots, clips: clipsIn, options: { hideCursor: plan.cursor.hiddenDeclared || [], idleHide: plan.cursor.idleHide, zoom: jobCfg.zoom, highlights: jobCfg.highlights, layout: jobCfg.background ? 'phone' : null, background: plan.background } });
       rebuilt = again;
       const same = JSON.stringify(again.camera) === JSON.stringify(plan.camera) && JSON.stringify(again.cursor.samples) === JSON.stringify(plan.cursor.samples) && JSON.stringify(again.planned) === JSON.stringify(plan.planned);
       row.checks.planFromReceipt = same;
@@ -286,7 +299,7 @@ for (const listed of plansListed) {
     const film = grayAt(candidate, t, EW, EH);
     const srcFile = join(jobRoot, 'capture', 'raw', st.frame);
     if (!film || !existsSync(srcFile)) return null;
-    const src = grayImage(srcFile, EW, EH);
+    const src = stageSource(srcFile, g);
     if (!src) return null;
     const planned = { cx: st.camera.cx, cy: st.camera.cy, z: st.camera.z };
     const got = registerCamera(film, src, planned, g);
@@ -410,7 +423,7 @@ for (const listed of plansListed) {
       measuredFast += fast.length;
       const tHold = Math.max(0.02, seg.t0 - 0.06), camHold = M.cameraAt(plan.camera, tHold, g);
       const holdFrame = M.stateAt(plan, tHold).frame;
-      const srcGray = grayImage(join(jobRoot, 'capture', 'raw', holdFrame), EW, EH);
+      const srcGray = stageSource(join(jobRoot, 'capture', 'raw', holdFrame), g);
       if (!srcGray) return;
       const filmHold = rgbAt(candidate, T0 + tHold, EW, EH);
       const blocks = F.spread(F.flatBlocks(srcGray, EW, EH, 28, 1.5, 6), 24, 50);
@@ -433,19 +446,22 @@ for (const listed of plansListed) {
       const top = fast[0];
       const camTop = M.cameraAt(plan.camera, top.t, g);
       const stTop = M.stateAt(plan, top.t);
-      const src = grayImage(join(jobRoot, 'capture', 'raw', stTop.frame), EW, EH);
-      const film480 = grayAt(candidate, T0 + top.t, 480, 270);
-      if (!src || !film480) return;
+      // full resolution, on the busiest 480 x 270 window of the film frame: discrete copies are a few px apart and vanish in a downscale
+      const srcFull = stageSource(join(jobRoot, 'capture', 'raw', stTop.frame), g, g.W, g.H);
+      const filmFull = grayAt(candidate, T0 + top.t, g.W, g.H);
+      if (!srcFull || !filmFull) return;
       const cs = []; for (let k = 0; k < 96; k++) cs.push(M.cameraAt(plan.camera, Math.max(0, top.t + ((k + 0.5) / 96 - 0.5) * tShutter), g));
-      const ideal = F.idealBlur(src, EW, EH, g.W, g.H, cs, 480, 270);
       const a = cs[0], b = cs[cs.length - 1];
       let dir = { x: 0, y: 0 };
-      for (const [fx, fy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) { const pa = project(a, EW * fx, EH * fy), pb = project(b, EW * fx, EH * fy); if (Math.hypot(pb.x - pa.x, pb.y - pa.y) > Math.hypot(dir.x, dir.y)) dir = { x: pb.x - pa.x, y: pb.y - pa.y }; }
-      const lenEst = Math.hypot(dir.x, dir.y) / 2; // px at 480 wide
-      const maxLag = Math.max(6, Math.min(60, Math.ceil(lenEst * 3)));
-      const filmF = Float32Array.from(film480);
-      const ge = F.ghostExcess(filmF, ideal, 480, 270, dir, maxLag);
-      ghostRows.push({ move: seg.t0, t: r2(top.t), blurPx480: r2(lenEst), excess: r2(ge.excess), lag: ge.lag });
+      for (const [fx, fy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) { const sp = { x: fx * g.W, y: fy * g.H }, pt = { x: (sp.x - g.W / 2) / b.z + b.cx, y: (sp.y - g.H / 2) / b.z + b.cy }; const d = { x: (pt.x - a.cx) * a.z + g.W / 2 - sp.x, y: (pt.y - a.cy) * a.z + g.H / 2 - sp.y }; if (Math.hypot(d.x, d.y) > Math.hypot(dir.x, dir.y)) dir = d; }
+      const lenEst = Math.hypot(dir.x, dir.y);
+      if (lenEst < 4) return; // under 4 px of blur there is nothing to compare
+      const win = F.busiestWindow(filmFull, g.W, g.H, 480, 270);
+      const film = new Float32Array(480 * 270);
+      for (let j = 0; j < 270; j++) for (let i = 0; i < 480; i++) film[j * 480 + i] = filmFull[(win.y0 + j) * g.W + win.x0 + i];
+      const ideal = F.idealBlurCrop(srcFull, g.W, g.H, cs, win.x0, win.y0, 480, 270);
+      const ge = F.ghostExcess(film, ideal, 480, 270, dir, Math.max(8, Math.min(80, Math.ceil(lenEst * 1.5))));
+      ghostRows.push({ move: seg.t0, t: r2(top.t), blurPx: r2(lenEst), excess: r2(ge.excess), lag: ge.lag });
       if (ge.excess > LIMITS.ghostExcess) fail(`run ${listed.run}: repeated copies along the motion in the ${seg.reason} move at ${seg.t0}s (frame ${r2(top.t)}s: autocorrelation ${r2(ge.excess)} above an ideal blur at lag ${ge.lag}, limit ${LIMITS.ghostExcess})`);
     });
     row.checks.colourInMotion = colourRows; row.checks.ghosting = ghostRows;
@@ -471,7 +487,7 @@ for (const listed of plansListed) {
         }
         return top;
       };
-      const quiet = (() => { for (let d = 0.3; d <= 1.3; d += 0.05) { const a = M.cameraAt(plan.camera, c.t + d - 0.5 / fps, g), b = M.cameraAt(plan.camera, c.t + d + 0.5 / fps, g); if (Math.hypot((a.cx - b.cx) * a.z, (a.cy - b.cy) * a.z, (a.z - b.z) * g.W / 2) < 1.5) return c.t + d; } return c.t + 0.4; })();
+      const quiet = (() => { for (let d = 0.3; d <= 1.3; d += 0.05) { const a = M.cameraAt(plan.camera, c.t + d - 0.5 / fps, g), b = M.cameraAt(plan.camera, c.t + d + 0.5 / fps, g); const cs = M.stateAt(plan, c.t + d).cursor; if (Math.hypot((a.cx - b.cx) * a.z, (a.cy - b.cy) * a.z, (a.z - b.z) * g.W / 2) < 1.5 && (!cs || Math.hypot(cs.vx, cs.vy) < 60)) return c.t + d; } return c.t + 0.4; })();
       const dip = best(Math.round((c.t + 0.15 * 0.35) * fps) / fps), rest = best(quiet);
       rows.push({ label: c.label, t: c.t, dipScale: dip && r2(dip.scale), restScale: rest && r2(rest.scale) });
       if (dip && !(dip.scale >= LIMITS.pressScale[0] && dip.scale <= LIMITS.pressScale[1])) fail(`run ${listed.run}: the cursor at the press of "${c.label}" (${c.t}s) measures ${r2(dip.scale)} of its size, not about 0.9: no press response`);

@@ -16,7 +16,7 @@ export function idealBlur(src, EW, EH, W, H, cams, ew, eh) {
   const out = new Float32Array(ew * eh);
   for (let v = 0; v < eh; v++) for (let u = 0; u < ew; u++) {
     let s = 0, n = 0;
-    for (const c of cams) { const a = warpSample(src, EW, EH, W, H, c, ((u + 0.5) * W) / ew, ((v + 0.5) * H) / eh); if (a !== null) { s += a; n++; } }
+    for (const c of cams) { const a = warpSample(src, EW, EH, W, H, c, ((u + 0.5) * EW) / ew, ((v + 0.5) * EH) / eh); if (a !== null && Number.isFinite(a)) { s += a; n++; } }
     out[v * ew + u] = n ? s / n : NaN;
   }
   return out;
@@ -124,4 +124,27 @@ export function captureRate(times, burstGapMs = 50) {
   gaps.sort((a, b) => a - b);
   const pick = (q) => (gaps.length ? gaps[Math.min(gaps.length - 1, Math.floor(q * gaps.length))] : NaN);
   return { frames: times.length, burstGaps: gaps.length, medianGapMs: pick(0.5), p95GapMs: pick(0.95), uniqueFps: gaps.length ? 1000 / pick(0.5) : NaN, floorFps: gaps.length ? 1000 / pick(0.95) : NaN };
+}
+
+/** The ideal blur of a crop at full stage resolution: crop (x0, y0, w, h) in stage px; `src` is the source in stage space at W x H. */
+export function idealBlurCrop(src, W, H, cams, x0, y0, w, h) {
+  const out = new Float32Array(w * h);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    let s = 0, n = 0;
+    for (const c of cams) { const a = warpSample(src, W, H, W, H, c, x0 + i + 0.5, y0 + j + 0.5); if (a !== null && Number.isFinite(a)) { s += a; n++; } }
+    out[j * w + i] = n ? s / n : NaN;
+  }
+  return out;
+}
+
+/** The w x h window of a gray raster (W wide) with the most high-pass energy on a coarse grid: where text is. Returns { x0, y0 }. */
+export function busiestWindow(gray, W, H, w, h, step = 60) {
+  const hp = highpass(Float32Array.from(gray), W, H);
+  let best = { e: -1, x0: 0, y0: 0 };
+  for (let y0 = 8; y0 + h <= H - 8; y0 += step) for (let x0 = 8; x0 + w <= W - 8; x0 += step) {
+    let e = 0;
+    for (let j = 0; j < h; j += 3) for (let i = 0; i < w; i += 3) e += hp[(y0 + j) * W + x0 + i] ** 2;
+    if (e > best.e) best = { e, x0, y0 };
+  }
+  return best;
 }

@@ -1,5 +1,8 @@
 // Write a synthetic product-screencast job workspace for the screen-stage proof film (one screen beat, S01, 6.0 s).
-// Usage: node make-proof-job.mjs <outDir> [--viewer-facing]
+// Usage: node make-proof-job.mjs <outDir> [--viewer-facing] [--touch] [--phone-in-frame]
+//   default: 16:9 desktop (clicks, a sped-up typing burst, one highlight, idle-hide)
+//   --touch: 9:16 phone layout, taps and a touch indicator (capture with --ratio 9:16)
+//   --phone-in-frame: the same phone capture shown inside a 16:9 frame over a generated gradient
 // No audio, no TTS: word times are hand-supplied. The clip capture/clips/S01.mp4 is written later by the stage recorder.
 // Default intent is "draft": the ledger has no sign-in, so write-scenario-proof.mjs cannot show a signed-out refusal and no
 // scenario proof exists. --viewer-facing omits the intent (the pipeline then demands evidence/demo-scenario-proof.json).
@@ -12,12 +15,14 @@ if (!outDir) { console.error('usage: node make-proof-job.mjs <outDir> [--viewer-
 const root = resolve(outDir);
 const put = (rel, data) => { const p = join(root, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, typeof data === 'string' ? data : JSON.stringify(data, null, 2) + '\n'); };
 
-const DURATION = 7.8;
+const TOUCH = args.includes('--touch'), PHONE_IN_FRAME = args.includes('--phone-in-frame');
+const DURATION = TOUCH || PHONE_IN_FRAME ? 7.8 : 12.6;
 // [word, start, end] seconds. Content-word starts are the click moments: amounts 1.6, Format 2.6, Number 3.7, Currency 4.8; Applied 5.2.
 const WORDS = [
   ['Select', 1.05, 1.40], ['the', 1.40, 1.55], ['amounts,', 1.60, 2.10], ['open', 2.22, 2.50], ['Format,', 2.60, 3.10], ['choose', 3.22, 3.60],
   ['Number,', 3.70, 4.15], ['pick', 4.25, 4.65], ['Currency.', 4.80, 5.18], ['Applied', 5.20, 5.55], ['to', 5.55, 5.65], ['all', 5.65, 5.82],
   ['seven', 5.82, 6.10], ['cells', 6.10, 6.38], ['at', 6.38, 6.46], ['once.', 6.46, 6.58],
+  ...(TOUCH || PHONE_IN_FRAME ? [] : [['Then', 7.30, 7.55], ['add', 7.55, 7.75], ['a', 7.75, 7.80], ['note.', 7.85, 8.30]]),
 ].map(([w, start, end]) => ({ w, start, end }));
 const TEXT = WORDS.map((x) => x.w).join(' ');
 
@@ -25,9 +30,9 @@ put('job.json', {
   kind: 'product-screencast',
   title: 'Tally ledger: format a column as currency',
   repositoryWritePolicy: 'read-only',
-  deliveryProfile: 'youtube-16x9',
+  deliveryProfile: TOUCH ? 'vertical-9x16' : 'youtube-16x9',
   ...(args.includes('--viewer-facing') ? {} : { intent: 'draft' }),
-  screenStage: {},
+  screenStage: TOUCH ? {} : PHONE_IN_FRAME ? { background: { kind: 'gradient' } } : { highlights: [{ action: 'Open format', start: -0.2, hold: 1.4 }] },
 });
 
 put('story/narration-timeline.json', { durationSeconds: DURATION, segments: [{ id: 'S01', scene: 'S01', text: TEXT, startSeconds: 0, durationSeconds: DURATION, words: WORDS }] });
@@ -47,6 +52,7 @@ put('story/cue-plan.json', {
         { label: 'Open format', keywords: ['format'] },
         { label: 'Open number', keywords: ['number'] },
         { label: 'Apply currency', keywords: ['currency'] },
+        ...(TOUCH || PHONE_IN_FRAME ? [] : [{ label: 'Type a note', keywords: ['note'] }]),
       ],
       result: { label: 'Currency format applied', keywords: ['applied'] },
       expectedState: 'The Amount cells read as dollars and a toast confirms the format',
@@ -73,12 +79,14 @@ export const identity = async (page) => {
 export const scenes = {
   async S01(h) {
     await h.go('/', { readySelector: '[data-testid="col-amount"]', settle: 800 });
-    await h.click(h.page.getByTestId('col-amount'), { label: 'Select amounts', ms: 400, settle: 250, hold: 290 });
-    await h.click(h.page.getByTestId('menu-format'), { label: 'Open format', ms: 400, settle: 250, hold: 390 });
-    await h.click(h.page.getByTestId('item-number'), { label: 'Open number', ms: 400, settle: 250, hold: 390 });
-    await h.click(h.page.getByTestId('sub-currency'), { label: 'Apply currency', ms: 400, settle: 250, hold: 100 });
+    const press = (loc, o) => (${JSON.stringify(TOUCH || PHONE_IN_FRAME)} ? h.tap(loc, o) : h.click(loc, o));
+    await press(h.page.getByTestId('col-amount'), { label: 'Select amounts', ms: 400, settle: 250, hold: 290 });
+    await press(h.page.getByTestId('menu-format'), { label: 'Open format', ms: 400, settle: 250, hold: 390 });
+    await press(h.page.getByTestId('item-number'), { label: 'Open number', ms: 400, settle: 250, hold: 390 });
+    await press(h.page.getByTestId('sub-currency'), { label: 'Apply currency', ms: 400, settle: 250, hold: 100 });
     await h.expect(h.page.getByTestId('toast'), 'Currency format applied', { text: 'Currency format applied to 7 cells', hold: 300 });
-    await h.hold(1300);
+    if (!${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) await h.typeText(h.page.getByTestId('note-field'), 'Currency applied to the Amount column, checked against October', { label: 'Type a note', ms: 400, settle: 250, delay: 85, hold: 900 });
+    await h.hold(${TOUCH || PHONE_IN_FRAME ? 1300 : 2600});
   },
 };
 `);

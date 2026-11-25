@@ -217,8 +217,12 @@ test('camera leads the pointer: it starts 0.1 s before the first move of the app
     click(1.5, 300, 200, css(260, 185, 80, 30), 'Go'),
   ]);
   const open = p.camera.segments.find((s) => s.reason === 'open');
-  assert.ok(Math.abs(open.t0 - (0.9 - 0.1)) < 0.02, `camera starts ${open.t0}, pointer starts 0.9`);
-  assert.ok(open.t0 >= 0.5, 'the film opens on a clean full page for at least 0.5 s');
+  assert.ok(open.t0 < 0.9 - 0.1 + 1e-6, `camera starts ${open.t0}, before the pointer starts at 0.9`);
+  assert.ok(open.t0 >= 0.5 && open.t0 <= 0.6 + 1e-6, 'the film opens on a clean full page held 0.5-0.6 s, however late the pointer starts');
+  const late = plan([{ type: 'move', t: 2.0, x: 100, y: 100, cursor: 'default' }, { type: 'move', t: 2.2, x: 220, y: 150, cursor: 'default' }, click(2.6, 300, 200, css(260, 185, 80, 30), 'Go')], [], [slot({ durationSeconds: 8 })]);
+  assert.ok(late.camera.segments[0].t0 <= 0.6 + 1e-6, 'a late pointer does not lengthen the opening hold');
+  const tight = plan([{ type: 'move', t: 0.6, x: 100, y: 100, cursor: 'default' }, click(1.5, 300, 200, css(260, 185, 80, 30), 'Go')]);
+  assert.equal(tight.camera.segments[0].t0, 0.5);
 });
 
 test('a result elsewhere on the page is reached within 0.25 s of the press and is in the planned view', () => {
@@ -346,4 +350,22 @@ test('highlight: the recorded element box, eased in and out, one at a time', () 
   assert.equal(M.stateAt(p, 3.0).highlight, null, 'gone after the hold');
   assert.throws(() => P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf(acts) }, options: { highlights: [{ action: 'Go', hold: 3.5 }, { action: 'Later', start: -1 }] } }), /overlap/);
   assert.throws(() => P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf([{ type: 'click', t: 1.5, tStart: 1.5, x: 300, y: 200, label: 'Blind' }]) }, options: { highlights: [{ action: 'Blind' }] } }), /no recorded element box/);
+});
+
+test('phone screen inside a 16:9 frame: centred at 0.9 of the height over a generated gradient; any other aspect mismatch is refused', () => {
+  const phone = { width: 405, height: 720 };
+  assert.throws(() => M.stageGeometry(frame, phone), /full bleed has no bars/);
+  const pg = M.stageGeometry(frame, phone, { layout: 'phone' });
+  assert.ok(Math.abs(pg.placement.h - 0.9 * 1080) < 1e-6 && Math.abs(pg.placement.x + pg.placement.w / 2 - 960) < 1e-6 && Math.abs(pg.placement.y + pg.placement.h / 2 - 540) < 1e-6);
+  assert.throws(() => M.stageGeometry({ width: 1080, height: 1920, fps: 60 }, { width: 1280, height: 720 }, { layout: 'phone' }), /full bleed/, 'a landscape capture is never placed in a portrait frame');
+  const clip = clipOf([{ type: 'tap', t: 1.56, tStart: 1.5, x: 200, y: 360, label: 'Tap', targetBox: css(150, 340, 100, 40) }]);
+  const p = P.buildStagePlan({ frame, viewport: phone, slots: [slot()], clips: { S01: { ...clip, touch: true } }, options: { layout: 'phone', background: { colors: [[10, 20, 30], [60, 80, 120]] } } });
+  assert.equal(p.cursor.mode, 'touch');
+  assert.deepEqual(p.cursor.clicks[0].x, Math.round((200 * pg.k + pg.ox) * 1000) / 1000, 'the tap point is where the stage draws the page');
+  assert.deepEqual(p.background.colors, [[10, 20, 30], [60, 80, 120]]);
+  const [dark, light] = M.gradientFromColour([240, 238, 230]);
+  assert.ok(dark.every((v) => v < 90) && light.every((v) => v < 160), 'both gradient tones stay dark enough for a screen to stand out');
+  assert.equal(P.buildStagePlan({ frame, viewport, slots: [slot()], clips: { S01: clipOf([]) } }).background, null, 'full bleed has no background');
+  const portrait = M.stageGeometry({ width: 1080, height: 1920, fps: 60 }, phone);
+  assert.ok(Math.abs(portrait.k - 1080 / 405) < 1e-9 && portrait.zoom.default === 1.25);
 });

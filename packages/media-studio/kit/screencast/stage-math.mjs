@@ -23,6 +23,8 @@ export const STAGE = Object.freeze({
   resultLeadSeconds: 0.2,   // a result elsewhere on the page is reached within this long of the press
   fill: 0.78,               // a zoom region may fill at most this share of the view
   bias: Object.freeze({ x: 0.42, y: 0.38 }), // where a lone control sits in the view, leaving room for what it opens
+  openHoldMaxSeconds: 0.6,  // the clean opening is held at most this long before the camera starts
+  resultMinViewSeconds: 0.9,// a result is chased only when the next approach starts at least this long after it appears
   openWideSeconds: 0.5,     // the film opens on the full page, clean, and the first move starts no sooner than this
   closeHoldSeconds: 0.9,    // the last press and its result stay in the zoomed view this long before the pull back
   closeWideSeconds: 1.3,    // the film ends on the full page for at least this long when the run allows
@@ -33,6 +35,8 @@ export const STAGE = Object.freeze({
   mergeInset: 0.1,          // a target already inside the current view, inset by this share, needs no move
   cursorHeight: Object.freeze({ wide: 40, zoomed: 58 }),
   press: Object.freeze({ seconds: 0.15, scale: 0.9 }),
+  background: Object.freeze({ colors: Object.freeze([[22, 34, 52], [58, 96, 138]]), angle: 135 }), // fallback gradient behind a phone screen (sRGB 0-255)
+  phoneFill: 0.9,           // a phone screen inside a wide frame fills this share of the frame height
   highlight: Object.freeze({ dim: 0.45, easeSeconds: 0.25, holdSeconds: 1.5, padding: 6, outline: 2 }), // the one highlight: dim outside a cutout, a thin outline
   hideFadeSeconds: 0.2,
   idleHideSeconds: 2.0,     // a still cursor fades after this long (never across a pointAt) and is back before the next move
@@ -54,13 +58,31 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 // ------------------------------------------------------------------------------------------------ geometry
 
+/** Two sRGB colours (0-255) for the generated gradient behind a phone screen: a dark and a lighter tone of the page's own mean colour, hue shifted a little. Pure and deterministic. */
+export function gradientFromColour([r, g, b]) {
+  const mx = Math.max(r, g, b) / 255, mn = Math.min(r, g, b) / 255, l = (mx + mn) / 2, d = mx - mn;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d) h = mx === r / 255 ? ((g - b) / 255 / d) % 6 : mx === g / 255 ? (b - r) / 255 / d + 2 : (r - g) / 255 / d + 4;
+  h = (h * 60 + 360) % 360;
+  const hsl = (hh, ss, ll) => { const c = (1 - Math.abs(2 * ll - 1)) * ss, x = c * (1 - Math.abs(((hh / 60) % 2) - 1)), m = ll - c / 2; const [a, bb, cc] = hh < 60 ? [c, x, 0] : hh < 120 ? [x, c, 0] : hh < 180 ? [0, c, x] : hh < 240 ? [0, x, c] : hh < 300 ? [x, 0, c] : [c, 0, x]; return [a + m, bb + m, cc + m].map((v) => Math.round(clamp(v, 0, 1) * 255)); };
+  const sat = clamp(s * 0.6 + 0.12, 0.2, 0.65);
+  return [hsl(h, sat, 0.13), hsl((h + 28) % 360, sat, 0.33)];
+}
+
 /** Page CSS px -> stage px, and the stage frame. The viewport must have the frame's aspect: there are no bars. */
-export function stageGeometry(frame, viewport) {
+export function stageGeometry(frame, viewport, { layout = null } = {}) {
   const { width: W, height: H } = frame;
-  const k = W / viewport.width;
+  let k = W / viewport.width, ox = 0, oy = 0, placement = null;
   const aspectError = Math.abs(viewport.height * k - H) / H;
-  if (aspectError > 0.01) throw new Error(`screen stage: the capture viewport ${viewport.width}x${viewport.height} does not match the ${W}x${H} frame (full bleed has no bars); capture at ${W}x${H} aspect, for example ${STAGE.viewport.width}x${STAGE.viewport.height}`);
-  return { W, H, k, zoom: W / H > 1.2 ? STAGE.zoom : STAGE.zoomPortrait, unit: Math.min(W, H) / 1080 };
+  if (aspectError > 0.01) {
+    // A phone or native screen inside a wide frame: the screen is centred over a generated gradient. Anything else is full bleed.
+    if (layout !== 'phone' || !(viewport.width / viewport.height < W / H)) throw new Error(`screen stage: the capture viewport ${viewport.width}x${viewport.height} does not match the ${W}x${H} frame (full bleed has no bars); capture at the frame's aspect, for example ${STAGE.viewport.width}x${STAGE.viewport.height}, or set job.screenStage.background for a phone or native screen inside a wider frame`);
+    k = (H * STAGE.phoneFill) / viewport.height;
+    ox = (W - viewport.width * k) / 2; oy = (H - viewport.height * k) / 2;
+    placement = { x: ox, y: oy, w: viewport.width * k, h: viewport.height * k, radius: 36 * Math.min(W, H) / 1080 };
+  }
+  return { W, H, k, ox, oy, placement, zoom: W / H > 1.2 ? STAGE.zoom : STAGE.zoomPortrait, unit: Math.min(W, H) / 1080 };
 }
 
 export const wideCamera = (g) => ({ cx: g.W / 2, cy: g.H / 2, z: 1 });
@@ -82,7 +104,9 @@ export const projectBox = (cam, g, b) => {
   const a = projectPoint(cam, g, { x: b.x, y: b.y });
   return { x: a.x, y: a.y, w: b.w * cam.z, h: b.h * cam.z };
 };
-export const toStageBox = (g, cssBox) => ({ x: cssBox.x * g.k, y: cssBox.y * g.k, w: cssBox.w * g.k, h: cssBox.h * g.k });
+export const toStageBox = (g, cssBox) => ({ x: cssBox.x * g.k + (g.ox || 0), y: cssBox.y * g.k + (g.oy || 0), w: cssBox.w * g.k, h: cssBox.h * g.k });
+/** A page point in CSS px -> stage px. */
+export const toStagePoint = (g, x, y) => ({ x: x * g.k + (g.ox || 0), y: y * g.k + (g.oy || 0) });
 export const unionBox = (boxes) => {
   const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
   const x1 = Math.max(...boxes.map((b) => b.x + b.w)), y1 = Math.max(...boxes.map((b) => b.y + b.h));

@@ -12,6 +12,19 @@ When AH Browser selects Tencent BrowserSkill for an authorized signed-in profile
 
 One job root per delivered ratio, with its own cue sheet and pointer or touch path. Never zoom, crop or reframe desktop capture into a vertical or square cut.
 
+The screen stage (default finisher, `screen-stage.md`) records each ratio at the viewport below and fills its frame edge to edge; zoom is the stage's camera, never a crop.
+
+| Ratio | Viewport (CSS px) | DSF | Frame | Notes |
+| --- | --- | --- | --- | --- |
+| 16:9 | 1280×720 | 2.5 | 1920×1080 | 60 unique fps while the page animates |
+| 9:16 | 405×720 | 4 | 1080×1920 | `isMobile`, `hasTouch`: taps, touch circle |
+| 4:5 | 432×540 | 4 | 1080×1350 | |
+| 1:1 | 720×720 | 3 | 1080×1080 | |
+
+A phone capture may also be shown inside a 16:9 frame: set `screenStage.background` and the stage centres the screen over a generated gradient (the only place a background is allowed).
+
+Recast keeps these older values and applies only to `options.mobileLayout` and to jobs with `screenStage: false`:
+
 | Ratio | Viewport | DSF | `device` |
 | --- | --- | --- | --- |
 | 16:9 | 1920×1080 | 2 | |
@@ -30,7 +43,7 @@ One job root per delivered ratio, with its own cue sheet and pointer or touch pa
 
 If `registry/mobile-scope.json` includes the native app, record phone flows on an emulator through `mobile-device-lab` (Appium). `job.json` `flows.<id>.picture` is `native-app` or `responsive-web`. Its `capture/receipt.json` entry: `lane: "native-app"`, device, `viewport` (screen pixels), DSF, touch actions (`tStart`, label, x, y), expectations.
 
-## Recast limits
+## Recast limits (jobs on the Recast lane only; the default finisher is the screen stage, `skills/studio/references/screen-stage.md`)
 
 - `.recast-tmp` sits in the clips directory: one render at a time per directory, or `EPERM`.
 - `autoZoom` works only inside a cue; `raw/<id>/zoom-cues.srt` supplies them. Check the log for `Zoom: zoompan`.

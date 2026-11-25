@@ -45,7 +45,23 @@ uniform float uSeed;
 uniform vec4 uHi;      // highlight cutout: centre x, centre y, half width, half height (screen px)
 uniform vec2 uHiAmt;   // dim amount, outline amount
 uniform float uHiOutline;
+uniform vec4 uPlace;    // a phone screen inside a wide frame: x, y, w, h (stage px); w = 0 means full bleed
+uniform float uRadius;
+uniform vec3 uBg0;
+uniform vec3 uBg1;
+uniform vec2 uBgDir;
 out vec4 outColor;
+
+float sdRound(vec2 q, vec2 half_, float r) { vec2 d = abs(q) - half_ + vec2(r); return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r; }
+vec3 backdrop(vec2 p) {
+  vec2 n = p / uStage - 0.5;
+  float t = clamp(dot(n, uBgDir) + 0.5, 0.0, 1.0);
+  vec3 c = mix(uBg0, uBg1, t * t * (3.0 - 2.0 * t));
+  c *= 1.0 - 0.25 * pow(clamp(length(n) * 1.4, 0.0, 1.0), 2.0);
+  vec2 ctr = uPlace.xy + 0.5 * uPlace.zw;
+  float ds = sdRound(p - ctr - vec2(0.0, 22.0 * uUnit), 0.5 * uPlace.zw, uRadius);
+  return c * (1.0 - 0.38 * (1.0 - smoothstep(-8.0 * uUnit, 70.0 * uUnit, ds)));
+}
 
 float h12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 vec3 toSrgb(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
@@ -74,7 +90,12 @@ void main() {
     else jit = fract(vec2(0.7548776662, 0.5698402910) * float(j + 1) + rnd) - 0.5;
     vec4 c = uCam[j];
     vec2 p = (s0 + jit - 0.5 * uStage) / c.z + c.xy;
-    acc += texture(uTex, p / uStage).rgb;
+    if (uPlace.z > 0.0) {
+      vec2 ctr = uPlace.xy + 0.5 * uPlace.zw;
+      float d = sdRound(p - ctr, 0.5 * uPlace.zw, uRadius);
+      float m = 1.0 - smoothstep(-0.5 / c.z, 0.5 / c.z, d);
+      acc += mix(backdrop(p), texture(uTex, (p - uPlace.xy) / uPlace.zw).rgb, m);
+    } else acc += texture(uTex, p / uStage).rgb;
   }
   vec3 page = acc / float(uN);
 
@@ -142,7 +163,7 @@ function makeGL(canvas: HTMLCanvasElement): GL {
   const loc = gl.getAttribLocation(prog, "aPos");
   gl.enableVertexAttribArray(loc);
   gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  const names = ["uTex", "uStage", "uN", "uMoving", "uCam", "uNc", "uCur", "uPoly", "uPolyN", "uHot", "uCurBox", "uUnit", "uSeed", "uHi", "uHiAmt", "uHiOutline"];
+  const names = ["uTex", "uStage", "uN", "uMoving", "uCam", "uNc", "uCur", "uPoly", "uPolyN", "uHot", "uCurBox", "uUnit", "uSeed", "uHi", "uHiAmt", "uHiOutline", "uPlace", "uRadius", "uBg0", "uBg1", "uBgDir"];
   const u: Record<string, WebGLUniformLocation | null> = {};
   for (const n of names) u[n] = gl.getUniformLocation(prog, n);
   return { gl, prog, u, tex: new Map(), order: [] };
@@ -286,6 +307,16 @@ export const ScreenStage: FC<ScreenStageProps> = ({ plan, framesBase = "" }) => 
         gl.uniform2f(u.uHot, setup.shape.hot[0], setup.shape.hot[1]);
         gl.uniform4f(u.uCurBox, setup.box[0], setup.box[1], setup.box[2], setup.box[3]);
         gl.uniform1f(u.uUnit, g.unit);
+        if (g.placement) {
+          const lin = (v: number) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+          const [c0, c1] = plan.background.colors;
+          const a = (plan.background.angle * Math.PI) / 180, k = Math.abs(Math.cos(a)) + Math.abs(Math.sin(a));
+          gl.uniform4f(u.uPlace, g.placement.x, g.placement.y, g.placement.w, g.placement.h);
+          gl.uniform1f(u.uRadius, g.placement.radius);
+          gl.uniform3f(u.uBg0, lin(c0[0]), lin(c0[1]), lin(c0[2]));
+          gl.uniform3f(u.uBg1, lin(c1[0]), lin(c1[1]), lin(c1[2]));
+          gl.uniform2f(u.uBgDir, Math.cos(a) / k, Math.sin(a) / k);
+        } else gl.uniform4f(u.uPlace, 0, 0, 0, 0);
         const hi = setup.st.highlight;
         if (hi) {
           const b0 = projectPoint(setup.st.camera, g, { x: hi.box.x, y: hi.box.y }), b1 = projectPoint(setup.st.camera, g, { x: hi.box.x + hi.box.w, y: hi.box.y + hi.box.h });
