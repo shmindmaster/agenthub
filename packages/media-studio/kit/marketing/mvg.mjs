@@ -21,7 +21,7 @@
 //   --workspace DIR   media workspace root (default: the parent of the spec folder)
 //   --narration-entity NAME --narration-funding FILE  entity and current OpenAI dashboard evidence for uncached voice
 // Local AI is off (owner direction 2026-10-29): no stage starts a local model, TTS or ASR runtime. The forced aligner,
-// encoded transcript, local voice and local vision are injected providers whose defaults refuse and name the hosted route
+// encoded transcript and local vision are injected providers whose defaults refuse and name the hosted route
 // (kit/cloud/cloud-ai.mjs align, Azure TTS/STT). Sync, word-sync and transcript stay pending without an injected aligner;
 // listen stays pending.
 // Exit codes: 0 ok, 1 stage failed (lint/budget/gate), 2 usage.

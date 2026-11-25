@@ -74,7 +74,7 @@ class TimedOut extends Error {}
 // Sending comes on top: image and WAV bodies reach tens of MB, allowed for at 2 Mbit/s.
 const REPLY_MS = 300_000;
 const UPLOAD_BYTES_PER_MS = 250;
-const SMALL_REQUEST_MS = 120_000; // listing models, submitting or reading a transcript; the same bound as blob.mjs
+const SMALL_REQUEST_MS = 120_000; // listing models, submitting or reading a transcript
 export const callDeadlineMs = (bytes) => REPLY_MS + Math.ceil(bytes / UPLOAD_BYTES_PER_MS);
 
 /** One bounded HTTP exchange: the deadline covers connecting, sending and reading the whole body. */
@@ -164,12 +164,12 @@ export async function callGemini({ system, text, images, model }) {
   return { text: j.candidates[0].content.parts.map((p) => p.text || '').join(''), model: chosen, usage: j.usageMetadata };
 }
 
-// Azure OpenAI in the owner's tenant (Entra token, key auth disabled). Endpoint and deployment come from the
-// cloud-render config written by Provision-CloudRender.ps1.
+// Azure OpenAI in the owner's tenant (Entra token, key auth disabled). Endpoint, deployment and subscription come
+// from a local config file; kit/cloud/README.md shows its shape.
 function azureOpenAiConfig() {
   const file = path.join(process.env.LOCALAPPDATA || '', 'AgentHub', 'media-studio', 'cloud-render.json');
   const cfg = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
-  if (!cfg.azureOpenAI?.endpoint) throw new Error(`no azureOpenAI endpoint in ${file}; run Provision-CloudRender.ps1`);
+  if (!cfg.azureOpenAI?.endpoint) throw new Error(`no azureOpenAI endpoint in ${file}; kit/cloud/README.md shows its shape`);
   return { ...cfg.azureOpenAI, subscriptionId: cfg.subscriptionId };
 }
 let azureToken = null;

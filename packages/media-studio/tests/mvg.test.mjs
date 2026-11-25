@@ -376,7 +376,6 @@ test('planCost sums voice, sfx, music, stills and vision and is checked against 
   assert.ok(plan.elevenlabsCredits > 400, 'voice, one sfx and a music bed');
   assert.equal(plan.openaiUsd, 0, 'the default forced aligner has no OpenAI timing spend');
   assert.ok(planCost(s, brand, { whisperTiming: true }).openaiUsd > 0, 'the explicit hosted Whisper fallback is budgeted');
-  assert.ok(planCost(s, { ...brand, timing: { provider: 'local-whisper' } }, { whisperTiming: true, hostedOnly: true }).openaiUsd > 0, 'hosted-only overrides local Whisper and budgets OpenAI');
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_v4'), 120);
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_flash_v2_5'), 60);
   assert.ok(estimateImageUsd('gpt-image-2.6-flare', 'medium') < estimateImageUsd('gpt-image-2.6-flare', 'high'));
@@ -2028,7 +2027,7 @@ test('planCost: unknown provider cost is reported as unknown, an import reports 
   assert.ok(plan.paidElsewhere.some((m) => /imported from deepgram/.test(m)));
   assert.equal(plan.costKnown, true);
   const local = baseSpec();
-  local.voice = { provider: 'local', voiceId: 'v', model: 'm' };
+  local.voice = { provider: 'mystery', voiceId: 'v', model: 'm' };
   const unknown = planCost(local, brand);
   assert.equal(unknown.costKnown, false);
   assert.match(unknown.unknown[0], /unknown/);

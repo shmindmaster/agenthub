@@ -219,7 +219,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["provider", "voiceId", "model"],
       "properties": {
-        "provider": { "enum": ["elevenlabs", "openai", "local", "import"], "description": "import: narration already made by a governed script or recorded by a person, read from voice.manifest (media-studio/narration-import/1). No provider is called and nothing is charged." },
+        "provider": { "enum": ["elevenlabs", "openai", "import"], "description": "import: narration already made by a governed script or recorded by a person, read from voice.manifest (media-studio/narration-import/1). No provider is called and nothing is charged." },
         "source": { "enum": ["assemblyai", "deepgram", "azure", "openai", "elevenlabs", "recording"], "description": "provider import only: who made the audio. recording is a human recording (not AI-generated); every other source is AI-generated and needs a disclosure." },
         "manifest": { "type": "string", "minLength": 1, "description": "provider import only: path of the import manifest, relative to the spec folder. Audio files must sit inside the manifest's folder." },
         "aiGenerated": { "type": "boolean", "description": "provider import only: optional restatement; it must agree with source (false only for a recording)." },

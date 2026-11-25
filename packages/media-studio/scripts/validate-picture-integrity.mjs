@@ -25,7 +25,7 @@
 import { existsSync, readFileSync, mkdirSync, writeFileSync, statSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validateFinalEncoderTransform, cropGray, meanAbsoluteDifference } from './final-encoder-transform.mjs';
 import { productPanelGeometry, panelSourceSample, cropPanelGray, panelReferenceFilter } from './product-panel-geometry.mjs';

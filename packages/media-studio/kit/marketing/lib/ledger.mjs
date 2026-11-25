@@ -26,7 +26,6 @@ export const PROVIDERS = Object.freeze({
   recording: { unit: 'usd', cap: null },
   licensed: { unit: 'usd', cap: null },
 });
-export const UNIT = Object.freeze(Object.fromEntries(Object.entries(PROVIDERS).map(([k, v]) => [k, v.unit])));
 /** Budget keys a brand or spec may carry, one per spending provider. */
 export const CAP_KEYS = Object.freeze(Object.values(PROVIDERS).map((p) => p.cap).filter(Boolean));
 

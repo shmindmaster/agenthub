@@ -12,15 +12,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 const fixture = readJson(join(here, 'fixtures', 'timing', 'split-word-alignment.json'));
 
 test('timing source defaults to the aligner and requires an explicit Whisper fallback', () => {
-  assert.deepEqual(timingWordSource({}, { timing: { provider: 'openai-whisper' } }), {
+  assert.deepEqual(timingWordSource({}), {
     clock: 'forced-aligner',
     provider: 'local-aligner',
   });
-  assert.deepEqual(timingWordSource({ whisperTiming: true }, { timing: { provider: 'local-whisper' } }), {
-    clock: 'whisper',
-    provider: 'local-whisper',
-  });
-  assert.deepEqual(timingWordSource({ whisperTiming: true, hostedOnly: true }, { timing: { provider: 'local-whisper' } }), {
+  assert.deepEqual(timingWordSource({ whisperTiming: true }), {
     clock: 'whisper',
     provider: 'openai-whisper',
   });
@@ -114,7 +110,7 @@ test('timing stage uses fixture forced-alignment onsets for the timeline and cap
   }
 });
 
-test('Local AI is off: without an injected aligner or local Whisper, timing refuses and names the hosted route', async () => {
+test('Local AI is off: without an injected aligner, timing refuses and names the hosted route', async () => {
   const root = mkdtempSync(join(tmpdir(), 'mvg-local-ai-off-'));
   try {
     const jobDir = join(root, 'jobs', 'fixture');
@@ -128,16 +124,14 @@ test('Local AI is off: without an injected aligner or local Whisper, timing refu
     });
     const ctx = {
       spec: { id: 'fixture', title: 'Fixture', targetSeconds: 5, ratios: ['16x9'], beats: [{ id: 'B1', kind: 'card', narration: fixture.script, onScreenText: 'Fixture' }] },
-      brand: { captionStyle: {}, timing: { provider: 'local-whisper' } },
+      brand: { captionStyle: {} },
       jobDir,
       flags: { quiet: true },
-      providers: { probeDuration: async () => fixture.durationSeconds, speechOnset: async () => 0 },
+      providers: { probeDuration: async () => fixture.durationSeconds },
       ledger: { check() {}, charge() {}, summary: () => ({ elevenlabsCredits: 0, openaiUsd: 0 }) },
       runId: 'fixture', specSha: 'spec', brandSha: 'brand', log() {},
     };
     await assert.rejects(() => timingStage(ctx), /forced alignment: Local AI is off; use the hosted route \(kit\/cloud\/cloud-ai\.mjs align, Azure TTS\/STT\)/);
-    ctx.flags.whisperTiming = true;
-    await assert.rejects(() => timingStage(ctx), /local whisper timing: Local AI is off/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

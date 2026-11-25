@@ -26,7 +26,7 @@ export function planCost(spec, brand, flags = {}) {
           lines.add(key);
           if (spec.voice.provider === 'elevenlabs') credits += estimateTtsCredits(b.narration, spec.voice.model);
           else if (spec.voice.provider === 'openai') usd += 0.02;
-          if (flags.whisperTiming && (flags.hostedOnly || brand.timing?.provider !== 'local-whisper')) usd += 0.002;
+          if (flags.whisperTiming) usd += 0.002;
         }
       }
       if (b.broll?.provider === 'import') paidElsewhere.push(`b-roll ${b.id}: still imported (${b.broll.source || 'unknown source'}), produced and paid outside this run, 0 charged here`);
@@ -40,9 +40,9 @@ export function planCost(spec, brand, flags = {}) {
   return { elevenlabsCredits: credits, openaiUsd: Number(usd.toFixed(2)), costKnown: unknown.length === 0, unknown, unknownProviders, paidElsewhere };
 }
 
-/** A plan with a provider whose cost is unknown stops the run, except the injected local hook (Local AI is off, so it refuses later anyway). */
+/** A plan with a provider whose cost is unknown stops the run. */
 export function costErrors(plan) {
-  return (plan?.unknownProviders || []).filter((p) => p !== 'local').map((p) => ({ code: 'cost-unknown', message: `the cost of provider "${p}" is unknown, so the plan cannot be checked against a budget` }));
+  return (plan?.unknownProviders || []).map((p) => ({ code: 'cost-unknown', message: `the cost of provider "${p}" is unknown, so the plan cannot be checked against a budget` }));
 }
 
 export async function lintStage(ctx) {

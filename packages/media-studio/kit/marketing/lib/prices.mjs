@@ -13,12 +13,6 @@ export function estimateImageUsd(model, quality = 'medium') {
   return row[quality] ?? row.high;
 }
 
-/** OpenAI speech (gpt-realtime-2.1-mini): about 1,200 audio tokens a minute at $20/1M, about $0.024 per minute (measured 2026-11-13). */
-export function estimateOpenAiSpeechUsd(text) {
-  const wordCount = String(text).split(/\s+/).filter(Boolean).length;
-  return Math.max(0.002, (wordCount / 150) * 0.024);
-}
-
 /** Hosted word-timing transcription (gpt-transcribe): about $0.27 per audio hour. */
 export function estimateWhisperUsd(seconds) {
   return Math.max(0.0005, (Math.ceil(seconds) / 3600) * 0.27);

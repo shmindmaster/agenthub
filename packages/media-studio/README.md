@@ -101,8 +101,6 @@ Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` require 
 
 Governed Deepgram Flux batch TTS uses `scripts/deepgram_cli.py`. Select `--voice flux-haley-en` for prepared support prompts. Existing calls default to Sienna. The CLI quotes by default. Execution requires intact shared accounting or a reviewed owner-authorized bounded epoch. See `skills/produce/references/content-controls.md`.
 
-Cloud render: kit/cloud/cloud-render.mjs runs FFmpeg, Remotion and Recast jobs on a scale-to-zero Azure Container Apps job in the owner's own Azure tenant (upload -> render -> download). Provision with kit/cloud/Provision-CloudRender.ps1; see kit/cloud/README.md. Offline tests: node --test tests/cloud-render.test.mjs.
-
 Runware training stills: `kit/cloud/cloud-ai.mjs illustration` provides an explicitly selected,
 synthetic-only, single-model job with resumable polling, a $1 per-job spend bound, private
 hash-bound output, a content-hashed output inventory (`jobs/runware/<id>/inventory.json`) and

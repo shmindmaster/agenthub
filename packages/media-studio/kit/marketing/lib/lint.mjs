@@ -13,7 +13,6 @@ import { FILM_TYPES, rolesOf } from './story-profiles.mjs';
 import { fileSha, readJson, sentences, sha256, words } from './util.mjs';
 
 export const NARRATION_IMPORT_SCHEMA = 'media-studio/narration-import/1';
-export const SYNTHETIC_SOURCES = ['assemblyai', 'deepgram', 'azure', 'openai', 'elevenlabs'];
 /** The manifest line for a beat: a line naming this cut wins over one that names no cut. */
 export function importLineFor(manifest, cutId, beatId) {
   const lines = (Array.isArray(manifest?.lines) ? manifest.lines : []).filter((l) => l.beatId === beatId && (l.cut === undefined || l.cut === cutId));
@@ -194,7 +193,6 @@ export const HEALTHCARE_BANNED = [...CLAIM_POLICIES['healthcare-payer'], ...DEFA
 
 const PEOPLE = /\b(person|people|man|woman|men|women|adult|face|faces|portrait|doctor|nurse|therapist|clinician|coordinator|administrator|owner|parent|parents|family|families|human|hands?)\b/i;
 const PROTECTED_PEOPLE = /\b(child|children|kid|kids|toddler|baby|boy|girl|minor|minors|patient|patients|student|students|infant|infants)\b/i;
-const FAKE_PRODUCT = /\b(dashboard|software (?:screen|interface)|app(?:lication)? (?:screen|interface)|medical chart|patient record|claim form|billing screen)\b/i;
 const CELEBRITY = /\b(morgan freeman|attenborough|mcconaughey|michael caine|sound[- ]?alike|in the style of|sounds? like|impersonat\w*)\b/i;
 const NUMBER_WORDS = /\b(zero|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|percent)\b/gi;
 const NUMBER_TOKEN = /\$\s?\d[\d,.]*|\b\d[\d,.]*\s?%?/g;

@@ -1,5 +1,5 @@
 // Stage 2: voice. One file per narrated beat; ElevenLabs (governed ledger, request stitching), OpenAI
-// OpenAI speech (instructions) or an injected local voice (Local AI is off: the default refuses). Cached by
+// speech (instructions) or an imported narration. Cached by
 // (text, voice, model, settings, neighbors), so an unchanged line never costs twice. A beat's `voiceTake` (1, 2, …) asks
 // for a fresh take of that one line (a new key and ledger revision) after a listen or review rejects the delivery.
 import { copyFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
@@ -8,11 +8,11 @@ import { recordStage } from '../context.mjs';
 import { checkStage, stageKey, writeStage } from '../cache.mjs';
 import { NARRATION_IMPORT_SCHEMA, importLineFor, importPolicyProblems, normalizeCuts } from '../lint.mjs';
 import { estimateTtsCredits, realtimeUsdFromUsage } from '../prices.mjs';
-import { fileSha, hashOf, localAiOff, readJson, sha256, writeJson } from '../util.mjs';
+import { fileSha, hashOf, readJson, sha256, writeJson } from '../util.mjs';
 
 const AUDIO_EXT = new Set(['.wav', '.mp3', '.m4a']);
 
-/** The cost-ledger provider a voice line is recorded under, or null when the voice has none (a retired local voice). */
+/** The cost-ledger provider a voice line is recorded under, or null for an unknown provider. */
 export function ledgerProvider(v) {
   if (v.provider === 'import') return v.source;
   return v.provider === 'elevenlabs' || v.provider === 'openai' ? v.provider : null;
@@ -78,7 +78,7 @@ export function lineKey(spec, text, prev, next, take = 0, audioSha256 = null) {
   });
 }
 
-export const lineExt = (provider) => (provider === 'local' || provider === 'openai' ? 'wav' : 'mp3');
+export const lineExt = (provider) => (provider === 'openai' ? 'wav' : 'mp3');
 
 async function renderLine(ctx, { text, prev, next, out, key, take }, openaiPlan) {
   const v = ctx.spec.voice;
@@ -119,11 +119,6 @@ async function renderLine(ctx, { text, prev, next, out, key, take }, openaiPlan)
     return { receipt: { provider: 'openai', model: openaiPlan.model, voice: v.voiceId, aiGenerated: true,
       usage: res.usage ?? null, billedUsd: billed, rateEvidence: openaiPlan.rateEvidence,
       fundingObservedAt: openaiPlan.funding.observedAt, reservedUsd: usd } };
-  }
-  if (v.provider === 'local') {
-    const local = P.localVoice || localAiOff('local voice');
-    await local({ speaker: v.voiceId, instruction: v.instructions || '', text, out });
-    return { receipt: { provider: 'local', speaker: v.voiceId } };
   }
   throw new Error(`unsupported voice provider ${v.provider}`);
 }
