@@ -4,11 +4,13 @@ Permanent inference gateway and unified NVIDIA/AMD Daytona spot GPU operations f
 
 ## Architecture
 
-- **Permanent HTTPS Endpoint:** `https://inference.shtrial.com/v1` (and Media Lab: `https://inference.shtrial.com/v1/media`)
-  - DNS `A` record for `inference.shtrial.com` is hosted in DigitalOcean DNS (`shtrial.com`).
-  - Reverse-proxied through Caddy on `sh-forge` (`129.212.152.9`), preserving `/v1/chat/completions`, `/v1/responses`, `/v1/models`, and `/health/liveliness` on LiteLLM (`127.0.0.1:4000`, gated by Bearer auth), proxying `handle_path /v1/media/*` to Slot 2 `:8189` (always gated by the `AGENTHUB_INFERENCE_KEY` Bearer token, even from the owner IP, injecting `x-daytona-preview-token` and the media gateway token), and restricting admin endpoints (`/ui`, `/model/*`, `/key/*`) to `<OWNER_IP>`.
+- **Permanent HTTPS Endpoints:**
+  - **Inference API:** `https://inference.shtrial.com/v1` (and Media Lab: `https://inference.shtrial.com/v1/media`)
+  - **Hosted Studio UI:** `https://studio.shtrial.com` (`AgentHub Studio`, Open WebUI pre-wired to `http://agenthub-litellm:4000/v1` + the `daytona_media_lab` tool in `scripts/daytona-inference/studio/openwebui_media_lab_tool.py`)
+  - **Gateway Host:** Dedicated persistent DigitalOcean droplet `sh-inference` (`64.225.2.73`, `s-2vcpu-4gb`, `nyc3`, firewall `sh-inference-fw`), migrated off `sh-forge` on `2026-11-25` ahead of `sh-forge`'s `2026-12-01` teardown (`SH_FORGE_SSH_HOST=sh-inference`). DNS `A` records (`inference`, `studio`) are hosted in DigitalOcean DNS (`shtrial.com`).
+  - Reverse-proxied through Caddy on `sh-inference`, preserving `/v1/chat/completions`, `/v1/responses`, `/v1/models`, and `/health/liveliness` on LiteLLM (`127.0.0.1:4000`, gated by Bearer auth), proxying `handle_path /v1/media/*` to Slot 2 `:8189` (always gated by the `AGENTHUB_INFERENCE_KEY` Bearer token, even from the owner IP, injecting `x-daytona-preview-token` and the media gateway token), and restricting admin endpoints (`/ui`, `/model/*`, `/key/*`) to `<OWNER_IP>`.
   - Backed by LiteLLM + PostgreSQL (`scripts/daytona-inference/gateway/`), preserving model aliases without ever rewriting coding-agent configs or DNS on spot eviction.
-  - Pre-`2026-12-01` migration off `sh-forge`: see [MIGRATION-2026-12-01.md](../../scripts/daytona-inference/gateway/MIGRATION-2026-12-01.md).
+  - Pre-`2026-12-01` migration record off `sh-forge`: see [MIGRATION-2026-12-01.md](../../scripts/daytona-inference/gateway/MIGRATION-2026-12-01.md).
 - **Dual-MI355X Spot Architecture (2/2 Max GPU Slots):**
   - **Slot 1 (`engineering` role, `agenthub-engineering`):** Single MI355X (288 GB CDNA4 `gfx950`) running both vLLM ROCm (`:8001`, `Qwen3.8-27B-Uncensored-FP8`, 262144 context, `gpu-memory-utilization` 0.40) and `llama-server` HIP (`:8002`, `Qwen3.8-Flash-Next-Uncensored-GGUF` `Q8_0`, two slots of 262144 context each, CPU PLE, 16 threads, restarted on its own if it crashes while the 27B keeps serving) on `opencode-agent-weights` (`/mnt/opencode-weights`), serving `agent-specialist`, `agent-fast`, `agent-vision`, `agent-flagship`, and (after `retire-legacy-turbo`) `agent-turbo`.
     - **Live-verified 2026-11-25 through `https://inference.shtrial.com/v1`** (operator run): all five aliases answered code and tool-call requests, vision worked, and a 112k-token recall test passed. Measured throughput: flagship 65-79 tok/s, 27B about 170 tok/s. VRAM in use was 279.6 of 308.9 GB as `rocm-smi` reports it (288 GiB).

@@ -1,6 +1,8 @@
 # Permanent Inference Gateway Migration Guide (Pre-2026-12-01 Teardown of sh-forge)
 
-`sh-forge` is scheduled for teardown on **2026-12-01**. Because all coding agents point at `https://inference.shtrial.com/v1` and DNS is managed in DigitalOcean (`shtrial.com`), migrating the gateway off `sh-forge` requires **zero changes** to coding-agent configs or `gpu.py` aliases.
+> **Status (2026-11-25):** Migrated off `sh-forge` to dedicated persistent DigitalOcean droplet **`sh-inference`** (`64.225.2.73`, `s-2vcpu-4gb`, `nyc3`, firewall `sh-inference-fw`, `SH_FORGE_SSH_HOST=sh-inference`). Both `inference.shtrial.com` (LiteLLM + Postgres + Caddy) and `studio.shtrial.com` (Open WebUI + `daytona_media_lab` tool) run under `/opt/agenthub/` and `/opt/forge/caddy/` on `sh-inference`. `sh-forge` containers/volumes remain untouched as rollback evidence until the scheduled `2026-12-01` teardown.
+
+`sh-forge` is scheduled for teardown on **2026-12-01**. Because all coding agents point at `https://inference.shtrial.com/v1` and DNS is managed in DigitalOcean (`shtrial.com`), migrating the gateway off `sh-forge` required **zero changes** to coding-agent configs or `gpu.py` aliases.
 
 ## Target Host Requirements
 - Small persistent CPU server (for example, a dedicated 2 vCPU / 4 GB DigitalOcean droplet in `nyc3`, or AWS EC2/Lightsail) with Docker + Docker Compose and Caddy (ports 80/443 open).
