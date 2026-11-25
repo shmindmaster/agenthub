@@ -79,7 +79,6 @@ function dhash(gray9x8) { // 9x8 gray -> 64-bit as BigInt
   return bits;
 }
 function hamming(a, b) { let x = a ^ b, n = 0; while (x) { n += Number(x & 1n); x >>= 1n; } return n; }
-const meanDiff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
 const changedFraction = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > CHANGED_PIXEL_DELTA) n++; return n / a.length; };
 const meanLuma = (a) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s / a.length; };
 
