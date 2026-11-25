@@ -171,7 +171,7 @@ class Lab:
             state = "lost" if self.was_ready else "off"
         return {"state": state, "busy": busy, "left_min": minutes_left(mb["destroy_at"]) if mb else None, "usd_per_hour": self.usd,
                 "ttl": TTL_MIN, "extend": EXTEND_MIN, "boot_min": BOOT_MIN, "n": st.get("n"), "max": st.get("max"),
-                "queue": (self.info or {}).get("queue"), "error": st.get("error") or (self.info_err if state == "lost" else ""),
+                "queue": (self.info or {}).get("queue"), "error": self.client_err or st.get("error") or (self.info_err if state == "lost" or (state == "starting" and not busy) else ""),
                 "result": r["result"] if r and not r["running"] else "", "log": list(self.log)[-12:]}
 
     def run_steps(self, name, steps):
