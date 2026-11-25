@@ -19,13 +19,13 @@
       "maxOutputTokens": 32768
     },
     {
-      "model": "glm-5.3-zai",
-      "displayName": "GLM 53 Zai Coding Plan",
+      "model": "glm-5.4-zai",
+      "displayName": "GLM 5.4 [GLM Coding Plan Global] - Openai",
       "baseUrl": "https://api.z.ai/api/coding/paas/v4",
       "apiKey": "${ZAI_CODING_PLAN_API_KEY}",
       "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 32768,
-      "extraArgs": { "model": "glm-5.3" }
+      "maxOutputTokens": 131072,
+      "extraArgs": { "model": "glm-5.4" }
     },
     {
       "model": "mimo-v2.6-pro",

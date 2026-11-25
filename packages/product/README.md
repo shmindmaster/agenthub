@@ -1,6 +1,6 @@
 # AH-Product
 
-Audit, design, build, verify and demo product experiences on evidence, and apply portfolio engineering rules. Six skills plus one read-only reviewer agent, no MCP server and no hook.
+Audit, design, build, verify and demo product experiences on evidence, apply portfolio engineering rules, and route a checkout to one of those lanes. Seven skills plus one read-only reviewer agent, no MCP server and no hook.
 
 The reviewer agent issues verdicts; the context that wrote a change never does. Each skill is capped at 500 words, so the detail lives in `references/`: `agentic.md`, `authenticated-acceptance.md`, `demo-handoff.md` and `surfaces.md`.
 

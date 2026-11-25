@@ -6,7 +6,7 @@ $claudeManifestPath = Join-Path $pluginRoot '.claude-plugin\plugin.json'
 $cursorManifestPath = Join-Path $pluginRoot '.cursor-plugin\plugin.json'
 $portableManifestPath = Join-Path $pluginRoot 'plugin.json'
 $expectedAgents = @('reviewer.agent.md')
-$expectedSkills = @('audit', 'design', 'build', 'verify', 'demo', 'engineer')
+$expectedSkills = @('audit', 'design', 'build', 'verify', 'demo', 'engineer', 'route')
 $expectedReferences = @('agentic.md', 'authenticated-acceptance.md', 'demo-handoff.md', 'portfolio-standard.md', 'surfaces.md')
 $maxSkillWords = 500
 $maxSkillBytes = 5120
@@ -139,7 +139,7 @@ foreach ($skillName in $expectedSkills) {
 }
 
 $actualSkills = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot 'skills') -Directory | Select-Object -ExpandProperty Name | Sort-Object)
-Assert-True (($actualSkills -join '|') -eq (($expectedSkills | Sort-Object) -join '|')) 'Skill set does not match the six-skill contract.'
+Assert-True (($actualSkills -join '|') -eq (($expectedSkills | Sort-Object) -join '|')) 'Skill set does not match the declared skill contract.'
 
 # Rules that must survive any edit to these skills.
 $auditText = Read-WorkflowText (Join-Path $pluginRoot 'skills\audit\SKILL.md')
