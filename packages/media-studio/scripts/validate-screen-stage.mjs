@@ -445,7 +445,8 @@ for (const listed of plansListed) {
       const next = plan.camera.segments[i + 1]?.t0 ?? Infinity;
       const frames = [];
       for (let k = 1; k <= Math.round(0.55 * fps); k++) { const t = seg.t0 + k / fps; if (t >= next - 0.02 || t > listed.durationSeconds - 0.05) break; frames.push({ t, v: speedAt(t) }); }
-      const fast = frames.filter((f) => f.v >= 6).sort((a, b) => b.v - a.v).slice(0, 3);
+      // a highlight dims the page on purpose: those frames are not a colour or a blur reading
+      const fast = frames.filter((f) => f.v >= 6 && !((M.stateAt(plan, f.t).highlight?.amount || 0) > 0.001)).sort((a, b) => b.v - a.v).slice(0, 3);
       if (!fast.length) return;
       measuredFast += fast.length;
       const tHold = Math.max(0.02, seg.t0 - 0.06), camHold = M.cameraAt(plan.camera, tHold, g);

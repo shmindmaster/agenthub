@@ -16,7 +16,7 @@ const root = resolve(outDir);
 const put = (rel, data) => { const p = join(root, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, typeof data === 'string' ? data : JSON.stringify(data, null, 2) + '\n'); };
 
 const TOUCH = args.includes('--touch'), PHONE_IN_FRAME = args.includes('--phone-in-frame');
-const DURATION = TOUCH || PHONE_IN_FRAME ? 6.8 : 14.0;
+const DURATION = TOUCH || PHONE_IN_FRAME ? 6.8 : 12.3;
 // [word, start, end] seconds. Content-word starts are the click moments: amounts 1.6, Format 2.6, Number 3.7, Currency 4.8; Applied 5.2.
 // A tap has no pointer approach, so a touch film starts its narration 0.5 s sooner: the opening hold stays short.
 const SHIFT = TOUCH || PHONE_IN_FRAME ? -0.5 : 0;
@@ -34,7 +34,7 @@ put('job.json', {
   repositoryWritePolicy: 'read-only',
   deliveryProfile: TOUCH ? 'vertical-9x16' : 'youtube-16x9',
   ...(args.includes('--viewer-facing') ? {} : { intent: 'draft' }),
-  screenStage: TOUCH ? {} : PHONE_IN_FRAME ? { background: { kind: 'gradient' } } : { highlights: [{ action: 'Select amounts', start: -1.0, hold: 0.7 }] },
+  screenStage: TOUCH ? {} : PHONE_IN_FRAME ? { background: { kind: 'gradient' } } : { highlights: [{ action: 'Type a note', start: -1.55, hold: 0.6 }] },
 });
 
 put('story/narration-timeline.json', { durationSeconds: DURATION, segments: [{ id: 'S01', scene: 'S01', text: TEXT, startSeconds: 0, durationSeconds: DURATION, words: WORDS }] });
@@ -88,8 +88,8 @@ export const scenes = {
     await press(h.page.getByTestId('item-number'), { label: 'Open number', ms: 400, settle: 250, hold: 390 });
     await press(h.page.getByTestId('sub-currency'), { label: 'Apply currency', ms: 400, settle: 250, hold: 100 });
     await h.expect(h.page.getByTestId('toast'), 'Currency format applied', { text: 'Currency format applied to 7 cells', hold: 300 });
-    if (!${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) { await h.hold(1800); await h.typeText(h.page.getByTestId('note-field'), 'Checked against the October statement', { label: 'Type a note', ms: 400, settle: 250, delay: 85, hold: 900 }); }
-    await h.hold(${TOUCH || PHONE_IN_FRAME ? 1300 : 2600});
+    if (!${JSON.stringify(TOUCH || PHONE_IN_FRAME)}) { await h.hold(1800); await h.typeText(h.page.getByTestId('note-field'), 'Checked against the October statement', { label: 'Type a note', ms: 400, settle: 250, delay: 85, hold: 600 }); }
+    await h.hold(${TOUCH || PHONE_IN_FRAME ? 1300 : 800});
   },
 };
 `);
