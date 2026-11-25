@@ -454,10 +454,10 @@
       "owner": "handoff",
       "capabilityType": "plugin+skills",
       "canonicalSource": "packages/product",
-      "contentHash": "820DAD4AB11EA2BFE3AACAA8A67FA20E8FEC66C0348B49D5E4FAC2CCC6919080",
+      "contentHash": "6CD13C7EFA889F15AFB1251B5AC4C393CECAA84A2D7B203E0C3B34C7FFC22B02",
       "hashBasis": "packages/product",
       "status": "active-canonical",
-      "notes": "Owns the product skills audit, design, build, verify and demo and the reviewer agent (2.1.2, no hooks). verify and demo load references/authenticated-acceptance.md, which carries the session, role, denial and data-boundary evidence an authenticated journey needs; the fleet's provider-specific contract stays in docs/runbooks/clerk-auth.md. Also owns the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
+      "notes": "Owns the product skills audit, design, build, verify, demo, engineer and route, and the reviewer agent (2.1.2, no hooks). route reads the checkout instructions and docs/architecture/portfolio-routes.md, then picks one existing lane. Product names stay out of this package. verify and demo load references/authenticated-acceptance.md, which carries the session, role, denial and data-boundary evidence an authenticated journey needs; the fleet's provider-specific contract stays in docs/runbooks/clerk-auth.md. Also owns the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
       "hostMappings": [
         {
           "hostId": "claude",
@@ -837,7 +837,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "F839EDD2354BED626B294837D62E2FA2A55F02A9E588ED790B1AAC154C93B09E",
+      "contentHash": "27FBC5D4CD71432CD47523437190DB8D7A3E2E36198C66A9941F62E75659ABB5",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
