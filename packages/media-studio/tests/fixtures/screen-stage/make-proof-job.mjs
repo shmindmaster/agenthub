@@ -12,7 +12,7 @@ if (!outDir) { console.error('usage: node make-proof-job.mjs <outDir> [--viewer-
 const root = resolve(outDir);
 const put = (rel, data) => { const p = join(root, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, typeof data === 'string' ? data : JSON.stringify(data, null, 2) + '\n'); };
 
-const DURATION = 6.0;
+const DURATION = 7.2;
 // [word, start, end] seconds. Content-word starts are the click moments: amounts 1.0, Format 2.0, Number 3.1, Currency 4.2; Applied 4.6.
 const WORDS = [
   ['Select', 0.45, 0.80], ['the', 0.80, 0.95], ['amounts,', 1.00, 1.50], ['open', 1.62, 1.90], ['Format,', 2.00, 2.50], ['choose', 2.62, 3.00],

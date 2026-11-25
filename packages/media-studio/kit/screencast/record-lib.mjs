@@ -288,7 +288,8 @@ export function bindHelpers(page, log, beats, opts = {}) {
     const ms = o.ms || clamp(380 + dist * 0.5, 400, 800);
     const bow = Math.min(0.08 * dist, 60) * (Math.round(tx * 7 + ty * 13) % 2 ? 1 : -1);
     const nx = -dy / dist, ny = dx / dist;
-    const cx = (sx + tx) / 2 + nx * bow * 2, cy = (sy + ty) / 2 + ny * bow * 2;
+    // The control point stays inside the box of the two end points, so x and y each move one way only: a gentle arc, never a back-track.
+    const cx = clamp((sx + tx) / 2 + nx * bow * 2, Math.min(sx, tx), Math.max(sx, tx)), cy = clamp((sy + ty) / 2 + ny * bow * 2, Math.min(sy, ty), Math.max(sy, ty));
     const steps = Math.max(8, Math.round(ms / 20));
     const start = performance.now();
     for (let i = 1; i <= steps; i++) {

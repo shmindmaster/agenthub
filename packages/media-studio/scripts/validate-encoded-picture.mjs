@@ -241,6 +241,14 @@ for (const seg of tl.segments) {
   if (sourceRegionError(src.sourceRegion)) { fail(`segment ${seg.id}: invalid sourceRegion in compose map`); continue; }
   if (composeMap?.groups && !sameRegion(src.sourceRegion, manifestClip?.sourceRegion)) { fail(`segment ${seg.id}: compose-map sourceRegion differs from capture manifest`); continue; }
   if (Object.hasOwn(CAMPAIGN_FORMS, job.programForm) && deliveryFrame.height > deliveryFrame.width && !src.sourceRegion) { fail(`segment ${seg.id}: portrait campaign requires an explicit sourceRegion`); continue; }
+  if (src.stage) {
+    // A screen-stage segment shows the capture through a camera, so a whole-frame dHash cannot bind it. validate-screen-stage.mjs registers
+    // the film frame against the receipt-bound source frame; this gate requires that report for this exact candidate.
+    const stageReport = readJson('qa/screen-stage.json');
+    if (!stageReport?.ok || stageReport.candidate?.sha256 !== report.candidate.sha256) { fail(`segment ${seg.id}: a screen-stage segment is bound by qa/screen-stage.json (validate-screen-stage.mjs) for this exact candidate; it is missing, failed or for another file`); continue; }
+    row.bound = true; row.stageRun = src.stage.run;
+    continue;
+  }
   const hs = clipHashes(src.file, src.sourceRegion);
   if (!hs || !hs.length) { fail(`segment ${seg.id}: cannot decode source clip ${src.file}`); continue; }
   const mid = seg.startSeconds + Math.min(dur / 2, Math.max(0.5, dur / 2));

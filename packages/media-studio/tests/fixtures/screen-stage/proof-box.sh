@@ -46,14 +46,14 @@ step "gates"
 for g in validate-pointer-path validate-product-picture; do
   node "$R/scripts/$g.mjs" "$J" > "$OUT/qa/$g.log" 2>&1; echo "$g exit $?"
 done
-for g in validate-encoded-picture validate-sync validate-screen-stage; do
+for g in validate-screen-stage validate-encoded-picture validate-sync; do
   [ -f "$R/scripts/$g.mjs" ] || continue
   node "$R/scripts/$g.mjs" "$J" "$J/output/$BASE-silent.mp4" > "$OUT/qa/$g.log" 2>&1; echo "$g exit $?"
 done
 cp "$J"/qa/*.json "$OUT/qa/" 2>/dev/null
 # a few source frames for the sharpness comparison against the zoomed stills
 cp "$J/capture/raw/S01/frames.json" "$OUT/frames.json"
-for f in $(ls "$J/capture/raw/S01/frames" | sed -n '1p;40p;80p;120p'); do cp "$J/capture/raw/S01/frames/$f" "$OUT/frames/"; done
+for f in $(ls "$J/capture/raw/S01/frames" | sed -n '1p;8p;16p;24p;33p'); do cp "$J/capture/raw/S01/frames/$f" "$OUT/frames/"; done
 T4=$(t)
 python3 -c "import json,sys; a=[float(x) for x in sys.argv[1:]]; print(json.dumps({'setupSeconds':round(a[1]-a[0],1),'captureSeconds':round(a[2]-a[1],1),'composeRenderSeconds':round(a[3]-a[2],1),'gatesSeconds':round(a[4]-a[3],1)}))" "$T0" "$T1" "$T2" "$T3" "$T4" | tee "$OUT/timing.json"
 echo "nproc: $(nproc)  mem: $(free -g | awk '/Mem/{print $2}') GiB" | tee -a "$OUT/timing.txt"

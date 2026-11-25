@@ -51,6 +51,10 @@ function grayAt(file, t, w, h) {
   const buf = ff(['-ss', Math.max(0, t).toFixed(4), '-i', file, '-frames:v', '1', '-vf', `scale=${w}:${h}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1']);
   return buf.length >= w * h ? new Uint8Array(buf.buffer, buf.byteOffset, w * h) : null;
 }
+function grayImage(file, w, h) {
+  const buf = ff(['-i', file, '-frames:v', '1', '-vf', `scale=${w}:${h}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1']);
+  return buf.length >= w * h ? new Uint8Array(buf.buffer, buf.byteOffset, w * h) : null;
+}
 function grayRun(file, t0, t1, w, h, fps) {
   const buf = ff(['-ss', t0.toFixed(4), '-t', (t1 - t0).toFixed(4), '-i', file, '-vf', `fps=${fps},scale=${w}:${h}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1']);
   const n = Math.floor(buf.length / (w * h));
@@ -236,7 +240,8 @@ for (const listed of plansListed) {
     const film = grayAt(candidate, t, EW, EH);
     const srcFile = join(jobRoot, 'capture', 'raw', st.frame);
     if (!film || !existsSync(srcFile)) return null;
-    const src = grayAt(srcFile, 0, EW, EH);
+    const src = grayImage(srcFile, EW, EH);
+    if (!src) return null;
     const planned = { cx: st.camera.cx, cy: st.camera.cy, z: st.camera.z };
     const got = registerCamera(film, src, planned, g);
     return { t: r2(t - T0), planned: { cx: r2(planned.cx), cy: r2(planned.cy), z: r2(planned.z) }, measured: { cx: r2(got.cx), cy: r2(got.cy), z: r2(got.z) }, ncc: r2(got.ncc), dz: r2(got.z - planned.z), dxy: r2(Math.hypot(got.cx - planned.cx, got.cy - planned.cy)), st };
