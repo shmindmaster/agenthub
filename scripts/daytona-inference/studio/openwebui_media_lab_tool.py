@@ -304,12 +304,27 @@ class Tools:
         speaker: str = "ryan",
         language: str = "English",
         instruct: str = "",
+        model: str = "",
+        ref_audio_ref: str = "",
+        ref_text: str = "",
+        subject: str = "synthetic",
         profile: str = "",
     ) -> str:
-        """Synthesize speech audio from text and return its download URL + artifact ref for talking-video chaining."""
+        """Synthesize speech audio and return its download URL + artifact ref for talking-video chaining.
+        Optional model='voxcpm2' (48 kHz expressive Voice Design via `instruct`, plus zero-shot/transcript cloning
+        via `ref_audio_ref` + optional `ref_text`), 'qwen3-tts-1.7b-customvoice', or 'lfm3-omni-2b-heretic' (research)."""
         params: dict[str, Any] = {"text": text, "speaker": speaker, "language": language}
         if instruct:
             params["instruct"] = instruct
+        if model:
+            params["model"] = model
+        if ref_audio_ref:
+            ref_name, ref_raw = self._resolve_ref(ref_audio_ref)
+            params["ref_audio_b64"] = base64.b64encode(ref_raw).decode("ascii")
+            params["ref_audio_name"] = ref_name
+            params["subject"] = subject
+            if ref_text:
+                params["ref_text"] = ref_text
         return await self._run_job("tts", params, profile)
 
     async def generate_music(

@@ -1,46 +1,48 @@
 #!/bin/bash
-# Serving recipe: Dual-model Engineering Slot 1 on AMD MI355X (288 GB CDNA4 gfx950).
-# Runs BOTH:
-#   1) Qwen3.8-27B-Uncensored-FP8 via vLLM ROCm (:8001, 262144 ctx, MTP=3, AITER, prefix caching)
-#   2) Qwen3.8-Flash-Next-Uncensored-GGUF Q8_0 via llama-server HIP (:8002, 262144 ctx, CPU PLE)
+# Serving recipe: Dual-model Multimodal Engineering Slot 1 on AMD MI355X (288 GB CDNA4 gfx950).
+# Runs BOTH via llama-server HIP (Q8_0 + BF16 mmproj vision, FlashAttention, GPU-resident):
+#   1) Qwen3.8-27B-Ultimate-Heretic-2.1ARA-MTP-Q8_0 + mmproj-BF16 (:8001, 262144 ctx, parallel 4)
+#   2) Inkling-2-Mini-Uncensored-Q8_0 + mmproj-BF16 (:8002, 1048576 ctx, q8_0 KV, parallel 2->1 fallback)
 set -euo pipefail
 
 WEIGHTS_ROOT="${WEIGHTS_ROOT:-/mnt/opencode-weights}"
-SPEC_REPO="${SPEC_REPO:-orcarouter/Qwen3.8-27B-Uncensored-FP8}"
-FLAG_REPO="${FLAG_REPO:-orcarouter/Qwen3.8-Flash-Next-Uncensored-GGUF}"
-FLAG_QUANT="${FLAG_QUANT:-Q8_0}"
+SPEC_REPO="${SPEC_REPO:-DavidAU/Qwen3.8-27B-Ultimate-Heretic-Uncensored-Turbo-Brilliance-50x-AGI-NEO-GGUF}"
+SPEC_FILE="${SPEC_FILE:-Qwen3.8-27B-Ultimate-Heretic-2.1ARA-Uncn-Turbo-Brilli-50x-AGI-NEO-MTP-Q8_0.gguf}"
+SPEC_MMPROJ="${SPEC_MMPROJ:-mmproj-BF16.gguf}"
+
+FLAG_REPO="${FLAG_REPO:-Abiray/Inkling-2-Mini-Uncensored-GGUF}"
+FLAG_FILE="${FLAG_FILE:-Inkling-2-Mini-Uncensored-Q8_0.gguf}"
+FLAG_MMPROJ="${FLAG_MMPROJ:-mmproj-Inkling-2-Mini-Uncensored-BF16.gguf}"
 
 SPEC_PORT="${SPEC_PORT:-8001}"
 FLAG_PORT="${FLAG_PORT:-8002}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-262144}"
-CTX_SIZE="${CTX_SIZE:-262144}"
-MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}"
-GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.40}"
-MAX_NUM_BATCHED_TOKENS="${MAX_NUM_BATCHED_TOKENS:-16384}"
-MTP_TOKENS="${MTP_TOKENS:-3}"
-PARALLEL="${PARALLEL:-2}"
-THREADS="${THREADS:-16}"  # the box has 16 vCPUs, but llama-server counts the host's 192
+CTX_SIZE="${CTX_SIZE:-1048576}"
+PARALLEL="${PARALLEL:-4}"
+FLAG_PARALLEL="${FLAG_PARALLEL:-2}"
+THREADS="${THREADS:-16}"
 BATCH_SIZE="${BATCH_SIZE:-4096}"
 UBATCH_SIZE="${UBATCH_SIZE:-2048}"
 CACHE_TYPE_K="${CACHE_TYPE_K:-f16}"
 CACHE_TYPE_V="${CACHE_TYPE_V:-f16}"
+FLAG_CACHE_TYPE_K="${FLAG_CACHE_TYPE_K:-q8_0}"
+FLAG_CACHE_TYPE_V="${FLAG_CACHE_TYPE_V:-q8_0}"
 GPU_TYPE="${GPU_TYPE:-MI355X}"
 
-SPEC_PERSIST="$WEIGHTS_ROOT/specialist"
-SPEC_STAGE="/opt/models/specialist"
-FLAG_PERSIST="$WEIGHTS_ROOT/flagship-$FLAG_QUANT"
-FLAG_STAGE="/opt/models/flagship-$FLAG_QUANT"
+SPEC_PERSIST="$WEIGHTS_ROOT/specialist-q8"
+SPEC_STAGE="/opt/models/specialist-q8"
+FLAG_PERSIST="$WEIGHTS_ROOT/inkling-q8"
+FLAG_STAGE="/opt/models/inkling-q8"
 MANIFEST_DIR="$WEIGHTS_ROOT/manifests"
 LOG_FILE="/tmp/engineering.log"
 
 mkdir -p "$MANIFEST_DIR" "$SPEC_PERSIST" "$FLAG_PERSIST" /opt/models /run
 exec >> "$LOG_FILE" 2>&1
 
-echo "boot_engineering_rocm $(date -u +%Y-%m-%dT%H:%M:%SZ) gpu=$GPU_TYPE ctx=$MAX_MODEL_LEN util=$GPU_MEM_UTIL"
-vllm --version || true
+echo "boot_engineering_dual_q8 $(date -u +%Y-%m-%dT%H:%M:%SZ) gpu=$GPU_TYPE spec_ctx=$MAX_MODEL_LEN flag_ctx=$CTX_SIZE"
 rocm-smi --showproductname --showmeminfo vram || true
 
-# Ensure curl/procps/hf_xet + cached gfx950 llama-server are ready when booting directly from base image.
+# Ensure curl/procps/hf_xet + cached gfx950 llama-server are ready.
 if ! command -v curl >/dev/null 2>&1 || ! command -v pgrep >/dev/null 2>&1; then
   apt-get update -qq && apt-get install -y --no-install-recommends curl libcurl4 ca-certificates procps >/dev/null 2>&1 || true
 fi
@@ -104,13 +106,12 @@ export HF_XET_HIGH_PERFORMANCE="${HF_XET_HIGH_PERFORMANCE:-1}"
 python3 - <<PY
 import json, pathlib, shutil
 from concurrent.futures import ThreadPoolExecutor
-from huggingface_hub import model_info, snapshot_download
+from huggingface_hub import hf_hub_download, model_info
 
 token_path = pathlib.Path("/run/hf.token")
 token = token_path.read_text().strip() if token_path.is_file() else ""
 manifest_dir = pathlib.Path("$MANIFEST_DIR")
 
-# One S3 read stream is about 100 MB/s, so copy files side by side and keep files a previous boot already finished.
 def stage_copy(persist: pathlib.Path, stage: pathlib.Path, names) -> None:
     def one(name: str) -> None:
         src, dst = persist / name, stage / name
@@ -118,84 +119,70 @@ def stage_copy(persist: pathlib.Path, stage: pathlib.Path, names) -> None:
             return
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dst)
-    with ThreadPoolExecutor(8) as pool:
+    with ThreadPoolExecutor(4) as pool:
         list(pool.map(one, names))
 
-def ensure_safetensors_model(repo: str, persist: pathlib.Path, stage: pathlib.Path) -> None:
+def ensure_exact_gguf(label: str, repo: str, filenames: list[str], persist: pathlib.Path, stage: pathlib.Path) -> None:
+    filenames = [f for f in filenames if f]
     ready = persist / "ready.json"
     ok = False
+    files = {}
     if ready.is_file():
         try:
             meta = json.loads(ready.read_text(encoding="utf-8"))
             files = meta.get("files") or {}
-            ok = meta.get("repo") == repo and bool(files) and all((persist / k).is_file() and (persist / k).stat().st_size == v for k, v in files.items())
+            ok = (
+                meta.get("repo") == repo
+                and all(f in files for f in filenames)
+                and all((persist / f).is_file() and (persist / f).stat().st_size == files[f] for f in filenames)
+            )
         except Exception:
             ok = False
     if ok:
-        print(f"staging specialist from {persist} -> {stage}", flush=True)
-        stage_copy(persist, stage, files)
+        print(f"staging {label} from {persist} -> {stage}", flush=True)
+        stage_copy(persist, stage, filenames)
         return
-    if not (stage / "ready.json").is_file():
-        print(f"downloading {repo} -> {stage}", flush=True)
-        stage.mkdir(parents=True, exist_ok=True)
-        snapshot_download(repo, local_dir=str(stage), token=token or None)
-        files = {p.relative_to(stage).as_posix(): p.stat().st_size for p in stage.rglob("*") if p.is_file() and ".cache" not in p.parts and p.name != "ready.json"}
-        (stage / "ready.json").write_text(json.dumps({"repo": repo, "files": files}) + "\n", encoding="utf-8")
-    try:
-        (persist / "ready.json").unlink(missing_ok=True)
-        persisted = {}
-        for item in sorted(p for p in stage.iterdir() if p.is_file() and p.name not in (".cache", "ready.json")):
-            dst = persist / item.name
-            if not dst.is_file() or dst.stat().st_size != item.stat().st_size:
-                shutil.copyfile(item, dst)
-            if dst.stat().st_size != item.stat().st_size:
-                raise RuntimeError(f"size mismatch persisting {item.name}")
-            persisted[item.name] = item.stat().st_size
-        (persist / "ready.json").write_text(json.dumps({"repo": repo, "files": persisted}) + "\n", encoding="utf-8")
-    except Exception as exc:
-        print(f"specialist_persist_warn={exc}", flush=True)
 
-def ensure_gguf_model(repo: str, quant: str, persist: pathlib.Path, stage: pathlib.Path) -> None:
-    ready = persist / "ready.json"
-    ok = False
-    if ready.is_file():
+    stage.mkdir(parents=True, exist_ok=True)
+    stage_ready = stage / "ready.json"
+    stage_ok = False
+    if stage_ready.is_file():
         try:
-            meta = json.loads(ready.read_text(encoding="utf-8"))
-            files = meta.get("files") or {}
-            ok = meta.get("repo") == repo and meta.get("quant") == quant and bool(files) and all((persist / k).is_file() and (persist / k).stat().st_size == v for k, v in files.items())
+            smeta = json.loads(stage_ready.read_text(encoding="utf-8"))
+            sfiles = smeta.get("files") or {}
+            stage_ok = (
+                smeta.get("repo") == repo
+                and all(f in sfiles and (stage / f).is_file() and (stage / f).stat().st_size == sfiles[f] for f in filenames)
+            )
         except Exception:
-            ok = False
-    if ok:
-        print(f"staging flagship from {persist} -> {stage}", flush=True)
-        # Only the plain shards are served.
-        stage_copy(persist, stage, [n for n in files if "-MTP-" not in n and "mmproj" not in n])
-        return
-    if not (stage / "ready.json").is_file():
-        print(f"downloading {repo} ({quant}) -> {stage}", flush=True)
-        stage.mkdir(parents=True, exist_ok=True)
-        snapshot_download(repo, local_dir=str(stage), allow_patterns=[f"*{quant}*.gguf", f"*{quant.lower()}*.gguf", "*mmproj*.gguf"], token=token or None)
-        files = {p.relative_to(stage).as_posix(): p.stat().st_size for p in sorted(stage.rglob("*.gguf"))}
-        (stage / "ready.json").write_text(json.dumps({"repo": repo, "quant": quant, "files": files}) + "\n", encoding="utf-8")
+            stage_ok = False
+    if not stage_ok:
+        for fn in filenames:
+            print(f"downloading {label} {repo}/{fn} -> {stage}", flush=True)
+            hf_hub_download(repo, fn, local_dir=str(stage), token=token or None)
+        sfiles = {fn: (stage / fn).stat().st_size for fn in filenames}
+        stage_ready.write_text(json.dumps({"repo": repo, "files": sfiles}) + "\n", encoding="utf-8")
+
     try:
-        (persist / "ready.json").unlink(missing_ok=True)
+        ready.unlink(missing_ok=True)
         persisted = {}
-        for item in sorted(stage.rglob("*.gguf")):
-            rel = item.relative_to(stage)
-            dst = persist / rel
+        for fn in filenames:
+            src = stage / fn
+            dst = persist / fn
             dst.parent.mkdir(parents=True, exist_ok=True)
-            if not dst.is_file() or dst.stat().st_size != item.stat().st_size:
-                shutil.copyfile(item, dst)
-            if dst.stat().st_size != item.stat().st_size:
-                raise RuntimeError(f"size mismatch persisting {rel}")
-            persisted[rel.as_posix()] = item.stat().st_size
-        (persist / "ready.json").write_text(json.dumps({"repo": repo, "quant": quant, "files": persisted}) + "\n", encoding="utf-8")
+            if not dst.is_file() or dst.stat().st_size != src.stat().st_size:
+                shutil.copyfile(src, dst)
+            if dst.stat().st_size != src.stat().st_size:
+                raise RuntimeError(f"size mismatch persisting {fn}")
+            persisted[fn] = src.stat().st_size
+        ready.write_text(json.dumps({"repo": repo, "files": persisted}) + "\n", encoding="utf-8")
     except Exception as exc:
-        print(f"flagship_persist_warn={exc}", flush=True)
+        print(f"{label}_persist_warn={exc}", flush=True)
 
-ensure_safetensors_model("$SPEC_REPO", pathlib.Path("$SPEC_PERSIST"), pathlib.Path("$SPEC_STAGE"))
-ensure_gguf_model("$FLAG_REPO", "$FLAG_QUANT", pathlib.Path("$FLAG_PERSIST"), pathlib.Path("$FLAG_STAGE"))
+ensure_exact_gguf("specialist", "$SPEC_REPO", ["$SPEC_FILE", "$SPEC_MMPROJ"], pathlib.Path("$SPEC_PERSIST"), pathlib.Path("$SPEC_STAGE"))
+ensure_exact_gguf("flagship", "$FLAG_REPO", ["$FLAG_FILE", "$FLAG_MMPROJ"], pathlib.Path("$FLAG_PERSIST"), pathlib.Path("$FLAG_STAGE"))
 
-lines = ["backend=engineering-rocm-gfx950"]
+lines = ["backend=engineering-rocm-gfx950-dual-q8"]
 for label, repo in [("spec", "$SPEC_REPO"), ("flag", "$FLAG_REPO")]:
     try:
         lines.append(f"{label}_rev={model_info(repo, token=token or None).sha}")
@@ -205,102 +192,105 @@ manifest_dir.joinpath("engineering-runtime.txt").write_text("\n".join(lines) + "
 PY
 
 KEY="$(cat /run/llm.key)"
-export VLLM_API_KEY="$KEY"
 export LLAMA_API_KEY="$KEY"
-export VLLM_ROCM_USE_AITER="${VLLM_ROCM_USE_AITER:-1}"
-export VLLM_ROCM_USE_AITER_MOE="${VLLM_ROCM_USE_AITER_MOE:-1}"
+LLAMA_HELP="$("$LLAMA_BIN" --help 2>&1 || true)"
 
-# Restore precompiled vLLM cache if persisted
-VLLM_VER="$(python3 -c 'import vllm; print(vllm.__version__)' 2>/dev/null || echo unknown)"
-CACHE_ARCHIVE="$WEIGHTS_ROOT/caches/vllm-${VLLM_VER}-${GPU_TYPE}.tar.gz"
-if [[ -s "$CACHE_ARCHIVE" ]] && [[ ! -d /root/.cache/vllm || -z "$(ls -A /root/.cache/vllm 2>/dev/null || true)" ]]; then
-  mkdir -p /root/.cache
-  tar -xzf "$CACHE_ARCHIVE" -C /root/.cache && echo "restored_vllm_cache=$CACHE_ARCHIVE" || true
-fi
+SPEC_MODEL_PATH="$SPEC_STAGE/$SPEC_FILE"
+SPEC_MMPROJ_PATH="$SPEC_STAGE/$SPEC_MMPROJ"
+FLAG_MODEL_PATH="$FLAG_STAGE/$FLAG_FILE"
+FLAG_MMPROJ_PATH="$FLAG_STAGE/$FLAG_MMPROJ"
 
-HELP_TEXT="$(vllm serve --help=all 2>&1 || vllm serve --help 2>&1 || true)"
-VLLM_ARGS=(
-  "$SPEC_STAGE"
-  --served-model-name "agent-specialist"
-  --host 0.0.0.0
-  --port "$SPEC_PORT"
-  --tensor-parallel-size 1
-  --gpu-memory-utilization "$GPU_MEM_UTIL"
-  --max-model-len "$MAX_MODEL_LEN"
-  --max-num-seqs "$MAX_NUM_SEQS"
-  --max-num-batched-tokens "$MAX_NUM_BATCHED_TOKENS"
-  --trust-remote-code
-)
-grep -q -- "--enable-prefix-caching" <<<"$HELP_TEXT" && VLLM_ARGS+=(--enable-prefix-caching)
-grep -q -- "--enable-chunked-prefill" <<<"$HELP_TEXT" && VLLM_ARGS+=(--enable-chunked-prefill)
-grep -q -- "--reasoning-parser" <<<"$HELP_TEXT" && VLLM_ARGS+=(--reasoning-parser qwen3)
-grep -q -- "--tool-call-parser" <<<"$HELP_TEXT" && VLLM_ARGS+=(--tool-call-parser qwen3_coder)
-grep -q -- "--enable-auto-tool-choice" <<<"$HELP_TEXT" && VLLM_ARGS+=(--enable-auto-tool-choice)
-if [[ "$MTP_TOKENS" -gt 0 ]] && grep -q -- "--speculative-config" <<<"$HELP_TEXT"; then
-  VLLM_ARGS+=(--speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":$MTP_TOKENS}")
-fi
-
-echo "launching_vllm_on_port=$SPEC_PORT util=$GPU_MEM_UTIL"
-vllm serve "${VLLM_ARGS[@]}" > /tmp/specialist.log 2>&1 &
-VLLM_PID=$!
-
-# Wait for vLLM to reserve its KV pool cleanly before starting llama-server so both fit stably in 288 GB.
-for i in $(seq 1 180); do
-  if ! kill -0 "$VLLM_PID" 2>/dev/null; then
-    echo "VLLM_EXITED_EARLY"
-    tail -n 50 /tmp/specialist.log || true
-    exit 1
-  fi
-  if curl -sf -H "Authorization: Bearer $KEY" "http://127.0.0.1:${SPEC_PORT}/v1/models" >/dev/null 2>&1; then
-    echo "vllm_ready after $((i*5))s"
-    break
-  fi
-  sleep 5
-done
-
-rocm-smi --showmeminfo vram || true
-
-FIRST_SHARD="$(find "$FLAG_STAGE" -type f -name '*.gguf' ! -name '*mmproj*' ! -name '*draft*' | sort | head -n 1)"
-if [[ -z "$FIRST_SHARD" ]]; then
-  echo "NO_GGUF_SHARD_FOUND in $FLAG_STAGE"
+if [[ ! -f "$SPEC_MODEL_PATH" || ! -f "$FLAG_MODEL_PATH" ]]; then
+  echo "MISSING_MODEL_FILE spec=$SPEC_MODEL_PATH flag=$FLAG_MODEL_PATH"
   exit 4
 fi
 
-LLAMA_ARGS=(
-  --model "$FIRST_SHARD"
-  --alias "agent-flagship"
+SPEC_ARGS=(
+  --model "$SPEC_MODEL_PATH"
+  --alias "agent-specialist"
   --host 0.0.0.0
-  --port "$FLAG_PORT"
+  --port "$SPEC_PORT"
   --n-gpu-layers 999
-  --ctx-size "$((CTX_SIZE * PARALLEL))"  # llama-server splits this between the slots
+  --ctx-size "$((MAX_MODEL_LEN * PARALLEL))"
   --parallel "$PARALLEL"
   --threads "$THREADS"
-  --lazy-mode off
-  --override-tensor 'per_layer_token_embd.weight=CPU'
   --flash-attn on
   --batch-size "$BATCH_SIZE"
   --ubatch-size "$UBATCH_SIZE"
   --cache-prompt
   --cache-type-k "$CACHE_TYPE_K"
   --cache-type-v "$CACHE_TYPE_V"
-  --reasoning on
-  --reasoning-effort medium
   --jinja
-  --temp 1.0
-  --top-p 0.95
-  --top-k 20
-  --min-p 0
   --metrics
 )
+[[ -f "$SPEC_MMPROJ_PATH" ]] && SPEC_ARGS+=(--mmproj "$SPEC_MMPROJ_PATH")
+grep -q -- "--reasoning" <<<"$LLAMA_HELP" && SPEC_ARGS+=(--reasoning on --reasoning-effort medium)
 
-echo "launching_llama_server_on_port=$FLAG_PORT shard=$FIRST_SHARD"
-# A flagship crash restarts the flagship only; the 27B keeps serving.
-( while true; do "$LLAMA_BIN" "${LLAMA_ARGS[@]}" >> /tmp/flagship.log 2>&1 || true; echo "flagship_exited, restarting"; sleep 10; done ) &
-LLAMA_PID=$!
+echo "launching_specialist_q8_on_port=$SPEC_PORT model=$SPEC_MODEL_PATH ctx=$((MAX_MODEL_LEN * PARALLEL)) parallel=$PARALLEL"
+"$LLAMA_BIN" "${SPEC_ARGS[@]}" > /tmp/specialist.log 2>&1 &
+SPEC_PID=$!
+
+for i in $(seq 1 180); do
+  if ! kill -0 "$SPEC_PID" 2>/dev/null; then
+    echo "SPECIALIST_EXITED_EARLY"
+    tail -n 60 /tmp/specialist.log || true
+    exit 1
+  fi
+  if curl -sf -H "Authorization: Bearer $KEY" "http://127.0.0.1:${SPEC_PORT}/v1/models" >/dev/null 2>&1; then
+    echo "specialist_q8_ready after $((i*3))s"
+    break
+  fi
+  sleep 3
+done
+
+rocm-smi --showmeminfo vram || true
+
+launch_flagship() {
+  local par="$1"
+  local args=(
+    --model "$FLAG_MODEL_PATH"
+    --alias "agent-flagship"
+    --host 0.0.0.0
+    --port "$FLAG_PORT"
+    --n-gpu-layers 999
+    --ctx-size "$((CTX_SIZE * par))"
+    --parallel "$par"
+    --threads "$THREADS"
+    --flash-attn on
+    --batch-size "$BATCH_SIZE"
+    --ubatch-size "$UBATCH_SIZE"
+    --cache-prompt
+    --cache-type-k "$FLAG_CACHE_TYPE_K"
+    --cache-type-v "$FLAG_CACHE_TYPE_V"
+    --jinja
+    --temp 1.0
+    --top-p 0.95
+    --metrics
+  )
+  [[ -f "$FLAG_MMPROJ_PATH" ]] && args+=(--mmproj "$FLAG_MMPROJ_PATH")
+  grep -q -- "--reasoning" <<<"$LLAMA_HELP" && args+=(--reasoning on --reasoning-effort medium)
+  echo "launching_flagship_q8_on_port=$FLAG_PORT model=$FLAG_MODEL_PATH ctx=$((CTX_SIZE * par)) parallel=$par"
+  "$LLAMA_BIN" "${args[@]}" >> /tmp/flagship.log 2>&1
+}
+
+ACTIVE_FLAG_PAR="$FLAG_PARALLEL"
+(
+  while true; do
+    if ! launch_flagship "$ACTIVE_FLAG_PAR"; then
+      echo "flagship_exited parallel=$ACTIVE_FLAG_PAR"
+      if [[ "$ACTIVE_FLAG_PAR" -gt 1 ]]; then
+        echo "falling back to flagship parallel=1 (1048576 total ctx)"
+        ACTIVE_FLAG_PAR=1
+      fi
+    fi
+    sleep 5
+  done
+) &
+FLAG_SUP_PID=$!
 
 RC=0
-wait "$VLLM_PID" || RC=$?
-echo "vllm_exited rc=$RC"
-kill "$LLAMA_PID" 2>/dev/null || true
+wait "$SPEC_PID" || RC=$?
+echo "specialist_exited rc=$RC"
+kill "$FLAG_SUP_PID" 2>/dev/null || true
 pkill -f "[l]lama-server" 2>/dev/null || true
 exit "$RC"
