@@ -115,17 +115,23 @@ foreach ($pkg in $packageDirs) {
 foreach ($server in @($mcps.mcpServers)) {
     $ownerId = [string]$server.owner.id
     $ownerType = [string]$server.owner.type
-    Report "registered MCP '$($server.id)' is owned by a capability package" `
-        ($ownerType -ceq 'capability' -and $ownerId -and $ownerId -in $packageNames) `
+    Report "registered MCP '$($server.id)' declares a capability owner" `
+        ($ownerType -ceq 'capability' -and -not [string]::IsNullOrWhiteSpace($ownerId)) `
         "owner.type='$ownerType' owner.id='$ownerId'."
-    if ($ownerType -ceq 'capability' -and $ownerId) {
-        # The owner must be the package that actually ships it. Checking only that
-        # the name exists somewhere would pass a row owned by the wrong package.
-        $shippedBy = if ($shippedServers.ContainsKey([string]$server.id)) { $shippedServers[[string]$server.id] } else { $null }
-        Report "capability package '$ownerId' ships MCP server '$($server.id)' in its mcp.json" `
-            ($shippedBy -ceq $ownerId) `
-            "Declared owner '$ownerId'; shipped by '$(if ($shippedBy) { $shippedBy } else { 'nobody' })'."
+    if ($ownerType -cne 'capability' -or [string]::IsNullOrWhiteSpace($ownerId)) { continue }
+    if ($ownerId -notin $packageNames) {
+        # A row owned by a private-overlay package (linkedin). The overlay is a
+        # separate repository and absent in CI, so this is reported, not failed:
+        # the public tree cannot be the gate for a package it cannot see.
+        Write-Host "NOTE: MCP '$($server.id)' is owned by overlay package '$ownerId', which is not present in this checkout. Its mcp.json is verified in the overlay."
+        continue
     }
+    # The owner must be the package that actually ships it. Checking only that the
+    # name exists somewhere would pass a row owned by the wrong package.
+    $shippedBy = if ($shippedServers.ContainsKey([string]$server.id)) { $shippedServers[[string]$server.id] } else { $null }
+    Report "capability package '$ownerId' ships MCP server '$($server.id)' in its mcp.json" `
+        ($shippedBy -ceq $ownerId) `
+        "Declared owner '$ownerId'; shipped by '$(if ($shippedBy) { $shippedBy } else { 'nobody' })'."
 }
 
 # A package must not ship a server no row describes: that is the registry and the
