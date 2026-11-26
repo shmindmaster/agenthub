@@ -49,10 +49,9 @@ function Get-AgentHubOverlayRootForWarp([string]$RepoRoot) {
 $packages = @(
     'packages/product', 'packages/media-studio', 'packages/assemblyai',
     
-    'packages/browser', 'packages/coding-agent-dispatch', 'packages/funding'
+    'packages/coding-agent-dispatch', 'packages/funding'
 )
 # OpenCode and Kilo request research explicitly through the plugin planner.
-if ($PluginId -eq 'research') { $packages += 'packages/research' }
 # Private packages: prefer checkout overlays/personal, else sibling agenthub-private clone.
 $overlayRoot = Get-AgentHubOverlayRootForWarp $Root
 foreach ($privatePkg in @('sarosh', 'docwise')) {

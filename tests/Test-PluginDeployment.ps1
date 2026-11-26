@@ -4,14 +4,14 @@ $root = Split-Path -Parent $PSScriptRoot
 $testRoot = [IO.Directory]::CreateTempSubdirectory('agenthub-plugin-audit-')
 try {
     $cli = Join-Path $root 'scripts/AgentHub.ps1'
-    $output = & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId amp -PluginId ah-browser -Json
+    $output = & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId amp -PluginId ah-funding -Json
     if ($LASTEXITCODE) { throw "Plugin audit failed: $output" }
     $report = $output | ConvertFrom-Json
     if ($report.mode -ne 'audit' -or @($report.mappings).Count -ne 1) { throw 'Expected one audit row' }
     $row = $report.mappings[0]
-    if ($row.host -ne 'amp' -or $row.plugin -ne 'ah-browser' -or $row.status -ne 'missing' -or -not $row.expected) { throw 'Incorrect filtered row' }
+    if ($row.host -ne 'amp' -or $row.plugin -ne 'ah-funding' -or $row.status -ne 'missing' -or -not $row.expected) { throw 'Incorrect filtered row' }
     if (@(Get-ChildItem $testRoot.FullName -Force).Count) { throw 'Read-only audit created files' }
-    & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId amp -PluginId ah-browser -Apply *> $null
+    & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId amp -PluginId ah-funding -Apply *> $null
     if ($LASTEXITCODE -eq 0 -or @(Get-ChildItem $testRoot.FullName -Force).Count) { throw 'Apply accepted an unpublished checkout or alternate profile' }
     & pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $testRoot.FullName -HostId invalid-host -Json *> $null
     if ($LASTEXITCODE -eq 0) { throw 'Unknown host filter reported success' }
@@ -77,7 +77,7 @@ try {
         Invoke-Expression $node.Extent.Text
     }
     [IO.File]::WriteAllText((Join-Path $installed 'plugin.json'), '{"name":"foreign","version":"1.0.0"}')
-    if ((Get-ManifestObservation $installed 'plugin.json' 'ah-browser').status -ne 'unmanaged') { throw 'Foreign manifest was treated as managed' }
+    if ((Get-ManifestObservation $installed 'plugin.json' 'ah-funding').status -ne 'unmanaged') { throw 'Foreign manifest was treated as managed' }
     function Get-AgentHubDefaultLocalData { return $testRoot.FullName }
     $backupRoot = Join-Path $testRoot.FullName 'AgentHub/runtime/plugin-deployment'
     [void][IO.Directory]::CreateDirectory($backupRoot)
@@ -85,11 +85,11 @@ try {
     Copy-Item -LiteralPath $source -Destination $backup -Recurse
     Remove-Item Function:Get-AgentHubGitTrackedRelativeFiles
     $digest = Get-PluginSnapshotHash $backup
-    @{ originalSource=$source; plugin='ah-browser'; version='1.0.0'; contentHash=$digest } |
+    @{ originalSource=$source; plugin='ah-funding'; version='1.0.0'; contentHash=$digest } |
         ConvertTo-Json | Set-Content -LiteralPath "$backup.json"
-    if (-not (Test-PluginRollbackSource $backup $source 'ah-browser' '1.0.0')) { throw 'Intact rollback source lost ownership' }
+    if (-not (Test-PluginRollbackSource $backup $source 'ah-funding' '1.0.0')) { throw 'Intact rollback source lost ownership' }
     [IO.File]::WriteAllText((Join-Path $backup 'scripts/example.ps1'), 'Write-Output 999')
-    if (Test-PluginRollbackSource $backup $source 'ah-browser' '1.0.0') { throw 'Modified rollback source retained ownership' }
+    if (Test-PluginRollbackSource $backup $source 'ah-funding' '1.0.0') { throw 'Modified rollback source retained ownership' }
 
     # --- Host-local skill projections: Kilo audits its dispatch link, but
     # retired MiMo Code stays out of the plan even with old files on disk.
@@ -117,7 +117,7 @@ try {
     if ($kiloStatus -ne 'current') { throw "linked Kilo dispatch skill should audit current, got $kiloStatus" }
     if (@($dispatchReport.mappings | Where-Object host -EQ 'mimo-code').Count) { throw 'Retired MiMo Code must not be audited even with an old managed link' }
     Remove-Item -LiteralPath (Join-Path $skillHome '.kilocode/skills/dispatch') -Force
-    New-TestLink (Join-Path $skillHome '.kilocode/skills/dispatch') (Join-Path $root 'packages/browser/skills/automate')
+    New-TestLink (Join-Path $skillHome '.kilocode/skills/dispatch') (Join-Path $root 'packages/funding/skills/scout')
     Remove-Item -LiteralPath (Join-Path $skillHome '.mimocode/skills/dispatch') -Force
     [void][IO.Directory]::CreateDirectory((Join-Path $skillHome '.mimocode/skills/dispatch'))
     $dispatchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $skillHome -PluginId coding-agent-dispatch -Json | ConvertFrom-Json)
@@ -127,13 +127,13 @@ try {
 
     foreach ($hostFolder in '.kilocode', '.config/opencode') {
         $researchHome = Join-Path $skillHome $hostFolder
-        $install = & pwsh -NoProfile -File (Join-Path $root 'scripts/Install-WarpSkills.ps1') -Root $root -WarpHome $researchHome -PluginId research
-        if ($LASTEXITCODE) { throw "Research skill installation failed for $hostFolder`: $install" }
+        $install = & pwsh -NoProfile -File (Join-Path $root 'scripts/Install-WarpSkills.ps1') -Root $root -WarpHome $researchHome -PluginId funding
+        if ($LASTEXITCODE) { throw "Funding skill installation failed for $hostFolder`: $install" }
     }
-    $researchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $skillHome -PluginId research -Json | ConvertFrom-Json)
+    $researchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $skillHome -PluginId funding -Json | ConvertFrom-Json)
     foreach ($researchHost in 'kilo', 'opencode') {
         $researchRow = @($researchReport.mappings | Where-Object host -EQ $researchHost)
-        if ([string]$researchRow.status -ne 'current') { throw "Research skill install did not audit current on $researchHost" }
+        if ([string]$researchRow.status -ne 'current') { throw "Funding skill install did not audit current on $researchHost" }
     }
 
     # --- Surface routing: cursor and cursor-agent observe Claude's install,

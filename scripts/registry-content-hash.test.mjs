@@ -85,8 +85,8 @@ test('a file outside the text list is hashed as raw bytes, so line endings move 
   assert.notEqual(contentHashForPath(packageDir), lf, '.bin is not in the text list; the hash must move');
 });
 
-test('systemd units (.service, .timer) normalize line endings like the PowerShell list', () => {
-  for (const name of ['unit.service', 'unit.timer']) {
+test('JSONC and systemd units normalize line endings like the PowerShell list', () => {
+  for (const name of ['settings.jsonc', 'unit.service', 'unit.timer']) {
     const { packageDir } = newFixtureRepo({ files: { [name]: '[Unit]\nDescription=x\n' } });
     const lf = contentHashForPath(packageDir);
     writeFile(packageDir, name, '[Unit]\r\nDescription=x\r\n');

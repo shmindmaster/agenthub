@@ -20,7 +20,7 @@
 
 Evidence files (browser and desktop) go to `%LOCALAPPDATA%\AgentHub\evidence\<task-slug>\`. Never commit them.
 
-Plugin package: `ah-browser` (`packages/browser`; browser-toolkit was retired 2026-10-30). Codex, Cursor and Claude use their
+Plugin package: none. `ah-browser` was removed 2026-11-26 (browser-toolkit was retired 2026-10-30); use the official Chrome DevTools or Playwright plugin, or each host's own browser surface. Codex, Cursor and Claude use their
 native browser pane. Hosts without one use Playwright. Chrome DevTools MCP
 is retired; do not install or register it.
 
@@ -36,7 +36,7 @@ is retired; do not install or register it.
 
 ## MCP config (plugin only, never host `mcpServers`)
 
-The browser-toolkit `.mcp.json` was retired with its package on 2026-10-30. `ah-browser` (`packages/browser`) ships skills only, so this repo ships no Playwright MCP config; add one as a plugin and verify it before relying on it. Do not write these into host MCP config.
+The browser-toolkit `.mcp.json` was retired with its package on 2026-10-30. This repo ships no browser plugin and no Playwright MCP config at all; install the official plugin in the host and verify it before relying on it. Do not write these into host MCP config.
 
 ```json
 {

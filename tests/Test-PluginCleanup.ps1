@@ -13,12 +13,12 @@ try {
     foreach ($v in '1.0.0','1.1.0','1.2.0','2.0.0','9.0.0') {
         $dir = Join-Path $base $v
         [void][IO.Directory]::CreateDirectory($dir)
-        $name = if ($v -eq '1.1.0') { 'third-party' } else { 'ah-browser' }
+        $name = if ($v -eq '1.1.0') { 'third-party' } else { 'ah-funding' }
         [IO.File]::WriteAllText((Join-Path $dir 'plugin.json'), (@{name=$name;version=$v} | ConvertTo-Json))
     }
     $active = Join-Path $base '2.0.0'
     $retained = Join-Path $base '1.2.0'
-    $plan = @(Get-AgentHubOldPluginVersions -HostId codex -Plugin ah-browser -Root $base -ActivePath $active -Version '2.0.0' -RegisteredPaths @((Join-Path $retained 'project')))
+    $plan = @(Get-AgentHubOldPluginVersions -HostId codex -Plugin ah-funding -Root $base -ActivePath $active -Version '2.0.0' -RegisteredPaths @((Join-Path $retained 'project')))
     if (@($plan | Where-Object status -eq pending).target -ne (Join-Path $base '1.0.0') -or
         @($plan | Where-Object status -eq unmanaged).target -ne (Join-Path $base '1.1.0') -or $plan.Count -ne 2) {
         throw 'Cache plan did not preserve foreign, active, scoped and newer versions.'
@@ -34,26 +34,26 @@ try {
 
     $scopeAlias = Join-Path $fixture 'scope-alias'
     New-Item -ItemType $kind -Path $scopeAlias -Target $base | Out-Null
-    $referenced = @(Get-AgentHubOldPluginVersions -HostId claude -Plugin ah-browser -Root $base -ActivePath $active -Version '2.0.0' -RegisteredPaths @(
+    $referenced = @(Get-AgentHubOldPluginVersions -HostId claude -Plugin ah-funding -Root $base -ActivePath $active -Version '2.0.0' -RegisteredPaths @(
         (Join-Path $scopeAlias '1.0.0/project'), $retained
     ))
     if ($referenced.status -contains 'pending') { throw 'A project registration through a link did not protect its physical cache.' }
     [IO.Directory]::Delete($scopeAlias, $false)
 
-    $direct = @{name='ah-research';source=@{source='github';repo='shmindmaster/agenthub';path='packages/research'}}
+    $direct = @{name='ah-media-studio';source=@{source='github';repo='shmindmaster/agenthub';path='packages/media-studio'}}
     if ($IsWindows) {
         $cfg = Join-Path $fixture 'config.json'
-        $fork = @{name='ah-research';source=@{source='github';repo='someone/agenthub';path='packages/research'}}
+        $fork = @{name='ah-media-studio';source=@{source='github';repo='someone/agenthub';path='packages/media-studio'}}
         $raw = (@{installedPlugins=@($direct,$fork);theme='test'} | ConvertTo-Json -Depth 7)
         [IO.File]::WriteAllText($cfg,$raw)
         $acl = Get-Acl -LiteralPath $cfg
         $acl.SetAccessRuleProtection($true, $true)
         Set-Acl -LiteralPath $cfg -AclObject $acl
         $originalAcl = (Get-Acl -LiteralPath $cfg).Sddl
-        try { Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $false }; throw 'Expected rollback.' }
+        try { Remove-AgentHubCopilotDirectRegistration $cfg ah-media-studio 'packages/media-studio' { $false }; throw 'Expected rollback.' }
         catch { if ($_.Exception.Message -notmatch 'did not verify') { throw } }
         if ([IO.File]::ReadAllText($cfg) -cne $raw) { throw 'Copilot did not roll back failed readback.' }
-        Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $true }
+        Remove-AgentHubCopilotDirectRegistration $cfg ah-media-studio 'packages/media-studio' { $true }
         $result = Get-Content -LiteralPath $cfg -Raw -Encoding UTF8 | ConvertFrom-Json
         if ((Get-Acl -LiteralPath $cfg).Sddl -ne $originalAcl) { throw 'Copilot configuration ACL changed.' }
         if ($result.theme -ne 'test' -or @($result.installedPlugins).Count -ne 1 -or $result.installedPlugins[0].source.repo -ne 'someone/agenthub') {
@@ -79,7 +79,7 @@ try {
     function Get-ListedPlugin { return $script:copilotCatalog }
     function Get-PluginClientList($Command) {
         if ($Command -eq 'copilot') {
-            return $script:copilotCatalog, [pscustomobject]@{name='ah-research'; source='installed'}
+            return $script:copilotCatalog, [pscustomobject]@{name='ah-media-studio'; source='installed'}
         }
         @(
             @{pluginId='ah-media-studio@agenthub'; name='ah-media-studio'; enabled=$script:canonicalEnabled},
@@ -109,10 +109,10 @@ try {
     if ($script:calls -ne 1 -or $apply.status -notcontains 'removed' -or $apply.status -notcontains 'unmanaged') {
         throw 'Apply did not remove only the known retired registration once.'
     }
-    $codexCache = Join-Path $fixture '.codex/plugins/cache/agenthub/ah-browser'
+    $codexCache = Join-Path $fixture '.codex/plugins/cache/agenthub/ah-funding'
     [void][IO.Directory]::CreateDirectory((Split-Path -Parent $codexCache))
     [IO.Directory]::Move($base, $codexCache)
-    $row = [pscustomobject]@{host='codex';plugin='ah-browser';marketplace='agenthub';expected='2.0.0';status='current';previousPath=(Join-Path $codexCache '2.0.0')}
+    $row = [pscustomobject]@{host='codex';plugin='ah-funding';marketplace='agenthub';expected='2.0.0';status='current';previousPath=(Join-Path $codexCache '2.0.0')}
     $script:busy = $true
     if ((Get-PluginCleanupPlan @($row) -Execute).status -notcontains 'deferred' -or $script:calls -ne 1) {
         throw 'An open host did not defer old cache cleanup.'
@@ -120,8 +120,8 @@ try {
     $script:busy = $false
 
     $copilotDir = Join-Path $fixture '.copilot'
-    $copilotRow = [pscustomobject]@{host='copilot';plugin='ah-research';marketplace='agenthub';expected='2.0.0';status='current';relative='packages/research'}
-    $script:copilotCatalog = [pscustomobject]@{name='ah-research';marketplace='agenthub';source='live';installedFrom=$outside}
+    $copilotRow = [pscustomobject]@{host='copilot';plugin='ah-media-studio';marketplace='agenthub';expected='2.0.0';status='current';relative='packages/media-studio'}
+    $script:copilotCatalog = [pscustomobject]@{name='ah-media-studio';marketplace='agenthub';source='live';installedFrom=$outside}
     $managedConfig = @{'installedPlugins'=@($direct)} | ConvertTo-Json -Depth 6
     [IO.File]::WriteAllText((Join-Path $outside 'config.json'), $managedConfig)
     New-Item -ItemType $kind -Path $copilotDir -Target $outside | Out-Null
@@ -162,7 +162,7 @@ try {
             [IO.File]::Move($Destination, $Backup)
             throw 'Simulated partial ReplaceFile failure.'
         }
-        try { Remove-AgentHubCopilotDirectRegistration $cfg ah-research 'packages/research' { $true }; throw 'Expected a partial failure.' }
+        try { Remove-AgentHubCopilotDirectRegistration $cfg ah-media-studio 'packages/media-studio' { $true }; throw 'Expected a partial failure.' }
         catch { if ($_.Exception.Message -ne 'Simulated partial ReplaceFile failure.') { throw } }
         if ([IO.File]::ReadAllText($cfg) -cne $raw -or (Get-Acl -LiteralPath $cfg).Sddl -ne $originalAcl) {
             throw 'Partial replacement did not restore the original configuration and ACL.'

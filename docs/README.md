@@ -1,6 +1,6 @@
 # Documentation Map
 
-See the [browser setup and acceptance runbook](runbooks/browser-fleet.md) for native browser tools, user collaboration, recording and remote MCP setup.
+Browser and research capability is now owned by the official plugins and connectors: Playwright, Chrome DevTools, Tavily, Exa, Parallel, Context7, DeepWiki and Serena. AgentHub ships neither (removed 2026-11-26).
 
 Start with [development/quickstart.md](./development/quickstart.md) for a
 stranger-safe first run. For this private fleet checkout, also use
@@ -41,7 +41,6 @@ stranger-safe first run. For this private fleet checkout, also use
 
 ## Operations
 
-- [Research workflows and verification](runbooks/research.md) — Exa, Parallel and Tavily routing, native acceptance and scope.
 
 - [runbooks/desktop-integrations.md](./runbooks/desktop-integrations.md) — Windows inventory and app-owned connector verification for AutoClaw, Grok Bot, and Manus Studio.
 - [runbooks/zcode.md](./runbooks/zcode.md) — Standalone ZCode inventory, native marketplace deployment, MCP, and browser setup.

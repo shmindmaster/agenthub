@@ -416,6 +416,48 @@
       "supersededBy": "openwiki (SH-4410)",
       "reason": "Owner decision 2026-11-13 (SH-4409/SH-4670): RepoWise is retired on every host. Local, host-driven OpenWiki replaces it; ordinary source search remains.",
       "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "automate",
+      "retiredOn": "2026-11-26",
+      "supersededBy": "Playwright (official Microsoft plugin) and Chrome DevTools (official), plus each host's own browser surface",
+      "reason": "Owner direction 2026-11-26: AgentHub carries no browser-automation skill where an official plugin exists. The skill only wrapped agent-browser with fleet defaults, and the repo had already retired the chrome-devtools and playwright MCP ids on the same reasoning.",
+      "evidence": "Playwright and Chrome DevTools are both official plugins on the owner's Codex/Claude list. The wrapper's only unique content was its defaults, which packages/media-studio/scripts/capture-browse.mjs now keeps for the screen-capture path media-studio depends on."
+    },
+    {
+      "name": "research-code",
+      "retiredOn": "2026-11-26",
+      "supersededBy": "Tavily, Exa, Parallel, Context7, DeepWiki and Serena (official plugins/connectors), OpenAI Deep Research and Claude Research",
+      "reason": "Owner direction 2026-11-26: every provider these workflows orchestrated is available as a vendor plugin, connector or hosted MCP. The package itself already refused to bundle MCPs because 'provider connections belong to the vendor or native host', so it added doctrine on top of capabilities the hosts already provide.",
+      "evidence": "The owner's official plugin list names Tavily, Exa, Parallel, Context7, DeepWiki, Serena, OpenAI Deep Research and Claude Research; the package's own validate-research.ps1 forbade it from shipping an MCP server."
+    },
+    {
+      "name": "research-docs",
+      "retiredOn": "2026-11-26",
+      "supersededBy": "Tavily, Exa, Parallel, Context7, DeepWiki and Serena (official plugins/connectors), OpenAI Deep Research and Claude Research",
+      "reason": "Owner direction 2026-11-26: every provider these workflows orchestrated is available as a vendor plugin, connector or hosted MCP. The package itself already refused to bundle MCPs because 'provider connections belong to the vendor or native host', so it added doctrine on top of capabilities the hosts already provide.",
+      "evidence": "The owner's official plugin list names Tavily, Exa, Parallel, Context7, DeepWiki, Serena, OpenAI Deep Research and Claude Research; the package's own validate-research.ps1 forbade it from shipping an MCP server."
+    },
+    {
+      "name": "research-deep",
+      "retiredOn": "2026-11-26",
+      "supersededBy": "Tavily, Exa, Parallel, Context7, DeepWiki and Serena (official plugins/connectors), OpenAI Deep Research and Claude Research",
+      "reason": "Owner direction 2026-11-26: every provider these workflows orchestrated is available as a vendor plugin, connector or hosted MCP. The package itself already refused to bundle MCPs because 'provider connections belong to the vendor or native host', so it added doctrine on top of capabilities the hosts already provide.",
+      "evidence": "The owner's official plugin list names Tavily, Exa, Parallel, Context7, DeepWiki, Serena, OpenAI Deep Research and Claude Research; the package's own validate-research.ps1 forbade it from shipping an MCP server."
+    },
+    {
+      "name": "research-entities",
+      "retiredOn": "2026-11-26",
+      "supersededBy": "Tavily, Exa, Parallel, Context7, DeepWiki and Serena (official plugins/connectors), OpenAI Deep Research and Claude Research",
+      "reason": "Owner direction 2026-11-26: every provider these workflows orchestrated is available as a vendor plugin, connector or hosted MCP. The package itself already refused to bundle MCPs because 'provider connections belong to the vendor or native host', so it added doctrine on top of capabilities the hosts already provide.",
+      "evidence": "The owner's official plugin list names Tavily, Exa, Parallel, Context7, DeepWiki, Serena, OpenAI Deep Research and Claude Research; the package's own validate-research.ps1 forbade it from shipping an MCP server."
+    },
+    {
+      "name": "research-monitor",
+      "retiredOn": "2026-11-26",
+      "supersededBy": "Tavily, Exa, Parallel, Context7, DeepWiki and Serena (official plugins/connectors), OpenAI Deep Research and Claude Research",
+      "reason": "Owner direction 2026-11-26: every provider these workflows orchestrated is available as a vendor plugin, connector or hosted MCP. The package itself already refused to bundle MCPs because 'provider connections belong to the vendor or native host', so it added doctrine on top of capabilities the hosts already provide.",
+      "evidence": "The owner's official plugin list names Tavily, Exa, Parallel, Context7, DeepWiki, Serena, OpenAI Deep Research and Claude Research; the package's own validate-research.ps1 forbade it from shipping an MCP server."
     }
   ],
   "surfaceAliases": [
@@ -701,7 +743,7 @@
         "produce",
         "finish"
       ],
-      "contentHash": "C8D1A3F2BFB2080B07F0265CF75E68A1430FD4CCF948422399CFFFC14B1EDD22",
+      "contentHash": "DA0BB6026E145AACB8665CACF7F7152A28CB7C2EA637796D204433084F1EAFB1",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -837,7 +879,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "3DA3416BCEC7319789DDB6EC7624045297F3280220A5D8CF6C58087B6AD2C343",
+      "contentHash": "9D544AF3BBAF1E478DD6F230D001A5A589218DF3B94858D1EBF70FFC042AE33A",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1094,122 +1136,6 @@
       "provenance": "agenthub-owned"
     },
     {
-      "id": "browser",
-      "owner": "packages/browser",
-      "capabilityType": "plugin+skills",
-      "canonicalSource": "packages/browser",
-      "managedSkillNames": [
-        "automate"
-      ],
-      "contentHash": "A3783E673D1F6DB994FE187A23CD3A04538CEAB46738E3099BCAED5B74A7FE2E",
-      "hashBasis": "packages/browser",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "codex",
-          "deploymentStatus": "native-plugin-installed",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "native-plugin-installed",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "native-extension-junction",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "claude",
-          "deploymentStatus": "native-plugin-installed",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "native-plugin-installed",
-          "nativeOwnerHost": "claude",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ]
-        }
-      ],
-      "dependencies": {
-        "requires": [],
-        "recommends": [],
-        "optional": []
-      },
-      "notes": "One skill routes tasks to a native browser that can reach the intended profile, Tencent BrowserSkill for a connected local Chrome or Edge profile, or the bundled agent-browser wrapper for isolated testing and capture. BrowserSkill uses a separately installed bsk CLI and user-enabled extension, with explicit browser and session selection. No MCP server or hooks.",
-      "kind": "tool",
-      "maturity": "beta",
-      "provenance": "agenthub-owned",
-      "hostMappingsNote": "Deploy the same routing skill on local agent hosts, including those with native browser tools. OpenCode and Warp consume the skill through scripts/Install-WarpSkills.ps1. BrowserSkill requires access to the desktop user's local daemon and selected browser profile."
-    },
-    {
       "id": "funding",
       "owner": "packages/funding",
       "capabilityType": "plugin+skills",
@@ -1335,128 +1261,6 @@
       "kind": "workflow",
       "maturity": "beta",
       "provenance": "agenthub-owned"
-    },
-    {
-      "id": "research",
-      "owner": "packages/research",
-      "capabilityType": "plugin+skills",
-      "canonicalSource": "packages/research",
-      "managedSkillNames": [
-        "research-code",
-        "research-docs",
-        "research-deep",
-        "research-entities",
-        "research-monitor"
-      ],
-      "contentHash": "45FD98E9864BC3FE485B853173D4664603C2ABDC9B2FF777CCE32F365FEFED11",
-      "hashBasis": "packages/research",
-      "status": "active-canonical",
-      "kind": "workflow",
-      "maturity": "beta",
-      "provenance": "agenthub-owned",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "native-plugin-installed",
-          "nativeOwnerHost": "claude",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "cursor-agent",
-          "deploymentStatus": "native-plugin-installed",
-          "nativeOwnerHost": "claude",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "native-extension-junction",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "native-local-plugin",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "kilo",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "zcode",
-          "deploymentStatus": "native-plugin-installed",
-          "components": [
-            "skills"
-          ]
-        }
-      ],
-      "notes": "Five task-scoped research workflows route to native Exa, Parallel and Tavily tools. Vendor plugins and native remote connections own provider access independently. The mappings describe installation routes."
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",
