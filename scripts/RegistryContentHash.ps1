@@ -5,11 +5,14 @@ function Get-AgentHubStableFileHash {
 
     $textExtensions = @(
         '.cjs', '.cmd', '.css', '.cts', '.csv', '.editorconfig', '.eslintrc',
-        '.example', '.gitattributes', '.gitignore', '.html', '.js', '.json', '.map',
+        '.example', '.gitattributes', '.gitignore', '.html', '.js', '.json', '.jsonc', '.map',
         '.markdown', '.md', '.mdc', '.mjs', '.mts', '.npmignore', '.nycrc',
         '.ps1', '.psm1', '.py', '.service', '.sh', '.svg', '.timer', '.toml', '.ts', '.tsx', '.txt',
         '.xml', '.yaml', '.yml'
     )
+    # .jsonc is text: Kilo's global settings file is committed with that extension.
+    # Without it the file was hashed as raw bytes, so identical content produced a
+    # different contentHash on a CRLF worktree than on the LF checkout CI uses.
     # License files have no extension, and git checks them out with CRLF on Windows.
     $textNames = @('LICENSE', 'NOTICE', 'COPYING')
     $extension = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
