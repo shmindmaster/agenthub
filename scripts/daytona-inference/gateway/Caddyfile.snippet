@@ -3,7 +3,7 @@
 # /v1/models, etc.) and liveliness probes from anywhere (gated by LiteLLM Bearer auth),
 # proxy /v1/media/* to Slot 2 media gateway (:8189) when the request carries the
 # AGENTHUB_INFERENCE_KEY Bearer token (the owner IP alone is not enough), and restrict admin/UI/DB management endpoints
-# to the owner IP.
+# to the owner IP. Also expose ComfyUI Web UI on comfy.shtrial.com behind Studio forward_auth.
 #
 # Replace <OWNER_IP>, <AGENTHUB_INFERENCE_KEY>, <MEDIA_PREVIEW_URL>,
 # <MEDIA_PREVIEW_TOKEN>, and <MEDIA_GATEWAY_TOKEN> before writing /opt/forge/caddy/Caddyfile.
@@ -40,4 +40,17 @@ inference.shtrial.com {
   }
 
   respond "forbidden" 403
+}
+
+comfy.shtrial.com {
+  forward_auth 127.0.0.1:3000 {
+    uri /api/v1/auths/
+  }
+  rewrite * /comfy{uri}
+  reverse_proxy <MEDIA_PREVIEW_URL> {
+    header_up Host {upstream_hostport}
+    header_up x-daytona-preview-token <MEDIA_PREVIEW_TOKEN>
+    header_up Authorization "Bearer <MEDIA_GATEWAY_TOKEN>"
+    flush_interval -1
+  }
 }

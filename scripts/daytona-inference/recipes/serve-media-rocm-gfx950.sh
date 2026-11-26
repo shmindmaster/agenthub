@@ -4,9 +4,10 @@
 # model list lives in one place. Weights land on local disk first; a copy goes to the Daytona volume in the
 # background. The volume is an S3 mount: it cannot rename or rewrite a file, so nothing downloads onto it.
 #
-# Two virtualenvs, both on top of the image's own torch (never reinstalled):
-#   $GG/venv       ComfyUI, gateway, SOV-Transcribe, LFM3-Omni, Whisper   (transformers 5.19 to 5.22)
-#   $GG/venv-qwen  Qwen3-TTS: qwen-tts 0.1.1 pins transformers 4.57.3, which the others cannot use
+# Virtualenvs on top of the image's own torch (never reinstalled):
+#   $GG/venv         ComfyUI, gateway, SOV-Transcribe, LFM3-Omni, Whisper   (transformers 5.19 to 5.22)
+#   $GG/venv-qwen    Qwen3-TTS: qwen-tts 0.1.1 pins transformers 4.57.3, which the others cannot use
+#   $GG/venv-voxcpm  VoxCPM2: voxcpm 2.0.3 (48 kHz Voice Design & cloning)
 # Knobs: MEDIA_PROFILE=all|commercial|research (what to download), COMFY_MODE (default --highvram).
 set -euo pipefail
 
@@ -15,6 +16,7 @@ PORT="${PORT:-8189}"
 GG="/opt/gpu-gen"
 PY="$GG/venv/bin/python"
 QPY="$GG/venv-qwen/bin/python"
+VPY="$GG/venv-voxcpm/bin/python"
 LOG_FILE="/tmp/media.log"
 COMFY_TAG="v0.46.0"
 
@@ -106,7 +108,7 @@ ensure_torchvision() {
 # paths, so they go back to the same $GG). The name carries a hash of the image's Python and torch, the ComfyUI tag,
 # the backend and VENV_REV: bump VENV_REV whenever a pip line below changes. Plain tar, written once and sequentially
 # (the S3 mount cannot rename or rewrite); a half-written file fails the import check and is rebuilt instead.
-VENV_REV="2026-11-25a"
+VENV_REV="2026-11-25b"
 VENV_KEY="$(printf '%s|%s|%s|%s' "$VENV_REV" "$("$SYS_PY" -c 'import sys, torch; print(sys.version_info[:2], torch.__version__)')" "$COMFY_TAG" "$GG_BACKEND" | sha1sum | cut -c1-12)"
 VENV_TAR="$WEIGHTS_ROOT/bin/media-venv-$VENV_KEY.tar"
 VENV_BUILT=0
@@ -115,11 +117,12 @@ if [[ ! -f "$GG/venv/.deps-ok" && -f "$VENV_TAR" ]]; then
   if tar -xf "$VENV_TAR" -C "$GG" \
      && "$PY" -c "import aiohttp, huggingface_hub, hf_xet, transformers, soundfile, librosa, torchvision, accelerate" \
      && "$QPY" -c "import transformers, onnxruntime, sox, librosa, einops" \
-     && [[ -f "$GG/venv/.deps-ok" && -f "$GG/venv-qwen/.deps-ok" ]]; then
+     && "$VPY" -c "import voxcpm, transformers, einops, soundfile, librosa, safetensors" \
+     && [[ -f "$GG/venv/.deps-ok" && -f "$GG/venv-qwen/.deps-ok" && -f "$GG/venv-voxcpm/.deps-ok" ]]; then
     echo "venvs restored"
   else
     echo "venv cache unusable; rebuilding with pip"
-    rm -rf "$GG/venv" "$GG/venv-qwen"
+    rm -rf "$GG/venv" "$GG/venv-qwen" "$GG/venv-voxcpm"
   fi
 fi
 
@@ -154,10 +157,22 @@ if [[ ! -f "$GG/venv-qwen/.deps-ok" ]]; then
   touch "$GG/venv-qwen/.deps-ok"
 fi
 
+if [[ ! -f "$GG/venv-voxcpm/.deps-ok" ]]; then
+  VENV_BUILT=1
+  echo "bootstrapping Python venv -> $GG/venv-voxcpm (voxcpm2)"
+  make_venv "$GG/venv-voxcpm"
+  "$VPY" -m pip install --no-cache-dir --no-deps "voxcpm==2.0.3"
+  printf 'torch==%s\n' "$("$VPY" -c 'import torch; print(torch.__version__.split("+")[0])')" > /tmp/vpins.txt
+  "$VPY" -m pip install --no-cache-dir -c /tmp/vpins.txt \
+    "transformers>=4.48,<5.0" "huggingface_hub<1.0" einops inflect addict wetext argbind safetensors soundfile librosa tqdm pydantic numpy
+  "$VPY" -c "from voxcpm import VoxCPM; from voxcpm.model.voxcpm2 import VoxCPM2Model"
+  touch "$GG/venv-voxcpm/.deps-ok"
+fi
+
 if [[ "$VENV_BUILT" == 1 && ! -e "$VENV_TAR" ]]; then
   mkdir -p "$WEIGHTS_ROOT/bin"
   echo "saving venvs -> $VENV_TAR"
-  tar -cf "$VENV_TAR" --exclude='__pycache__' -C "$GG" venv venv-qwen \
+  tar -cf "$VENV_TAR" --exclude='__pycache__' -C "$GG" venv venv-qwen venv-voxcpm \
     && echo "venv cache saved ($(du -h "$VENV_TAR" | cut -f1))" \
     || { echo "venv cache write failed; the next boot runs pip again"; rm -f "$VENV_TAR" 2>/dev/null || true; }
 fi
