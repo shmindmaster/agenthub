@@ -1,6 +1,6 @@
 # Plugin deployment
 
-Every AgentHub plugin is named `ah-<package folder>` (for example `ah-product`, `ah-brave-search`, `ah-browser`) so the plugins group together in each host's list and are unmistakable when called (`ah-product:audit`). Hosts that show a display name show `AH-Product`, `AH-Brave-Search` and so on. The name is lowercase kebab-case because Grok, Antigravity, Cursor and Devin reject mixed case and Windows folders ignore case.
+Every AgentHub plugin is named `ah-<package folder>` (for example `ah-product`, `ah-media-studio`, `ah-funding`) so the plugins group together in each host's list and are unmistakable when called (`ah-product:audit`). Hosts that show a display name show `AH-Product`, `AH-Brave-Search` and so on. The name is lowercase kebab-case because Grok, Antigravity, Cursor and Devin reject mixed case and Windows folders ignore case.
 
 Keep the portable `plugin.json` within the [Agent Plugins manifest schema](https://agent-plugins.org/plugin-authors/manifest). Bundle square artwork under `assets/`. Use the supported icon fields in each host projection. Codex uses `interface.composerIcon` and `interface.logo`. Cursor, Antigravity and Devin use `logo` on their native manifests. Claude's `icon` is directory listing metadata. VS Code and Cline use their built-in presentation. The marketplace display labels and host projections must agree.
 
@@ -9,7 +9,7 @@ Plugins come from one marketplace, `agenthub` (`C:/Repos/shmindmaster/agenthub`)
 **Private knowledge-authority changes:** For resume, career, profile and opportunity work, the authoritative evidence root and source precedence belong to the private `ah-sarosh` overlay and its native workspace loader—not the public core repo or agent auto-memory. When the owner changes that source, update the private policy/skill once, regenerate the existing host-native projections, validate installed copies and start fresh sessions to verify loaded rules. Keep personal paths and career evidence out of this public runbook; a Git commit is not proof that a running Codex, Claude, OpenCode, Kilo, Kiro or Droid session consumed it.
 
 
-`ah-browser` gives local agents a shared routing skill. It can select the intended existing Chrome or Edge profile through a native tool or Tencent BrowserSkill and use agent-browser for isolated work. BrowserSkill needs a local `bsk` CLI and the user-enabled extension in each intended profile. See [browser routing and verification](../../packages/browser/skills/automate/references/hosts.md). `ah-mobile-development` is installed disabled or on demand, because the Appium server runs only for mobile work.
+`ah-browser` and its routing skill were removed 2026-11-26: Playwright and Chrome DevTools are official plugins, and each host uses its own browser surface. Media-studio keeps only the screen-capture wrapper it depends on (`packages/media-studio/scripts/capture-browse.mjs`). `ah-mobile-development` is installed disabled or on demand, because the Appium server runs only for mobile work.
 
 ## Native marketplace and hosted MCP ownership
 
@@ -128,7 +128,7 @@ Run a read-only plan with optional filters.
 
 ~~~powershell
 pwsh -NoProfile -File scripts/AgentHub.ps1 plugins -Json
-pwsh -NoProfile -File scripts/AgentHub.ps1 plugins -HostId cursor -PluginId ah-browser -Json
+pwsh -NoProfile -File scripts/AgentHub.ps1 plugins -HostId cursor -PluginId ah-funding -Json
 ~~~
 
 Add `-Apply` to repair managed drift. Apply requires the clean primary `main` checkout, matching published `origin/main`, successful CI on that exact commit, and registry validation. Alternate user profiles are audit-only. The planner distinguishes source/cache parity from session load. Native activation, account entitlement and provider acceptance remain separate checks.

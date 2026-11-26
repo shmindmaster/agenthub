@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Record a screen take through ah-browser and keep a timed action log, so validate-pointer-path.mjs can judge the
+// Record a screen take through the local capture runtime and keep a timed action log, so validate-pointer-path.mjs can judge the
 // cursor. Each command runs the real browser action and logs it on the clip clock (seconds since recording started).
 //
 //   node browser-take.mjs <jobRoot> <clipId> start <video.webm> [url]
@@ -11,8 +11,10 @@
 //   node browser-take.mjs <jobRoot> <clipId> stop
 //
 // `stop` writes capture/receipt.json clips[<clipId>] = { video, actions, actionClock: "clip", clipSeconds, segments }.
-// Times are taken when each browser command returns, so they are real, not planned. Browser: $AH_BROWSE (browse.mjs),
-// else the ah-browser package beside this one, else agent-browser on PATH.
+// Times are taken when each browser command returns, so they are real, not planned. Browser: $AH_BROWSE, else this
+// package's own capture-browse.mjs wrapper, else agent-browser on PATH. The wrapper is local since 2026-11-26: the
+// ah-browser package was removed because Playwright and Chrome DevTools are official plugins, and only the capture
+// path media-studio needs was kept.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
@@ -20,7 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export function browserCommand() {
-  const candidates = [process.env.AH_BROWSE, join(here, '..', '..', 'browser', 'skills', 'automate', 'scripts', 'browse.mjs')].filter(Boolean);
+  const candidates = [process.env.AH_BROWSE, join(here, 'capture-browse.mjs')].filter(Boolean);
   const browse = candidates.find((path) => existsSync(path));
   return browse ? { command: process.execPath, prefix: [browse] } : { command: 'agent-browser', prefix: [] };
 }
@@ -40,7 +42,7 @@ export function logAction(take, action, now) {
 }
 /** Pure: the receipt entry for a finished take. */
 export function receiptClip(take, now) {
-  return { video: take.video, actions: take.actions, actionClock: 'clip', clipSeconds: round((now - take.t0) / 1000), segments: [take.clipId], recordedWith: 'ah-browser record --cursor' };
+  return { video: take.video, actions: take.actions, actionClock: 'clip', clipSeconds: round((now - take.t0) / 1000), segments: [take.clipId], recordedWith: 'capture-browse.mjs record --cursor' };
 }
 
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

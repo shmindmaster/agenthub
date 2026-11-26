@@ -552,7 +552,7 @@ function Test-VersionedCacheScanIsProvenSound {
 
     $root = Join-Path ([IO.Path]::GetTempPath()) ("agenthub-cache-scan-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
     try {
-        $pluginDir = Join-Path $root 'ah-browser'
+        $pluginDir = Join-Path $root 'ah-funding'
         foreach ($version in @('1.9.0', '1.10.0', '2.0.0')) {
             $null = New-Item -ItemType Directory -Force -Path (Join-Path $pluginDir $version)
         }
@@ -580,7 +580,7 @@ function Test-VersionedCacheScanIsProvenSound {
 function Test-VersionCheckRejectsStaleCopy {
     $problems = [Collections.Generic.List[string]]::new()
     $stale = [pscustomobject]@{
-        Name             = 'ah-browser'
+        Name             = 'ah-funding'
         Host             = 'fixture'
         InstalledVersion = '0.0.1'
         InstallPath      = ''
@@ -589,7 +589,7 @@ function Test-VersionCheckRejectsStaleCopy {
     }
     $result = Test-InstalledVersionMatchesSource -Plugins @($stale)
     if ($result.Passed) {
-        $problems.Add('the version check accepted a fabricated 0.0.1 copy of ah-browser, so it cannot detect a stale host')
+        $problems.Add('the version check accepted a fabricated 0.0.1 copy of ah-funding, so it cannot detect a stale host')
     }
     if ($result.Detail -notmatch '0\.0\.1') {
         $problems.Add("the version check failed without naming the stale version: $($result.Detail)")

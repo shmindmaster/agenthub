@@ -65,21 +65,6 @@
       }
     },
     {
-      "name": "ah-browser",
-      "source": {
-        "source": "local",
-        "path": "./packages/browser"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-Browser"
-      }
-    },
-    {
       "name": "ah-coding-agent-dispatch",
       "source": {
         "source": "local",
@@ -107,21 +92,6 @@
       "category": "Productivity",
       "interface": {
         "displayName": "AH-Funding"
-      }
-    },
-    {
-      "name": "ah-research",
-      "source": {
-        "source": "local",
-        "path": "./packages/research"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools",
-      "interface": {
-        "displayName": "AH-Research"
       }
     }
   ]

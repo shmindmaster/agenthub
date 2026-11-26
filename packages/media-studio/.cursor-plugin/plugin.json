@@ -19,6 +19,6 @@
     "lottie"
   ],
   "skills": "./skills/",
-  "version": "4.6.2",
-  "logo": "assets/icon.svg"
+  "logo": "assets/icon.svg",
+  "version": "4.6.2"
 }

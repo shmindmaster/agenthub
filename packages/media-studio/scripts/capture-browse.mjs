@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// Runs agent-browser with AgentHub's fleet defaults. Zero dependencies, Node 18+.
+// Runs agent-browser with the fleet's capture defaults. Zero dependencies, Node 18+.
+// Media-studio's capture runtime since 2026-11-26, when the ah-browser package was removed (Playwright and Chrome
+// DevTools are official plugins). browser-take.mjs resolves this file, or $AH_BROWSE, or agent-browser on PATH.
 // Usage: node browse.mjs [--wrapper-timeout SECONDS] <agent-browser arguments...>
 //
 // What it adds to a plain agent-browser call:

@@ -526,7 +526,7 @@ function Test-PreferenceOrderRanksSurfaceProvidedAboveLocallyStarted {
     }
     $missing = @(Find-MissingPhrases -Text $orderBullet -Phrases $activationTiebreakPhrases)
     if ($missing.Count -gt 0) {
-        return @{ Passed = $false; Detail = "the ordering bullet does not resolve first-party surface against first-party server: $($missing -join '; '). Without it the bullet ranks MCP servers above a browser while packages/browser-toolkit's skills resolve the surface's own browser first, and a host reading only the policy starts a local process it does not need. Bullet as written: '$orderBullet'" }
+        return @{ Passed = $false; Detail = "the ordering bullet does not resolve first-party surface against first-party server: $($missing -join '; '). Without it the bullet ranks MCP servers above a browser while the former browser-toolkit skills resolved the surface's own browser first, and a host reading only the policy starts a local process it does not need. Bullet as written: '$orderBullet'" }
     }
     return @{ Passed = $true; Detail = $null }
 }

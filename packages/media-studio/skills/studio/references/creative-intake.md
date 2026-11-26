@@ -68,7 +68,7 @@ A requested cloned voice does not bypass existing private consent, account, spen
 
 ## Picture and capture choice
 
-- **Verified running product:** default to `ah-browser` using the existing real-interaction capture contract, exact revision, synthetic test data, role and responsive viewport. Source-hashed Playwright/WebM + Recast evidence, pointer path, action result and timing gates apply.
+- **Verified running product:** default to the host's browser route using the existing real-interaction capture contract, exact revision, synthetic test data, role and responsive viewport. Source-hashed Playwright/WebM + Recast evidence, pointer path, action result and timing gates apply.
 - **Existing footage:** inspect rights, provenance, recency and compatibility before reusing; retain approved source takes.
 - **Concept/brand/documentary:** use the existing supported animation, Remotion, still, human-world and licensed-media routes appropriate to the creative treatment. Mark proposed capabilities as proposed.
 - **Signed-in/manual capture:** only when approved access or unique workflow makes automation insufficient; preserve privacy and do not impersonate unavailable roles.
