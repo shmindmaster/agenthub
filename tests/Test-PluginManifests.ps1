@@ -337,6 +337,9 @@ $iconFieldsByHost = @{
     '.cursor-plugin' = @('logo')
     '.devin-plugin' = @('logo')
 }
+# The single author identity every manifest must declare (owner decision 2026-11-25).
+$expectedAuthor = 'MahumTech'
+
 $catalogLabels = @{}
 foreach ($catalogPath in '.agents/plugins/marketplace.json', '.claude-plugin/marketplace.json') {
     $catalog = Get-Content -LiteralPath (Join-Path $repoRoot $catalogPath) -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -385,6 +388,34 @@ foreach ($pkgDir in $packageDirs) {
                 "Expected a package-local SVG or PNG under assets. Found '$asset'."
         }
     }
+    # One author identity fleet-wide (owner decision 2026-11-25). In practice this
+    # drifted three ways: the root plugin.json said "Sarosh Hussain" on seven of
+    # eight packages, four packages disagreed with their own host projections, and
+    # eight manifests declared no author at all. A field nothing checks drifts, so
+    # it is checked here. The devin projection is exempt when it omits the field:
+    # registry/plugin-formats.json records its manifest as null (Devin documents
+    # Claude-package fallback), so there is no schema to say whether author belongs.
+    $declaredAuthors = [Collections.Generic.List[string]]::new()
+    if ($root.author) { $declaredAuthors.Add([string]$root.author.name) }
+    foreach ($hostDir in $hostManifests) {
+        $hostObj = Get-Content -LiteralPath (Join-Path $pkgDir.FullName "$hostDir/plugin.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($hostObj.author) { $declaredAuthors.Add([string]$hostObj.author.name) }
+        # Codex carries the same identity as interface.developerName. It had drifted
+        # the same way author had (three packages still named the individual), and no
+        # script writes it, so it is collected here with author.
+        if ($hostObj.interface -and $hostObj.interface.developerName) { $declaredAuthors.Add([string]$hostObj.interface.developerName) }
+    }
+    $distinctAuthors = @($declaredAuthors | Sort-Object -Unique)
+    $authorOk = $declaredAuthors.Count -gt 0 -and $distinctAuthors.Count -eq 1 -and $distinctAuthors[0] -ceq $expectedAuthor
+    if ($pkgDir.FullName.StartsWith($publicPackages, [StringComparison]::OrdinalIgnoreCase)) {
+        Report "$($pkgDir.Name) manifests declare one author identity" $authorOk `
+            "Expected every manifest that declares an author to name '$expectedAuthor'. Found: $($declaredAuthors -join ', ')."
+    } elseif (-not $authorOk) {
+        # The private overlay is its own repository; this suite reports its drift but
+        # cannot be its gate. Fix belongs in shmindmaster/agenthub-private.
+        Write-Host "NOTE: overlay package $($pkgDir.Name) declares author(s): $($declaredAuthors -join ', ') (expected '$expectedAuthor'). Fix in the private overlay."
+    }
+
     if ($pkgDir.Parent.FullName -eq $publicPackages -and $catalogLabels.ContainsKey($expectedName)) {
         $matchingCatalogs = @($catalogLabels[$expectedName] | Where-Object { $_ -ceq $displayName })
         Report "$($pkgDir.Name) has the same display name in both marketplaces" ($matchingCatalogs.Count -eq 2) `
@@ -393,6 +424,15 @@ foreach ($pkgDir in $packageDirs) {
 }
 Report 'at least one package participates in portable root version authority' ($packagesWithHostVersion -gt 0) `
     'Found no public packages with host plugin manifests.'
+
+# The Claude marketplace requires an owner and records the publishing entity, so it
+# must name the same identity the manifests do. The Agents marketplace
+# (.agents/plugins/marketplace.json) documents no owner field, so nothing is invented
+# there; if that host ever publishes one, assert it here too.
+$claudeCatalog = Get-Content -LiteralPath (Join-Path $repoRoot '.claude-plugin/marketplace.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+Report 'the Claude marketplace owner is the fleet author identity' `
+    ([string]$claudeCatalog.owner.name -ceq $expectedAuthor) `
+    "Expected owner.name '$expectedAuthor'. Found '$($claudeCatalog.owner.name)'."
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

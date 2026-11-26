@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "clerk": {
-      "type": "http",
-      "url": "https://mcp.clerk.com/mcp"
-    }
-  }
-}

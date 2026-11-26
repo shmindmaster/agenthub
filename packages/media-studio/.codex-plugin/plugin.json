@@ -2,7 +2,7 @@
   "name": "ah-media-studio",
   "description": "Develop a creative brief, storyboard and narration, then capture, compose and review video or audio deliverables.",
   "author": {
-    "name": "Sarosh Hussain"
+    "name": "MahumTech"
   },
   "license": "MIT",
   "keywords": [
@@ -22,7 +22,7 @@
     "displayName": "AH-Media-Studio",
     "shortDescription": "Plan and produce videos, screencasts and audio.",
     "longDescription": "Develop a creative brief, storyboard and narration, then capture, compose and review video or audio deliverables.",
-    "developerName": "Sarosh Hussain",
+    "developerName": "MahumTech",
     "category": "Productivity",
     "capabilities": [
       "Interactive",
@@ -36,5 +36,5 @@
     "logo": "./assets/icon.svg",
     "screenshots": []
   },
-  "version": "4.6.1"
+  "version": "4.6.2"
 }

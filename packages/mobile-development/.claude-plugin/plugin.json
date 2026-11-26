@@ -3,7 +3,7 @@
   "displayName": "AH-Mobile-Development",
   "description": "Plan mobile development, then drive real iPhones and Android devices with Mobile MCP, emulators and simulators with Appium, and iOS builds in an on-demand macOS VM, each started only when a task needs it.",
   "author": {
-    "name": "Sarosh Hussain"
+    "name": "MahumTech"
   },
   "license": "MIT",
   "keywords": [
@@ -17,6 +17,6 @@
     "iphone",
     "xcode"
   ],
-  "version": "2.7.4",
-  "icon": "./assets/icon.svg"
+  "icon": "./assets/icon.svg",
+  "version": "2.7.5"
 }

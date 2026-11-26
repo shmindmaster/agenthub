@@ -9,7 +9,7 @@
     "Transcribe this public audio URL with AssemblyAI"
   ],
   "author": {
-    "name": "Sarosh Hussain"
+    "name": "MahumTech"
   },
   "license": "MIT",
   "keywords": [
@@ -19,6 +19,6 @@
     "asr",
     "mcp"
   ],
-  "version": "1.3.0",
+  "version": "1.3.2",
   "logo": "assets/icon.svg"
 }

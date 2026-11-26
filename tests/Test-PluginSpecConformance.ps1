@@ -75,40 +75,52 @@ $packageDirs = Get-PackageDirs
 $packageNames = @($packageDirs | ForEach-Object Name)
 $shippedServers = @{}
 foreach ($pkg in $packageDirs) {
-    $mcpPath = Join-Path $pkg.FullName 'mcp.json'
-    if (-not (Test-Path -LiteralPath $mcpPath -PathType Leaf)) {
-        $legacy = Join-Path $pkg.FullName '.mcp.json'
-        if (Test-Path -LiteralPath $legacy -PathType Leaf) { $mcpPath = $legacy } else { continue }
-    }
-    try { $doc = Get-Content -LiteralPath $mcpPath -Raw -Encoding UTF8 | ConvertFrom-Json }
-    catch { Report "$($pkg.Name) mcp.json parses" $false $_.Exception.Message; continue }
-    # schema: only $schema and mcpServers at the top level.
-    $top = @($doc.PSObject.Properties.Name)
-    $topOk = (@($top | Where-Object { $_ -notin @('$schema', 'mcpServers') }).Count -eq 0) -and
-        (@($top | Where-Object { $_ -eq '$schema' }).Count -eq 1) -and
-        (@($top | Where-Object { $_ -eq 'mcpServers' }).Count -eq 1)
-    Report "$($pkg.Name) mcp.json carries only `$schema and mcpServers" $topOk "Found: $($top -join ', ')"
-    Report "$($pkg.Name) mcp.json names the 1.0.0 MCP schema" ([string]$doc.'$schema' -ceq $mcpSchema) "Found '$($doc.'$schema')'."
-    foreach ($server in @($doc.mcpServers.PSObject.Properties)) {
-        $name = $server.Name
-        $definition = $server.Value
-        $keys = @($definition.PSObject.Properties.Name)
-        $type = [string]$definition.type
-        $variantFields = switch ($type) {
-            'stdio' { @('type', 'command', 'args', 'env', 'cwd') }
-            'streamable-http' { @('type', 'url', 'headers') }
-            'sse' { @('type', 'url', 'headers') }
-            default { @() }
+    # mcp.json is the Agent Plugins 1.0.0 location and is checked against the spec.
+    # .mcp.json is the Claude-dialect companion (type 'http', no $schema), which the
+    # spec does not govern; it is read only to learn which servers the package ships.
+    $specPath = Join-Path $pkg.FullName 'mcp.json'
+    $dialectPath = Join-Path $pkg.FullName '.mcp.json'
+    $specExists = Test-Path -LiteralPath $specPath -PathType Leaf
+    $dialectExists = Test-Path -LiteralPath $dialectPath -PathType Leaf
+    if (-not $specExists -and -not $dialectExists) { continue }
+
+    foreach ($candidate in @($specPath, $dialectPath)) {
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+        $label = Split-Path -Leaf $candidate
+        try { $doc = Get-Content -LiteralPath $candidate -Raw -Encoding UTF8 | ConvertFrom-Json }
+        catch { Report "$($pkg.Name) $label parses" $false $_.Exception.Message; continue }
+        foreach ($entry in @($doc.mcpServers.PSObject.Properties)) {
+            if (-not $shippedServers.ContainsKey($entry.Name)) { $shippedServers[$entry.Name] = $pkg.Name }
         }
-        $unknown = @($keys | Where-Object { $_ -notin $variantFields })
-        $required = if ($type -eq 'stdio') { 'command' } else { 'url' }
-        $ok = $type -in $serverTypes -and $unknown.Count -eq 0 -and $keys -contains $required -and
-            -not [string]::IsNullOrWhiteSpace([string]$definition.$required)
-        Report "$($pkg.Name) mcp.json server '$name' matches the $type variant" $ok `
-            "type='$type', unknown fields: $($unknown -join ', '), '$required' present: $($keys -contains $required)."
-        if ($ok -and -not $shippedServers.ContainsKey($name)) { $shippedServers[$name] = $pkg.Name }
+        if ($candidate -ne $specPath) { continue }
+        # schema for the spec file: only $schema and mcpServers at the top level.
+        $top = @($doc.PSObject.Properties.Name)
+        $topOk = (@($top | Where-Object { $_ -notin @('$schema', 'mcpServers') }).Count -eq 0) -and
+            (@($top | Where-Object { $_ -eq '$schema' }).Count -eq 1) -and
+            (@($top | Where-Object { $_ -eq 'mcpServers' }).Count -eq 1)
+        Report "$($pkg.Name) mcp.json carries only `$schema and mcpServers" $topOk "Found: $($top -join ', ')"
+        Report "$($pkg.Name) mcp.json names the 1.0.0 MCP schema" ([string]$doc.'$schema' -ceq $mcpSchema) "Found '$($doc.'$schema')'."
+        foreach ($server in @($doc.mcpServers.PSObject.Properties)) {
+            $name = $server.Name
+            $definition = $server.Value
+            $keys = @($definition.PSObject.Properties.Name)
+            $type = [string]$definition.type
+            $variantFields = switch ($type) {
+                'stdio' { @('type', 'command', 'args', 'env', 'cwd') }
+                'streamable-http' { @('type', 'url', 'headers') }
+                'sse' { @('type', 'url', 'headers') }
+                default { @() }
+            }
+            $unknown = @($keys | Where-Object { $_ -notin $variantFields })
+            $required = if ($type -eq 'stdio') { 'command' } else { 'url' }
+            $ok = $type -in $serverTypes -and $unknown.Count -eq 0 -and $keys -contains $required -and
+                -not [string]::IsNullOrWhiteSpace([string]$definition.$required)
+            Report "$($pkg.Name) mcp.json server '$name' matches the $type variant" $ok `
+                "type='$type', unknown fields: $($unknown -join ', '), '$required' present: $($keys -contains $required)."
+        }
     }
 }
+
 
 # Every registered server must be carried by a package. A row with no plugin is
 # the second delivery path the owner direction removes.
