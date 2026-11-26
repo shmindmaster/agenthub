@@ -27,7 +27,7 @@ What is true of AgentHub now. Keep this page to one screen: replace a line when 
 ## Compute and CI
 
 - Heavy work runs on Daytona: `node scripts/daytona-run.mjs --owner <project> -- <command>`.
-- Inference gateway: `registry/inference-providers.json` lists its models and hosts; `scripts/daytona-inference` deploys it. `agent-flagship` is intentionally unprovisioned.
+- Inference gateway: `registry/inference-providers.json` lists its two model aliases (`qwen3.8-27b-unc-q8`, `inkling2-min-26b-unc-q8-128k`) and hosts; `scripts/daytona-inference` deploys it.
 - Pull-request CI runs on GitHub-hosted runners (`.github/workflows/ci.yml`). [`ci/codebuild`](./runbooks/codebuild-pr-ci.md) is an unadopted template (CORE-26).
 - [`ci/daytona-factory`](../ci/daytona-factory/README.md) builds and records product demos on manual dispatch.
 

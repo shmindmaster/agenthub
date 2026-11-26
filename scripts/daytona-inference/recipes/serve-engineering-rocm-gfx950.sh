@@ -1,7 +1,7 @@
 #!/bin/bash
 # Serving recipe: Dual-model Multimodal Engineering Slot 1 on AMD MI355X (288 GB CDNA4 gfx950).
 # Runs BOTH via llama-server HIP (Q8_0 + BF16 mmproj vision, FlashAttention, GPU-resident):
-#   1) Qwen3.8-27B-Ultimate-Heretic-2.1ARA-MTP-Q8_0 + mmproj-BF16 (:8001, 262144 ctx, parallel 4)
+#   1) Qwen3.8-27B-Ultimate-Heretic-2.1ARA-MTP-Q8_0 + mmproj-BF16 (:8001, 262144 ctx, parallel 1)
 #   2) Inkling-2-Mini-Uncensored-Q8_0 + mmproj-BF16 (:8002, 1048576 ctx, q8_0 KV, parallel 2->1 fallback)
 set -euo pipefail
 
@@ -18,7 +18,7 @@ SPEC_PORT="${SPEC_PORT:-8001}"
 FLAG_PORT="${FLAG_PORT:-8002}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-262144}"
 CTX_SIZE="${CTX_SIZE:-1048576}"
-PARALLEL="${PARALLEL:-4}"
+PARALLEL="${PARALLEL:-1}"
 FLAG_PARALLEL="${FLAG_PARALLEL:-2}"
 THREADS="${THREADS:-16}"
 BATCH_SIZE="${BATCH_SIZE:-4096}"
@@ -207,7 +207,7 @@ fi
 
 SPEC_ARGS=(
   --model "$SPEC_MODEL_PATH"
-  --alias "agent-specialist"
+  --alias "qwen3.8-27b-unc-q8"
   --host 0.0.0.0
   --port "$SPEC_PORT"
   --n-gpu-layers 999
@@ -249,7 +249,7 @@ launch_flagship() {
   local par="$1"
   local args=(
     --model "$FLAG_MODEL_PATH"
-    --alias "agent-flagship"
+    --alias "inkling2-min-26b-unc-q8-128k"
     --host 0.0.0.0
     --port "$FLAG_PORT"
     --n-gpu-layers 999
@@ -279,7 +279,7 @@ ACTIVE_FLAG_PAR="$FLAG_PARALLEL"
     if ! launch_flagship "$ACTIVE_FLAG_PAR"; then
       echo "flagship_exited parallel=$ACTIVE_FLAG_PAR"
       if [[ "$ACTIVE_FLAG_PAR" -gt 1 ]]; then
-        echo "falling back to flagship parallel=1 (1048576 total ctx)"
+        echo "falling back to flagship parallel=1"
         ACTIVE_FLAG_PAR=1
       fi
     fi

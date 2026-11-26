@@ -15,7 +15,23 @@
     "mediaMountPath": "/mnt/media-weights",
     "gatewayBaseUrl": "https://inference.shtrial.com/v1",
     "gatewayMediaUrl": "https://inference.shtrial.com/v1/media",
-    "gatewayAdminUrl": "https://inference.shtrial.com"
+    "gatewayAdminUrl": "https://inference.shtrial.com",
+    "modelHostingAuthorization": {
+      "recordedOn": "2026-11-25",
+      "ownerInstruction": "I had only authorized two daytona amd gpu sandboxes and nothing else for model hosting and integrations",
+      "maxGpuInstances": 2,
+      "vendor": "amd",
+      "allowedGpuTypes": [
+        "MI355X"
+      ],
+      "allowedRoles": [
+        "engineering",
+        "media"
+      ],
+      "retainedVolumes": [
+        "llm-models"
+      ]
+    }
   },
   "gpus": {
     "H200": {
@@ -107,12 +123,12 @@
     "engineering": {
       "sandboxName": "agenthub-engineering",
       "legacySandboxNames": [],
-      "modelRepo": "DavidAU/Qwen3.8-27B-Ultimate-Heretic-Uncensored-Turbo-Brilliance-50x-AGI-NEO-GGUF",
-      "modelFile": "Qwen3.8-27B-Ultimate-Heretic-2.1ARA-Uncn-Turbo-Brilli-50x-AGI-NEO-MTP-Q8_0.gguf",
+      "modelRepo": "DavidAU/Qwen3.8-27B-TURBO-Fable-Cold-Fusion-735-882-Heretic-Uncensored-NEO-CODER-MAX-MTP-GGUF",
+      "modelFile": "Qwen3.8-27B-TBrill-TurboFCFusion-735-882-Here-Uncen-NEO-CODER-MAX-MTP-Q8_0.gguf",
       "modelMmproj": "mmproj-BF16.gguf",
-      "flagshipRepo": "Abiray/Inkling-2-Mini-Uncensored-GGUF",
-      "flagshipFile": "Inkling-2-Mini-Uncensored-Q8_0.gguf",
-      "flagshipMmproj": "mmproj-Inkling-2-Mini-Uncensored-BF16.gguf",
+      "flagshipRepo": "DavidAU/Inkling-2-Mini-26B-Heretic-Uncensored-Turbo-Brilliance-50X-V2-AGI-NEO-GGUF",
+      "flagshipFile": "Inkling-2-Mini-26B-Heretic-Uncensored-Turbo-Brilliance-50X-V2-AGI-NEO-Q8_0.gguf",
+      "flagshipMmproj": "mmproj-BF16.gguf",
       "flagshipVision": true,
       "engine": "dual",
       "port": 8001,
@@ -120,13 +136,23 @@
       "diskGb": 512,
       "ramGb": 192,
       "cpu": 16,
-      "gpuPriority": ["MI355X"],
-      "servedAliases": ["agent-specialist", "agent-fast", "agent-vision"],
-      "flagshipAliases": ["agent-flagship", "agent-turbo"],
-      "primaryServedModelName": "agent-specialist",
-      "flagshipServedModelName": "agent-flagship",
+      "gpuPriority": [
+        "MI355X"
+      ],
+      "servedAliases": [
+        "qwen3.8-27b-unc-q8"
+      ],
+      "flagshipAliases": [
+        "inkling2-min-26b-unc-q8-128k"
+      ],
+      "primaryServedModelName": "qwen3.8-27b-unc-q8",
+      "flagshipServedModelName": "inkling2-min-26b-unc-q8-128k",
       "reasoningDefault": "medium",
-      "reasoningSupported": ["low", "medium", "xhigh"],
+      "reasoningSupported": [
+        "low",
+        "medium",
+        "xhigh"
+      ],
       "vision": true,
       "tools": true,
       "profiles": {
@@ -135,14 +161,14 @@
           "recipe": "recipes/serve-engineering-rocm-gfx950.sh",
           "quantization": "Q8_0+Q8_0",
           "maxModelLen": 262144,
-          "ctxSize": 1048576,
+          "ctxSize": 131072,
           "maxOutputTokens": 32768,
           "maxNumSeqs": 8,
-          "gpuMemUtil": 0.40,
+          "gpuMemUtil": 0.4,
           "maxNumBatchedTokens": 16384,
           "mtpTokens": 3,
-          "parallel": 4,
-          "flagshipParallel": 2,
+          "parallel": 1,
+          "flagshipParallel": 1,
           "batchSize": 4096,
           "ubatchSize": 2048,
           "cacheTypeK": "f16",
@@ -162,7 +188,9 @@
       "diskGb": 512,
       "ramGb": 192,
       "cpu": 16,
-      "gpuPriority": ["MI355X"],
+      "gpuPriority": [
+        "MI355X"
+      ],
       "servedAliases": [],
       "primaryServedModelName": "agenthub-media",
       "vision": false,
@@ -179,7 +207,9 @@
     },
     "specialist": {
       "sandboxName": "agenthub-specialist",
-      "legacySandboxNames": ["opencode-specialist"],
+      "legacySandboxNames": [
+        "opencode-specialist"
+      ],
       "modelRepo": "orcarouter/Qwen3.8-27B-Uncensored-FP8",
       "optionalBf16Repo": "Qwen/Qwen3.8-27B",
       "engine": "vllm",
@@ -187,11 +217,24 @@
       "diskGb": 512,
       "ramGb": 192,
       "cpu": 16,
-      "gpuPriority": ["H200", "MI355X", "B200", "B300", "RTX-PRO-6000", "H100"],
-      "servedAliases": ["agent-specialist", "agent-fast", "agent-vision"],
-      "primaryServedModelName": "agent-specialist",
+      "gpuPriority": [
+        "H200",
+        "MI355X",
+        "B200",
+        "B300",
+        "RTX-PRO-6000",
+        "H100"
+      ],
+      "servedAliases": [
+        "qwen3.8-27b-unc-q8"
+      ],
+      "primaryServedModelName": "qwen3.8-27b-unc-q8",
       "reasoningDefault": "medium",
-      "reasoningSupported": ["low", "medium", "xhigh"],
+      "reasoningSupported": [
+        "low",
+        "medium",
+        "xhigh"
+      ],
       "vision": true,
       "tools": true,
       "profiles": {
@@ -203,7 +246,7 @@
           "maxModelLen": 131072,
           "maxOutputTokens": 16384,
           "maxNumSeqs": 4,
-          "gpuMemUtil": 0.90,
+          "gpuMemUtil": 0.9,
           "maxNumBatchedTokens": 8192,
           "mtpTokens": 3
         },
@@ -226,7 +269,7 @@
           "maxModelLen": 262144,
           "maxOutputTokens": 32768,
           "maxNumSeqs": 8,
-          "gpuMemUtil": 0.90,
+          "gpuMemUtil": 0.9,
           "maxNumBatchedTokens": 16384,
           "mtpTokens": 3
         },
@@ -237,7 +280,7 @@
           "maxModelLen": 262144,
           "maxOutputTokens": 32768,
           "maxNumSeqs": 8,
-          "gpuMemUtil": 0.90,
+          "gpuMemUtil": 0.9,
           "maxNumBatchedTokens": 16384,
           "mtpTokens": 3
         },
@@ -267,19 +310,32 @@
     },
     "flagship": {
       "sandboxName": "agenthub-flagship",
-      "legacySandboxNames": ["opencode-flagship"],
+      "legacySandboxNames": [
+        "opencode-flagship"
+      ],
       "modelRepo": "orcarouter/Qwen3.8-Flash-Next-Uncensored-GGUF",
       "engine": "llama.cpp",
       "port": 8002,
       "diskGb": 512,
       "ramGb": 192,
       "cpu": 16,
-      "gpuPriority": ["MI355X", "B300", "B200", "H200"],
+      "gpuPriority": [
+        "MI355X",
+        "B300",
+        "B200",
+        "H200"
+      ],
       "defaultQuantization": "Q8_0",
-      "servedAliases": ["agent-flagship"],
-      "primaryServedModelName": "agent-flagship",
+      "servedAliases": [
+        "inkling2-min-26b-unc-q8-128k"
+      ],
+      "primaryServedModelName": "inkling2-min-26b-unc-q8-128k",
       "reasoningDefault": "medium",
-      "reasoningSupported": ["low", "medium", "xhigh"],
+      "reasoningSupported": [
+        "low",
+        "medium",
+        "xhigh"
+      ],
       "vision": false,
       "tools": true,
       "profiles": {
@@ -378,7 +434,10 @@
         "authorizationProfile": "research",
         "defaultPrecision": "BF16",
         "runtime": "ComfyUI",
-        "modalities": ["image", "image_edit"],
+        "modalities": [
+          "image",
+          "image_edit"
+        ],
         "vramAllowGb": 40
       },
       "ltx-2.5-uncensored": {
@@ -388,7 +447,10 @@
         "authorizationProfile": "research",
         "defaultPrecision": "fp8_scaled",
         "runtime": "ComfyUI",
-        "modalities": ["video", "talk"],
+        "modalities": [
+          "video",
+          "talk"
+        ],
         "vramAllowGb": 120
       },
       "lfm3-omni-2b-heretic": {
@@ -398,7 +460,10 @@
         "authorizationProfile": "research",
         "defaultPrecision": "BF16",
         "runtime": "transformers",
-        "modalities": ["tts", "transcribe"],
+        "modalities": [
+          "tts",
+          "transcribe"
+        ],
         "vramAllowGb": 12,
         "evaluatedAlternative": {
           "repo": "NeosQ/LFM3-Omni-2B-Uncensored-abliterated",
@@ -412,7 +477,9 @@
         "license": "other: flux-3-klein-noncommercial-or-bfl",
         "authorizationProfile": "evaluated-not-installed",
         "defaultPrecision": "BF16",
-        "modalities": ["image"],
+        "modalities": [
+          "image"
+        ],
         "note": "Upstream non-abliterated release (2026-10-14); deferred in favor of chatrlabs/Qwen-Image-2.1-Uncensored-Omni-Quantized (research) and Apache-2.0 Qwen-Image-2512 (commercial)."
       },
       "qwen-image-2512": {
@@ -422,7 +489,9 @@
         "authorizationProfile": "commercial",
         "defaultPrecision": "BF16",
         "runtime": "ComfyUI",
-        "modalities": ["image"],
+        "modalities": [
+          "image"
+        ],
         "vramAllowGb": 42
       },
       "z-image-turbo": {
@@ -432,7 +501,9 @@
         "authorizationProfile": "commercial",
         "defaultPrecision": "BF16",
         "runtime": "ComfyUI",
-        "modalities": ["image"],
+        "modalities": [
+          "image"
+        ],
         "vramAllowGb": 26
       },
       "wan2.2-i2v-a14b": {
@@ -442,7 +513,9 @@
         "authorizationProfile": "commercial",
         "defaultPrecision": "fp8_scaled",
         "runtime": "ComfyUI",
-        "modalities": ["video"],
+        "modalities": [
+          "video"
+        ],
         "vramAllowGb": 45
       },
       "wan2.2-s2v-14b": {
@@ -452,7 +525,9 @@
         "authorizationProfile": "commercial",
         "defaultPrecision": "fp8_scaled",
         "runtime": "ComfyUI",
-        "modalities": ["talk"],
+        "modalities": [
+          "talk"
+        ],
         "vramAllowGb": 45
       },
       "ace-step-1.5-turbo": {
@@ -462,7 +537,9 @@
         "authorizationProfile": "commercial",
         "defaultPrecision": "BF16",
         "runtime": "ComfyUI",
-        "modalities": ["music"],
+        "modalities": [
+          "music"
+        ],
         "vramAllowGb": 16
       },
       "zonos3-mini": {
@@ -472,7 +549,9 @@
         "authorizationProfile": "commercial",
         "defaultPrecision": "BF16",
         "runtime": "zonos3/transformers",
-        "modalities": ["tts"],
+        "modalities": [
+          "tts"
+        ],
         "vramAllowGb": 10
       },
       "qwen3-tts-1.7b-customvoice": {
@@ -482,7 +561,9 @@
         "authorizationProfile": "commercial",
         "defaultPrecision": "BF16",
         "runtime": "qwen-tts",
-        "modalities": ["tts"],
+        "modalities": [
+          "tts"
+        ],
         "vramAllowGb": 8
       },
       "sov-transcribe-1": {
@@ -492,7 +573,9 @@
         "authorizationProfile": "commercial",
         "defaultPrecision": "BF16",
         "runtime": "transformers",
-        "modalities": ["transcribe"],
+        "modalities": [
+          "transcribe"
+        ],
         "vramAllowGb": 64
       },
       "whisper-large-v3-turbo": {
@@ -502,7 +585,9 @@
         "authorizationProfile": "commercial",
         "defaultPrecision": "FP16",
         "runtime": "transformers",
-        "modalities": ["transcribe"],
+        "modalities": [
+          "transcribe"
+        ],
         "vramAllowGb": 6
       }
     }
@@ -510,7 +595,11 @@
   "optionalDormantCatalog": {
     "inkling-2-mini": {
       "status": "dormant",
-      "formats": ["Q8_0", "BF16", "Q6_K"],
+      "formats": [
+        "Q8_0",
+        "BF16",
+        "Q6_K"
+      ],
       "note": "Optional routine specialist; do not dedicate a GPU slot by default."
     }
   }

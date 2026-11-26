@@ -6,7 +6,7 @@ set -euo pipefail
 WEIGHTS_ROOT="${WEIGHTS_ROOT:-/mnt/opencode-weights}"
 MODEL_REPO="${MODEL_REPO:-orcarouter/Qwen3.8-Flash-Next-Uncensored-GGUF}"
 QUANT="${QUANT:-Q8_0}"
-SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-agent-flagship}"
+SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-inkling2-min-26b-unc-q8-128k}"
 PORT="${PORT:-8002}"
 CTX_SIZE="${CTX_SIZE:-131072}"
 PARALLEL="${PARALLEL:-2}"

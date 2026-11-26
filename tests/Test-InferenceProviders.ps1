@@ -24,14 +24,14 @@ Assert-True ($spec.provider.baseUrl -eq 'https://inference.shtrial.com/v1') 'bas
 Assert-True (-not $spec.provider.default) 'provider.default must be false'
 Assert-True ($spec.provider.preserveExistingDefaults) 'preserveExistingDefaults must be true'
 $aliases = @($spec.models | ForEach-Object id)
-foreach ($expected in @('agent-fast', 'agent-specialist', 'agent-vision', 'agent-turbo', 'agent-flagship')) {
+foreach ($expected in @('qwen3.8-27b-unc-q8', 'inkling2-min-26b-unc-q8-128k')) {
     Assert-True ($aliases -contains $expected) "Missing canonical alias $expected"
 }
 
 $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
 Assert-True ($catalog.policy.maxGpuInstancesTotal -eq 2) 'maxGpuInstancesTotal must be 2'
 Assert-True ($catalog.policy.spotOnly -eq $true) 'spotOnly must be true'
-Assert-True ($catalog.policy.protectedVolumeName -eq 'llm-models') 'protectedVolumeName must be llm-models'
+Assert-True ($catalog.policy.modelHostingAuthorization.retainedVolumes -contains 'llm-models') 'llm-models must be a retained volume'
 Assert-True ($catalog.policy.mediaVolumeName -eq 'agenthub-media-weights') 'mediaVolumeName must be agenthub-media-weights'
 Assert-True ($catalog.policy.mediaMountPath -eq '/mnt/media-weights') 'mediaMountPath must be /mnt/media-weights'
 Assert-True ($catalog.policy.gatewayMediaUrl -eq 'https://inference.shtrial.com/v1/media') 'gatewayMediaUrl mismatch'
@@ -39,7 +39,7 @@ Assert-True ($catalog.roles.specialist.profiles.H200.snapshotName -eq 'agenthub-
 Assert-True ($catalog.roles.flagship.profiles.H200.snapshotName -eq 'agenthub-llama-cuda-h200') 'H200 flagship snapshotName mismatch'
 Assert-True ($catalog.roles.engineering.engine -eq 'dual') 'engineering engine must be dual'
 Assert-True ($catalog.roles.engineering.port -eq 8001 -and $catalog.roles.engineering.flagshipPort -eq 8002) 'engineering ports must be 8001 and 8002'
-Assert-True ($catalog.roles.engineering.profiles.MI355X.maxModelLen -eq 262144 -and $catalog.roles.engineering.profiles.MI355X.ctxSize -eq 1048576) 'engineering MI355X context must be 262144/1048576'
+Assert-True ($catalog.roles.engineering.profiles.MI355X.maxModelLen -eq 262144 -and $catalog.roles.engineering.profiles.MI355X.ctxSize -eq 131072) 'engineering MI355X context must be 262144/131072'
 Assert-True ($catalog.roles.engineering.profiles.MI355X.maxOutputTokens -eq 32768) 'engineering MI355X maxOutputTokens must be 32768'
 Assert-True ($catalog.roles.media.engine -eq 'media-lab' -and $catalog.roles.media.port -eq 8189) 'media engine/port mismatch'
 Assert-True ($catalog.roles.media.profiles.MI355X.backend -eq 'media-rocm-gfx950') 'media MI355X backend mismatch'
@@ -70,18 +70,18 @@ for rel in [
 sys.path.insert(0, str(repo / "scripts/daytona-inference/gateway"))
 from reasoning_normalizer import normalize_reasoning_payload
 
-p1 = normalize_reasoning_payload({"model": "agent-fast", "messages": []})
-assert p1["reasoning_effort"] == "low", p1
-assert p1["extra_body"]["chat_template_kwargs"]["reasoning_effort"] == "low"
+p1 = normalize_reasoning_payload({"model": "qwen3.8-27b-unc-q8", "messages": []})
+assert p1["reasoning_effort"] == "medium", p1
+assert p1["extra_body"]["chat_template_kwargs"]["reasoning_effort"] == "medium"
 
-p2 = normalize_reasoning_payload({"model": "agent-specialist", "reasoning_effort": "high", "messages": []})
+p2 = normalize_reasoning_payload({"model": "qwen3.8-27b-unc-q8", "reasoning_effort": "high", "messages": []})
 assert p2["reasoning_effort"] == "medium", p2
 assert p2["extra_body"]["chat_template_kwargs"]["reasoning_effort"] == "medium"
 
-p3 = normalize_reasoning_payload({"model": "agent-specialist", "reasoning_effort": "xhigh", "messages": []})
+p3 = normalize_reasoning_payload({"model": "qwen3.8-27b-unc-q8", "reasoning_effort": "xhigh", "messages": []})
 assert p3["reasoning_effort"] == "xhigh", p3
 
-p4 = normalize_reasoning_payload({"model": "agent-turbo", "reasoning_effort": "high", "messages": []})
+p4 = normalize_reasoning_payload({"model": "inkling2-min-26b-unc-q8-128k", "messages": []})
 assert p4["reasoning_effort"] == "medium", p4
 assert "extra_body" not in p4
 
@@ -90,7 +90,7 @@ assert p5["reasoning_effort"] == "high", p5
 
 p6 = normalize_reasoning_payload(
     {
-        "model": "agent-turbo",
+        "model": "qwen3.8-27b-unc-q8",
         "instructions": "Base inst",
         "input": [
             {"role": "developer", "content": "Dev rule"},
@@ -106,7 +106,7 @@ assert len(p6["input"]) == 1 and p6["input"][0]["role"] == "user", p6
 
 p7 = normalize_reasoning_payload(
     {
-        "model": "agent-turbo",
+        "model": "qwen3.8-27b-unc-q8",
         "messages": [
             {"role": "system", "content": "S1"},
             {"role": "user", "content": "U1"},
@@ -131,10 +131,10 @@ class FakeSb:
         self.gpu_type = gpu_type
         self.state = state
 
-# Protected sandbox/volume checks
+# Authorization checks: no magic sandbox id, only the recorded two AMD roles
 for fn, arg in [
-    (gpu.protect_sandbox, FakeSb(gpu.PROTECTED_SANDBOX_ID, "other")),
-    (gpu.protect_sandbox, FakeSb("other-id", gpu.PROTECTED_SANDBOX_NAME)),
+    (gpu.protect_sandbox, FakeSb("h1", "unauthorized-box", gpu_type="H200")),
+    (gpu.protect_sandbox, FakeSb("u1", "unknown-role", gpu_type="MI355X")),
     (gpu.protect_volume_name, "llm-models"),
 ]:
     raised = False
@@ -144,17 +144,25 @@ for fn, arg in [
         raised = True
     assert raised, f"Expected SystemExit for {fn.__name__}"
 
-# 2-GPU instance cap
-two = [FakeSb("1", "qwen38-turbo-q6k"), FakeSb("2", "agenthub-specialist")]
+two = [FakeSb("1", "agenthub-engineering", gpu_type="MI355X"), FakeSb("2", "agenthub-media", gpu_type="MI355X")]
+ok, detail = gpu.check_gpu_authorization(two, cat)
+assert ok, detail
 raised = False
 try:
-    gpu.enforce_gpu_limit(two, {"agenthub-flagship"}, 2)
+    gpu.enforce_gpu_limit(two + [FakeSb("3", "agenthub-engineering", gpu_type="MI355X")], {"agenthub-engineering"}, catalog=cat)
 except SystemExit:
     raised = True
-assert raised, "Expected SystemExit when launching 3rd GPU instance"
+assert raised, "Expected SystemExit when launching a 3rd GPU instance"
+
+raised = False
+try:
+    gpu.assert_gpu_authorization([FakeSb("x", "unauthorized-box", gpu_type="H200")], cat)
+except SystemExit:
+    raised = True
+assert raised, "Expected SystemExit when an unauthorized GPU sandbox runs"
 
 # Reusing an existing target sandbox passes cap
-gpu.enforce_gpu_limit(two, {"agenthub-specialist"}, 2)
+gpu.enforce_gpu_limit(two, {"agenthub-engineering"}, catalog=cat)
 
 # Auto GPU selection across NVIDIA + AMD
 cap = {"H200": {"spot": 10}, "MI355X": {"spot": 50}, "B200": {"spot": 0}, "B300": {"spot": 0}, "RTX-PRO-6000": {"spot": 20}, "H100": {"spot": 0}}
@@ -184,7 +192,7 @@ assert parsed_save.command == "save-cache" and parsed_save.role == "specialist"
 # Engineering & media roles (MI355X dual-slot + fallback + volume routing)
 chosen_eng, prof_eng = gpu.select_gpu_for_role("engineering", "auto", cap_amd, cat)
 assert chosen_eng == "MI355X" and prof_eng["backend"] == "engineering-rocm-gfx950"
-assert prof_eng["maxModelLen"] == 262144 and prof_eng["ctxSize"] == 1048576 and prof_eng["maxOutputTokens"] == 32768
+assert prof_eng["maxModelLen"] == 262144 and prof_eng["ctxSize"] == 131072 and prof_eng["maxOutputTokens"] == 32768
 
 chosen_media, prof_media = gpu.select_gpu_for_role("media", "auto", cap_amd, cat)
 assert chosen_media == "MI355X" and prof_media["backend"] == "media-rocm-gfx950"
@@ -218,8 +226,8 @@ assert raised, "retire-legacy-turbo must refuse when engineering is not STARTED"
 
 def failing_flagship_probe(method, path, body):
     if path == "/models":
-        return 200, {"data": [{"id": "agent-specialist"}, {"id": "agent-flagship"}]}
-    if body and body.get("model") == "agent-flagship":
+        return 200, {"data": [{"id": "qwen3.8-27b-unc-q8"}, {"id": "inkling2-min-26b-unc-q8-128k"}]}
+    if body and body.get("model") == "inkling2-min-26b-unc-q8-128k":
         return 503, {"error": "down"}
     return 200, {"choices": [{"message": {"content": "OK"}}]}
 
@@ -234,11 +242,11 @@ try:
     )
 except SystemExit:
     raised = True
-assert raised, "retire-legacy-turbo must refuse when agent-flagship fails live check"
+assert raised, "retire-legacy-turbo must refuse when inkling2-min-26b-unc-q8-128k fails live check"
 
 def passing_probe(method, path, body):
     if path == "/models":
-        return 200, {"data": [{"id": "agent-specialist"}, {"id": "agent-flagship"}]}
+        return 200, {"data": [{"id": "qwen3.8-27b-unc-q8"}, {"id": "inkling2-min-26b-unc-q8-128k"}]}
     return 200, {"choices": [{"message": {"content": "OK"}}]}
 
 # Engineering must also have been up for MIN_ENGINEERING_UPTIME_HOURS: a passing live check on a young box is not enough
@@ -581,7 +589,7 @@ try {
 
     [IO.File]::WriteAllText("$fakeHome/.codex/config.toml", "forced_login_method = `"chatgpt`"`nmodel = `"gpt-6.2-sol`"`n")
     [IO.File]::WriteAllText("$fakeHome/.factory/settings.json", (@{ model = $null; customModels = @(@{ model = 'qwen4-max-preview'; baseUrl = 'https://example.invalid/v1' }) } | ConvertTo-Json -Depth 10))
-    [IO.File]::WriteAllText("$fakeHome/.grok/config.toml", "[models]`ndefault = `"grok-4`"`n`n[model.daytona-specialist]`nmodel = `"agent-specialist`"`nname = `"Old Daytona Specialist`"`n")
+    [IO.File]::WriteAllText("$fakeHome/.grok/config.toml", "[models]`ndefault = `"grok-4`"`n`n[model.daytona-specialist]`nmodel = `"qwen3.8-27b-unc-q8`"`nname = `"Old Daytona Specialist`"`n")
     [IO.File]::WriteAllText("$fakeRoaming/Code - Insiders/User/chatLanguageModels.json", (@(@{ name = 'Copilot'; vendor = 'copilot' }, @{ name = 'Daytona H200'; vendor = 'customendpoint'; models = @() }) | ConvertTo-Json -Depth 10))
     [IO.File]::WriteAllText("$fakeHome/.config/kilo/kilo.jsonc", (@{ model = 'mimo/mimo-v2.6-pro'; provider = @{ mimo = @{ name = 'MiMo' } } } | ConvertTo-Json -Depth 10))
     [IO.File]::WriteAllText("$fakeHome/.cline/data/settings/providers.json", (@{ version = 1; lastUsedProvider = 'cline'; providers = @{ cline = @{ settings = @{ auth = @{ accessToken = 'tok-keep' } } } } } | ConvertTo-Json -Depth 10))
@@ -604,22 +612,18 @@ try {
             Assert-True ($null -ne $row -and $row.status -eq 'current') "Expected host $h status=current after apply, got $($row.status)"
         }
 
-        # Verify preserved defaults and 262144 context / 32768 output across all 5 aliases
+        # Verify preserved defaults and the two model contexts
         $oc = Get-Content "$fakeHome/.config/opencode/opencode.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True ($oc.model -eq 'qwen-token-plan/qwen3.8-max') 'OpenCode default model changed'
         Assert-True ($oc.small_model -eq 'qwen-token-plan/qwen3.8-flash') 'OpenCode small_model changed'
-        # agent-turbo stays on the legacy H200 box (65536 context, 16384 output) until retire-legacy-turbo runs.
-        foreach ($alias in @('agent-fast', 'agent-specialist', 'agent-vision')) {
-            $m = $oc.providers.'agenthub-daytona'.models.$alias
-            Assert-True ($null -ne $m) "Missing OpenCode alias $alias"
-            Assert-True ($m.limit.context -eq 262144 -and $m.limit.output -eq 32768) "Alias $alias context/output limit mismatch"
-        }
-        $mf = $oc.providers.'agenthub-daytona'.models.'agent-flagship'
-        Assert-True ($null -ne $mf -and $mf.limit.context -eq 1048576 -and $mf.limit.output -eq 32768) "Alias agent-flagship context/output limit mismatch"
+        $qm = $oc.providers.'agenthub-daytona'.models.'qwen3.8-27b-unc-q8'
+        Assert-True ($null -ne $qm -and $qm.limit.context -eq 262144 -and $qm.limit.output -eq 32768) 'Qwen context/output limit mismatch'
+        $im = $oc.providers.'agenthub-daytona'.models.'inkling2-min-26b-unc-q8-128k'
+        Assert-True ($null -ne $im -and $im.limit.context -eq 131072 -and $im.limit.output -eq 32768) 'Inkling context/output limit mismatch'
 
         $codexCfg = Get-Content "$fakeHome/.codex/config.toml" -Raw -Encoding UTF8
         Assert-True ($codexCfg -notmatch '\[profiles\.daytona-') 'Codex config.toml must not contain inline [profiles.daytona-*]'
-        foreach ($p in @('daytona-fast', 'daytona-specialist', 'daytona-vision', 'daytona-turbo', 'daytona-flagship')) {
+        foreach ($p in @('qwen3.8-27b-unc-q8', 'inkling2-min-26b-unc-q8-128k')) {
             Assert-True (Test-Path -LiteralPath "$fakeHome/.codex/$p.config.toml") "Missing standalone Codex profile $p.config.toml"
         }
 
@@ -630,7 +634,7 @@ try {
 
         $grokCfg = Get-Content "$fakeHome/.grok/config.toml" -Raw -Encoding UTF8
         Assert-True ($grokCfg -notmatch '\[model\.daytona-specialist\]') 'Legacy Grok [model.daytona-specialist] must be pruned'
-        Assert-True ($grokCfg -match 'Qwen3\.8 27B Heretic MTP Q8_0') 'Grok display names must include uncensored checkpoint label'
+        Assert-True ($grokCfg -match 'Qwen 3\.8 27B Q8') 'Grok display names must include the model label'
 
         $vscCfg = Get-Content "$fakeRoaming/Code - Insiders/User/chatLanguageModels.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True (@($vscCfg | Where-Object { $_.name -eq 'Daytona H200' }).Count -eq 0) 'Legacy VS Code Daytona H200 group must be pruned'

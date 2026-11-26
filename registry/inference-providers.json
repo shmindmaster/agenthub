@@ -23,9 +23,9 @@
   },
   "models": [
     {
-      "id": "agent-fast",
-      "displayName": "Daytona Fast — Qwen3.8 27B Heretic MTP Q8_0 (Low)",
-      "role": "routine",
+      "id": "qwen3.8-27b-unc-q8",
+      "displayName": "Qwen 3.8 27B Q8",
+      "role": "general",
       "family": "qwen3.8",
       "contextWindow": 262144,
       "maxInputTokens": 229376,
@@ -34,109 +34,55 @@
       "toolCalling": true,
       "structuredOutput": true,
       "modalities": {
-        "input": ["text"],
-        "output": ["text"]
-      },
-      "reasoning": {
-        "supported": true,
-        "default": "low",
-        "supportedEfforts": ["low", "medium", "xhigh"],
-        "aliases": {
-          "high": "medium"
-        }
-      }
-    },
-    {
-      "id": "agent-specialist",
-      "displayName": "Daytona Specialist — Qwen3.8 27B Heretic MTP Q8_0 (Vision)",
-      "role": "specialist",
-      "family": "qwen3.8",
-      "contextWindow": 262144,
-      "maxInputTokens": 229376,
-      "maxOutputTokens": 32768,
-      "streaming": true,
-      "toolCalling": true,
-      "structuredOutput": true,
-      "modalities": {
-        "input": ["text", "image"],
-        "output": ["text"]
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
       "reasoning": {
         "supported": true,
         "default": "medium",
-        "supportedEfforts": ["low", "medium", "xhigh"],
+        "supportedEfforts": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
         "aliases": {
           "high": "medium"
         }
       }
     },
     {
-      "id": "agent-vision",
-      "displayName": "Daytona Vision — Qwen3.8 27B Heretic MTP Q8_0",
-      "role": "vision",
-      "family": "qwen3.8",
-      "contextWindow": 262144,
-      "maxInputTokens": 229376,
-      "maxOutputTokens": 32768,
-      "streaming": true,
-      "toolCalling": true,
-      "structuredOutput": true,
-      "modalities": {
-        "input": ["text", "image"],
-        "output": ["text"]
-      },
-      "reasoning": {
-        "supported": true,
-        "default": "medium",
-        "supportedEfforts": ["low", "medium", "xhigh"],
-        "aliases": {
-          "high": "medium"
-        }
-      }
-    },
-    {
-      "id": "agent-turbo",
-      "displayName": "Daytona Turbo — Qwen3.8 27B Heretic MTP Q6",
-      "role": "turbo",
-      "family": "qwen3.8",
-      "contextWindow": 65536,
-      "maxInputTokens": 49152,
-      "maxOutputTokens": 16384,
-      "streaming": true,
-      "toolCalling": true,
-      "structuredOutput": true,
-      "modalities": {
-        "input": ["text"],
-        "output": ["text"]
-      },
-      "reasoning": {
-        "supported": true,
-        "default": "medium",
-        "supportedEfforts": ["low", "medium", "xhigh"],
-        "aliases": {
-          "high": "medium"
-        }
-      }
-    },
-    {
-      "id": "agent-flagship",
-      "displayName": "Daytona Flagship — Inkling-2-Mini Uncensored Q8_0 (1M Vision)",
-      "role": "flagship",
+      "id": "inkling2-min-26b-unc-q8-128k",
+      "displayName": "Inkling 2 Mini 26B Q8 (128K)",
+      "role": "general",
       "family": "inkling2",
-      "contextWindow": 1048576,
-      "maxInputTokens": 1015808,
+      "contextWindow": 131072,
+      "maxInputTokens": 98304,
       "maxOutputTokens": 32768,
       "streaming": true,
       "toolCalling": true,
       "structuredOutput": true,
       "modalities": {
-        "input": ["text", "image"],
-        "output": ["text"]
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
       "reasoning": {
         "supported": true,
         "default": "medium",
-        "supportedEfforts": ["low", "medium", "xhigh"],
+        "supportedEfforts": [
+          "low",
+          "medium",
+          "xhigh"
+        ],
         "aliases": {
           "high": "medium"
         }
@@ -148,7 +94,9 @@
       "integration": "native-merge",
       "configPath": "{userHome}/.config/opencode/opencode.json",
       "schema": "opencode-v2-providers",
-      "sharedWith": ["opencode-desktop"],
+      "sharedWith": [
+        "opencode-desktop"
+      ],
       "credentialMode": "file-or-env-reference"
     },
     "codex": {
@@ -218,7 +166,9 @@
     },
     "cursor": {
       "integration": "delegation-only",
-      "sharedWith": ["cursor-agent"],
+      "sharedWith": [
+        "cursor-agent"
+      ],
       "notes": "BYOK overrides or conflicts with native subscription model routing across IDE/CLI surfaces. Preserve native subscription and delegate via AgentHub."
     },
     "devin": {
@@ -227,7 +177,10 @@
     },
     "antigravity": {
       "integration": "delegation-only",
-      "sharedWith": ["antigravity-desktop", "antigravity-ide"],
+      "sharedWith": [
+        "antigravity-desktop",
+        "antigravity-ide"
+      ],
       "notes": "No documented independent OpenAI-compatible custom-provider schema; preserve native models and delegate via AgentHub."
     }
   }

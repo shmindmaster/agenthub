@@ -1,12 +1,17 @@
-"""Unified NVIDIA + AMD Daytona spot GPU lifecycle helper for AgentHub inference.
+"""Daytona spot GPU lifecycle helper for AgentHub inference.
 
 Enforces:
 - Spot-only Daytona GPU sandboxes (never on-demand).
-- Maximum two GPU instances combined across NVIDIA and AMD.
+- The recorded model-hosting authorization: exactly two AMD MI355X sandboxes
+  in the engineering and media roles, nothing else, and the llm-models volume
+  retained but never written to.
 - One GPU per instance.
-- Protection of the live turbo sandbox (qwen38-turbo-q6k) and llm-models volume.
 - Central LiteLLM gateway backend updates at https://inference.shtrial.com without
   touching individual coding-agent configurations on eviction or replacement.
+
+The authorization is data in catalog.json (policy.modelHostingAuthorization), not
+a magic sandbox id in this file. A third GPU sandbox, a non-AMD GPU, an unknown
+role sandbox or an unauthorized volume is refused rather than adopted.
 """
 
 from __future__ import annotations
@@ -36,9 +41,6 @@ STATE_PATH = RUNTIME_DIR / "state.json"
 SECRET_DIR = RUNTIME_DIR / "secrets"
 LOG_DIR = RUNTIME_DIR / "logs"
 
-PROTECTED_SANDBOX_ID = "0075feb8-9387-43fd-85b3-ee8f2bb5930c"
-PROTECTED_SANDBOX_NAME = "qwen38-turbo-q6k"
-PROTECTED_VOLUME_NAME = "llm-models"
 MANAGED_ROLES = ["engineering", "media", "specialist", "flagship"]
 # A live check alone is not enough: MI355X spot boxes were evicted 28 and 42 minutes after a verified boot (2026-11-25).
 MIN_ENGINEERING_UPTIME_HOURS = 6
@@ -94,16 +96,83 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def protect_sandbox(sandbox: Any) -> None:
+def gpu_authorization(catalog: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The owner's recorded model-hosting authorization, read from the catalog."""
+    return (catalog or load_catalog())["policy"]["modelHostingAuthorization"]
+
+
+def authorized_sandbox_names(catalog: dict[str, Any] | None = None) -> set[str]:
+    """Every sandbox name the authorization permits, including recorded legacy names."""
+    effective = catalog or load_catalog()
+    names: set[str] = set()
+    for role in gpu_authorization(effective)["allowedRoles"]:
+        role_cfg = effective["roles"][role]
+        names.add(str(role_cfg["sandboxName"]))
+        names.update(str(name) for name in role_cfg.get("legacySandboxNames", []))
+    return names
+
+
+def active_gpu_sandboxes(live_sandboxes: list[Any]) -> list[Any]:
+    return [
+        sb
+        for sb in live_sandboxes
+        if getattr(sb, "gpu", 0)
+        and "DESTROY" not in str(getattr(sb, "state", "")).upper()
+        and "ARCHIV" not in str(getattr(sb, "state", "")).upper()
+    ]
+
+
+def protect_sandbox(sandbox: Any, catalog: dict[str, Any] | None = None) -> None:
+    """Refuse to modify a GPU sandbox outside the recorded authorization."""
+    effective = catalog or load_catalog()
+    auth = gpu_authorization(effective)
     sid = getattr(sandbox, "id", "")
     sname = getattr(sandbox, "name", "")
-    if sid == PROTECTED_SANDBOX_ID or sname == PROTECTED_SANDBOX_NAME:
-        raise SystemExit(f"refusing to modify protected sandbox {sname} ({sid})")
+    gpu_type = gpu_value(getattr(sandbox, "gpu_type", ""))
+    if gpu_type not in auth["allowedGpuTypes"] or sname not in authorized_sandbox_names(effective):
+        raise SystemExit(
+            f"refusing to modify GPU sandbox {sname} ({sid}) gpu={gpu_type}: "
+            f"outside the recorded authorization ({', '.join(auth['allowedGpuTypes'])} in "
+            f"{', '.join(auth['allowedRoles'])})"
+        )
 
 
-def protect_volume_name(name: str) -> None:
-    if name == PROTECTED_VOLUME_NAME:
-        raise SystemExit(f"refusing to write weights to protected volume {PROTECTED_VOLUME_NAME}")
+def protect_volume_name(name: str, catalog: dict[str, Any] | None = None) -> None:
+    retained = gpu_authorization(catalog)["retainedVolumes"]
+    if name in retained:
+        raise SystemExit(f"refusing to write weights to retained volume {name}")
+
+
+def check_gpu_authorization(
+    live_sandboxes: list[Any], catalog: dict[str, Any] | None = None
+) -> tuple[bool, str]:
+    """Pure check used by status, doctor and every mutating path. Never mutates."""
+    effective = catalog or load_catalog()
+    auth = gpu_authorization(effective)
+    active = active_gpu_sandboxes(live_sandboxes)
+    names = authorized_sandbox_names(effective)
+    allowed_types = set(auth["allowedGpuTypes"])
+    unauthorized = [
+        sb for sb in active
+        if gpu_value(getattr(sb, "gpu_type", "")) not in allowed_types
+        or getattr(sb, "name", "") not in names
+    ]
+    if unauthorized:
+        summary = ", ".join(
+            f"{getattr(sb, 'name', '')}({gpu_value(getattr(sb, 'gpu_type', ''))})" for sb in unauthorized
+        )
+        return False, f"unauthorized GPU sandbox running: {summary}; authorization permits only {', '.join(auth['allowedRoles'])} on {', '.join(sorted(allowed_types))}"
+    limit = int(auth["maxGpuInstances"])
+    if len(active) > limit:
+        summary = ", ".join(f"{sb.name}({gpu_value(sb.gpu_type)})" for sb in active)
+        return False, f"{len(active)} GPU sandboxes running, authorization permits {limit}: {summary}"
+    return True, f"{len(active)}/{limit} authorized GPU sandboxes"
+
+
+def assert_gpu_authorization(live_sandboxes: list[Any], catalog: dict[str, Any] | None = None) -> None:
+    ok, detail = check_gpu_authorization(live_sandboxes, catalog)
+    if not ok:
+        raise SystemExit(f"GPU hosting authorization refused: {detail}")
 
 
 def read_secret_value(env_names: tuple[str, ...], file_name: str | None = None) -> str:
@@ -230,22 +299,24 @@ def select_gpu_for_role(
     return chosen, profile
 
 
-def enforce_gpu_limit(live_sandboxes: list[Any], target_sandbox_names: set[str], max_gpus: int = 2) -> None:
-    """Enforce max GPU instances across NVIDIA and AMD combined."""
-    active_gpu_boxes = [
-        sb
-        for sb in live_sandboxes
-        if getattr(sb, "gpu", 0)
-        and "DESTROY" not in str(getattr(sb, "state", "")).upper()
-        and "ARCHIV" not in str(getattr(sb, "state", "")).upper()
-    ]
+def enforce_gpu_limit(
+    live_sandboxes: list[Any],
+    target_sandbox_names: set[str],
+    max_gpus: int | None = None,
+    catalog: dict[str, Any] | None = None,
+) -> None:
+    """Refuse unauthorized GPU sandboxes, then enforce the recorded instance cap."""
+    effective = catalog or load_catalog()
+    assert_gpu_authorization(live_sandboxes, effective)
+    limit = int(max_gpus if max_gpus is not None else gpu_authorization(effective)["maxGpuInstances"])
+    active_gpu_boxes = active_gpu_sandboxes(live_sandboxes)
     reusable = [sb for sb in active_gpu_boxes if getattr(sb, "name", "") in target_sandbox_names]
     if reusable:
         return
-    if len(active_gpu_boxes) >= max_gpus:
+    if len(active_gpu_boxes) >= limit:
         summary = ", ".join(f"{sb.name}({gpu_value(sb.gpu_type)})" for sb in active_gpu_boxes)
         raise SystemExit(
-            f"GPU instance limit reached ({len(active_gpu_boxes)}/{max_gpus} active: {summary}). "
+            f"GPU instance limit reached ({len(active_gpu_boxes)}/{limit} active: {summary}). "
             "Refusing to start a 3rd GPU instance."
         )
 
@@ -253,8 +324,7 @@ def enforce_gpu_limit(live_sandboxes: list[Any], target_sandbox_names: set[str],
 def ensure_volume(v0: Any, volume_name: str) -> str:
     protect_volume_name(volume_name)
     volume = v0.volume.get(volume_name, create=True)
-    if volume.name == PROTECTED_VOLUME_NAME:
-        raise SystemExit("refusing to use protected llm-models volume")
+    protect_volume_name(str(volume.name))
     deadline = time.time() + 180
     while str(volume.state).endswith("CREATING") or "PENDING" in str(volume.state):
         if time.time() > deadline:
@@ -729,6 +799,12 @@ def cmd_capacity(_args: argparse.Namespace) -> None:
 def cmd_up(args: argparse.Namespace) -> None:
     catalog = load_catalog()
     role = args.role
+    auth = gpu_authorization(catalog)
+    if role not in auth["allowedRoles"]:
+        raise SystemExit(
+            f"role '{role}' is not in the recorded model-hosting authorization "
+            f"({', '.join(auth['allowedRoles'])}); refusing to start a GPU sandbox"
+        )
     role_cfg = catalog["roles"][role]
     vol_name, mount_path = role_volume_spec(role, catalog)
     app = get_daytona_client()
@@ -975,7 +1051,7 @@ def cmd_up(args: argparse.Namespace) -> None:
                 "max_input_tokens": spec_ctx - int(profile["maxOutputTokens"]),
                 "max_output_tokens": int(profile["maxOutputTokens"]),
                 "supports_function_calling": bool(role_cfg["tools"]),
-                "supports_vision": bool(role_cfg["vision"] and alias != "agent-fast"),
+                "supports_vision": bool(role_cfg["vision"]),
                 "supports_reasoning": True,
                 "gpu_type": gpu_name,
                 "quantization": profile["quantization"],
@@ -992,12 +1068,7 @@ def cmd_up(args: argparse.Namespace) -> None:
             flag_api_base = flag_origin.rstrip("/") + "/v1"
             flag_upstream = f"openai/{role_cfg['flagshipServedModelName']}"
             flag_ctx = int(profile.get("ctxSize") or profile.get("maxModelLen"))
-            live_now = list(v0.list())
-            turbo_live = any(sb.id == PROTECTED_SANDBOX_ID and "STARTED" in str(sb.state).upper() for sb in live_now)
             for alias in role_cfg.get("flagshipAliases", []):
-                if alias == "agent-turbo" and turbo_live:
-                    print("preserving agent-turbo on live legacy qwen38-turbo-q6k until retire-legacy-turbo")
-                    continue
                 info = {
                     "id": f"{alias}-{sandbox.id[:8]}",
                     "mode": "chat",
@@ -1076,7 +1147,7 @@ def cmd_down(args: argparse.Namespace) -> None:
         app.close()
 
     aliases = [*role_cfg.get("servedAliases", []), *role_cfg.get("flagshipAliases", [])]
-    removed = gateway_delete_by_role_or_alias(aliases, exclude_sandbox_id=PROTECTED_SANDBOX_ID) if aliases else 0
+    removed = gateway_delete_by_role_or_alias(aliases) if aliases else 0
     print(f"gateway_deregistered aliases={','.join(aliases) or '-'} count={removed}")
     if worker:
         worker["status"] = "deleted"
@@ -1113,8 +1184,10 @@ def cmd_status(_args: argparse.Namespace) -> None:
         sbs = [sb for sb in app.v0.list() if getattr(sb, "gpu", 0) and "DESTROY" not in str(sb.state).upper()]
     finally:
         app.close()
+    auth_ok, auth_detail = check_gpu_authorization(sbs, catalog)
     print(f"state_file {STATE_PATH}")
-    print(f"gpu_instances {len(sbs)}/{catalog['policy']['maxGpuInstancesTotal']}")
+    print(f"gpu_authorization {'OK' if auth_ok else 'FAIL'}: {auth_detail}")
+    print(f"gpu_instances {len(sbs)}/{gpu_authorization(catalog)['maxGpuInstances']}")
     for sb in sbs:
         print(
             f"  {sb.id} {sb.name} {sb.state} gpu={gpu_value(sb.gpu_type)} "
@@ -1131,16 +1204,18 @@ def cmd_status(_args: argparse.Namespace) -> None:
 
 
 def cmd_reconcile(_args: argparse.Namespace) -> None:
-    load_catalog()
+    catalog = load_catalog()
     app = get_daytona_client()
     try:
+        all_sandboxes = list(app.v0.list())
         live = {
             sb.id: sb
-            for sb in app.v0.list()
+            for sb in all_sandboxes
             if getattr(sb, "gpu", 0) and "STARTED" in str(sb.state).upper()
         }
     finally:
         app.close()
+    assert_gpu_authorization(all_sandboxes, catalog)
 
     registered = gateway_list_models()
     for item in registered:
@@ -1152,43 +1227,8 @@ def cmd_reconcile(_args: argparse.Namespace) -> None:
             code, _ = litellm_request("POST", "/model/delete", {"id": mid}, require_master=True)
             print(f"pruned stale alias={mname} sandbox={sid} http={code}")
 
-    # Ensure protected turbo sandbox stays registered as agent-turbo when live and not superseded by a live worker.
-    if PROTECTED_SANDBOX_ID in live:
-        turbo_sb = live[PROTECTED_SANDBOX_ID]
-        worker_key = read_secret_value(("H100_LLM_API_KEY", "INFERENCE_WORKER_API_KEY"))
-        if worker_key:
-            link = turbo_sb.get_preview_link(8000)
-            api_base = str(link.url).rstrip("/") + "/v1"
-            preview_tok = str(link.token or "") or None
-            already_live_turbo = [
-                m for m in gateway_list_models()
-                if m.get("model_name") == "agent-turbo" and (m.get("model_info") or {}).get("sandbox_id") in live
-            ]
-            if not already_live_turbo:
-                gateway_register_alias(
-                    "agent-turbo",
-                    "openai/qwen3.8-27b-turbo-heretic-mtp-q6",
-                    api_base,
-                    worker_key,
-                    preview_tok,
-                    {
-                        "id": "agent-turbo-live",
-                        "mode": "chat",
-                        "max_input_tokens": 49152,
-                        "max_output_tokens": 16384,
-                        "supports_function_calling": True,
-                        "supports_vision": False,
-                        "supports_reasoning": True,
-                        "gpu_type": gpu_value(turbo_sb.gpu_type),
-                        "quantization": "Q6_K",
-                        "sandbox_id": PROTECTED_SANDBOX_ID,
-                        "spot": True,
-                    },
-                )
-                print("registered agent-turbo -> qwen38-turbo-q6k")
-            else:
-                owner_sid = (already_live_turbo[0].get("model_info") or {}).get("sandbox_id")
-                print(f"ok agent-turbo -> sandbox={owner_sid}")
+    # No legacy sandbox is authorized: aliases whose backend is gone are pruned
+    # above and never re-registered here.
 
     state = load_state()
     changed = False
@@ -1274,7 +1314,7 @@ def check_retire_legacy_turbo_gates(
     if status_models != 200:
         raise SystemExit(f"Refusing retire-legacy-turbo: {base}/models returned HTTP {status_models}")
     listed_ids = {str(item.get("id", "")) for item in body_models.get("data", []) if isinstance(item, dict)}
-    for required_alias in ("agent-specialist", "agent-flagship"):
+    for required_alias in ("qwen3.8-27b-unc-q8", "inkling2-min-26b-unc-q8-128k"):
         if required_alias not in listed_ids:
             raise SystemExit(f"Refusing retire-legacy-turbo: {required_alias} missing from {base}/models")
         status_chat, body_chat = call(
@@ -1304,6 +1344,7 @@ def cmd_retire_legacy_turbo(args: argparse.Namespace) -> None:
     app = get_daytona_client()
     try:
         live = list(app.v0.list())
+        assert_gpu_authorization(live, catalog)
         eng_sb = check_retire_legacy_turbo_gates(live, gateway_base, inf_key)
         gpu_name = gpu_value(eng_sb.gpu_type)
         profile = dict(eng_cfg["profiles"].get(gpu_name) or next(iter(eng_cfg["profiles"].values())))
@@ -1317,13 +1358,13 @@ def cmd_retire_legacy_turbo(args: argparse.Namespace) -> None:
         ctx = int(profile.get("ctxSize") or profile.get("maxModelLen"))
         max_out = int(profile["maxOutputTokens"])
         turbo_id = gateway_register_alias(
-            "agent-turbo",
+            "qwen3.8-27b-unc-q8",
             f"openai/{eng_cfg['flagshipServedModelName']}",
             flag_origin.rstrip("/") + "/v1",
             worker_key,
             flag_preview_token,
             {
-                "id": f"agent-turbo-{eng_sb.id[:8]}",
+                "id": f"qwen3.8-27b-unc-q8-{eng_sb.id[:8]}",
                 "mode": "chat",
                 "max_input_tokens": ctx - max_out,
                 "max_output_tokens": max_out,
@@ -1336,31 +1377,21 @@ def cmd_retire_legacy_turbo(args: argparse.Namespace) -> None:
                 "spot": True,
             },
         )
-        print(f"routed agent-turbo -> {eng_sb.name} ({eng_sb.id}) id={turbo_id}")
+        print(f"routed qwen3.8-27b-unc-q8 -> {eng_sb.name} ({eng_sb.id}) id={turbo_id}")
 
-        legacy_sb = next(
-            (
-                sb
-                for sb in live
-                if (getattr(sb, "id", "") == PROTECTED_SANDBOX_ID or getattr(sb, "name", "") == PROTECTED_SANDBOX_NAME)
-                and "DESTROY" not in str(getattr(sb, "state", "")).upper()
-            ),
-            None,
-        )
-        if legacy_sb is not None:
-            legacy_sb.delete(timeout=120, wait=True)
-            print(f"retired legacy turbo sandbox {legacy_sb.id} ({legacy_sb.name}); protected volume {PROTECTED_VOLUME_NAME} untouched")
-        else:
-            print(f"legacy turbo sandbox {PROTECTED_SANDBOX_NAME} already absent")
+        # The legacy H200 sandbox is not part of the recorded authorization and
+        # was retired out of band. This command only re-routes qwen3.8-27b-unc-q8 to the
+        # authorized engineering flagship; it never adopts or deletes another box.
+        print("no legacy turbo sandbox is authorized; retained volumes were untouched")
 
         state = load_state()
         eng_worker = state.get("workers", {}).get("engineering")
         if eng_worker:
             aliases = list(eng_worker.get("served_aliases") or [])
-            if "agent-turbo" not in aliases:
-                aliases.append("agent-turbo")
+            if "qwen3.8-27b-unc-q8" not in aliases:
+                aliases.append("qwen3.8-27b-unc-q8")
             eng_worker["served_aliases"] = aliases
-            eng_worker.setdefault("gateway_model_ids", {})["agent-turbo"] = turbo_id
+            eng_worker.setdefault("gateway_model_ids", {})["qwen3.8-27b-unc-q8"] = turbo_id
             eng_worker["checked_at"] = utc_now()
             save_state(state)
     finally:
@@ -1536,8 +1567,8 @@ def cmd_doctor(_args: argparse.Namespace) -> None:
                     checks.append(("daytona.media_volume", True, f"{mvol.name} {mvol.state}"))
                 except Exception as exc:
                     checks.append(("daytona.media_volume", False, type(exc).__name__))
-            turbo_live = any(sb.id == PROTECTED_SANDBOX_ID and "STARTED" in str(sb.state).upper() for sb in sbs)
-            checks.append(("daytona.protected_turbo", turbo_live, PROTECTED_SANDBOX_ID))
+            auth_ok, auth_detail = check_gpu_authorization(sbs, catalog)
+            checks.append(("daytona.gpu_authorization", auth_ok, auth_detail))
             configured_snaps = sorted({
                 prof["snapshotName"]
                 for rcfg in catalog["roles"].values()
@@ -1611,7 +1642,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_retire = sub.add_parser(
         "retire-legacy-turbo",
-        help="Gated retirement of legacy qwen38-turbo-q6k once engineering is STARTED and live-verified on gateway",
+        help="Route the retired alias to the engineering flagship; no legacy GPU sandbox is authorized",
     )
     p_retire.add_argument("--dry-run", action="store_true")
 
