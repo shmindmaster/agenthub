@@ -415,7 +415,7 @@
           "image_edit": "qwen-image-2.1-omni",
           "video": "ltx-2.5-uncensored",
           "talk": "ltx-2.5-uncensored",
-          "tts": "lfm3-omni-2b-heretic",
+          "tts": "voxcpm2",
           "transcribe": "lfm3-omni-2b-heretic",
           "music": "ace-step-1.5-turbo"
         }
@@ -425,16 +425,121 @@
         "commercialAllowed": true,
         "models": {
           "image": "qwen-image-2512",
-          "image_edit": "qwen-image-2512",
-          "video": "wan2.2-i2v-a14b",
+          "image_edit": "qwen-image-edit-2511",
+          "video": "wan2.2-t2v-a14b",
           "talk": "wan2.2-s2v-14b",
-          "tts": "zonos3-mini",
+          "tts": "voxcpm2",
           "transcribe": "sov-transcribe-1",
           "music": "ace-step-1.5-turbo"
         }
       }
     },
     "checkpoints": {
+    "voxcpm2": {
+      "repo": "openbmb/VoxCPM2",
+      "revision": "7936080b4116",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "BF16",
+      "runtime": "voxcpm",
+      "modalities": [
+        "tts"
+      ],
+      "sample_rate_hz": 48000,
+      "supports_voice_design": true,
+      "supports_ref_voice_cloning": true,
+      "vramAllowGb": 10,
+      "verified": "2026-11-26 on agenthub-media MI355X: Voice Design job 91.8 s, reference-voice clone job 37.7 s, both produced WAV output",
+      "note": "The single expressive speech engine required by playbook section 8. Supersedes zonos3-mini, qwen3-tts-1.7b-customvoice and lfm3-omni-2b-heretic as the narration default; those stay archived and are not re-downloaded."
+    },
+    "qwen-image-edit-2511": {
+      "repo": "Comfy-Org/Qwen-Image-Edit_ComfyUI",
+      "revision": "f68ace85e60b",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "fp8mixed",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "image_edit"
+      ],
+      "files": [
+        {
+          "role": "diffusion_model_fp8mixed",
+          "path": "split_files/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors",
+          "bytes": 20530000000,
+          "comfy_dir": "diffusion_models"
+        }
+      ],
+      "vramAllowGb": 24,
+      "note": "Playbook section 7.2 edit engine. The BF16 and int8_convrot variants in the same repo are alternatives, not additional models."
+    },
+    "wan2.2-t2v-a14b": {
+      "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+      "revision": "5df3a4a3ed06",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "fp8_scaled",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "video"
+      ],
+      "files": [
+        {
+          "role": "high_noise",
+          "path": "split_files/diffusion_models/wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors",
+          "bytes": 14290000000,
+          "comfy_dir": "diffusion_models"
+        },
+        {
+          "role": "low_noise",
+          "path": "split_files/diffusion_models/wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors",
+          "bytes": 14290000000,
+          "comfy_dir": "diffusion_models"
+        }
+      ],
+      "vramAllowGb": 45,
+      "note": "Playbook section 7.3 text-to-video engine. Image-to-video (wan2.2-i2v-a14b) remains the separate conditioning path."
+    },
+    "wan2.2-animate-14b": {
+      "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+      "revision": "5df3a4a3ed06",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "int8_convrot",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "animate"
+      ],
+      "files": [
+        {
+          "role": "diffusion_model",
+          "path": "split_files/diffusion_models/wan2.2_animate_14B_int8_convrot.safetensors",
+          "bytes": 18410000000,
+          "comfy_dir": "diffusion_models"
+        }
+      ],
+      "vramAllowGb": 40,
+      "note": "Playbook section 7.4 motion-transfer engine. Not yet exercised on the box; listed so the catalog matches the mandated set."
+    },
+    "real-esrgan-x4plus": {
+      "sourceUrl": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth",
+      "license": "BSD-3-Clause",
+      "authorizationProfile": "commercial",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "image_upscale"
+      ],
+      "files": [
+        {
+          "role": "upscale_model",
+          "path": "RealESRGAN_x4plus.pth",
+          "bytes": null,
+          "comfy_dir": "upscale_models"
+        }
+      ],
+      "vramAllowGb": 8,
+      "note": "Playbook section 7.6 restoration. Bytes and SHA-256 are null because no verified copy exists yet; the downloader must record both before install and must not guess them."
+    },
       "qwen-image-2.1-omni": {
         "repo": "chatrlabs/Qwen-Image-2.1-Uncensored-Omni-Quantized",
         "revision": "af0343c25951",
