@@ -418,8 +418,13 @@
       "enabled": true,
       "readOnly": null,
       "readOnlyNote": "2026-11-21 Guarded unattended mode is not an enforced read-only contract.",
-      "verifiedOn": "2026-11-21",
-      "reason": "Owner authorized Windows ZCode dispatch in SH-5036. The initial guarded launcher captured the exact response on the saved subscription and passed native headless Browser Use. The stdin launcher is covered by dispatcher fixtures."
+      "model": "account:zai-start-plan/GLM-5.4",
+      "allowedModels": [
+        "account:zai-start-plan/GLM-5.4"
+      ],
+      "modelNote": "provider/model id; provider ids carry a colon on this host. The dispatcher refuses this host (2026-11-25): the saved personal provider file holds provider API keys and is never read or copied, and a key-free per-run config with only config.defaultModelSelection cannot select a model headless on zcode 0.18.0 (Select a model before sending a message). Z.ai GLM runs on OpenCode (zai-coding-plan/glm-5.4).",
+      "verifiedOn": "2026-11-25",
+      "reason": "2026-11-25: the earlier route copied the saved personal provider file, with its literal provider API keys, into a per-run folder. Removed; the route now refuses with the reason in -List. Owner authorized Windows ZCode dispatch in SH-5036; it returns when a supported key-free route exists."
     },
     "cursor": {
       "enabled": true,
@@ -428,10 +433,14 @@
     },
     "cursor-agent": {
       "enabled": true,
-      "readOnly": null,
-      "readOnlyNote": "2026-11-20 The dispatcher calls the vendor CLI with --mode ask. The documented read-only mode still needs a governed end-to-end test, including tool permissions, before enabling -ReadOnly.",
-      "reason": "account smoke ok 2026-10-22",
-      "verifiedOn": "2026-10-22"
+      "readOnly": {
+        "flags": ["--mode", "plan"],
+        "omits": ["--force", "ask"]
+      },
+      "readOnlyNote": "2026-11-25 (CORE-7) `cursor-agent --help`: --mode plan and --mode ask are the only read-only modes; plan is the enforced one, ask is Q&A only and cannot edit. -ReadOnly runs --print --output-format text --mode plan in place of --force. No model run exercised this mode; the flags come from help text.",
+      "guard": "--force runs every tool call and the host has no agent-profile denylist, so the child environment repeats the qwen/warp guard: GIT_CONFIG_* rewrites https://, git@ and ssh:// push URLs to an unhandled scheme, GH_CONFIG_DIR points at an empty directory, and GH_TOKEN/GITHUB_TOKEN are removed. Not guarded: local destructive commands and other cloud CLIs; run cursor-agent only in C:\\wt worktrees.",
+      "reason": "2026-11-25 (CORE-7): dispatch rewritten writable on cursor-agent --help: --print --output-format text --force --trust --workspace <cwd> plus --model for -Model. The earlier --mode ask could not edit ('I'm in Ask mode'); ask is never emitted now. Live smoke under C:/wt/fleet-smoke passed the same day. History: account smoke ok 2026-10-22.",
+      "verifiedOn": "2026-11-25"
     },
     "factory": {
       "enabled": true,
@@ -465,8 +474,8 @@
       "autonomy": "medium",
       "autonomyNote": "Dispatch runs `--auto` at low or medium only. `--auto high` permits git push, and --skip-permissions-unsafe is never emitted; the dispatcher refuses any autonomy value outside low or medium. Outward-action rules live in the repo-owned runtimeSettings file, verified with `droid rules check` 2026-10-26.",
       "runtimeSettings": "packages/coding-agent-dispatch/skills/dispatch/factory/runtime-settings.json",
-      "reason": "2026-10-26: team-tier account login verified (droid doctor). Live probes returned the expected text: gpt-6-luna 651 credits, glm-5.3-flash 827, gemini-3.8-flash 4,382, gpt-6-sol 14,089 for a one-line prompt. Four headless tasks (F-1..F-4) were completed and integrated under these rules. There is no spend flag, so the dispatcher timeout bounds each run.",
-      "verifiedOn": "2026-10-26",
+      "reason": "2026-11-25 (CORE-7): custom:qwen4-max and custom:glm-5.4-zai each passed the write-and-verify task. History, 2026-10-26: team-tier account login verified (droid doctor). Live probes returned the expected text: gpt-6-luna 651 credits, glm-5.3-flash 827, gemini-3.8-flash 4,382, gpt-6-sol 14,089 for a one-line prompt. Four headless tasks (F-1..F-4) were completed and integrated under these rules. There is no spend flag, so the dispatcher timeout bounds each run.",
+      "verifiedOn": "2026-11-25",
       "ownerDirection": "2026-10-26: owner asked in the Claude session to make Factory Droid a first-class execution peer, then to commit, merge and deploy everything. This supersedes, for Factory only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
     "amp": {
@@ -507,8 +516,8 @@
         "omits": []
       },
       "readOnlyNote": "2026-11-11 `codex exec --help`: \"-s, --sandbox <SANDBOX_MODE> Select the sandbox policy to use when executing model-generated shell commands [possible values: read-only, workspace-write, danger-full-access]\". The ~/bin/codex.cmd shim adds no flags of its own. Help does not say how the sandbox is enforced on Windows. No model run exercised this mode; the flags come from help text only.",
-      "reason": "2026-11-10: standalone `codex exec --skip-git-repo-check -` captured a response ('READY', session 01a1c62b-7356-7160-9b9c-efeecb274bd2, exit 0, 32,069 tokens). Account quota permitted the smoke; the prior enablement condition is met. Two MCP workers failed at session start (assemblyai OAuth invalid_token; one remote MCP redirect-origin block) -- MCP health issues, not dispatch readiness; recorded for repair.",
-      "verifiedOn": "2026-11-10",
+      "reason": "2026-11-25 (CORE-7): default-model run passed the write-and-verify task. History, 2026-11-10: standalone `codex exec --skip-git-repo-check -` captured a response ('READY', session 01a1c62b-7356-7160-9b9c-efeecb274bd2, exit 0, 32,069 tokens). Account quota permitted the smoke; the prior enablement condition is met. Two MCP workers failed at session start (assemblyai OAuth invalid_token; one remote MCP redirect-origin block) -- MCP health issues, not dispatch readiness; recorded for repair.",
+      "verifiedOn": "2026-11-25",
       "knownIssue": "RESOLVED 2026-11-10 by the smoke above. History: 2026-10-21 smoke captured no response text; ChatGPT-plan quota was exhausted at 22:00 CT."
     },
     "warp": {
@@ -564,7 +573,7 @@
         "apiBase": "https://api.devin.ai/v3",
         "apiBaseNote": "docs.devin.ai/api-reference/v3/overview: organization endpoints live under https://api.devin.ai/v3/organizations/*; the v3 OpenAPI security scheme is a bearer service-user credential (prefix cog_)."
       },
-      "reason": "2026-11-19 (SH-4969): enabled on the owner's direction recorded in cloudBudgetAuthorization. The adapter, its spend and concurrency guards and its key handling are covered by tests/Test-DevinCloud.ps1 with the HTTP function mocked. Orchestrator-verified the same day (a live end-to-end run through Invoke-DevinCloud.ps1 from the SH-4969 worktree, not a test): the key resolves through the 1Password service account (cog_ prefix); session ba31db7d8d394a7dbeb38009dd1310a4 was created with max_acu_limit 2 on repo shmindmaster/agenthub; a second create with the same run id returned deduplicated true; wait reached waiting_for_user; messages, then a message whose follow-up Devin answered correctly with 13 (matching git ls-tree -d at 03930bd9); stop returned status exit; acus_consumed 0.0. History: 2026-10-26 the owner wanted Devin Cloud as a peer but authorized no budget; a user-scope DEVIN_API_KEY from another org then got 403 on the personal org.",
+      "reason": "2026-11-25 (CORE-7): a create attempt returned out_of_quota; the cloud lane was not exercised and no session was created. 2026-11-19 (SH-4969): enabled on the owner's direction recorded in cloudBudgetAuthorization. The adapter, its spend and concurrency guards and its key handling are covered by tests/Test-DevinCloud.ps1 with the HTTP function mocked. Orchestrator-verified the same day (a live end-to-end run through Invoke-DevinCloud.ps1 from the SH-4969 worktree, not a test): the key resolves through the 1Password service account (cog_ prefix); session ba31db7d8d394a7dbeb38009dd1310a4 was created with max_acu_limit 2 on repo shmindmaster/agenthub; a second create with the same run id returned deduplicated true; wait reached waiting_for_user; messages, then a message whose follow-up Devin answered correctly with 13 (matching git ls-tree -d at 03930bd9); stop returned status exit; acus_consumed 0.0. History: 2026-10-26 the owner wanted Devin Cloud as a peer but authorized no budget; a user-scope DEVIN_API_KEY from another org then got 403 on the personal org.",
       "ownerAction": "Rotate the agenthub-dispatch key before cloudBudgetAuthorization.keyExpiresOn (2027-02-17). Decide whether to set an org-level per-session limit (the v3 Organization max_session_acu_limit) as a backstop for MCP-created sessions; none is set.",
       "ownerDirection": "2026-11-19: 'Devin cloud and api are OK now' and 'it should be a first class agent from now'. Default per-session max_acu_limit 10 (a task may pass a higher explicit value); at most 3 Devin Cloud sessions this dispatcher tagged running at once."
     },
@@ -599,8 +608,8 @@
       "allowedModelsNote": "Recorded models, not a limit on -Model; an unlisted model such as the excluded ones below is passed through when a task names it. devin models list --format json 2026-10-26 (CLI 3000.11.205, Devin Pro): swe-2-medium, swe-2-high and swe-2-max are cost_tier Free. adaptive is $0.5/$0.1/$2 per 1M input/cached/output; fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium is Med cost, $2/$0.1/$10 for the lead with a Free sidekick. Paid usage draws the Pro daily/weekly quota, then on-demand credits (docs.devin.ai/admin/billing/self-serve). The former default swe-2-medium-lightning is High cost ($1/$0.1/$5) and is left out of this list, as are Opus/Fable/GPT Fusion leads.",
       "permissionMode": "dangerous",
       "permissionNote": "Owner direction 2026-10-26: leave permissions as they are (user env DEVIN_PERMISSION_MODE=dangerous, launchDefaults.devin). Devin's OS sandbox and the autonomous mode that needs it are not supported on Windows (docs.devin.ai/cli/sandbox), and no deny rules are configured, so nothing blocks git push or gh calls from a dispatched run. Run Devin only in C:\\wt worktrees and review before integrating.",
-      "reason": "2026-11-10 (later the same day): `devin auth status` reports 'Logged in (via Devin)' with DEVIN_API_KEY, DEVIN_API_TOKEN, DEVIN_SERVICE_USER_TOKEN and DEVIN_ORG_ID removed from the environment, and the governed command (`devin --permission-mode dangerous --respect-workspace-trust false -p --prompt-file <file> --model swe-2-medium`) returned READY, exit 0, with those variables removed. An earlier check that day had read 'Not logged in'; the owner had signed in through the account login since. The owner removed DEVIN_API_KEY and WARP_API_KEY from the User environment on 2026-11-10; the dispatcher still strips the Devin key variables so a reintroduced key cannot override the stored account login. Earlier evidence: 2026-10-26 account login verified (devin auth status: Devin Pro, team membership approved). The dispatcher strips DEVIN_API_KEY/DEVIN_API_TOKEN/DEVIN_ORG_ID so the stored login authenticates. read_config_from already disables claude, cursor, windsurf, copilot, opencode and zed imports (only agents_standard), so AgentHub-deployed MCP, skills and AGENTS.md are the only shared capability source. Headless dispatch smoke 2026-10-26 (swe-2-medium, Free): the first dispatcher run at 20:30 CT exited 0 after 17 s with empty stdout and stderr; three later runs (two direct, one through the dispatcher at about 20:32) returned READY, the dispatcher run in 4 s. Treat exit 0 without the expected output or report file as a failed run.",
-      "verifiedOn": "2026-11-10",
+      "reason": "2026-11-25 (CORE-7): the local default-model run passed the write-and-verify task; Devin Cloud (dispatchPolicy.devin-cloud) returned out_of_quota the same day, so only the local lane was exercised. History, 2026-11-10 (later the same day): `devin auth status` reports 'Logged in (via Devin)' with DEVIN_API_KEY, DEVIN_API_TOKEN, DEVIN_SERVICE_USER_TOKEN and DEVIN_ORG_ID removed from the environment, and the governed command (`devin --permission-mode dangerous --respect-workspace-trust false -p --prompt-file <file> --model swe-2-medium`) returned READY, exit 0, with those variables removed. An earlier check that day had read 'Not logged in'; the owner had signed in through the account login since. The owner removed DEVIN_API_KEY and WARP_API_KEY from the User environment on 2026-11-10; the dispatcher still strips the Devin key variables so a reintroduced key cannot override the stored account login. Earlier evidence: 2026-10-26 account login verified (devin auth status: Devin Pro, team membership approved). The dispatcher strips DEVIN_API_KEY/DEVIN_API_TOKEN/DEVIN_ORG_ID so the stored login authenticates. read_config_from already disables claude, cursor, windsurf, copilot, opencode and zed imports (only agents_standard), so AgentHub-deployed MCP, skills and AGENTS.md are the only shared capability source. Headless dispatch smoke 2026-10-26 (swe-2-medium, Free): the first dispatcher run at 20:30 CT exited 0 after 17 s with empty stdout and stderr; three later runs (two direct, one through the dispatcher at about 20:32) returned READY, the dispatcher run in 4 s. Treat exit 0 without the expected output or report file as a failed run.",
+      "verifiedOn": "2026-11-25",
       "ownerDirection": "2026-10-26: owner asked in the Claude session to make Devin a first-class execution peer (local and cloud), with no cloud budget for this batch, local tasks run one at a time once free RAM allows, and permissions left as they are. This supersedes, for Devin local runs only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
     "opencode": {
@@ -637,21 +646,22 @@
         "qwen-token-plan/qwen3.8-max",
         "qwen-token-plan/qwen4-max",
         "qwen-token-plan/qwen3.8-flash",
-        "zai-glm-plan/glm-5.4"
+        "zai-glm-plan/glm-5.4",
+        "agentrouter/gpt-6.1-sol"
       ],
       "planRoutesNote": "2026-11-14 smoke-verified through Invoke-CodingAgent.ps1 (READY, exit 0): qwen-token-plan/qwen3.8-max (QWEN_TOKEN_PLAN_API_KEY, Qwen Token Plan), zai-glm-plan/glm-5.3 (native OpenCode 2.x Z.ai Coding Plan provider, ZAI_CODING_PLAN_API_KEY), zai-coding-plan/glm-5.3 (legacy Windows launcher), mimo-token-plan/mimo-v2.6-pro (MIMO_API_KEY). qwen4-max-preview verified by a direct opencode run the same day.",
       "allowedModelsNote": "Smoke-verified models, not a limit on -Model. opencode-go/* entries are the OpenCode Go subscription, reached through the stored Go workspace login. The opencode/* provider is the pay-as-you-go Zen wallet, a different route: it returned 'Insufficient balance' on 2026-11-10 (opencode 2.2.6) while opencode-go/glm-5.3-flash and opencode-go/kimi-k2.7-code returned READY with OPENCODE_GO_API_KEY unset. Every opencode-go id here is in the `opencode models` listing (32 opencode-go models). mimo-token-plan/* entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.config/opencode/opencode.json and are the fallback when the Go plan is out of credit or usage (owner direction 2026-11-11; the 402 'Insufficient balance' seen on 2026-11-11 came from the opencode/* Zen wallet ids this list carried then, not from the Go subscription).",
-      "reason": "2026-10-26: one-word prompts returned the expected text for every model then listed, recorded under opencode/* ids. The free models (glm-5.3-flash-free, deepseek-v4.1-flash-free, mimo-v2.6-flash-free, big-pickle) and claude-sonnet-5-5 and gpt-6.1-sol returned 'Model is unavailable' (HTTP 400). 2026-11-10 (opencode 2.2.6): the Go subscription is the opencode-go provider and the ids were corrected to opencode-go/*; opencode-go/glm-5.3-flash and opencode-go/kimi-k2.7-code returned READY on the stored Go workspace login, and the other six opencode-go ids are confirmed in `opencode models` but not re-run under the new id. -Model accepts any provider/model id; an unlisted one is passed through with a stderr note. Bound task execution by the dispatcher timeout.",
+      "reason": "2026-11-25 (CORE-7): agentrouter/gpt-6.1-sol, qwen-token-plan/qwen4-max and zai-coding-plan/glm-5.4 each passed the write-and-verify task. History, 2026-10-26: one-word prompts returned the expected text for every model then listed, recorded under opencode/* ids. The free models (glm-5.3-flash-free, deepseek-v4.1-flash-free, mimo-v2.6-flash-free, big-pickle) and claude-sonnet-5-5 and gpt-6.1-sol returned 'Model is unavailable' (HTTP 400). 2026-11-10 (opencode 2.2.6): the Go subscription is the opencode-go provider and the ids were corrected to opencode-go/*; opencode-go/glm-5.3-flash and opencode-go/kimi-k2.7-code returned READY on the stored Go workspace login, and the other six opencode-go ids are confirmed in `opencode models` but not re-run under the new id. -Model accepts any provider/model id; an unlisted one is passed through with a stderr note. Bound task execution by the dispatcher timeout.",
       "ownerAction": null,
-      "verifiedOn": "2026-10-26",
+      "verifiedOn": "2026-11-25",
       "ownerDirection": "2026-10-26: owner asked in the Claude session to make OpenCode a first-class execution peer and to delegate 3-4 substantial engineering tasks to it. This supersedes, for OpenCode only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
     "antigravity": {
       "enabled": true,
       "readOnly": null,
       "readOnlyNote": "2026-11-11 not established. `agy --help`: \"--mode Set the agent execution mode for this session (accept-edits, auto, plan)\" and \"--sandbox Run in a sandbox with terminal restrictions enabled\". Help does not say that plan makes no edits or what the sandbox restricts. -ReadOnly is refused.",
-      "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 9 s, returned ok; G1 credits stay off.",
-      "verifiedOn": "2026-10-14",
+      "reason": "2026-11-25 (CORE-7): default-model run passed the write-and-verify task. History, 2026-10-14 bounded dispatcher smoke: exit 0 in 9 s, returned ok; G1 credits stay off.",
+      "verifiedOn": "2026-11-25",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
       "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled.",
       "enabledByOwner": "2026-11-05 enabled on the owner's direction that a host which works should not stay disabled. Evidence: 2026-10-14 bounded dispatcher smoke, exit 0 in 9 s, returned ok. G1 credits stay off."
@@ -660,7 +670,7 @@
       "enabled": true,
       "readOnly": null,
       "readOnlyNote": "2026-11-11 not established. `cline --help`: \"-p, --plan Run in plan mode\" and \"--auto-approve <boolean> Set tool auto-approval for all tools (default: true)\". Help does not say plan mode blocks writes. -ReadOnly is refused.",
-      "reason": "2026-10-26 (CLI 3.0.71): one-word and small-coding-task probes. openai-compatible qwen3.8-max (Alibaba Model Studio) answered, cost 0, then at 23:07Z returned 'The free quota has been exhausted' after ~400k tokens: the endpoint runs a free-tier quota in free-tier-only mode and fails closed. Free models on provider cline passed a write-and-test task at totalCost 0: nvidia/nemotron-3-ultra-550b-a55b:free, poolside/laguna-s-2.1:free, cohere/north-mini-code:free; thinkingmachines/inkling:free returned 429 (daily cap). cline-pass returned 'weekly Clinepass limit reached, resets in 2d 1h' at 2026-10-26 22:45Z; its suggested fallback (--provider cline with a paid model) is usage-billed and must not be used. Unattended runs need AGENTHUB_PEER_GUARD=1 and CLINE_SESSION_BACKEND_MODE=local so ~/.cline/plugins/peer-guard.js runs in-process; in hub mode the guard never sees the variable (verified: push went through).",
+      "reason": "2026-11-25 smoke (CORE-7): zai-glm-54:glm-5.4, qwen-token-plan:qwen4-max and opencode-go:glm-5.3 each passed the write-and-verify task (sum.txt = 51). Cline Pass returned its weekly limit again. mimo-token-plan:mimo-v2.6-pro failed at iteration 1 with upstream 'quota exhausted' (0 tokens, finishReason error in the .out log): the MiMo Token Plan allowance is exhausted, not a dispatcher fault; the route and model id resolved correctly. History, 2026-10-26 (CLI 3.0.71): one-word and small-coding-task probes. openai-compatible qwen3.8-max (Alibaba Model Studio) answered, cost 0, then at 23:07Z returned 'The free quota has been exhausted' after ~400k tokens: the endpoint runs a free-tier quota in free-tier-only mode and fails closed. Free models on provider cline passed a write-and-test task at totalCost 0: nvidia/nemotron-3-ultra-550b-a55b:free, poolside/laguna-s-2.1:free, cohere/north-mini-code:free; thinkingmachines/inkling:free returned 429 (daily cap). cline-pass returned 'weekly Clinepass limit reached, resets in 2d 1h' at 2026-10-26 22:45Z; its suggested fallback (--provider cline with a paid model) is usage-billed and must not be used. Unattended runs need AGENTHUB_PEER_GUARD=1 and CLINE_SESSION_BACKEND_MODE=local so ~/.cline/plugins/peer-guard.js runs in-process; in hub mode the guard never sees the variable (verified: push went through).",
       "allowedModels": [
         "openai-compatible:qwen3.8-max-0902",
         "openai-compatible:qwen3.8-2.4t-a95b",
@@ -680,10 +690,13 @@
         "cline-pass:cline-pass/deepseek-v4-pro",
         "cline-pass:cline-pass/qwen3.8-max",
         "mimo-token-plan:mimo-v2.6-pro",
-        "mimo-token-plan:mimo-v2.6-flash"
+        "mimo-token-plan:mimo-v2.6-flash",
+        "zai-glm-54:glm-5.4",
+        "qwen-token-plan:qwen4-max",
+        "opencode-go:glm-5.3"
       ],
-      "allowedModelsNote": "provider:model. Recorded models, not a limit on -Model. Free ids carry ':free' and price 0 in https://api.cline.bot/api/v1/ai/cline/models; any other model on provider cline is usage-billed and is kept out of this list, but the dispatcher passes it through when a task names it. cline-pass entries are subscription-allowance only and fail closed when the weekly limit is reached. mimo-token-plan entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.cline/data/settings and are the fallback when a host's own plan is out of credit or usage (owner direction 2026-11-11).",
-      "verifiedOn": "2026-10-26",
+      "allowedModelsNote": "provider:model. Recorded models, not a limit on -Model. Free ids carry ':free' and price 0 in https://api.cline.bot/api/v1/ai/cline/models; any other model on provider cline is usage-billed and is kept out of this list, but the dispatcher passes it through when a task names it. cline-pass entries are subscription-allowance only and fail closed when the weekly limit is reached. mimo-token-plan entries run on the flat-rate MiMo Token Plan through the provider of that name in ~/.cline/data/settings and are the fallback when a host's own plan is out of credit or usage (owner direction 2026-11-11); the plan allowance was exhausted on 2026-11-25 ('quota exhausted'). zai-glm-54, qwen-token-plan and opencode-go entries were smoke-verified on a write-and-verify task 2026-11-25.",
+      "verifiedOn": "2026-11-25",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
       "knownIssue": "Historical --yolo benchmark mode could hang at submit_and_exit. Normal --json mode with native timeout preserves plugins and MCP. Check the result before treating any timeout as success. A headless run starts a background cline-hub-daemon that inherits stdout; never read a run's output through a pipe that waits for EOF.",
       "ownerDirection": "2026-10-26: owner asked in the Claude session to make Cline a first-class execution peer and to delegate 3-4 substantial engineering tasks to it. This supersedes, for Cline only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
@@ -708,8 +721,8 @@
       "enabled": true,
       "readOnly": null,
       "readOnlyNote": "2026-11-11 not established. `grok --help`: \"--permission-mode <MODE> Permission mode [possible values: default, acceptEdits, auto, dontAsk, bypassPermissions, plan]\" and \"--sandbox <PROFILE> Sandbox profile for filesystem and network access\". Help describes neither plan nor any sandbox profile, so no enforced read-only command is confirmed. -ReadOnly is refused.",
-      "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 11 s, returned ok.",
-      "verifiedOn": "2026-10-14",
+      "reason": "2026-11-25 (CORE-7): default-model run passed the write-and-verify task. History, 2026-10-14 bounded dispatcher smoke: exit 0 in 11 s, returned ok.",
+      "verifiedOn": "2026-11-25",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     },
     "kilo": {
@@ -728,9 +741,9 @@
       ],
       "planRoutesNote": "2026-11-14 smoke-verified through Invoke-CodingAgent.ps1 (READY, exit 0): qwen-token-plan/qwen3.8-max (QWEN_TOKEN_PLAN_API_KEY), zai-coding-plan/glm-5.3 (ZAI_CODING_PLAN_API_KEY), mimo/mimo-v2.6-pro (MIMO_API_KEY). Providers live in ~/.config/kilo/config.json with {env:...} keys.",
       "allowedModelsNote": "Recorded models, not a limit on -Model. mimo/mimo-v2.6-pro was smoke-verified on the MiMo provider (2026-11-10, governed command). mimo/mimo-v2.6-flash is listed under provider mimo in ~/.config/kilo/config.json and was added on owner direction 2026-11-10 without a captured response.",
-      "reason": "2026-11-10: the exact governed command (`kilo run --auto --format json --dir <cwd> --model mimo/mimo-v2.6-pro --agent peer`) returned READY, exit 0. A second run under the same command asked for `doctl version` and `echo ALLOWED_OK`: the first was blocked by the agent's bash deny rule before execution and the second ran, so --auto does not override an explicit deny. `kilo debug agent peer` listed the deny rules as resolved. Only the listed model was exercised.",
+      "reason": "2026-11-25 (CORE-7): qwen-token-plan/qwen4-max and zai-coding-plan/glm-5.4 each passed the write-and-verify task. History, 2026-11-10: the exact governed command (`kilo run --auto --format json --dir <cwd> --model mimo/mimo-v2.6-pro --agent peer`) returned READY, exit 0. A second run under the same command asked for `doctl version` and `echo ALLOWED_OK`: the first was blocked by the agent's bash deny rule before execution and the second ran, so --auto does not override an explicit deny. `kilo debug agent peer` listed the deny rules as resolved.",
       "ownerAction": null,
-      "verifiedOn": "2026-11-10",
+      "verifiedOn": "2026-11-25",
       "ownerDirection": "2026-11-10: owner directed that Kilo and MiMo Code be researched and made to work rather than left gated, after directing their onboarding into the managed fleet earlier the same day."
     },
     "mimo-code": {
