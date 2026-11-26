@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 Proves that what a host actually LOADS matches what this repository contains.
 
@@ -584,7 +584,7 @@ function Test-VersionCheckRejectsStaleCopy {
         Host             = 'fixture'
         InstalledVersion = '0.0.1'
         InstallPath      = ''
-        SourcePackage    = (Join-Path $repoRoot 'packages\browser')
+        SourcePackage    = (Join-Path $repoRoot 'packages\funding')
         Remedy           = 'not applicable'
     }
     $result = Test-InstalledVersionMatchesSource -Plugins @($stale)

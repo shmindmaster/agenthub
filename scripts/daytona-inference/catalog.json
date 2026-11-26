@@ -126,9 +126,11 @@
       "modelRepo": "DavidAU/Qwen3.8-27B-TURBO-Fable-Cold-Fusion-735-882-Heretic-Uncensored-NEO-CODER-MAX-MTP-GGUF",
       "modelFile": "Qwen3.8-27B-TBrill-TurboFCFusion-735-882-Here-Uncen-NEO-CODER-MAX-MTP-Q8_0.gguf",
       "modelMmproj": "mmproj-BF16.gguf",
-      "nativeRepo": "orcarouter/Qwen3.8-27B-Uncensored-FP8",
-      "nativePrecision": "FP8 (native block-FP8, e4m3)",
-      "nativeNote": "Served by vLLM on :8003 at 262144 ctx, 16 sequences, 0.90 memory. Measured on the MI355X 2026-11-26: 81.2 tok/s with AITER (AiterFp8BlockScaledMMKernel), 42.9 tok/s without it, 29.7 tok/s for the GGUF Q8_0 path it replaced. MTP (qwen3_5_mtp) measured 5.2 tok/s and is not used. Below the playbook 240-300 tok/s gate; AITER ships no tuned block-FP8 GEMM shapes for MI355X, so it falls back to default configs.",
+      "nativeRepo": "amd/Qwen3.8-27B-Quark-AWQ-MXFP4",
+      "nativeDraftRepo": "incoai/Qwen3.8-27B-DFlash2",
+      "nativePrecision": "MXFP4 (Quark AWQ, E8M0 dynamic activations)",
+      "nativeGatedAccess": "ungated (Apache-2.0)",
+      "nativeNote": "Served by vLLM on :8003 at 262144 ctx, 64 sequences, 0.90 memory, fp8 KV cache, --language-model-only, AITER, DFlash2 block-diffusion drafter (method: dflash, num_speculative_tokens: 7), HIP_FORCE_DEV_KERNARG=1, TORCH_BLAS_PREFER_HIPBLASLT=1, and OMP_NUM_THREADS=16 / MKL_NUM_THREADS=16 / TOKENIZERS_PARALLELISM=false (required on the 16-CPU cgroup over a 192-CPU host). Measured on the MI355X 2026-11-26: 267.4 tok/s mean on-box (247.9/278.9/275.3; 312.8 thinking) and 198.6 tok/s mean via gateway (192.6/202.6/200.6), up from 156.8 on-box on FP8+MTP and 81.1 baseline without speculation.",
       "toolCallParser": "qwen3_coder",
       "reasoningParser": "qwen3",
       "aiter": true,
@@ -167,14 +169,14 @@
         "MI355X": {
           "backend": "engineering-rocm-gfx950",
           "recipe": "recipes/serve-engineering-rocm-gfx950.sh",
-          "quantization": "FP8(block)+Q8_0",
+          "quantization": "MXFP4+DFlash2",
           "maxModelLen": 262144,
           "ctxSize": 131072,
           "maxOutputTokens": 32768,
-          "maxNumSeqs": 8,
-          "gpuMemUtil": 0.4,
+          "maxNumSeqs": 64,
+          "gpuMemUtil": 0.9,
           "maxNumBatchedTokens": 16384,
-          "mtpTokens": 3,
+          "mtpTokens": 7,
           "parallel": 1,
           "flagshipParallel": 1,
           "batchSize": 4096,
@@ -415,9 +417,9 @@
           "image_edit": "qwen-image-2.1-omni",
           "video": "ltx-2.5-uncensored",
           "talk": "ltx-2.5-uncensored",
-          "tts": "lfm3-omni-2b-heretic",
+          "tts": "voxcpm2",
           "transcribe": "lfm3-omni-2b-heretic",
-          "music": "ace-step-1.5-turbo"
+          "music": "ace-step-1.5-xl-sft"
         }
       },
       "commercial": {
@@ -425,16 +427,121 @@
         "commercialAllowed": true,
         "models": {
           "image": "qwen-image-2512",
-          "image_edit": "qwen-image-2512",
-          "video": "wan2.2-i2v-a14b",
+          "image_edit": "qwen-image-edit-2511",
+          "video": "wan2.2-t2v-a14b",
           "talk": "wan2.2-s2v-14b",
-          "tts": "zonos3-mini",
+          "tts": "voxcpm2",
           "transcribe": "sov-transcribe-1",
-          "music": "ace-step-1.5-turbo"
+          "music": "ace-step-1.5-xl-sft"
         }
       }
     },
     "checkpoints": {
+    "voxcpm2": {
+      "repo": "openbmb/VoxCPM2",
+      "revision": "7936080b4116",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "BF16",
+      "runtime": "voxcpm",
+      "modalities": [
+        "tts"
+      ],
+      "sample_rate_hz": 48000,
+      "supports_voice_design": true,
+      "supports_ref_voice_cloning": true,
+      "vramAllowGb": 10,
+      "verified": "2026-11-26 on agenthub-media MI355X: Voice Design job 91.8 s, reference-voice clone job 37.7 s, both produced WAV output",
+      "note": "The single expressive speech engine required by playbook section 8. Supersedes zonos3-mini, qwen3-tts-1.7b-customvoice and lfm3-omni-2b-heretic as the narration default; those stay archived and are not re-downloaded."
+    },
+    "qwen-image-edit-2511": {
+      "repo": "Comfy-Org/Qwen-Image-Edit_ComfyUI",
+      "revision": "f68ace85e60b",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "fp8mixed",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "image_edit"
+      ],
+      "files": [
+        {
+          "role": "diffusion_model_fp8mixed",
+          "path": "split_files/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors",
+          "bytes": 20530000000,
+          "comfy_dir": "diffusion_models"
+        }
+      ],
+      "vramAllowGb": 24,
+      "note": "Playbook section 7.2 edit engine. The BF16 and int8_convrot variants in the same repo are alternatives, not additional models."
+    },
+    "wan2.2-t2v-a14b": {
+      "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+      "revision": "5df3a4a3ed06",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "fp8_scaled",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "video"
+      ],
+      "files": [
+        {
+          "role": "high_noise",
+          "path": "split_files/diffusion_models/wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors",
+          "bytes": 14290000000,
+          "comfy_dir": "diffusion_models"
+        },
+        {
+          "role": "low_noise",
+          "path": "split_files/diffusion_models/wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors",
+          "bytes": 14290000000,
+          "comfy_dir": "diffusion_models"
+        }
+      ],
+      "vramAllowGb": 45,
+      "note": "Playbook section 7.3 text-to-video engine. Image-to-video (wan2.2-i2v-a14b) remains the separate conditioning path."
+    },
+    "wan2.2-animate-14b": {
+      "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+      "revision": "5df3a4a3ed06",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "int8_convrot",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "animate"
+      ],
+      "files": [
+        {
+          "role": "diffusion_model",
+          "path": "split_files/diffusion_models/wan2.2_animate_14B_int8_convrot.safetensors",
+          "bytes": 18410000000,
+          "comfy_dir": "diffusion_models"
+        }
+      ],
+      "vramAllowGb": 40,
+      "note": "Playbook section 7.4 motion-transfer engine. Not yet exercised on the box; listed so the catalog matches the mandated set."
+    },
+    "real-esrgan-x4plus": {
+      "sourceUrl": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth",
+      "license": "BSD-3-Clause",
+      "authorizationProfile": "commercial",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "image_upscale"
+      ],
+      "files": [
+        {
+          "role": "upscale_model",
+          "path": "RealESRGAN_x4plus.pth",
+          "bytes": 67040989,
+          "comfy_dir": "upscale_models"
+        }
+      ],
+      "vramAllowGb": 8,
+      "note": "Playbook section 7.6 restoration. The 67040989-byte size was measured over HTTP on 2026-11-25; SHA-256 is still null because no verified copy exists, and the downloader must record it before install rather than guess it."
+    },
       "qwen-image-2.1-omni": {
         "repo": "chatrlabs/Qwen-Image-2.1-Uncensored-Omni-Quantized",
         "revision": "af0343c25951",
@@ -538,7 +645,28 @@
         ],
         "vramAllowGb": 45
       },
-      "ace-step-1.5-turbo": {
+      "ace-step-1.5-xl-sft": {
+      "repo": "Comfy-Org/ACE-Step-1.5",
+      "revision": "371bb1680f8c",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "BF16",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "music"
+      ],
+      "files": [
+        {
+          "role": "diffusion_model",
+          "path": "split_files/diffusion_models/acestep_v1.5_xl_sft_bf16.safetensors",
+          "bytes": 9290000000,
+          "comfy_dir": "diffusion_models"
+        }
+      ],
+      "vramAllowGb": 16,
+      "note": "The quality-first music checkpoint. ACE-Step/acestep-v15-xl-sft is the ACE-Step runtime's four-shard transformers release and cannot be loaded by ComfyUI's checkpoint or diffusion-model loaders; only this ComfyUI repack of the XL SFT weights is loadable, so both paths are recorded and only this one is deployed."
+    },
+    "ace-step-1.5-turbo": {
         "repo": "Comfy-Org/ACE-Step-1.5",
         "revision": "371bb1680f8c",
         "license": "MIT/Apache-2.0",

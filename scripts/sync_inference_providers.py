@@ -156,9 +156,10 @@ def build_opencode_provider(spec: dict[str, Any], user_home: Path | None = None)
                 "context": m["contextWindow"],
                 "output": m["maxOutputTokens"],
             },
-            "disabled": False,
+            "disabled": bool((m.get("serving") or {}).get("deferred", False)),
             "body": {"reasoning_effort": default_effort},
             "variants": [
+                {"id": "fast", "body": {"chat_template_kwargs": {"enable_thinking": False}}},
                 {"id": "everyday", "body": {"reasoning_effort": default_effort}},
                 {"id": "deep", "body": {"reasoning_effort": "xhigh"}},
             ],
@@ -181,9 +182,11 @@ def sync_opencode(spec: dict[str, Any], user_home: Path, _roaming: Path, _repo: 
         return {"host": "opencode", "status": "absent", "path": str(path)}
     data = load_json(path)
     providers = data.setdefault("providers", {})
+    legacy_ids = ("daytona-fast", "daytona-flagship", "daytona-specialist", "daytona-turbo-heretic-q6")
+    has_legacy = any(k in providers for k in legacy_ids)
     want = build_opencode_provider(spec, user_home=user_home)
     have = providers.get(spec["provider"]["id"])
-    if have == want:
+    if have == want and not has_legacy:
         return {"host": "opencode", "status": "current", "path": str(path)}
     state = "missing" if have is None else "drift"
     if not apply:
@@ -191,6 +194,8 @@ def sync_opencode(spec: dict[str, Any], user_home: Path, _roaming: Path, _repo: 
     orig_model = data.get("model")
     orig_small = data.get("small_model")
     orig_agents = json.dumps(data.get("agents"), sort_keys=True)
+    for legacy_id in legacy_ids:
+        providers.pop(legacy_id, None)
     providers[spec["provider"]["id"]] = want
     if data.get("model") != orig_model or data.get("small_model") != orig_small or json.dumps(data.get("agents"), sort_keys=True) != orig_agents:
         raise RuntimeError("opencode invariant violation: defaults or agents changed")
