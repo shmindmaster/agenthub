@@ -44,7 +44,7 @@ LOG_DIR = RUNTIME_DIR / "logs"
 MANAGED_ROLES = ["engineering", "media", "specialist", "flagship"]
 # A live check alone is not enough: MI355X spot boxes were evicted 28 and 42 minutes after a verified boot (2026-11-25).
 MIN_ENGINEERING_UPTIME_HOURS = 6
-DEFAULT_ALIVE_PATTERN = r"[v]llm serve|[l]lama-server|[s]erve-(specialist|flagship|engineering)"
+DEFAULT_ALIVE_PATTERN = r"[v]llm serve|[v]llm\.entrypoints\.openai\.api_server|[l]lama-server|[s]erve-(specialist|flagship|engineering)"
 
 
 def media_server_dir() -> Path:
@@ -960,10 +960,14 @@ def cmd_up(args: argparse.Namespace) -> None:
             return
 
         is_dual = role == "engineering" and profile.get("backend") == "engineering-rocm-gfx950"
+        flagship_enabled = is_dual and (
+            os.environ.get("FLAGSHIP_ENABLED", "1" if role_cfg.get("flagshipEnabled", False) else "0").strip() == "1"
+        )
         if is_dual:
             flag_quant = str(args.quant or "Q8_0")
             flag_port = int(role_cfg["flagshipPort"])
             env_vars = {
+                "FLAGSHIP_ENABLED": "1" if flagship_enabled else "0",
                 "WEIGHTS_ROOT": mount_path,
                 "GPU_TYPE": gpu_name,
                 "SPEC_REPO": role_cfg["modelRepo"],
@@ -1035,7 +1039,7 @@ def cmd_up(args: argparse.Namespace) -> None:
                 timeout=30,
             )
         wait_for_sandbox_models(sandbox, port, role_cfg["primaryServedModelName"], log_file)
-        if is_dual:
+        if flagship_enabled:
             wait_for_sandbox_models(sandbox, int(role_cfg["flagshipPort"]), role_cfg["flagshipServedModelName"], "/tmp/flagship.log")
         sandbox.set_ttl(args.ttl)
         sandbox.refresh_data()
@@ -1062,7 +1066,7 @@ def cmd_up(args: argparse.Namespace) -> None:
 
         registered_aliases = list(role_cfg["servedAliases"])
         flag_origin = ""
-        if is_dual:
+        if flagship_enabled:
             flag_port = int(role_cfg["flagshipPort"])
             flag_origin, flag_preview_token = preview_origin_and_token(sandbox, flag_port, "engineering-flagship")
             flag_api_base = flag_origin.rstrip("/") + "/v1"
@@ -1110,7 +1114,7 @@ def cmd_up(args: argparse.Namespace) -> None:
             "status": "serving",
             "checked_at": utc_now(),
         }
-        if is_dual and flag_origin:
+        if flagship_enabled and flag_origin:
             worker_state["flagship_repo"] = role_cfg["flagshipRepo"]
             worker_state["flagship_preview_origin"] = flag_origin
             worker_state["flagship_base_url"] = flag_origin.rstrip("/") + "/v1"
