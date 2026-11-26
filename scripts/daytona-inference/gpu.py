@@ -614,7 +614,7 @@ def update_sh_forge_caddy(
     if not inf_key:
         raise SystemExit("Missing AGENTHUB_INFERENCE_KEY / secrets/inference.key")
 
-    ssh_host = os.environ.get("SH_FORGE_SSH_HOST", "forge").strip() or "forge"
+    ssh_host = os.environ.get("SH_FORGE_SSH_HOST", "sh-inference").strip() or "sh-inference"
     resolved_ip = (owner_ip or os.environ.get("OWNER_IP", "")).strip()
     existing_caddy = ""
     if not dry_run:
@@ -644,7 +644,23 @@ def update_sh_forge_caddy(
         )
         return
 
-    updated_caddy = upsert_caddy_site_block(existing_caddy, "inference.shtrial.com", block)
+    updated_caddy = existing_caddy
+    for host in ("inference.shtrial.com", "comfy.shtrial.com"):
+        host_match = re.search(rf"(?m)^[ \t]*{re.escape(host)}[ \t]*\{{", block)
+        if not host_match:
+            continue
+        start = host_match.start()
+        depth, idx, end = 0, host_match.end() - 1, len(block)
+        while idx < len(block):
+            if block[idx] == "{":
+                depth += 1
+            elif block[idx] == "}":
+                depth -= 1
+                if depth == 0:
+                    end = idx + 1
+                    break
+            idx += 1
+        updated_caddy = upsert_caddy_site_block(updated_caddy, host, block[start:end])
     remote_cmd = (
         # Write in place: the container bind-mounts this one file, and a rename would leave it reading the old one.
         "cat > /opt/forge/caddy/Caddyfile && "
@@ -875,7 +891,11 @@ def cmd_up(args: argparse.Namespace) -> None:
                 "WEIGHTS_ROOT": mount_path,
                 "GPU_TYPE": gpu_name,
                 "SPEC_REPO": role_cfg["modelRepo"],
+                "SPEC_FILE": str(role_cfg.get("modelFile", "")),
+                "SPEC_MMPROJ": str(role_cfg.get("modelMmproj", "")),
                 "FLAG_REPO": role_cfg["flagshipRepo"],
+                "FLAG_FILE": str(role_cfg.get("flagshipFile", "")),
+                "FLAG_MMPROJ": str(role_cfg.get("flagshipMmproj", "")),
                 "FLAG_QUANT": flag_quant,
                 "SPEC_PORT": str(port),
                 "FLAG_PORT": str(flag_port),
@@ -886,10 +906,13 @@ def cmd_up(args: argparse.Namespace) -> None:
                 "MAX_NUM_BATCHED_TOKENS": str(profile["maxNumBatchedTokens"]),
                 "MTP_TOKENS": str(profile["mtpTokens"]),
                 "PARALLEL": str(profile["parallel"]),
+                "FLAG_PARALLEL": str(profile.get("flagshipParallel", 1)),
                 "BATCH_SIZE": str(profile["batchSize"]),
                 "UBATCH_SIZE": str(profile["ubatchSize"]),
                 "CACHE_TYPE_K": str(profile["cacheTypeK"]),
                 "CACHE_TYPE_V": str(profile["cacheTypeV"]),
+                "FLAG_CACHE_TYPE_K": str(profile.get("flagshipCacheTypeK", "q8_0")),
+                "FLAG_CACHE_TYPE_V": str(profile.get("flagshipCacheTypeV", "q8_0")),
             }
         else:
             env_vars = {
@@ -981,7 +1004,7 @@ def cmd_up(args: argparse.Namespace) -> None:
                     "max_input_tokens": flag_ctx - int(profile["maxOutputTokens"]),
                     "max_output_tokens": int(profile["maxOutputTokens"]),
                     "supports_function_calling": bool(role_cfg["tools"]),
-                    "supports_vision": False,
+                    "supports_vision": bool(role_cfg.get("flagshipVision", False)),
                     "supports_reasoning": True,
                     "gpu_type": gpu_name,
                     "quantization": profile["quantization"],

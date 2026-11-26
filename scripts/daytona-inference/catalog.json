@@ -107,8 +107,13 @@
     "engineering": {
       "sandboxName": "agenthub-engineering",
       "legacySandboxNames": [],
-      "modelRepo": "orcarouter/Qwen3.8-27B-Uncensored-FP8",
-      "flagshipRepo": "orcarouter/Qwen3.8-Flash-Next-Uncensored-GGUF",
+      "modelRepo": "DavidAU/Qwen3.8-27B-Ultimate-Heretic-Uncensored-Turbo-Brilliance-50x-AGI-NEO-GGUF",
+      "modelFile": "Qwen3.8-27B-Ultimate-Heretic-2.1ARA-Uncn-Turbo-Brilli-50x-AGI-NEO-MTP-Q8_0.gguf",
+      "modelMmproj": "mmproj-BF16.gguf",
+      "flagshipRepo": "Abiray/Inkling-2-Mini-Uncensored-GGUF",
+      "flagshipFile": "Inkling-2-Mini-Uncensored-Q8_0.gguf",
+      "flagshipMmproj": "mmproj-Inkling-2-Mini-Uncensored-BF16.gguf",
+      "flagshipVision": true,
       "engine": "dual",
       "port": 8001,
       "flagshipPort": 8002,
@@ -128,20 +133,23 @@
         "MI355X": {
           "backend": "engineering-rocm-gfx950",
           "recipe": "recipes/serve-engineering-rocm-gfx950.sh",
-          "quantization": "FP8+Q8_0",
+          "quantization": "Q8_0+Q8_0",
           "maxModelLen": 262144,
-          "ctxSize": 262144,
+          "ctxSize": 1048576,
           "maxOutputTokens": 32768,
           "maxNumSeqs": 8,
           "gpuMemUtil": 0.40,
           "maxNumBatchedTokens": 16384,
           "mtpTokens": 3,
-          "parallel": 2,
+          "parallel": 4,
+          "flagshipParallel": 2,
           "batchSize": 4096,
           "ubatchSize": 2048,
           "cacheTypeK": "f16",
           "cacheTypeV": "f16",
-          "pleLocation": "CPU"
+          "flagshipCacheTypeK": "q8_0",
+          "flagshipCacheTypeV": "q8_0",
+          "pleLocation": "GPU"
         }
       }
     },

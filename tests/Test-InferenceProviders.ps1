@@ -39,7 +39,7 @@ Assert-True ($catalog.roles.specialist.profiles.H200.snapshotName -eq 'agenthub-
 Assert-True ($catalog.roles.flagship.profiles.H200.snapshotName -eq 'agenthub-llama-cuda-h200') 'H200 flagship snapshotName mismatch'
 Assert-True ($catalog.roles.engineering.engine -eq 'dual') 'engineering engine must be dual'
 Assert-True ($catalog.roles.engineering.port -eq 8001 -and $catalog.roles.engineering.flagshipPort -eq 8002) 'engineering ports must be 8001 and 8002'
-Assert-True ($catalog.roles.engineering.profiles.MI355X.maxModelLen -eq 262144 -and $catalog.roles.engineering.profiles.MI355X.ctxSize -eq 262144) 'engineering MI355X context must be 262144'
+Assert-True ($catalog.roles.engineering.profiles.MI355X.maxModelLen -eq 262144 -and $catalog.roles.engineering.profiles.MI355X.ctxSize -eq 1048576) 'engineering MI355X context must be 262144/1048576'
 Assert-True ($catalog.roles.engineering.profiles.MI355X.maxOutputTokens -eq 32768) 'engineering MI355X maxOutputTokens must be 32768'
 Assert-True ($catalog.roles.media.engine -eq 'media-lab' -and $catalog.roles.media.port -eq 8189) 'media engine/port mismatch'
 Assert-True ($catalog.roles.media.profiles.MI355X.backend -eq 'media-rocm-gfx950') 'media MI355X backend mismatch'
@@ -184,7 +184,7 @@ assert parsed_save.command == "save-cache" and parsed_save.role == "specialist"
 # Engineering & media roles (MI355X dual-slot + fallback + volume routing)
 chosen_eng, prof_eng = gpu.select_gpu_for_role("engineering", "auto", cap_amd, cat)
 assert chosen_eng == "MI355X" and prof_eng["backend"] == "engineering-rocm-gfx950"
-assert prof_eng["maxModelLen"] == 262144 and prof_eng["ctxSize"] == 262144 and prof_eng["maxOutputTokens"] == 32768
+assert prof_eng["maxModelLen"] == 262144 and prof_eng["ctxSize"] == 1048576 and prof_eng["maxOutputTokens"] == 32768
 
 chosen_media, prof_media = gpu.select_gpu_for_role("media", "auto", cap_amd, cat)
 assert chosen_media == "MI355X" and prof_media["backend"] == "media-rocm-gfx950"
@@ -275,6 +275,7 @@ rendered_site = gpu.render_caddyfile_site_block(
     "gw-tok-test",
 )
 assert "handle_path /v1/media/*" in rendered_site
+assert "comfy.shtrial.com" in rendered_site and "forward_auth 127.0.0.1:3000" in rendered_site and "rewrite * /comfy{uri}" in rendered_site
 assert "x-daytona-preview-token prev-tok-test" in rendered_site
 assert 'Authorization "Bearer gw-tok-test"' in rendered_site
 assert "reverse_proxy 127.0.0.1:4000" in rendered_site
@@ -608,11 +609,13 @@ try {
         Assert-True ($oc.model -eq 'qwen-token-plan/qwen3.8-max') 'OpenCode default model changed'
         Assert-True ($oc.small_model -eq 'qwen-token-plan/qwen3.8-flash') 'OpenCode small_model changed'
         # agent-turbo stays on the legacy H200 box (65536 context, 16384 output) until retire-legacy-turbo runs.
-        foreach ($alias in @('agent-fast', 'agent-specialist', 'agent-vision', 'agent-flagship')) {
+        foreach ($alias in @('agent-fast', 'agent-specialist', 'agent-vision')) {
             $m = $oc.providers.'agenthub-daytona'.models.$alias
             Assert-True ($null -ne $m) "Missing OpenCode alias $alias"
             Assert-True ($m.limit.context -eq 262144 -and $m.limit.output -eq 32768) "Alias $alias context/output limit mismatch"
         }
+        $mf = $oc.providers.'agenthub-daytona'.models.'agent-flagship'
+        Assert-True ($null -ne $mf -and $mf.limit.context -eq 1048576 -and $mf.limit.output -eq 32768) "Alias agent-flagship context/output limit mismatch"
 
         $codexCfg = Get-Content "$fakeHome/.codex/config.toml" -Raw -Encoding UTF8
         Assert-True ($codexCfg -notmatch '\[profiles\.daytona-') 'Codex config.toml must not contain inline [profiles.daytona-*]'
@@ -627,7 +630,7 @@ try {
 
         $grokCfg = Get-Content "$fakeHome/.grok/config.toml" -Raw -Encoding UTF8
         Assert-True ($grokCfg -notmatch '\[model\.daytona-specialist\]') 'Legacy Grok [model.daytona-specialist] must be pruned'
-        Assert-True ($grokCfg -match 'Qwen3\.8 27B Uncensored FP8') 'Grok display names must include uncensored checkpoint label'
+        Assert-True ($grokCfg -match 'Qwen3\.8 27B Heretic MTP Q8_0') 'Grok display names must include uncensored checkpoint label'
 
         $vscCfg = Get-Content "$fakeRoaming/Code - Insiders/User/chatLanguageModels.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True (@($vscCfg | Where-Object { $_.name -eq 'Daytona H200' }).Count -eq 0) 'Legacy VS Code Daytona H200 group must be pruned'

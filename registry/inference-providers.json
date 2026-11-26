@@ -24,7 +24,7 @@
   "models": [
     {
       "id": "agent-fast",
-      "displayName": "Daytona Fast — Qwen3.8 27B Uncensored FP8 (Low)",
+      "displayName": "Daytona Fast — Qwen3.8 27B Heretic MTP Q8_0 (Low)",
       "role": "routine",
       "family": "qwen3.8",
       "contextWindow": 262144,
@@ -48,7 +48,7 @@
     },
     {
       "id": "agent-specialist",
-      "displayName": "Daytona Specialist — Qwen3.8 27B Uncensored FP8",
+      "displayName": "Daytona Specialist — Qwen3.8 27B Heretic MTP Q8_0 (Vision)",
       "role": "specialist",
       "family": "qwen3.8",
       "contextWindow": 262144,
@@ -72,7 +72,7 @@
     },
     {
       "id": "agent-vision",
-      "displayName": "Daytona Vision — Qwen3.8 27B Uncensored FP8",
+      "displayName": "Daytona Vision — Qwen3.8 27B Heretic MTP Q8_0",
       "role": "vision",
       "family": "qwen3.8",
       "contextWindow": 262144,
@@ -120,17 +120,17 @@
     },
     {
       "id": "agent-flagship",
-      "displayName": "Daytona Flagship — Qwen3.8 Flash-Next Uncensored (256K)",
+      "displayName": "Daytona Flagship — Inkling-2-Mini Uncensored Q8_0 (1M Vision)",
       "role": "flagship",
-      "family": "qwen3.8",
-      "contextWindow": 262144,
-      "maxInputTokens": 229376,
+      "family": "inkling2",
+      "contextWindow": 1048576,
+      "maxInputTokens": 1015808,
       "maxOutputTokens": 32768,
       "streaming": true,
       "toolCalling": true,
       "structuredOutput": true,
       "modalities": {
-        "input": ["text"],
+        "input": ["text", "image"],
         "output": ["text"]
       },
       "reasoning": {
