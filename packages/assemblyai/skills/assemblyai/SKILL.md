@@ -25,23 +25,40 @@ Then load the reference for the work:
 
 - Speech, narration, cloned voices, word timings: [speech](references/speech.md)
 - Transcripts, live captions, voice agents, LLM Gateway: [transcription](references/transcription.md)
+- A connected narration companion, when the running host actually exposes one: [narration companion](references/narration-companion.md)
 
 Optional deep reference: `npx skills add AssemblyAI/assemblyai-skill`. That repository has no licence, so never copy its text.
 
 ## Cloned voices
 
-Both are private to the ABACare account, in the US zone, English, on `assemblyai-tts-1`.
+The two ids below are supplied account configuration, not proof of a live catalog: private to the ABACare account, US zone, English, on `assemblyai-tts-1`. Confirm status and consent through an authorized connection before use; a name or similar sound is not identity.
 
 | Speaker | `voice_id` | Use it when |
 |---|---|---|
-| Sarosh Hussain | `sarosh-hussain` | The request says "my voice" or "my cloned voice", or Sarosh is the speaker |
-| Syeda Fatima Abidi | `syeda-fatima-abidi` | Syeda is the speaker |
+| Sarosh Hussain | `sarosh-hussain` | A personal narration explicitly identified as Sarosh's, or an ABACare technical/business film after the owner asked for his voice on it |
+| Syeda Fatima Abidi | `syeda-fatima-abidi` | Syeda is the speaker, including ABACare marketing, parent-facing, social and general product films |
 
-- Personal or ABACare work only. For personal narration with no other voice named, recommend `sarosh-hussain` first. A film uses it once the owner has asked for his voice on that film; until then it gets the stock default. Never write that approval yourself. For ABACare, use the clone of the person speaking; any other narrator or character gets a stock `aai-` voice. Other companies' work gets a stock voice through `media-studio`.
+- Personal or ABACare work only. For personal narration with no other voice named, recommend `sarosh-hussain` first; when "my voice" could mean either speaker, resolve it from explicit conversation context or ask. A film uses a clone only once the owner has asked for that clone on that film; until then it gets the stock default. Never write that approval yourself. For ABACare, use the clone of the person speaking; any other narrator or character gets a stock `aai-` voice. Other companies' work gets a stock voice through `media-studio`.
 - Check the clone before a job: `GET https://tts.us.assemblyai.com/v1/voices/<voice_id>` must show `status: active`, `source: customer_upload`, `visibility: private`, the zone and language you need, `assemblyai-tts-1` in `ready_models`, `consent.attested: true` and a future `retention.expires_at`. It makes no speech. The fields are the ones `media-studio` reads; no vendor page lists them.
 - Never swap in a look-alike or stock voice silently. If the clone fails the check, say so and stop before any paid speech.
 - Consent lasts 60 days and an expired clone cannot be revived. Tell the owner when fewer than 14 days remain. `extend_biometric_consent` attests renewed consent for the account: send it only after that speaker said yes in the current task. Renewal is a billed speech request, so the owner approves that spend too.
 - Creating a clone, deleting one or making one public needs an explicit request. Label the delivered speech as AI-generated.
+- Do not invent a live voice-list or voice-get operation. A saved profile list is configuration, not the account catalog.
+
+## Narration companion (only when a real tool is attached)
+
+Some hosts also expose an ABACare narration companion. Those tools are not part of this plugin and not part of the hosted MCP: discover their actual names and schemas in the running host, and never invent a tool id or call a website URL as if it were a tool. If the companion is absent, name that missing connection and keep the prepared script; do not substitute a blanket "Media Studio required" answer or fabricate audio.
+
+- Check the voice connection state first. A cached check or saved default is not current availability. Enter a companion credential only through its verified owner form, never in chat; it is not an AssemblyAI REST key and must not be moved to another service.
+- A live check that opens a TTS WebSocket, reads `Begin` and sends no `Generate` proves acceptance of the configured voice only. It does not prove private visibility, upload source, consent attestation or speaker identity; those stay separate evidence.
+- Reuse binds the caller, the exact approved script, the saved voice and any take label. Do not change punctuation, title or label to force a fresh paid take. Only an explicit request for another take authorizes a new label and its spend.
+- On timeout, an unknown status or a lost response, recover the original job id instead of creating a new one: the provider may already have finished and billed it. On a real failure, report the returned error; never auto-retry into a stock voice, a new clone or a consent renewal.
+- Take captions and word timings from the same accepted WAV, by alignment or transcription if the generator returned none. Never resynthesize the script to obtain captions.
+- A completed WAV is not a finished reel. Keep the approved source media, inspect pronunciation, pacing and synchronization, review the encoded video, and report actual artifacts and status.
+
+## Host app boundaries
+
+The hosted AssemblyAI app exposes transcript submission, status, summarize, understand, upload URL and explicit deletion. It does not expose TTS, voice listing, clone checks, consent renewal or live streaming. Use actual tool schemas, pass attachments through a supported file field when available, and never make private audio public to fill a URL field. Clinical audio needs verified agreements, authorized data flows and account controls; use synthetic or de-identified fixtures otherwise.
 
 ## MCP servers
 
@@ -60,7 +77,7 @@ Both are private to the ABACare account, in the US zone, English, on `assemblyai
 
 ## Keys
 
-Read `ASSEMBLYAI_API_KEY` from the server environment. Never put a key in client code, a file or a commit.
+Read `ASSEMBLYAI_API_KEY` from the server environment for direct API code. The hosted MCP or companion credential is a separate connection and is not usable for arbitrary REST calls. Never request a key in chat or put one in client code, a file, logs or a commit.
 
 ## Routing
 
