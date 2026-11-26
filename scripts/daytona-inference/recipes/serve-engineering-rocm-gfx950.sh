@@ -2,11 +2,15 @@
 # Serving recipe: Engineering slot 1 on AMD MI355X (288 GB CDNA4 gfx950).
 #   Primary: Qwen3.8-27B-Uncensored native block-FP8 (orcarouter checkpoint, the selection the
 #   implementation playbook requires) under vLLM ROCm on :8003, 262144 ctx, 16 sequences, with
-#   AITER FP8 block-scaled GEMM, tool calling and separated reasoning.
-#   Measured on 2026-11-26: 81.2 tok/s on the box, 66.3 tok/s through the gateway.
-#     - same checkpoint without AITER: 42.9 tok/s (vLLM default W8A8 block kernel)
-#     - the GGUF Q8_0 llama.cpp path it replaced: 29.7 tok/s
-#     - MTP speculative decoding measured 5.2 tok/s, so it is not used
+#   AITER FP8 block-scaled GEMM, MTP speculative decoding (method: mtp, num_speculative_tokens: 3),
+#   16-thread CPU caps, tool calling, and separated reasoning.
+#   Measured on 2026-11-26:
+#     - 156.8-157.3 tok/s on-box (~114 tok/s through gateway) with AITER + method: mtp (num_speculative_tokens: 3) + 16-thread CPU cap
+#     - 81.1 tok/s baseline with AITER + 16-thread CPU cap (without MTP)
+#     - 42.9 tok/s without AITER (vLLM default W8A8 block kernel)
+#     - 29.7 tok/s on the GGUF Q8_0 llama.cpp path it replaced
+#     - OMP_NUM_THREADS=16 (with MKL_NUM_THREADS=16, TOKENIZERS_PARALLELISM=false) is required on the
+#       16-CPU cgroup running on a 192-CPU host so PyTorch/OpenMP/MKL/tokenizers do not oversubscribe 192 threads.
 #   Inkling is deferred per the playbook: its weights stay on the volume, and FLAGSHIP_ENABLED=0
 #   (the default) launches no second server. Set FLAGSHIP_ENABLED=1 to serve the Q8_0 GGUF again.
 #   SPEC_ENGINE=llama-cpp serves the older GGUF Q8_0 primary instead of the FP8 checkpoint.
@@ -34,8 +38,13 @@ GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.90}"
 SPEC_MAX_NUM_SEQS="${SPEC_MAX_NUM_SEQS:-16}"
 # AMD's document path for FP8 block-scaled GEMM. Without it vLLM selects its default
 # W8A8 block kernel: measured 42.9 tok/s. With it, AiterFp8BlockScaledMMKernel is selected
-# and the same prompt measured 81.2 tok/s on an MI355X (2026-11-26).
+# (81.1 tok/s baseline with 16-thread CPU cap; 156.8-157.3 tok/s on-box with MTP=3 on 2026-11-26).
 ROCM_AITER="${ROCM_AITER:-1}"
+# Cap host CPU thread pools to the 16-CPU cgroup (192-CPU host) to avoid thread oversubscription.
+OMP_NUM_THREADS="${OMP_NUM_THREADS:-16}"
+MKL_NUM_THREADS="${MKL_NUM_THREADS:-16}"
+TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}"
+SPEC_MTP_TOKENS="${SPEC_MTP_TOKENS:-3}"
 
 SPEC_PORT="${SPEC_PORT:-8003}"
 FLAG_PORT="${FLAG_PORT:-8002}"
@@ -303,22 +312,28 @@ launch_spec() {
     echo "launching_specialist_q8_on_port=$SPEC_PORT model=$SPEC_MODEL_PATH ctx=$((MAX_MODEL_LEN * PARALLEL)) parallel=$PARALLEL"
     setsid "$LLAMA_BIN" "${args[@]}" > /tmp/specialist.log 2>&1 &
   else
-    echo "launching_native_qwen_vllm port=$SPEC_PORT model=$SPEC_HF_DIR dtype=fp8-native ctx=$MAX_MODEL_LEN tool_parser=$SPEC_TOOL_PARSER reasoning_parser=$SPEC_REASONING_PARSER aiter=$ROCM_AITER"
+    echo "launching_native_qwen_vllm port=$SPEC_PORT model=$SPEC_HF_DIR dtype=fp8-native ctx=$MAX_MODEL_LEN tool_parser=$SPEC_TOOL_PARSER reasoning_parser=$SPEC_REASONING_PARSER aiter=$ROCM_AITER mtp_tokens=$SPEC_MTP_TOKENS omp_threads=$OMP_NUM_THREADS"
+    local vllm_args=(
+      --model "$SPEC_HF_DIR"
+      --served-model-name qwen3.8-27b-unc-q8
+      --host 0.0.0.0 --port "$SPEC_PORT"
+      --max-model-len "$MAX_MODEL_LEN"
+      --gpu-memory-utilization "$GPU_MEM_UTIL"
+      --max-num-seqs "$SPEC_MAX_NUM_SEQS"
+      --tensor-parallel-size 1
+      --enable-prefix-caching
+      --enable-auto-tool-choice
+      --tool-call-parser "$SPEC_TOOL_PARSER"
+      --reasoning-parser "$SPEC_REASONING_PARSER"
+    )
+    if [[ "${SPEC_MTP_TOKENS:-0}" -gt 0 ]]; then
+      vllm_args+=(--speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":${SPEC_MTP_TOKENS}}")
+    fi
     # VLLM_API_KEY keeps the worker key out of the process command line. Weights stay in the
     # checkpoint's native FP8; --dtype is left to the model config so nothing is dequantized.
     VLLM_API_KEY="$KEY" VLLM_ROCM_USE_AITER="$ROCM_AITER" VLLM_ROCM_USE_AITER_MHA="$ROCM_AITER" VLLM_ROCM_USE_AITER_RMSNORM="$ROCM_AITER" \
-      setsid python3 -m vllm.entrypoints.openai.api_server \
-      --model "$SPEC_HF_DIR" \
-      --served-model-name qwen3.8-27b-unc-q8 \
-      --host 0.0.0.0 --port "$SPEC_PORT" \
-      --max-model-len "$MAX_MODEL_LEN" \
-      --gpu-memory-utilization "$GPU_MEM_UTIL" \
-      --max-num-seqs "$SPEC_MAX_NUM_SEQS" \
-      --tensor-parallel-size 1 \
-      --enable-prefix-caching \
-      --enable-auto-tool-choice \
-      --tool-call-parser "$SPEC_TOOL_PARSER" \
-      --reasoning-parser "$SPEC_REASONING_PARSER" \
+      OMP_NUM_THREADS="$OMP_NUM_THREADS" MKL_NUM_THREADS="$MKL_NUM_THREADS" TOKENIZERS_PARALLELISM="$TOKENIZERS_PARALLELISM" \
+      setsid python3 -m vllm.entrypoints.openai.api_server "${vllm_args[@]}" \
       >> /tmp/specialist.log 2>&1 &
   fi
   SPEC_PID=$!

@@ -30,11 +30,11 @@
         "weights": "orcarouter/Qwen3.8-27B-Uncensored-FP8",
         "precision": "FP8 (native block-FP8, e4m3)",
         "aiter": true,
-        "measuredTokensPerSecond": 81.2,
+        "measuredTokensPerSecond": 156.8,
         "measuredOn": "2026-11-26",
         "toolCallParser": "qwen3_coder",
         "reasoningParser": "qwen3",
-        "note": "The retained model id still says q8 for compatibility with existing host entries; the served weights are the playbook-mandated native block-FP8 checkpoint. AITER gives 81.2 tok/s against 42.9 without it; MTP speculative decoding measured 5.2 tok/s and is disabled. That is below the playbook's 240-300 tok/s gate because AITER ships no tuned block-FP8 GEMM shapes for MI355X."
+        "note": "The retained model id still says q8 for compatibility with existing host entries; the served weights are the playbook-mandated native block-FP8 checkpoint. Steady-state MI355X measurement on 2026-11-26: 156.8-157.3 tok/s on-box (~114 tok/s through the gateway) using AITER + built-in MTP (method: mtp, num_speculative_tokens: 3) + 16-thread CPU cap (OMP_NUM_THREADS=16, MKL_NUM_THREADS=16, TOKENIZERS_PARALLELISM=false), up from 81.1 tok/s baseline without MTP and 42.9 without AITER. That remains below >=300 tok/s without fused GDN/MTP kernels or an external EAGLE-4 drafter. On fast calls without reasoning, pass per-call chat_template_kwargs: {\"enable_thinking\": false} to avoid wasted hidden reasoning tokens."
       },
       "role": "general",
       "family": "qwen3.8",
