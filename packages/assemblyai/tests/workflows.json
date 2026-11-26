@@ -22,6 +22,21 @@
         "Never swap in a look-alike or stock voice silently.",
         "send it only after that speaker said yes in the current task."
       ]
+    },
+    {
+      "skill": "assemblyai",
+      "kind": "workflow",
+      "input": "An ABACare narration companion is attached and the approved script is ready.",
+      "expected": "Check connection state, verify the configured voice without generating, use the accepted take, and report the real job, WAV, captions and what remains unfinished.",
+      "evidence": [
+        "Check the voice connection state first. A cached check or saved default is not current availability.",
+        "A live check that opens a TTS WebSocket, reads `Begin` and sends no `Generate` proves acceptance of the configured voice only. It does not prove private visibility, upload source, consent attestation or speaker identity; those stay separate evidence.",
+        "Reuse binds the caller, the exact approved script, the saved voice and any take label. Do not change punctuation, title or label to force a fresh paid take.",
+        "On timeout, an unknown status or a lost response, recover the original job id instead of creating a new one: the provider may already have finished and billed it.",
+        "Take captions and word timings from the same accepted WAV, by alignment or transcription if the generator returned none. Never resynthesize the script to obtain captions.",
+        "A completed WAV is not a finished reel. Keep the approved source media, inspect pronunciation, pacing and synchronization, review the encoded video, and report actual artifacts and status."
+      ],
+      "id": "narration-companion"
     }
   ]
 }
