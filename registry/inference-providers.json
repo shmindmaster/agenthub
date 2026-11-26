@@ -35,7 +35,7 @@
         "measuredOn": "2026-11-26",
         "toolCallParser": "qwen3_coder",
         "reasoningParser": "qwen3",
-        "note": "The retained model id still says q8 for compatibility with existing host entries; the served weights are amd/Qwen3.8-27B-Quark-AWQ-MXFP4 with incoai/Qwen3.8-27B-DFlash2 (num_speculative_tokens=7, kv-cache-dtype fp8, --language-model-only). Steady-state MI355X measurement on 2026-11-26: 267.4 tok/s mean on-box (312.8 thinking) and 198.6 tok/s mean via gateway using AITER + 16-thread CPU cap (OMP_NUM_THREADS=16, MKL_NUM_THREADS=16, TOKENIZERS_PARALLELISM=false), up from 156.8 on-box on FP8+MTP and 81.1 baseline without speculation. For fast calls without reasoning, use the #fast variant or pass chat_template_kwargs: {\"enable_thinking\": false}."
+        "note": "The retained model id still says q8 for compatibility with existing host entries; the served weights are amd/Qwen3.8-27B-Quark-AWQ-MXFP4 with incoai/Qwen3.8-27B-DFlash2 (num_speculative_tokens=7, kv-cache-dtype fp8, multimodal vision enabled). Steady-state MI355X measurement on 2026-11-26: 267.4 tok/s mean on-box (312.8 thinking) and 198.6 tok/s mean via gateway using AITER + 16-thread CPU cap (OMP_NUM_THREADS=16, MKL_NUM_THREADS=16, TOKENIZERS_PARALLELISM=false), up from 156.8 on-box on FP8+MTP and 81.1 baseline without speculation; image input + DFlash2 verified live via gateway (153.0 tok/s). For fast calls without reasoning, use the #fast variant or pass chat_template_kwargs: {\"enable_thinking\": false}."
       },
       "role": "general",
       "family": "qwen3.8",
