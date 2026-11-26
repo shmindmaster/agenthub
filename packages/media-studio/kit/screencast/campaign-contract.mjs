@@ -21,11 +21,12 @@ export const CAMPAIGN_FORMS = Object.freeze({
   'campaign-outreach': [70, 80],
 });
 
-export function frameFor(job) {
+/** The delivery frame. A screen-stage film runs at 60 fps in every profile (kit/screencast/stage-math.mjs STAGE.fps). */
+export function frameFor(job, { stage = false } = {}) {
   const profile = job.deliveryProfile || 'briefing-board';
   const frame = PROFILES[profile];
   if (!frame) throw new Error(`unknown deliveryProfile ${profile}`);
-  return { profile, ...frame };
+  return { profile, ...frame, ...(stage ? { fps: 60 } : {}) };
 }
 
 // Source coordinates are fractions of the receipt-bound capture, independent of its pixel size.

@@ -188,6 +188,7 @@ test('compose: refuses to run when the product-picture validator is not resolvab
   cpSync(compose, join(kitCopy, 'compose-screencast.mjs'));
   cpSync(join(pkg, 'kit', 'screencast', 'campaign-contract.mjs'), join(kitCopy, 'campaign-contract.mjs'));
   cpSync(join(pkg, 'kit', 'screencast', 'sync-lib.mjs'), join(kitCopy, 'sync-lib.mjs'));
+  for (const lib of ['stage-ramps.mjs', 'stage-math.mjs', 'stage-plan.mjs', 'stage-changes.mjs', 'stage-checks.mjs']) cpSync(join(pkg, 'kit', 'screencast', lib), join(kitCopy, lib));
   const root = join(scratch, 'compose-nogate');
   writeJob(root);
   const r = spawnSync(process.execPath, [join(kitCopy, 'compose-screencast.mjs'), root, 'x'], { encoding: 'utf8', env: { ...process.env, AGENTHUB_ROOT: join(scratch, 'nowhere') } });

@@ -53,6 +53,13 @@
     -TruePeak, then run the usual two-pass linear finish. No compression.
 .PARAMETER PlanOnly
     Print the JSON plan. Pass 1 still runs when an input exists (read-only).
+
+.PARAMETER Effects
+    Optional click/tap effects stem (mono WAV, from stage-effects.mjs). It is
+    mixed after loudness normalisation, is never ducked by the speech sidechain
+    (it is not part of the music bed), and its gain drops only as far as needed
+    to keep the true peak at the program's own ceiling (-TruePeak + 0.3 dB, or
+    the normalised program's peak if higher). Absent: nothing changes.
 #>
 [CmdletBinding()]
 param(
@@ -67,6 +74,8 @@ param(
     [string]$Music,
 
     [string]$Video,
+
+    [string]$Effects,
 
     [string]$Output,
 
@@ -173,6 +182,12 @@ function Test-HasVideoStream {
     return ($run.ExitCode -eq 0 -and ($run.Output -join '').Trim().Length -gt 0)
 }
 
+function Get-EffectsFilter {
+    param([double]$Db)
+    $gain = $Db.ToString('0.##', [Globalization.CultureInfo]::InvariantCulture)
+    return ('[0:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[prog];[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=mono,pan=stereo|c0=c0|c1=c0,volume={0}dB[fx];[prog][fx]amix=inputs=2:duration=first:normalize=0[mix]' -f $gain)
+}
+
 function Write-PlanJson {
     param([Parameter(Mandatory)]$Plan)
     Write-Output ($Plan | ConvertTo-Json -Compress -Depth 8)
@@ -198,6 +213,8 @@ if ($useStems) {
     if (-not (Test-Path -LiteralPath $Speech)) { throw "Speech file not found: $Speech" }
     if (-not (Test-Path -LiteralPath $Music)) { throw "Music file not found: $Music" }
 }
+
+if (-not [string]::IsNullOrWhiteSpace($Effects) -and -not (Test-Path -LiteralPath $Effects)) { throw "Effects file not found: $Effects" }
 
 $programPath = $Program
 if (-not $useStems) {
@@ -246,8 +263,13 @@ $plan = [ordered]@{
     normalizationType = $null
 }
 
+if (-not [string]::IsNullOrWhiteSpace($Effects)) {
+    $plan.effects = [ordered]@{ file = $Effects; filter = (Get-EffectsFilter -Db 0); gainDb = $null; truePeak = $null }
+}
+
 if ($Action -eq 'measure') {
     if ($useStems) { throw 'measure requires a mixed -Program; duck then finish instead.' }
+    if (-not [string]::IsNullOrWhiteSpace($Effects)) { throw '-Effects applies to finish only.' }
     if ($PlanOnly -and -not $pass1Args) {
         Write-PlanJson -Plan $plan
         return
@@ -267,6 +289,7 @@ $scratchDir = [IO.Path]::GetTempPath()
 $mixWav = $null
 $normWav = $null
 $voiceWav = $null
+$fxMixWav = $null
 try {
     $sourceForLoudnorm = $programPath
     if ($useStems) {
@@ -361,6 +384,37 @@ try {
         throw "loudnorm pass 2 used normalization_type='$($plan.normalizationType)' rather than linear (measured I=$($measured.input_i) LUFS, TP=$($measured.input_tp) dBTP, LRA=$($measured.input_lra) LU against I=$Integrated, TP=$TruePeak, LRA=$LoudnessRange). Refusing dynamic compression of the program. A TTS stem whose peak-to-loudness ratio exceeds $([math]::Round($TruePeak - $Integrated, 1)) dB cannot linear-scale: rerun with -PreconditionVoice for a voice-only program, or raise -LoudnessRange when only LRA blocks the linear pass. Pass -AllowDynamic only for a non-TTS live mix that cannot linear-scale."
     }
 
+    $encodeAudio = $normWav
+    if (-not [string]::IsNullOrWhiteSpace($Effects)) {
+        # Mix after normalisation. The speech is untouched; only the effects gain moves. Mixing adds amplitudes, so when the
+        # measured true peak passes the ceiling, solve the effects amplitude that lands on it and re-measure.
+        $baseRun = Invoke-NativeFfmpeg -FilePath $ffmpeg -Arguments @('-hide_banner', '-nostats', '-i', $normWav, '-af', $measureFilter, '-f', 'null', '-')
+        if ($baseRun.ExitCode -ne 0) { throw "FFmpeg program peak measure failed (exit $($baseRun.ExitCode)): $($baseRun.Output -join ' ')" }
+        $programTp = [double](ConvertFrom-LoudnormOutput -Lines $baseRun.Output).input_tp
+        $ceiling = [math]::Max($TruePeak + 0.3, $programTp)
+        $programAmp = [math]::Pow(10, $programTp / 20)
+        $fxMixWav = Get-ScratchWav -Directory $scratchDir -Name 'media-studio-fx'
+        $fxDb = 0.0
+        $fxPeak = $null
+        for ($round = 0; $round -lt 5; $round++) {
+            $mixRun = Invoke-NativeFfmpeg -FilePath $ffmpeg -Arguments @('-hide_banner', '-nostats', '-i', $normWav, '-i', $Effects, '-filter_complex', (Get-EffectsFilter -Db $fxDb), '-map', '[mix]', '-ar', '48000', '-ac', '2', '-y', $fxMixWav)
+            if ($mixRun.ExitCode -ne 0) { throw "FFmpeg effects mix failed (exit $($mixRun.ExitCode)): $($mixRun.Output -join ' ')" }
+            $peakRun = Invoke-NativeFfmpeg -FilePath $ffmpeg -Arguments @('-hide_banner', '-nostats', '-i', $fxMixWav, '-af', $measureFilter, '-f', 'null', '-')
+            if ($peakRun.ExitCode -ne 0) { throw "FFmpeg effects peak measure failed (exit $($peakRun.ExitCode)): $($peakRun.Output -join ' ')" }
+            $fxPeak = [double](ConvertFrom-LoudnormOutput -Lines $peakRun.Output).input_tp
+            if ($fxPeak -le $ceiling) { break }
+            $room = [math]::Pow(10, $ceiling / 20) - $programAmp
+            if ($room -le 0) { break }
+            $fxDb = [math]::Round($fxDb + 20 * [math]::Log10($room / ([math]::Pow(10, $fxPeak / 20) - $programAmp)) - 0.2, 2)
+        }
+        if ($fxPeak -gt $ceiling) {
+            throw "Effects stem cannot be mixed under the true-peak ceiling $([math]::Round($ceiling, 2)) dBTP (mixed peak $fxPeak dBTP at $fxDb dB). Lower the program peak or drop the clicks."
+        }
+        $plan.effects.gainDb = $fxDb
+        $plan.effects.truePeak = $fxPeak
+        $encodeAudio = $fxMixWav
+    }
+
     $outDir = Split-Path -Parent $Output
     if ($outDir -and -not (Test-Path -LiteralPath $outDir)) {
         New-Item -ItemType Directory -Path $outDir -Force | Out-Null
@@ -375,9 +429,9 @@ try {
 
     $encodeArgs = @('-hide_banner', '-nostats')
     if ($picture) {
-        $encodeArgs += @('-i', $picture, '-i', $normWav, '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-shortest')
+        $encodeArgs += @('-i', $picture, '-i', $encodeAudio, '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-shortest')
     } else {
-        $encodeArgs += @('-i', $normWav)
+        $encodeArgs += @('-i', $encodeAudio)
     }
     $encodeArgs += @(
         '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
@@ -412,7 +466,7 @@ try {
     $plan.length = (Get-Item -LiteralPath $Output).Length
     Write-PlanJson -Plan $plan
 } finally {
-    foreach ($temp in @($mixWav, $normWav, $voiceWav)) {
+    foreach ($temp in @($mixWav, $normWav, $voiceWav, $fxMixWav)) {
         if ($temp -and (Test-Path -LiteralPath $temp)) {
             Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
         }

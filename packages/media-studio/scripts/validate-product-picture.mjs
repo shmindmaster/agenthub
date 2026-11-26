@@ -250,7 +250,21 @@ for (const [clip, { need, segments: segIds }] of needByClip) {
       }
     }
     const rc = entry.recast;
-    if (rc === 'full' || rc === 'noZoom') { /* ok */ }
+    if (entry.finisher === 'stage') {
+      // Screen stage take: the high-resolution screencast frames are the capture. They must exist, hash to their index, and the index to the receipt.
+      const st = entry.stage || {};
+      const indexPath = resolve(jobRoot, 'capture', String(st.framesIndex || ''));
+      if (!st.framesIndex || !existsSync(indexPath)) fail(`clip ${label}: the screen-stage frames index ${st.framesIndex || '(none)'} is missing`);
+      else if (sha256(indexPath) !== st.framesIndexSha256) fail(`clip ${label}: the frames index does not match the receipt hash`);
+      else {
+        const index = JSON.parse(readFileSync(indexPath, 'utf8'));
+        const dir = join(dirname(indexPath), 'frames');
+        const bad = index.frames.filter((f) => !existsSync(join(dir, f.file)) || sha256(join(dir, f.file)) !== f.sha256);
+        if (bad.length) fail(`clip ${label}: ${bad.length} screencast frame(s) are missing or differ from their recorded hash (first: ${bad[0].file})`);
+        if (index.frames.length !== st.frames || !index.frames.length) fail(`clip ${label}: the frames index lists ${index.frames.length} frames but the receipt says ${st.frames}`);
+        if (!(Number(st.deviceScaleFactor) >= 2)) fail(`clip ${label}: screen-stage capture needs deviceScaleFactor >= 2 (got ${st.deviceScaleFactor})`);
+      }
+    } else if (rc === 'full' || rc === 'noZoom') { /* ok */ }
     else if (rc === 'fallback') {
       if (job.recastFallbackAllowed === true) warn(`clip ${label}: Recast fallback accepted (job.recastFallbackAllowed): ${entry.recastNote || 'no note'}`);
       else fail(`clip ${label}: Recast did not run (fallback: ${entry.recastNote || 'no note'}); pointer finishing is required. Split the take, render without autoZoom, or set job.recastFallbackAllowed with a reason.`);

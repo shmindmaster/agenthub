@@ -18,7 +18,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { CAMPAIGN_FORMS, frameFor, sourcePictureFilter, sourceRegionError, validateCampaign } from './campaign-contract.mjs';
-import { SYNC_DEFAULTS, planAlignment } from './sync-lib.mjs';
+import { SYNC_DEFAULTS, planAlignment, keptRanges, editSlotSeconds } from './sync-lib.mjs';
+import { stageRamps } from './stage-ramps.mjs';
+import { STAGE, gradientFromColour, themeColour } from './stage-math.mjs';
+import { buildStagePlan, PRESS } from './stage-plan.mjs';
+import { measureChanges } from './stage-changes.mjs';
 
 const [jobRoot, base] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 if (!jobRoot || !base) { console.error('usage: node compose-screencast.mjs <jobRoot> <base> [--no-voice-first]'); process.exit(2); }
@@ -48,7 +52,8 @@ const RESULT_HOLD_MAX = 6.0;  // unless the storyboard beat declares resultHoldS
 const tl = JSON.parse(fs.readFileSync(path.join(jobRoot, 'story', 'narration-timeline.json'), 'utf8'));
 const man = JSON.parse(fs.readFileSync(path.join(jobRoot, 'capture', 'manifest.json'), 'utf8'));
 const job = (() => { try { return JSON.parse(fs.readFileSync(path.join(jobRoot, 'job.json'), 'utf8')); } catch { return {}; } })();
-const { width: W, height: H, fps: FPS, profile } = frameFor(job);
+const { width: W, height: H, fps: PROFILE_FPS, profile } = frameFor(job);
+let FPS = PROFILE_FPS;
 const graphicsPath = path.join(jobRoot, 'story', 'timed-graphics.json');
 const graphics = fs.existsSync(graphicsPath) ? JSON.parse(fs.readFileSync(graphicsPath, 'utf8')).overlays : [];
 const contractErrors = validateCampaign(jobRoot, job, tl, graphics);
@@ -77,6 +82,29 @@ for (const clip of clips) {
   if (regionError) throw new Error(`clip ${clip.id}: ${regionError}`);
   if (Object.hasOwn(CAMPAIGN_FORMS, job.programForm) && H > W && !/\.(png|jpe?g|webp)$/i.test(clip.file) && !clip.sourceRegion) throw new Error(`clip ${clip.id}: portrait campaign requires an explicit sourceRegion for intentional framing.`);
 }
+// Screen stage (stage-plan.mjs, ScreenStage.tsx): clips whose receipt says finisher "stage" are not scaled and padded here. Contiguous
+// screen groups become one stage run with one continuous camera; the film then runs at the stage frame rate in every part.
+const receiptFile = path.join(jobRoot, 'capture', 'receipt.json');
+const receipt = fs.existsSync(receiptFile) ? JSON.parse(fs.readFileSync(receiptFile, 'utf8').replace(/^\uFEFF/, '')) : null;
+const stageClip = (c) => !!c && receipt?.clips?.[c.id]?.finisher === 'stage';
+const stageFilm = clips.some(stageClip);
+if (stageFilm) FPS = STAGE.fps;
+const stageRuns = [];
+const stageCfg = job.screenStage && typeof job.screenStage === 'object' ? job.screenStage : {};
+// Speed ramps of a stage clip (typing at 2x and declared spans): part of the edit, so every time below sees the same map.
+function rampsFor(clip) {
+  const entry = receipt.clips[clip.id];
+  const index = JSON.parse(fs.readFileSync(path.join(jobRoot, 'capture', entry.stage.framesIndex), 'utf8'));
+  return stageRamps({ jobRoot, entry, index, id: clip.id, cfg: stageCfg, manual: clip.speedSpans || [] });
+}
+function stageFrames(clipId) {
+  const entry = receipt.clips[clipId];
+  const indexPath = path.join(jobRoot, 'capture', entry.stage.framesIndex);
+  if (!fs.existsSync(indexPath) || createHash('sha256').update(fs.readFileSync(indexPath)).digest('hex') !== entry.stage.framesIndexSha256) throw new Error(`screen stage: the frames of clip ${clipId} do not match capture/receipt.json (${entry.stage.framesIndex}); re-record the take`);
+  const index = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+  return { times: index.frames.map((f) => f.t), files: index.frames.map((f) => `${clipId}/frames/${f.file}`) };
+}
+
 // Map clips to timeline segments. A clip may name a segment id (S06a / S12), a scene id (S06) that
 // spans several paragraph segments, or several of either. When several clips name one scene they
 // are dealt to that scene's segments in order; leftovers attach to the last segment as extra sources.
@@ -161,6 +189,7 @@ const rows = [];
 const mapGroups = [];
 let prevFile = null;
 let prevClipFile = null;
+let openRun = null; // the stage run the previous group belongs to, while groups stay contiguous
 groups.forEach((g, i) => {
   const out = path.join(tmp, `part-${String(i).padStart(3, '0')}.mp4`);
   const dur = g.duration.toFixed(3);
@@ -177,6 +206,10 @@ groups.forEach((g, i) => {
     execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listP, '-c', 'copy', src]);
   }
   const isImage = /\.(png|jpe?g|webp)$/i.test(src);
+  const stageGroup = !isImage && !!g.clip && stageClip(g.clip) && g.segments.some((s) => isScreenBeat(s.id));
+  const stageHold = !g.clip && !!openRun;
+  const stageSlot = stageGroup || stageHold;
+  if (!stageSlot) openRun = null;
   if (isImage && g.segments.some((s) => isScreenBeat(s.id))) {
     throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} is a screen beat with a still (${src}). Product screens require WebM/MP4 + Recast.`);
   }
@@ -190,22 +223,24 @@ groups.forEach((g, i) => {
       if (a) { align = { clipTime: a.clip_time, keywordStart: a.keyword.start, label: `${s.id} action "${a.label || a.target}"` }; break; }
     }
   }
-  const effEdit = { trimStart: Number(hints.trimStart || 0), trimEnd: hints.trimEnd ? Number(hints.trimEnd) : null, speed: Number(hints.speed || 1), skip: hints.skip || [], headHold: 0, srcSeconds: 0 };
-  if (!isImage && ((hints.skip && hints.skip.length) || hints.trimStart || hints.trimEnd || hints.speed || align)) {
+  const ramps = stageGroup ? rampsFor(g.clip) : [];
+  const effEdit = { trimStart: Number(hints.trimStart || 0), trimEnd: hints.trimEnd ? Number(hints.trimEnd) : null, speed: Number(hints.speed || 1), skip: hints.skip || [], ramps, headHold: 0, srcSeconds: 0 };
+  if (!isImage && ((hints.skip && hints.skip.length) || hints.trimStart || hints.trimEnd || hints.speed || align || ramps.length)) {
     // The manifest's trimStart was chosen against the narration alone; the slot also carries the pause after the beat.
     // Never trim away footage the slot needs: shrink the head trim first, so the take's own tail is used before any hold.
     const fullSrc = probe(src);
     let trimStart = Number(hints.trimStart || 0);
     const t1 = hints.trimEnd ? Number(hints.trimEnd) : fullSrc;
-    if (!hints.speed && !(hints.skip && hints.skip.length) && t1 - trimStart < g.duration) trimStart = Math.max(0, Number((t1 - g.duration).toFixed(3)));
+    if (!hints.speed && !(hints.skip && hints.skip.length) && !ramps.length && t1 - trimStart < g.duration) trimStart = Math.max(0, Number((t1 - g.duration).toFixed(3)));
     const sp = Number(hints.speed || 1);
     let headHold = 0;
     if (align) {
-      const planned = planAlignment({ edit: { trimStart, trimEnd: t1, speed: sp, skip: hints.skip || [], headHold: 0, srcSeconds: fullSrc }, actionClipTime: align.clipTime, targetSlotSeconds: align.keywordStart + clickLead - g.start, label: align.label });
+      const planned = planAlignment({ edit: { trimStart, trimEnd: t1, speed: sp, skip: hints.skip || [], ramps, headHold: 0, srcSeconds: fullSrc }, actionClipTime: align.clipTime, targetSlotSeconds: align.keywordStart + clickLead - g.start, label: align.label });
       if (planned.error) throw new Error(`segment ${g.segments.map((s) => s.id).join('+')}: ${planned.error}`);
       trimStart = planned.edit.trimStart; headHold = planned.edit.headHold;
     }
-    Object.assign(effEdit, { trimStart, trimEnd: t1, speed: sp, headHold, srcSeconds: fullSrc });
+    Object.assign(effEdit, { trimStart, trimEnd: t1, speed: sp, headHold, srcSeconds: fullSrc, ramps });
+    if (!stageGroup) {
     const t0 = trimStart;
     const keep = [];
     let cur = t0;
@@ -217,9 +252,15 @@ groups.forEach((g, i) => {
     const edited = path.join(tmp, `edited-${i}.mp4`);
     execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-filter_complex', fc, '-map', headHold > 0 ? '[edh]' : '[ed]', '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-r', String(FPS), edited]);
     src = edited;
+    }
   }
-  const srcDur = isImage ? 0 : probe(src);
+  let srcDur = isImage ? 0 : probe(src);
   if (!effEdit.srcSeconds) effEdit.srcSeconds = srcDur;
+  if (stageGroup) {
+    // The stage plays the original frames through this edit; the length the edit yields is what the slot checks below measure.
+    effEdit.trimEnd = effEdit.trimEnd || effEdit.srcSeconds;
+    srcDur = editSlotSeconds(effEdit);
+  }
   const fit = g.clip?.fit || (srcDur > g.duration ? 'cut' : 'hold');
   // A 'cut' whose footage still ends before the slot does (a take paced to the words, then the pause after them) may hold
   // its last frame for at most HOLD_PAD_MAX; anything longer is the frozen-footage defect and fails like a hold would.
@@ -240,6 +281,20 @@ groups.forEach((g, i) => {
   }
   const sourceRegion = g.clip?.sourceRegion || (!g.clip ? (mapGroups.at(-1)?.sourceRegion || null) : null);
   if (sourceRegion && g.clip?.overlay) throw new Error(`clip ${g.clip.id}: sourceRegion cannot be combined with a legacy full-frame annotation overlay; use a timed campaign graphic.`);
+  if (stageSlot) {
+    if (!openRun) { openRun = { slots: [], startSeconds: i === 0 ? 0 : g.start, partIndex: parts.length, out, groupIndexes: [] }; stageRuns.push(openRun); parts.push(out); }
+    const lead = i === 0 ? leadIn : 0;
+    const last = openRun.slots[openRun.slots.length - 1];
+    const edit = stageHold
+      ? { trimStart: last.edit.trimEnd, trimEnd: last.edit.trimEnd, speed: 1, skip: [], headHold: 0, srcSeconds: last.edit.srcSeconds }
+      : { ...effEdit, headHold: Number((effEdit.headHold + lead).toFixed(3)) };
+    openRun.slots.push({ clipId: stageHold ? last.clipId : g.clip.id, startSeconds: i === 0 ? 0 : Number((g.start - openRun.startSeconds).toFixed(3)), durationSeconds: Number((g.duration + lead).toFixed(3)), edit, hold: stageHold, segments: g.segments.map((s) => s.id) });
+    openRun.groupIndexes.push(mapGroups.length);
+    mapGroups.push({ segments: g.segments.map((s) => s.id), startSeconds: g.start, needSeconds: Number(g.duration.toFixed(3)), clipId: stageHold ? last.clipId : g.clip.id, file: stageHold ? prevClipFile : g.clip.file, heldFromPrevious: stageHold, sourceRegion: null, srcSeconds: Number(srcDur.toFixed(3)), fit: g.clip ? fit : 'hold-prev', trimStart: Number(hints.trimStart || 0), speed: Number(hints.speed || 1), edit: stageHold ? null : effEdit, extras: false, overlay: null, isImage: false, stage: { run: stageRuns.indexOf(openRun) } });
+    rows.push(`${g.segments.map((s) => s.id).join('+').padEnd(16)} ${(g.clip ? g.clip.id : '(hold prev)').padEnd(28)} need=${g.duration.toFixed(1).padStart(6)}s clip=${srcDur.toFixed(1).padStart(6)}s ${fit} stage run ${stageRuns.indexOf(openRun)}`);
+    if (g.clip) { prevClipFile = g.clip.file; prevFile = src; }
+    return;
+  }
   let vf = `${sourcePictureFilter(sourceRegion, { width: W, height: H })},fps=${FPS},format=yuv420p`;
   let args;
   if (isImage) args = ['-loop', '1', '-t', dur, '-i', src, '-vf', vf];
@@ -269,13 +324,49 @@ groups.forEach((g, i) => {
   if (g.clip) prevClipFile = g.clip.file;
   rows.push(`${g.segments.map((s) => s.id).join('+').padEnd(16)} ${(g.clip ? g.clip.id : '(hold prev)').padEnd(28)} need=${g.duration.toFixed(1).padStart(6)}s clip=${srcDur.toFixed(1).padStart(6)}s ${fit}${g.clip && g.clip.overlay ? ' +overlay' : ''}`);
 });
+// Render each stage run: one plan, one continuous camera, one Remotion render into the part file its first group would have used.
+const stagePlans = [];
+stageRuns.forEach((run, n) => {
+  const durationSeconds = Number(run.slots.reduce((m, s) => Math.max(m, s.startSeconds + s.durationSeconds), 0).toFixed(3));
+  const clipIds = [...new Set(run.slots.map((s) => s.clipId))];
+  const clipsIn = {};
+  for (const id of clipIds) {
+    const e = receipt.clips[id], frames = stageFrames(id);
+    // What changed on the page after each press, from the captured frames: the plan frames the result as well as the target.
+    const pressTimes = (e.actions || []).filter((a) => PRESS.has(a.type)).map((a) => a.tStart ?? a.t);
+    const changes = measureChanges({ presses: pressTimes, frames: { times: frames.times, files: frames.files.map((f) => path.join(jobRoot, 'capture', 'raw', f)) }, viewport: e.viewport });
+    clipsIn[id] = { actions: e.actions || [], expectations: e.expectations || [], frames, touch: !!e.hasTouch, changes };
+  }
+  const viewport = receipt.clips[clipIds[0]].viewport;
+  const hideCursor = (stageCfg.hideCursor || []).map((h) => {
+    if (h.beat) { const gi = groups.find((x) => x.segments.some((s) => s.id === h.beat)); if (!gi) throw new Error(`screenStage.hideCursor names unknown beat ${h.beat}`); return [gi.start - run.startSeconds, gi.start + gi.duration - run.startSeconds]; }
+    return [h.from - run.startSeconds, h.to - run.startSeconds];
+  }).filter(([a, b]) => b > 0 && a < durationSeconds);
+  const layout = stageCfg.background ? 'phone' : null;
+  let background = null;
+  if (layout) {
+    // The gradient behind a phone screen is generated from the page's own theme colour (its app bar and accent, not the cream paper): a dark and a lighter tone of it.
+    const first = clipsIn[clipIds[0]].frames.files[0];
+    const mean = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', path.join(jobRoot, 'capture', 'raw', first), '-vf', 'scale=48:27:flags=area,format=rgb24', '-f', 'rawvideo', 'pipe:1']);
+    background = { colors: gradientFromColour(themeColour(mean, 48, 27)), angle: STAGE.background.angle, ...(Array.isArray(stageCfg.background.colors) ? { colors: stageCfg.background.colors } : {}) };
+  }
+  const plan = buildStagePlan({ frame: { width: W, height: H, fps: FPS }, viewport, dsf: receipt.clips[clipIds[0]].deviceScaleFactor, slots: run.slots.map(({ segments, ...s }) => s), clips: clipsIn, options: { hideCursor, idleHide: stageCfg.idleHide, zoom: stageCfg.zoom, highlights: stageCfg.highlights, layout, background } });
+  plan.film = { startSeconds: run.startSeconds, segments: run.slots.map((s) => s.segments) };
+  for (const w of plan.warnings) console.log(`  screen stage run ${n}: ${w}`);
+  const planFile = path.join(jobRoot, 'output', `${base}-stage-plan-${n}.json`);
+  fs.writeFileSync(planFile, JSON.stringify(plan));
+  const t0 = Date.now();
+  execFileSync(process.execPath, [path.join(here, 'render-stage.mjs'), '--plan', planFile, '--public-dir', path.join(jobRoot, 'capture', 'raw'), '--out', run.out, '--concurrency', process.env.STAGE_CONCURRENCY || '8'], { stdio: 'inherit' });
+  stagePlans.push({ run: n, file: path.relative(jobRoot, planFile).replace(/\\/g, '/'), sha256: createHash('sha256').update(fs.readFileSync(planFile)).digest('hex'), startSeconds: run.startSeconds, durationSeconds, renderSeconds: Number(((Date.now() - t0) / 1000).toFixed(1)), warnings: plan.warnings });
+  for (const gi of run.groupIndexes) mapGroups[gi].stage.plan = stagePlans[n].file;
+});
 const list = path.join(tmp, 'concat.txt');
 fs.writeFileSync(list, parts.map((p) => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
 const outFile = path.join(jobRoot, 'output', `${base}-silent.mp4`);
 const baseFile = graphics?.length ? path.join(tmp, 'picture-before-graphics.mp4') : outFile;
 // The last picture holds (treatments.md). A fade to black is opt-in: it fails a declared final hold and a light last frame.
 const endFade = Number(job.endFadeSeconds) || 0;
-execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', `fade=t=in:st=0:d=0.5,${endFade > 0 ? `fade=t=out:st=${(tl.durationSeconds - endFade).toFixed(2)}:d=${endFade},` : ''}format=yuv420p`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-movflags', '+faststart', baseFile]);
+execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', `${stageFilm ? '' : 'fade=t=in:st=0:d=0.5,'}${endFade > 0 ? `fade=t=out:st=${(tl.durationSeconds - endFade).toFixed(2)}:d=${endFade},` : ''}format=yuv420p`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-movflags', '+faststart', baseFile]);
 if (graphics.length) {
   const assets = new Map(job.campaign.assets.map((asset) => [asset.id, asset]));
   const inputs = graphics.flatMap((graphic) => ['-loop', '1', '-i', path.resolve(jobRoot, assets.get(graphic.assetId).path)]);
@@ -291,6 +382,6 @@ if (graphics.length) {
 }
 const finalDur = probe(outFile);
 // Compose map: validate-encoded-picture.mjs uses it to bind every encoded segment back to its receipt-bound clip.
-fs.writeFileSync(path.join(jobRoot, 'output', `${base}-compose-map.json`), JSON.stringify({ generator: 'media-studio/compose-screencast', base, voiceFirst, cueSheetSha256: voiceFirst ? createHash('sha256').update(fs.readFileSync(cuePath)).digest('hex') : null, silent: outFile, deliveryProfile: profile, width: W, height: H, timelineSeconds: tl.durationSeconds, pictureSeconds: finalDur, leadInSeconds: leadIn, timedGraphics: graphics, groups: mapGroups }, null, 2));
+fs.writeFileSync(path.join(jobRoot, 'output', `${base}-compose-map.json`), JSON.stringify({ generator: 'media-studio/compose-screencast', base, voiceFirst, cueSheetSha256: voiceFirst ? createHash('sha256').update(fs.readFileSync(cuePath)).digest('hex') : null, silent: outFile, deliveryProfile: profile, width: W, height: H, fps: FPS, stagePlans, timelineSeconds: tl.durationSeconds, pictureSeconds: finalDur, leadInSeconds: leadIn, timedGraphics: graphics, groups: mapGroups }, null, 2));
 console.log(rows.join('\n'));
 console.log(JSON.stringify({ ok: true, out: outFile, pictureSeconds: finalDur, timelineSeconds: tl.durationSeconds, delta: +(finalDur - tl.durationSeconds).toFixed(2) }));

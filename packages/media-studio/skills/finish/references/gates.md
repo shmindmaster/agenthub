@@ -11,6 +11,7 @@ Cheapest first, in `scripts/`. `all` is every kind, `screen` is `product-screenc
 | 5 | `validate-demo-scenario.mjs` | screen, in the recorder's pre-flight | Nothing | Unproven workflow | Rerun `write-scenario-proof.mjs` |
 | 6 | `validate-capture-preflight.mjs` | screen, in `record-job.mjs` | `qa/capture-preflight.json` | Scene id, keyword, typing faults | Capture plan |
 | 7 | `validate-capture-manifest.mjs` | Only a job with per-shot capture metadata (`captures`). Not applicable to the clips manifest of a `screen` job, which order 8 checks | Nothing | Bad per-shot metadata | Capture |
+| 8b | `validate-screen-stage.mjs` | screen-stage films | `qa/screen-stage.json` | 60 fps, plan from receipt, spring curve, colour in motion, ghosting, fade in, result in view, unchanged holds, press response, capture rate (`screen-stage.md`) |
 | 8 | `validate-product-picture.mjs` | screen, in compose | `qa/product-picture.json` | Not live WebM, no Recast, hidden freeze, edited or unknown receipt, wrong persona, scenario or build, a manifest file that is not there | Recapture |
 | 9 | `validate-pointer-path.mjs` | screen | `qa/pointer-path.json` | Reversal, travel over 1.35x, scroll return | Re-record beat |
 | 10 | `validate-picture-inputs.mjs` | Before Remotion | Nothing | Wrong clock, changed number | Fix inputs |

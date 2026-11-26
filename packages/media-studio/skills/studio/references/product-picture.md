@@ -6,14 +6,14 @@ The contract for films or beats **claiming to demonstrate existing product funct
 
 A muted viewer follows start, configure, act, response, result. Voice is not proof; the picture is.
 
-- Screens are real captured WebM plus Recast (`capture` skill). No Ken Burns stills, no auto-cards, no animated screenshots, even when a clip is missing: record it.
+- Screens are real captured frames finished by the screen stage (`screen-stage.md`; Recast only for `options.mobileLayout` and `screenStage: false` jobs) (`capture` skill). No Ken Burns stills, no auto-cards, no animated screenshots, even when a clip is missing: record it.
 - Generative video never replaces **evidence of an actual current product feature**. It may depict proposed/futuristic UI or an illustrative fictional interaction when that is the film's explicitly identified representation.
 - Missing `visualMode` on a **verified** `product-screencast` beat defaults to `screen`, not `slide`. Concept/vision videos are classified separately.
 - **End-to-end demonstration.** Never cut start to result. If a model, connector, permission, trigger or flag drives later behavior, show it set in this session, then the run, then the result.
 
 | Beat | Picture | Forbidden |
 | --- | --- | --- |
-| Workflow, config, result | WebM + Recast | PNG, scale-pan on UI |
+| Workflow, config, result | Captured frames + screen stage | PNG, scale-pan on UI |
 | Code | Product, then overlay or 5–20 line `render-code.mjs` card, then product result | Code slide as the main picture |
 | Flow | `render-overlay.mjs` on the product, or a cutaway ≤8 s | Slides between screens |
 | Title, CTA | Card ≤8 s | Card filling a missing clip |
@@ -41,7 +41,7 @@ One action per beat:
 2. Scene: `h.*` helpers only; end every interaction beat with `h.expect(locator, 'label')`.
 3. One session: same user, workspace and data (`carryState`).
 4. Keep the states that cause the outcome: hover, menu, input, save, loading, toast. Native feedback is the proof; do not cover it with a fake cursor or title card.
-5. Frame: wide to establish, punch-in on the control, hold through the response, pull back when context helps. Recast owns cursor, ripple and punch-in, the only zoom on product UI. `render-overlay.mjs` owns dim, box, arrow, label and flow, at most two at once.
+5. Frame: wide to establish, punch-in on the control, hold through the response, pull back when context helps. The screen stage owns the cursor, press response and camera (Recast on its lane), the only zoom on product UI. `render-overlay.mjs` owns dim, box, arrow, label and flow, at most two at once.
 6. A hold is the last frame of the WebM, never a PNG.
 
 **Mute test** (every software scene, before encode): right screen, readable UI, action visible, response visible, driving config shown, intermediates kept, framing on the change, cursor intentional, voice in sync, states connect. Any no: recut.

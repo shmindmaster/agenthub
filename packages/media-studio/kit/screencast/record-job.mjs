@@ -33,6 +33,7 @@ import { createHash } from 'node:crypto';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { startRecording, finishRecording, renderRecast } from './record-lib.mjs';
+import { STAGE_CAPTURE } from './stage-math.mjs';
 import { openReceipt, saveReceipt, isViewerFacing, proofProblems, provenanceProblems } from './receipt-lib.mjs';
 
 const argv = process.argv.slice(2);
@@ -72,7 +73,14 @@ const carryState = options.carryState === true;
 // Narration length per scene so a take can be paced to the words.
 // Capture frame: options.viewport, or with --ratio the entry options.viewports[ratio]. Receipt records it either way.
 let capture = { viewport: options.viewport, deviceScaleFactor: options.deviceScaleFactor, device: null, isMobile: undefined, hasTouch: undefined };
-if (ratioOpt) {
+// The screen stage is the default finisher; Recast stays selectable (job.screenStage: false, or --recast) and keeps the old mobileLayout lane.
+const stageLane = job.screenStage !== false && job.screenStage?.finisher !== 'recast' && !flags.has('--recast') && !options.mobileLayout && !flags.has('--recast-only');
+if (stageLane) {
+  const entry = ratioOpt ? (options.viewports || {})[ratioOpt] ?? STAGE_CAPTURE[ratioOpt] : (options.viewport ? { ...options.viewport, deviceScaleFactor: options.deviceScaleFactor ?? STAGE_CAPTURE['16:9'].deviceScaleFactor } : STAGE_CAPTURE['16:9']);
+  if (!entry || !Number.isFinite(entry.width) || !Number.isFinite(entry.height)) throw new Error('--ratio ' + ratioOpt + ': no capture viewport for the screen stage (STAGE_CAPTURE has 16:9, 9:16, 4:5, 1:1)');
+  capture = { viewport: { width: entry.width, height: entry.height }, deviceScaleFactor: entry.deviceScaleFactor ?? STAGE_CAPTURE['16:9'].deviceScaleFactor, device: entry.device || null, isMobile: entry.isMobile, hasTouch: entry.hasTouch };
+}
+if (ratioOpt && !stageLane) {
   const vp = (options.viewports || {})[ratioOpt];
   if (!vp || !Number.isFinite(vp.width) || !Number.isFinite(vp.height)) throw new Error('--ratio ' + ratioOpt + ': capture/scenes.mjs options.viewports["' + ratioOpt + '"] = { width, height, ... } is missing');
   capture = { viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor ?? options.deviceScaleFactor, device: vp.device || null, isMobile: vp.isMobile, hasTouch: vp.hasTouch };
@@ -148,6 +156,33 @@ else if (flags.has('--skip-preflight')) {
   try { execFileSync(process.execPath, [preflight, jobRoot], { windowsHide: true, stdio: 'inherit' }); }
   catch { throw new Error('capture pre-flight failed: fix scene ids, keywords or typing budgets before recording'); }
   recordings.preflight = { ok: true, report: 'qa/capture-preflight.json' };
+}
+
+/**
+ * Stage lane: the screencast frames become clips/<id>.mp4, a constant-rate H.264 picture of the take (the sealed, probeable clip the
+ * existing gates read). The stage renders from the original frames, not from this file, so nothing is resampled twice.
+ */
+function finishStageTake(id, fin, take) {
+  const out = path.resolve('clips', id + '.mp4');
+  for (const ext of ['webm', 'png', 'jpg']) { const p = path.resolve('clips', id + '.' + ext); if (fs.existsSync(p)) fs.unlinkSync(p); }
+  const frames = fin.index.frames;
+  const list = path.join(fin.rawDir, 'frames.ffconcat');
+  const lines = [];
+  frames.forEach((f, i) => {
+    const next = i + 1 < frames.length ? frames[i + 1].t : fin.index.endSeconds;
+    lines.push("file 'frames/" + f.file + "'", 'duration ' + Math.max(0.017, next - f.t).toFixed(4));
+  });
+  lines.push("file 'frames/" + frames[frames.length - 1].file + "'");
+  fs.writeFileSync(list, lines.join('\n'));
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', 'fps=30,format=yuv420p', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '14', '-an', '-movflags', '+faststart', out], { windowsHide: true });
+  fs.rmSync(list, { force: true });
+  take.finisher = 'stage';
+  take.recast = null;
+  take.clipSeconds = Number(probe(out).toFixed(1));
+  take.headTrim = { seconds: 0, method: 'screen stage: clip clock starts at the first ready frame' };
+  take.ratio = take.targetSeconds ? Number((take.clipSeconds / take.targetSeconds).toFixed(2)) : null;
+  take.short = take.ratio !== null && take.ratio < 0.85;
+  return out;
 }
 
 /** Recast (or copy) one raw take to clips/<id>.webm and measure the head trim. Sets take.recast, recastNote, clipSeconds, headTrim. */
@@ -227,6 +262,7 @@ for (const id of ids) {
     storageState: takeState, baseUrl: options.baseUrl, viewport: capture.viewport, videoSize: capture.videoSize, deviceScaleFactor: capture.deviceScaleFactor, mobileLayout: options.mobileLayout, pageZoom: options.pageZoom,
     device: capture.device || undefined, isMobile: capture.isMobile, hasTouch: capture.hasTouch,
     headless: !flags.has('--headed'), colorScheme: options.colorScheme, timezoneId: options.timezoneId, extraHTTPHeaders: options.extraHTTPHeaders,
+    stage: stageLane,
   });
   const t0 = Date.now();
   const take = { startedAt: new Date(t0).toISOString(), targetSeconds: targets[id] ? Number(targets[id].toFixed(1)) : null };
@@ -238,23 +274,30 @@ for (const id of ids) {
     const problems = viewerFacing ? provenanceProblems(id, provenance, proof) : [];
     if (problems.length) { take.error = problems.join('; '); console.log('  identity:', take.error); }
   } catch (e) { take.error = `identity() failed: ${e.message.split('\n')[0]}`; }
+  if (stageLane) await rec.h.checkLayout?.().catch(() => {});
   const fin = await finishRecording(rec, carryState ? { saveStatePath: carryPath } : {});
+  if (stageLane && fin.summary.layoutProblems?.length && !take.error) {
+    const lp = fin.summary.layoutProblems[0];
+    take.error = `the page spills sideways at the recorded ${capture.viewport.width}x${capture.viewport.height} viewport (scrollWidth ${lp.scrollWidth} > ${lp.viewportWidth}; ${lp.offenders.join('; ')}): fix the responsive layout of the product at this size, a cut-off table or a blank strip is not footage`;
+    console.log('  ' + take.error);
+  }
   take.rawSeconds = Number(((Date.now() - t0) / 1000).toFixed(1));
   fs.writeFileSync(path.join(cap, 'beats', `${id}.json`), JSON.stringify({ id, marks: fin.beats, expectations: fin.expectations }, null, 2));
-  const out = await finishTake(id, fin, take, capture.videoSize || capture.viewport);
+  const out = stageLane ? finishStageTake(id, fin, take) : await finishTake(id, fin, take, capture.videoSize || capture.viewport);
   take.events = fin.summary;
   const valid = !take.error && (fin.summary.pointerMoves > 0 || fin.summary.taps > 0) && fin.summary.expectationsFailed.length === 0;
   take.valid = valid;
   if (!valid) failed.push(id);
   recordings.takes[id] = take;
   receipt.clips[id] = {
-    file: `clips/${id}.webm`,
+    file: stageLane ? `clips/${id}.mp4` : `clips/${id}.webm`,
     segments: covers[id] || [id],
     sha256: sha256(out),
     bytes: fs.statSync(out).size,
     clipSeconds: take.clipSeconds,
-    rawWebmSha256: sha256(fin.webm),
+    rawWebmSha256: fin.webm ? sha256(fin.webm) : null,
     traceSha256: fs.existsSync(fin.tracePath) ? sha256(fin.tracePath) : null,
+    ...(stageLane ? { finisher: 'stage', stage: { framesIndex: 'raw/' + id + '/frames.json', framesIndexSha256: sha256(fin.indexPath), frames: fin.index.frames.length, width: fin.index.width, height: fin.index.height, deviceScaleFactor: fin.index.deviceScaleFactor, origin: fin.index.origin, endSeconds: fin.index.endSeconds }, hasTouch: !!capture.hasTouch } : { finisher: 'recast' }),
     recordedAt: take.startedAt,
     provenance,
     preflight: recordings.preflight === 'skipped' ? 'skipped' : 'ok',
@@ -271,10 +314,8 @@ for (const id of ids) {
     // Timestamped action log, in seconds into the raw WebM. Recast trims the blank lead-in off the head, so an event at
     // t plays at t - recastHeadTrimSeconds in clips/<id>.webm. build-cue-sheet.mjs applies that (sync-lib clipClock),
     // maps the result through the compose edit decision list, and the sync gate checks it against the spoken words.
-    actionClock: 'recording-start',
-    recastHeadTrimSeconds: take.headTrim.seconds,
-    recastHeadTrimMethod: take.headTrim.method,
-    rawMinusClipSeconds: take.headTrim.lengthDelta,
+    actionClock: stageLane ? 'clip' : 'recording-start',
+    ...(stageLane ? {} : { recastHeadTrimSeconds: take.headTrim.seconds, recastHeadTrimMethod: take.headTrim.method, rawMinusClipSeconds: take.headTrim.lengthDelta }),
     actions: fin.events,
     expectations: fin.expectations,
     beats: fin.beats,

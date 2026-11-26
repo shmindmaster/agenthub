@@ -1,0 +1,344 @@
+// Screen stage plan: the camera, cursor and frame lookup for one run of contiguous screen slots, as a PURE function of the capture
+// receipt events, the compose edit list (headHold, speed, skip, trim) and the frame geometry. No rendering, no filesystem: the same
+// input always gives the same plan, and the plan is what the renderer draws and what validate-screen-stage.mjs measures the encoded
+// film against. Contract: skills/studio/references/screen-stage.md.
+import { STAGE, toStagePoint, buildCursorTrack, cameraForBox, cameraAt, boxInView, clamp, cursorKind, stageGeometry, toStageBox, unionBox, viewRect, wideCamera, zoomForBox } from './stage-math.mjs';
+import { clipToSlot } from './sync-lib.mjs';
+
+export const PLAN_SCHEMA = 'media-studio/screen-stage-plan/1';
+export const PRESS = new Set(['click', 'tap', 'type', 'fill', 'select', 'point', 'upload']);
+const ESTIMATED_BOX = { w: 120, h: 44 }; // CSS px, for an old receipt press with no recorded target box
+const r3 = (v) => Math.round(v * 1000) / 1000;
+
+/** The press's recorded target box in CSS px, or an estimate around its point (flagged) when the receipt has none. */
+function pressBox(ev) {
+  const b = ev.targetBox;
+  if (b && [b.x, b.y, b.w, b.h].every(Number.isFinite) && b.w > 0 && b.h > 0) return { box: { x: b.x, y: b.y, w: b.w, h: b.h }, estimated: false };
+  if (Number.isFinite(ev.x) && Number.isFinite(ev.y)) return { box: { x: ev.x - ESTIMATED_BOX.w / 2, y: ev.y - ESTIMATED_BOX.h / 2, w: ESTIMATED_BOX.w, h: ESTIMATED_BOX.h }, estimated: true };
+  return null;
+}
+
+/**
+ * Receipt events of one slot in film seconds. `edit` is the compose edit of the slot; an event the edit drops (inside a skip) has no
+ * film time and is left out. Typing is merged into the click that focused its field: one target, held until the typing ends.
+ */
+export function slotEvents(slot, clip) {
+  const at = (ts) => { const s = clipToSlot(slot.edit, ts); return s === null ? null : r3(slot.startSeconds + s); };
+  const out = { moves: [], presses: [], results: [] };
+  let lastKind = 'arrow';
+  let approachStart = null; // film time of the first pointer move since the previous press: the camera leads this
+  const actions = clip.actions || [];
+  const changesAt = (ts) => (clip.changes || []).find((c) => Math.abs(c.t - ts) < 0.02)?.boxes || [];
+  for (const ev of actions) {
+    if (ev.type === 'move' && Number.isFinite(ev.x) && Number.isFinite(ev.y)) {
+      const t = at(ev.t);
+      if (ev.cursor) lastKind = cursorKind(ev.cursor);
+      if (t !== null) { out.moves.push({ t, x: ev.x, y: ev.y, kind: lastKind }); if (approachStart === null) approachStart = t; }
+    } else if (PRESS.has(ev.type)) {
+      const tp = ev.tStart ?? ev.t;
+      const t = at(tp);
+      if (ev.cursor) lastKind = cursorKind(ev.cursor);
+      if (t === null) continue;
+      const b = pressBox(ev);
+      const press = { type: ev.type, label: ev.label || null, t, tEnd: ev.tEnd !== undefined ? at(ev.tEnd) ?? t : t, x: ev.x ?? null, y: ev.y ?? null, kind: lastKind, box: b?.box || null, estimated: b?.estimated ?? null, approachStart, changes: changesAt(tp) };
+      approachStart = null;
+      out.presses.push(press);
+    }
+  }
+  // A typing burst continues the press that focused its field.
+  const merged = [];
+  for (const p of out.presses) {
+    const prev = merged[merged.length - 1];
+    if (p.type === 'type' && prev && (prev.type === 'click' || prev.type === 'tap') && p.t - prev.t <= 2) { prev.tEnd = Math.max(prev.tEnd, p.t + Math.max(0.3, (p.tEnd ?? p.t) - p.t)); prev.typed = true; prev.typeStart = p.t; continue; }
+    if (p.type === 'type' && Number.isFinite(p.tEnd) && p.tEnd <= p.t) p.tEnd = p.t + 0.6;
+    merged.push(p);
+  }
+  out.presses = merged.filter((p) => p.box);
+  for (const e of clip.expectations || []) {
+    if (!e.observed || !e.targetBox) continue;
+    const t = at(e.observedAt ?? e.at);
+    if (t !== null) out.results.push({ label: e.label, t, box: e.targetBox });
+  }
+  return out;
+}
+
+/** Joint bounding box clustering of presses into zoom regions (typing counts as a target, not only clicks). */
+function clusterPresses(presses, g) {
+  const clusters = [];
+  for (const p of presses) {
+    const sb = toStageBox(g, p.box);
+    const cur = clusters[clusters.length - 1];
+    if (cur && p.t - cur.lastEnd <= STAGE.clusterGapSeconds && p.t - cur.firstT <= STAGE.clusterSpanSeconds && zoomForBox(unionBox([...cur.boxes, sb]), g) > 1) {
+      cur.boxes.push(sb); cur.presses.push(p); cur.lastEnd = Math.max(cur.lastEnd, p.tEnd);
+    } else clusters.push({ firstT: p.t, lastEnd: p.tEnd, boxes: [sb], presses: [p], approachStart: p.approachStart });
+  }
+  return clusters;
+}
+
+/** The generated gradient behind a phone or native screen inside a wide frame (colours in sRGB 0-255), or null for a full-bleed film. */
+function placementBackground(g, cfg) {
+  if (!g.placement) return null;
+  const base = Array.isArray(cfg?.colors) && cfg.colors.length === 2 ? cfg.colors : STAGE.background.colors;
+  return { kind: 'gradient', colors: base, angle: Number.isFinite(cfg?.angle) ? cfg.angle : STAGE.background.angle };
+}
+
+/** Manual zoom regions: [{ target: <action label> | box: {x,y,w,h} CSS px, from, to, level, instant }] -> clusters the camera code can use. */
+function manualClusters(regions, presses, g, warnings) {
+  return regions.map((r, i) => {
+    let box = null, own = [];
+    if (r.target) {
+      const p = presses.find((q) => q.label === r.target);
+      if (!p) throw new Error(`screenStage.zoom.regions[${i}]: no recorded action labelled "${r.target}"`);
+      box = toStageBox(g, p.box); own = [p];
+    } else if (r.box) box = toStageBox(g, r.box);
+    else throw new Error(`screenStage.zoom.regions[${i}] needs a target (an action label) or a box`);
+    const from = Number.isFinite(r.from) ? r.from : (own[0] ? own[0].t - STAGE.leadSeconds : 0);
+    const to = Number.isFinite(r.to) ? r.to : from + 2;
+    const level = clamp(Number(r.level) || g.zoom.default, g.zoom.min, g.zoom.max);
+    const inside = presses.filter((p) => p.t >= from - 1e-6 && p.t <= to + 1e-6);
+    if (!inside.length && !own.length) warnings.push(`zoom region ${i} (${from}s-${to}s) holds no press`);
+    const camera = cameraForBox(box, g, { zoom: level });
+    return { manual: true, declared: true, instant: r.instant === true, firstT: from, lastEnd: to, resultEnd: to, boxes: [box], presses: inside.length ? inside : own, approachStart: undefined, action: box, region: box, zoom: level, camera, joined: true, resultBox: null, resultCamera: null };
+  });
+}
+
+/** The one highlight at a time, from declared { action: <label>, start, hold, dim }: the box is the recorded element box of that press. */
+function buildHighlights(list, presses, g) {
+  const out = [];
+  for (const [i, h] of (list || []).entries()) {
+    const matches = presses.filter((p) => p.label === h.action);
+    const p = matches[Math.max(0, (h.occurrence || 1) - 1)];
+    if (!p) throw new Error(`screenStage.highlights[${i}]: no recorded action labelled "${h.action}"`);
+    if (p.estimated || !p.box) throw new Error(`screenStage.highlights[${i}]: "${h.action}" has no recorded element box: re-record with the current kit (the cutout is the recorded box, never a guess)`);
+    const pad = STAGE.highlight.padding * g.k;
+    const b = toStageBox(g, p.box);
+    const t0 = r3(Math.max(0, p.t + (Number.isFinite(h.start) ? h.start : -0.15)));
+    // A highlight is over (fully faded) before the click on or inside its element, and before any other press: the product changes after a
+    // press, and the result must never be dimmed. It is an attention cue ahead of the action, not a frame around it.
+    const firstPress = presses.filter((q) => q.t >= t0 - 1e-6).reduce((m, q) => Math.min(m, q.t), Infinity);
+    const wanted = t0 + (Number(h.hold) > 0 ? Number(h.hold) : STAGE.highlight.holdSeconds);
+    const t1 = r3(Math.min(wanted, firstPress - STAGE.highlight.easeSeconds - STAGE.highlight.clearBeforePressSeconds));
+    if (t1 - t0 < 2 * STAGE.highlight.easeSeconds) throw new Error(`screenStage.highlights[${i}]: "${h.action}" has no room: it must fade out ${STAGE.highlight.clearBeforePressSeconds + STAGE.highlight.easeSeconds} s before the click at ${p.t}s (or the first press after it), and fit ${2 * STAGE.highlight.easeSeconds} s between: start it earlier (start: ${r3(Math.min(-1.0, (h.start ?? -0.15) - 0.6))})`);
+    out.push({ t0, t1, box: { x: r3(b.x - pad), y: r3(b.y - pad), w: r3(b.w + 2 * pad), h: r3(b.h + 2 * pad) }, dim: clamp(Number(h.dim ?? STAGE.highlight.dim), 0.1, 0.8), label: h.action });
+  }
+  out.sort((a, b) => a.t0 - b.t0);
+  for (let i = 1; i < out.length; i++) if (out[i].t0 < out[i - 1].t1 - 1e-6) throw new Error(`screenStage.highlights: "${out[i - 1].label}" and "${out[i].label}" overlap: one highlight at a time`);
+  return out;
+}
+
+/** Build the plan. See the file header for the input; `slots` are contiguous from 0 and `runSeconds` is their total. */
+export function buildStagePlan({ frame, viewport, dsf = STAGE.deviceScaleFactor, slots, clips, options = {} }) {
+  const g0 = stageGeometry(frame, viewport, { layout: options.layout });
+  // a tap has no pointer approach to lead: the camera settles on the target this long before it
+  const leadSec = slots.some((s) => clips[s.clipId]?.touch) ? STAGE.touchLeadSeconds : STAGE.leadSeconds;
+  // job.screenStage.zoom: { mode: 'auto' | 'manual' | 'off', level, regions: [{ target | box, from, to, level, instant }] }
+  const zcfg = options.zoom || {};
+  const zmode = zcfg.mode === 'off' || zcfg.mode === 'manual' ? zcfg.mode : 'auto';
+  const level = clamp(Number(zcfg.level) || g0.zoom.default, g0.zoom.min, g0.zoom.max);
+  const g = { ...g0, zoom: { ...g0.zoom, default: level } };
+  const runSeconds = r3(slots.reduce((n, s) => Math.max(n, s.startSeconds + s.durationSeconds), 0));
+  const warnings = [];
+
+  // ---- events in film time
+  const moves = [], presses = [], results = [];
+  for (const slot of slots) {
+    const clip = clips[slot.clipId];
+    if (!clip) throw new Error(`screen stage: slot at ${slot.startSeconds}s names clip ${slot.clipId}, which has no receipt entry`);
+    if (slot.hold) continue; // a hold repeats the previous clip's last frame: its events were already placed by the slot that played it
+    const ev = slotEvents(slot, clip);
+    moves.push(...ev.moves); presses.push(...ev.presses); results.push(...ev.results);
+  }
+  presses.sort((a, b) => a.t - b.t);
+
+  // ---- zoom regions
+  let clusters = zmode === 'off' ? [] : clusterPresses(presses, g);
+  const manual = zmode === 'manual' ? manualClusters(zcfg.regions || [], presses, g, warnings) : null;
+  if (manual) clusters = manual;
+  clusters.forEach((c, i) => {
+    if (c.manual) return;
+    const next = clusters[i + 1];
+    const limit = next ? next.firstT : Infinity;
+    const declared = results.filter((r) => r.t >= c.firstT - 1e-6 && r.t < limit).map((r) => toStageBox(g, r.box));
+    const act = unionBox(c.boxes);
+    let box = act;
+    let joined = false;
+    // What changed on the page within about a second of the last press (measured from the captured frames), and the results the take
+    // declared (a confirmation, a toast, status text). What fits with the action at the minimum zoom joins its region, nearest first.
+    const lastPress = c.presses[c.presses.length - 1];
+    const near = unionBox([act]), pad = 40;
+    const measured = (lastPress.changes || []).map((b) => toStageBox(g, b)).filter((b) => b.x > near.x + near.w + pad || b.x + b.w < near.x - pad || b.y > near.y + near.h + pad || b.y + b.h < near.y - pad);
+    const dist = (b) => Math.hypot(b.x + b.w / 2 - (act.x + act.w / 2), b.y + b.h / 2 - (act.y + act.h / 2));
+    const far = [];
+    for (const r of [...declared.map((b) => ({ b, declared: true })), ...measured.map((b) => ({ b, declared: false }))].sort((x, y) => dist(x.b) - dist(y.b))) {
+      if (zoomForBox(unionBox([box, r.b]), g) >= g.zoom.min - 1e-6) { box = unionBox([box, r.b]); joined = true; } else far.push(r);
+    }
+    // A declared result that does not fit is shown once: the camera goes to it within resultLeadSeconds of the press, holds it for at least
+    // resultMinViewSeconds and at most resultHoldMaxSeconds, then moves on to the next target. It is released after that and never carried
+    // into another region. A change nobody declared that does not fit is not worth leaving the action for.
+    c.resultBox = far.some((r) => r.declared) ? unionBox(far.map((r) => r.b)) : null;
+    c.resultCamera = null;
+    if (c.resultBox) { c.resultCamera = cameraForBox(c.resultBox, g, { bias: false }); c.resultAt = lastPress.t + STAGE.resultLeadSeconds; }
+    c.action = act; c.region = box;
+    // The 1.8 ceiling is for a tiny target together with a tiny result in the same view; anything else stays at the 1.5 default.
+    c.joined = joined;
+    c.zoom = joined ? zoomForBox(box, g) : Math.min(zoomForBox(box, g), g.zoom.default);
+    c.camera = cameraForBox(box, g, { bias: c.presses.length === 1 && box === act, zoom: c.zoom });
+    if (c.zoom <= 1) c.whyWide = `the region of ${c.presses.map((p) => p.label || p.type).join(', ')} (${Math.round(box.w)}x${Math.round(box.h)} px) does not fit at ${g.zoom.min}x`;
+    c.resultEnd = Math.max(c.lastEnd, ...results.filter((r) => r.t >= c.firstT && r.t < limit).map((r) => r.t));
+  });
+
+  // ---- camera track: wide, spring to each region just before its first press, wide again at the end
+  const initial = wideCamera(g);
+  const segments = [];
+  let cur = initial;
+  const lastSegT0 = () => (segments.length ? segments[segments.length - 1].t0 : -Infinity);
+  clusters.forEach((c, i) => {
+    const prev = clusters[i - 1];
+    if (prev && c.firstT - prev.resultEnd >= STAGE.contextGapSeconds && cur.z > 1) {
+      const t0 = prev.resultEnd + STAGE.closeHoldSeconds;
+      segments.push({ t0: r3(t0), to: initial, reason: 'context' }); cur = initial;
+    }
+    const seen = c.zoom > 1 && cur.z > 1 && Math.abs(cur.z - c.camera.z) < 0.05 + 0.2 && boxInView(cur, g, c.action, STAGE.mergeInset) && boxInView(cur, g, c.region, 0);
+    c.merged = seen;
+    if (seen) return;
+    if (c.zoom <= 1 && cur.z <= 1) { c.merged = true; return; }
+    const earliest = i === 0 ? STAGE.openWideSeconds : lastSegT0() + 0.35;
+    // The camera starts a little before the pointer starts to move (so the two are not at peak speed together) and lands by the press.
+    const lead = c.approachStart != null ? c.approachStart - STAGE.cameraLeadSeconds : c.firstT - leadSec;
+    let t0 = c.manual ? Math.max(earliest, c.firstT) : Math.max(earliest, Math.min(lead, c.firstT - leadSec));
+    // After a result was shown the camera stays on it at least resultMinViewSeconds and leaves it after at most resultHoldMaxSeconds.
+    let delayedForResult = false;
+    if (prev?.resultCamera && !c.manual) {
+      const lo = prev.resultAt + STAGE.resultMinViewSeconds, hi = prev.resultAt + STAGE.resultHoldMaxSeconds;
+      if (t0 < lo) { t0 = lo; delayedForResult = true; } else if (t0 > hi) t0 = hi;
+    }
+    if (i === 0 && !c.manual) t0 = Math.min(t0, Math.max(earliest, STAGE.openHoldMaxSeconds)); // the clean opening is held 0.35-0.6 s, however late the pointer starts
+    if (i === 0 && Math.min(lead, c.firstT - leadSec) < STAGE.openWideSeconds) warnings.push(`the first move would start before ${STAGE.openWideSeconds}s of clean full page: it starts at ${r3(t0)}s`);
+    segments.push(c.instant ? { t0: r3(c.firstT), to: c.camera, reason: 'cut', instant: true } : { t0: r3(t0), to: c.camera, reason: i === 0 ? 'open' : 'region', ...(c.manual ? { declared: true } : {}), ...(delayedForResult ? { delayedForResult: true } : {}) });
+    cur = c.camera;
+    if (c.resultCamera) { segments.push({ t0: r3(Math.max(c.resultAt, lastSegT0() + 0.35)), to: c.resultCamera, reason: 'result' }); cur = c.resultCamera; }
+  });
+  if (cur.z > 1) {
+    const lastEnd = clusters.length ? clusters[clusters.length - 1].resultEnd : 0;
+    let t0 = Math.max(lastEnd + STAGE.closeHoldSeconds, runSeconds - STAGE.closeWideSeconds);
+    if (t0 > runSeconds - STAGE.settleSeconds) { t0 = runSeconds - STAGE.settleSeconds; warnings.push(`the run ends ${r3(runSeconds - lastEnd)}s after its last action: the pull back to the full page starts at ${r3(t0)}s and may not settle before the end`); }
+    segments.push({ t0: r3(Math.max(t0, lastSegT0() + 0.35)), to: initial, reason: 'close' });
+  }
+  const camera = { initial, segments };
+
+  // ---- cursor
+  const samples = [...moves];
+  for (const p of presses) if (Number.isFinite(p.x) && Number.isFinite(p.y)) samples.push({ t: p.t, x: p.x, y: p.y, kind: p.kind });
+  let stageSamples = debounceKinds(samples.map((s) => { const q = toStagePoint(g, s.x, s.y); return { t: s.t, x: r3(q.x), y: r3(q.y), kind: s.kind }; }).sort((a, b) => a.t - b.t));
+  // The cursor appears when it starts to move toward its first target: the opening is the clean page, not a pointer sitting in a corner.
+  const firstMove = stageSamples.findIndex((p) => Math.hypot(p.x - stageSamples[0].x, p.y - stageSamples[0].y) > 2);
+  if (firstMove > 1) stageSamples = stageSamples.slice(firstMove - 1);
+  const clicks = presses.filter((p) => ['click', 'tap'].includes(p.type) && Number.isFinite(p.x)).map((p) => { const q = toStagePoint(g, p.x, p.y); return { t: p.t, x: r3(q.x), y: r3(q.y), label: p.label }; });
+  // The cursor stops moving for the last half second of the run, unless a press lands there (a press is never moved).
+  const rest = runSeconds - STAGE.restSeconds;
+  if (!clicks.some((c) => c.t > rest) && stageSamples.some((s) => s.t > rest)) {
+    const before = stageSamples.filter((s) => s.t <= rest);
+    if (before.length) stageSamples = [...before, { ...before[before.length - 1], t: r3(rest) }];
+  }
+  const touch = slots.some((s) => clips[s.clipId]?.touch);
+  const hidden = [...(options.hideCursor || [])];
+  // While a field is typed into the pointer is hidden, as an operating system does: an I-beam sitting on the words covers them. It comes
+  // back when the pointer next moves.
+  if (!touch) for (const p of presses) {
+    if (!p.typed && p.type !== 'type') continue;
+    const from = Number.isFinite(p.typeStart) ? p.typeStart : p.t + 0.25;
+    const back = moves.filter((m) => m.t > p.tEnd + 0.05).reduce((m, x) => Math.min(m, x.t), Infinity);
+    hidden.push([from, Math.min(runSeconds + 0.3, Number.isFinite(back) ? back : runSeconds + 0.3)]);
+  }
+  if (options.idleHide !== false && !touch) hidden.push(...idleHideRanges({ samples: stageSamples, presses, runSeconds }));
+  const cursor = { mode: touch ? 'touch' : 'pointer', samples: stageSamples, clicks, hidden: hidden.map(([a, b]) => [r3(a), r3(b)]) };
+
+  // ---- what the gate measures against
+  const track = buildCursorTrack(stageSamples);
+  const planned = presses.map((p) => {
+    const c = clusters.find((cl) => cl.presses.includes(p));
+    const cam = cameraAt(camera, p.t, g);
+    return { t: p.t, tEnd: p.tEnd, type: p.type, label: p.label, boxCss: p.box, boxStage: toStageBox(g, p.box), estimated: p.estimated, pointStage: Number.isFinite(p.x) ? (({ x, y }) => ({ x: r3(x), y: r3(y) }))(toStagePoint(g, p.x, p.y)) : null,
+      cluster: clusters.indexOf(c), cameraAtPress: { cx: r3(cam.cx), cy: r3(cam.cy), z: r3(cam.z) }, zoomed: cam.z > 1.05, inView: boxInView(cam, g, toStageBox(g, p.box)) };
+  });
+  const moveList = segments.map((s, i) => ({ t0: s.t0, settledBy: r3(s.t0 + STAGE.settleSeconds), reason: s.reason, to: { cx: r3(s.to.cx), cy: r3(s.to.cy), z: r3(s.to.z) }, nextStart: segments[i + 1]?.t0 ?? null }));
+
+  for (const p of planned) {
+    if (!p.inView) warnings.push(`the target of "${p.label || p.type}" at ${p.t}s is not inside the planned view`);
+    if (p.estimated) warnings.push(`"${p.label || p.type}" at ${p.t}s has no recorded target box: framed from its point (re-record with the current kit)`);
+  }
+
+  return {
+    schema: PLAN_SCHEMA,
+    frame: { width: frame.width, height: frame.height, fps: frame.fps ?? STAGE.fps },
+    viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: dsf,
+    geometry: g,
+    runSeconds,
+    slots: slots.map((s) => ({ clipId: s.clipId, startSeconds: r3(s.startSeconds), durationSeconds: r3(s.durationSeconds), edit: s.edit, hold: !!s.hold })),
+    frames: Object.fromEntries([...new Set(slots.map((s) => s.clipId))].map((id) => [id, clips[id].frames])),
+    background: placementBackground(g, options.background),
+    camera, cursor, planned, moves: moveList, warnings,
+    highlights: buildHighlights(options.highlights, presses, g),
+    regions: clusters.map((c) => ({ firstT: c.firstT, resultEnd: r3(c.resultEnd), zoom: r3(c.zoom), merged: !!c.merged, declared: !!c.declared, withResult: !!c.joined, labels: c.presses.map((p) => p.label || p.type), region: c.region })),
+    results: clusters.filter((c) => c.resultBox).map((c) => ({ t: c.presses[c.presses.length - 1].t, label: c.presses[c.presses.length - 1].label, boxStage: c.resultBox, at: r3(c.resultAt), mustBeSeenBy: r3(c.resultAt + 0.5), heldUntil: r3(c.resultAt + STAGE.resultMinViewSeconds) })),
+    // the regions that cannot zoom and why, and the time they take: the zoom coverage check excludes them (a result view is one of them)
+    zoomNotes: [
+      ...clusters.filter((c) => c.whyWide).map((c) => ({ from: r3(c.firstT), to: r3(c.resultEnd), why: c.whyWide })),
+      ...segments.flatMap((sg, k) => (sg.reason === 'context' ? [{ from: sg.t0, to: segments[k + 1] ? segments[k + 1].t0 : runSeconds, why: 'a quiet gap between actions pulls back to the full page' }] : [])),
+      ...clusters.filter((c) => c.resultCamera).map((c) => ({ from: r3(c.resultAt), to: r3(c.resultAt + STAGE.resultHoldMaxSeconds), why: 'a result elsewhere on the page is shown once' })),
+    ],
+    zoomMode: zmode,
+  };
+}
+
+/** A cursor-type change that lasts under STAGE.kindDebounceSeconds is not drawn: the previous type holds. */
+export function debounceKinds(samples) {
+  const out = samples.map((s) => ({ ...s }));
+  const runs = [];
+  for (const s of out) { const r = runs[runs.length - 1]; if (r && r.kind === s.kind) r.items.push(s); else runs.push({ kind: s.kind, start: s.t, items: [s] }); }
+  for (let i = 1; i + 1 < runs.length; i++) if (runs[i + 1].start - runs[i].start < STAGE.kindDebounceSeconds) for (const s of runs[i].items) s.kind = runs[i - 1].items[0].kind;
+  return out;
+}
+
+/** Hide ranges for a cursor that has sat still: [[from, to], ...] in film seconds. Never across a pointAt (the dwell is the point). */
+export function idleHideRanges({ samples, presses, runSeconds }) {
+  const marks = [...samples.map((s) => s.t), ...presses.flatMap((p) => [p.t, p.tEnd])].filter(Number.isFinite).sort((a, b) => a - b);
+  const keep = presses.filter((p) => p.type === 'point').map((p) => [p.t, p.tEnd + 0.9]);
+  const out = [];
+  for (let i = 0; i < marks.length; i++) {
+    const a = marks[i], b = i + 1 < marks.length ? marks[i + 1] : runSeconds + 0.3;
+    const from = a + STAGE.idleHideSeconds + STAGE.hideFadeSeconds, to = b - 0.3;
+    if (to - from < 0.1) continue;
+    if (keep.some(([x, y]) => x < to && y > a)) continue;
+    out.push([from, to]);
+  }
+  return out;
+}
+
+/**
+ * Idle source time inside a clip: no recorded input AND no new frame (frames arrive only when the page changes, so a gap between
+ * frames is frozen pixels). Only idle time may be cut or sped up without a declared reason: a playing animation, a spinner or a real
+ * product wait changes frames and is never idle. Returns [[a, b], ...] in clip seconds, each at least `minSeconds` long.
+ */
+export function idleRanges({ actions = [], frameTimes = [], clipSeconds, minSeconds = 0.8 }) {
+  const marks = [0, clipSeconds];
+  for (const e of actions) for (const t of [e.t, e.tStart, e.tEnd]) if (Number.isFinite(t)) marks.push(t);
+  for (const t of frameTimes) marks.push(t);
+  marks.sort((a, b) => a - b);
+  const out = [];
+  for (let i = 0; i + 1 < marks.length; i++) if (marks[i + 1] - marks[i] >= minSeconds) out.push([r3(marks[i]), r3(marks[i + 1])]);
+  return out;
+}
+
+/** Edit hints that compress real activity: a skip over time that is not idle, or a speed-up with no declared reason. */
+export function compressionProblems({ edit, idle, speedReason, label = 'clip' }) {
+  const problems = [];
+  for (const [a, b] of edit.skip || []) {
+    const inside = idle.some(([x, y]) => a >= x - 0.05 && b <= y + 0.05);
+    if (!inside && !(typeof speedReason === 'string' && speedReason.trim())) problems.push(`${label}: skip [${a}, ${b}] cuts time with input or changing pixels; only idle time (no input and frozen pixels) may be cut, or declare speedReason`);
+  }
+  if (Number(edit.speed || 1) > 1 && !(typeof speedReason === 'string' && speedReason.trim())) problems.push(`${label}: speed ${edit.speed} needs a speedReason`);
+  return problems;
+}
+
+export { viewRect, clamp };

@@ -130,7 +130,7 @@ test('the kit version is known when the recorder runs from _shared/tools', { ski
   cpSync(join(recorder(), 'screencast'), tools, { recursive: true });
   copyFileSync(join(pkg, 'plugin.json'), join(tools, 'plugin.json'));
   const root = fresh('shared-tools'); write(join(root, 'capture', 'scenes.mjs'), SCENES());
-  const r = spawnSync(process.execPath, [join(tools, 'record-job.mjs'), root, '--no-recast'], { encoding: 'utf8', windowsHide: true, env: { ...process.env, FAKE_RAW: source } });
+  const r = spawnSync(process.execPath, [join(tools, 'record-job.mjs'), root, '--recast', '--no-recast'], { encoding: 'utf8', windowsHide: true, env: { ...process.env, FAKE_RAW: source } });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.equal(readJson(receiptOf(root)).clips.S02.provenance.kitVersion, readJson(join(pkg, 'plugin.json')).version);
 });
@@ -236,7 +236,7 @@ function recorder() {
 }
 function record(root, scenes, args = ['--no-recast']) {
   write(join(root, 'capture', 'scenes.mjs'), scenes);
-  const r = spawnSync(process.execPath, [join(recorder(), 'screencast', 'record-job.mjs'), root, ...args], { encoding: 'utf8', windowsHide: true, env: { ...process.env, FAKE_RAW: source } });
+  const r = spawnSync(process.execPath, [join(recorder(), 'screencast', 'record-job.mjs'), root, '--recast', ...args], { encoding: 'utf8', windowsHide: true, env: { ...process.env, FAKE_RAW: source } });
   return { code: r.status, out: `${r.stdout}${r.stderr}`, receipt: existsSync(receiptOf(root)) ? readJson(receiptOf(root)) : null };
 }
 const fresh = (name, over) => { const root = job(name, over); rmSync(receiptOf(root)); return root; };
