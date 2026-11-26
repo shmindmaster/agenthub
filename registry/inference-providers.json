@@ -24,16 +24,17 @@
   "models": [
     {
       "id": "qwen3.8-27b-unc-q8",
-      "displayName": "Qwen 3.8 27B Uncensored (BF16)",
+      "displayName": "Qwen 3.8 27B Uncensored (FP8)",
       "serving": {
         "engine": "vllm-rocm",
-        "weights": "llmfan46/Qwen3.8-27B-Uncensored-Heretic-Native-MTP-Preserved",
-        "precision": "BF16",
-        "measuredTokensPerSecond": 94.7,
+        "weights": "orcarouter/Qwen3.8-27B-Uncensored-FP8",
+        "precision": "FP8 (native block-FP8, e4m3)",
+        "aiter": true,
+        "measuredTokensPerSecond": 81.2,
         "measuredOn": "2026-11-26",
         "toolCallParser": "qwen3_coder",
         "reasoningParser": "qwen3",
-        "note": "The retained model id still says q8 for compatibility with existing host entries; the served weights are BF16 native safetensors."
+        "note": "The retained model id still says q8 for compatibility with existing host entries; the served weights are the playbook-mandated native block-FP8 checkpoint. AITER gives 81.2 tok/s against 42.9 without it; MTP speculative decoding measured 5.2 tok/s and is disabled. That is below the playbook's 240-300 tok/s gate because AITER ships no tuned block-FP8 GEMM shapes for MI355X."
       },
       "role": "general",
       "family": "qwen3.8",
@@ -74,7 +75,8 @@
         "precision": "Q8_0",
         "measuredTokensPerSecond": 45.7,
         "measuredOn": "2026-11-26",
-        "note": "The native checkpoint OpenUncensored/Inkling-2-Mini-Uncensored is Inkling2LoopForConditionalGeneration (model_type inkling2_loop), which the installed vLLM does not implement, so Q8_0 GGUF is the serving path. q8_0 KV cache is what lets 131072 fit beside the primary model."
+        "deferred": true,
+        "note": "Deferred by the implementation playbook. The recipe launches no second server (FLAGSHIP_ENABLED=0) and no gateway backend is registered for this id, so it must not appear in a host picker yet."
       },
       "role": "general",
       "family": "inkling2",
