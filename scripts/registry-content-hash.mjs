@@ -54,7 +54,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 // scripts/RegistryContentHash.ps1: the hash definition is shared, not forked.
 export const TEXT_EXTENSIONS = new Set([
   '.cjs', '.cmd', '.css', '.cts', '.csv', '.editorconfig', '.eslintrc',
-  '.example', '.gitattributes', '.gitignore', '.html', '.js', '.json', '.map',
+  '.example', '.gitattributes', '.gitignore', '.html', '.js', '.json', '.jsonc', '.map',
   '.markdown', '.md', '.mdc', '.mjs', '.mts', '.npmignore', '.nycrc',
   '.ps1', '.psm1', '.py', '.service', '.sh', '.svg', '.timer', '.toml', '.ts', '.tsx', '.txt',
   '.xml', '.yaml', '.yml',
