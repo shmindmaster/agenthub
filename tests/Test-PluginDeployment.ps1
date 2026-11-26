@@ -127,13 +127,13 @@ try {
 
     foreach ($hostFolder in '.kilocode', '.config/opencode') {
         $researchHome = Join-Path $skillHome $hostFolder
-        $install = & pwsh -NoProfile -File (Join-Path $root 'scripts/Install-WarpSkills.ps1') -Root $root -WarpHome $researchHome -PluginId research
-        if ($LASTEXITCODE) { throw "Research skill installation failed for $hostFolder`: $install" }
+        $install = & pwsh -NoProfile -File (Join-Path $root 'scripts/Install-WarpSkills.ps1') -Root $root -WarpHome $researchHome -PluginId funding
+        if ($LASTEXITCODE) { throw "Funding skill installation failed for $hostFolder`: $install" }
     }
-    $researchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $skillHome -PluginId research -Json | ConvertFrom-Json)
+    $researchReport = (& pwsh -NoProfile -File $cli plugins -RepositoryRoot $root -UserProfile $skillHome -PluginId funding -Json | ConvertFrom-Json)
     foreach ($researchHost in 'kilo', 'opencode') {
         $researchRow = @($researchReport.mappings | Where-Object host -EQ $researchHost)
-        if ([string]$researchRow.status -ne 'current') { throw "Research skill install did not audit current on $researchHost" }
+        if ([string]$researchRow.status -ne 'current') { throw "Funding skill install did not audit current on $researchHost" }
     }
 
     # --- Surface routing: cursor and cursor-agent observe Claude's install,
