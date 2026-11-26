@@ -454,7 +454,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+skills",
       "canonicalSource": "packages/product",
-      "contentHash": "E587B66A09EA525338B03601F47CD96BC42EAA0767291874B2D99068F3FBCF82",
+      "contentHash": "219549148DA067C7B90489751C626D18EFDF358A4F041D92710CA82B6AC533D2",
       "hashBasis": "packages/product",
       "status": "active-canonical",
       "notes": "Owns the product skills audit, design, build, verify, demo, engineer and route, and the reviewer agent (2.1.2, no hooks). route reads the checkout instructions and docs/architecture/portfolio-routes.md, then picks one existing lane. Product names stay out of this package. design, build and verify (and the reviewer) load references/ui-standard.md, the UI rules (controls, density, layout, hero and 3D checks; the repository design system wins) with scripts/check-ui-rules.mjs as its static check. verify and demo load references/authenticated-acceptance.md, which carries the session, role, denial and data-boundary evidence an authenticated journey needs; the fleet's provider-specific contract stays in docs/runbooks/clerk-auth.md. Also owns the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
@@ -531,7 +531,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "4EFAFFEDAA2D83D27FDC2655F5D231C06B32D3578BB0217647154E4FDD23E7A3",
+      "contentHash": "228CD9A402D550C3E0ED0878E35B15963DBE85E0786DB7AF476DB1C04AB97644",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -701,7 +701,7 @@
         "produce",
         "finish"
       ],
-      "contentHash": "A5649FBD9EA2855794A3856329C5775CE2D6E1F86F96B4448F1C26237D3AE0F4",
+      "contentHash": "C8D1A3F2BFB2080B07F0265CF75E68A1430FD4CCF948422399CFFFC14B1EDD22",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -837,7 +837,7 @@
       "managedSkillNames": [
         "dispatch"
       ],
-      "contentHash": "CF0A01F6883E8C3D6BA78643C600699F83B3107BC7E01CE6A252E775E70CABC2",
+      "contentHash": "432199E619B89EB0F643EB7B633AE833074F5A8D7373F4F75617ACB7CE4D4FC8",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -971,7 +971,7 @@
       "managedSkillNames": [
         "assemblyai"
       ],
-      "contentHash": "ED1A256D8560239CCD9EFA8B5750DB912366BA6BD452BA06279E8139AAA33F14",
+      "contentHash": "65FE8C78B789C050C29867E9C49BDEF9D1591E75BE3F10F4EE7E0E303CA5DAA7",
       "hashBasis": "packages/assemblyai",
       "status": "active-canonical",
       "hostMappings": [
@@ -1101,7 +1101,7 @@
       "managedSkillNames": [
         "automate"
       ],
-      "contentHash": "C55792DD820211748F03A7E26208304A897F6BE9B199A8CC4CE1CC7607438E8B",
+      "contentHash": "A3783E673D1F6DB994FE187A23CD3A04538CEAB46738E3099BCAED5B74A7FE2E",
       "hashBasis": "packages/browser",
       "status": "active-canonical",
       "hostMappings": [
@@ -1219,7 +1219,7 @@
         "prioritize",
         "plan-application"
       ],
-      "contentHash": "D970DCEFFA5B058BB31F90D585F34B5A760A6C64CF87761C3DE9BF68CDDA4C88",
+      "contentHash": "5F14D6C19827D69B1A09D480EE7C7A70E8B326D6259748CA26E2EB68B1643DA4",
       "hashBasis": "packages/funding",
       "status": "active-canonical",
       "hostMappings": [
@@ -1348,7 +1348,7 @@
         "research-entities",
         "research-monitor"
       ],
-      "contentHash": "CD7D6ADCBF58AF3ECFB9D32F04868B94921FA9D52885B6BAF8F32327DD84E626",
+      "contentHash": "45FD98E9864BC3FE485B853173D4664603C2ABDC9B2FF777CCE32F365FEFED11",
       "hashBasis": "packages/research",
       "status": "active-canonical",
       "kind": "workflow",

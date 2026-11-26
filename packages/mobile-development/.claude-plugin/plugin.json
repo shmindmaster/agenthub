@@ -17,6 +17,6 @@
     "iphone",
     "xcode"
   ],
-  "version": "2.7.3",
-  "icon": "./assets/icon.svg"
+  "icon": "./assets/icon.svg",
+  "version": "2.7.5"
 }

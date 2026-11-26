@@ -400,6 +400,10 @@ foreach ($pkgDir in $packageDirs) {
     foreach ($hostDir in $hostManifests) {
         $hostObj = Get-Content -LiteralPath (Join-Path $pkgDir.FullName "$hostDir/plugin.json") -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($hostObj.author) { $declaredAuthors.Add([string]$hostObj.author.name) }
+        # Codex carries the same identity as interface.developerName. It had drifted
+        # the same way author had (three packages still named the individual), and no
+        # script writes it, so it is collected here with author.
+        if ($hostObj.interface -and $hostObj.interface.developerName) { $declaredAuthors.Add([string]$hostObj.interface.developerName) }
     }
     $distinctAuthors = @($declaredAuthors | Sort-Object -Unique)
     $authorOk = $declaredAuthors.Count -gt 0 -and $distinctAuthors.Count -eq 1 -and $distinctAuthors[0] -ceq $expectedAuthor

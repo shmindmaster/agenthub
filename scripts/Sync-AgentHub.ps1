@@ -839,7 +839,10 @@ function Get-PluginProvidedMcpKeysByHost {
             $sourceRoot = Resolve-RegistryOwnedPath ([string]$cap.canonicalSource)
             if (-not $sourceRoot) { continue }
 
-            $mcpManifest = Join-Path $sourceRoot '.mcp.json'
+            # mcp.json is the Agent Plugins 1.0.0 location; .mcp.json is the
+            # older host-shaped copy. Read the spec name first and fall back.
+            $mcpManifest = Join-Path $sourceRoot 'mcp.json'
+            if (-not (Test-Path -LiteralPath $mcpManifest)) { $mcpManifest = Join-Path $sourceRoot '.mcp.json' }
             if (-not (Test-Path -LiteralPath $mcpManifest)) { continue }
 
             try {
