@@ -10,9 +10,16 @@
    settings owner. The installer never deletes it; removing a legacy file is
    an explicit owner action recorded in registry/agents.json.
    -Apply copies only the AgentHub-managed files named below, resolving the
-   {userHome} placeholder in kilo.jsonc against the target profile. It never
-   overwrites or deletes an owner-authored file, writes no backup copies, and
-   prints the before and after SHA-256 of each file it changes.
+   {userHome} placeholder in kilo.jsonc against the target profile. A file that
+   is not on that managed list is reported as owner-authored and never written,
+   overwritten or deleted; measured 2026-11-26: `owner-notes.md` beside the
+   settings and `agent/custom-agent.md` both reported owner-authored and left
+   intact across an -Apply run. It writes no backup copies and prints the before
+   and after SHA-256 of every file it changes.
+   A MANAGED file that an owner has edited is a different case: -Apply repairs it
+   back to the package copy, because repairing drift is what apply is for. Run
+   -Audit first to see that drift, and read the printed before/after pair, or
+   remove the file from the managed list before applying if the edit is wanted.
    -UserProfile redirects the target (default: the current user's profile).
    Evidence for the destinations: ~/.config/kilo/agent/peer.md was discovered
    and enforced by kilo 7.8.27 on 2026-11-10 (registry/fleet-profile.json
