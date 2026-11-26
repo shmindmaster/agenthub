@@ -18,7 +18,7 @@
     "displayName": "AH-Mobile-Development",
     "shortDescription": "Build and verify mobile apps across platforms and devices.",
     "longDescription": "Plan mobile development, then drive real iPhones and Android devices with Mobile MCP, emulators and simulators with Appium, and iOS builds in an on-demand macOS VM, each started only when a task needs it.",
-    "developerName": "Sarosh Hussain",
+    "developerName": "MahumTech",
     "category": "Developer Tools",
     "capabilities": [
       "Interactive",
@@ -32,5 +32,5 @@
     "logo": "./assets/icon.svg",
     "screenshots": []
   },
-  "version": "2.7.3"
+  "version": "2.7.5"
 }

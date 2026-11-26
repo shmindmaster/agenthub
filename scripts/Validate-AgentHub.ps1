@@ -61,7 +61,8 @@ if ($overlayPackagesRoot -and (Test-Path -LiteralPath $overlayPackagesRoot)) {
 function Test-AgentHubSkillPackageTree([string]$PackageRoot, [string]$PackageName) {
   $skills = @(Get-ChildItem -LiteralPath (Join-Path $PackageRoot 'skills') -Directory -ErrorAction SilentlyContinue)
   $isDistributedPlugin = Test-Path -LiteralPath (Join-Path $PackageRoot '.claude-plugin\plugin.json')
-  if ($skills.Count -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $PackageRoot '.mcp.json'))) {
+  $hasMcpManifest = (Test-Path -LiteralPath (Join-Path $PackageRoot 'mcp.json')) -or (Test-Path -LiteralPath (Join-Path $PackageRoot '.mcp.json'))
+  if ($skills.Count -eq 0 -and -not $hasMcpManifest) {
     if ($isDistributedPlugin) {
       Fail "plugin has neither skills nor MCP manifest: $PackageName"
     }
@@ -277,7 +278,7 @@ $mcpPackageRoots = @($pluginRoot)
 if ($overlayRoot -and (Test-Path -LiteralPath $overlayPackagesRoot)) { $mcpPackageRoots += $overlayPackagesRoot }
 foreach ($packageTree in $mcpPackageRoots) {
   foreach ($packageRoot in @(Get-ChildItem -LiteralPath $packageTree -Directory)) {
-    $mcpPaths = @((Join-Path $packageRoot.FullName '.mcp.json'))
+    $mcpPaths = @((Join-Path $packageRoot.FullName 'mcp.json'), (Join-Path $packageRoot.FullName '.mcp.json'))
     foreach ($relative in @('plugin.json','.claude-plugin\plugin.json','.codex-plugin\plugin.json','.cursor-plugin\plugin.json')) {
       $manifestPath = Join-Path $packageRoot.FullName $relative
       if (-not (Test-Path -LiteralPath $manifestPath)) { continue }
