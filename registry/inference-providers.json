@@ -24,17 +24,18 @@
   "models": [
     {
       "id": "qwen3.8-27b-unc-q8",
-      "displayName": "Qwen 3.8 27B Uncensored (FP8)",
+      "displayName": "Qwen 3.8 27B (MXFP4)",
       "serving": {
         "engine": "vllm-rocm",
-        "weights": "orcarouter/Qwen3.8-27B-Uncensored-FP8",
-        "precision": "FP8 (native block-FP8, e4m3)",
+        "weights": "amd/Qwen3.8-27B-Quark-AWQ-MXFP4",
+        "drafter": "incoai/Qwen3.8-27B-DFlash2",
+        "precision": "MXFP4 (Quark AWQ) + DFlash2",
         "aiter": true,
-        "measuredTokensPerSecond": 156.8,
+        "measuredTokensPerSecond": 267.4,
         "measuredOn": "2026-11-26",
         "toolCallParser": "qwen3_coder",
         "reasoningParser": "qwen3",
-        "note": "The retained model id still says q8 for compatibility with existing host entries; the served weights are the playbook-mandated native block-FP8 checkpoint. Steady-state MI355X measurement on 2026-11-26: 156.8-157.3 tok/s on-box (~114 tok/s through the gateway) using AITER + built-in MTP (method: mtp, num_speculative_tokens: 3) + 16-thread CPU cap (OMP_NUM_THREADS=16, MKL_NUM_THREADS=16, TOKENIZERS_PARALLELISM=false), up from 81.1 tok/s baseline without MTP and 42.9 without AITER. That remains below >=300 tok/s without fused GDN/MTP kernels or an external EAGLE-4 drafter. On fast calls without reasoning, pass per-call chat_template_kwargs: {\"enable_thinking\": false} to avoid wasted hidden reasoning tokens."
+        "note": "The retained model id still says q8 for compatibility with existing host entries; the served weights are amd/Qwen3.8-27B-Quark-AWQ-MXFP4 with incoai/Qwen3.8-27B-DFlash2 (num_speculative_tokens=7, kv-cache-dtype fp8, --language-model-only). Steady-state MI355X measurement on 2026-11-26: 267.4 tok/s mean on-box (312.8 thinking) and 198.6 tok/s mean via gateway using AITER + 16-thread CPU cap (OMP_NUM_THREADS=16, MKL_NUM_THREADS=16, TOKENIZERS_PARALLELISM=false), up from 156.8 on-box on FP8+MTP and 81.1 baseline without speculation. For fast calls without reasoning, use the #fast variant or pass chat_template_kwargs: {\"enable_thinking\": false}."
       },
       "role": "general",
       "family": "qwen3.8",

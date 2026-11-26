@@ -41,8 +41,8 @@ Assert-True ($catalog.roles.engineering.engine -eq 'dual') 'engineering engine m
 # 8003 since 2026-11-26: that is the port the live gateway alias is registered on. It must be the
 # port gpu.py builds the preview link from, or `up` registers a backend nothing listens on.
 Assert-True ($catalog.roles.engineering.port -eq 8003 -and $catalog.roles.engineering.flagshipPort -eq 8002) 'engineering ports must be 8003 and 8002'
-Assert-True ($catalog.roles.engineering.profiles.MI355X.quantization -eq 'FP8(block)+Q8_0') 'engineering MI355X quantization must record the native block-FP8 primary'
-Assert-True ($catalog.roles.engineering.nativeRepo -eq 'orcarouter/Qwen3.8-27B-Uncensored-FP8') 'engineering must serve the checkpoint the implementation playbook requires'
+Assert-True ($catalog.roles.engineering.profiles.MI355X.quantization -eq 'MXFP4+DFlash2') 'engineering MI355X quantization must record the MXFP4 + DFlash2 primary'
+Assert-True ($catalog.roles.engineering.nativeRepo -eq 'amd/Qwen3.8-27B-Quark-AWQ-MXFP4') 'engineering must serve the Quark MXFP4 checkpoint'
 Assert-True ($catalog.roles.engineering.aiter -eq $true) 'engineering must record AITER, which is what lifts the FP8 path from 42.9 to 81.2 tok/s'
 Assert-True ($catalog.roles.engineering.toolCallParser -eq 'qwen3_coder' -and $catalog.roles.engineering.reasoningParser -eq 'qwen3') 'engineering must record the vLLM tool-call and reasoning parsers that make agent tool calls work'
 # The native checkpoint has no auto_map and ships no Python, so --trust-remote-code only adds the risk
@@ -645,7 +645,7 @@ try {
 
         $grokCfg = Get-Content "$fakeHome/.grok/config.toml" -Raw -Encoding UTF8
         Assert-True ($grokCfg -notmatch '\[model\.daytona-specialist\]') 'Legacy Grok [model.daytona-specialist] must be pruned'
-        Assert-True ($grokCfg -match 'Qwen 3\.8 27B Uncensored \(FP8\)') 'Grok display names must include the model label the registry actually serves'
+        Assert-True ($grokCfg -match 'Qwen 3\.8 27B \(MXFP4\)') 'Grok display names must include the model label the registry actually serves'
 
         $vscCfg = Get-Content "$fakeRoaming/Code - Insiders/User/chatLanguageModels.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True (@($vscCfg | Where-Object { $_.name -eq 'Daytona H200' }).Count -eq 0) 'Legacy VS Code Daytona H200 group must be pruned'

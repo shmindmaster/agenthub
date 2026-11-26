@@ -1,19 +1,19 @@
 #!/bin/bash
 # Serving recipe: Engineering slot 1 on AMD MI355X (288 GB CDNA4 gfx950).
-#   Primary: Qwen3.8-27B-Uncensored native block-FP8 (orcarouter checkpoint, the selection the
-#   implementation playbook requires) under vLLM ROCm on :8003, 262144 ctx, 16 sequences, with
-#   AITER FP8 block-scaled GEMM, MTP speculative decoding (method: mtp, num_speculative_tokens: 3),
+#   Primary: Qwen3.8-27B Quark AWQ-MXFP4 (amd/Qwen3.8-27B-Quark-AWQ-MXFP4) under vLLM ROCm on
+#   :8003, 262144 ctx, 64 sequences, FP8 KV cache, --language-model-only, AITER, DFlash2 parallel
+#   block-diffusion speculative decoding (incoai/Qwen3.8-27B-DFlash2, num_speculative_tokens=7),
 #   16-thread CPU caps, tool calling, and separated reasoning.
-#   Measured on 2026-11-26:
-#     - 156.8-157.3 tok/s on-box (~114 tok/s through gateway) with AITER + method: mtp (num_speculative_tokens: 3) + 16-thread CPU cap
-#     - 81.1 tok/s baseline with AITER + 16-thread CPU cap (without MTP)
-#     - 42.9 tok/s without AITER (vLLM default W8A8 block kernel)
-#     - 29.7 tok/s on the GGUF Q8_0 llama.cpp path it replaced
+#   Measured on 2026-11-26 (MI355X):
+#     - 267.4 tok/s mean on-box (247.9/278.9/275.3; 312.8 thinking), 198.6 tok/s mean via gateway
+#     - 156.8-157.3 tok/s on-box (~126 tok/s via gateway) on FP8 + built-in MTP (SPEC_METHOD=mtp)
+#     - 81.1 tok/s baseline on FP8 with AITER + 16-thread CPU cap (without speculative decoding)
+#     - 42.9 tok/s on FP8 without AITER; 29.7 tok/s on GGUF Q8_0 llama.cpp
 #     - OMP_NUM_THREADS=16 (with MKL_NUM_THREADS=16, TOKENIZERS_PARALLELISM=false) is required on the
 #       16-CPU cgroup running on a 192-CPU host so PyTorch/OpenMP/MKL/tokenizers do not oversubscribe 192 threads.
 #   Inkling is deferred per the playbook: its weights stay on the volume, and FLAGSHIP_ENABLED=0
 #   (the default) launches no second server. Set FLAGSHIP_ENABLED=1 to serve the Q8_0 GGUF again.
-#   SPEC_ENGINE=llama-cpp serves the older GGUF Q8_0 primary instead of the FP8 checkpoint.
+#   SPEC_ENGINE=llama-cpp serves the older GGUF Q8_0 primary; SPEC_METHOD=mtp uses built-in MTP.
 set -euo pipefail
 
 WEIGHTS_ROOT="${WEIGHTS_ROOT:-/mnt/opencode-weights}"
@@ -26,25 +26,28 @@ FLAG_FILE="${FLAG_FILE:-Inkling-2-Mini-Uncensored-Q8_0.gguf}"
 FLAG_MMPROJ="${FLAG_MMPROJ:-mmproj-Inkling-2-Mini-Uncensored-BF16.gguf}"
 FLAGSHIP_ENABLED="${FLAGSHIP_ENABLED:-0}"  # playbook: Inkling is deferred; weights stay on the volume
 
-# Primary model engine: vllm-native serves the native FP8 safetensors checkpoint with tool
-# calling; llama-cpp serves the Q8_0 GGUF (the older, slower path) and needs no 29 GB download.
+# Primary model engine: vllm-native serves native MXFP4/FP8 safetensors with tool calling;
+# llama-cpp serves the Q8_0 GGUF (older, slower path).
 SPEC_ENGINE="${SPEC_ENGINE:-vllm-native}"
-# The playbook's required checkpoint: native block-FP8 orcarouter build, 28.75 GiB on disk.
-SPEC_HF_REPO="${SPEC_HF_REPO:-orcarouter/Qwen3.8-27B-Uncensored-FP8}"
-SPEC_HF_DIR="${SPEC_HF_DIR:-/opt/models/qwen-fp8}"
+SPEC_HF_REPO="${SPEC_HF_REPO:-amd/Qwen3.8-27B-Quark-AWQ-MXFP4}"
+SPEC_HF_DIR="${SPEC_HF_DIR:-/opt/models/qwen-mxfp4}"
+SPEC_DRAFT_REPO="${SPEC_DRAFT_REPO:-incoai/Qwen3.8-27B-DFlash2}"
+SPEC_DRAFT_DIR="${SPEC_DRAFT_DIR:-/opt/models/qwen-dflash2}"
+SPEC_METHOD="${SPEC_METHOD:-dflash}"
+SPEC_NUM_TOKENS="${SPEC_NUM_TOKENS:-7}"
+SPEC_KV_CACHE_DTYPE="${SPEC_KV_CACHE_DTYPE:-fp8}"
+SPEC_LANGUAGE_MODEL_ONLY="${SPEC_LANGUAGE_MODEL_ONLY:-1}"
 SPEC_TOOL_PARSER="${SPEC_TOOL_PARSER:-qwen3_coder}"
 SPEC_REASONING_PARSER="${SPEC_REASONING_PARSER:-qwen3}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.90}"
-SPEC_MAX_NUM_SEQS="${SPEC_MAX_NUM_SEQS:-16}"
-# AMD's document path for FP8 block-scaled GEMM. Without it vLLM selects its default
-# W8A8 block kernel: measured 42.9 tok/s. With it, AiterFp8BlockScaledMMKernel is selected
-# (81.1 tok/s baseline with 16-thread CPU cap; 156.8-157.3 tok/s on-box with MTP=3 on 2026-11-26).
+SPEC_MAX_NUM_SEQS="${SPEC_MAX_NUM_SEQS:-64}"
 ROCM_AITER="${ROCM_AITER:-1}"
 # Cap host CPU thread pools to the 16-CPU cgroup (192-CPU host) to avoid thread oversubscription.
 OMP_NUM_THREADS="${OMP_NUM_THREADS:-16}"
 MKL_NUM_THREADS="${MKL_NUM_THREADS:-16}"
 TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}"
-SPEC_MTP_TOKENS="${SPEC_MTP_TOKENS:-3}"
+HIP_FORCE_DEV_KERNARG="${HIP_FORCE_DEV_KERNARG:-1}"
+TORCH_BLAS_PREFER_HIPBLASLT="${TORCH_BLAS_PREFER_HIPBLASLT:-1}"
 
 SPEC_PORT="${SPEC_PORT:-8003}"
 FLAG_PORT="${FLAG_PORT:-8002}"
@@ -243,9 +246,9 @@ if [[ "$SPEC_ENGINE" == "llama-cpp" && ! -f "$SPEC_MODEL_PATH" ]]; then
   exit 4
 fi
 
-# True when the native checkpoint is present and every recorded file still matches its size.
-native_ready() {
-  python3 - "$SPEC_HF_DIR" "$SPEC_HF_REPO" <<'PY'
+# True when a staged Hugging Face snapshot is present and every recorded file matches its size.
+hf_dir_ready() {
+  python3 - "$1" "$2" <<'PY'
 import json, pathlib, sys
 target, repo = pathlib.Path(sys.argv[1]), sys.argv[2]
 marker = target / "ready.json"
@@ -265,26 +268,35 @@ raise SystemExit(0)
 PY
 }
 
-stage_native() {
-  native_ready && { echo "native_qwen_present $SPEC_HF_DIR"; return 0; }
-  echo "staging_native_qwen $SPEC_HF_REPO -> $SPEC_HF_DIR"
-  python3 - <<PY
-import json, pathlib
+stage_hf_snapshot() {
+  local dir="$1"
+  local repo="$2"
+  hf_dir_ready "$dir" "$repo" && { echo "hf_snapshot_present $dir ($repo)"; return 0; }
+  echo "staging_hf_snapshot $repo -> $dir"
+  python3 - "$dir" "$repo" <<'PY'
+import json, pathlib, sys
 from huggingface_hub import snapshot_download
-target = pathlib.Path("$SPEC_HF_DIR")
+target, repo = pathlib.Path(sys.argv[1]), sys.argv[2]
 target.mkdir(parents=True, exist_ok=True)
 token_path = pathlib.Path("/run/hf.token")
 token = token_path.read_text().strip() if token_path.is_file() else None
-snapshot_download("$SPEC_HF_REPO", local_dir=str(target), token=token or None)
+snapshot_download(repo, local_dir=str(target), token=token or None)
 files = {
     str(p.relative_to(target)): p.stat().st_size
     for p in target.rglob("*")
     if p.is_file() and p.name != "ready.json"
 }
 (target / "ready.json").write_text(
-    json.dumps({"repo": "$SPEC_HF_REPO", "files": files}) + "\n", encoding="utf-8"
+    json.dumps({"repo": repo, "files": files}) + "\n", encoding="utf-8"
 )
 PY
+}
+
+stage_native() {
+  stage_hf_snapshot "$SPEC_HF_DIR" "$SPEC_HF_REPO"
+  if [[ "$SPEC_METHOD" == "dflash" ]]; then
+    stage_hf_snapshot "$SPEC_DRAFT_DIR" "$SPEC_DRAFT_REPO"
+  fi
 }
 
 launch_spec() {
@@ -312,7 +324,7 @@ launch_spec() {
     echo "launching_specialist_q8_on_port=$SPEC_PORT model=$SPEC_MODEL_PATH ctx=$((MAX_MODEL_LEN * PARALLEL)) parallel=$PARALLEL"
     setsid "$LLAMA_BIN" "${args[@]}" > /tmp/specialist.log 2>&1 &
   else
-    echo "launching_native_qwen_vllm port=$SPEC_PORT model=$SPEC_HF_DIR dtype=fp8-native ctx=$MAX_MODEL_LEN tool_parser=$SPEC_TOOL_PARSER reasoning_parser=$SPEC_REASONING_PARSER aiter=$ROCM_AITER mtp_tokens=$SPEC_MTP_TOKENS omp_threads=$OMP_NUM_THREADS"
+    echo "launching_native_qwen_vllm port=$SPEC_PORT model=$SPEC_HF_DIR ctx=$MAX_MODEL_LEN kv=$SPEC_KV_CACHE_DTYPE seqs=$SPEC_MAX_NUM_SEQS tool_parser=$SPEC_TOOL_PARSER reasoning_parser=$SPEC_REASONING_PARSER aiter=$ROCM_AITER spec_method=$SPEC_METHOD spec_tokens=$SPEC_NUM_TOKENS omp_threads=$OMP_NUM_THREADS"
     local vllm_args=(
       --model "$SPEC_HF_DIR"
       --served-model-name qwen3.8-27b-unc-q8
@@ -320,19 +332,28 @@ launch_spec() {
       --max-model-len "$MAX_MODEL_LEN"
       --gpu-memory-utilization "$GPU_MEM_UTIL"
       --max-num-seqs "$SPEC_MAX_NUM_SEQS"
+      --max-num-batched-tokens 16384
       --tensor-parallel-size 1
+      --kv-cache-dtype "$SPEC_KV_CACHE_DTYPE"
       --enable-prefix-caching
+      --enable-chunked-prefill
       --enable-auto-tool-choice
       --tool-call-parser "$SPEC_TOOL_PARSER"
       --reasoning-parser "$SPEC_REASONING_PARSER"
     )
-    if [[ "${SPEC_MTP_TOKENS:-0}" -gt 0 ]]; then
-      vllm_args+=(--speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":${SPEC_MTP_TOKENS}}")
+    [[ "${SPEC_LANGUAGE_MODEL_ONLY:-1}" == "1" ]] && vllm_args+=(--language-model-only)
+    if [[ "${SPEC_NUM_TOKENS:-0}" -gt 0 ]]; then
+      if [[ "$SPEC_METHOD" == "dflash" ]]; then
+        vllm_args+=(--speculative-config "{\"method\":\"dflash\",\"model\":\"${SPEC_DRAFT_DIR}\",\"num_speculative_tokens\":${SPEC_NUM_TOKENS}}")
+      elif [[ "$SPEC_METHOD" != "none" ]]; then
+        vllm_args+=(--speculative-config "{\"method\":\"${SPEC_METHOD}\",\"num_speculative_tokens\":${SPEC_NUM_TOKENS}}")
+      fi
     fi
-    # VLLM_API_KEY keeps the worker key out of the process command line. Weights stay in the
-    # checkpoint's native FP8; --dtype is left to the model config so nothing is dequantized.
+    # VLLM_API_KEY keeps the worker key out of the process command line.
     VLLM_API_KEY="$KEY" VLLM_ROCM_USE_AITER="$ROCM_AITER" VLLM_ROCM_USE_AITER_MHA="$ROCM_AITER" VLLM_ROCM_USE_AITER_RMSNORM="$ROCM_AITER" \
+      AITER_ROCM_ARCH="gfx942;gfx950" \
       OMP_NUM_THREADS="$OMP_NUM_THREADS" MKL_NUM_THREADS="$MKL_NUM_THREADS" TOKENIZERS_PARALLELISM="$TOKENIZERS_PARALLELISM" \
+      HIP_FORCE_DEV_KERNARG="$HIP_FORCE_DEV_KERNARG" TORCH_BLAS_PREFER_HIPBLASLT="$TORCH_BLAS_PREFER_HIPBLASLT" \
       setsid python3 -m vllm.entrypoints.openai.api_server "${vllm_args[@]}" \
       >> /tmp/specialist.log 2>&1 &
   fi
