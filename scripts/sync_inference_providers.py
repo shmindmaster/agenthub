@@ -156,7 +156,7 @@ def build_opencode_provider(spec: dict[str, Any], user_home: Path | None = None)
                 "context": m["contextWindow"],
                 "output": m["maxOutputTokens"],
             },
-            "disabled": False,
+            "disabled": bool((m.get("serving") or {}).get("deferred", False)),
             "body": {"reasoning_effort": default_effort},
             "variants": [
                 {"id": "everyday", "body": {"reasoning_effort": default_effort}},

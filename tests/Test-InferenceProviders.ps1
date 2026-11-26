@@ -628,9 +628,9 @@ try {
         Assert-True ($oc.model -eq 'qwen-token-plan/qwen3.8-max') 'OpenCode default model changed'
         Assert-True ($oc.small_model -eq 'qwen-token-plan/qwen3.8-flash') 'OpenCode small_model changed'
         $qm = $oc.providers.'agenthub-daytona'.models.'qwen3.8-27b-unc-q8'
-        Assert-True ($null -ne $qm -and $qm.limit.context -eq 262144 -and $qm.limit.output -eq 32768) 'Qwen context/output limit mismatch'
+        Assert-True ($null -ne $qm -and $qm.limit.context -eq 262144 -and $qm.limit.output -eq 32768 -and (-not $qm.disabled)) 'Qwen context/output/disabled mismatch'
         $im = $oc.providers.'agenthub-daytona'.models.'inkling2-min-26b-unc-q8-128k'
-        Assert-True ($null -ne $im -and $im.limit.context -eq 131072 -and $im.limit.output -eq 32768) 'Inkling context/output limit mismatch'
+        Assert-True ($null -ne $im -and $im.limit.context -eq 131072 -and $im.limit.output -eq 32768 -and $im.disabled) 'Inkling context/output/disabled mismatch'
 
         $codexCfg = Get-Content "$fakeHome/.codex/config.toml" -Raw -Encoding UTF8
         Assert-True ($codexCfg -notmatch '\[profiles\.daytona-') 'Codex config.toml must not contain inline [profiles.daytona-*]'
