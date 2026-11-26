@@ -127,10 +127,20 @@ foreach ($pkg in $packageDirs) {
 foreach ($server in @($mcps.mcpServers)) {
     $ownerId = [string]$server.owner.id
     $ownerType = [string]$server.owner.type
-    Report "registered MCP '$($server.id)' declares a capability owner" `
-        ($ownerType -ceq 'capability' -and -not [string]::IsNullOrWhiteSpace($ownerId)) `
+    # Two recorded ownership tiers, both explicit. A capability-owned row must be
+    # shipped by that package. A registry-owned row is the fleet's own entry and is
+    # allowed only where a tested script depends on the canonical row (Clerk
+    # management, the Devin headers helper) or where no plugin could carry it.
+    Report "registered MCP '$($server.id)' declares its owner tier" `
+        ($ownerType -in @('capability', 'registry') -and -not [string]::IsNullOrWhiteSpace($ownerId)) `
         "owner.type='$ownerType' owner.id='$ownerId'."
-    if ($ownerType -cne 'capability' -or [string]::IsNullOrWhiteSpace($ownerId)) { continue }
+    if ($ownerType -ceq 'registry') {
+        Report "registry-owned MCP '$($server.id)' records why the fleet holds the row" `
+            (-not [string]::IsNullOrWhiteSpace([string]$server.registryOwnershipNote)) `
+            'A registry-owned row needs registryOwnershipNote naming the dependency that requires it.'
+        continue
+    }
+    if ($ownerType -cne 'capability') { continue }
     if ($ownerId -notin $packageNames) {
         # A row owned by a private-overlay package (linkedin). The overlay is a
         # separate repository and absent in CI, so this is reported, not failed:
