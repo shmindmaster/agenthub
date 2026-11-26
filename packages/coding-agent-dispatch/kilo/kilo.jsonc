@@ -1,0 +1,186 @@
+// agenthub:managed -- AgentHub-owned Kilo global settings (SH-4675).
+// Canonical source: packages/coding-agent-dispatch/kilo/kilo.jsonc in shmindmaster/agenthub.
+// Deployed to ~/.config/kilo/kilo.jsonc by Install-KiloProfiles.ps1, which resolves {userHome}.
+// Credentials are {env:VAR} references only; never write a key value here.
+// The legacy ~/.config/kilo/config.json is deep-merged by Kilo when present and must stay deleted
+// so kilo.jsonc remains the one effective settings owner.
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "model": "mimo/mimo-v2.6-pro",
+  "provider": {
+    "mimo": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Xiaomi MiMo Token Plan",
+      "options": {
+        "apiKey": "{env:MIMO_API_KEY}",
+        "baseURL": "https://token-plan-sgp.xiaomimimo.com/v1"
+      },
+      "models": {
+        "mimo-v2.6-pro": {
+          "name": "MiMo V2.6 Pro",
+          "limit": {
+            "context": 1048576,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "options": {
+            "thinking": {
+              "type": "enabled"
+            }
+          }
+        },
+        "mimo-v2.6-flash": {
+          "name": "MiMo V2.6 Flash",
+          "limit": {
+            "context": 1048576,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    },
+    "qwen-token-plan": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Qwen Token Plan",
+      "options": {
+        "apiKey": "{env:QWEN_TOKEN_PLAN_API_KEY}",
+        "baseURL": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1"
+      },
+      "models": {
+        "qwen3.8-flash": {
+          "name": "Qwen 3.8 Flash",
+          "tool_call": true,
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "auto": {
+          "name": "Qwen Auto",
+          "tool_call": true,
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "qwen3.8-max": {
+          "name": "Qwen 3.8 Max",
+          "tool_call": true,
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "qwen4-max-preview": {
+          "name": "Qwen 4 Max Preview",
+          "tool_call": true,
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    },
+    "zai-coding-plan": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Z.ai Coding Plan",
+      "options": {
+        "apiKey": "{env:ZAI_CODING_PLAN_API_KEY}",
+        "baseURL": "https://api.z.ai/api/coding/paas/v4"
+      },
+      "models": {
+        "glm-5.3": {
+          "name": "GLM 5.3",
+          "tool_call": true,
+          "limit": {
+            "context": 200000,
+            "output": 32768
+          }
+        },
+        "glm-5.3-flash": {
+          "name": "GLM 5.3 Flash",
+          "tool_call": true,
+          "limit": {
+            "context": 200000,
+            "output": 32768
+          }
+        }
+      }
+    }
+  },
+  "instructions": [
+    "{userHome}/.config/opencode/browser-windows.md"
+  ],
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "git push*--force*": "deny",
+      "git push*-f *": "deny",
+      "git push*-f": "deny",
+      "git reset --hard*": "deny",
+      "git clean *": "deny",
+      "git branch -D *": "deny",
+      "git filter-branch*": "deny",
+      "rm -rf /*": "deny",
+      "rm -rf ~*": "deny",
+      "format *": "deny",
+      "diskpart*": "deny",
+      "schtasks*/create*": "deny",
+      "sc create *": "deny",
+      "gh repo delete*": "deny",
+      "gh auth token*": "deny"
+    }
+  }
+}

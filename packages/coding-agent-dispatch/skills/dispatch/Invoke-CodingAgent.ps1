@@ -638,6 +638,7 @@ function Get-DispatchTable {
         }
         'kilo' = @{
             Mode = 'argument'
+            ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
                 # OpenCode fork, but unlike OpenCode 2 its run honours --dir.
@@ -654,8 +655,11 @@ function Get-DispatchTable {
                 $args += @('--model', $kiloModel)
                 # --auto approves every action no rule denies, so an unattended run
                 # is refused unless policy names the agent whose rules deny
-                # outward and destructive actions.
-                $kiloAgent = [string]$kiloPolicy.agent
+                # outward and destructive actions. -ReadOnly swaps that agent
+                # for the read-only reviewer agent (permission edit:deny and
+                # bash:deny), the same host-enforced mechanism the policy
+                # agent uses for its deny rules.
+                $kiloAgent = if ($ReadOnly) { 'reviewer' } else { [string]$kiloPolicy.agent }
                 if ($kiloAgent -notmatch '^[A-Za-z0-9_-]+$') {
                     Write-Refusal 3 "refused kilo: dispatchPolicy.kilo.agent must name the guarded agent for unattended runs"
                 }
