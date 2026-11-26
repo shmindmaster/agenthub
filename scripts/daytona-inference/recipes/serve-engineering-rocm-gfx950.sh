@@ -1,8 +1,13 @@
 #!/bin/bash
 # Serving recipe: Dual-model Multimodal Engineering Slot 1 on AMD MI355X (288 GB CDNA4 gfx950).
-# Runs BOTH via llama-server HIP (Q8_0 + BF16 mmproj vision, FlashAttention, GPU-resident):
-#   1) Qwen3.8-27B-Ultimate-Heretic-2.1ARA-MTP-Q8_0 + mmproj-BF16 (:8001, 262144 ctx, parallel 1)
-#   2) Inkling-2-Mini-Uncensored-Q8_0 + mmproj-BF16 (:8002, 1048576 ctx, q8_0 KV, parallel 2->1 fallback)
+#   1) Qwen3.8-27B native BF16 safetensors (llmfan46 Heretic Native MTP Preserved) under vLLM ROCm
+#      (:8003, 262144 ctx) with tool calling and separated reasoning. Measured 94.7 tok/s on the
+#      box on 2026-11-26, against 29.7 tok/s for the GGUF Q8_0 llama.cpp path it replaced.
+#   2) Inkling-2-Mini-26B Q8_0 GGUF via llama-server HIP (:8002, 131072 ctx, q8_0 KV, parallel 1).
+#      Its native checkpoint is Inkling2LoopForConditionalGeneration (model_type inkling2_loop),
+#      which the installed vLLM does not implement, so Q8_0 GGUF is the serving path until a
+#      runtime that supports that architecture is proven on this box.
+# Either model can be served by llama.cpp with SPEC_ENGINE=llama-cpp (the older dual-Q8 path).
 set -euo pipefail
 
 WEIGHTS_ROOT="${WEIGHTS_ROOT:-/mnt/opencode-weights}"
@@ -14,12 +19,24 @@ FLAG_REPO="${FLAG_REPO:-Abiray/Inkling-2-Mini-Uncensored-GGUF}"
 FLAG_FILE="${FLAG_FILE:-Inkling-2-Mini-Uncensored-Q8_0.gguf}"
 FLAG_MMPROJ="${FLAG_MMPROJ:-mmproj-Inkling-2-Mini-Uncensored-BF16.gguf}"
 
-SPEC_PORT="${SPEC_PORT:-8001}"
+# Primary model engine: vllm-native serves the BF16 safetensors checkpoint with tool calling;
+# llama-cpp serves the Q8_0 GGUF (the older, slower path) and needs no 52 GB download.
+SPEC_ENGINE="${SPEC_ENGINE:-vllm-native}"
+SPEC_HF_REPO="${SPEC_HF_REPO:-llmfan46/Qwen3.8-27B-Uncensored-Heretic-Native-MTP-Preserved}"
+SPEC_HF_DIR="${SPEC_HF_DIR:-/opt/models/qwen-native-bf16}"
+SPEC_TOOL_PARSER="${SPEC_TOOL_PARSER:-qwen3_coder}"
+SPEC_REASONING_PARSER="${SPEC_REASONING_PARSER:-qwen3}"
+GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.42}"
+SPEC_MAX_NUM_SEQS="${SPEC_MAX_NUM_SEQS:-8}"
+
+SPEC_PORT="${SPEC_PORT:-8003}"
 FLAG_PORT="${FLAG_PORT:-8002}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-262144}"
-CTX_SIZE="${CTX_SIZE:-1048576}"
+# 131072 matches the served alias name (-128k) and is the size that actually loads beside the
+# primary model: 1048576 tried to reserve ~406 GB of KV on a 288 GB MI355X and aborted.
+CTX_SIZE="${CTX_SIZE:-131072}"
 PARALLEL="${PARALLEL:-1}"
-FLAG_PARALLEL="${FLAG_PARALLEL:-2}"
+FLAG_PARALLEL="${FLAG_PARALLEL:-1}"
 THREADS="${THREADS:-16}"
 BATCH_SIZE="${BATCH_SIZE:-4096}"
 UBATCH_SIZE="${UBATCH_SIZE:-2048}"
@@ -200,44 +217,115 @@ SPEC_MMPROJ_PATH="$SPEC_STAGE/$SPEC_MMPROJ"
 FLAG_MODEL_PATH="$FLAG_STAGE/$FLAG_FILE"
 FLAG_MMPROJ_PATH="$FLAG_STAGE/$FLAG_MMPROJ"
 
-if [[ ! -f "$SPEC_MODEL_PATH" || ! -f "$FLAG_MODEL_PATH" ]]; then
-  echo "MISSING_MODEL_FILE spec=$SPEC_MODEL_PATH flag=$FLAG_MODEL_PATH"
+if [[ ! -f "$FLAG_MODEL_PATH" ]]; then
+  echo "MISSING_MODEL_FILE flag=$FLAG_MODEL_PATH"
+  exit 4
+fi
+if [[ "$SPEC_ENGINE" == "llama-cpp" && ! -f "$SPEC_MODEL_PATH" ]]; then
+  echo "MISSING_MODEL_FILE spec=$SPEC_MODEL_PATH (needed by SPEC_ENGINE=llama-cpp)"
   exit 4
 fi
 
-SPEC_ARGS=(
-  --model "$SPEC_MODEL_PATH"
-  --alias "qwen3.8-27b-unc-q8"
-  --host 0.0.0.0
-  --port "$SPEC_PORT"
-  --n-gpu-layers 999
-  --ctx-size "$((MAX_MODEL_LEN * PARALLEL))"
-  --parallel "$PARALLEL"
-  --threads "$THREADS"
-  --flash-attn on
-  --batch-size "$BATCH_SIZE"
-  --ubatch-size "$UBATCH_SIZE"
-  --cache-prompt
-  --cache-type-k "$CACHE_TYPE_K"
-  --cache-type-v "$CACHE_TYPE_V"
-  --jinja
-  --metrics
+# True when the native checkpoint is present and every recorded file still matches its size.
+native_ready() {
+  python3 - "$SPEC_HF_DIR" "$SPEC_HF_REPO" <<'PY'
+import json, pathlib, sys
+target, repo = pathlib.Path(sys.argv[1]), sys.argv[2]
+marker = target / "ready.json"
+if not (marker.is_file() and (target / "config.json").is_file()):
+    raise SystemExit(1)
+try:
+    meta = json.loads(marker.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(1)
+if meta.get("repo") != repo:
+    raise SystemExit(1)
+for name, size in (meta.get("files") or {}).items():
+    path = target / name
+    if not path.is_file() or path.stat().st_size != size:
+        raise SystemExit(1)
+raise SystemExit(0)
+PY
+}
+
+stage_native() {
+  native_ready && { echo "native_qwen_present $SPEC_HF_DIR"; return 0; }
+  echo "staging_native_qwen $SPEC_HF_REPO -> $SPEC_HF_DIR"
+  python3 - <<PY
+import json, pathlib
+from huggingface_hub import snapshot_download
+target = pathlib.Path("$SPEC_HF_DIR")
+target.mkdir(parents=True, exist_ok=True)
+token_path = pathlib.Path("/run/hf.token")
+token = token_path.read_text().strip() if token_path.is_file() else None
+snapshot_download("$SPEC_HF_REPO", local_dir=str(target), token=token or None)
+files = {
+    str(p.relative_to(target)): p.stat().st_size
+    for p in target.rglob("*")
+    if p.is_file() and p.name != "ready.json"
+}
+(target / "ready.json").write_text(
+    json.dumps({"repo": "$SPEC_HF_REPO", "files": files}) + "\n", encoding="utf-8"
 )
-[[ -f "$SPEC_MMPROJ_PATH" ]] && SPEC_ARGS+=(--mmproj "$SPEC_MMPROJ_PATH")
-grep -q -- "--reasoning" <<<"$LLAMA_HELP" && SPEC_ARGS+=(--reasoning on --reasoning-effort medium)
+PY
+}
 
-echo "launching_specialist_q8_on_port=$SPEC_PORT model=$SPEC_MODEL_PATH ctx=$((MAX_MODEL_LEN * PARALLEL)) parallel=$PARALLEL"
-"$LLAMA_BIN" "${SPEC_ARGS[@]}" > /tmp/specialist.log 2>&1 &
-SPEC_PID=$!
+launch_spec() {
+  if [[ "$SPEC_ENGINE" == "llama-cpp" ]]; then
+    local args=(
+      --model "$SPEC_MODEL_PATH"
+      --alias "qwen3.8-27b-unc-q8"
+      --host 0.0.0.0
+      --port "$SPEC_PORT"
+      --n-gpu-layers 999
+      --ctx-size "$((MAX_MODEL_LEN * PARALLEL))"
+      --parallel "$PARALLEL"
+      --threads "$THREADS"
+      --flash-attn on
+      --batch-size "$BATCH_SIZE"
+      --ubatch-size "$UBATCH_SIZE"
+      --cache-prompt
+      --cache-type-k "$CACHE_TYPE_K"
+      --cache-type-v "$CACHE_TYPE_V"
+      --jinja
+      --metrics
+    )
+    [[ -f "$SPEC_MMPROJ_PATH" ]] && args+=(--mmproj "$SPEC_MMPROJ_PATH")
+    grep -q -- "--reasoning" <<<"$LLAMA_HELP" && args+=(--reasoning on --reasoning-effort medium)
+    echo "launching_specialist_q8_on_port=$SPEC_PORT model=$SPEC_MODEL_PATH ctx=$((MAX_MODEL_LEN * PARALLEL)) parallel=$PARALLEL"
+    setsid "$LLAMA_BIN" "${args[@]}" > /tmp/specialist.log 2>&1 &
+  else
+    echo "launching_native_qwen_vllm port=$SPEC_PORT model=$SPEC_HF_DIR dtype=bfloat16 ctx=$MAX_MODEL_LEN tool_parser=$SPEC_TOOL_PARSER reasoning_parser=$SPEC_REASONING_PARSER"
+    # VLLM_API_KEY keeps the worker key out of the process command line.
+    VLLM_API_KEY="$KEY" setsid python3 -m vllm.entrypoints.openai.api_server \
+      --model "$SPEC_HF_DIR" \
+      --served-model-name qwen3.8-27b-unc-q8 \
+      --host 0.0.0.0 --port "$SPEC_PORT" \
+      --dtype bfloat16 \
+      --max-model-len "$MAX_MODEL_LEN" \
+      --gpu-memory-utilization "$GPU_MEM_UTIL" \
+      --max-num-seqs "$SPEC_MAX_NUM_SEQS" \
+      --tensor-parallel-size 1 \
+      --enable-prefix-caching \
+      --enable-auto-tool-choice \
+      --tool-call-parser "$SPEC_TOOL_PARSER" \
+      --reasoning-parser "$SPEC_REASONING_PARSER" \
+      >> /tmp/specialist.log 2>&1 &
+  fi
+  SPEC_PID=$!
+}
 
-for i in $(seq 1 180); do
+[[ "$SPEC_ENGINE" != "llama-cpp" ]] && stage_native
+launch_spec
+
+for i in $(seq 1 240); do
   if ! kill -0 "$SPEC_PID" 2>/dev/null; then
     echo "SPECIALIST_EXITED_EARLY"
-    tail -n 60 /tmp/specialist.log || true
+    tail -n 80 /tmp/specialist.log || true
     exit 1
   fi
   if curl -sf -H "Authorization: Bearer $KEY" "http://127.0.0.1:${SPEC_PORT}/v1/models" >/dev/null 2>&1; then
-    echo "specialist_q8_ready after $((i*3))s"
+    echo "specialist_ready after $((i*3))s engine=$SPEC_ENGINE"
     break
   fi
   sleep 3
@@ -291,6 +379,10 @@ FLAG_SUP_PID=$!
 RC=0
 wait "$SPEC_PID" || RC=$?
 echo "specialist_exited rc=$RC"
+# Kill only this slot's own servers, matched by their port. A blanket `pkill -f llama-server`
+# also killed the sibling Inkling server on 2026-11-26, leaving both gateway aliases without a
+# backend while the box still looked healthy.
 kill "$FLAG_SUP_PID" 2>/dev/null || true
-pkill -f "[l]lama-server" 2>/dev/null || true
+pkill -f "llama-server.*--port ${FLAG_PORT} " 2>/dev/null || true
+pkill -f "vllm.entrypoints.openai.api_server.*--port ${SPEC_PORT} " 2>/dev/null || true
 exit "$RC"

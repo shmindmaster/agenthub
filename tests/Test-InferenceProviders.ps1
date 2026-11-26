@@ -38,7 +38,16 @@ Assert-True ($catalog.policy.gatewayMediaUrl -eq 'https://inference.shtrial.com/
 Assert-True ($catalog.roles.specialist.profiles.H200.snapshotName -eq 'agenthub-vllm-cuda-0-24-0-h200') 'H200 specialist snapshotName mismatch'
 Assert-True ($catalog.roles.flagship.profiles.H200.snapshotName -eq 'agenthub-llama-cuda-h200') 'H200 flagship snapshotName mismatch'
 Assert-True ($catalog.roles.engineering.engine -eq 'dual') 'engineering engine must be dual'
-Assert-True ($catalog.roles.engineering.port -eq 8001 -and $catalog.roles.engineering.flagshipPort -eq 8002) 'engineering ports must be 8001 and 8002'
+# 8003 since 2026-11-26: that is the port the live gateway alias is registered on. It must be the
+# port gpu.py builds the preview link from, or `up` registers a backend nothing listens on.
+Assert-True ($catalog.roles.engineering.port -eq 8003 -and $catalog.roles.engineering.flagshipPort -eq 8002) 'engineering ports must be 8003 and 8002'
+Assert-True ($catalog.roles.engineering.profiles.MI355X.quantization -eq 'BF16+Q8_0') 'engineering MI355X quantization must record a BF16 primary and a Q8_0 flagship'
+Assert-True ($catalog.roles.engineering.toolCallParser -eq 'qwen3_coder' -and $catalog.roles.engineering.reasoningParser -eq 'qwen3') 'engineering must record the vLLM tool-call and reasoning parsers that make agent tool calls work'
+# The native checkpoint has no auto_map and ships no Python, so --trust-remote-code only adds the risk
+# of running third-party code next to the worker key. It must not creep back into the launch.
+$engineeringRecipe = Get-Content -LiteralPath (Join-Path $repoRoot 'scripts' 'daytona-inference' 'recipes' 'serve-engineering-rocm-gfx950.sh') -Raw -Encoding UTF8
+Assert-True ($engineeringRecipe -notmatch '--trust-remote-code') 'the native Qwen launch must not pass --trust-remote-code'
+Assert-True ($engineeringRecipe -match '--enable-auto-tool-choice' -and $engineeringRecipe -match '--tool-call-parser') 'the native Qwen launch must keep tool calling enabled'
 Assert-True ($catalog.roles.engineering.profiles.MI355X.maxModelLen -eq 262144 -and $catalog.roles.engineering.profiles.MI355X.ctxSize -eq 131072) 'engineering MI355X context must be 262144/131072'
 Assert-True ($catalog.roles.engineering.profiles.MI355X.maxOutputTokens -eq 32768) 'engineering MI355X maxOutputTokens must be 32768'
 Assert-True ($catalog.roles.media.engine -eq 'media-lab' -and $catalog.roles.media.port -eq 8189) 'media engine/port mismatch'
@@ -634,7 +643,7 @@ try {
 
         $grokCfg = Get-Content "$fakeHome/.grok/config.toml" -Raw -Encoding UTF8
         Assert-True ($grokCfg -notmatch '\[model\.daytona-specialist\]') 'Legacy Grok [model.daytona-specialist] must be pruned'
-        Assert-True ($grokCfg -match 'Qwen 3\.8 27B Q8') 'Grok display names must include the model label'
+        Assert-True ($grokCfg -match 'Qwen 3\.8 27B Uncensored \(BF16\)') 'Grok display names must include the model label the registry actually serves'
 
         $vscCfg = Get-Content "$fakeRoaming/Code - Insiders/User/chatLanguageModels.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-True (@($vscCfg | Where-Object { $_.name -eq 'Daytona H200' }).Count -eq 0) 'Legacy VS Code Daytona H200 group must be pruned'
