@@ -119,9 +119,12 @@ foreach ($server in @($mcps.mcpServers)) {
         ($ownerType -ceq 'capability' -and $ownerId -and $ownerId -in $packageNames) `
         "owner.type='$ownerType' owner.id='$ownerId'."
     if ($ownerType -ceq 'capability' -and $ownerId) {
+        # The owner must be the package that actually ships it. Checking only that
+        # the name exists somewhere would pass a row owned by the wrong package.
+        $shippedBy = if ($shippedServers.ContainsKey([string]$server.id)) { $shippedServers[[string]$server.id] } else { $null }
         Report "capability package '$ownerId' ships MCP server '$($server.id)' in its mcp.json" `
-            ($shippedServers.ContainsKey([string]$server.id)) `
-            "No mcp.json entry named '$($server.id)' found in $ownerId."
+            ($shippedBy -ceq $ownerId) `
+            "Declared owner '$ownerId'; shipped by '$(if ($shippedBy) { $shippedBy } else { 'nobody' })'."
     }
 }
 
