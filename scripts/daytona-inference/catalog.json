@@ -128,7 +128,8 @@
       "modelMmproj": "mmproj-BF16.gguf",
       "nativeRepo": "orcarouter/Qwen3.8-27B-Uncensored-FP8",
       "nativePrecision": "FP8 (native block-FP8, e4m3)",
-      "nativeNote": "Served by vLLM on :8003 at 262144 ctx, 16 sequences, 0.90 memory. Measured on the MI355X 2026-11-26: 81.2 tok/s with AITER (AiterFp8BlockScaledMMKernel), 42.9 tok/s without it, 29.7 tok/s for the GGUF Q8_0 path it replaced. MTP (qwen3_5_mtp) measured 5.2 tok/s and is not used. Below the playbook 240-300 tok/s gate; AITER ships no tuned block-FP8 GEMM shapes for MI355X, so it falls back to default configs.",
+      "nativeGatedAccess": "gated: auto - the download needs a token whose access was already granted; anonymous requests return HTTP 401",
+      "nativeNote": "Served by vLLM on :8003 at 262144 ctx, 16 sequences, 0.90 memory. Measured on the MI355X 2026-11-26: 81.2 tok/s with AITER (AiterFp8BlockScaledMMKernel), 42.9 without it, 29.7 for the GGUF Q8_0 path it replaced. 81.2 is AMD's documented plain-decode figure of 82 tok/s, so AITER recovered the expected baseline rather than accelerating past it; the documented envelope is 178 tok/s with the checkpoint built-in MTP and 289 with an EAGLE-4 drafter, which needs a draft artifact this run did not have. A qwen3_5_mtp attempt measured 5.2 tok/s and is treated as a misconfiguration to retry with method mtp, not as proof that MTP is unusable.",
       "toolCallParser": "qwen3_coder",
       "reasoningParser": "qwen3",
       "aiter": true,
@@ -417,7 +418,7 @@
           "talk": "ltx-2.5-uncensored",
           "tts": "voxcpm2",
           "transcribe": "lfm3-omni-2b-heretic",
-          "music": "ace-step-1.5-turbo"
+          "music": "ace-step-1.5-xl-sft"
         }
       },
       "commercial": {
@@ -430,7 +431,7 @@
           "talk": "wan2.2-s2v-14b",
           "tts": "voxcpm2",
           "transcribe": "sov-transcribe-1",
-          "music": "ace-step-1.5-turbo"
+          "music": "ace-step-1.5-xl-sft"
         }
       }
     },
@@ -533,12 +534,12 @@
         {
           "role": "upscale_model",
           "path": "RealESRGAN_x4plus.pth",
-          "bytes": null,
+          "bytes": 67040989,
           "comfy_dir": "upscale_models"
         }
       ],
       "vramAllowGb": 8,
-      "note": "Playbook section 7.6 restoration. Bytes and SHA-256 are null because no verified copy exists yet; the downloader must record both before install and must not guess them."
+      "note": "Playbook section 7.6 restoration. The 67040989-byte size was measured over HTTP on 2026-11-25; SHA-256 is still null because no verified copy exists, and the downloader must record it before install rather than guess it."
     },
       "qwen-image-2.1-omni": {
         "repo": "chatrlabs/Qwen-Image-2.1-Uncensored-Omni-Quantized",
@@ -643,7 +644,28 @@
         ],
         "vramAllowGb": 45
       },
-      "ace-step-1.5-turbo": {
+      "ace-step-1.5-xl-sft": {
+      "repo": "Comfy-Org/ACE-Step-1.5",
+      "revision": "371bb1680f8c",
+      "license": "Apache-2.0",
+      "authorizationProfile": "commercial",
+      "defaultPrecision": "BF16",
+      "runtime": "ComfyUI",
+      "modalities": [
+        "music"
+      ],
+      "files": [
+        {
+          "role": "diffusion_model",
+          "path": "split_files/diffusion_models/acestep_v1.5_xl_sft_bf16.safetensors",
+          "bytes": 9290000000,
+          "comfy_dir": "diffusion_models"
+        }
+      ],
+      "vramAllowGb": 16,
+      "note": "The quality-first music checkpoint. ACE-Step/acestep-v15-xl-sft is the ACE-Step runtime's four-shard transformers release and cannot be loaded by ComfyUI's checkpoint or diffusion-model loaders; only this ComfyUI repack of the XL SFT weights is loadable, so both paths are recorded and only this one is deployed."
+    },
+    "ace-step-1.5-turbo": {
         "repo": "Comfy-Org/ACE-Step-1.5",
         "revision": "371bb1680f8c",
         "license": "MIT/Apache-2.0",
