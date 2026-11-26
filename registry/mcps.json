@@ -18,6 +18,45 @@
     "chrome-devtools-mcp",
     "@playwright/mcp"
   ],
+  "nativeOwnedMcpIds": [
+    {
+      "id": "parallel",
+      "reason": "Parallel ships its own plugin and its connector is available in the host catalogues; the vendor plugin carries the research skill. AgentHub registers no duplicate."
+    },
+    {
+      "id": "parallel-research",
+      "reason": "Deep research is a capability inside Parallel's own plugin, not a separate server. AgentHub registers no duplicate."
+    },
+    {
+      "id": "tavily",
+      "reason": "Tavily is in the Claude official marketplace and documents native OAuth per host. AgentHub registers no duplicate."
+    },
+    {
+      "id": "github",
+      "reason": "GitHub is in the Claude official marketplace and is a built-in connector. The local entry was a second route needing a personal access token; the connector is preferred. AgentHub registers no duplicate."
+    },
+    {
+      "id": "linear",
+      "reason": "Linear is in the Claude official marketplace and is a connected connector. AgentHub registers no duplicate."
+    },
+    {
+      "id": "context7",
+      "reason": "Context7 is in the Claude official marketplace and documents native OAuth. AgentHub registers no duplicate."
+    },
+    {
+      "id": "notion",
+      "reason": "Notion is in the Claude official marketplace and is a connected connector. AgentHub registers no duplicate."
+    },
+    {
+      "id": "exa",
+      "reason": "Exa is in the Claude official marketplace and is installed (exa@claude-plugins-official 3.4.1). AgentHub registers no duplicate."
+    },
+    {
+      "id": "descript",
+      "reason": "Descript is a connected host connector. AgentHub registers no duplicate."
+    }
+  ],
+  "nativeOwnedMcpIdsNote": "Owner direction 2026-11-25: where the vendor's own plugin or connector is available on a host we run, the host's copy owns the server and AgentHub registers no duplicate. These ids are NOT retiredMcpIds on purpose: retirement is a prune instruction, and pruning would delete a host's own marketplace/connector entry, destroying its OAuth consent. No row exists for them here, so the sync generates nothing; the names that remain in activationPolicy.pluginOnly are preserved, never written and never pruned.",
   "retiredMcpIdsNote": "Owner-authorized retirement 2026-10-29 for the browser servers, and 2026-11-06 for railway. Never register chrome-devtools-mcp, @playwright/mcp, or https://mcp.railway.com, and never alias mcp-playwright back to a server. These IDs are cleanup targets. Hosts use their own browser. Do not install ah-railway or railway@claude-plugins-official. Owner direction 2026-11-06 also removes Firecrawl and Supabase plugins, skills and MCP routes from the fleet. Credits do not activate a provider. Owner decision 2026-11-13 (SH-4670) retires RepoWise: repowise-workspace and repowise are cleanup targets on every host.",
   "activationPolicy": {
     "recordedOn": "2026-08-04",
@@ -225,246 +264,6 @@
   ],
   "mcpServers": [
     {
-      "id": "parallel",
-      "name": "Parallel Web Research",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://mcp.parallel.ai/mcp?tools=web_search,web_fetch",
-      "credentialPolicy": "none-in-config; anonymous free tier only.",
-      "protocol": {
-        "revision": "2025-11-25",
-        "verifiedOn": "2026-11-20",
-        "verification": "Anonymous initialize, notifications/initialized and tools/list succeeded; web_fetch returned content from example.com. Only web_search and web_fetch were advertised on this URL."
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "pluginOwnersByHost": {
-        "claude": "parallel@parallel-agent-skills",
-        "codex": "parallel@parallel-web",
-        "devin": "parallel@upstream",
-        "copilot": "parallel@upstream",
-        "factory": "parallel@parallel-agent-skills",
-        "antigravity": "parallel@upstream",
-        "grok": "parallel@parallel-agent-skills (imported from Claude)"
-      },
-      "hosts": ["cursor", "vscode-insiders", "amp", "cline", "opencode"],
-      "hostScopeNote": "Managed streamable HTTP targets. OpenCode 2 uses mcp.servers and may return an empty catalog while MCP connections initialize. Kilo uses its native user command and stores the entry in kilo.jsonc. Client discovery and tool execution are checked separately from the endpoint probe.",
-      "notes": "Official endpoint: https://parallel.ai/mcp. Use public queries and URLs. OAuth via the vendor login endpoint and API-key usage can bill the connected Parallel account; neither is configured by the fleet default."
-    },
-    {
-      "id": "parallel-research",
-      "name": "Parallel Research",
-      "scope": "owner-configured",
-      "scopeNote": "Optional user-level OAuth registration. Preserve native activation and authorization state.",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://mcp.parallel.ai/mcp?login&tools=web_research",
-      "credentialPolicy": "oauth",
-      "protocol": {
-        "revision": null,
-        "verifiedOn": "2026-11-20",
-        "verification": "Anonymous initialize on the vendor login endpoint returned HTTP 401 with a WWW-Authenticate challenge. Could not establish the protocol revision without an authenticated handshake."
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "hosts": ["amp", "antigravity", "claude", "cline", "codex", "cursor", "devin", "factory", "grok", "kilo", "opencode", "vscode-insiders", "zcode"],
-      "notes": "The anonymous Parallel registration keeps search and fetch available. The OAuth tool filter prevents duplicate search and fetch tools. Confirm the intended account before use."
-    },
-    {
-      "id": "tavily",
-      "name": "Tavily",
-      "scope": "owner-configured",
-      "scopeNote": "Use the host's native setup and OAuth flow. Sync preserves the registrations listed in pluginOnly and does not write or copy OAuth state.",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://mcp.tavily.com/mcp/",
-      "credentialPolicy": "oauth",
-      "protocol": {
-        "revision": null,
-        "verifiedOn": "2026-11-20",
-        "verification": "Anonymous initialize returned HTTP 401 with a WWW-Authenticate challenge. Could not establish the protocol revision without an authenticated handshake."
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "hosts": ["amp", "antigravity", "claude", "cline", "codex", "copilot", "cursor", "devin", "factory", "grok", "kilo", "opencode", "vscode-insiders", "zcode"],
-      "notes": "Official setup: https://docs.tavily.com/documentation/mcp. Use a native OAuth grant for the intended account. Do not include API keys or bearer tokens in the registration."
-    },
-    {
-      "id": "github",
-      "name": "GitHub (shmindmaster)",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "credentialPolicy": "oauth",
-      "protocol": {
-        "revision": "2026-07-28",
-        "supportedRevisions": [
-          "2026-07-28",
-          "2025-11-25",
-          "2025-06-18",
-          "2025-03-26",
-          "2024-11-05"
-        ],
-        "verifiedOn": "2026-08-04",
-        "verification": "server/discover returned HTTP 200 with resultType 'complete', io.modelcontextprotocol/serverInfo in _meta, and supportedVersions listing all five revisions. The only server in this registry confirmed on the 2026-07-28 revision."
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "hosts": [
-        "copilot",
-        "vscode-insiders"
-      ],
-      "pluginOwnersByHost": {
-        "copilot": "built-in:github-mcp-server",
-        "devin": "github@claude-plugins-official"
-      },
-      "notes": "Canonical personal GitHub MCP owner. The remote endpoint is GitHub-hosted. OAuth only, since 2026-10-02: the owner retired every GitHub token environment variable after the 2026-09-23 force-push compromise. GitHub's authorization server (https://github.com/login/oauth) publishes no dynamic client registration endpoint, so OAuth to this endpoint works only in hosts that ship a pre-registered GitHub OAuth client: Copilot (built-in server) and VS Code Insiders. The official installation-guides table marks Claude Code, Claude Desktop, Cursor, Gemini CLI, OpenCode, Cline and Windsurf as PAT-only. Other hosts do GitHub work through the gh CLI, which holds OAuth tokens for shmindmaster, sh-pendoah and sarosh-pendoah in the Windows keyring (gh auth switch / gh auth token --user). Do not re-add a bearer-token header or a GITHUB_*_TOKEN variable to restore MCP access in those hosts. Official: https://github.com/github/github-mcp-server/tree/main/docs/installation-guides",
-      "hostScopeNote": "A shared-remote endpoint adds only host configuration; it does not establish that a host is installed or eligible. Keep host scope aligned with the registered host catalog."
-    },
-    {
-      "id": "linear",
-      "name": "Linear",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://mcp.linear.app/mcp",
-      "credentialPolicy": "oauth",
-      "protocol": {
-        "revision": null,
-        "verifiedOn": "2026-08-04",
-        "verification": "Both server/discover and initialize returned HTTP 401. This endpoint refuses protocol negotiation before an interactive OAuth grant, so the revision cannot be established non-interactively. Deliberately left null rather than assumed."
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "pluginOwnersByHost": {
-        "antigravity": "linear@agy-github-linear/antigravity-plugin",
-        "codex": "linear@openai-curated-remote",
-        "copilot": "linear@claude-plugins-official",
-        "cursor": "linear@cursor-public",
-        "devin": "linear@devin-marketplace",
-        "factory": "linear@claude-plugins-official",
-        "grok": "linear@claude-plugins-official",
-        "vscode-insiders": "linear@claude-plugins-official"
-      },
-      "hostConfigOverrides": {
-        "opencode": {
-          "enabled": false
-        }
-      }
-    },
-    {
-      "id": "context7",
-      "name": "Context7 Docs",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "pluginOwnersByHost": {
-        "antigravity": "context7@agy-github-upstash/context7",
-        "codex": "app-69ef18c674308191a2f952431f91ea61@openai-curated-remote",
-        "copilot": "context7@claude-plugins-official",
-        "cursor": "context7@cursor-public",
-        "devin": "context7@devin-marketplace",
-        "factory": "context7@claude-plugins-official",
-        "grok": "context7@claude-plugins-official",
-        "opencode": "@upstash/context7-opencode",
-        "vscode-insiders": "context7@claude-plugins-official"
-      },
-      "url": "https://mcp.context7.com/mcp",
-      "credentialPolicy": "environment-api-key",
-      "protocol": {
-        "revision": "2025-11-25",
-        "verifiedOn": "2026-08-04",
-        "verification": "initialize returned protocolVersion 2025-11-25. server/discover returned HTTP 400 'No valid session ID provided', which is the pre-2026-07-28 stateful session model -- the header the new revision removes."
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "headers": {
-        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}",
-        "Authorization": "Bearer ${env:CONTEXT7_API_KEY}"
-      }
-    },
-    {
-      "id": "notion",
-      "name": "Notion",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://mcp.notion.com/mcp",
-      "credentialPolicy": "oauth",
-      "protocol": {
-        "revision": null,
-        "verifiedOn": "2026-08-04",
-        "verification": "Both server/discover and initialize returned HTTP 401. This endpoint refuses protocol negotiation before an interactive OAuth grant, so the revision cannot be established non-interactively. Deliberately left null rather than assumed."
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "pluginOwnersByHost": {
-        "antigravity": "notion@agy-github-makenotion/notion-cookbook",
-        "claude": "notion@claude-plugins-official",
-        "codex": "notion@openai-curated",
-        "copilot": "notion@claude-plugins-official",
-        "cursor": "notion-workspace@cursor-public",
-        "devin": "notion@devin-marketplace",
-        "factory": "notion@claude-plugins-official",
-        "vscode-insiders": "notion@claude-plugins-official"
-      },
-      "hostConfigOverrides": {
-        "opencode": {
-          "enabled": false
-        }
-      }
-    },
-    {
-      "id": "exa",
-      "name": "Exa Research",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "pluginOwnersByHost": {
-        "codex": "app-69ea4ed2cf7c8191b742ef3622479ddd@openai-curated-remote",
-        "copilot": "exa@claude-plugins-official",
-        "cursor": "exa@cursor-public",
-        "devin": "exa@devin-marketplace",
-        "factory": "exa@claude-plugins-official",
-        "grok": "exa@xai-official",
-        "vscode-insiders": "exa@claude-plugins-official"
-      },
-      "url": "https://mcp.exa.ai/mcp",
-      "credentialPolicy": "none-in-config; default search and fetch are keyless. Preserve independently configured native authentication.",
-      "protocol": {
-        "revision": "2025-11-25",
-        "verifiedOn": "2026-11-20",
-        "verification": "Anonymous initialize returned HTTP 200 and protocolVersion 2025-11-25. tools/list advertised web_search_exa and web_fetch_exa. A public web_search_exa query returned an IANA source."
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "notes": "Official MCP: https://exa.ai/docs/get-started/exa-mcp. Account Agent access and Websets have separate native authorization and acceptance.",
-      "hosts": ["cline", "opencode", "warp"],
-      "hostConfigOverrides": {
-        "opencode": {
-          "enabled": false
-        }
-      }
-    },
-    {
       "id": "linkedin",
       "name": "LinkedIn MCP (mcp-server-linkedin, plugin-gated)",
       "scope": "on-demand-desktop",
@@ -511,52 +310,6 @@
         "id": "linkedin"
       },
       "hostScopeNote": "hosts[] is eligibility. Do not persist in host MCP config except OpenCode opt-in-disabled."
-    },
-    {
-      "id": "descript",
-      "name": "Descript",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://api.descript.com/v2/mcp",
-      "credentialPolicy": "oauth",
-      "protocol": {
-        "revision": null,
-        "verifiedOn": "2026-08-04",
-        "verification": "Both server/discover and initialize returned HTTP 401. This endpoint refuses protocol negotiation before an interactive OAuth grant, so the revision cannot be established non-interactively. Deliberately left null rather than assumed."
-      },
-      "owner": {
-        "type": "capability",
-        "id": "media-studio"
-      },
-      "pluginOwnersByHost": {
-        "codex": "app-69f0dc45f6048191876c14c1016fe778@openai-curated-remote"
-      },
-      "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Public finishing guidance is ah-media-studio:compose references/descript.md (media-studio-descript was folded into it on 2026-10-21). Claude uses its native Descript account connector (media-studio Claude mapping sets mcpOwnership shared-registry so the plugin does not also offer Descript). Codex uses the media-studio plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509",
-      "hosts": [
-        "claude",
-        "codex",
-        "opencode",
-        "opencode-desktop",
-        "copilot",
-        "antigravity",
-        "antigravity-desktop",
-        "antigravity-ide",
-        "grok",
-        "warp",
-        "cline",
-        "cursor",
-        "cursor-agent",
-        "devin",
-        "factory",
-        "vscode-insiders"
-      ],
-      "hostScopeNote": "hosts[] added 2026-10-22: every active host except amp. Amp's Descript OAuth access token is expired with no refresh token, so a persisted entry stops every headless Amp run at an OAuth prompt (MCP-ACCESS-AUDIT-2026-10-22). The entry was removed from ~/.config/amp/settings.json that day; this allowlist keeps sync from re-adding it. Re-add amp after `amp mcp oauth login descript` succeeds. Windsurf is omitted because it is checked-absent on this machine.",
-      "hostConfigOverrides": {
-        "opencode": {
-          "enabled": false
-        }
-      }
     },
     {
       "id": "appium-mobile",
@@ -711,8 +464,8 @@
         "verification": "Official plugin endpoint verified from clerk/skills. Protocol revision cannot be established without authenticated negotiation; OAuth account grant and fresh host discovery have not been performed."
       },
       "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
+        "type": "capability",
+        "id": "product"
       },
       "pluginOwnersByHost": {
         "claude": "clerk@clerk-skills",
@@ -756,8 +509,8 @@
         "verification": "Authenticated probe 2026-11-19 with the agenthub-dispatch key through Get-DevinMcpHeaders.ps1: initialize returned HTTP 200, protocolVersion 2025-06-18, serverInfo DeepWiki 4.0.2; tools/list returned 29 tools including devin_session_create, devin_session_interact and ask_wiki_question. The user-scope Claude entry (claude mcp add-json devin, type http, headersHelper) reports Connected and Test-DeclaredVsDeployedMcp passes for devin on claude."
       },
       "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
+        "type": "capability",
+        "id": "coding-agent-dispatch"
       },
       "hosts": [
         "claude",
@@ -782,8 +535,8 @@
         "verification": "Anonymous POST initialize to https://mcp.deepwiki.com/mcp returned HTTP 200 and protocolVersion 2025-06-18."
       },
       "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
+        "type": "capability",
+        "id": "research"
       },
       "hosts": [
         "amp",
