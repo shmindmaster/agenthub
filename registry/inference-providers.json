@@ -24,7 +24,17 @@
   "models": [
     {
       "id": "qwen3.8-27b-unc-q8",
-      "displayName": "Qwen 3.8 27B Q8",
+      "displayName": "Qwen 3.8 27B Uncensored (BF16)",
+      "serving": {
+        "engine": "vllm-rocm",
+        "weights": "llmfan46/Qwen3.8-27B-Uncensored-Heretic-Native-MTP-Preserved",
+        "precision": "BF16",
+        "measuredTokensPerSecond": 94.7,
+        "measuredOn": "2026-11-26",
+        "toolCallParser": "qwen3_coder",
+        "reasoningParser": "qwen3",
+        "note": "The retained model id still says q8 for compatibility with existing host entries; the served weights are BF16 native safetensors."
+      },
       "role": "general",
       "family": "qwen3.8",
       "contextWindow": 262144,
@@ -58,6 +68,14 @@
     {
       "id": "inkling2-min-26b-unc-q8-128k",
       "displayName": "Inkling 2 Mini 26B Q8 (128K)",
+      "serving": {
+        "engine": "llama-server-hip",
+        "weights": "Abiray/Inkling-2-Mini-Uncensored-GGUF",
+        "precision": "Q8_0",
+        "measuredTokensPerSecond": 45.7,
+        "measuredOn": "2026-11-26",
+        "note": "The native checkpoint OpenUncensored/Inkling-2-Mini-Uncensored is Inkling2LoopForConditionalGeneration (model_type inkling2_loop), which the installed vLLM does not implement, so Q8_0 GGUF is the serving path. q8_0 KV cache is what lets 131072 fit beside the primary model."
+      },
       "role": "general",
       "family": "inkling2",
       "contextWindow": 131072,
