@@ -41,6 +41,10 @@ Assert-True ($catalog.roles.engineering.engine -eq 'dual') 'engineering engine m
 # 8003 since 2026-11-26: that is the port the live gateway alias is registered on. It must be the
 # port gpu.py builds the preview link from, or `up` registers a backend nothing listens on.
 Assert-True ($catalog.roles.engineering.port -eq 8003 -and $catalog.roles.engineering.flagshipPort -eq 8002) 'engineering ports must be 8003 and 8002'
+Assert-True ($catalog.roles.engineering.flagshipEnabled -eq $false) 'engineering flagshipEnabled must be false while Inkling is deferred'
+$gpuHelperRaw = Get-Content -LiteralPath (Join-Path $repoRoot 'scripts' 'daytona-inference' 'gpu.py') -Raw -Encoding UTF8
+Assert-True ($gpuHelperRaw -match 'flagship_enabled\s*=' -and $gpuHelperRaw -match 'if flagship_enabled:\s*wait_for_sandbox_models') 'gpu.py must gate flagship port wait behind flagship_enabled so deferred Inkling does not hang up engineering'
+Assert-True ($gpuHelperRaw -match [regex]::Escape('[v]llm\.entrypoints\.openai\.api_server')) 'gpu.py DEFAULT_ALIVE_PATTERN must recognize module-invoked vLLM servers'
 Assert-True ($catalog.roles.engineering.profiles.MI355X.quantization -eq 'MXFP4+DFlash2') 'engineering MI355X quantization must record the MXFP4 + DFlash2 primary'
 Assert-True ($catalog.roles.engineering.nativeRepo -eq 'amd/Qwen3.8-27B-Quark-AWQ-MXFP4') 'engineering must serve the Quark MXFP4 checkpoint'
 Assert-True ($catalog.roles.engineering.aiter -eq $true) 'engineering must record AITER, which is what lifts the FP8 path from 42.9 to 81.2 tok/s'

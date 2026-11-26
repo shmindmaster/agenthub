@@ -138,6 +138,7 @@
       "flagshipFile": "Inkling-2-Mini-26B-Heretic-Uncensored-Turbo-Brilliance-50X-V2-AGI-NEO-Q8_0.gguf",
       "flagshipMmproj": "mmproj-BF16.gguf",
       "flagshipVision": true,
+      "flagshipEnabled": false,
       "flagshipPrecision": "Q8_0",
       "flagshipNote": "Deferred by the implementation playbook: the recipe launches no second server (FLAGSHIP_ENABLED=0) and the weights stay on the volume. Separately, the native checkpoint OpenUncensored/Inkling-2-Mini-Uncensored is Inkling2LoopForConditionalGeneration (model_type inkling2_loop), which the installed vLLM does not implement.",
       "engine": "dual",
