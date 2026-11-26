@@ -130,7 +130,7 @@
       "nativeDraftRepo": "incoai/Qwen3.8-27B-DFlash2",
       "nativePrecision": "MXFP4 (Quark AWQ, E8M0 dynamic activations)",
       "nativeGatedAccess": "ungated (Apache-2.0)",
-      "nativeNote": "Served by vLLM on :8003 at 262144 ctx, 64 sequences, 0.90 memory, fp8 KV cache, --language-model-only, AITER, DFlash2 block-diffusion drafter (method: dflash, num_speculative_tokens: 7), HIP_FORCE_DEV_KERNARG=1, TORCH_BLAS_PREFER_HIPBLASLT=1, and OMP_NUM_THREADS=16 / MKL_NUM_THREADS=16 / TOKENIZERS_PARALLELISM=false (required on the 16-CPU cgroup over a 192-CPU host). Measured on the MI355X 2026-11-26: 267.4 tok/s mean on-box (247.9/278.9/275.3; 312.8 thinking) and 198.6 tok/s mean via gateway (192.6/202.6/200.6), up from 156.8 on-box on FP8+MTP and 81.1 baseline without speculation.",
+      "nativeNote": "Served by vLLM on :8003 at 262144 ctx, 64 sequences, 0.90 memory, fp8 KV cache, multimodal vision enabled (SPEC_LANGUAGE_MODEL_ONLY=0), AITER, DFlash2 block-diffusion drafter (method: dflash, num_speculative_tokens: 7), HIP_FORCE_DEV_KERNARG=1, TORCH_BLAS_PREFER_HIPBLASLT=1, and OMP_NUM_THREADS=16 / MKL_NUM_THREADS=16 / TOKENIZERS_PARALLELISM=false (required on the 16-CPU cgroup over a 192-CPU host). Measured on the MI355X 2026-11-26: 267.4 tok/s mean on-box (247.9/278.9/275.3; 312.8 thinking) and 198.6 tok/s mean via gateway (192.6/202.6/200.6), up from 156.8 on-box on FP8+MTP and 81.1 baseline without speculation; vision image input + DFlash2 verified live via gateway after removing --language-model-only (153.0 tok/s via gateway).",
       "toolCallParser": "qwen3_coder",
       "reasoningParser": "qwen3",
       "aiter": true,

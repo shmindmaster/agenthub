@@ -1,7 +1,7 @@
 #!/bin/bash
 # Serving recipe: Engineering slot 1 on AMD MI355X (288 GB CDNA4 gfx950).
 #   Primary: Qwen3.8-27B Quark AWQ-MXFP4 (amd/Qwen3.8-27B-Quark-AWQ-MXFP4) under vLLM ROCm on
-#   :8003, 262144 ctx, 64 sequences, FP8 KV cache, --language-model-only, AITER, DFlash2 parallel
+#   :8003, 262144 ctx, 64 sequences, FP8 KV cache, multimodal vision enabled (SPEC_LANGUAGE_MODEL_ONLY=0), AITER, DFlash2 parallel
 #   block-diffusion speculative decoding (incoai/Qwen3.8-27B-DFlash2, num_speculative_tokens=7),
 #   16-thread CPU caps, tool calling, and separated reasoning.
 #   Measured on 2026-11-26 (MI355X):
@@ -36,7 +36,7 @@ SPEC_DRAFT_DIR="${SPEC_DRAFT_DIR:-/opt/models/qwen-dflash2}"
 SPEC_METHOD="${SPEC_METHOD:-dflash}"
 SPEC_NUM_TOKENS="${SPEC_NUM_TOKENS:-7}"
 SPEC_KV_CACHE_DTYPE="${SPEC_KV_CACHE_DTYPE:-fp8}"
-SPEC_LANGUAGE_MODEL_ONLY="${SPEC_LANGUAGE_MODEL_ONLY:-1}"
+SPEC_LANGUAGE_MODEL_ONLY="${SPEC_LANGUAGE_MODEL_ONLY:-0}"
 SPEC_TOOL_PARSER="${SPEC_TOOL_PARSER:-qwen3_coder}"
 SPEC_REASONING_PARSER="${SPEC_REASONING_PARSER:-qwen3}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.90}"
@@ -341,7 +341,7 @@ launch_spec() {
       --tool-call-parser "$SPEC_TOOL_PARSER"
       --reasoning-parser "$SPEC_REASONING_PARSER"
     )
-    [[ "${SPEC_LANGUAGE_MODEL_ONLY:-1}" == "1" ]] && vllm_args+=(--language-model-only)
+    [[ "${SPEC_LANGUAGE_MODEL_ONLY:-0}" == "1" ]] && vllm_args+=(--language-model-only)
     if [[ "${SPEC_NUM_TOKENS:-0}" -gt 0 ]]; then
       if [[ "$SPEC_METHOD" == "dflash" ]]; then
         vllm_args+=(--speculative-config "{\"method\":\"dflash\",\"model\":\"${SPEC_DRAFT_DIR}\",\"num_speculative_tokens\":${SPEC_NUM_TOKENS}}")
