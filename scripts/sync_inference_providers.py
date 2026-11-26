@@ -575,7 +575,7 @@ def sync_cline(spec: dict[str, Any], user_home: Path, _roaming: Path, _repo: Pat
         "settings": {
             "provider": "openai-compatible",
             "apiKey": key,
-            "model": "agent-specialist",
+            "model": "qwen3.8-27b-unc-q8",
             "baseUrl": prov["baseUrl"],
         },
         "updatedAt": now,

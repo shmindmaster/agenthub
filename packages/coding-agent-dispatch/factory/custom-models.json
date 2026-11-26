@@ -786,62 +786,27 @@
       }
     },
     {
-      "model": "daytona-fast",
-      "displayName": "Daytona Fast — Qwen3.8 27B Uncensored FP8 (Low)",
+      "model": "qwen3.8-27b-unc-q8",
+      "displayName": "Qwen 3.8 27B Q8",
       "baseUrl": "https://inference.shtrial.com/v1",
       "apiKey": "${AGENTHUB_INFERENCE_KEY}",
       "provider": "generic-chat-completion-api",
       "maxOutputTokens": 32768,
       "maxContextLimit": 262144,
       "extraArgs": {
-        "model": "agent-fast"
+        "model": "qwen3.8-27b-unc-q8"
       }
     },
     {
-      "model": "daytona-specialist",
-      "displayName": "Daytona Specialist — Qwen3.8 27B Uncensored FP8",
+      "model": "inkling2-min-26b-unc-q8-128k",
+      "displayName": "Inkling 2 Mini 26B Q8 (128K)",
       "baseUrl": "https://inference.shtrial.com/v1",
       "apiKey": "${AGENTHUB_INFERENCE_KEY}",
       "provider": "generic-chat-completion-api",
       "maxOutputTokens": 32768,
-      "maxContextLimit": 262144,
+      "maxContextLimit": 131072,
       "extraArgs": {
-        "model": "agent-specialist"
-      }
-    },
-    {
-      "model": "daytona-vision",
-      "displayName": "Daytona Vision — Qwen3.8 27B Uncensored FP8",
-      "baseUrl": "https://inference.shtrial.com/v1",
-      "apiKey": "${AGENTHUB_INFERENCE_KEY}",
-      "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 32768,
-      "maxContextLimit": 262144,
-      "extraArgs": {
-        "model": "agent-vision"
-      }
-    },
-    {
-      "model": "daytona-turbo",
-      "displayName": "Daytona Turbo — Qwen3.8 27B Heretic MTP Q6",
-      "baseUrl": "https://inference.shtrial.com/v1",
-      "apiKey": "${AGENTHUB_INFERENCE_KEY}",
-      "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 16384,
-      "extraArgs": {
-        "model": "agent-turbo"
-      }
-    },
-    {
-      "model": "daytona-flagship",
-      "displayName": "Daytona Flagship — Qwen3.8 Flash-Next Uncensored (256K)",
-      "baseUrl": "https://inference.shtrial.com/v1",
-      "apiKey": "${AGENTHUB_INFERENCE_KEY}",
-      "provider": "generic-chat-completion-api",
-      "maxOutputTokens": 32768,
-      "maxContextLimit": 262144,
-      "extraArgs": {
-        "model": "agent-flagship"
+        "model": "inkling2-min-26b-unc-q8-128k"
       }
     }
   ]

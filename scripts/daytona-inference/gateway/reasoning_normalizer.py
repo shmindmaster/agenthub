@@ -21,31 +21,13 @@ except Exception:  # pragma: no cover - allows standalone unit testing without l
 
 
 REASONING_POLICY: dict[str, dict[str, Any]] = {
-    "agent-fast": {
-        "default": "low",
-        "supported": {"low", "medium", "xhigh"},
-        "aliases": {"high": "medium"},
-        "vllm_chat_template": True,
-    },
-    "agent-specialist": {
+    "qwen3.8-27b-unc-q8": {
         "default": "medium",
         "supported": {"low", "medium", "xhigh"},
         "aliases": {"high": "medium"},
         "vllm_chat_template": True,
     },
-    "agent-vision": {
-        "default": "medium",
-        "supported": {"low", "medium", "xhigh"},
-        "aliases": {"high": "medium"},
-        "vllm_chat_template": True,
-    },
-    "agent-turbo": {
-        "default": "medium",
-        "supported": {"low", "medium", "xhigh"},
-        "aliases": {"high": "medium"},
-        "vllm_chat_template": False,
-    },
-    "agent-flagship": {
+    "inkling2-min-26b-unc-q8-128k": {
         "default": "medium",
         "supported": {"low", "medium", "xhigh"},
         "aliases": {"high": "medium"},

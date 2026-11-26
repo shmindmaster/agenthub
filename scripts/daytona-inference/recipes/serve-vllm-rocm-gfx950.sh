@@ -5,7 +5,7 @@ set -euo pipefail
 
 WEIGHTS_ROOT="${WEIGHTS_ROOT:-/mnt/opencode-weights}"
 MODEL_REPO="${MODEL_REPO:-orcarouter/Qwen3.8-27B-Uncensored-FP8}"
-SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-agent-specialist}"
+SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-qwen3.8-27b-unc-q8}"
 PORT="${PORT:-8001}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-131072}"
 MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}"
