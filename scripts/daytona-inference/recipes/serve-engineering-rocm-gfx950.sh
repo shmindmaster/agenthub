@@ -310,7 +310,6 @@ launch_spec() {
       --enable-auto-tool-choice \
       --tool-call-parser "$SPEC_TOOL_PARSER" \
       --reasoning-parser "$SPEC_REASONING_PARSER" \
-      --trust-remote-code \
       >> /tmp/specialist.log 2>&1 &
   fi
   SPEC_PID=$!

@@ -43,6 +43,11 @@ Assert-True ($catalog.roles.engineering.engine -eq 'dual') 'engineering engine m
 Assert-True ($catalog.roles.engineering.port -eq 8003 -and $catalog.roles.engineering.flagshipPort -eq 8002) 'engineering ports must be 8003 and 8002'
 Assert-True ($catalog.roles.engineering.profiles.MI355X.quantization -eq 'BF16+Q8_0') 'engineering MI355X quantization must record a BF16 primary and a Q8_0 flagship'
 Assert-True ($catalog.roles.engineering.toolCallParser -eq 'qwen3_coder' -and $catalog.roles.engineering.reasoningParser -eq 'qwen3') 'engineering must record the vLLM tool-call and reasoning parsers that make agent tool calls work'
+# The native checkpoint has no auto_map and ships no Python, so --trust-remote-code only adds the risk
+# of running third-party code next to the worker key. It must not creep back into the launch.
+$engineeringRecipe = Get-Content -LiteralPath (Join-Path $repoRoot 'scripts' 'daytona-inference' 'recipes' 'serve-engineering-rocm-gfx950.sh') -Raw -Encoding UTF8
+Assert-True ($engineeringRecipe -notmatch '--trust-remote-code') 'the native Qwen launch must not pass --trust-remote-code'
+Assert-True ($engineeringRecipe -match '--enable-auto-tool-choice' -and $engineeringRecipe -match '--tool-call-parser') 'the native Qwen launch must keep tool calling enabled'
 Assert-True ($catalog.roles.engineering.profiles.MI355X.maxModelLen -eq 262144 -and $catalog.roles.engineering.profiles.MI355X.ctxSize -eq 131072) 'engineering MI355X context must be 262144/131072'
 Assert-True ($catalog.roles.engineering.profiles.MI355X.maxOutputTokens -eq 32768) 'engineering MI355X maxOutputTokens must be 32768'
 Assert-True ($catalog.roles.media.engine -eq 'media-lab' -and $catalog.roles.media.port -eq 8189) 'media engine/port mismatch'
