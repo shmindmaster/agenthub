@@ -25,7 +25,7 @@
     },
     {
       "skill": "assemblyai",
-      "kind": "narration",
+      "kind": "workflow",
       "input": "An ABACare narration companion is attached and the approved script is ready.",
       "expected": "Check connection state, verify the configured voice without generating, use the accepted take, and report the real job, WAV, captions and what remains unfinished.",
       "evidence": [
@@ -35,7 +35,8 @@
         "On timeout, an unknown status or a lost response, recover the original job id instead of creating a new one: the provider may already have finished and billed it.",
         "Take captions and word timings from the same accepted WAV, by alignment or transcription if the generator returned none. Never resynthesize the script to obtain captions.",
         "A completed WAV is not a finished reel. Keep the approved source media, inspect pronunciation, pacing and synchronization, review the encoded video, and report actual artifacts and status."
-      ]
+      ],
+      "id": "narration-companion"
     }
   ]
 }

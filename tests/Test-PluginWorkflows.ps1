@@ -30,7 +30,9 @@ foreach ($package in $packages) {
         foreach ($scenario in $fixture.scenarios) {
             if ($scenario.kind -notin 'workflow', 'recovery' -or -not $scenario.input -or -not $scenario.expected) { throw 'Incomplete scenario' }
             if ($scenario.skill -notin $skills.Name) { throw 'Unknown fixture skill' }
-            $key = "$($scenario.skill)/$($scenario.kind)"
+            # A skill may document more than one distinct workflow. When a scenario names itself with an
+            # id it is keyed by that; the per-skill workflow+recovery requirement below still applies.
+            $key = if ($scenario.id) { "id/$($scenario.id)" } else { "$($scenario.skill)/$($scenario.kind)" }
             if ($seen[$key]) { throw 'Duplicate scenario' }
             $seen[$key] = $true
             $skill = Get-Content (Join-Path $package.FullName "skills/$($scenario.skill)/SKILL.md") -Raw -Encoding UTF8
