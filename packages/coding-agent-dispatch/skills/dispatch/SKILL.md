@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts.
 metadata:
-  version: "0.13.4"
+  version: "0.13.7"
 ---
 
 # Dispatch to another coding agent
@@ -61,7 +61,8 @@ their native accounts by default. Use `-Auth` to show sign-in commands, and add
    without starting anything. It does not prove that a host will execute it.
 
    `-Model <id>` picks the model for codex, grok, opencode, cline,
-   factory, devin, kilo, mimo-code and qwen. Any model the host can reach is
+   factory, devin, kilo, mimo-code, qwen and cursor-agent. Any model
+   the host can reach is
    accepted: `allowedModels` in `dispatchPolicy` records the smoke-verified
    models and does not limit the choice. An unlisted model adds one stderr
    note and runs. Only a malformed id is refused, plus the two
@@ -74,10 +75,9 @@ their native accounts by default. Use `-Auth` to show sign-in commands, and add
    For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.4`.
    See the host reference for the Windows tool limits.
 
-   On Windows, `-HostId zcode` uses the bundled CLI and the existing standalone
-   ZCode provider profile. For native headless Browser Use, run
-   `zcode/Install-ZCodeBrowserRuntime.ps1` beside this skill once, then add
-   `-ZCodeBrowser`. It opens a fresh headless Edge profile.
+   `-HostId zcode` is refused: ZCode's saved provider file holds provider API
+   keys the dispatcher never reads or copies, and a key-free per-run config
+   cannot select a model headless (`references/hosts.md` -> ZCode).
 
    `-Role <role>` picks an OpenCode agent or a Factory custom droid: `peer` (default), `engineer`,
    `reviewer` or `tester` (OpenCode also takes `researcher`). Factory maps `engineer`,
@@ -87,7 +87,8 @@ their native accounts by default. Use `-Auth` to show sign-in commands, and add
    `peer`.
 
    `-ReadOnly` runs the task in a read-only mode the host itself enforces.
-   It works on claude, codex, factory and qwen; every other host refuses it
+   It works on claude, codex, cursor-agent (and the cursor alias), factory,
+   opencode and qwen; every other host refuses it
    with exit 3 and never falls back to a writable run. Use it for reviews and
    audits, and never rely on prompt wording to keep a run read-only.
    `-List -ReadOnly` prints the hosts that support it. Details are in

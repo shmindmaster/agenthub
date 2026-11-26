@@ -42,6 +42,8 @@ const { receiptProblem, leadSeconds, videoLeadProblems } = await import(pathToFi
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
 if (!libPath) { console.error('sync-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
 const L = await import(pathToFileURL(libPath).href);
+const rampsPath = [join(scriptDir, 'stage-ramps.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'stage-ramps.mjs')].find(existsSync);
+const stageRamps = rampsPath ? (await import(pathToFileURL(rampsPath).href)).stageRamps : null;
 
 const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
@@ -139,7 +141,15 @@ const manifestClips = rawClips.map((c) => ({ ...c, id: c.id || c.scenario || c.s
 const sceneOf = (seg) => seg.scene || String(seg.id).replace(/[a-z]$/, '');
 const clipForSegment = (seg) => manifestClips.find((c) => c.segments.includes(seg.id)) || manifestClips.find((c) => c.segments.includes(sceneOf(seg)) || c.segments.includes(String(seg.id).replace(/[a-z]$/, ''))) || null;
 // Plan mode has no compose map, so the clip length comes from the receipt (unknown = unbounded, never a silent null mapping).
-const editOf = (src) => ({ trimStart: Number(src?.trimStart || 0), trimEnd: src?.trimEnd ? Number(src.trimEnd) : null, speed: Number(src?.speed || 1), skip: src?.skip || [], headHold: Number(src?.headHold || 0), srcSeconds: Number(src?.srcSeconds || receipt?.clips?.[src?.id]?.clipSeconds || 1e6) });
+// A stage clip's typing spans (and declared speedSpans) are part of its edit: the cue times below are on the same time map the film uses.
+const stageRampsOf = (src) => {
+  const entry = src?.id ? receipt?.clips?.[src.id] : null;
+  if (!stageRamps || !entry || entry.finisher !== 'stage') return [];
+  const index = readJson(`capture/${entry.stage.framesIndex}`);
+  const job = readJson('job.json') || {};
+  return stageRamps({ jobRoot: root, entry, index, id: src.id, cfg: job.screenStage && typeof job.screenStage === 'object' ? job.screenStage : {}, manual: src.speedSpans || [] });
+};
+const editOf = (src) => ({ trimStart: Number(src?.trimStart || 0), trimEnd: src?.trimEnd ? Number(src.trimEnd) : null, speed: Number(src?.speed || 1), skip: src?.skip || [], ramps: src?.ramps || stageRampsOf(src), headHold: Number(src?.headHold || 0), srcSeconds: Number(src?.srcSeconds || receipt?.clips?.[src?.id]?.clipSeconds || 1e6) });
 const piecewiseClocks = new Map();
 const piecewiseSourceHashes = new Map();
 for (const g of composeMap?.groups || []) {
@@ -243,7 +253,7 @@ const beats = segs.map((seg, i) => {
     result = { label, receipt_expectation_index: exp ? clipRec.expectations.indexOf(exp) : null, clip_time: expClip, visible_at: expClip !== null && mapped ? toProgram(expClip) : null, keywords, keyword: kw ? { w: kw.w, start: kw.start, end: kw.end, matched: kw.keyword } : null };
   }
   const prevGroup = i > 0 ? groupFor(segs[i - 1]) : null;
-  const cameraDefault = clipRec?.recast === 'full' ? 'Recast punch-in on clicks' : clipRec?.recast ? `Recast ${clipRec.recast}` : 'static';
+  const cameraDefault = clipRec?.finisher === 'stage' ? 'screen stage camera: springs to each action' : clipRec?.recast === 'full' ? 'Recast punch-in on clicks' : clipRec?.recast ? `Recast ${clipRec.recast}` : 'static';
   return {
     beat: seg.id,
     t_start: L.round(bw.words[0]?.start ?? seg.startSeconds),

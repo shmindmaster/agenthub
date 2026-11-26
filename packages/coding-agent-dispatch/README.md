@@ -229,7 +229,7 @@ failures against an older copy without changing installed hosts.
 package's dispatcher on a host different from the one that authored the PR
 (branch prefix or a `[host: <id>]` PR-body marker). The script issues no
 write command, and the model run is host-enforced read-only on claude,
-codex, factory, opencode and qwen: every dispatcher call carries `-ReadOnly`, the reviewer host is chosen only among hosts
+codex, cursor-agent, factory, opencode and qwen: every dispatcher call carries `-ReadOnly`, the reviewer host is chosen only among hosts
 whose `dispatchPolicy.<host>.readOnly` in `registry/fleet-profile.json`
 records an enforced read-only mode, and the run ends BLOCKED, with no model
 run, when none is available. The reviewer also fences the pull request's

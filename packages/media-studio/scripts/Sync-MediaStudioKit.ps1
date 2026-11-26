@@ -62,6 +62,7 @@ $files = @(
     'src\Root.tsx',
     'src\Composition.tsx',
     'src\MarketingAd.tsx',
+    'src\ScreenStage.tsx',
     'src\index.ts',
     'src\index.css',
     'package.json',
@@ -93,6 +94,16 @@ $files = @(
     'explainer\shots.tsx',
     'explainer\Explainer.tsx',
     'screencast\compose-screencast.mjs',
+    'screencast\stage-math.mjs',
+    'screencast\stage-plan.mjs',
+    'screencast\stage-checks.mjs',
+    'screencast\stage-film-checks.mjs',
+    'screencast\stage-changes.mjs',
+    'screencast\stage-ramps.mjs',
+    'screencast\stage-capture.mjs',
+    'screencast\stage-effects.mjs',
+    'screencast\click-sound.mjs',
+    'screencast\render-stage.mjs',
     'screencast\campaign-contract.mjs',
     'screencast\render-overlay.mjs',
     'screencast\render-code.mjs',
@@ -165,7 +176,7 @@ if (Test-Path -LiteralPath $marketingSource) {
 # Capture and product-picture gates travel with the compositor so each host resolves the same scripts.
 # A missing validator is a hard stop, never a silent skip. The existing scripts are copied
 # beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
-$gateScripts = @('derived-audio-clock.mjs', 'hosted-alignment-clock.mjs', 'validate-edit-map.mjs', 'edit-map-clock.mjs', 'validate-word-sync.mjs', 'validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
+$gateScripts = @('derived-audio-clock.mjs', 'hosted-alignment-clock.mjs', 'validate-edit-map.mjs', 'edit-map-clock.mjs', 'validate-word-sync.mjs', 'validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-screen-stage.mjs', 'validate-effects-mix.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
     # video standard (2026-10-20): record-job.mjs resolves validate-capture-preflight.mjs from _shared\tools; the rest are the release gates the skills cite
     'validate-narration.mjs', 'marketing-cut.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-finished-film.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'speech-only-readiness.mjs', 'build-contact-sheet.mjs',
     'check_visual_variety.py', 'check_picture_relevance.py', 'check_requirements.py',
@@ -201,7 +212,7 @@ New-Item -ItemType Directory -Force -Path $explainerTarget | Out-Null
 foreach ($item in @(Get-ChildItem -LiteralPath $explainerSource -File | Where-Object { $_.Extension -in @('.mjs', '.json', '.txt') })) {
     Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $explainerTarget $item.Name) -Force
 }
-foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs', 'receipt-lib.mjs', 'write-scenario-proof.mjs')) {
+foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs', 'receipt-lib.mjs', 'write-scenario-proof.mjs', 'stage-math.mjs', 'stage-plan.mjs', 'stage-checks.mjs', 'stage-film-checks.mjs', 'stage-changes.mjs', 'stage-ramps.mjs', 'stage-capture.mjs', 'stage-effects.mjs', 'click-sound.mjs', 'render-stage.mjs')) {
     $from = Join-Path (Join-Path $packageKit 'screencast') $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical screencast tool missing: $from" }
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
@@ -261,7 +272,7 @@ if (Test-Path -LiteralPath $gate) {
 # The deploy list above is the whole managed content of _shared\tools. Anything else there is a one-off script,
 # backup or working copy that belongs in its job folder. It is reported, never deleted: an unmatched file may be the
 # only copy, so the move is a reviewed step (global policy: delete nothing unmatched), not a sync side effect.
-$managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs', 'receipt-lib.mjs', 'write-scenario-proof.mjs') +
+$managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs', 'receipt-lib.mjs', 'write-scenario-proof.mjs', 'stage-math.mjs', 'stage-plan.mjs', 'stage-checks.mjs', 'stage-film-checks.mjs', 'stage-changes.mjs', 'stage-ramps.mjs', 'stage-capture.mjs', 'stage-effects.mjs', 'click-sound.mjs', 'render-stage.mjs') +
     @($mediaHelpers) +
     @('Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs', 'demo-stack.mjs', 'plugin.json', 'RELEASE-EVIDENCE.md', 'write-story-review.py',
     'model-specs-schemas',  # the model-facing schemas validate-model-specs.mjs reads beside itself

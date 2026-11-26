@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { startStageCapture, frameIndex, shiftEvents, readCursorInPage } from './stage-capture.mjs';
 
 export const TIMING = Object.freeze({
   pointerMoveMsMin: 400,
@@ -39,8 +40,30 @@ export class BeatTracker {
   toJSON() { return this.marks; }
 }
 
+/**
+ * Does the page scroll or spill sideways at the recorded viewport? A product that overflows its viewport shows a cut-off table or a blank
+ * strip in the film, so a take of it is refused. Looks at the document's scrollable width (hidden overflow counts) and names the first
+ * visible elements that end past the right edge. Returns null when the layout fits.
+ */
+export async function horizontalOverflow(page) {
+  return page.evaluate(() => {
+    const de = document.documentElement, b = document.body, vw = window.innerWidth;
+    const sw = Math.max(de.scrollWidth, b ? b.scrollWidth : 0);
+    if (sw <= vw + 1) return null;
+    const off = [];
+    for (const el of document.querySelectorAll('body *')) {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      if (r.width < 2 || r.height < 2 || cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) continue;
+      if (r.right > vw + 1 && r.left < vw) off.push(`${el.tagName.toLowerCase()}${el.getAttribute('data-testid') ? '[' + el.getAttribute('data-testid') + ']' : el.id ? '#' + el.id : ''} ends at ${Math.round(r.right)}px`);
+      if (off.length >= 4) break;
+    }
+    return { scrollWidth: sw, viewportWidth: vw, offenders: off };
+  });
+}
+
 export class EventLog {
-  constructor(t0) { this.t0 = t0; this.events = []; this.expectations = []; this.pointer = { x: null, y: null }; }
+  constructor(t0) { this.t0 = t0; this.events = []; this.expectations = []; this.layout = []; this.pointer = { x: null, y: null }; }
   now() { return Math.round(((Date.now() - this.t0) / 1000) * 1000) / 1000; }
   push(type, data = {}) { const ev = { t: this.now(), type, ...data }; this.events.push(ev); return ev; }
   summary() {
@@ -58,6 +81,7 @@ export class EventLog {
       expectations: this.expectations.length,
       expectationsObserved: this.expectations.filter((e) => e.observed).length,
       expectationsFailed: this.expectations.filter((e) => !e.observed).map((e) => e.label),
+      layoutProblems: this.layout,
     };
   }
 }
@@ -88,7 +112,10 @@ export async function startRecording(id, opts = {}) {
   const rawDir = path.resolve(opts.rawRoot || 'raw', id);
   fs.rmSync(rawDir, { recursive: true, force: true });
   fs.mkdirSync(rawDir, { recursive: true });
-  const browser = await chromium.launch({ headless: opts.headless !== false, args: ['--hide-scrollbars=false'] });
+  // Stage lane: Chrome's screencast returns CSS-size frames under Playwright's device-scale emulation (measured: 1280x720 at DSF 3), but
+  // true device-pixel frames when the browser itself runs at that scale. So the scale is a launch flag and the context sets none.
+  const stageScale = opts.stage ? opts.deviceScaleFactor || device?.deviceScaleFactor || 2 : null;
+  const browser = await chromium.launch({ headless: opts.headless !== false, args: ['--hide-scrollbars=false', ...(stageScale ? ['--force-device-scale-factor=' + stageScale] : [])] });
   // Playwright records video at CSS-pixel size whatever the device scale, so a phone or tablet layout recorded the
   // ordinary way comes out at 360-540 px and has to be upscaled. opts.mobileLayout = { cssWidth, scale } instead opens a
   // mobile context the size of the delivery frame and sets the page's viewport meta to cssWidth at that page scale: the
@@ -100,6 +127,8 @@ export async function startRecording(id, opts = {}) {
     viewport,
     // mobileLayout (native-resolution phone/tablet layout) wins over device emulation: it rasterises at DSF 1 by design.
     deviceScaleFactor: mobile ? 1 : opts.deviceScaleFactor || device?.deviceScaleFactor || 2,
+    // the stage lane sets the scale on the browser itself (--force-device-scale-factor), so the context must not
+    ...(opts.stage ? { deviceScaleFactor: undefined } : {}),
     ...(mobile ? { isMobile: true, hasTouch: true } : {}),
     ...(!mobile && opts.isMobile !== undefined ? { isMobile: opts.isMobile } : {}),
     ...(!mobile && opts.hasTouch !== undefined ? { hasTouch: opts.hasTouch } : {}),
@@ -108,7 +137,7 @@ export async function startRecording(id, opts = {}) {
     timezoneId: opts.timezoneId || 'America/Chicago',
     ...(opts.storageState ? { storageState: opts.storageState } : {}),
     ...(opts.extraHTTPHeaders ? { extraHTTPHeaders: opts.extraHTTPHeaders } : {}),
-    recordVideo: { dir: rawDir, size: opts.videoSize || viewport },
+    ...(opts.stage ? {} : { recordVideo: { dir: rawDir, size: opts.videoSize || viewport } }),
   });
   if (mobile) {
     const dot = touchDotColors(opts.touchRgb);
@@ -141,20 +170,24 @@ export async function startRecording(id, opts = {}) {
       window.addEventListener('load', set);
     }, opts.pageZoom);
   }
-  await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
+  // The stage lane has its own screencast (stage-capture.mjs): trace screenshots would be a second one, so the trace keeps DOM snapshots only.
+  await context.tracing.start({ screenshots: !opts.stage, snapshots: true, sources: false });
   // The recorded video starts when the page is created, so the action clock starts just before it: every event `t`
   // is then seconds into the raw WebM (the cue sheet and the sync gate map these through the edit decision list).
   const t0 = Date.now();
   const page = await context.newPage();
   const beats = new BeatTracker(t0);
   const log = new EventLog(t0);
-  const h = bindHelpers(page, log, beats, { ...opts, rawDir, hasTouch: opts.hasTouch ?? device?.hasTouch ?? false });
-  return { id, browser, context, page, rawDir, beats, log, h, t0, viewport };
+  const dsf = mobile ? 1 : opts.deviceScaleFactor || device?.deviceScaleFactor || 2;
+  const stage = opts.stage ? await startStageCapture(context, page, { dir: path.join(rawDir, 'frames'), size: { width: Math.round(viewport.width * dsf), height: Math.round(viewport.height * dsf) }, t0 }) : null;
+  const h = bindHelpers(page, log, beats, { ...opts, rawDir, viewport, hasTouch: opts.hasTouch ?? device?.hasTouch ?? false, stageCapture: stage });
+  return { id, browser, context, page, rawDir, beats, log, h, t0, viewport, stage, deviceScaleFactor: dsf };
 }
 
 /** Stop tracing and video; return paths. */
 export async function finishRecording(rec, opts = {}) {
   const tracePath = path.join(rec.rawDir, 'trace.zip');
+  if (rec.stage) return finishStageRecording(rec, opts, tracePath);
   await rec.context.tracing.stop({ path: tracePath });
   const video = rec.page.video();
   // Multi-take product flows keep per-device state (a capture tally, a persona, a draft) in web storage; saving it
@@ -172,6 +205,25 @@ export async function finishRecording(rec, opts = {}) {
   fs.writeFileSync(path.join(rec.rawDir, 'beats.json'), JSON.stringify(rec.beats.toJSON(), null, 2));
   fs.writeFileSync(path.join(rec.rawDir, 'events.json'), JSON.stringify({ events: rec.log.events, expectations: rec.log.expectations }, null, 2));
   return { tracePath, webm, rawDir: rec.rawDir, beats: rec.beats.toJSON(), events: rec.log.events, expectations: rec.log.expectations, summary: rec.log.summary() };
+}
+
+/** Stage lane: stop the screencast, write frames.json, and put every logged time on the clip clock (origin = first ready frame). */
+async function finishStageRecording(rec, opts, tracePath) {
+  const stop = await rec.stage.stop();
+  await rec.context.tracing.stop({ path: tracePath });
+  if (opts.saveStatePath) { try { await rec.context.storageState({ path: opts.saveStatePath }); } catch (e) { console.log('  storageState not saved:', String(e.message).split(/\r?\n/)[0]); } }
+  await rec.context.close();
+  await rec.browser.close();
+  if (!stop.frames.length) throw new Error('screen stage: the screencast delivered no frame in ' + rec.rawDir);
+  const size = { width: Math.round(rec.viewport.width * rec.deviceScaleFactor), height: Math.round(rec.viewport.height * rec.deviceScaleFactor) };
+  if (!stop.frameSize || Math.abs(stop.frameSize.width - size.width) > 2 || Math.abs(stop.frameSize.height - size.height) > 2) throw new Error('screen stage: the screencast delivered ' + (stop.frameSize ? stop.frameSize.width + 'x' + stop.frameSize.height : 'unreadable') + ' frames, not the ' + size.width + 'x' + size.height + ' device pixels the take needs');
+  const index = frameIndex({ id: rec.id, size, deviceScaleFactor: rec.deviceScaleFactor, viewport: rec.viewport, stop });
+  const indexPath = path.join(rec.rawDir, 'frames.json');
+  fs.writeFileSync(indexPath, JSON.stringify(index));
+  const shifted = shiftEvents(rec.log.events, rec.log.expectations, rec.beats.toJSON(), stop.origin);
+  fs.writeFileSync(path.join(rec.rawDir, 'beats.json'), JSON.stringify(shifted.beats, null, 2));
+  fs.writeFileSync(path.join(rec.rawDir, 'events.json'), JSON.stringify({ events: shifted.events, expectations: shifted.expectations }, null, 2));
+  return { tracePath, webm: null, rawDir: rec.rawDir, framesDir: path.join(rec.rawDir, 'frames'), indexPath, index, beats: shifted.beats, events: shifted.events, expectations: shifted.expectations, summary: rec.log.summary() };
 }
 
 /**
@@ -229,6 +281,10 @@ export function bindHelpers(page, log, beats, opts = {}) {
   const k = opts.mobileLayout ? opts.mobileLayout.scale : (opts.videoSize && opts.viewport?.width ? opts.videoSize.width / opts.viewport.width : 1);
   const wait = (ms) => page.waitForTimeout(ms);
 
+  const boxOf = (b) => ({ x: Math.round(b.x * 10) / 10, y: Math.round(b.y * 10) / 10, w: Math.round(b.width * 10) / 10, h: Math.round(b.height * 10) / 10 });
+  const sleepUntil = (deadline) => new Promise((r) => setTimeout(r, Math.max(0, deadline - performance.now())));
+  const cursorUnder = (x, y) => page.evaluate(readCursorInPage, [x, y]).catch(() => 'default');
+
   const center = async (locator) => {
     await locator.first().scrollIntoViewIfNeeded().catch(() => {});
     const b = await locator.first().boundingBox();
@@ -236,8 +292,46 @@ export function bindHelpers(page, log, beats, opts = {}) {
     return { x: b.x + b.width / 2, y: b.y + b.height / 2, box: b };
   };
 
+  /**
+   * Stage lane: human pointer travel. A gentle arc (at most 8% of the distance) with a minimum-jerk speed curve, duration scaled to the
+   * distance, one real dispatched move about every 20 ms; each is logged with its time, position and the CSS cursor under it. The stage
+   * draws only these recorded positions.
+   */
+  async function stageApproach(locator, o = {}) {
+    const { x: tx, y: ty, box } = await center(locator);
+    const vw = opts.viewport?.width ?? page.viewportSize().width, vh = opts.viewport?.height ?? page.viewportSize().height;
+    if (log.pointer.x === null) {
+      const sx0 = clamp(tx - 260, 8, vw - 8), sy0 = clamp(ty - 160, 8, vh - 8);
+      await page.mouse.move(sx0, sy0);
+      log.push('move', { x: Math.round(sx0 * 10) / 10, y: Math.round(sy0 * 10) / 10, cursor: await cursorUnder(sx0, sy0) });
+      log.pointer = { x: sx0, y: sy0 };
+      await wait(120);
+    }
+    const sx = log.pointer.x, sy = log.pointer.y;
+    const dx = tx - sx, dy = ty - sy, dist = Math.hypot(dx, dy);
+    if (dist < 2) { await wait(o.settle ?? TIMING.clickSettleMs); return { x: tx, y: ty, box }; }
+    const ms = o.ms || clamp(380 + dist * 0.5, 400, 800);
+    const bow = Math.min(0.08 * dist, 60) * (Math.round(tx * 7 + ty * 13) % 2 ? 1 : -1);
+    const nx = -dy / dist, ny = dx / dist;
+    // The control point stays inside the box of the two end points, so x and y each move one way only: a gentle arc, never a back-track.
+    const cx = clamp((sx + tx) / 2 + nx * bow * 2, Math.min(sx, tx), Math.max(sx, tx)), cy = clamp((sy + ty) / 2 + ny * bow * 2, Math.min(sy, ty), Math.max(sy, ty));
+    const steps = Math.max(8, Math.round(ms / 20));
+    const start = performance.now();
+    for (let i = 1; i <= steps; i++) {
+      const u = i / steps, s = 10 * u ** 3 - 15 * u ** 4 + 6 * u ** 5;
+      const x = (1 - s) ** 2 * sx + 2 * (1 - s) * s * cx + s * s * tx, y = (1 - s) ** 2 * sy + 2 * (1 - s) * s * cy + s * s * ty;
+      await page.mouse.move(x, y);
+      log.push('move', { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, cursor: await cursorUnder(x, y) });
+      await sleepUntil(start + (i * ms) / steps);
+    }
+    log.pointer = { x: tx, y: ty };
+    await wait(o.settle ?? TIMING.clickSettleMs);
+    return { x: tx, y: ty, box };
+  }
+
   /** Eased pointer travel to a locator (400–600 ms), then a short settle. Logs every step. */
   async function approach(locator, o = {}) {
+    if (opts.stage) return stageApproach(locator, o);
     const { x: tx, y: ty, box } = await center(locator);
     const sx = log.pointer.x ?? clamp(tx - 260, 8, page.viewportSize().width - 8);
     const sy = log.pointer.y ?? clamp(ty - 160, 8, page.viewportSize().height - 8);
@@ -270,7 +364,7 @@ export function bindHelpers(page, log, beats, opts = {}) {
     // tStart is the moment the click is issued (the narration word it must land on); t is when Playwright returned.
     const tStart = log.now();
     await locator.first().click({ delay: 60, force: true, position: { x: box.width / 2, y: box.height / 2 }, timeout: 8000 });
-    log.push('click', { x: Math.round(x * k), y: Math.round(y * k), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
+    log.push('click', { x: Math.round(x * k), y: Math.round(y * k), label: o.label || null, target: o.target || o.label || describe(locator), tStart, targetBox: boxOf(box) });
     if (o.label) beats.mark(o.label, { box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } });
     await wait(o.hold ?? TIMING.clickHoldMs);
   }
@@ -287,7 +381,7 @@ export function bindHelpers(page, log, beats, opts = {}) {
     const tStart = log.now();
     if (touch) await locator.first().tap({ force: true, position, timeout: 8000 });
     else await locator.first().click({ delay: 60, force: true, position, timeout: 8000 });
-    log.push('tap', { x: Math.round(x), y: Math.round(y), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
+    log.push('tap', { x: Math.round(x), y: Math.round(y), label: o.label || null, target: o.target || o.label || describe(locator), tStart, targetBox: boxOf(box) });
     log.pointer = { x, y };
     if (o.label) beats.mark(o.label, { box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } });
     await wait(o.hold ?? TIMING.clickHoldMs);
@@ -299,7 +393,8 @@ export function bindHelpers(page, log, beats, opts = {}) {
     if (o.clear) { await page.keyboard.press('Control+A'); await page.keyboard.press('Backspace'); }
     const tStart = log.now();
     await page.keyboard.type(text, { delay: o.delay ?? TIMING.typingDelayMs });
-    log.push('type', { chars: text.length, label: o.label || null, target: o.target || o.label || describe(locator), tStart });
+    const fieldBox = await locator.first().boundingBox().catch(() => null);
+    log.push('type', { chars: text.length, label: o.label || null, target: o.target || o.label || describe(locator), tStart, tEnd: log.now(), ...(fieldBox ? { targetBox: boxOf(fieldBox) } : {}) });
     await wait(o.hold ?? 600);
   }
 
@@ -470,10 +565,20 @@ export function bindHelpers(page, log, beats, opts = {}) {
     log.push('goto', { url });
     if (o.readySelector) await page.locator(o.readySelector).first().waitFor({ state: 'visible', timeout: o.readyTimeout ?? 30000 });
     await wait(o.settle ?? 1500);
+    opts.stageCapture?.arm();
+    await checkLayout();
+  }
+
+  /** Stage lane: the page must fit the recorded viewport sideways. The problem is logged and fails the take. */
+  async function checkLayout() {
+    if (!opts.stageCapture) return null;
+    const p = await horizontalOverflow(page).catch(() => null);
+    if (p) { log.layout.push({ url: page.url(), ...p }); console.log(`  LAYOUT: the page spills sideways at ${page.viewportSize()?.width}px: scrollWidth ${p.scrollWidth}, ${p.offenders.join('; ')}`); }
+    return p;
   }
 
   /** Result hold (≥500 ms; longer when the viewer must read). */
   const hold = (ms = 1500) => wait(ms);
 
-  return { approach, click, tap, typeText, uploadFile, fillValue, selectOption, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
+  return { approach, click, tap, typeText, uploadFile, fillValue, selectOption, pointAt, hoverHold, smoothScroll, expect, go, checkLayout, hold, wait, mark: (l, x) => beats.mark(l, x), page };
 }

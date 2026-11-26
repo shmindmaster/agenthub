@@ -2,13 +2,13 @@
 
 Read when: choosing a model, a Factory or OpenCode role or a read-only run, dispatching to Cline, OpenCode, Factory, Devin, Warp or Copilot, reviewing Kilo, MiMo or Qwen eligibility, resuming a Cline session, or auditing a host plugin.
 
-Contents: Models, Factory and OpenCode roles, Read-only runs, Account hosts, New plan hosts, Plan routes, Qwen, Factory, Devin, Warp, Cline, OpenCode, Plugin installers.
+Contents: Models, Factory and OpenCode roles, Read-only runs, Account hosts, New plan hosts, Plan routes, Qwen, Factory, Devin, Warp, Cline, OpenCode, Cursor Agent, ZCode, Plugin installers.
 
 ## Models
 
 Owner direction 2026-11-10: a model or coding plan is allowed on any host where it can be integrated and supported.
 
-- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment). Other hosts take no `-Model`. Warp is retired and dispatch is disabled; it takes no `-Model`.
+- `-Model` is passed through for codex (`-m`), grok (`--model`), opencode, cline, factory, devin, kilo, mimo-code, qwen (`-m`, plus `OPENAI_MODEL` in the child environment), and cursor-agent (`--model`). zcode is refused (see ZCode). Other hosts take no `-Model`. Warp is retired and dispatch is disabled; it takes no `-Model`.
 - `dispatchPolicy.<host>.allowedModels` records the smoke-verified models. It does not limit the choice. An unlisted model adds one stderr line, `note: <host> model '<id>' is not in the smoke-verified list; passing it through`, and the run continues. The host and its plan decide what the model costs; check the cost before routing an expensive one.
 - The id must be well formed: no whitespace or shell metacharacters; `provider/model` for opencode, kilo and mimo-code; `provider:model` for cline. A malformed id is refused with exit 3.
 
@@ -46,12 +46,13 @@ writable run starts. `-List -ReadOnly` prints the supported hosts.
 | --- | --- |
 | claude | `--print --permission-mode plan --permission-prompts none` in place of `--permission-mode bypassPermissions` |
 | codex | `exec --sandbox read-only --skip-git-repo-check -` |
+| cursor-agent | `--print --output-format text --mode plan` in place of `--force` (help 2026-11-25 lists plan as the read-only mode; `--mode ask` is Q&A only) |
 | factory | `exec` without `--auto`, which is Droid's read-only default |
 | qwen | `--approval-mode plan` in place of `--approval-mode yolo` (help 0.27.1: "Analyze only, do not modify files or execute commands") |
 
 `-ReadOnly` cannot be combined with `-SessionId`. No host's read-only mode
 has been exercised with a model run; the commands come from each CLI's help
-text on 2026-11-11.
+text (cursor-agent flags verified 2026-11-25, the rest on 2026-11-11).
 
 ## Account hosts
 
@@ -219,6 +220,60 @@ shell. The launcher must pass through the OpenCode exit code. The launcher has
 no V2 agent profiles: it refuses every `-Role` except peer and any `-ReadOnly`.
 
 `opencode acp` is the native stdio ACP server, sharing the persisted account and configuration. The ACP client owns permission handling.
+
+## Cursor Agent
+
+`cursor-agent` (`-HostId cursor-agent`, alias `cursor`) runs the vendor CLI on
+its stored account login; `CURSOR_API_KEY` is scrubbed so a key cannot override
+it. Verified against `cursor-agent --help` on 2026-11-25:
+
+```
+cursor-agent --print --output-format text --force --trust --workspace <cwd> <prompt>
+```
+
+- `--print` runs headless with every tool; `--force` runs them without asking.
+  `--mode ask` (the former dispatch command) is Q&A only and cannot edit, so it
+  is never emitted.
+- `-ReadOnly` runs `--mode plan`, the enforced read-only mode, in place of
+  `--force` (recorded in `dispatchPolicy.cursor-agent.readOnly`).
+- `-Model` passes through to `--model`.
+- `--force` runs every tool call and the host has no agent-profile denylist, so
+  the child environment carries the same guard as qwen and warp: `GIT_CONFIG_*`
+  push rewrites to an unhandled scheme, an empty `GH_CONFIG_DIR`, and no
+  `GH_TOKEN`/`GITHUB_TOKEN`. It is not a shell denylist; run cursor-agent only
+  in worktrees.
+- The child does not inherit the dispatcher's environment. Cursor's shell
+  writes its whole environment to `<TEMP>\cursor-bash-state-*\state-out` (a
+  2026-11-25 run left 55 secret variables there), so only an allowlist passes
+  (Windows system and profile folders, `PATH`/`PATHEXT`, `HOME`, terminal and
+  locale names) and any name containing key, token, secret, passw, credential,
+  auth, cookie or session is dropped. `TEMP`, `TMP` and `TMPDIR` point at
+  `tmp-cursor-agent-<guid>` under the dispatch runtime folder, created for the
+  run and deleted when it ends, on success, failure and timeout, so nothing
+  lands in the user Temp. A model login that needs a variable outside the
+  allowlist is not passed; add its name to `$script:ChildEnvAllowlist`.
+
+## ZCode
+
+`-HostId zcode` is **refused** (checked 2026-11-25, zcode 0.18.0). The earlier
+route copied ZCode's saved personal provider file, which carries literal
+provider API keys, into a per-run folder. The dispatcher no longer reads or
+copies that file, and nothing in the run folder may hold a provider key.
+
+A key-free replacement was tried against the installed bundle and does not
+work headless. A per-run `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` holding only
+`schemaVersion: 1`, empty rule lists and
+`config.defaultModelSelection = account:zai-start-plan/GLM-5.4` (also with an
+enabled `account:zai-start-plan` rule carrying `personalModelIds`, and with a
+model the built-in config lists) ends with `Select a model before sending a
+message`: the account provider only becomes available from an account snapshot
+the desktop host supplies, and the CLI has no per-run model flag or keyless
+provider setting. `zcode.cjs` also has no flag that disables MCP servers. Use
+ZCode Desktop interactively, or route the work to another host (Z.ai GLM runs
+on OpenCode: `-HostId opencode -Model zai-coding-plan/glm-5.4`).
+`Get-HostRow` and the table entry both refuse, so `-List` shows the reason.
+The `zcode/` folder (preload loader, browser runtime installer) is kept for
+when a supported key-free route exists.
 
 ## Plugin installers
 

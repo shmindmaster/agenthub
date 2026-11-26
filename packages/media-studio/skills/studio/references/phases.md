@@ -43,7 +43,7 @@ Write the caption sidecar and place the candidate in the authorized internal lib
 | explainer, briefing, training | case, 3 to 8 beats | drawn: svg, chart, flow, layers, lottie | one narrator | the default studio path |
 | documentary, series episode | longer treatment, act structure | mix of drawn, stills, captures | narrator plus interview-style voices | more beats, a hero moment |
 | simulated call, dialogue | scene per turn, speaker in the kicker | the discussed thing, not the speakers | one voice per character | `scenes.md` dialogue section |
-| product screencast | readiness check first | captured and finished with Recast | narrator | `product-picture.md`; never a drawn stand-in for the product |
+| product screencast | readiness check first | captured and finished with the screen stage (Recast on its legacy lane) | narrator | `product-picture.md`; never a drawn stand-in for the product |
 | animation, teaser | short, punchy beats | motion, Lottie, generated or source footage as appropriate | optional | frozen video lanes need owner approval |
 | audio only | same case and screenplay | none | the whole thing | skip the picture gates |
 

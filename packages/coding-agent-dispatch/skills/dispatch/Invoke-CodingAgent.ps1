@@ -255,6 +255,10 @@ function Get-DispatchModelShape {
     if ($Id -in @('opencode', 'kilo', 'mimo-code')) {
         return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a provider/model id' }
     }
+    if ($Id -eq 'zcode') {
+        # ZCode provider ids carry a colon (account:zai-start-plan).
+        return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.:-]*/[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a provider/model id' }
+    }
     if ($Id -eq 'cline') {
         return @{ Pattern = '^[A-Za-z0-9][A-Za-z0-9_.-]*:[A-Za-z0-9][A-Za-z0-9_.:/@+-]*$'; Label = 'a provider:model id' }
     }
@@ -433,6 +437,18 @@ function Assert-MimoPlanEnvironment {
     }
 }
 
+# ZCode (checked 2026-11-25, zcode 0.18.0): the saved personal provider file
+# carries literal provider API keys, so the dispatcher neither reads nor copies
+# it. A per-run personal document holding only config.defaultModelSelection
+# (schemaVersion 1, empty rule lists, with or without an enabled
+# account:zai-start-plan rule and its personalModelIds) was tried against the
+# installed bundle: headless startup then finds no available model and exits
+# 'Select a model before sending a message', because the account provider only
+# becomes available from an account snapshot the desktop host supplies. The
+# bundle has no per-run model flag and no keyless provider setting, so there is
+# no supported key-free route; the host refuses until that changes.
+$script:ZCodeRefusal = 'the route needs ZCode''s saved provider file, which holds provider API keys the dispatcher never reads or copies, and a key-free per-run config cannot select a model in headless mode (zcode 0.18.0, checked 2026-11-25); use ZCode Desktop interactively or another host'
+
 # Argument prompts cannot carry quotes, newlines, or a long command line.
 # Stdin and prompt-file hosts can. 6000 leaves room for the flags under the
 # Windows 8191-character command-line limit.
@@ -447,6 +463,48 @@ function Test-ArgumentPrompt {
     return $true
 }
 
+# cursor-agent: allowlisted child environment and a private TEMP.
+# Cursor's shell writes its whole environment to
+# <TEMP>\cursor-bash-state-*\state-out (a 2026-11-25 run left 55 secret
+# variables there), so the child never inherits the dispatcher's environment:
+# only the names below that Windows, Node, git and cursor-agent need pass, and
+# any name that looks like a key, token, secret, password or credential is
+# dropped even if listed. TEMP/TMP/TMPDIR point at a folder created under the
+# run directory for this run alone and deleted when the run ends, so whatever
+# the shell writes there is removed with it and nothing lands in the user Temp.
+$script:ChildEnvAllowlist = @(
+    'PATH', 'PATHEXT', 'SystemRoot', 'SystemDrive', 'windir', 'ComSpec', 'OS',
+    'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'APPDATA', 'LOCALAPPDATA', 'ProgramData',
+    'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'CommonProgramFiles',
+    'CommonProgramFiles(x86)', 'CommonProgramW6432', 'ALLUSERSPROFILE', 'PUBLIC',
+    'USERNAME', 'USERDOMAIN', 'COMPUTERNAME', 'NUMBER_OF_PROCESSORS',
+    'PROCESSOR_ARCHITECTURE', 'PROCESSOR_IDENTIFIER', 'PROCESSOR_LEVEL', 'PROCESSOR_REVISION',
+    'HOME', 'USER', 'LOGNAME', 'SHELL', 'LANG', 'LC_ALL', 'TERM', 'NO_COLOR', 'TZ',
+    'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_RUNTIME_DIR'
+)
+$script:SecretLikeName = '(?i)(key|token|secret|passw|credential|auth|cookie|session)'
+
+function Get-AllowlistedEnvironment {
+    $result = @{}
+    foreach ($entry in [Environment]::GetEnvironmentVariables('Process').GetEnumerator()) {
+        $name = [string]$entry.Key
+        if ($name -match $script:SecretLikeName) { continue }
+        if ($script:ChildEnvAllowlist -contains $name) { $result[$name] = [string]$entry.Value }
+    }
+    return $result
+}
+
+function Remove-RunTemp {
+    param([string]$Path)
+    if (-not $Path) { return }
+    # A killed child can hold files for a moment; retry before giving up.
+    for ($attempt = 0; $attempt -lt 10 -and (Test-Path -LiteralPath $Path); $attempt++) {
+        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $Path) { Start-Sleep -Milliseconds 300 }
+    }
+    if (Test-Path -LiteralPath $Path) { [Console]::Error.WriteLine("warning: run temp could not be removed: $Path") }
+}
+
 function Get-DispatchTable {
     # mode: stdin | argument | file
     # A ~/bin or npm .cmd is started through a hidden cmd.exe. Fleet flags
@@ -456,31 +514,7 @@ function Get-DispatchTable {
             Mode = 'stdin'
             Build = {
                 param($PromptText, $Work, $File)
-                $launch = Resolve-ZCodeLaunch $targetAgent
-                $loader = Join-Path $PSScriptRoot 'zcode/launch-preload.mjs'
-                $arguments = @('--import', ([uri]::new($loader)).AbsoluteUri)
-                $childEnv = @{
-                    ZCODE_BUILTIN_PROVIDER_CONFIG_FILE = $launch.Builtin
-                    ZCODE_PERSONAL_PROVIDER_CONFIG_FILE = $launch.Personal
-                }
-                if ($ZCodeBrowser) {
-                    $package = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $PSScriptRoot 'zcode/package.json') | ConvertFrom-Json
-                    $version = $package.dependencies.'playwright-core'
-                    $runtime = Join-Path (Get-AgentHubDefaultLocalData) "AgentHub/runtime/coding-agent-dispatch/zcode/playwright-$version"
-                    if (-not (Test-Path -LiteralPath (Join-Path $runtime 'node_modules/playwright-core/index.mjs') -PathType Leaf)) {
-                        Write-Refusal 3 'refused zcode: run zcode/Install-ZCodeBrowserRuntime.ps1 to install the pinned browser dependency'
-                    }
-                    $edge = Join-Path ${env:ProgramFiles(x86)} 'Microsoft/Edge/Application/msedge.exe'
-                    if (-not (Test-Path -LiteralPath $edge -PathType Leaf)) {
-                        Write-Refusal 3 'refused zcode: Microsoft Edge is absent from its Windows installation path'
-                    }
-                    $childEnv.AGENTHUB_ZCODE_PLAYWRIGHT_ROOT = $runtime
-                }
-                $arguments += @($launch.Runtime, '--cwd', $Work, '--no-color', '--mode', 'guarded')
-                if ($ZCodeBrowser) {
-                    $arguments += @('--surface', 'desktop', '--browser-use', 'headless', '--browser-executable', $edge, '--no-browser-state')
-                }
-                @{ Args = $arguments + @('--prompt'); Stdin = $PromptText; Env = $childEnv }
+                Write-Refusal 3 "refused zcode: $($script:ZCodeRefusal)"
             }
         }
         'claude' = @{
@@ -517,9 +551,30 @@ function Get-DispatchTable {
         }
         'cursor-agent' = @{
             Mode = 'argument'
+            ReadOnly = $true
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('--print', '--output-format', 'text', '--mode', 'ask', '--trust', '--workspace', $Work, $PromptText); Stdin = $null; PromptFile = $null }
+                # cursor-agent --help 2026-11-25: --print runs headless with all
+                # tools, --force runs them without asking, and --mode plan is the
+                # enforced read-only mode (the help documents it as read-only).
+                # --mode ask is Q&A only and cannot edit, so it is never emitted.
+                $args = @('--print', '--output-format', 'text')
+                if ($ReadOnly) { $args += @('--mode', 'plan') } else { $args += '--force' }
+                $args += @('--trust', '--workspace', $Work)
+                if ($script:CursorAgentModel) { $args += @('--model', $script:CursorAgentModel) }
+                # --force runs every tool call and this host has no agent-profile
+                # denylist, so the child environment repeats the qwen/warp guard:
+                # pushes fail on an unhandled scheme and gh reads an empty config
+                # directory while fetch and local git keep working.
+                $ghDir = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\runtime\coding-agent-dispatch\cursor-peer-gh'
+                New-Item -ItemType Directory -Force -Path $ghDir | Out-Null
+                $guard = @{ GH_CONFIG_DIR = $ghDir; GIT_CONFIG_COUNT = '3' }
+                $schemes = @('https://', 'git@', 'ssh://')
+                for ($i = 0; $i -lt $schemes.Count; $i++) {
+                    $guard["GIT_CONFIG_KEY_$i"] = 'url.agenthub-peer-no-push://blocked/.pushInsteadOf'
+                    $guard["GIT_CONFIG_VALUE_$i"] = $schemes[$i]
+                }
+                @{ Args = $args + $PromptText; Stdin = $null; PromptFile = $null; Env = $guard; IsolatedEnv = $true }
             }
         }
         'grok' = @{
@@ -1027,19 +1082,6 @@ function Resolve-DeclaredExecutable {
     return $null
 }
 
-function Resolve-ZCodeLaunch {
-    param($Agent)
-    if (-not $isWindowsHost -or -not $Agent.nativePaths.bundledRuntime) { return $null }
-    $runtime = Resolve-DeclaredExecutable -Declared ([string]$Agent.nativePaths.bundledRuntime)
-    $node = Resolve-DeclaredExecutable -Declared 'node.exe'
-    if (-not $runtime -or -not $node) { return $null }
-    $resources = Split-Path -Parent (Split-Path -Parent $runtime)
-    $builtin = Join-Path $resources 'config/provider/zcode-builtin.json'
-    $personal = Join-Path (Get-AgentHubDefaultHome) '.zcode/v2/provider_config.json'
-    if (-not (Test-Path -LiteralPath $builtin -PathType Leaf) -or -not (Test-Path -LiteralPath $personal -PathType Leaf)) { return $null }
-    return @{ Node = $node; Runtime = $runtime; Builtin = $builtin; Personal = $personal }
-}
-
 # -Role names a per-host profile. Only the hosts listed here have any.
 $script:DispatchRoles = @('peer', 'engineer', 'reviewer', 'tester', 'researcher')
 $script:RoleHosts = @('opencode', 'factory')
@@ -1095,8 +1137,8 @@ function Get-HostRow {
         }
         return [pscustomobject]@{ Id = $id; State = 'routed'; Detail = $target }
     }
-    if ($id -eq 'zcode' -and -not (Resolve-ZCodeLaunch $Agent)) {
-        return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = 'requires Windows, Node, and the installed ZCode bundle and provider files' }
+    if ($id -eq 'zcode') {
+        return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = $script:ZCodeRefusal }
     }
     if ($table.ContainsKey($id)) {
         $exe = Resolve-DeclaredExecutable -Declared ([string]$Agent.executable)
@@ -1231,8 +1273,8 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
     # can be integrated and supported. -Model is passed through to every host
     # whose CLI takes a model flag; allowedModels records the smoke-verified
     # models and no longer restricts the choice. Only the shape is enforced.
-    if ($requested -notin @('codex', 'grok', 'opencode', 'cline', 'warp', 'factory', 'devin', 'kilo', 'mimo-code', 'qwen')) {
-        Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or to Codex, Grok, OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo or Qwen.'
+    if ($requested -notin @('codex', 'grok', 'opencode', 'cline', 'warp', 'factory', 'devin', 'kilo', 'mimo-code', 'qwen', 'cursor-agent', 'zcode')) {
+        Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or to Codex, Grok, OpenCode, Cline, Warp, Factory, Devin, Kilo, MiMo, Qwen, Cursor Agent or ZCode.'
     }
     $choice = $Model.Trim()
     Assert-DispatchModelId -Id $requested -ModelId $choice
@@ -1248,6 +1290,8 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
         'kilo'      { $script:KiloModel = $choice }
         'mimo-code' { $script:MimoCodeModel = $choice }
         'qwen'      { $script:QwenModel = $choice }
+        'cursor-agent' { $script:CursorAgentModel = $choice }
+        'zcode'     { $script:ZCodeModel = $choice }
         'cline'     {
             $split = $choice.IndexOf(':')
             $script:ClineProvider = $choice.Substring(0, $split)
@@ -1300,8 +1344,7 @@ if ($ReadOnly) {
     }
 }
 $targetAgent = Get-AgentRecord -Agents $agents -Id $targetId
-$executable = if ($targetId -eq 'zcode') { (Resolve-ZCodeLaunch $targetAgent).Node }
-    else { Resolve-DeclaredExecutable -Declared ([string]$targetAgent.executable) }
+$executable = Resolve-DeclaredExecutable -Declared ([string]$targetAgent.executable)
 if (-not $executable) { Write-Refusal 2 "refused ${targetId}: executable is absent" }
 if ($targetId -eq 'opencode' -and $script:OpenCodeModel -like 'zai-coding-plan/*') {
     $zaiLauncher = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\zai\opencode-zai.ps1'
@@ -1446,9 +1489,13 @@ $accountScrub = @{
     'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'warp'         = @('WARP_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'grok'         = @('XAI_API_KEY')
-    'zcode'        = @('ZAI_API_KEY', 'Z_AI_API_KEY', 'BIGMODEL_API_KEY', 'GLM_API_KEY', 'ZCODE_HOME', 'ZCODE_PROVIDER_OPTIONS', 'ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE', 'AGENTHUB_ZCODE_PLAYWRIGHT_ROOT', 'NODE_OPTIONS')
+    # The dispatcher sets the provider config paths itself; ambient variables
+    # must not retarget the config, credentials or data directory.
+    'zcode'        = @('ZAI_API_KEY', 'Z_AI_API_KEY', 'BIGMODEL_API_KEY', 'GLM_API_KEY', 'ZCODE_HOME', 'ZCODE_PROVIDER_OPTIONS', 'ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE', 'ZCODE_BUILTIN_PROVIDER_CONFIG_FILE', 'ZCODE_PERSONAL_PROVIDER_CONFIG_FILE', 'ZCODE_DATA_BASE_DIR', 'ZCODE_CREDENTIALS_FILE', 'AGENTHUB_ZCODE_PLAYWRIGHT_ROOT', 'NODE_OPTIONS')
     'factory'      = @('FACTORY_API_KEY')
-    'cursor-agent' = @('CURSOR_API_KEY')
+    # --force runs every tool call; the GitHub tokens sit behind the same
+    # GIT_CONFIG_*/GH_CONFIG_DIR push guard qwen and warp carry.
+    'cursor-agent' = @('CURSOR_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'amp'          = @('AMP_API_KEY')
     'copilot'      = @('GH_TOKEN', 'GITHUB_TOKEN')
     'opencode'     = @('OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY', 'ZAI_API_KEY', 'Z_AI_API_KEY')
@@ -1478,6 +1525,14 @@ if ($targetId -eq 'copilot') {
     if ($pendoahToken) { $psi.EnvironmentVariables['COPILOT_GITHUB_TOKEN'] = ([string]$pendoahToken).Trim() }
     else { Write-Refusal 3 'copilot: gh has no token for account sh-pendoah; run gh auth login for it.' }
 }
+$runTemp = $null
+if ($built.IsolatedEnv) {
+    $psi.EnvironmentVariables.Clear()
+    $allowed = Get-AllowlistedEnvironment
+    foreach ($name in $allowed.Keys) { $psi.EnvironmentVariables[$name] = $allowed[$name] }
+    $runTemp = Join-Path $runDir ("tmp-{0}-{1}" -f $targetId, ([guid]::NewGuid().ToString('n')))
+    foreach ($name in @('TEMP', 'TMP', 'TMPDIR')) { $psi.EnvironmentVariables[$name] = $runTemp }
+}
 if ($built.Env) {
     foreach ($name in $built.Env.Keys) { $psi.EnvironmentVariables[$name] = [string]$built.Env[$name] }
 }
@@ -1497,6 +1552,7 @@ if ($isBatch) {
 $process = [Diagnostics.Process]::new()
 $process.StartInfo = $psi
 try {
+    if ($runTemp) { New-Item -ItemType Directory -Force -Path $runTemp | Out-Null }
     if ($settingsFile) {
         [IO.File]::WriteAllText($settingsFile, '{"amp.mcpServers":{}}', [Text.UTF8Encoding]::new($false))
     }
@@ -1549,4 +1605,5 @@ try {
         Remove-Item -LiteralPath $settingsFile -Force -ErrorAction SilentlyContinue
     }
     $process.Dispose()
+    Remove-RunTemp -Path $runTemp
 }
