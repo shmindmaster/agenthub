@@ -18,6 +18,8 @@ Capture the state before the action, the actual interaction and its visible resu
 
 For an operator tutorial, start each role at its actual home screen and record the complete route, including necessary clicks and scrolls, on the real product with synthetic records. Show the resulting state and each role handoff; do not jump over prerequisites. Use contextual zoom on the actual UI while preserving orientation, and return to the wider view when navigation requires it. Align narration to the visible action and exact screen label: correct the script or the take if the spoken label differs; use word timings from the accepted audio.
 
+When replacing a redesigned workflow, capture after its target build and synthetic fixture are accepted. Keep superseded takes outside the release inputs. Record the build, role, workspace, viewport and fixture with every new take, and refresh the step map whenever the live route changes.
+
 Use official spoken clips and owner recordings as pronunciation guides. Compare in context, keep an original reading that is close, and repair an uneven reading with the same narrator's natural take or a newly recorded full sentence in the approved voice. Preserve the surrounding cadence and possessive endings. Introduce a different speaker at a deliberate sentence or passage boundary.
 
 ## Lanes

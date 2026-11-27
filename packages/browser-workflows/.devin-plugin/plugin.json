@@ -1,6 +1,6 @@
 {
   "name": "ah-browser-workflows",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Run end-to-end browser workflows for personal productivity, portfolio operations, product testing, structured extraction and recorded demonstrations.",
   "displayName": "AH-Browser Workflows",
   "shortDescription": "Automate and verify browser workflows.",

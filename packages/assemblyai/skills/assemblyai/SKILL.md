@@ -55,6 +55,8 @@ Some hosts also expose an ABACare narration companion. Those tools are not part 
 - On timeout, an unknown status or a lost response, recover the original job id instead of creating a new one: the provider may already have finished and billed it. On a real failure, report the returned error; never auto-retry into a stock voice, a new clone or a consent renewal.
 - Take captions and word timings from the same accepted WAV, by alignment or transcription if the generator returned none. Never resynthesize the script to obtain captions.
 - For operator tutorials, align the accepted WAV to the actual visible screen labels and actions, using timings from that same audio. If speech misnames a control or arrives before its visible state, repair the script, approved take or edit and recheck; captions must reflect what is actually spoken and remain clear of the UI in the intended player.
+
+- Following a UI recapture, compare exact control labels, consequential states and spoken values with the accepted build before approving a new take. Check the final encoded audio and refresh the sidecar SRT on the release clock whenever the audio or edit timing changes.
 - A completed WAV is not a finished reel. Keep the approved source media, inspect pronunciation, pacing and synchronization, review the encoded video, and report actual artifacts and status.
 
 ## Host app boundaries

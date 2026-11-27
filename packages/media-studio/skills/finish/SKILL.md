@@ -16,6 +16,8 @@ Review each complete sentence affected by a name repair in the final video and a
 
 For operator tutorials, have a reviewer unfamiliar with the route follow the encoded candidate from each role home using the documented synthetic starting state. Record timestamps, steps attempted, observed outcomes, handoffs and failures; repair omissions and repeat affected steps. Listen to the final encoded audio and watch it in the intended player with the sidecar captions enabled: check that spoken labels match visible controls when named, actions and results are in sync, and captions do not cover the controls or results. Report the player, direct listening, follow-along outcome and any unverified step; automated checks alone cannot establish this result.
 
+For recapture jobs, match the encoded film and caption pair to the accepted build and the reviewed take list. Replace the released MP4 and sidecar SRT together after reviewing both, then read back both files. If the release changes an action, label, permission or outcome after capture, reopen the affected acceptance check before publishing.
+
 Run `scripts/validate-finished-film.mjs` on every encoded candidate (open, gaps, silence, ending, aspect) and walk the human checklist in [gates](references/gates.md) for what it cannot read. When `story/requirements.json` exists, then run `check_requirements.py <jobRoot> --candidate out/<file>`; a requirement with no `match` term needs a timecoded item in `qa/requirements-review.json`.
 
 Read when assembling: [compose](references/compose.md), [render lanes](references/render-lanes.md), [loudness](references/loudness.md), [library](references/library.md), [compose detail](references/compose-detail.md).

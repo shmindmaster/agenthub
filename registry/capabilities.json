@@ -502,7 +502,7 @@
         "browser-operate",
         "browser-verify"
       ],
-      "contentHash": "9548CBD72CB923E299722FCAE6B84BFD7E662F919E7B85259C966923C38ADD6F",
+      "contentHash": "7072ABFF0681B4679FEACFED0649BAB665883BBE9634E607D056D8E2843738CC",
       "hashBasis": "packages/browser-workflows",
       "status": "active-canonical",
       "hostMappings": [
@@ -869,7 +869,7 @@
         "produce",
         "finish"
       ],
-      "contentHash": "2BEF3070CC04EE8D7D51AE7ADB89408FF809BDCA92F835577FFAF14AA356206E",
+      "contentHash": "FA2DFB83CAE0A6827789C3BFA6A58F90A70D11F5A290BA92802A6201ED867470",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1139,7 +1139,7 @@
       "managedSkillNames": [
         "assemblyai"
       ],
-      "contentHash": "99F912C7293FE5B83327B18B7D862300F6A411241F8FDEADF25955158DFA63C7",
+      "contentHash": "80416B20B42CE14DB394805000310E780C03E74F937EC82AAB8C9D3A8DD610D5",
       "hashBasis": "packages/assemblyai",
       "status": "active-canonical",
       "hostMappings": [

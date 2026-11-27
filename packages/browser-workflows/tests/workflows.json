@@ -81,6 +81,7 @@
       ]
     },
     {
+      "id": "operator-walkthrough",
       "skill": "browser-operate",
       "kind": "workflow",
       "input": "Teach a synthetic multi-role workflow to a new operator.",
@@ -94,6 +95,7 @@
       ]
     },
     {
+      "id": "operator-walkthrough-replay",
       "skill": "browser-verify",
       "kind": "workflow",
       "input": "Independently follow the operator instructions for each role.",
