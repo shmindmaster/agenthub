@@ -1257,55 +1257,6 @@
         ]
       },
       {
-        "extensionId": "do-app-platform-skills",
-        "kind": "skills-package",
-        "provenance": "official-upstream",
-        "maturity": "stable",
-        "upstream": "https://github.com/digitalocean-labs/do-app-platform-skills",
-        "maintainer": "DigitalOcean",
-        "license": "MIT",
-        "install": {
-          "command": "npx skills add digitalocean-labs/do-app-platform-skills",
-          "docs": "https://github.com/digitalocean-labs/do-app-platform-skills"
-        },
-        "provides": [
-          "cloud.app-platform-design"
-        ],
-        "required": false,
-        "note": "Official App Platform design/migration/networking skills, owned by DigitalOcean upstream. The former AgentHub packages/digitalocean overlay was retired; do not recreate it or republish this catalog. Use the product's authorized release runbook and doctl for deployment operations. Provider selection belongs to the applicable operator policy, not this extension inventory; see docs/runbooks/hosting-routing.md.",
-        "observedAt": "2026-08-24",
-        "hostChannels": [
-          {
-            "hostId": "claude",
-            "channel": "upstream-skills",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add digitalocean-labs/do-app-platform-skills"
-          },
-          {
-            "hostId": "codex",
-            "channel": "upstream-skills",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add digitalocean-labs/do-app-platform-skills"
-          },
-          {
-            "hostId": "cursor",
-            "channel": "upstream-skills",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add digitalocean-labs/do-app-platform-skills"
-          },
-          {
-            "hostId": "cline",
-            "channel": null,
-            "installedVersion": null,
-            "current": false,
-            "note": "No verified Cline-native DigitalOcean App Platform skills channel."
-          }
-        ]
-      },
-      {
         "extensionId": "daytona",
         "kind": "skills-package",
         "provenance": "official-upstream",
