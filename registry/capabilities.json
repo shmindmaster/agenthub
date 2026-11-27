@@ -502,7 +502,7 @@
         "browser-operate",
         "browser-verify"
       ],
-      "contentHash": "99D8BA0AA468511B7A017C0A13F7D9C7B00F9AEE1FD7A97D34FDF972C1D8DA38",
+      "contentHash": "57B707BA51DAFAC74C72EDBE680CC5EE40BA7881EEA4C6E495F0FB181A7E8ED8",
       "hashBasis": "packages/browser-workflows",
       "status": "active-canonical",
       "hostMappings": [
@@ -869,7 +869,7 @@
         "produce",
         "finish"
       ],
-      "contentHash": "FA2DFB83CAE0A6827789C3BFA6A58F90A70D11F5A290BA92802A6201ED867470",
+      "contentHash": "BA8764435A31C74708C082C1069422187469CEEE203B6F1E0B26DA65B131E0E0",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [

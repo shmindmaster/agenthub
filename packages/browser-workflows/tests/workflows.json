@@ -71,7 +71,7 @@
       "expected": "check persisted state",
       "evidence": [
         "check persisted state",
-        "on handoff inspect the changed screen"
+        "On handoff inspect the changed screen"
       ]
     },
     {

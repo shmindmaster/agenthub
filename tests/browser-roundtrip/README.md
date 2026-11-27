@@ -1,13 +1,12 @@
 # Browser workflow round-trip
 
-This opt-in test runs a synthetic file-intake site on loopback. Use Python 3, Tencent BrowserSkill on the controlling host, a connected Chrome profile, and PyAV and Pillow for media verification. The scripts use normal Python with assertions enabled. Start a fresh evidence directory for each acceptance campaign. No real accounts, form data, or uploads are required.
+This opt-in test runs a synthetic file-intake site on loopback. Use Node.js, Python 3, Tencent BrowserSkill on the controlling host, the configured Browser Workflows automation profile, and PyAV and Pillow for media verification. The scripts use normal Python with assertions enabled. Start a fresh evidence directory for each acceptance campaign. No real accounts, form data, or uploads are required.
 
 In PowerShell, from the AgentHub checkout:
 
 ```powershell
 $env:AGENTHUB_BROWSER_TEST_DIR = Join-Path ([IO.Path]::GetTempPath()) ("agenthub-browser-" + [guid]::NewGuid())
 bsk browsers --json
-$env:BSK_TEST_BROWSER = '<selected instance ID>'
 python tests/browser-roundtrip/server.py
 ```
 

@@ -2,7 +2,7 @@
 
 Run end-to-end browser workflows for personal productivity, portfolio operations, product testing, structured extraction and recorded demonstrations.
 
-The four skills use Tencent BrowserSkill through the host shell. Install the upstream CLI and matching browser extension on the controlling host, connect the intended Chromium profile, and verify it with bsk doctor and bsk browsers --json. CLI access avoids starting a browser server for every agent conversation. Hosts that explicitly prefer MCP may run bsk mcp over stdio with BSK_RECIPES=1 for recipes. Remote agents need their own authorized browser connection or a paired controller.
+The four skills use Tencent BrowserSkill through the host shell. Install the upstream CLI and matching browser extension on the controlling host, connect the intended Chromium profile, and verify it with bsk doctor and bsk browsers --json. CLI access avoids starting a browser server for every agent conversation. All AgentHub BrowserSkill workflows start through the packaged launcher. Standalone MCP, upstream auto-start shortcuts and loose upstream skills are outside this route. Remote agents need their own authorized browser connection or a paired controller.
 
 ## Background work
 

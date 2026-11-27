@@ -17,6 +17,9 @@ function browserSkill(args) {
 }
 
 try {
+  if (profile.toLowerCase() === 'personal') {
+    throw new Error('The Personal browser profile is reserved for interactive use.');
+  }
   const matches = browserSkill(['browsers', '--json']).filter(browser =>
     browser.label === profile && browser.browser_name === engine &&
     !browser.unresponsive && !browser.version_skew);
@@ -25,7 +28,8 @@ try {
   }
 
   const result = browserSkill([
-    'session', 'start', '--browser', matches[0].instance_id, '--no-focus', '--json',
+    'session', 'start', '--browser', matches[0].instance_id, '--no-focus',
+    '--agent-name', 'AgentHub', '--project', 'Browser Workflows', '--json',
   ]);
   process.stdout.write(`${JSON.stringify(result)}\n`);
 } catch (error) {

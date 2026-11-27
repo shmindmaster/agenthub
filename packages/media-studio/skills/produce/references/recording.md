@@ -2,7 +2,7 @@
 
 ## BrowserSkill supplementary capture
 
-When AH Browser selects Tencent BrowserSkill for an authorized signed-in profile, capture an explicitly selected task tab with the vendor video workflow. Stop and export it to the media job, then verify playback and visually review visible data. Record the URL or scenario, exact product revision, viewport, role and observed result with the asset. BrowserSkill exports silent MP4; it supplies no Media Studio pointer action clock. Use the timed AH Browser or scene recorder for footage governed by the pointer path gate.
+When the approved automation profile requires Tencent BrowserSkill, start through the Browser Workflows launcher and keep its returned session ID. Capture an explicitly selected task tab in that session. For ordinary capture use the isolated cursor recorder. Stop and export it to the media job, then verify playback and visually review visible data. Record the URL or scenario, exact product revision, viewport, role and observed result with the asset. BrowserSkill exports silent MP4; it supplies no Media Studio pointer action clock. Use the timed AH Browser or scene recorder for footage governed by the pointer path gate.
 
 ## Scenes module
 

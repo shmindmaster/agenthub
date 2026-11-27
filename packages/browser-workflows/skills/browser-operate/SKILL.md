@@ -3,7 +3,7 @@ name: browser-operate
 description: Use when the task requires an agent to operate browser workflows across personal productivity, business portals, and portfolio applications.
 ---
 
-Choose the account/profile for this task. Run `node scripts/start-session.mjs` relative to this skill directory. It selects the configured automation profile (Edge Automation by default) explicitly and starts an Agent Window with `--no-focus`. If the profile is missing or ambiguous, stop and report it. Never fall back to the only connected personal browser. Use this launcher even when MCP is available.
+Choose the account/profile for this task. Run `node scripts/start-session.mjs` relative to this skill directory. It selects the configured automation profile (Edge Automation by default) explicitly and starts an Agent Window with `--no-focus`. If the profile is missing or ambiguous, stop and report it. Never fall back to the only connected personal browser. Use this launcher for CLI, capture, recipe and verification tasks. Do not start through raw MCP, `bsk open`, an implicit session, or a direct `bsk session start`.
 
 Keep the returned session ID on every command. Give each concurrent task its own session and tabs. Sessions in one profile share website sign-in state. For different accounts on the same site, use different approved profiles or isolated browser contexts. End only your session, including on failure. Never use a global session stop or restart a shared daemon as task cleanup.
 
