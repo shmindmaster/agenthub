@@ -502,7 +502,7 @@
         "browser-operate",
         "browser-verify"
       ],
-      "contentHash": "A4EF38ED2AA871BF5BE76FFE1D275903839245395658964D35B9AA6FDD5D333F",
+      "contentHash": "99D8BA0AA468511B7A017C0A13F7D9C7B00F9AEE1FD7A97D34FDF972C1D8DA38",
       "hashBasis": "packages/browser-workflows",
       "status": "active-canonical",
       "hostMappings": [
