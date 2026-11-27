@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "ah-browser-workflows",
   "displayName": "AH-Browser Workflows",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Run end-to-end browser workflows for personal productivity, portfolio operations, product testing, structured extraction and recorded demonstrations.",
   "suggestedPrompts": [
     "Reconcile this portal report with its source rows.",
