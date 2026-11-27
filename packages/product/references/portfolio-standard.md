@@ -63,3 +63,15 @@ Record meaningful remediation as Linear issues with implementation detail, depen
 We build real, differentiated, production-grade products, not collections of demos. Demo tenants, synthetic data, walkthroughs and videos show real capability. Architecture supports real customers from the start without paying for infrastructure sized for thousands of customers we do not have yet.
 
 Optimise for: production readiness, exceptional UX, durable data, secure architecture, operational simplicity, efficient scaling and product differentiation.
+## 12. GitHub repository portfolio ceiling
+
+Owner direction, 27 November 2026 (portfolio compliance mission).
+
+- Keep **no more than 20** GitHub repositories owned by `shmindmaster`, counting public, private, archived and forked repositories. Twenty is a ceiling; retain fewer when justified.
+- Keep standalone repositories for meaningful software with continuing product, operational, reusable engineering or maintained open-source value.
+- Remove standalone non-code collections, completed one-time work, redundant projects and low-value experiments after preserving what matters (mirrors/bundles + consolidation into a suitable existing repository).
+- Prefer short, lowercase, recognizable names. Prefer consolidation into a suitable existing repository. Do not combine unrelated products or move private code into a public repository.
+- Archiving does not reduce the count. Do not hide repositories, change visibility or transfer them merely to disguise noncompliance.
+- Create no new repositories while the account is over the limit. Thereafter, check the count and the need for a standalone repository before every creation.
+- The authoritative machine-readable roster is `registry/repo-standard.json`. Historical roster entries must not recreate retired repositories.
+
