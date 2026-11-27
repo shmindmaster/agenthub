@@ -22,6 +22,7 @@ _PUBLIC_PACKAGES = {
     "ah-media-studio": "packages/media-studio",
     "ah-assemblyai": "packages/assemblyai",
     "ah-coding-agent-dispatch": "packages/coding-agent-dispatch",
+    "ah-browser-workflows": "packages/browser-workflows",
     "ah-funding": "packages/funding",
 }
 _PRIVATE_PACKAGES = ("ah-sarosh", "ah-docwise")
