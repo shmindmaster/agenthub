@@ -43,7 +43,7 @@
     },
     {
       "name": "ah-browser-workflows",
-      "displayName": "AH Browser Workflows",
+      "displayName": "AH-Browser Workflows",
       "source": "./packages/browser-workflows"
     }
   ]

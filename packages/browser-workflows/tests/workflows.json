@@ -1,0 +1,84 @@
+{
+  "scenarios": [
+    {
+      "skill": "browser-operate",
+      "kind": "workflow",
+      "input": "Prepare a portal request",
+      "expected": "Verify the sent item",
+      "evidence": [
+        "Verify the sent item",
+        "Choose the account/profile"
+      ]
+    },
+    {
+      "skill": "browser-operate",
+      "kind": "recovery",
+      "input": "The portal shows a different account",
+      "expected": "stop before entering or submitting data",
+      "evidence": [
+        "stop before entering or submitting data",
+        "Compare the visible signed-in account"
+      ]
+    },
+    {
+      "skill": "browser-extract",
+      "kind": "workflow",
+      "input": "Reconcile this portal table",
+      "expected": "Record each page deliberately",
+      "evidence": [
+        "Record each page deliberately",
+        "Check coverage"
+      ]
+    },
+    {
+      "skill": "browser-extract",
+      "kind": "recovery",
+      "input": "The list is virtualized",
+      "expected": "deduplicate by stable record ID",
+      "evidence": [
+        "deduplicate by stable record ID",
+        "before calling a result complete"
+      ]
+    },
+    {
+      "skill": "browser-verify",
+      "kind": "workflow",
+      "input": "Check that a correction persists",
+      "expected": "reopen the same record",
+      "evidence": [
+        "reopen the same record",
+        "Record app revision"
+      ]
+    },
+    {
+      "skill": "browser-verify",
+      "kind": "recovery",
+      "input": "The save result is ambiguous",
+      "expected": "check persisted state",
+      "evidence": [
+        "check persisted state",
+        "on handoff inspect the changed screen"
+      ]
+    },
+    {
+      "skill": "browser-capture",
+      "kind": "workflow",
+      "input": "Capture the corrected record",
+      "expected": "verify the export",
+      "evidence": [
+        "verify the export",
+        "Inspect a screenshot"
+      ]
+    },
+    {
+      "skill": "browser-capture",
+      "kind": "recovery",
+      "input": "The exported cursor is hard to see",
+      "expected": "compare against the existing cursor-enhanced recorder",
+      "evidence": [
+        "compare against the existing cursor-enhanced recorder",
+        "pointer motion matters"
+      ]
+    }
+  ]
+}
