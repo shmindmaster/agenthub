@@ -162,14 +162,11 @@ can also use the Anthropic or OpenAI compatible endpoint documented for the
 plan. Keep native Claude and Codex logins on Windows. Grok uses its native
 account login. On Windows, select the Z.ai Coding Plan with
 `-HostId opencode -Model zai-coding-plan/glm-5.4`; this route supports
-workspace edits and Z.ai MCPs, with shell tools disabled. Use
-`codex --profile qwen` with the user environment reference for the Qwen Token
-Plan. The Token Plan model ids that dispatch accepts for opencode, kilo and
+workspace edits and Z.ai MCPs, with shell tools disabled. The plan model ids that dispatch accepts for opencode, kilo and
 factory are in `skills/dispatch/references/hosts.md` -> Plan routes.
 
-The official [Z.ai Cursor guide](https://docs.z.ai/devpack/tool/cursor) and
-[Qwen Cursor guide](https://docs.qwencloud.com/developer-guides/clients-and-developer-tools/cursor)
-describe Cursor editor model settings for vendor-compatible endpoints. Cursor
+The official [Z.ai Cursor guide](https://docs.z.ai/devpack/tool/cursor)
+describes Cursor editor model settings for vendor-compatible endpoints. Cursor
 CLI does not consume those editor settings and instead requires Cursor
 credentials through its [native CLI authentication](https://cursor.com/docs/cli/reference/authentication).
 

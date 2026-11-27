@@ -375,7 +375,7 @@ function Test-LiveHostAuthenticationMetadata {
     foreach ($violation in @(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy)) { $violations.Add($violation) }
     $openCode = $profile.dispatchPolicy.opencode
     # 2026-11-14 (SH-4674): hostSettings.opencode.model/smallModel are the plan-based host defaults
-    # deployed into opencode.json (qwen-token-plan), while the unattended dispatcher default in
+    # deployed into opencode.json (zai-glm-plan), while the unattended dispatcher default in
     # dispatchPolicy.opencode.model stays the OpenCode Go subscription. The two are deliberately not
     # equal anymore; both must remain smoke-verified allowedModels entries and never opencode/
     # (Zen wallet) pay-as-you-go ids.
@@ -415,9 +415,9 @@ function Test-LiveHostAuthenticationMetadata {
         $violations.Add('Devin dispatch must stay local-only on its account login, with a free SWE-2 default inside allowedModels, no Lightning tier, and a scope that sends cloud work to devin-cloud')
     }
     if ($profile.hostSettings.cline.authMode -ne 'apiKey' -or
-        $profile.hostSettings.cline.provider -ne 'openai-compatible' -or
-        $profile.hostSettings.cline.model -ne 'qwen3.8-max-0902') {
-        $violations.Add('Cline must retain the owner-authorized Alibaba Coding Plan provider settings')
+        $profile.hostSettings.cline.provider -ne 'zai-glm-54' -or
+        $profile.hostSettings.cline.model -ne 'glm-5.4') {
+        $violations.Add('Cline must retain the Z.ai GLM Coding Plan provider settings')
     }
     # Every model on provider 'cline' except ':free' ids bills usage credit, and
     # the default dispatch model must itself be in the recorded list. The list
