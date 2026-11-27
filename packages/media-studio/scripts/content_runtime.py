@@ -68,7 +68,7 @@ def default_root() -> pathlib.Path:
 
 
 def canonical_default_root(root: pathlib.Path) -> pathlib.Path:
-    """Follow an OS runtime relocation only to an intact existing ledger.
+    """Follow an OS runtime relocation to an intact or genuinely fresh ledger.
 
     Explicit caller-supplied roots still reject links in secure_directory. A
     relocated default must never silently create a fresh accounting database or
@@ -78,9 +78,10 @@ def canonical_default_root(root: pathlib.Path) -> pathlib.Path:
     if not any(linked_path(path) for path in (root, *root.parents)):
         return root
     target = root.resolve()
-    if (not (target / "ledger.sqlite3").is_file()
-            or not (target / "namespace-salt").is_file()
-            or (target / "namespace-salt").stat().st_size != 32):
+    ledger, salt = target / "ledger.sqlite3", target / "namespace-salt"
+    if linked_path(ledger) or linked_path(salt) or (
+            (ledger.exists() or salt.exists())
+            and (not ledger.is_file() or not salt.is_file() or salt.stat().st_size != 32)):
         raise RuntimeError("Relocated content ledger is incomplete; restore the original "
                            "ledger.sqlite3 and namespace-salt together before paid submissions")
     # Check the resolved target with the normal local-disk and link safeguards.
@@ -637,6 +638,9 @@ class Ledger:
                     receipt TEXT, gates TEXT NOT NULL, acceptance TEXT,
                     PRIMARY KEY(namespace,key), FOREIGN KEY(bucket) REFERENCES budgets(bucket));
             """)
+        # A fresh runtime is complete before configure/status can use it. Exclusive
+        # creation keeps concurrent initializers on the first salt, never a replacement.
+        self._namespace_salt()
 
     @contextlib.contextmanager
     def connect(self, write=False):
@@ -657,11 +661,11 @@ class Ledger:
         finally:
             con.close()
 
-    def namespace(self, credential: str, workspace: str) -> str:
-        if not credential or not workspace:
-            raise RuntimeError("Explicit credential and authorized cache workspace required")
+    def _namespace_salt(self):
         # Hash with a local random salt. Never store keys, raw prompts or account responses.
         salt_path = self.root / "namespace-salt"
+        if linked_path(salt_path):
+            raise RuntimeError("Linked namespace salt refused")
         try:
             with salt_path.open("xb") as handle:
                 handle.write(os.urandom(32))
@@ -669,10 +673,18 @@ class Ledger:
                 os.fsync(handle.fileno())
         except FileExistsError:
             pass
+        if linked_path(salt_path):
+            raise RuntimeError("Linked namespace salt refused")
         salt = salt_path.read_bytes()
         if len(salt) != 32:
             raise RuntimeError("Namespace initialization incomplete; retry without provider submission")
-        return hmac.new(salt, (credential + "\0" + workspace).encode(), hashlib.sha256).hexdigest()
+        return salt
+
+    def namespace(self, credential: str, workspace: str) -> str:
+        if not credential or not workspace:
+            raise RuntimeError("Explicit credential and authorized cache workspace required")
+        return hmac.new(self._namespace_salt(), (credential + "\0" + workspace).encode(),
+                        hashlib.sha256).hexdigest()
 
     @staticmethod
     def committed(con, bucket):
