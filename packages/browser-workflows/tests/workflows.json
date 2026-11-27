@@ -79,6 +79,33 @@
         "compare against the existing cursor-enhanced recorder",
         "pointer motion matters"
       ]
+    },
+    {
+      "id": "operator-walkthrough",
+      "skill": "browser-operate",
+      "kind": "workflow",
+      "input": "Teach a synthetic multi-role workflow to a new operator.",
+      "expected": "Start each role at its real home and visibly enact every UI step; independently replay the instructions in a fresh role session.",
+      "evidence": [
+        "role's real post-login home",
+        "Do not use a deep link",
+        "open menus, choose options, scroll to controls",
+        "full-viewport frame before the highlight and another full-viewport frame with the highlight",
+        "independent fresh role session"
+      ]
+    },
+    {
+      "id": "operator-walkthrough-replay",
+      "skill": "browser-verify",
+      "kind": "workflow",
+      "input": "Independently follow the operator instructions for each role.",
+      "expected": "Record instruction-to-screen/action-to-result coverage and replay after fixing gaps.",
+      "evidence": [
+        "actual post-login home",
+        "fresh role session without direct links",
+        "full-viewport frame before and after its highlight",
+        "correct the walkthrough and replay the affected path"
+      ]
     }
   ]
 }
