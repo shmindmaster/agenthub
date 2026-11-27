@@ -130,20 +130,60 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(salt.read_bytes(), b"s" * 32)
         self.assertEqual(Ledger(self.root).status()["budgets"][0]["committed"], 4)
 
-    def test_default_relocation_refuses_missing_or_partial_accounting(self):
+    def test_default_relocation_initializes_genuinely_fresh_accounting(self):
+        target = self.root / "fresh-relocated"
+        local = self.root / "local"
+        alias = local / "AgentHub/runtime/content-controls"
+        self.assertFalse(target.exists())
+        with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
+                patch("content_runtime.running_on_windows", return_value=True), \
+                patch("content_runtime.linked_path", side_effect=lambda path: path == alias), \
+                patch.object(pathlib.Path, "resolve", return_value=target):
+            ledger = Ledger()
+        self.assertEqual(ledger.root, target)
+        ledger.configure("fixture/credits", 10)
+        salt_path = target / "namespace-salt"
+        original_salt = salt_path.read_bytes()
+        self.assertTrue((target / "ledger.sqlite3").is_file())
+        self.assertEqual(len(original_salt), 32)
+        namespace = ledger.namespace("synthetic-credential", "fixture")
+        self.assertEqual(Ledger(target).namespace("synthetic-credential", "fixture"), namespace)
+        self.assertEqual(salt_path.read_bytes(), original_salt)
+
+    def test_default_relocation_refuses_partial_or_corrupt_accounting(self):
+        only_ledger = Ledger(self.root / "only-ledger")
+        (only_ledger.root / "namespace-salt").unlink()
+        only_salt = self.root / "only-salt"
+        only_salt.mkdir()
+        (only_salt / "namespace-salt").write_bytes(b"s" * 32)
+        bad_salt = Ledger(self.root / "bad-salt")
+        (bad_salt.root / "namespace-salt").write_bytes(b"partial")
+        linked_salt = Ledger(self.root / "linked-salt")
+        linked_salt_path = linked_salt.root / "namespace-salt"
+        linked_salt_path.write_bytes(b"l" * 32)
+
         alias = self.root.parent / (self.root.name + "-alias")
-        absent = self.root / "absent-ledger"
-        for target in (absent, self.root):
-            with patch("content_runtime.linked_path", side_effect=lambda path: path == alias), \
+        for target in (only_ledger.root, only_salt, bad_salt.root):
+            with self.subTest(target=target.name), \
+                    patch("content_runtime.linked_path", side_effect=lambda path: path == alias), \
                     patch.object(pathlib.Path, "resolve", return_value=target):
                 with self.assertRaisesRegex(RuntimeError, "restore the original"):
                     canonical_default_root(alias)
-        self.assertFalse(absent.exists())
-        (self.root / "namespace-salt").write_bytes(b"partial")
-        with patch("content_runtime.linked_path", side_effect=lambda path: path == alias), \
-                patch.object(pathlib.Path, "resolve", return_value=self.root):
+        self.assertFalse((only_ledger.root / "namespace-salt").exists())
+        self.assertFalse((only_salt / "ledger.sqlite3").exists())
+        self.assertEqual((bad_salt.root / "namespace-salt").read_bytes(), b"partial")
+
+        # Simulate a link to a readable, valid-length target without requiring
+        # platform-specific symlink privileges. Neither route may read that target.
+        with patch("content_runtime.linked_path", side_effect=lambda path: path in (alias, linked_salt_path)), \
+                patch.object(pathlib.Path, "resolve", return_value=linked_salt.root):
             with self.assertRaisesRegex(RuntimeError, "restore the original"):
                 canonical_default_root(alias)
+        with patch("content_runtime.linked_path", side_effect=lambda path: path == linked_salt_path), \
+                patch.object(pathlib.Path, "read_bytes", side_effect=AssertionError("linked salt was read")):
+            with self.assertRaisesRegex(RuntimeError, "Linked namespace salt"):
+                Ledger(linked_salt.root)
+        self.assertEqual(linked_salt_path.read_bytes(), b"l" * 32)
 
     def test_recovery_epoch_preserves_cap_and_fences_other_text(self):
         text = "New synthetic sentence."

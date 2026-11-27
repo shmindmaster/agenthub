@@ -88,7 +88,7 @@ Sfx takes `--prompt` with optional `--duration-seconds` (0.5–30), `--prompt-in
 
 ## Blocked or failed call
 
-Stop and report the stage and `cache_key`. A failure, including HTTP 429, keeps the full reservation and fences that request. Do not retry, change `--revision`, edit the database, or switch provider. The one release is `content_control.py release-prepared` for an expired reservation that never submitted. `generate_manual_retake` allows two owner-granted Azure replacements. Missing `ledger.sqlite3` or `namespace-salt`: restore both together, never start fresh. A recovery epoch needs an owner manifest (`_epoch_policy` in `governed_deepgram.py`).
+Stop and report the stage and `cache_key`. A failure, including HTTP 429, keeps the full reservation and fences that request. Do not retry, change `--revision`, edit the database, or switch provider. The one release is `content_control.py release-prepared` for an expired reservation that never submitted. `generate_manual_retake` allows two owner-granted Azure replacements. On a genuinely fresh runtime, normal initialization creates both `ledger.sqlite3` and a 32-byte `namespace-salt`; a relocated default may initialize only when both are absent. If either is present without the other, or the salt is not 32 bytes, restore the original pair together, never start fresh. A recovery epoch needs an owner manifest (`_epoch_policy` in `governed_deepgram.py`).
 
 ## Accept
 

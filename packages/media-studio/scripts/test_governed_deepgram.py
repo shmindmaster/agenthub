@@ -79,10 +79,7 @@ class AdapterTests(unittest.TestCase):
             adapter.existing_ledger(absent)
         self.assertFalse(absent.exists())
         ledger = self.runtime.Ledger(self.root / "unbudgeted")
-        with self.assertRaises(RuntimeError):
-            adapter.existing_ledger(ledger.root)
-        self.assertFalse((ledger.root / "namespace-salt").exists())
-        ledger.namespace("fake", "test")
+        self.assertEqual((ledger.root / "namespace-salt").stat().st_size, 32)
         with self.assertRaises(RuntimeError):
             adapter.existing_ledger(ledger.root)
         ledger.configure(adapter.BUCKET, 10000)
@@ -90,6 +87,16 @@ class AdapterTests(unittest.TestCase):
         (ledger.root / "namespace-salt").write_bytes(b"bad")
         with self.assertRaises(RuntimeError):
             adapter.existing_ledger(ledger.root)
+
+    def test_fresh_configure_is_immediately_budget_readable(self):
+        root = self.root / "fresh-relocated-ledger"
+        ledger = self.runtime.Ledger(root)
+        ledger.configure(adapter.BUCKET, 10_000_000)
+        self.assertTrue((root / "ledger.sqlite3").is_file())
+        self.assertEqual((root / "namespace-salt").stat().st_size, 32)
+        with adapter.read_existing_budget(root) as (path, available):
+            self.assertEqual(path, root)
+            self.assertEqual(available, 10_000_000)
 
     def test_quote_keys_and_conservative_unicode_reservation(self):
         p = plan("é")
