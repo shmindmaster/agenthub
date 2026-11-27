@@ -1,0 +1,24 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ah-browser-workflows",
+  "displayName": "AH-Browser Workflows",
+  "version": "1.0.0",
+  "description": "Run end-to-end browser workflows for personal productivity, portfolio operations, product testing, structured extraction and recorded demonstrations.",
+  "suggestedPrompts": [
+    "Reconcile this portal report with its source rows.",
+    "Test a role handoff and verify the saved result.",
+    "Capture a narrated walkthrough from a synthetic workflow."
+  ],
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "browser",
+    "automation",
+    "testing",
+    "productivity",
+    "recording"
+  ],
+  "logo": "assets/icon.svg"
+}

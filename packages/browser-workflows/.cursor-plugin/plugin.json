@@ -1,0 +1,19 @@
+{
+  "name": "ah-browser-workflows",
+  "displayName": "AH-Browser Workflows",
+  "description": "Run end-to-end browser workflows for personal productivity, portfolio operations, product testing, structured extraction and recorded demonstrations.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "browser",
+    "automation",
+    "testing",
+    "productivity",
+    "recording"
+  ],
+  "skills": "./skills/",
+  "version": "1.0.0",
+  "logo": "assets/icon.svg"
+}

@@ -492,6 +492,132 @@
   ],
   "capabilities": [
     {
+      "id": "browser-workflows",
+      "owner": "packages/browser-workflows",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/browser-workflows",
+      "managedSkillNames": [
+        "browser-capture",
+        "browser-extract",
+        "browser-operate",
+        "browser-verify"
+      ],
+      "contentHash": "DA098921FA2C8E4FA4A372BD9438A3A24821C715A48603BA902B25DCCD64343B",
+      "hashBasis": "packages/browser-workflows",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-plugin-installed",
+          "nativeOwnerHost": "claude",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "native-extension-junction",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "kilo",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "mimo-code",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        }
+      ],
+      "hostMappingsNote": "Host mappings describe packaging routes. Each controller requires a compatible CLI and connected browser.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": []
+      },
+      "notes": "On-demand browser automation, personal productivity, data extraction, portfolio QA and capture through BrowserSkill CLI.",
+      "kind": "workflow",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
+    },
+    {
       "id": "product",
       "owner": "handoff",
       "capabilityType": "plugin+skills",

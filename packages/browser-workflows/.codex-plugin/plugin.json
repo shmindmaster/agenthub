@@ -1,0 +1,37 @@
+{
+  "name": "ah-browser-workflows",
+  "version": "1.0.0",
+  "description": "Run end-to-end browser workflows for personal productivity, portfolio operations, product testing, structured extraction and recorded demonstrations.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "MIT",
+  "keywords": [
+    "browser",
+    "automation",
+    "testing",
+    "productivity",
+    "recording"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AH-Browser Workflows",
+    "shortDescription": "Automate and verify browser workflows.",
+    "longDescription": "Run end-to-end browser workflows for personal productivity, portfolio operations, product testing, structured extraction and recorded demonstrations.",
+    "developerName": "MahumTech",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Reconcile this portal report with its source rows.",
+      "Test a role handoff and verify the saved result.",
+      "Capture a narrated walkthrough from a synthetic workflow."
+    ],
+    "brandColor": "#2E5F9D",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
+  }
+}
