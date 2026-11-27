@@ -227,14 +227,13 @@ if ($Auth) {
         grok = 'grok login'
         codex = 'codex login; check with codex login status'
         claude = 'claude auth login; check with claude auth status'
-        qwen = 'qwen; run /auth and choose QwenCloud Token Plan'
+        qwen = 'qwen; dispatch passes the MiMo Token Plan from the MIMO_* variables'
         mimo = 'mimo providers; select the MiMo Token Plan'
         zcode = 'In ZCode Desktop, use Connect to sign in to the intended Z.ai Coding Plan and select its model.'
         cline = 'cline auth'
         opencode = 'opencode; run /connect and choose the intended provider'
         'opencode-zai' = 'Use -HostId opencode -Model zai-coding-plan/glm-5.4; the Windows launcher reads ZAI_CODING_PLAN_API_KEY.'
         github = 'gh auth status; gh auth login if needed'
-        'codex-qwen' = 'codex --profile qwen; uses QWEN_TOKEN_PLAN_API_KEY'
     }
     if ($HostId -and -not $authCommands.Contains($HostId)) {
         Write-Refusal 3 'No sign-in command recorded for this host. Run -Auth to list supported entries.'

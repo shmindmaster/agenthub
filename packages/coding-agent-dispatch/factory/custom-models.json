@@ -46,42 +46,6 @@
       "enableThinking": true
     },
     {
-      "model": "qwen4-max",
-      "displayName": "Qwen4 Max [Qwen Token Plan]",
-      "maxOutputTokens": 262144,
-      "maxContextLimit": 1000000,
-      "noImageSupport": false,
-      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
-      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
-      "provider": "generic-chat-completion-api",
-      "reasoningEffort": "high"
-    },
-    {
-      "model": "qwen3.8-max-tp",
-      "displayName": "Qwen3.8 Max [Qwen Token Plan]",
-      "maxOutputTokens": 131072,
-      "maxContextLimit": 1000000,
-      "noImageSupport": false,
-      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
-      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
-      "provider": "generic-chat-completion-api",
-      "reasoningEffort": "medium",
-      "extraArgs": {
-        "model": "qwen3.8-max"
-      }
-    },
-    {
-      "model": "qwen3.8-flash",
-      "displayName": "Qwen3.8 Flash [Qwen Token Plan]",
-      "maxOutputTokens": 131072,
-      "maxContextLimit": 1000000,
-      "noImageSupport": false,
-      "baseUrl": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
-      "apiKey": "${QWEN_TOKEN_PLAN_API_KEY}",
-      "provider": "generic-chat-completion-api",
-      "reasoningEffort": "medium"
-    },
-    {
       "model": "go-glm-5.3",
       "displayName": "GLM 5.3 [OpenCode Go]",
       "maxOutputTokens": 131072,

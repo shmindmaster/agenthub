@@ -112,7 +112,7 @@ pwsh -NoProfile -File .\scripts\Sync-InferenceProviders.ps1 -Apply
 
 ### Selecting Daytona Models (Opt-In)
 
-- **OpenCode:** `opencode run --model agenthub-daytona/qwen3.8-27b-unc-q8#everyday ...` (uses `{file:.../secrets/inference.key}` when present; defaults `qwen-token-plan/qwen3.8-max` / `qwen3.8-flash` unchanged)
+- **OpenCode:** `opencode run --model agenthub-daytona/qwen3.8-27b-unc-q8#everyday ...` (uses `{file:.../secrets/inference.key}` when present; the account default models are unchanged)
 - **Codex CLI:** `codex -p daytona-specialist ...` (standalone `~/.codex/daytona-*.config.toml` profiles) or `codex -c 'model_provider="agenthub-daytona"' -m qwen3.8-27b-unc-q8` (`gpt-6.2-sol` + ChatGPT auth unchanged)
 - **Factory Droid:** `droid exec -m custom:daytona-specialist ...` or select `custom:daytona-specialist` / `custom:daytona-flagship`
 - **Grok Build:** `grok --model agenthub-daytona-specialist ...`

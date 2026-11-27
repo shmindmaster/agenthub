@@ -2,7 +2,7 @@
 name: dispatch
 description: Runs a task on another coding-agent host and returns its output. Use when asked to delegate, hand off or run work on another agent, or to list callable hosts.
 metadata:
-  version: "0.13.9"
+  version: "0.13.10"
 ---
 
 # Dispatch to another coding agent
@@ -70,7 +70,7 @@ their native accounts by default. Use `-Auth` to show sign-in commands, and add
    wallet, MiMo on the Token Plan only).
 
    Subscription plan routes (smoke-verified 2026-11-14) for opencode, kilo and
-   factory: Qwen Token Plan, Z.ai GLM Coding Plan and MiMo Token Plan. Exact
+   factory: Z.ai GLM Coding Plan and MiMo Token Plan. Exact
    ids are in `references/hosts.md` -> Plan routes.
    For Z.ai Coding Plan, use `-HostId opencode -Model zai-coding-plan/glm-5.4`.
    See the host reference for the Windows tool limits.

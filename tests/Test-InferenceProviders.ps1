@@ -596,14 +596,14 @@ try {
     foreach ($d in $dirs) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
 
     [IO.File]::WriteAllText("$fakeHome/.config/opencode/opencode.json", (@{
-        model = 'qwen-token-plan/qwen3.8-max'
-        small_model = 'qwen-token-plan/qwen3.8-flash'
-        providers = @{ 'qwen-token-plan' = @{ name = 'Qwen Token Plan' } }
-        agents = @{ title = @{ model = 'qwen-token-plan/qwen3.8-flash' } }
+        model = 'zai-glm-plan/glm-5.4'
+        small_model = 'zai-glm-plan/glm-5.4-flash'
+        providers = @{ 'zai-glm-plan' = @{ name = 'Z.ai GLM Coding Plan' } }
+        agents = @{ title = @{ model = 'zai-glm-plan/glm-5.4-flash' } }
     } | ConvertTo-Json -Depth 10))
 
     [IO.File]::WriteAllText("$fakeHome/.codex/config.toml", "forced_login_method = `"chatgpt`"`nmodel = `"gpt-6.2-sol`"`n")
-    [IO.File]::WriteAllText("$fakeHome/.factory/settings.json", (@{ model = $null; customModels = @(@{ model = 'qwen4-max-preview'; baseUrl = 'https://example.invalid/v1' }) } | ConvertTo-Json -Depth 10))
+    [IO.File]::WriteAllText("$fakeHome/.factory/settings.json", (@{ model = $null; customModels = @(@{ model = 'glm-5.4-zai'; baseUrl = 'https://example.invalid/v1' }) } | ConvertTo-Json -Depth 10))
     [IO.File]::WriteAllText("$fakeHome/.grok/config.toml", "[models]`ndefault = `"grok-4`"`n`n[model.daytona-specialist]`nmodel = `"qwen3.8-27b-unc-q8`"`nname = `"Old Daytona Specialist`"`n")
     [IO.File]::WriteAllText("$fakeRoaming/Code - Insiders/User/chatLanguageModels.json", (@(@{ name = 'Copilot'; vendor = 'copilot' }, @{ name = 'Daytona H200'; vendor = 'customendpoint'; models = @() }) | ConvertTo-Json -Depth 10))
     [IO.File]::WriteAllText("$fakeHome/.config/kilo/kilo.jsonc", (@{ model = 'mimo/mimo-v2.6-pro'; provider = @{ mimo = @{ name = 'MiMo' } } } | ConvertTo-Json -Depth 10))
@@ -629,8 +629,8 @@ try {
 
         # Verify preserved defaults and the two model contexts
         $oc = Get-Content "$fakeHome/.config/opencode/opencode.json" -Raw -Encoding UTF8 | ConvertFrom-Json
-        Assert-True ($oc.model -eq 'qwen-token-plan/qwen3.8-max') 'OpenCode default model changed'
-        Assert-True ($oc.small_model -eq 'qwen-token-plan/qwen3.8-flash') 'OpenCode small_model changed'
+        Assert-True ($oc.model -eq 'zai-glm-plan/glm-5.4') 'OpenCode default model changed'
+        Assert-True ($oc.small_model -eq 'zai-glm-plan/glm-5.4-flash') 'OpenCode small_model changed'
         $qm = $oc.providers.'agenthub-daytona'.models.'qwen3.8-27b-unc-q8'
         Assert-True ($null -ne $qm -and $qm.limit.context -eq 262144 -and $qm.limit.output -eq 32768 -and (-not $qm.disabled)) 'Qwen context/output/disabled mismatch'
         $im = $oc.providers.'agenthub-daytona'.models.'inkling2-min-26b-unc-q8-128k'
