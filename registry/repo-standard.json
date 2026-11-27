@@ -1,89 +1,233 @@
 {
-  "schemaVersion": 2,
-  "recordedOn": "2026-08-30",
-  "purpose": "Machine-readable roster and rule parameters for the fleet repository knowledge + agent-instruction standard, enforced by scripts/Check-RepoStandard.ps1. One authored agent contract (AGENTS.md) per repo; CLAUDE.md is an @-import adapter; docs/ holds durable curated knowledge; an upstream openwiki/ directory may hold derived notes (openwikiException); the tracker named per repo is the only backlog authority.",
-  "fleetRoot": "C:/Repos/shmindmaster",
-  "excluded": [
-    { "name": ".demo-workspace", "reason": "Removed 2026-08-21. Was Product Demo Studio working media (not a git repo). work_dir now lives under %LOCALAPPDATA%\\AgentHub\\demo-workspace." },
-    { "name": "local-ai-platform-release-20261021", "reason": "Temporary immutable release clone of local-ai-platform, not an independent product or fleet member. Canonical local-ai-platform classification still applies; no native mobile identity is authorized." },
-    { "name": "awesome-mcp-servers", "reason": "Recorded 2026-10-21. Fork of the third-party list punkpeye/awesome-mcp-servers (README files only, no product, no native project). It is reference material, not a fleet repo, so the knowledge standard and mobile-scope classification do not apply." }
-  ],
-  "requiredRootFiles": ["README.md", "AGENTS.md", "CLAUDE.md"],
-  "requiredDocsFiles": ["docs/README.md", "docs/current-state.md", "docs/plans/PLANS.md"],
-  "requiredDocsDirs": ["docs/product", "docs/architecture", "docs/development", "docs/runbooks", "docs/plans"],
-  "forbiddenPaths": [
-    "GEMINI.md",
-    ".cursorrules",
-    ".windsurfrules",
-    ".github/copilot-instructions.md",
-    "docs/ai/REPO_AGENT_RULES.md",
-    "NEXT_SESSION.md",
-    "STATUS.md",
-    "output.txt",
-    "lint_output.txt"
-  ],
-  "rootMarkdownAllowlist": [
-    "README.md",
-    "AGENTS.md",
-    "CLAUDE.md",
-    "CHANGELOG.md",
-    "CONTRIBUTING.md",
-    "SECURITY.md",
-    "CODE_OF_CONDUCT.md",
-    "ROADMAP.md",
-    "LICENSE.md",
-    "LICENSE",
-    "global-agent-policy.md"
-  ],
-  "agentsAnchors": [
-    "## Mission",
-    "Knowledge authority",
-    "Start here",
-    "Canonical commands",
-    "## Tracker",
-    "Definition of done",
-    "## Safety"
-  ],
-  "openwikiException": {
-    "decided": "2026-11-13",
-    "issue": "SH-4669",
-    "allowedPaths": ["openwiki/"],
-    "allowedManagedBlocks": ["AGENTS.md", "CLAUDE.md"],
-    "note": "Upstream OpenWiki output and its scoped managed discovery blocks are permitted. This is not a general relaxation: no other generated tree is allowed, the wiki never replaces AGENTS.md or docs/, and it is written only by an explicit host-driven update."
-  },
-  "claudeMaxAuthoredLines": 80,
-  "repos": {
-    "abacare": {
-      "tracker": "linear",
-      "trackerNote": "ABACARE Linear",
-      "docsExemptions": {
-        "reason": "The repository's AGENTS.md defines an exact ten-document flat docs layout (D-001); splitting those authoritative documents into taxonomy directories would duplicate knowledge.",
-        "paths": ["docs/product", "docs/architecture", "docs/development", "docs/runbooks", "docs/plans", "docs/README.md", "docs/current-state.md", "docs/plans/PLANS.md"]
-      }
-    },
-    "agenthub":       { "tracker": "linear", "trackerNote": "ABACARE Shared Platform (CORE); AgentHub — Portfolio Engineering & Knowledge. Drift detection and validation stay the correctness authority." },
-    "coledger":       { "tracker": "linear", "trackerNote": "Linear" },
-    "crewscore": {
-      "tracker": "none",
-      "trackerNote": "GitHub repository deleted 2026-11-05; local checkout retained pending cleanup. Historical GitHub Issues/PRs are no longer available.",
-      "agentsExemptions": ["examples/corpus/repo-config/AGENTS.md"],
-      "docsExemptions": {
-        "reason": "The small OSS CLI intentionally keeps its product, architecture, development, and runbook guidance in named flat documents linked from docs/README.md.",
-        "paths": ["docs/product", "docs/architecture", "docs/development", "docs/runbooks"]
-      }
-    },
-    "gentlenext":     { "tracker": "linear", "trackerNote": "Linear" },
-    "heatlot":        { "tracker": "github-issues", "trackerNote": "OSS (renamed from assay 2026-10-15): GitHub Issues/PRs; verification pack in docs/verification" },
-    "gitpin":         { "tracker": "none", "trackerNote": "GitHub repository deleted 2026-11-05; local checkout retained pending cleanup. Historical GitHub Issues/PRs are no longer available.", "agentsExemptions": [".demo\\runtime\\repositories\\atlas-api\\AGENTS.md", ".demo\\runtime\\repositories\\support-ops\\AGENTS.md", ".repocontext-index\\gitpin\\AGENTS.md"] },
-    "lawli":          { "tracker": "linear", "trackerNote": "ABACARE Linear" },
-    "lexalign":       { "tracker": "linear", "trackerNote": "ABACARE Linear", "agentsExemptions": ["apps/web/AGENTS.md"] },
-    "lienwise":       { "tracker": "linear", "trackerNote": "ABACARE Linear" },
-    "mahumtech":      { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
-    "rexa":           { "tracker": "linear", "trackerNote": "ABACARE Linear; Rexa finish line in Venture Products" },
-    "saroshhussain":  { "tracker": "none", "trackerNote": "No external tracker" },
-    "subops":         { "tracker": "linear", "trackerNote": "ABACARE Linear; DEBT.md registers accepted debt" },
-    "tgiagency":      { "tracker": "none", "trackerNote": "No external tracker" },
-    "verigence":      { "tracker": "linear", "trackerNote": "ABACARE Linear" },
-    "warrantygains":  { "tracker": "linear", "trackerNote": "ABACARE Linear" }
-  }
+    "schemaVersion":  2,
+    "recordedOn":  "2026-11-27",
+    "purpose":  "Machine-readable roster for the fleet repository standard (Check-RepoStandard.ps1). Owner portfolio ceiling: at most 20 GitHub repositories owned by shmindmaster (public+private+archived+forks). Keep standalone repos for meaningful continuing software only; consolidate or retire non-code/one-time/redundant work after preservation. Short lowercase names. Archiving does not reduce count. Do not create new repos while over the ceiling.",
+    "fleetRoot":  "C:/Repos/shmindmaster",
+    "excluded":  [
+                     {
+                         "name":  ".demo-workspace",
+                         "reason":  "Removed 2026-08-21. Was Product Demo Studio working media (not a git repo). work_dir now lives under %LOCALAPPDATA%\\AgentHub\\demo-workspace."
+                     },
+                     {
+                         "name":  "local-ai-platform-release-20261021",
+                         "reason":  "Temporary immutable release clone of local-ai-platform, not an independent product or fleet member. Canonical local-ai-platform classification still applies; no native mobile identity is authorized."
+                     },
+                     {
+                         "name":  "awesome-mcp-servers",
+                         "reason":  "Recorded 2026-10-21. Fork of the third-party list punkpeye/awesome-mcp-servers (README files only, no product, no native project). It is reference material, not a fleet repo, so the knowledge standard and mobile-scope classification do not apply."
+                     },
+                     {
+                         "name":  "replyonce",
+                         "reason":  "Consolidated into fakeplane/packages/replyonce 2026-11-27; GitHub repo deleted after mirror backup."
+                     },
+                     {
+                         "name":  "subtext-scan",
+                         "reason":  "Consolidated into fakeplane/packages/subtext-scan 2026-11-27; deleted after mirror backup."
+                     },
+                     {
+                         "name":  "safeguards",
+                         "reason":  "Consolidated into fakeplane/packages/safeguards 2026-11-27; deleted after mirror backup."
+                     },
+                     {
+                         "name":  "agent-eval-playbook",
+                         "reason":  "Consolidated into fakeplane/packages/agent-eval-playbook 2026-11-27; deleted after mirror backup."
+                     },
+                     {
+                         "name":  "rakazo-operations",
+                         "reason":  "Absorbed into abacare/scripts/rakazo-operations 2026-11-27; deleted after mirror backup."
+                     },
+                     {
+                         "name":  "steel-cert-inspection-autoclaw",
+                         "reason":  "Reusable parts preserved in heatlot/examples/steel-cert-autoclaw 2026-11-27; deleted after mirror backup."
+                     },
+                     {
+                         "name":  "solver",
+                         "reason":  "Absorbed into agenthub-private/packages/solver 2026-11-27; deleted after mirror backup."
+                     },
+                     {
+                         "name":  "texas-msa-review-autoclaw",
+                         "reason":  "One-time demo; snapshot in agenthub-private/artifacts/retired/; deleted 2026-11-27."
+                     },
+                     {
+                         "name":  "shmindmaster",
+                         "reason":  "Profile-only README preserved under saroshhussain/docs/; deleted 2026-11-27."
+                     },
+                     {
+                         "name":  "duckie",
+                         "reason":  "Personal monorepo retired from shmindmaster portfolio 2026-11-27; full mirror retained locally."
+                     },
+                     {
+                         "name":  "crewscore",
+                         "reason":  "GitHub repository deleted 2026-11-05."
+                     },
+                     {
+                         "name":  "gitpin",
+                         "reason":  "GitHub repository deleted 2026-11-05."
+                     },
+                     {
+                         "name":  "WSARooted",
+                         "reason":  "ToS-blocked fork; deletion blocked by GitHub 403; ownership removal requires Support."
+                     }
+                 ],
+    "requiredRootFiles":  [
+                              "README.md",
+                              "AGENTS.md",
+                              "CLAUDE.md"
+                          ],
+    "requiredDocsFiles":  [
+                              "docs/README.md",
+                              "docs/current-state.md",
+                              "docs/plans/PLANS.md"
+                          ],
+    "requiredDocsDirs":  [
+                             "docs/product",
+                             "docs/architecture",
+                             "docs/development",
+                             "docs/runbooks",
+                             "docs/plans"
+                         ],
+    "forbiddenPaths":  [
+                           "GEMINI.md",
+                           ".cursorrules",
+                           ".windsurfrules",
+                           ".github/copilot-instructions.md",
+                           "docs/ai/REPO_AGENT_RULES.md",
+                           "NEXT_SESSION.md",
+                           "STATUS.md",
+                           "output.txt",
+                           "lint_output.txt"
+                       ],
+    "rootMarkdownAllowlist":  [
+                                  "README.md",
+                                  "AGENTS.md",
+                                  "CLAUDE.md",
+                                  "CHANGELOG.md",
+                                  "CONTRIBUTING.md",
+                                  "SECURITY.md",
+                                  "CODE_OF_CONDUCT.md",
+                                  "ROADMAP.md",
+                                  "LICENSE.md",
+                                  "LICENSE",
+                                  "global-agent-policy.md"
+                              ],
+    "agentsAnchors":  [
+                          "## Mission",
+                          "Knowledge authority",
+                          "Start here",
+                          "Canonical commands",
+                          "## Tracker",
+                          "Definition of done",
+                          "## Safety"
+                      ],
+    "openwikiException":  {
+                              "decided":  "2026-11-13",
+                              "issue":  "SH-4669",
+                              "allowedPaths":  [
+                                                   "openwiki/"
+                                               ],
+                              "allowedManagedBlocks":  [
+                                                           "AGENTS.md",
+                                                           "CLAUDE.md"
+                                                       ],
+                              "note":  "Upstream OpenWiki output and its scoped managed discovery blocks are permitted. This is not a general relaxation: no other generated tree is allowed, the wiki never replaces AGENTS.md or docs/, and it is written only by an explicit host-driven update."
+                          },
+    "claudeMaxAuthoredLines":  80,
+    "repos":  {
+                  "abacare":  {
+                                  "tracker":  "linear",
+                                  "trackerNote":  "ABACARE Linear",
+                                  "docsExemptions":  {
+                                                         "reason":  "The repository\u0027s AGENTS.md defines an exact ten-document flat docs layout (D-001); splitting those authoritative documents into taxonomy directories would duplicate knowledge.",
+                                                         "paths":  [
+                                                                       "docs/product",
+                                                                       "docs/architecture",
+                                                                       "docs/development",
+                                                                       "docs/runbooks",
+                                                                       "docs/plans",
+                                                                       "docs/README.md",
+                                                                       "docs/current-state.md",
+                                                                       "docs/plans/PLANS.md"
+                                                                   ]
+                                                     }
+                              },
+                  "agenthub":  {
+                                   "tracker":  "linear",
+                                   "trackerNote":  "ABACARE Shared Platform (CORE); AgentHub — Portfolio Engineering \u0026 Knowledge. Drift detection and validation stay the correctness authority."
+                               },
+                  "coledger":  {
+                                   "tracker":  "linear",
+                                   "trackerNote":  "Linear"
+                               },
+                  "gentlenext":  {
+                                     "tracker":  "linear",
+                                     "trackerNote":  "Linear"
+                                 },
+                  "heatlot":  {
+                                  "tracker":  "github-issues",
+                                  "trackerNote":  "OSS (renamed from assay 2026-10-15): GitHub Issues/PRs; verification pack in docs/verification"
+                              },
+                  "lawli":  {
+                                "tracker":  "linear",
+                                "trackerNote":  "ABACARE Linear"
+                            },
+                  "lexalign":  {
+                                   "tracker":  "linear",
+                                   "trackerNote":  "ABACARE Linear",
+                                   "agentsExemptions":  [
+                                                            "apps/web/AGENTS.md"
+                                                        ]
+                               },
+                  "lienwise":  {
+                                   "tracker":  "linear",
+                                   "trackerNote":  "ABACARE Linear"
+                               },
+                  "mahumtech":  {
+                                    "tracker":  "none",
+                                    "trackerNote":  "No external tracker; docs/plans/ for complex work"
+                                },
+                  "rexa":  {
+                               "tracker":  "linear",
+                               "trackerNote":  "ABACARE Linear; Rexa finish line in Venture Products"
+                           },
+                  "saroshhussain":  {
+                                        "tracker":  "none",
+                                        "trackerNote":  "No external tracker"
+                                    },
+                  "subops":  {
+                                 "tracker":  "linear",
+                                 "trackerNote":  "ABACARE Linear; DEBT.md registers accepted debt"
+                             },
+                  "tgiagency":  {
+                                    "tracker":  "none",
+                                    "trackerNote":  "No external tracker"
+                                },
+                  "verigence":  {
+                                    "tracker":  "linear",
+                                    "trackerNote":  "ABACARE Linear"
+                                },
+                  "warrantygains":  {
+                                        "tracker":  "linear",
+                                        "trackerNote":  "ABACARE Linear"
+                                    },
+                  "agenthub-private":  {
+                                           "tracker":  "none",
+                                           "trackerNote":  "Private overlay backup; confidentiality required"
+                                       },
+                  "docwise":  {
+                                  "tracker":  "linear",
+                                  "trackerNote":  "Venture Products"
+                              },
+                  "empowera":  {
+                                   "tracker":  "linear",
+                                   "trackerNote":  "ABACARE Linear"
+                               },
+                  "fakeplane":  {
+                                    "tracker":  "github-issues",
+                                    "trackerNote":  "OSS agent eval backends; consolidated packages/ for retired OSS tools"
+                                },
+                  "revolva":  {
+                                  "tracker":  "linear",
+                                  "trackerNote":  "ABACARE Linear"
+                              }
+              }
 }
