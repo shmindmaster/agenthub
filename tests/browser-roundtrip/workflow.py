@@ -1,11 +1,12 @@
 import hashlib
 import json
-import os
 import re
 import secrets
 import subprocess
 import sys
 import time
+
+from pathlib import Path
 
 from settings import HOSTS, PORT, ROOT
 
@@ -29,18 +30,16 @@ def cmd(*args):
     return p.stdout
 
 
-sid = json.loads(
-    cmd(
-        "session",
-        "start",
-        "--no-focus",
-        "--browser",
-        os.environ["BSK_TEST_BROWSER"],
-        "--agent-name",
-        "qa-" + h,
-        "--json",
-    )
-)["session_id"]
+launcher = (
+    Path(__file__).resolve().parents[2]
+    / "packages/browser-workflows/skills/browser-operate/scripts/start-session.mjs"
+)
+started = subprocess.run(
+    ["node", str(launcher)], capture_output=True, text=True, timeout=60, check=False
+)
+if started.returncode:
+    raise RuntimeError(started.stderr.strip())
+sid = json.loads(started.stdout)["session_id"]
 
 
 def b(*args):

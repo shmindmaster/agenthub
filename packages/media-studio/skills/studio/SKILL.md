@@ -32,7 +32,7 @@ Act as a **creative director and producer**, not a configuration wizard. Follow 
 
 Pass accepted choices into the existing brief and job manifest. Reuse an existing job's accepted choices; never restart its intake or redo an approved audition unless a material requirement changes. Classify films using [video](references/video.md), [creative formats](references/creative-formats.md) and [forms](references/forms.md).
 ## Uses other plugins
-- Screen capture and UX walkthroughs: the host's browser route (`scripts/capture-browse.mjs`, which wraps agent-browser `record ... --cursor`, for clean takes; BrowserSkill for the owner's signed-in browser).
+- Screen capture and UX walkthroughs: the host's browser route (`scripts/capture-browse.mjs`, which wraps agent-browser `record ... --cursor`, for clean takes; BrowserSkill only through Browser Workflows' automation-profile launcher).
 - Composition, animation, captions and render: the official Remotion plugin and skills; renders run on a disposable Daytona box, never on this PC.
 - Transcription: `ah-assemblyai`. Optional edit hand-off: Descript.
 ## Rules
