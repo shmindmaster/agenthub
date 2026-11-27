@@ -3,7 +3,7 @@ name: browser-verify
 description: Use when the task requires an agent to test real user journeys, verify persistence, diagnose failed screens and replay reviewed recipes.
 ---
 
-Use isolated synthetic fixtures for mutations. Record app revision, starting role and record ID. Exercise the normal UI, wait for a meaningful result, reopen the same record, and compare fields. For multi-role workflows use separate profiles and verify each role independently. Test success, recovery and the expected restricted view as applicable.
+Start with the background session launcher in `../browser-operate/SKILL.md` and give each parallel task its own session. Use isolated synthetic fixtures for mutations. Record app revision, starting role and record ID. Exercise the normal UI, wait for a meaningful result, reopen the same record, and compare fields. For multi-role workflows use separate profiles and verify each role independently. Test success, recovery and the expected restricted view as applicable.
 
 ### Walkthrough acceptance
 

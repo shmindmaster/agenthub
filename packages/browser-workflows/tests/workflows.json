@@ -1,6 +1,20 @@
 {
   "scenarios": [
     {
+      "id": "parallel-background-sessions",
+      "skill": "browser-operate",
+      "kind": "workflow",
+      "input": "Run two independent jobs while the user works in a personal browser.",
+      "expected": "Launch independent background sessions on the approved automation profile and stop only the owned session.",
+      "evidence": [
+        "scripts/start-session.mjs",
+        "--no-focus",
+        "Never fall back to the only connected personal browser",
+        "Give each concurrent task its own session and tabs",
+        "End only your session"
+      ]
+    },
+    {
       "skill": "browser-operate",
       "kind": "workflow",
       "input": "Prepare a portal request",
